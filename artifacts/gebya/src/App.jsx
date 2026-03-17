@@ -40,6 +40,7 @@ function AppInner() {
     sale:    { type: 'cash', provider: '', bankProvider: '', walletProvider: '' },
     expense: { type: 'cash', provider: '', bankProvider: '', walletProvider: '' },
   });
+  const [usageStats, setUsageStats] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -68,6 +69,60 @@ function AppInner() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const trackSession = useCallback(async () => {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const [scRow, ladRow, sdRow, lsdRow, daRow, fcRow, fudRow] = await Promise.all([
+        db.analytics.get('session_count'),
+        db.analytics.get('last_active_date'),
+        db.analytics.get('streak_days'),
+        db.analytics.get('longest_streak'),
+        db.analytics.get('days_active'),
+        db.analytics.get('feature_counts'),
+        db.analytics.get('first_used_date'),
+      ]);
+
+      const sessionCount = (scRow?.value || 0) + 1;
+      const lastDate = ladRow?.value || null;
+      const isNewDay = lastDate !== todayStr;
+
+      let streak = sdRow?.value || 1;
+      let longestStreak = lsdRow?.value || 1;
+      if (isNewDay) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        streak = lastDate === yesterdayStr ? streak + 1 : 1;
+        longestStreak = Math.max(longestStreak, streak);
+      }
+
+      let daysActive = [];
+      try { daysActive = daRow ? JSON.parse(daRow.value) : []; } catch { daysActive = []; }
+      if (isNewDay && !daysActive.includes(todayStr)) daysActive = [...daysActive, todayStr];
+
+      let featureCounts = { sales: 0, expenses: 0, credits: 0 };
+      try { featureCounts = fcRow ? JSON.parse(fcRow.value) : featureCounts; } catch { /* keep default */ }
+
+      const firstUsed = fudRow?.value || todayStr;
+
+      await Promise.all([
+        db.analytics.put({ key: 'session_count',   value: sessionCount }),
+        db.analytics.put({ key: 'last_active_date', value: todayStr }),
+        db.analytics.put({ key: 'streak_days',      value: streak }),
+        db.analytics.put({ key: 'longest_streak',   value: longestStreak }),
+        db.analytics.put({ key: 'days_active',      value: JSON.stringify(daysActive) }),
+        db.analytics.put({ key: 'feature_counts',   value: JSON.stringify(featureCounts) }),
+        db.analytics.put({ key: 'first_used_date',  value: firstUsed }),
+      ]);
+
+      setUsageStats({ sessionCount, streak, longestStreak, daysActive, featureCounts, firstUsed });
+    } catch (err) {
+      console.error('Analytics tracking failed:', err);
+    }
+  }, []);
+
+  useEffect(() => { trackSession(); }, [trackSession]);
 
   const handleAddTransaction = async (transaction) => {
     try {
@@ -120,6 +175,18 @@ function AppInner() {
             },
           };
         });
+      }
+
+      const fcKey = { sale: 'sales', expense: 'expenses', credit: 'credits' }[transaction.type];
+      if (fcKey) {
+        try {
+          const fcRow = await db.analytics.get('feature_counts');
+          let fc = { sales: 0, expenses: 0, credits: 0 };
+          try { fc = fcRow ? JSON.parse(fcRow.value) : fc; } catch { /* keep default */ }
+          fc[fcKey] = (fc[fcKey] || 0) + 1;
+          await db.analytics.put({ key: 'feature_counts', value: JSON.stringify(fc) });
+          setUsageStats(prev => prev ? { ...prev, featureCounts: fc } : prev);
+        } catch { /* non-critical */ }
       }
     } catch (err) {
       console.error('Failed to save:', err);
@@ -418,6 +485,7 @@ function AppInner() {
             onProvidersChange={setEnabledProviders}
             recurringExpenses={recurringExpenses}
             onRecurringChange={setRecurringExpenses}
+            usageStats={usageStats}
           />
         )}
       </main>

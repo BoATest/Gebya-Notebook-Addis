@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, X } from 'lucide-react';
+import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, Share2 } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/format';
@@ -17,6 +17,7 @@ function SettingsPage({
   onProvidersChange,
   recurringExpenses,
   onRecurringChange,
+  usageStats,
 }) {
   const { hidden, toggle } = usePrivacy();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -120,8 +121,83 @@ function SettingsPage({
   const totalCredits = creditRecords.length;
   const profileChanged = editName.trim() !== (shopProfile?.name || '') || editPhone.trim() !== (shopProfile?.phone || '');
 
+  const [shareCopied, setShareCopied] = useState(false);
+
+  const handleShareStats = async () => {
+    if (!usageStats) return;
+    const { streak, longestStreak, daysActive, featureCounts, sessionCount, firstUsed } = usageStats;
+    const fc = featureCounts || {};
+    const text = [
+      `📊 Gebya usage stats for ${shopProfile?.name || 'my shop'}:`,
+      `🔥 Current streak: ${streak} day${streak !== 1 ? 's' : ''} (longest: ${longestStreak})`,
+      `📅 Using since: ${firstUsed}`,
+      `📈 Total days active: ${daysActive?.length || 1}`,
+      `🛒 Entries: ${fc.sales || 0} sales · ${fc.expenses || 0} expenses · ${fc.credits || 0} credits`,
+      `📱 Sessions opened: ${sessionCount}`,
+    ].join('\n');
+
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Gebya Stats', text }); return; } catch { /* fall through to clipboard */ }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2500);
+    } catch { /* ignore */ }
+  };
+
   return (
     <div className="space-y-5 pb-4">
+
+      {usageStats && (
+        <section>
+          <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">Usage Insights</h2>
+          <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden">
+            <div className="px-5 pt-4 pb-3 space-y-3">
+              <div className="flex gap-3">
+                <div className="flex-1 rounded-xl p-3 text-center" style={{ background: '#fff7ed', border: '1.5px solid #fed7aa' }}>
+                  <div className="text-2xl font-black" style={{ color: '#c2410c' }}>🔥 {usageStats.streak}</div>
+                  <div className="text-xs font-semibold text-gray-600 mt-0.5">day streak</div>
+                  <div className="text-xs text-gray-400">best: {usageStats.longestStreak}</div>
+                </div>
+                <div className="flex-1 rounded-xl p-3 text-center" style={{ background: '#f0fdf4', border: '1.5px solid #bbf7d0' }}>
+                  <div className="text-2xl font-black text-green-700">📅 {usageStats.daysActive?.length || 1}</div>
+                  <div className="text-xs font-semibold text-gray-600 mt-0.5">days active</div>
+                  <div className="text-xs text-gray-400">since {usageStats.firstUsed}</div>
+                </div>
+              </div>
+              <div className="rounded-xl p-3" style={{ background: '#faf5eb', border: '1.5px solid #f0e6d4' }}>
+                <div className="text-xs font-bold text-gray-500 mb-1.5">📊 Total entries recorded</div>
+                <div className="flex justify-around text-center">
+                  <div>
+                    <div className="text-lg font-black text-green-700">{usageStats.featureCounts?.sales || 0}</div>
+                    <div className="text-xs text-gray-500">Sales</div>
+                  </div>
+                  <div className="w-px bg-amber-100" />
+                  <div>
+                    <div className="text-lg font-black text-red-600">{usageStats.featureCounts?.expenses || 0}</div>
+                    <div className="text-xs text-gray-500">Expenses</div>
+                  </div>
+                  <div className="w-px bg-amber-100" />
+                  <div>
+                    <div className="text-lg font-black" style={{ color: '#c47c1a' }}>{usageStats.featureCounts?.credits || 0}</div>
+                    <div className="text-xs text-gray-500">Credits</div>
+                  </div>
+                </div>
+                <div className="mt-2 text-center text-xs text-gray-400">{usageStats.sessionCount} sessions opened</div>
+              </div>
+              <button
+                onClick={handleShareStats}
+                className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all min-h-[48px]"
+                style={{ background: shareCopied ? '#15803d' : '#c47c1a', color: '#fff' }}
+              >
+                <Share2 className="w-4 h-4" />
+                {shareCopied ? 'Copied to clipboard!' : 'Share My Stats 📤'}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">Shop Profile</h2>
