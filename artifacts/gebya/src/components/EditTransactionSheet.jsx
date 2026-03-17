@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { X, Save, ChevronDown, ChevronUp, AlertTriangle, Pencil } from 'lucide-react';
+import { useLang } from '../context/LangContext';
 import VoiceButton from './VoiceButton';
 import PaymentTypeChips from './PaymentTypeChips';
 import { getDueDateOptions } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/format';
 
-const TYPE_LABELS = { sale: 'Edit Sale', expense: 'Edit Expense', credit: 'Edit Credit' };
 const ACCENT = {
   sale:    { btn: '#15803d', border: '#86efac' },
   expense: { btn: '#dc2626', border: '#fca5a5' },
@@ -13,9 +13,12 @@ const ACCENT = {
 };
 
 function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose }) {
+  const { t } = useLang();
   const type = transaction.type;
   const isCredit = type === 'credit';
   const accent = ACCENT[type] || ACCENT.sale;
+
+  const typeLabels = { sale: t.editSale, expense: t.editExpense, credit: t.editCredit };
 
   const [item, setItem] = useState(transaction.item_name || '');
   const [quantity, setQuantity] = useState(String(transaction.quantity || 1));
@@ -86,13 +89,13 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
             <div>
               <div className="flex items-center gap-2">
                 <Pencil className="w-4 h-4" style={{ color: '#c47c1a' }} />
-                <h2 className="text-xl font-black text-gray-900">{TYPE_LABELS[type] || 'Edit Entry'}</h2>
+                <h2 className="text-xl font-black text-gray-900">{typeLabels[type] || t.editEntryLabel}</h2>
               </div>
               {lastEdited && (
-                <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>Edited {lastEdited}</p>
+                <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>{t.editedAt} {lastEdited}</p>
               )}
             </div>
-            <button onClick={onClose} aria-label="Close"
+            <button onClick={onClose} aria-label={t.close}
               className="p-2 rounded-full hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
               <X className="w-5 h-5 text-gray-500" />
             </button>
@@ -103,11 +106,11 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
 
           {isCredit && (
             <div>
-              <label className="block text-gray-700 font-semibold mb-2 text-sm">Direction</label>
+              <label className="block text-gray-700 font-semibold mb-2 text-sm">{t.direction}</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { id: 'owes_me', label: 'ያበደርኩት', sub: 'They owe me' },
-                  { id: 'i_owe',   label: 'የተበደርኩት', sub: 'I owe them' },
+                  { id: 'owes_me', label: t.owesMe, sub: t.theyOweMe },
+                  { id: 'i_owe',   label: t.iOweLabel, sub: t.iOweThem },
                 ].map(d => (
                   <button key={d.id} type="button" onClick={() => setDirection(d.id)}
                     className="p-3 rounded-xl border-2 text-center transition-all min-h-[56px]"
@@ -126,7 +129,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
 
           <div>
             <label className="block text-gray-700 font-semibold mb-2">
-              {isCredit ? 'Name' : 'Item'}
+              {isCredit ? t.creditNameLabel : t.item}
             </label>
             <div className="flex gap-2">
               <input
@@ -142,7 +145,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
 
           {!isCredit && (
             <div>
-              <label className="block text-gray-700 font-semibold mb-2">Quantity</label>
+              <label className="block text-gray-700 font-semibold mb-2">{t.quantity}</label>
               <input type="number" inputMode="numeric" value={quantity}
                 onChange={e => setQuantity(e.target.value)} min="1"
                 className="w-full p-4 border-2 rounded-2xl focus:outline-none text-base min-h-[52px]"
@@ -151,23 +154,23 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
           )}
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">Amount</label>
+            <label className="block text-gray-700 font-semibold mb-2">{t.amount}</label>
             <div className="relative">
               <input type="number" inputMode="decimal" value={amount}
                 onChange={e => setAmount(e.target.value)} placeholder="0"
                 className="w-full p-4 pr-16 border-2 rounded-2xl focus:outline-none text-base min-h-[52px]"
                 style={{ borderColor: '#e8d5b0' }} />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">birr</span>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">{t.birr}</span>
             </div>
           </div>
 
           {isCredit && (
             <div>
               <label className="block text-gray-700 font-semibold mb-2">
-                Phone number <span className="text-gray-400 font-normal text-sm">(optional)</span>
+                {t.phoneOptional} <span className="text-gray-400 font-normal text-sm">{t.phoneOptionalHint}</span>
               </label>
               <input type="tel" inputMode="tel" value={phone}
-                onChange={e => setPhone(e.target.value)} placeholder="e.g. 0912345678"
+                onChange={e => setPhone(e.target.value)} placeholder={t.phonePlaceholder}
                 className="w-full p-4 border-2 rounded-2xl focus:outline-none text-base min-h-[52px]"
                 style={{ borderColor: '#e8d5b0' }} />
             </div>
@@ -175,7 +178,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
 
           {isCredit && (
             <div>
-              <label className="block text-gray-700 font-semibold mb-2">Due date</label>
+              <label className="block text-gray-700 font-semibold mb-2">{t.dueDate}</label>
               <div className="grid grid-cols-3 gap-2 mb-2">
                 {dueDateOptions.map(opt => (
                   <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)}
@@ -197,7 +200,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                   background: selectedDue === 'custom' ? '#fffbeb' : '#fff',
                   color: selectedDue === 'custom' ? '#92400e' : '#4b5563',
                 }}>
-                Pick a date
+                {t.pickDate}
               </button>
               {selectedDue === 'custom' && (
                 <input type="date" value={customDue} onChange={e => setCustomDue(e.target.value)}
@@ -224,31 +227,31 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                 className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[44px]"
                 style={{ color: '#c47c1a' }}>
                 {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                Advanced (optional)
+                {t.advancedOptional}
               </button>
 
               {showAdvanced && (
                 <div className="mt-2 p-4 rounded-2xl border" style={{ background: '#faf5eb', borderColor: '#f0e6d4' }}>
                   <label className="block text-gray-600 text-sm font-semibold mb-2">
-                    Cost price <span style={{ color: '#9ca3af' }}>(per unit)</span>
+                    {t.costPriceLabel} <span style={{ color: '#9ca3af' }}>{t.perUnit}</span>
                   </label>
                   <div className="relative">
                     <input type="number" inputMode="decimal" value={costPrice}
                       onChange={e => setCostPrice(e.target.value)} placeholder="0"
                       className="w-full p-4 pr-16 border-2 rounded-2xl focus:outline-none text-base min-h-[52px]"
                       style={{ borderColor: '#e8d5b0' }} />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">birr</span>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">{t.birr}</span>
                   </div>
                   {belowCost && (
                     <div className="mt-3 flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                       <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-amber-700">Selling below cost.</p>
+                      <p className="text-xs text-amber-700">{t.sellingBelowCostShort}</p>
                     </div>
                   )}
                   {cost > 0 && !belowCost && sellingPrice > 0 && (
                     <div className="mt-3 p-3 rounded-xl border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
                       <p className="text-xs text-green-700 font-semibold">
-                        Profit: {fmt(sellingPrice - cost * qty)} birr
+                        {t.profitLabel} {fmt(sellingPrice - cost * qty)} {t.birr}
                       </p>
                     </div>
                   )}
@@ -263,7 +266,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
             className="w-full p-4 rounded-2xl font-black text-white text-base flex items-center justify-center gap-2 transition-all min-h-[56px] active:scale-95"
             style={{ background: canSave ? accent.btn : '#e5e7eb', color: canSave ? '#fff' : '#9ca3af' }}>
             <Save className="w-5 h-5" />
-            {saving ? 'Saving…' : 'Save Changes'}
+            {saving ? t.saving : t.saveChanges}
           </button>
         </div>
       </div>

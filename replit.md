@@ -37,6 +37,17 @@ Mobile-first PWA for Ethiopian small shop owners. Serves at path `/`.
 - Ethiopian calendar date display (e.g. "8 መጥቅ 2019")
 - Voice input via Web Speech API (Amharic locale, fallback graceful)
 - 100% offline — all data in IndexedDB via Dexie.js v3 schema, no backend needed
+- **Quick Profit Calculator**: Calculator icon in action bar opens modal — enter cost/sell price, shows live profit + margin %
+- **Top Products Leaderboard**: Top 3 sold items today shown with trophy icons between action bar and entries
+- **7-Day Sales Sparkline**: Pure CSS bar chart for last 7 days above entries, today's bar highlighted
+- **Best-Day Celebration**: Toast fires when today's sales first exceed all-time best (tracked in IndexedDB, fires once per record break)
+- **Achievement Badges**: 5 milestones (First Sale, 7-Day Streak, 1k Birr Day, 50 Transactions, First Credit Repaid) stored in IndexedDB; toast on unlock; badge strip in Settings
+- **Any-Time Report Share**: Share button on Today tab generates formatted text summary; uses Web Share API with Telegram deep-link fallback; Telegram username field in Settings > Shop Profile
+- **Usage Insights on Home**: Streak + days active + total entries row now appears on Today tab; removed from Settings
+- **🔥 Streak chip in header**: Always-visible streak indicator in the header
+- **Bold shop name in header**: Shop name shown in bold white, prominent size
+- **EN/አማ Language toggle**: Header pill button switches all static UI strings between English and Amharic; persisted in localStorage
+- **Translation context**: LangContext with full EN and Amharic string maps; Amharic translations marked for native-speaker review
 
 **Tech stack:**
 - React + Vite + Tailwind CSS (v4)

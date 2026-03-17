@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Mic, MicOff } from 'lucide-react';
+import { useLang } from '../context/LangContext';
 
 function VoiceButton({ onResult }) {
+  const { t } = useLang();
   const [listening, setListening] = useState(false);
   const [error, setError] = useState(null);
 
@@ -26,7 +28,7 @@ function VoiceButton({ onResult }) {
     };
 
     recognition.onerror = () => {
-      setError('Try again');
+      setError(t.tryAgain);
       setListening(false);
     };
 
@@ -37,7 +39,7 @@ function VoiceButton({ onResult }) {
 
   if (!isSupported) {
     return (
-      <span className="text-xs text-gray-400 italic">Voice not supported — use keyboard</span>
+      <span className="text-xs text-gray-400 italic">{t.voiceNotSupported}</span>
     );
   }
 
@@ -47,7 +49,7 @@ function VoiceButton({ onResult }) {
         type="button"
         onClick={startListening}
         disabled={listening}
-        aria-label="Voice input"
+        aria-label={t.voiceInput}
         className={`p-3 rounded-full min-w-[44px] min-h-[44px] flex items-center justify-center transition-all ${
           listening
             ? 'bg-red-500 animate-pulse text-white'

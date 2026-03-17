@@ -1,19 +1,34 @@
 import { useState } from 'react';
+import { useLang } from '../context/LangContext';
 import db from '../db';
 
-function OnboardingScreen({ onComplete }) {
-  const [shopName, setShopName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [saving, setSaving] = useState(false);
+function isValidPhone(digits) {
+  return /^[79]\d{8}$/.test(digits);
+}
 
-  const canProceed = shopName.trim().length > 0;
+function OnboardingScreen({ onComplete }) {
+  const { t } = useLang();
+  const [name, setName] = useState('');
+  const [phoneDigits, setPhoneDigits] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [touched, setTouched] = useState({ name: false, phone: false });
+
+  const nameValid = name.trim().length > 0;
+  const phoneValid = isValidPhone(phoneDigits);
+  const canProceed = nameValid && phoneValid;
+
+  const handlePhoneChange = (e) => {
+    const raw = e.target.value.replace(/\D/g, '');
+    if (raw.length <= 9) setPhoneDigits(raw);
+  };
 
   const handleStart = async () => {
     if (!canProceed || saving) return;
     setSaving(true);
-    await db.settings.put({ key: 'shop_name', value: shopName.trim() });
-    await db.settings.put({ key: 'shop_phone', value: phone.trim() });
-    onComplete({ name: shopName.trim(), phone: phone.trim() });
+    const fullPhone = '+251' + phoneDigits;
+    await db.settings.put({ key: 'shop_name', value: name.trim() });
+    await db.settings.put({ key: 'shop_phone', value: fullPhone });
+    onComplete({ name: name.trim(), phone: fullPhone });
   };
 
   return (
@@ -25,50 +40,67 @@ function OnboardingScreen({ onComplete }) {
           <div className="text-7xl mb-4">📒</div>
           <h1 className="text-4xl font-black text-white tracking-tight mb-1">ገበያ</h1>
           <p className="text-base font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
-            የሱቅ ማስታወሻ ደብተር
+            {t.onboardTagline}
           </p>
           <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            Your business notebook
+            {t.onboardSubtitle}
           </p>
         </div>
 
         <div className="bg-white rounded-3xl p-6 shadow-2xl">
-          <h2 className="text-xl font-black text-gray-900 mb-1">Welcome!</h2>
+          <h2 className="text-xl font-black text-gray-900 mb-1">{t.onboardWelcome}</h2>
           <p className="text-sm text-gray-500 mb-5">
-            Let's set up your shop. You can change these any time in Settings.
+            {t.onboardDesc}
           </p>
 
           <div className="space-y-4">
             <div>
               <label className="block font-semibold text-gray-700 mb-1.5 text-sm">
-                Shop name <span className="text-red-500">*</span>
+                {t.userName} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                value={shopName}
-                onChange={e => setShopName(e.target.value)}
-                placeholder="e.g. Tigist's Store"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                onBlur={() => setTouched(p => ({ ...p, name: true }))}
+                placeholder={t.onboardNamePlaceholder}
                 autoFocus
                 className="w-full p-4 border-2 rounded-2xl text-base focus:outline-none"
-                style={{ borderColor: shopName.trim() ? '#c47c1a' : '#e8d5b0' }}
-                onKeyDown={e => { if (e.key === 'Enter') handleStart(); }}
+                style={{ borderColor: (touched.name && !nameValid) ? '#dc2626' : (nameValid ? '#c47c1a' : '#e8d5b0') }}
+                onKeyDown={e => { if (e.key === 'Enter' && canProceed) handleStart(); }}
               />
             </div>
 
             <div>
               <label className="block font-semibold text-gray-700 mb-1.5 text-sm">
-                Your phone number{' '}
-                <span className="font-normal text-gray-400">(optional)</span>
+                {t.phoneNumber} <span className="text-red-500">*</span>
               </label>
-              <input
-                type="tel"
-                inputMode="tel"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="e.g. 0912345678"
-                className="w-full p-4 border-2 rounded-2xl text-base focus:outline-none"
-                style={{ borderColor: '#e8d5b0' }}
-              />
+              <div className="flex gap-0">
+                <div
+                  className="flex items-center justify-center px-3 py-4 rounded-l-2xl border-2 border-r-0 text-base font-bold"
+                  style={{ background: '#f5f0e8', borderColor: (touched.phone && !phoneValid) ? '#dc2626' : '#e8d5b0', color: '#7c3d12', minWidth: '72px' }}
+                >
+                  +251
+                </div>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={phoneDigits}
+                  onChange={handlePhoneChange}
+                  onBlur={() => setTouched(p => ({ ...p, phone: true }))}
+                  placeholder="9XXXXXXXX"
+                  maxLength={9}
+                  className="flex-1 p-4 border-2 rounded-r-2xl text-base focus:outline-none"
+                  style={{ borderColor: (touched.phone && !phoneValid) ? '#dc2626' : (phoneValid ? '#c47c1a' : '#e8d5b0') }}
+                  onKeyDown={e => { if (e.key === 'Enter' && canProceed) handleStart(); }}
+                />
+              </div>
+              {touched.phone && phoneDigits.length > 0 && !phoneValid && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{t.phoneInvalid}</p>
+              )}
+              {touched.phone && phoneDigits.length === 0 && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{t.phoneRequired}</p>
+              )}
             </div>
           </div>
 
@@ -82,12 +114,12 @@ function OnboardingScreen({ onComplete }) {
               boxShadow: canProceed ? '0 4px 0 #92400e' : 'none',
             }}
           >
-            {saving ? 'Setting up…' : 'ጀምር — Get Started'}
+            {saving ? t.onboardSettingUp : t.onboardGetStarted}
           </button>
         </div>
 
         <p className="text-center text-xs mt-5" style={{ color: 'rgba(255,255,255,0.4)' }}>
-          All data stays on your phone · No account needed · Free
+          {t.onboardFooter}
         </p>
       </div>
     </div>

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Users, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { useLang } from '../context/LangContext';
 import { getCreditStatus, formatEthiopianShort } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/format';
 
 function MerroList({ creditRecords, onSelectCredit }) {
+  const { t } = useLang();
   const [showPaid, setShowPaid] = useState(false);
 
   const active = creditRecords.filter(r => r.status !== 'paid');
@@ -23,8 +25,8 @@ function MerroList({ creditRecords, onSelectCredit }) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <Users className="w-16 h-16 mb-4" style={{ color: '#e5e7eb' }} />
-        <p className="text-lg font-medium" style={{ color: '#9ca3af' }}>No credit records</p>
-        <p className="text-sm mt-1" style={{ color: '#d1d5db' }}>Tap "ብድር" on the Today tab to add one</p>
+        <p className="text-lg font-medium" style={{ color: '#9ca3af' }}>{t.noCreditRecords}</p>
+        <p className="text-sm mt-1" style={{ color: '#d1d5db' }}>{t.addCreditHint}</p>
       </div>
     );
   }
@@ -39,20 +41,20 @@ function MerroList({ creditRecords, onSelectCredit }) {
               <Users className="w-5 h-5" style={{ color: '#92400e' }} />
             </div>
             <div>
-              <p className="text-sm font-semibold" style={{ color: '#92400e' }}>Owed to me</p>
-              <p className="text-2xl font-black" style={{ color: '#78350f' }}>{fmt(owedToMe)} birr</p>
+              <p className="text-sm font-semibold" style={{ color: '#92400e' }}>{t.owedToMe}</p>
+              <p className="text-2xl font-black" style={{ color: '#78350f' }}>{fmt(owedToMe)} {t.birr}</p>
             </div>
           </div>
           <div className="text-right">
             {iOwe > 0 && (
               <div className="mb-1">
-                <p className="text-xs font-semibold text-red-500">I owe</p>
-                <p className="text-sm font-black text-red-600">{fmt(iOwe)} birr</p>
+                <p className="text-xs font-semibold text-red-500">{t.iOweAmount}</p>
+                <p className="text-sm font-black text-red-600">{fmt(iOwe)} {t.birr}</p>
               </div>
             )}
             <div className="text-xs" style={{ color: '#9ca3af' }}>
-              <div>{active.length} active</div>
-              {paid.length > 0 && <div>{paid.length} paid</div>}
+              <div>{active.length} {t.active}</div>
+              {paid.length > 0 && <div>{paid.length} {t.paid}</div>}
             </div>
           </div>
         </div>
@@ -65,14 +67,14 @@ function MerroList({ creditRecords, onSelectCredit }) {
             className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
             style={{ background: !showPaid ? '#c47c1a' : '#f5f5f5', color: !showPaid ? '#fff' : '#6b7280' }}
           >
-            Active ({active.length})
+            {t.activeTab} ({active.length})
           </button>
           <button
             onClick={() => setShowPaid(true)}
             className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
             style={{ background: showPaid ? '#c47c1a' : '#f5f5f5', color: showPaid ? '#fff' : '#6b7280' }}
           >
-            Paid ({paid.length})
+            {t.paidTab} ({paid.length})
           </button>
         </div>
       )}
@@ -82,7 +84,7 @@ function MerroList({ creditRecords, onSelectCredit }) {
           <div className="text-center py-10">
             <CheckCircle2 className="w-12 h-12 mx-auto mb-3" style={{ color: '#d1d5db' }} />
             <p className="text-sm" style={{ color: '#9ca3af' }}>
-              {showPaid ? 'No paid records yet' : 'All caught up!'}
+              {showPaid ? t.noPaidRecords : t.allCaughtUp}
             </p>
           </div>
         )}
@@ -95,9 +97,9 @@ function MerroList({ creditRecords, onSelectCredit }) {
                 <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-green-500" />
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-800">{record.customer_name}</p>
-                  <p className="text-xs text-gray-400">Paid in full · {fmt(record.original_amount)} birr</p>
+                  <p className="text-xs text-gray-400">{t.paidInFull} · {fmt(record.original_amount)} {t.birr}</p>
                 </div>
-                <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">PAID</span>
+                <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">{t.paidLabel}</span>
               </div>
             );
           }
@@ -119,24 +121,24 @@ function MerroList({ creditRecords, onSelectCredit }) {
                     <p className="font-bold text-gray-800 text-base">{record.customer_name}</p>
                     {iOweRecord ? (
                       <span className="px-1.5 py-0.5 rounded text-xs font-bold" style={{ background: '#fee2e2', color: '#dc2626' }}>
-                        I owe
+                        {t.iOweTag}
                       </span>
                     ) : (
                       <span className="px-1.5 py-0.5 rounded text-xs font-bold" style={{ background: '#d1fae5', color: '#065f46' }}>
-                        Owes me
+                        {t.owesMeLabel}
                       </span>
                     )}
                   </div>
                   <p className="text-sm text-gray-500">
-                    Due {record.due_date ? formatEthiopianShort(record.due_date) : '—'}
+                    {t.due} {record.due_date ? formatEthiopianShort(record.due_date) : '—'}
                     {record.paid_amount > 0 && (
-                      <span className="ml-2 text-gray-400">· Paid {fmt(record.paid_amount)}</span>
+                      <span className="ml-2 text-gray-400">· {t.paid} {fmt(record.paid_amount)}</span>
                     )}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="font-bold text-gray-800 text-base">{fmt(record.remaining_amount || 0)} birr</span>
+                <span className="font-bold text-gray-800 text-base">{fmt(record.remaining_amount || 0)} {t.birr}</span>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </div>
             </button>

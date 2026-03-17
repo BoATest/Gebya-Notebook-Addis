@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BookOpen, Users, Calendar, Settings, Trash2, Pencil } from 'lucide-react';
+import { BookOpen, Users, Calendar, Settings, Trash2, Pencil, Calculator, Share2, X } from 'lucide-react';
 import db from './db';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
+import { LangProvider, useLang } from './context/LangContext';
 import ProfitCard from './components/ProfitCard';
 import TransactionForm from './components/TransactionForm';
 import EditTransactionSheet from './components/EditTransactionSheet';
@@ -10,9 +11,12 @@ import CreditDetail from './components/CreditDetail';
 import HistoryView from './components/HistoryView';
 import SettingsPage from './components/SettingsPage';
 import OnboardingScreen from './components/OnboardingScreen';
+import ProfitCalculatorModal from './components/ProfitCalculatorModal';
+import { ToastContainer, fireToast } from './components/Toast';
 import { DEFAULT_PROVIDERS } from './components/PaymentTypeChips';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
 import { fmt } from './utils/format';
+import { checkAndAwardBadges } from './utils/badges';
 
 const P = {
   bg: '#fdf8f0',
@@ -23,8 +27,87 @@ const P = {
   border: '#f0e6d4',
 };
 
+function ShareModal({ summary, telegram, onClose, t }) {
+  const isUsername = telegram?.startsWith('@') && telegram.length > 1;
+  const handle = isUsername ? telegram.slice(1) : null;
+  const encoded = encodeURIComponent(summary);
+
+  const handleNativeShare = async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title: t.shareDailyReport, text: summary }); } catch { /* dismissed */ }
+    }
+  };
+
+  const handleTelegram = () => {
+    window.open(`https://t.me/${handle}?text=${encoded}`, '_blank');
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(summary);
+      fireToast('📋 ' + t.copiedToClipboard, 2500);
+      onClose();
+    } catch { /* ignore */ }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 flex items-end justify-center z-50"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white rounded-t-3xl w-full max-w-md shadow-2xl pb-safe">
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-amber-50">
+          <h2 className="text-base font-black text-gray-800">📤 {t.shareTitle}</h2>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 rounded-full flex items-center justify-center min-w-[44px] min-h-[44px]"
+            style={{ background: '#f5f5f5' }}
+            aria-label={t.cancel}
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+        <div className="px-5 py-4 space-y-2">
+          <div
+            className="rounded-2xl px-4 py-3 text-xs text-gray-500 font-mono whitespace-pre-wrap"
+            style={{ background: '#faf5eb', border: '1px solid #f0e6d4', maxHeight: '140px', overflowY: 'auto', fontSize: '0.7rem', lineHeight: 1.5 }}
+          >
+            {summary}
+          </div>
+          {typeof navigator !== 'undefined' && navigator.share && (
+            <button
+              onClick={handleNativeShare}
+              className="w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 min-h-[48px]"
+              style={{ background: '#c47c1a', color: '#fff' }}
+            >
+              <Share2 className="w-4 h-4" /> {t.shareViaDevice}
+            </button>
+          )}
+          {isUsername && handle && (
+            <button
+              onClick={handleTelegram}
+              className="w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 min-h-[48px]"
+              style={{ background: '#2481cc', color: '#fff' }}
+            >
+              ✈️ {t.openTelegram}
+            </button>
+          )}
+          <button
+            onClick={handleCopy}
+            className="w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 min-h-[48px]"
+            style={{ background: '#f5f5f5', color: '#374151' }}
+          >
+            📋 {t.copyText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppInner() {
   const { hidden } = usePrivacy();
+  const { lang, toggleLang, t } = useLang();
   const [transactions, setTransactions] = useState([]);
   const [creditRecords, setCreditRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,16 +124,22 @@ function AppInner() {
     expense: { type: 'cash', provider: '', bankProvider: '', walletProvider: '' },
   });
   const [usageStats, setUsageStats] = useState(null);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareText, setShareText] = useState('');
+  const [earnedBadges, setEarnedBadges] = useState([]);
+  const [bestDayTotal, setBestDayTotal] = useState(0);
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, credits, nameRow, phoneRow, epRow, reRow] = await Promise.all([
+      const [txns, credits, nameRow, phoneRow, epRow, reRow, telegramRow] = await Promise.all([
         db.transactions.toArray(),
         db.credit_records.toArray(),
         db.settings.get('shop_name'),
         db.settings.get('shop_phone'),
         db.settings.get('enabled_payment_methods'),
         db.settings.get('recurring_expenses'),
+        db.settings.get('shop_telegram'),
       ]);
       txns.sort((a, b) => b.created_at - a.created_at);
       setTransactions(txns);
@@ -58,6 +147,7 @@ function AppInner() {
       setShopProfile({
         name: nameRow?.value || null,
         phone: phoneRow?.value || '',
+        telegram: telegramRow?.value || '',
       });
       try { setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS); } catch { setEnabledProviders(DEFAULT_PROVIDERS); }
       try { setRecurringExpenses(reRow ? JSON.parse(reRow.value) : []); } catch { setRecurringExpenses([]); }
@@ -73,7 +163,7 @@ function AppInner() {
   const trackSession = useCallback(async () => {
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const [scRow, ladRow, sdRow, lsdRow, daRow, fcRow, fudRow] = await Promise.all([
+      const [scRow, ladRow, sdRow, lsdRow, daRow, fcRow, fudRow, bdtRow, crRow] = await Promise.all([
         db.analytics.get('session_count'),
         db.analytics.get('last_active_date'),
         db.analytics.get('streak_days'),
@@ -81,6 +171,8 @@ function AppInner() {
         db.analytics.get('days_active'),
         db.analytics.get('feature_counts'),
         db.analytics.get('first_used_date'),
+        db.analytics.get('best_day_total'),
+        db.analytics.get('credits_repaid'),
       ]);
 
       const sessionCount = (scRow?.value || 0) + 1;
@@ -105,6 +197,10 @@ function AppInner() {
       try { featureCounts = fcRow ? JSON.parse(fcRow.value) : featureCounts; } catch { /* keep default */ }
 
       const firstUsed = fudRow?.value || todayStr;
+      const bdt = bdtRow?.value || 0;
+      const creditsRepaid = crRow?.value || 0;
+
+      setBestDayTotal(bdt);
 
       await Promise.all([
         db.analytics.put({ key: 'session_count',   value: sessionCount }),
@@ -116,13 +212,39 @@ function AppInner() {
         db.analytics.put({ key: 'first_used_date',  value: firstUsed }),
       ]);
 
-      setUsageStats({ sessionCount, streak, longestStreak, daysActive, featureCounts, firstUsed });
+      const stats = { sessionCount, streak, longestStreak, daysActive, featureCounts, firstUsed, bestDayTotal: bdt, creditsRepaid };
+      setUsageStats(stats);
+
+      const badges = await checkAndAwardBadges(stats, lang);
+      setEarnedBadges(badges);
     } catch (err) {
       console.error('Analytics tracking failed:', err);
     }
-  }, []);
+  }, [lang]);
 
   useEffect(() => { trackSession(); }, [trackSession]);
+
+  const checkBestDay = useCallback(async (todayTotal) => {
+    try {
+      const bdtRow = await db.analytics.get('best_day_total');
+      const prevBest = bdtRow?.value || 0;
+      const bdFiredRow = await db.analytics.get('best_day_fired_date');
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      if (todayTotal > prevBest && bdFiredRow?.value !== todayStr) {
+        await db.analytics.put({ key: 'best_day_total', value: todayTotal });
+        await db.analytics.put({ key: 'best_day_fired_date', value: todayStr });
+        setBestDayTotal(todayTotal);
+        fireToast(`${t.newBestDay} ${fmt(todayTotal)} ${t.birr}`, 3000);
+        setUsageStats(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev, bestDayTotal: todayTotal };
+          checkAndAwardBadges(updated, lang).then(setEarnedBadges);
+          return updated;
+        });
+      }
+    } catch { /* non-critical */ }
+  }, [t, lang]);
 
   const handleAddTransaction = async (transaction) => {
     try {
@@ -155,7 +277,17 @@ function AppInner() {
 
       const id = await db.transactions.add(newTxn);
       const saved = await db.transactions.get(id);
-      setTransactions(prev => [saved, ...prev]);
+
+      setTransactions(prev => {
+        const updated = [saved, ...prev];
+        const todayStr = new Date().toDateString();
+        const todayTotal = updated
+          .filter(t2 => new Date(t2.created_at).toDateString() === todayStr && t2.type === 'sale')
+          .reduce((s, t2) => s + (t2.amount || 0), 0);
+        checkBestDay(todayTotal);
+        return updated;
+      });
+
       if (transaction.type === 'credit') {
         setCreditRecords(await db.credit_records.toArray());
       }
@@ -185,7 +317,12 @@ function AppInner() {
           try { fc = fcRow ? JSON.parse(fcRow.value) : fc; } catch { /* keep default */ }
           fc[fcKey] = (fc[fcKey] || 0) + 1;
           await db.analytics.put({ key: 'feature_counts', value: JSON.stringify(fc) });
-          setUsageStats(prev => prev ? { ...prev, featureCounts: fc } : prev);
+          setUsageStats(prev => {
+            if (!prev) return prev;
+            const updated = { ...prev, featureCounts: fc };
+            checkAndAwardBadges(updated, lang).then(setEarnedBadges);
+            return updated;
+          });
         } catch { /* non-critical */ }
       }
     } catch (err) {
@@ -199,7 +336,7 @@ function AppInner() {
     try {
       await db.transactions.update(id, { ...updates, updated_at: Date.now() });
       const updated = await db.transactions.get(id);
-      setTransactions(prev => prev.map(t => t.id === id ? updated : t));
+      setTransactions(prev => prev.map(t2 => t2.id === id ? updated : t2));
 
       if (updated?.type === 'credit' && updated.customer_name) {
         const matching = await db.credit_records.where('customer_name').equals(updated.customer_name).first();
@@ -232,7 +369,7 @@ function AppInner() {
   const handleDeleteTransaction = async (id) => {
     try {
       await db.transactions.delete(id);
-      setTransactions(prev => prev.filter(t => t.id !== id));
+      setTransactions(prev => prev.filter(t2 => t2.id !== id));
       setDeleteTarget(null);
     } catch (err) {
       console.error('Failed to delete:', err);
@@ -257,6 +394,20 @@ function AppInner() {
         const updated = credits.find(c => c.id === creditId);
         setSelectedCredit(newStatus === 'paid' ? null : (updated || null));
       }
+
+      if (newStatus === 'paid') {
+        try {
+          const crRow = await db.analytics.get('credits_repaid');
+          const newCount = (crRow?.value || 0) + 1;
+          await db.analytics.put({ key: 'credits_repaid', value: newCount });
+          setUsageStats(prev => {
+            if (!prev) return prev;
+            const updated2 = { ...prev, creditsRepaid: newCount };
+            checkAndAwardBadges(updated2, lang).then(setEarnedBadges);
+            return updated2;
+          });
+        } catch { /* non-critical */ }
+      }
     } catch (err) {
       console.error('Failed to record payment:', err);
     }
@@ -273,20 +424,92 @@ function AppInner() {
       });
       setCreditRecords(await db.credit_records.toArray());
       setSelectedCredit(null);
+
+      try {
+        const crRow = await db.analytics.get('credits_repaid');
+        const newCount = (crRow?.value || 0) + 1;
+        await db.analytics.put({ key: 'credits_repaid', value: newCount });
+        setUsageStats(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev, creditsRepaid: newCount };
+          checkAndAwardBadges(updated, lang).then(setEarnedBadges);
+          return updated;
+        });
+      } catch { /* non-critical */ }
     } catch (err) {
       console.error('Failed to mark paid:', err);
     }
   };
 
-  const handleProfileSave = async (name, phone) => {
+  const handleProfileSave = async (name, phone, telegram) => {
     await db.settings.put({ key: 'shop_name', value: name });
     await db.settings.put({ key: 'shop_phone', value: phone });
-    setShopProfile({ name, phone });
+    await db.settings.put({ key: 'shop_telegram', value: telegram || '' });
+    setShopProfile({ name, phone, telegram: telegram || '' });
   };
 
   const todayTransactions = transactions.filter(
-    t => new Date(t.created_at).toDateString() === new Date().toDateString()
+    t2 => new Date(t2.created_at).toDateString() === new Date().toDateString()
   );
+
+  const todaySales = todayTransactions.filter(t2 => t2.type === 'sale');
+  const todayExpenses = todayTransactions.filter(t2 => t2.type === 'expense');
+  const todaySalesTotal = todaySales.reduce((s, t2) => s + (t2.amount || 0), 0);
+  const todayExpensesTotal = todayExpenses.reduce((s, t2) => s + (t2.amount || 0), 0);
+
+  const topProducts = (() => {
+    const counts = {};
+    todaySales.forEach(t2 => {
+      const name = t2.item_name || 'Unknown';
+      counts[name] = (counts[name] || 0) + (t2.quantity || 1);
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, qty]) => ({ name, qty }));
+  })();
+
+  const sparklineData = (() => {
+    const dayLabels = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat];
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const ds = d.toDateString();
+      const total = transactions
+        .filter(t2 => new Date(t2.created_at).toDateString() === ds && t2.type === 'sale')
+        .reduce((s, t2) => s + (t2.amount || 0), 0);
+      days.push({ label: dayLabels[d.getDay()], total, isToday: i === 0 });
+    }
+    return days;
+  })();
+
+  const sparklineMax = Math.max(...sparklineData.map(d => d.total), 1);
+
+  const buildShareSummary = () => {
+    const profit = todaySalesTotal - todayExpensesTotal;
+    const topStr = topProducts.length > 0
+      ? topProducts.map((p, i) => `  ${i + 1}. ${p.name} (x${p.qty})`).join('\n')
+      : '  —';
+    return [
+      `📊 ${shopProfile?.name || 'Shop'} — ${t.shareDailyReport}`,
+      `📅 ${new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
+      ``,
+      `💰 ${t.sales}:    ${fmt(todaySalesTotal)} ${t.birr}`,
+      `🛒 ${t.spent}: ${fmt(todayExpensesTotal)} ${t.birr}`,
+      `📈 ${t.calcProfit}:   ${fmt(profit)} ${t.birr}`,
+      ``,
+      `🏆 ${t.shareTopItems}:`,
+      topStr,
+      ``,
+      t.shareSentVia,
+    ].join('\n');
+  };
+
+  const handleShareReport = () => {
+    setShareText(buildShareSummary());
+    setShowShareModal(true);
+  };
 
   const hid = (n) => hidden ? '••••' : fmt(n);
 
@@ -296,7 +519,7 @@ function AppInner() {
         <div className="text-center">
           <div className="text-5xl mb-3">📒</div>
           <h1 className="text-2xl font-black" style={{ color: P.header }}>ገበያ</h1>
-          <p className="text-sm mt-2" style={{ color: '#9ca3af' }}>Loading your notebook…</p>
+          <p className="text-sm mt-2" style={{ color: '#9ca3af' }}>{t.loading}</p>
         </div>
       </div>
     );
@@ -311,10 +534,10 @@ function AppInner() {
   }
 
   const tabs = [
-    { id: 'today',    label: 'ዛሬ',  sub: 'Today',   icon: BookOpen },
-    { id: 'merro',    label: 'ብድር', sub: 'Credit',  icon: Users },
-    { id: 'history',  label: 'Report',               icon: Calendar },
-    { id: 'settings', label: 'Settings',              icon: Settings },
+    { id: 'today',    label: t.todayLabel, sub: t.today,   icon: BookOpen },
+    { id: 'merro',    label: t.creditLabel, sub: t.credit,  icon: Users },
+    { id: 'history',  label: t.report,                       icon: Calendar },
+    { id: 'settings', label: t.settings,                     icon: Settings },
   ];
 
   const typeEmoji = { sale: '💰', expense: '🛒', credit: '👥' };
@@ -324,15 +547,51 @@ function AppInner() {
   return (
     <div className="min-h-screen flex flex-col max-w-md mx-auto relative" style={{ background: P.bg }}>
 
-      <header className="flex-shrink-0 px-5 pt-10 pb-4" style={{ background: P.header }}>
-        <div className="flex items-center justify-between mb-3">
-          <div>
+      <header className="flex-shrink-0 px-4 pt-10 pb-4" style={{ background: P.header }}>
+        <div className="flex items-start justify-between mb-3 gap-2">
+          <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-black text-white tracking-tight">ገበያ</h1>
-            <p className="text-xs mt-0.5 font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>
+            <p className="font-black text-white truncate" style={{ fontSize: '0.95rem' }}>
               {shopProfile.name}
             </p>
           </div>
-          <div className="text-right">
+          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <span
+                className="text-xs font-bold px-2 py-1 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', minHeight: '28px', display: 'flex', alignItems: 'center' }}
+              >
+                🔥 {usageStats?.streak || 0}d
+              </span>
+              <button
+                onClick={toggleLang}
+                className="text-xs font-bold rounded-full border transition-all flex items-center overflow-hidden"
+                style={{
+                  borderColor: 'rgba(255,255,255,0.4)',
+                  minHeight: '44px',
+                }}
+                aria-label={lang === 'en' ? 'Switch to Amharic' : 'Switch to English'}
+              >
+                <span
+                  className="px-2.5 py-2 flex items-center justify-center"
+                  style={{
+                    background: lang === 'en' ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.12)',
+                    color: lang === 'en' ? '#7c3d12' : 'rgba(255,255,255,0.6)',
+                    fontWeight: lang === 'en' ? 800 : 600,
+                    minWidth: '32px',
+                  }}
+                >EN</span>
+                <span
+                  className="px-2.5 py-2 flex items-center justify-center"
+                  style={{
+                    background: lang === 'am' ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.12)',
+                    color: lang === 'am' ? '#7c3d12' : 'rgba(255,255,255,0.6)',
+                    fontWeight: lang === 'am' ? 800 : 600,
+                    minWidth: '32px',
+                  }}
+                >አማ</span>
+              </button>
+            </div>
             <p className="text-xs font-semibold text-white">{getCurrentEthiopianDate()}</p>
             <p className="text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
               {new Date().toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -343,46 +602,131 @@ function AppInner() {
         {activeTab === 'today' && (
           <div className="flex gap-2">
             {[
-              { label: 'Sales', val: todayTransactions.filter(t => t.type === 'sale').reduce((s, t) => s + (t.amount || 0), 0), color: '#bbf7d0', text: '#14532d' },
-              { label: 'Spent', val: todayTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + (t.amount || 0), 0), color: '#fecaca', text: '#991b1b' },
+              { label: t.sales, val: todaySalesTotal, color: '#bbf7d0', text: '#14532d' },
+              { label: t.spent, val: todayExpensesTotal, color: '#fecaca', text: '#991b1b' },
             ].map(s => (
               <div key={s.label} className="flex-1 rounded-xl px-3 py-2 text-center" style={{ background: s.color }}>
                 <div className="text-xs font-semibold" style={{ color: s.text }}>{s.label}</div>
-                <div className="font-black text-sm" style={{ color: s.text }}>{hid(s.val)} birr</div>
+                <div className="font-black text-sm" style={{ color: s.text }}>{hid(s.val)} {t.birr}</div>
               </div>
             ))}
           </div>
         )}
       </header>
 
+      {activeTab === 'today' && usageStats && (
+        <div className="px-4 pt-3 pb-0 flex-shrink-0" style={{ background: P.header }}>
+          <div className="rounded-2xl px-4 py-2.5 flex items-center gap-3" style={{ background: 'rgba(255,255,255,0.13)' }}>
+            <div className="text-center flex-shrink-0">
+              <div className="text-base font-black text-white">🔥 {usageStats.streak}</div>
+              <div className="text-xs text-white opacity-75">{t.dayStreak}</div>
+            </div>
+            <div className="w-px h-8" style={{ background: 'rgba(255,255,255,0.3)' }} />
+            <div className="text-center flex-shrink-0">
+              <div className="text-base font-black text-white">📅 {usageStats.daysActive?.length || 1}</div>
+              <div className="text-xs text-white opacity-75">{t.daysActive}</div>
+            </div>
+            <div className="w-px h-8" style={{ background: 'rgba(255,255,255,0.3)' }} />
+            <div className="text-center flex-1 min-w-0">
+              <div className="text-sm font-black text-white">
+                {(usageStats.featureCounts?.sales || 0) + (usageStats.featureCounts?.expenses || 0)}
+              </div>
+              <div className="text-xs text-white opacity-75 truncate">{t.totalEntries}</div>
+            </div>
+            <button
+              onClick={handleShareReport}
+              className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2 rounded-xl min-h-[44px] min-w-[44px] justify-center"
+              style={{ background: 'rgba(255,255,255,0.18)' }}
+              aria-label={t.shareReport}
+            >
+              <Share2 className="w-4 h-4 text-white" />
+              <span className="text-white font-bold" style={{ fontSize: '0.6rem' }}>{t.shareReportBtn}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'today' && (
-        <div className="px-4 py-3 flex gap-2 flex-shrink-0" style={{ background: P.actionBar }}>
+        <div className="px-3 py-3 flex gap-2 flex-shrink-0" style={{ background: P.actionBar }}>
           {[
-            { type: 'sale',    label: 'ሸጠሁ', sub: 'I Sold',  bg: '#14532d', shadow: '#052e16' },
-            { type: 'expense', label: 'ወጪ',   sub: 'I Spent', bg: '#991b1b', shadow: '#450a0a' },
-            { type: 'credit',  label: 'ብድር',  sub: 'Credit',  bg: '#92400e', shadow: '#431407' },
+            { type: 'sale',    label: t.iSoldLabel, sub: t.iSold,  bg: '#14532d', shadow: '#052e16' },
+            { type: 'expense', label: t.iSpentLabel, sub: t.iSpent, bg: '#991b1b', shadow: '#450a0a' },
+            { type: 'credit',  label: t.creditBtnLabel, sub: t.creditBtn,  bg: '#92400e', shadow: '#431407' },
           ].map(b => (
             <button key={b.type} onClick={() => setShowForm(b.type)}
-              className="flex-1 py-3 rounded-2xl text-center active:opacity-80 transition-all"
+              className="flex-1 py-3 rounded-2xl text-center active:opacity-80 transition-all min-h-[64px]"
               style={{ background: b.bg, boxShadow: `0 4px 0 ${b.shadow}` }}>
               <div className="font-black text-white text-lg leading-none">+</div>
               <div className="font-bold text-white text-sm">{b.label}</div>
               <div className="text-white text-xs opacity-70">{b.sub}</div>
             </button>
           ))}
+          <button
+            onClick={() => setShowCalculator(true)}
+            className="py-3 px-3 rounded-2xl text-center active:opacity-80 transition-all flex flex-col items-center justify-center gap-0.5 min-h-[64px]"
+            style={{ background: '#7c5c20', boxShadow: '0 4px 0 #5a3f10', minWidth: '52px' }}
+            aria-label={t.calculator}
+          >
+            <Calculator className="w-5 h-5 text-white" />
+            <span className="text-white font-bold" style={{ fontSize: '0.6rem' }}>{t.calc}</span>
+          </button>
         </div>
       )}
 
-      <main className="flex-1 overflow-y-auto px-4 py-4 pb-28">
+      <main className="flex-1 overflow-y-auto px-4 py-3 pb-28">
 
         {activeTab === 'today' && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <ProfitCard transactions={todayTransactions} />
+
+            {sparklineData.some(d => d.total > 0) && (
+              <div className="rounded-2xl px-4 pt-3 pb-2" style={{ background: '#fff', border: '1px solid #f0e6d4' }}>
+                <p className="text-xs font-bold text-gray-500 mb-2">{t.weekTrend}</p>
+                <div className="flex items-end gap-1" style={{ height: '48px' }}>
+                  {sparklineData.map((d, i) => {
+                    const h = Math.max(4, Math.round((d.total / sparklineMax) * 44));
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                        <div
+                          className="w-full rounded-sm transition-all"
+                          style={{
+                            height: `${h}px`,
+                            background: d.isToday ? P.amber : '#e8d5b0',
+                            minHeight: '4px',
+                          }}
+                        />
+                        <span className="text-gray-400" style={{ fontSize: '0.55rem', lineHeight: 1 }}>
+                          {d.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {topProducts.length > 0 && (
+              <div className="rounded-2xl px-4 py-3" style={{ background: '#fff', border: '1px solid #f0e6d4' }}>
+                <p className="text-xs font-bold text-gray-500 mb-2">🏆 {t.topProducts}</p>
+                <div className="space-y-1.5">
+                  {topProducts.map((p, i) => (
+                    <div key={p.name} className="flex items-center gap-2">
+                      <span className="text-sm flex-shrink-0">{['🥇', '🥈', '🥉'][i]}</span>
+                      <span className="text-sm font-semibold text-gray-700 flex-1 truncate">{p.name}</span>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                        style={{ background: P.amberLight, color: P.amber }}>
+                        ×{p.qty}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="rounded-2xl shadow-sm border overflow-hidden" style={{ background: '#fff', borderColor: P.border }}>
               <div className="px-4 py-3 border-b" style={{ borderColor: P.border }}>
                 <h3 className="font-bold text-gray-700 text-sm">
-                  Today's Entries
+                  {t.todaysEntries}
                   <span className="ml-2 text-xs px-2 py-0.5 rounded-full" style={{ background: P.amberLight, color: P.amber }}>
                     {todayTransactions.length}
                   </span>
@@ -392,54 +736,54 @@ function AppInner() {
               {todayTransactions.length === 0 ? (
                 <div className="px-4 py-10 text-center">
                   <p className="text-3xl mb-2">📝</p>
-                  <p className="text-sm" style={{ color: '#9ca3af' }}>No entries yet. Use the buttons above to start!</p>
+                  <p className="text-sm" style={{ color: '#9ca3af' }}>{t.noEntries}</p>
                 </div>
               ) : (
                 <div className="divide-y" style={{ borderColor: '#fef9ec' }}>
-                  {todayTransactions.map(t => (
-                    <div key={t.id}
-                      className="px-4 py-3 flex items-center border-l-4"
-                      style={{ borderLeftColor: typeBorderColor[t.type] }}>
-                      <span className="text-xl mr-3 flex-shrink-0">{typeEmoji[t.type]}</span>
+                  {todayTransactions.map(tx => (
+                    <div key={tx.id}
+                      className="px-3 py-3 flex items-center border-l-4"
+                      style={{ borderLeftColor: typeBorderColor[tx.type] }}>
+                      <span className="text-xl mr-2 flex-shrink-0">{typeEmoji[tx.type]}</span>
                       <button
                         className="flex-1 min-w-0 text-left"
-                        onClick={() => setEditTarget(t)}
+                        onClick={() => setEditTarget(tx)}
                       >
                         <div className="flex items-center gap-1.5">
-                          <span className="font-semibold text-gray-800 text-sm truncate">{t.item_name}</span>
-                          {t.updated_at && <span className="text-xs" style={{ color: '#c47c1a' }}>edited</span>}
+                          <span className="font-semibold text-gray-800 text-sm truncate">{tx.item_name}</span>
+                          {tx.updated_at && <span className="text-xs" style={{ color: '#c47c1a' }}>{t.edited}</span>}
                         </div>
-                        {t.quantity > 1 && <span className="text-xs text-gray-400">×{t.quantity}</span>}
-                        {t.payment_type && t.payment_type !== 'cash' && (
+                        {tx.quantity > 1 && <span className="text-xs text-gray-400">×{tx.quantity}</span>}
+                        {tx.payment_type && tx.payment_type !== 'cash' && (
                           <span className="text-xs text-gray-400 block">
-                            {[t.payment_type, t.payment_provider].filter(Boolean).join(' · ')}
+                            {[tx.payment_type, tx.payment_provider].filter(Boolean).join(' · ')}
                           </span>
                         )}
                       </button>
                       <div className="text-right mr-2 flex-shrink-0">
-                        <div className="font-bold text-sm" style={{ color: typeColor[t.type] }}>
-                          {t.type === 'expense' ? '-' : ''}{fmt(t.amount || 0)} birr
+                        <div className="font-bold text-sm" style={{ color: typeColor[tx.type] }}>
+                          {tx.type === 'expense' ? '-' : ''}{fmt(tx.amount || 0)} {t.birr}
                         </div>
-                        {t.profit !== null && t.profit !== undefined && (
-                          <div className={`text-xs ${t.profit >= 0 ? 'text-green-600' : 'text-red-400'}`}>
-                            {t.profit >= 0 ? '+' : ''}{fmt(t.profit)} profit
+                        {tx.profit !== null && tx.profit !== undefined && (
+                          <div className={`text-xs ${tx.profit >= 0 ? 'text-green-600' : 'text-red-400'}`}>
+                            {tx.profit >= 0 ? '+' : ''}{fmt(tx.profit)} {t.profit}
                           </div>
                         )}
                       </div>
                       <div className="flex gap-1 flex-shrink-0">
                         <button
-                          onClick={() => setEditTarget(t)}
-                          className="p-2 rounded-xl min-w-[36px] min-h-[36px] flex items-center justify-center"
-                          style={{ background: '#fffbeb' }}
-                          aria-label="Edit entry"
+                          onClick={() => setEditTarget(tx)}
+                          className="p-2 rounded-xl flex items-center justify-center"
+                          style={{ background: '#fffbeb', minWidth: '44px', minHeight: '44px' }}
+                          aria-label={t.editEntry}
                         >
                           <Pencil className="w-3.5 h-3.5" style={{ color: '#c47c1a' }} />
                         </button>
                         <button
-                          onClick={() => setDeleteTarget(t)}
-                          className="p-2 rounded-xl min-w-[36px] min-h-[36px] flex items-center justify-center"
-                          style={{ background: '#fff1f2' }}
-                          aria-label="Delete entry"
+                          onClick={() => setDeleteTarget(tx)}
+                          className="p-2 rounded-xl flex items-center justify-center"
+                          style={{ background: '#fff1f2', minWidth: '44px', minHeight: '44px' }}
+                          aria-label={t.deleteEntryLabel}
                         >
                           <Trash2 className="w-3.5 h-3.5 text-red-400" />
                         </button>
@@ -486,6 +830,7 @@ function AppInner() {
             recurringExpenses={recurringExpenses}
             onRecurringChange={setRecurringExpenses}
             usageStats={usageStats}
+            earnedBadges={earnedBadges}
           />
         )}
       </main>
@@ -500,7 +845,7 @@ function AppInner() {
               <button
                 key={tab.id}
                 onClick={() => { setActiveTab(tab.id); setSelectedCredit(null); }}
-                className="flex-1 flex flex-col items-center gap-0.5 py-2 min-h-[64px] transition-colors"
+                className="flex-1 flex flex-col items-center gap-0.5 py-2 min-h-[60px] transition-colors"
                 style={{
                   background: isActive ? P.amberLight : 'transparent',
                   borderBottom: isActive ? `3px solid ${P.amber}` : '3px solid transparent',
@@ -508,8 +853,8 @@ function AppInner() {
                 }}
               >
                 <Icon className="w-5 h-5" />
-                <span className="text-sm font-bold">{tab.label}</span>
-                {tab.sub && <span className="text-xs" style={{ opacity: 0.65 }}>{tab.sub}</span>}
+                <span className="text-xs font-bold">{tab.label}</span>
+                {tab.sub && <span className="text-xs" style={{ opacity: 0.65, fontSize: '0.6rem' }}>{tab.sub}</span>}
               </button>
             );
           })}
@@ -541,37 +886,54 @@ function AppInner() {
         />
       )}
 
+      {showCalculator && (
+        <ProfitCalculatorModal onClose={() => setShowCalculator(false)} />
+      )}
+
+      {showShareModal && (
+        <ShareModal
+          summary={shareText}
+          telegram={shopProfile?.telegram}
+          onClose={() => setShowShareModal(false)}
+          t={t}
+        />
+      )}
+
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
             <div className="text-3xl text-center mb-3">{typeEmoji[deleteTarget.type]}</div>
-            <h3 className="text-lg font-black text-gray-900 text-center mb-1">Delete this entry?</h3>
+            <h3 className="text-lg font-black text-gray-900 text-center mb-1">{t.deleteEntry}</h3>
             <p className="text-sm text-gray-500 text-center mb-5">
-              "{deleteTarget.item_name}" · {fmt(deleteTarget.amount || 0)} birr
+              "{deleteTarget.item_name}" · {fmt(deleteTarget.amount || 0)} {t.birr}
             </p>
             <div className="space-y-2">
               <button onClick={() => handleDeleteTransaction(deleteTarget.id)}
                 className="w-full p-4 bg-red-500 text-white rounded-2xl font-black min-h-[52px]">
-                Delete
+                {t.delete}
               </button>
               <button onClick={() => setDeleteTarget(null)}
                 className="w-full p-4 rounded-2xl font-bold min-h-[52px]"
                 style={{ background: '#f5f5f5', color: '#374151' }}>
-                Cancel
+                {t.cancel}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      <ToastContainer />
     </div>
   );
 }
 
 function App() {
   return (
-    <PrivacyProvider>
-      <AppInner />
-    </PrivacyProvider>
+    <LangProvider>
+      <PrivacyProvider>
+        <AppInner />
+      </PrivacyProvider>
+    </LangProvider>
   );
 }
 
