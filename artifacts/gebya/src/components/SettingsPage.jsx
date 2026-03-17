@@ -127,10 +127,12 @@ function SettingsPage({
     if (!usageStats) return;
     const { streak, longestStreak, daysActive, featureCounts, sessionCount, firstUsed } = usageStats;
     const fc = featureCounts || {};
+    let firstUsedDisplay = firstUsed;
+    try { firstUsedDisplay = firstUsed ? formatEthiopian(new Date(firstUsed)) : firstUsed; } catch { /* keep ISO fallback */ }
     const text = [
       `📊 Gebya usage stats for ${shopProfile?.name || 'my shop'}:`,
       `🔥 Current streak: ${streak} day${streak !== 1 ? 's' : ''} (longest: ${longestStreak})`,
-      `📅 Using since: ${firstUsed}`,
+      `📅 Using since: ${firstUsedDisplay}`,
       `📈 Total days active: ${daysActive?.length || 1}`,
       `🛒 Entries: ${fc.sales || 0} sales · ${fc.expenses || 0} expenses · ${fc.credits || 0} credits`,
       `📱 Sessions opened: ${sessionCount}`,
@@ -163,7 +165,9 @@ function SettingsPage({
                 <div className="flex-1 rounded-xl p-3 text-center" style={{ background: '#f0fdf4', border: '1.5px solid #bbf7d0' }}>
                   <div className="text-2xl font-black text-green-700">📅 {usageStats.daysActive?.length || 1}</div>
                   <div className="text-xs font-semibold text-gray-600 mt-0.5">days active</div>
-                  <div className="text-xs text-gray-400">since {usageStats.firstUsed}</div>
+                  <div className="text-xs text-gray-400">
+                    since {usageStats.firstUsed ? (() => { try { return formatEthiopian(new Date(usageStats.firstUsed)); } catch { return usageStats.firstUsed; } })() : '—'}
+                  </div>
                 </div>
               </div>
               <div className="rounded-xl p-3" style={{ background: '#faf5eb', border: '1.5px solid #f0e6d4' }}>
