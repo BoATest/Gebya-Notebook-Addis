@@ -1,12 +1,8 @@
 import PrivacyToggle from './PrivacyToggle';
-import { usePrivacy } from '../context/PrivacyContext';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { fmt } from '../utils/format';
 
 function ProfitCard({ transactions }) {
-  const { hidden } = usePrivacy();
-  const hid = (n) => hidden ? '••••' : fmt(n);
-
   const sales = transactions.filter(t => t.type === 'sale');
   const expenses = transactions.filter(t => t.type === 'expense');
 
@@ -21,14 +17,16 @@ function ProfitCard({ transactions }) {
 
   return (
     <div className="space-y-3">
+      {/* Hero number — privacy-aware via PrivacyToggle */}
       <PrivacyToggle value={mainValue} label={mainLabel} />
 
+      {/* Breakdown lines — always visible, no privacy hiding */}
       <div className="rounded-2xl p-4 shadow-sm border" style={{ background: '#fff', borderColor: '#f0e6d4' }}>
         <div className="flex justify-between text-sm mb-2">
           <span className="flex items-center gap-1" style={{ color: '#6b7280' }}>
             <TrendingUp className="w-3.5 h-3.5" style={{ color: '#15803d' }} /> Sales
           </span>
-          <span className="font-semibold" style={{ color: '#15803d' }}>{hid(revenue)} birr</span>
+          <span className="font-semibold" style={{ color: '#15803d' }}>{fmt(revenue)} birr</span>
         </div>
 
         {expenses_total > 0 && (
@@ -36,7 +34,7 @@ function ProfitCard({ transactions }) {
             <span className="flex items-center gap-1" style={{ color: '#6b7280' }}>
               <TrendingDown className="w-3.5 h-3.5 text-red-500" /> Expenses
             </span>
-            <span className="font-semibold text-red-500">-{hid(expenses_total)} birr</span>
+            <span className="font-semibold text-red-500">-{fmt(expenses_total)} birr</span>
           </div>
         )}
 
@@ -44,12 +42,12 @@ function ProfitCard({ transactions }) {
           <>
             <div className="flex justify-between text-sm mb-2">
               <span style={{ color: '#6b7280' }}>Cost of goods</span>
-              <span className="font-semibold" style={{ color: '#ea580c' }}>-{hid(costOfGoods)} birr</span>
+              <span className="font-semibold" style={{ color: '#ea580c' }}>-{fmt(costOfGoods)} birr</span>
             </div>
             <div className="border-t pt-2 flex justify-between text-sm" style={{ borderColor: '#f0e6d4' }}>
               <span className="font-semibold" style={{ color: '#374151' }}>Net Profit</span>
               <span className={`font-bold ${profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
-                {profit >= 0 ? '+' : ''}{hid(profit)} birr
+                {profit >= 0 ? '+' : ''}{fmt(profit)} birr
               </span>
             </div>
           </>

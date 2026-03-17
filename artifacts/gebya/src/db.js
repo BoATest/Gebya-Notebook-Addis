@@ -9,6 +9,13 @@ db.version(1).stores({
   settings: 'key, value'
 });
 
+db.version(2).stores({
+  transactions: '++id, type, amount, item_name, cost_price, quantity, profit, is_credit, customer_id, customer_name, created_at, ethiopian_date',
+  customers: '++id, name, phone, total_debt',
+  credit_records: '++id, customer_id, customer_name, original_amount, paid_amount, remaining_amount, due_date, status, created_at',
+  settings: 'key, value'
+});
+
 db.on('ready', async () => {
   const privacySetting = await db.settings.get('privacy_mode');
   if (!privacySetting) {
