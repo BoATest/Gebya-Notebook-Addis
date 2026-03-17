@@ -1,0 +1,68 @@
+I am building Gebya (ገበያ), a business notebook app for Ethiopian small shop owners. 
+
+CORE PROBLEM:
+- 70% of Ethiopian micro-businesses use paper notebooks
+- They can't calculate true profit (revenue - cost)
+- They lose track of credit (Merro) payments
+- They fear exposing profit data to customers/employees
+
+TARGET USER:
+"Ato Kebede" - small shop owner, Grade 8-12 education, basic Android phone ($100-200), intermittent 3G, fears tax authority
+
+NON-NEGOTIABLE PRINCIPLES:
+1. 30-Second Rule: Any action completes in 30 seconds
+2. Offline-First: 100% functional without internet
+3. Privacy-Default: Money hidden until user reveals (eye toggle, auto-hides after 30s or on minimize)
+4. Notebook Feel: Not accounting software
+5. True Profit: (Selling - Cost) × Quantity (cost price optional but encouraged)
+6. Ethiopian Context: Amharic UI, Ethiopian calendar display, Birr currency
+
+MVP FEATURES (Build These Now):
+1. Quick transaction entry (Sale/Expense/Credit) with privacy toggle
+2. True profit calculation with optional cost price (collapsed under "Advanced")
+3. Merro (credit) tracking with partial payments
+4. Ethiopian date display
+5. Voice input optional (Web Speech API)
+6. Local storage only (Dexie.js/IndexedDB), export to CSV
+
+OUT OF SCOPE (Phase 2):
+- Cloud sync
+- AI insights
+- SMS/Call integration
+- Multi-shop
+
+TECH STACK:
+- React + Vite + Tailwind CSS
+- Dexie.js for IndexedDB
+- Web Speech API for voice
+- PWA configuration
+
+USER FLOW:
+Today Screen → Privacy Toggle (hidden by default) → Quick Actions (I Sold/I Spent/Credit) → Transaction Form → Save → Local Storage
+
+CRITICAL UI PATTERNS:
+- "What did you pay for this? (Optional)" not "Cost price"
+- "I Sold Something" not "Record sale"
+- "Tap to reveal" for privacy, not "Enable privacy mode"
+- Smart defaults for dates: Today/Tomorrow/Next Week/Pick Date
+
+DATA MODEL:
+- transactions: id, type, item_name, quantity, amount, cost_price, profit, is_credit, customer_id, created_at, ethiopian_date
+- customers: id, name, phone, total_debt
+- credit_records: id, customer_id, original_amount, paid_amount, remaining_amount, due_date, status
+
+SUCCESS METRICS:
+- 5/5 users record first transaction in <2 min
+- 3/5 users open app 3+ days in week 1
+- 2/5 users enter cost prices
+
+I have detailed PRD, user flows, tech spec, and setup instructions in 4 markdown files. 
+
+YOUR TASK:
+1. Read all context above
+2. Ask me to upload the 4 markdown files (01-PRD.md, 02-USER-FLOWS.md, 03-TECH-SPEC.md, 04-REPLIT-SETUP.md)
+3. Once uploaded, implement Step by Step following 04-REPLIT-SETUP.md exactly
+4. Do not skip steps. Do not add features not in scope.
+5. Build the working MVP I can test with real shop owners this week.
+
+Start by confirming you understand the requirements, then ask for the files.
