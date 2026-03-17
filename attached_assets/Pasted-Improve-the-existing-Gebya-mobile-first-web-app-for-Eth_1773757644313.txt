@@ -1,0 +1,144 @@
+Improve the existing Gebya mobile-first web app for Ethiopian small businesses.
+
+Product context:
+Gebya is a business notebook replacement, not accounting software. It helps small shop owners quickly record sales, expenses, and credit (Merro) with minimal friction. The app must feel instant, simple, private, and offline-friendly.
+
+Main product goals:
+1. Make transaction recording faster and shorter
+2. Keep the UI simple and thumb-friendly
+3. Add only practical features that improve daily usage
+4. Avoid feature bloat
+
+Important UX principles:
+- Cash should be the default payment type
+- Users should not type payment methods manually
+- Use quick tap chips/buttons wherever possible
+- Minimize typing and steps
+- Support “save and add another” for fast repeated entry
+- Keep all common actions under 5 seconds
+- Mobile-first, Android-friendly
+- No complex onboarding
+- No accounting jargon
+- Preserve privacy-first behavior
+
+Please implement the following improvements:
+
+1. Payment Type UX
+- Add payment type chips to sale and expense forms:
+  - Cash
+  - Bank
+  - Wallet
+  - Credit (for sales where applicable)
+- Default payment type should be Cash
+- If the user changes payment type, remember the most recently used method for that category
+- Do not require text input for payment type
+
+2. Payment Provider Setup in Settings
+- Add a settings section where users can enable the payment methods they actually use
+- Let users choose their common bank providers and wallet providers without entering sensitive details
+- Example bank providers: CBE, Dashen, Awash, Abyssinia
+- Example wallet providers: telebirr, CBE Birr, M-Pesa
+- During transaction entry, if Bank or Wallet is selected, show enabled providers as quick tap chips
+- If only one provider is enabled, preselect it automatically
+- If multiple are enabled, default to the most recently used one
+
+3. Transaction Form Improvements
+For Sale:
+- item/note
+- quantity (default = 1)
+- total amount
+- payment type chips
+- provider chips if needed
+- optional advanced cost-per-unit section
+- optional note
+
+For Expense:
+- expense note
+- amount
+- payment type chips
+- provider chips if needed
+- optional recurring toggle
+- optional note
+
+For Credit:
+I owe (የተበደርኩት)
+They owe(ያበደርኩት)
+- customer name
+- amount
+- due date
+- optional phone number
+- optional note
+
+4. Edit / Delete / Undo
+- Allow users to open any transaction and edit it
+- Show created timestamp
+- Show last edited timestamp if edited
+- Allow delete
+- Add an easy undo action immediately after saving or deleting
+
+5. Save Flow Optimization
+- After saving a Sale or Expense, do not force-close immediately
+- Show lightweight success state with these actions:
+  - Add another
+  - Done
+  - View today
+- Keep last used values where helpful:
+  - payment type
+  - provider
+  - quantity if appropriate
+- For Credit, it is okay to close after save
+
+6. Recurring Fixed Expenses
+- Add support for recurring expenses such as rent, salary, equb contribution, internet, etc.
+- Fields:
+  - name
+  - amount
+  - frequency
+  - next due date
+  - optional reminder
+- This is only recurring expense tracking, not full Equb management
+
+7. Lightweight Reminders
+- Do not build a full to-do page
+- Instead, support simple reminders attached to:
+  - credit entries
+  - recurring expenses
+  - optional quick note/reminder items
+- Reminders should support local device notifications when possible
+- Keep this lightweight and business-focused
+
+8. Preserve Existing Core Structure
+Keep these main screens:
+- Today
+- Credit
+- History
+- Settings
+
+Keep these core actions:
+- Add Sale
+- Add Expense
+- Add Credit
+- Record partial payment for credit
+- Hide/show amounts
+- View history
+
+9. Keep Out of Scope
+Do NOT add:
+- full inventory management
+- product catalog system
+- clothing/product attachment system
+- full Equb member management
+- advanced analytics dashboards
+- broad to-do/productivity app features
+- complex onboarding flows
+- AI-heavy features
+
+10. Technical expectations
+- Keep app mobile-first and responsive
+- Keep interactions fast
+- Prefer simple local state and offline-friendly behavior
+- Maintain clean component structure
+- Use reusable form components for chips, provider selectors, save actions, and timestamps
+
+Design note:
+This product should feel like a fast business notebook for Ethiopian shopkeepers, not like a complex accounting platform.
