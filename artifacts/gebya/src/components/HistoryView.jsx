@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, TrendingUp, TrendingDown, ChevronDown, ChevronUp, X, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronUp, X, ChevronRight, Pencil } from 'lucide-react';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/format';
 
@@ -39,11 +39,20 @@ function calcStats(transactions) {
   return { revenue, profit, hasCost, expenseTotal };
 }
 
-const typeIcon = { sale: '💰', expense: '🛒', credit: '👥' };
+const typeIcon  = { sale: '💰', expense: '🛒', credit: '👥' };
 const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#c47c1a' };
 const typeLabel = { sale: 'Sale', expense: 'Expense', credit: 'Credit' };
 
-function TransactionSheet({ t, onClose }) {
+function Row({ label, value, color }) {
+  return (
+    <div className="flex justify-between items-center text-sm">
+      <span style={{ color: '#6b7280' }}>{label}</span>
+      <span className="font-semibold" style={{ color: color || '#111827' }}>{value}</span>
+    </div>
+  );
+}
+
+function TransactionSheet({ t, onClose, onEdit }) {
   if (!t) return null;
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50" onClick={onClose}>
@@ -64,9 +73,16 @@ function TransactionSheet({ t, onClose }) {
           </button>
         </div>
 
-        <div className="space-y-3 rounded-2xl border p-4" style={{ borderColor: '#f0e6d4' }}>
+        <div className="space-y-3 rounded-2xl border p-4 mb-4" style={{ borderColor: '#f0e6d4' }}>
           <Row label="Type" value={typeLabel[t.type]} color={typeColor[t.type]} />
-          {t.payment_type && <Row label="Payment method" value={t.payment_type} />}
+          {t.payment_type && <Row label="Payment" value={[t.payment_type, t.payment_provider].filter(Boolean).join(' — ')} />}
+          {t.direction && (
+            <Row
+              label="Direction"
+              value={t.direction === 'i_owe' ? 'I owe them' : 'They owe me'}
+              color={t.direction === 'i_owe' ? '#dc2626' : '#065f46'}
+            />
+          )}
           <Row label="Amount" value={`${t.type === 'expense' ? '-' : ''}${fmt(t.amount || 0)} birr`} color={typeColor[t.type]} />
           <Row label="Quantity" value={`×${t.quantity || 1}`} />
           {t.profit !== null && t.profit !== undefined && (
@@ -82,22 +98,29 @@ function TransactionSheet({ t, onClose }) {
             label="Time"
             value={new Date(t.created_at).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
           />
+          {t.updated_at && (
+            <Row
+              label="Edited"
+              value={new Date(t.updated_at).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
+              color="#9ca3af"
+            />
+          )}
         </div>
+
+        <button
+          onClick={() => { onEdit(t); onClose(); }}
+          className="w-full p-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border-2 transition-all min-h-[48px] active:scale-95"
+          style={{ borderColor: '#c47c1a', color: '#92400e', background: '#fffbeb' }}
+        >
+          <Pencil className="w-4 h-4" />
+          Edit this entry
+        </button>
       </div>
     </div>
   );
 }
 
-function Row({ label, value, color }) {
-  return (
-    <div className="flex justify-between items-center text-sm">
-      <span style={{ color: '#6b7280' }}>{label}</span>
-      <span className="font-semibold" style={{ color: color || '#111827' }}>{value}</span>
-    </div>
-  );
-}
-
-function HistoryView({ transactions }) {
+function HistoryView({ transactions, onEdit }) {
   const [grouping, setGrouping] = useState('day');
   const [expandedGroups, setExpandedGroups] = useState({});
   const [selectedTxn, setSelectedTxn] = useState(null);
@@ -178,6 +201,7 @@ function HistoryView({ transactions }) {
                             <span className="font-medium text-gray-800 text-sm truncate block">{t.item_name}</span>
                             {t.quantity > 1 && <span className="text-xs text-gray-400">×{t.quantity}</span>}
                             {t.customer_name && <p className="text-xs text-gray-400">{t.customer_name}</p>}
+                            {t.updated_at && <p className="text-xs" style={{ color: '#c47c1a' }}>edited</p>}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0 ml-2">
@@ -246,6 +270,7 @@ function HistoryView({ transactions }) {
                           <div className="min-w-0">
                             <span className="font-medium text-gray-800 text-sm truncate block">{t.item_name}</span>
                             <span className="text-xs text-gray-400">{formatEthiopian(t.created_at)}</span>
+                            {t.updated_at && <p className="text-xs" style={{ color: '#c47c1a' }}>edited</p>}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0 ml-2">
@@ -265,7 +290,11 @@ function HistoryView({ transactions }) {
       )}
 
       {selectedTxn && (
-        <TransactionSheet t={selectedTxn} onClose={() => setSelectedTxn(null)} />
+        <TransactionSheet
+          t={selectedTxn}
+          onClose={() => setSelectedTxn(null)}
+          onEdit={(t) => { setSelectedTxn(null); onEdit(t); }}
+        />
       )}
     </div>
   );

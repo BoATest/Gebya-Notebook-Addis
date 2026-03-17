@@ -1,0 +1,72 @@
+export const ALL_BANKS = ['CBE', 'Dashen', 'Awash', 'Abyssinia'];
+export const ALL_WALLETS = ['telebirr', 'CBE Birr'];
+export const DEFAULT_PROVIDERS = { banks: [...ALL_BANKS], wallets: [...ALL_WALLETS] };
+
+const TYPES = [
+  { id: 'cash',   label: 'Cash',   emoji: '💵' },
+  { id: 'bank',   label: 'Bank',   emoji: '🏦' },
+  { id: 'wallet', label: 'Wallet', emoji: '📱' },
+];
+
+function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChange, enabledProviders }) {
+  const enabledBanks  = (enabledProviders?.banks  || ALL_BANKS).filter(b => ALL_BANKS.includes(b));
+  const enabledWallets = (enabledProviders?.wallets || ALL_WALLETS).filter(w => ALL_WALLETS.includes(w));
+
+  const handleTypeChange = (newType) => {
+    onTypeChange(newType);
+    onProviderChange('');
+  };
+
+  const ChipRow = ({ items, selected, onSelect }) => (
+    <div className="flex flex-wrap gap-2 mt-2">
+      {items.map(item => (
+        <button
+          key={item}
+          type="button"
+          onClick={() => onSelect(selected === item ? '' : item)}
+          className="px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all"
+          style={{
+            borderColor: selected === item ? '#c47c1a' : '#e8d5b0',
+            background: selected === item ? '#fde68a' : '#fff',
+            color: selected === item ? '#92400e' : '#6b7280',
+          }}
+        >
+          {item}
+        </button>
+      ))}
+    </div>
+  );
+
+  return (
+    <div>
+      <label className="block text-gray-700 font-semibold mb-2 text-sm">Payment type</label>
+      <div className="flex gap-2">
+        {TYPES.map(t => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => handleTypeChange(t.id)}
+            className="flex-1 flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl border-2 text-xs font-bold transition-all min-h-[56px]"
+            style={{
+              borderColor: paymentType === t.id ? '#c47c1a' : '#e8d5b0',
+              background: paymentType === t.id ? '#fffbeb' : '#fff',
+              color: paymentType === t.id ? '#92400e' : '#6b7280',
+            }}
+          >
+            <span className="text-base">{t.emoji}</span>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {paymentType === 'bank' && enabledBanks.length > 0 && (
+        <ChipRow items={enabledBanks} selected={provider} onSelect={onProviderChange} />
+      )}
+      {paymentType === 'wallet' && enabledWallets.length > 0 && (
+        <ChipRow items={enabledWallets} selected={provider} onSelect={onProviderChange} />
+      )}
+    </div>
+  );
+}
+
+export default PaymentTypeChips;

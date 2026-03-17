@@ -9,12 +9,14 @@ function MerroList({ creditRecords, onSelectCredit }) {
   const active = creditRecords.filter(r => r.status !== 'paid');
   const paid = creditRecords.filter(r => r.status === 'paid');
   const list = showPaid ? paid : active;
-  const total = active.reduce((sum, r) => sum + (r.remaining_amount || 0), 0);
+
+  const owedToMe  = active.filter(r => !r.direction || r.direction === 'owes_me').reduce((s, r) => s + (r.remaining_amount || 0), 0);
+  const iOwe      = active.filter(r => r.direction === 'i_owe').reduce((s, r) => s + (r.remaining_amount || 0), 0);
 
   const colorMap = {
-    red: { card: 'border-red-300 bg-red-50', dot: 'bg-red-500' },
+    red:    { card: 'border-red-300 bg-red-50',     dot: 'bg-red-500' },
     yellow: { card: 'border-amber-300 bg-amber-50', dot: 'bg-amber-500' },
-    green: { card: 'border-emerald-300 bg-emerald-50', dot: 'bg-emerald-500' },
+    green:  { card: 'border-emerald-300 bg-emerald-50', dot: 'bg-emerald-500' },
   };
 
   if (active.length === 0 && paid.length === 0) {
@@ -29,6 +31,7 @@ function MerroList({ creditRecords, onSelectCredit }) {
 
   return (
     <div className="space-y-4">
+
       <div className="rounded-2xl p-4 border" style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -36,13 +39,21 @@ function MerroList({ creditRecords, onSelectCredit }) {
               <Users className="w-5 h-5" style={{ color: '#92400e' }} />
             </div>
             <div>
-              <p className="text-sm font-semibold" style={{ color: '#92400e' }}>Total owed to you</p>
-              <p className="text-2xl font-black" style={{ color: '#78350f' }}>{fmt(total)} birr</p>
+              <p className="text-sm font-semibold" style={{ color: '#92400e' }}>Owed to me</p>
+              <p className="text-2xl font-black" style={{ color: '#78350f' }}>{fmt(owedToMe)} birr</p>
             </div>
           </div>
-          <div className="text-right text-xs" style={{ color: '#9ca3af' }}>
-            <div>{active.length} active</div>
-            {paid.length > 0 && <div>{paid.length} paid</div>}
+          <div className="text-right">
+            {iOwe > 0 && (
+              <div className="mb-1">
+                <p className="text-xs font-semibold text-red-500">I owe</p>
+                <p className="text-sm font-black text-red-600">{fmt(iOwe)} birr</p>
+              </div>
+            )}
+            <div className="text-xs" style={{ color: '#9ca3af' }}>
+              <div>{active.length} active</div>
+              {paid.length > 0 && <div>{paid.length} paid</div>}
+            </div>
           </div>
         </div>
       </div>
@@ -52,20 +63,14 @@ function MerroList({ creditRecords, onSelectCredit }) {
           <button
             onClick={() => setShowPaid(false)}
             className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
-            style={{
-              background: !showPaid ? '#c47c1a' : '#f5f5f5',
-              color: !showPaid ? '#fff' : '#6b7280',
-            }}
+            style={{ background: !showPaid ? '#c47c1a' : '#f5f5f5', color: !showPaid ? '#fff' : '#6b7280' }}
           >
             Active ({active.length})
           </button>
           <button
             onClick={() => setShowPaid(true)}
             className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
-            style={{
-              background: showPaid ? '#c47c1a' : '#f5f5f5',
-              color: showPaid ? '#fff' : '#6b7280',
-            }}
+            style={{ background: showPaid ? '#c47c1a' : '#f5f5f5', color: showPaid ? '#fff' : '#6b7280' }}
           >
             Paid ({paid.length})
           </button>
@@ -99,6 +104,8 @@ function MerroList({ creditRecords, onSelectCredit }) {
 
           const status = getCreditStatus(record.due_date);
           const colors = colorMap[status.color];
+          const iOweRecord = record.direction === 'i_owe';
+
           return (
             <button
               key={record.id}
@@ -108,7 +115,18 @@ function MerroList({ creditRecords, onSelectCredit }) {
               <div className="flex items-center gap-3">
                 <div className={`w-3 h-3 rounded-full flex-shrink-0 ${colors.dot}`} />
                 <div>
-                  <p className="font-bold text-gray-800 text-base">{record.customer_name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-gray-800 text-base">{record.customer_name}</p>
+                    {iOweRecord ? (
+                      <span className="px-1.5 py-0.5 rounded text-xs font-bold" style={{ background: '#fee2e2', color: '#dc2626' }}>
+                        I owe
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 rounded text-xs font-bold" style={{ background: '#d1fae5', color: '#065f46' }}>
+                        Owes me
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500">
                     Due {record.due_date ? formatEthiopianShort(record.due_date) : '—'}
                     {record.paid_amount > 0 && (

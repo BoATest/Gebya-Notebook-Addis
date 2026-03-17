@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BookOpen, Users, Calendar, Settings, Trash2 } from 'lucide-react';
+import { BookOpen, Users, Calendar, Settings, Trash2, Pencil } from 'lucide-react';
 import db from './db';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import ProfitCard from './components/ProfitCard';
 import TransactionForm from './components/TransactionForm';
+import EditTransactionSheet from './components/EditTransactionSheet';
 import MerroList from './components/MerroList';
 import CreditDetail from './components/CreditDetail';
 import HistoryView from './components/HistoryView';
 import SettingsPage from './components/SettingsPage';
 import OnboardingScreen from './components/OnboardingScreen';
+import { DEFAULT_PROVIDERS } from './components/PaymentTypeChips';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
 import { fmt } from './utils/format';
 
@@ -30,15 +32,20 @@ function AppInner() {
   const [showForm, setShowForm] = useState(null);
   const [selectedCredit, setSelectedCredit] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState(null);
   const [shopProfile, setShopProfile] = useState(null);
+  const [enabledProviders, setEnabledProviders] = useState(DEFAULT_PROVIDERS);
+  const [recurringExpenses, setRecurringExpenses] = useState([]);
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, credits, nameRow, phoneRow] = await Promise.all([
+      const [txns, credits, nameRow, phoneRow, epRow, reRow] = await Promise.all([
         db.transactions.toArray(),
         db.credit_records.toArray(),
         db.settings.get('shop_name'),
         db.settings.get('shop_phone'),
+        db.settings.get('enabled_payment_methods'),
+        db.settings.get('recurring_expenses'),
       ]);
       txns.sort((a, b) => b.created_at - a.created_at);
       setTransactions(txns);
@@ -47,6 +54,8 @@ function AppInner() {
         name: nameRow?.value || null,
         phone: phoneRow?.value || '',
       });
+      setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS);
+      setRecurringExpenses(reRow ? JSON.parse(reRow.value) : []);
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
@@ -81,6 +90,7 @@ function AppInner() {
           due_date: transaction.due_date,
           status: 'active',
           created_at: transaction.created_at,
+          direction: transaction.direction || 'owes_me',
         });
       }
 
@@ -93,6 +103,19 @@ function AppInner() {
     } catch (err) {
       console.error('Failed to save:', err);
       alert('Could not save. Please try again.');
+      throw err;
+    }
+  };
+
+  const handleUpdateTransaction = async (id, updates) => {
+    try {
+      await db.transactions.update(id, { ...updates, updated_at: Date.now() });
+      const updated = await db.transactions.get(id);
+      setTransactions(prev => prev.map(t => t.id === id ? updated : t));
+    } catch (err) {
+      console.error('Failed to update:', err);
+      alert('Could not update. Please try again.');
+      throw err;
     }
   };
 
@@ -268,10 +291,21 @@ function AppInner() {
                       className="px-4 py-3 flex items-center border-l-4"
                       style={{ borderLeftColor: typeBorderColor[t.type] }}>
                       <span className="text-xl mr-3 flex-shrink-0">{typeEmoji[t.type]}</span>
-                      <div className="flex-1 min-w-0">
-                        <span className="font-semibold text-gray-800 text-sm truncate block">{t.item_name}</span>
+                      <button
+                        className="flex-1 min-w-0 text-left"
+                        onClick={() => setEditTarget(t)}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-gray-800 text-sm truncate">{t.item_name}</span>
+                          {t.updated_at && <span className="text-xs" style={{ color: '#c47c1a' }}>edited</span>}
+                        </div>
                         {t.quantity > 1 && <span className="text-xs text-gray-400">×{t.quantity}</span>}
-                      </div>
+                        {t.payment_type && t.payment_type !== 'cash' && (
+                          <span className="text-xs text-gray-400 block">
+                            {[t.payment_type, t.payment_provider].filter(Boolean).join(' · ')}
+                          </span>
+                        )}
+                      </button>
                       <div className="text-right mr-2 flex-shrink-0">
                         <div className="font-bold text-sm" style={{ color: typeColor[t.type] }}>
                           {t.type === 'expense' ? '-' : ''}{fmt(t.amount || 0)} birr
@@ -282,14 +316,24 @@ function AppInner() {
                           </div>
                         )}
                       </div>
-                      <button
-                        onClick={() => setDeleteTarget(t)}
-                        className="p-2 rounded-xl flex-shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center"
-                        style={{ background: '#fff1f2' }}
-                        aria-label="Delete entry"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-400" />
-                      </button>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => setEditTarget(t)}
+                          className="p-2 rounded-xl min-w-[36px] min-h-[36px] flex items-center justify-center"
+                          style={{ background: '#fffbeb' }}
+                          aria-label="Edit entry"
+                        >
+                          <Pencil className="w-3.5 h-3.5" style={{ color: '#c47c1a' }} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(t)}
+                          className="p-2 rounded-xl min-w-[36px] min-h-[36px] flex items-center justify-center"
+                          style={{ background: '#fff1f2' }}
+                          aria-label="Delete entry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -315,7 +359,10 @@ function AppInner() {
         )}
 
         {activeTab === 'history' && (
-          <HistoryView transactions={transactions} />
+          <HistoryView
+            transactions={transactions}
+            onEdit={setEditTarget}
+          />
         )}
 
         {activeTab === 'settings' && (
@@ -324,6 +371,10 @@ function AppInner() {
             creditRecords={creditRecords}
             shopProfile={shopProfile}
             onProfileSave={handleProfileSave}
+            enabledProviders={enabledProviders}
+            onProvidersChange={setEnabledProviders}
+            recurringExpenses={recurringExpenses}
+            onRecurringChange={setRecurringExpenses}
           />
         )}
       </main>
@@ -357,8 +408,19 @@ function AppInner() {
       {showForm && (
         <TransactionForm
           type={showForm}
-          onSave={(txn) => { handleAddTransaction(txn); setShowForm(null); }}
-          onCancel={() => setShowForm(null)}
+          onSave={handleAddTransaction}
+          onDone={() => setShowForm(null)}
+          enabledProviders={enabledProviders}
+          recurringExpenses={recurringExpenses}
+        />
+      )}
+
+      {editTarget && (
+        <EditTransactionSheet
+          transaction={editTarget}
+          enabledProviders={enabledProviders}
+          onUpdate={handleUpdateTransaction}
+          onClose={() => setEditTarget(null)}
         />
       )}
 

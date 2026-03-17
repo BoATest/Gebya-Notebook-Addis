@@ -1,24 +1,26 @@
 import { useState } from 'react';
-import { X, ChevronDown, ChevronUp, Save, AlertTriangle } from 'lucide-react';
+import { X, ChevronDown, ChevronUp, Save, AlertTriangle, CheckCircle2, Plus } from 'lucide-react';
 import VoiceButton from './VoiceButton';
+import PaymentTypeChips from './PaymentTypeChips';
 import { getDueDateOptions } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/format';
 
 const TYPE_CONFIG = {
-  sale:    { title: 'I Sold Something',  itemLabel: 'What did you sell?',    itemPlaceholder: 'e.g. bread, sugar…',   amountLabel: 'How much total?',       buttonText: 'Save Sale',    color: 'green' },
-  expense: { title: 'I Spent Something', itemLabel: 'What did you spend on?', itemPlaceholder: 'e.g. transport, rent…', amountLabel: 'How much total?',       buttonText: 'Save Expense', color: 'red' },
-  credit:  { title: 'Someone Owes Me',   itemLabel: 'Who owes you?',          itemPlaceholder: 'e.g. Abebe…',           amountLabel: 'How much do they owe?', buttonText: 'Save Credit',  color: 'amber' },
+  sale:    { title: 'I Sold Something',  itemLabel: 'What did you sell?',    itemPlaceholder: 'e.g. bread, sugar…',   amountLabel: 'How much total?',       buttonText: 'Save Sale',    color: 'green',  addAnother: 'Add another sale' },
+  expense: { title: 'I Spent Something', itemLabel: 'What did you spend on?', itemPlaceholder: 'e.g. transport, rent…', amountLabel: 'How much total?',       buttonText: 'Save Expense', color: 'red',    addAnother: 'Add another expense' },
+  credit:  { title: 'Record Credit',     itemLabel: 'Name',                   itemPlaceholder: 'e.g. Abebe…',           amountLabel: 'Amount',                buttonText: 'Save Credit',  color: 'amber',  addAnother: '' },
 };
 
 const ACCENT = {
-  green: { btn: '#15803d', ring: '#86efac' },
-  red:   { btn: '#dc2626', ring: '#fca5a5' },
-  amber: { btn: '#c47c1a', ring: '#fcd34d' },
+  green: { btn: '#15803d' },
+  red:   { btn: '#dc2626' },
+  amber: { btn: '#c47c1a' },
 };
 
-function TransactionForm({ type, onSave, onCancel }) {
+function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpenses }) {
   const config = TYPE_CONFIG[type] || TYPE_CONFIG.sale;
   const isCredit = type === 'credit';
+  const isExpense = type === 'expense';
   const accent = ACCENT[config.color];
 
   const [item, setItem] = useState('');
@@ -29,6 +31,14 @@ function TransactionForm({ type, onSave, onCancel }) {
   const [phone, setPhone] = useState('');
   const [selectedDue, setSelectedDue] = useState(null);
   const [customDue, setCustomDue] = useState('');
+
+  const [paymentType, setPaymentType] = useState('cash');
+  const [paymentProvider, setPaymentProvider] = useState('');
+
+  const [creditDirection, setCreditDirection] = useState('owes_me');
+
+  const [saveState, setSaveState] = useState('idle');
+  const [lastSaved, setLastSaved] = useState(null);
 
   const dueDateOptions = getDueDateOptions();
   const sellingPrice = parseFloat(amount) || 0;
@@ -46,9 +56,9 @@ function TransactionForm({ type, onSave, onCancel }) {
     return selectedDue;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!canSave) return;
-    onSave({
+    const data = {
       type,
       item_name: item.trim(),
       quantity: isCredit ? 1 : qty,
@@ -58,9 +68,71 @@ function TransactionForm({ type, onSave, onCancel }) {
       is_credit: isCredit,
       customer_phone: isCredit && phone.trim() ? phone.trim() : null,
       due_date: isCredit ? getEffectiveDueDate() : null,
+      payment_type: isCredit ? null : paymentType,
+      payment_provider: (!isCredit && paymentType !== 'cash') ? paymentProvider || null : null,
+      direction: isCredit ? creditDirection : null,
       created_at: Date.now(),
-    });
+    };
+    try {
+      await onSave(data);
+      if (isCredit) {
+        onDone();
+      } else {
+        setLastSaved({ item: data.item_name, amount: data.amount, type });
+        setSaveState('success');
+      }
+    } catch (err) {
+      // error already handled / alerted in App.jsx
+    }
   };
+
+  const handleAddAnother = () => {
+    const keptType = paymentType;
+    const keptProvider = paymentProvider;
+    setItem('');
+    setQuantity('1');
+    setAmount('');
+    setCostPrice('');
+    setShowAdvanced(false);
+    setPhone('');
+    setSelectedDue(null);
+    setCustomDue('');
+    setPaymentType(keptType);
+    setPaymentProvider(keptProvider);
+    setSaveState('idle');
+    setLastSaved(null);
+  };
+
+  if (saveState === 'success') {
+    return (
+      <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50">
+        <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 pb-10 shadow-2xl">
+          <div className="text-center py-6">
+            <CheckCircle2 className="w-14 h-14 mx-auto mb-3 text-green-500" />
+            <p className="font-black text-gray-900 text-xl">{lastSaved?.item}</p>
+            <p className="text-gray-500 mt-1 text-base">{fmt(lastSaved?.amount)} birr saved</p>
+          </div>
+          <div className="space-y-3">
+            <button
+              onClick={handleAddAnother}
+              className="w-full p-4 rounded-2xl font-black text-white text-base flex items-center justify-center gap-2 min-h-[56px] active:scale-95 transition-all"
+              style={{ background: accent.btn }}
+            >
+              <Plus className="w-5 h-5" />
+              {config.addAnother}
+            </button>
+            <button
+              onClick={onDone}
+              className="w-full p-4 rounded-2xl font-bold text-gray-700 text-base min-h-[52px] active:scale-95 transition-all"
+              style={{ background: '#f5f5f5' }}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50">
@@ -69,7 +141,7 @@ function TransactionForm({ type, onSave, onCancel }) {
         <div className="sticky top-0 bg-white rounded-t-3xl z-10 px-6 pt-5 pb-4 border-b" style={{ borderColor: '#f0e6d4' }}>
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-black text-gray-900">{config.title}</h2>
-            <button onClick={onCancel} aria-label="Close"
+            <button onClick={onDone} aria-label="Close"
               className="p-2 rounded-full hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
               <X className="w-5 h-5 text-gray-500" />
             </button>
@@ -77,6 +149,49 @@ function TransactionForm({ type, onSave, onCancel }) {
         </div>
 
         <div className="px-6 py-4 space-y-4">
+
+          {isCredit && (
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2 text-sm">Direction</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'owes_me', label: 'ያበደርኩት', sub: 'They owe me' },
+                  { id: 'i_owe',   label: 'የተበደርኩት', sub: 'I owe them' },
+                ].map(d => (
+                  <button key={d.id} type="button" onClick={() => setCreditDirection(d.id)}
+                    className="p-3 rounded-xl border-2 text-center transition-all min-h-[56px]"
+                    style={{
+                      borderColor: creditDirection === d.id ? '#c47c1a' : '#e8d5b0',
+                      background: creditDirection === d.id ? '#fffbeb' : '#fff',
+                      color: creditDirection === d.id ? '#92400e' : '#4b5563',
+                    }}>
+                    <div className="font-bold text-sm">{d.label}</div>
+                    <div className="text-xs opacity-70 mt-0.5">{d.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isExpense && recurringExpenses && recurringExpenses.length > 0 && (
+            <div>
+              <label className="block text-gray-600 text-xs font-bold mb-2 uppercase tracking-wide">Quick-fill</label>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {recurringExpenses.map(re => (
+                  <button
+                    key={re.id}
+                    type="button"
+                    onClick={() => { setItem(re.name); setAmount(String(re.amount)); }}
+                    className="flex-shrink-0 px-3 py-2 rounded-xl border-2 text-xs font-bold transition-all"
+                    style={{ borderColor: '#e8d5b0', background: '#faf5eb', color: '#92400e' }}
+                  >
+                    <div>{re.name}</div>
+                    <div className="font-normal text-amber-600 mt-0.5">{fmt(re.amount)} birr</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-gray-700 font-semibold mb-2">{config.itemLabel}</label>
@@ -158,6 +273,16 @@ function TransactionForm({ type, onSave, onCancel }) {
                   style={{ borderColor: '#e8d5b0' }} />
               )}
             </div>
+          )}
+
+          {!isCredit && (
+            <PaymentTypeChips
+              paymentType={paymentType}
+              provider={paymentProvider}
+              onTypeChange={setPaymentType}
+              onProviderChange={setPaymentProvider}
+              enabledProviders={enabledProviders}
+            />
           )}
 
           {!isCredit && (

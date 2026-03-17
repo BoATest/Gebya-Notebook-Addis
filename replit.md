@@ -24,13 +24,19 @@ Mobile-first PWA for Ethiopian small shop owners. Serves at path `/`.
 
 **Features:**
 - Today screen: profit/sales summary with privacy toggle (hidden by default, auto-hides after 30s)
-- I Sold / I Spent / Credit (Merro) entry forms with modal interface
+- I Sold / I Spent / Credit (ብድር) entry forms with modal interface
+- Payment type chips: Cash / Bank / Wallet with provider sub-chips (CBE, Dashen, Awash, Abyssinia / telebirr, CBE Birr)
+- Save-and-add flow: after saving sale/expense, success screen offers "Add another" (resets form, keeps payment type) or "Done"
+- Credit direction: ያበደርኩት (they owe me) vs የተበደርኩት (I owe them) — shown as badge in ብድር list
+- Edit any transaction: tap pencil icon in Today's Entries, or "Edit this entry" in History detail sheet → pre-filled EditTransactionSheet
+- Recurring expenses: define quick-fill shortcuts in Settings, appear as chips in expense form
+- Payment Methods settings: enable/disable each bank and wallet; only enabled ones appear as chips
 - True profit calculation: (selling price - cost price × quantity), cost optional under "Advanced"
-- Merro (credit) tracking with partial payments, urgency color coding
-- History view with per-day summaries and CSV export
+- ብድር credit tracking with partial payments, urgency color coding, direction badges
+- History view with per-day/week summaries; edited entries tagged with "edited" label
 - Ethiopian calendar date display (e.g. "8 መጥቅ 2019")
 - Voice input via Web Speech API (Amharic locale, fallback graceful)
-- 100% offline — all data in IndexedDB via Dexie.js, no backend needed
+- 100% offline — all data in IndexedDB via Dexie.js v3 schema, no backend needed
 
 **Tech stack:**
 - React + Vite + Tailwind CSS (v4)
