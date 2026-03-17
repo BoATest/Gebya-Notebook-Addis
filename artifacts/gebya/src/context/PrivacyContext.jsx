@@ -13,14 +13,12 @@ export function PrivacyProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!hidden) return;
-  }, [hidden]);
-
-  useEffect(() => {
-    const onHide = () => { if (!hidden) setHidden(true); };
-    document.addEventListener('visibilitychange', () => { if (document.hidden) onHide(); });
-    return () => document.removeEventListener('visibilitychange', onHide);
-  }, [hidden]);
+    const onVisibilityChange = () => {
+      if (document.hidden) setHidden(true);
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
 
   const toggle = async () => {
     const next = !hidden;
