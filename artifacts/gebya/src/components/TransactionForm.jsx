@@ -27,7 +27,8 @@ function TransactionForm({ type, onSave, onCancel }) {
   const qty = parseFloat(quantity) || 1;
   const belowCost = !isCredit && cost > 0 && sellingPrice < cost * qty;
 
-  const canSave = item.trim() && sellingPrice > 0;
+  const hasDueDate = isCredit ? (selectedDue !== null && selectedDue !== undefined && selectedDue !== 'custom') || (selectedDue === 'custom' && customDue) : true;
+  const canSave = item.trim() && sellingPrice > 0 && hasDueDate;
 
   const getEffectiveDueDate = () => {
     if (selectedDue === 'custom' && customDue) {
@@ -151,6 +152,9 @@ function TransactionForm({ type, onSave, onCancel }) {
               >
                 Pick Date
               </button>
+              {isCredit && !hasDueDate && (
+                <p className="text-xs text-amber-600 mt-1">Please select a due date</p>
+              )}
               {selectedDue === 'custom' && (
                 <input
                   type="date"
