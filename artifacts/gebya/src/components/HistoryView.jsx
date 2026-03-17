@@ -1,19 +1,34 @@
-import { Download, Calendar, TrendingUp, TrendingDown } from 'lucide-react';
+import { useState } from 'react';
+import { Download, Calendar, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
+import { usePrivacy } from '../context/PrivacyContext';
 
 function groupByDay(transactions) {
   const groups = {};
   for (const t of transactions) {
     const key = new Date(t.created_at).toDateString();
-    if (!groups[key]) {
-      groups[key] = { date: t.created_at, transactions: [] };
-    }
+    if (!groups[key]) groups[key] = { date: t.created_at, transactions: [] };
     groups[key].transactions.push(t);
   }
   return Object.values(groups).sort((a, b) => b.date - a.date);
 }
 
-function calcDayStats(transactions) {
+function groupByWeek(transactions) {
+  const groups = {};
+  for (const t of transactions) {
+    const d = new Date(t.created_at);
+    const day = d.getDay();
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - ((day + 6) % 7));
+    monday.setHours(0, 0, 0, 0);
+    const key = monday.getTime();
+    if (!groups[key]) groups[key] = { weekStart: monday.getTime(), transactions: [] };
+    groups[key].transactions.push(t);
+  }
+  return Object.values(groups).sort((a, b) => b.weekStart - a.weekStart);
+}
+
+function calcStats(transactions) {
   const sales = transactions.filter(t => t.type === 'sale');
   const expenses = transactions.filter(t => t.type === 'expense');
   const revenue = sales.reduce((s, t) => s + (t.amount || 0), 0);
@@ -36,7 +51,6 @@ function exportToCSV(transactions) {
     t.profit !== null && t.profit !== undefined ? t.profit : '',
     `"${t.customer_name || ''}"`,
   ]);
-
   const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -50,88 +64,159 @@ function exportToCSV(transactions) {
 }
 
 function HistoryView({ transactions }) {
-  const groups = groupByDay(transactions);
+  const { hidden } = usePrivacy();
+  const m = (n) => hidden ? '••••' : n.toLocaleString();
+  const [grouping, setGrouping] = useState('day');
+  const [expandedGroups, setExpandedGroups] = useState({});
+
+  const toggleGroup = (key) => setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const dayGroups = groupByDay(transactions);
+  const weekGroups = groupByWeek(transactions);
+
+  const typeIcon = { sale: '💰', expense: '🛒', credit: '👥' };
+  const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#c47c1a' };
 
   return (
-    <div className="space-y-4">
-      <button
-        onClick={() => exportToCSV(transactions)}
-        className="w-full flex items-center justify-center gap-2 p-4 bg-blue-600 text-white rounded-2xl font-bold min-h-[56px] active:scale-95 transition-all"
-      >
-        <Download className="w-5 h-5" />
-        Export to CSV (Backup)
-      </button>
-      <p className="text-xs text-gray-400 text-center -mt-2">Download your data to keep it safe</p>
+    <div className="space-y-4 pb-4">
+      {/* Grouping toggle */}
+      <div className="flex gap-2">
+        {[['day', 'By Day'], ['week', 'By Week']].map(([val, lbl]) => (
+          <button key={val} onClick={() => setGrouping(val)}
+            className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
+            style={{
+              background: grouping === val ? '#c47c1a' : '#f5f5f5',
+              color: grouping === val ? '#fff' : '#6b7280',
+            }}>
+            {lbl}
+          </button>
+        ))}
+      </div>
 
-      {groups.length === 0 ? (
+      {transactions.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Calendar className="w-16 h-16 text-gray-200 mb-4" />
-          <p className="text-gray-400 text-lg font-medium">No history yet</p>
-          <p className="text-gray-300 text-sm mt-1">Record your first sale or expense to start</p>
+          <Calendar className="w-16 h-16 mb-4" style={{ color: '#e5e7eb' }} />
+          <p className="text-lg font-medium" style={{ color: '#9ca3af' }}>No history yet</p>
+          <p className="text-sm mt-1" style={{ color: '#d1d5db' }}>Record your first sale or expense to start</p>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {groups.map(group => {
-            const stats = calcDayStats(group.transactions);
+      ) : grouping === 'day' ? (
+        <div className="space-y-3">
+          {dayGroups.map(group => {
+            const stats = calcStats(group.transactions);
             const isToday = new Date(group.date).toDateString() === new Date().toDateString();
+            const key = group.date.toString();
+            const expanded = expandedGroups[key] ?? isToday;
             return (
-              <div key={group.date} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+              <div key={group.date} className="rounded-2xl shadow-sm border overflow-hidden" style={{ background: '#fff', borderColor: '#f0e6d4' }}>
+                <button className="w-full px-4 py-3 flex justify-between items-center"
+                  style={{ background: isToday ? '#fffbeb' : '#fafafa' }}
+                  onClick={() => toggleGroup(key)}>
                   <div>
-                    <span className="font-semibold text-gray-700 text-sm">
+                    <span className="font-bold text-gray-800 text-sm">
                       {isToday ? 'Today' : formatEthiopian(group.date)}
                     </span>
                     {!isToday && (
-                      <span className="text-xs text-gray-400 ml-2">
+                      <span className="text-xs ml-2" style={{ color: '#9ca3af' }}>
                         {new Date(group.date).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
                       </span>
                     )}
+                    <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
+                      {group.transactions.length} entries
+                    </div>
                   </div>
-                  <div className="text-right">
-                    {stats.hasCost ? (
-                      <span className={`text-sm font-bold ${stats.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                        {stats.profit >= 0 ? '+' : ''}{stats.profit.toLocaleString()} birr
-                      </span>
-                    ) : (
-                      <span className="text-sm font-bold text-gray-700">{stats.revenue.toLocaleString()} birr</span>
-                    )}
-                    <p className="text-xs text-gray-400">{stats.hasCost ? 'profit' : 'revenue'}</p>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
+                        {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${m(stats.profit)}` : m(stats.revenue)} birr
+                      </div>
+                      <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? 'profit' : 'revenue'}</div>
+                    </div>
+                    {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                   </div>
-                </div>
+                </button>
 
-                <div className="divide-y divide-gray-50">
-                  {group.transactions.map(t => (
-                    <div key={t.id} className="px-4 py-3 flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="text-base">
-                          {t.type === 'sale' ? '💰' : t.type === 'expense' ? '🛒' : '👥'}
-                        </span>
-                        <div>
-                          <span className="text-sm font-medium text-gray-800">{t.item_name}</span>
-                          {t.quantity > 1 && (
-                            <span className="text-xs text-gray-400 ml-1">×{t.quantity}</span>
-                          )}
-                          {t.customer_name && (
-                            <p className="text-xs text-gray-400">{t.customer_name}</p>
+                {expanded && (
+                  <div className="divide-y" style={{ borderColor: '#fef9ec' }}>
+                    {group.transactions.map(t => (
+                      <div key={t.id} className="px-4 py-3 flex justify-between items-center">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="text-base flex-shrink-0">{typeIcon[t.type]}</span>
+                          <div className="min-w-0">
+                            <span className="font-medium text-gray-800 text-sm truncate block">{t.item_name}</span>
+                            {t.quantity > 1 && <span className="text-xs text-gray-400">×{t.quantity}</span>}
+                            {t.customer_name && <p className="text-xs text-gray-400">{t.customer_name}</p>}
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0 ml-2">
+                          <span className="font-semibold text-sm" style={{ color: typeColor[t.type] }}>
+                            {t.type === 'expense' ? '-' : ''}{m(t.amount || 0)}
+                          </span>
+                          {t.profit !== null && t.profit !== undefined && (
+                            <p className={`text-xs ${t.profit >= 0 ? 'text-green-600' : 'text-red-400'}`}>
+                              {t.profit >= 0 ? '+' : ''}{m(t.profit)} profit
+                            </p>
                           )}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className={`text-sm font-semibold ${
-                          t.type === 'sale' ? 'text-emerald-600' :
-                          t.type === 'expense' ? 'text-red-500' : 'text-blue-600'
-                        }`}>
-                          {t.type === 'expense' ? '-' : ''}{(t.amount || 0).toLocaleString()}
-                        </span>
-                        {t.profit !== null && t.profit !== undefined && (
-                          <p className={`text-xs ${t.profit >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
-                            {t.profit >= 0 ? '+' : ''}{t.profit.toLocaleString()} profit
-                          </p>
-                        )}
-                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {weekGroups.map(group => {
+            const stats = calcStats(group.transactions);
+            const weekEnd = new Date(group.weekStart + 6 * 86400000);
+            const key = group.weekStart.toString();
+            const expanded = expandedGroups[key];
+            const isCurrentWeek = Date.now() >= group.weekStart && Date.now() <= group.weekStart + 7 * 86400000;
+            return (
+              <div key={group.weekStart} className="rounded-2xl shadow-sm border overflow-hidden" style={{ background: '#fff', borderColor: '#f0e6d4' }}>
+                <button className="w-full px-4 py-3 flex justify-between items-center"
+                  style={{ background: isCurrentWeek ? '#fffbeb' : '#fafafa' }}
+                  onClick={() => toggleGroup(key)}>
+                  <div>
+                    <span className="font-bold text-gray-800 text-sm">
+                      {isCurrentWeek ? 'This Week' : `${formatEthiopian(group.weekStart)} – ${formatEthiopian(weekEnd.getTime())}`}
+                    </span>
+                    <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
+                      {group.transactions.length} entries
                     </div>
-                  ))}
-                </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
+                        {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${m(stats.profit)}` : m(stats.revenue)} birr
+                      </div>
+                      <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? 'profit' : 'revenue'}</div>
+                    </div>
+                    {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                  </div>
+                </button>
+
+                {expanded && (
+                  <div className="divide-y" style={{ borderColor: '#fef9ec' }}>
+                    {group.transactions.map(t => (
+                      <div key={t.id} className="px-4 py-3 flex justify-between items-center">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="text-base flex-shrink-0">{typeIcon[t.type]}</span>
+                          <div className="min-w-0">
+                            <span className="font-medium text-gray-800 text-sm truncate block">{t.item_name}</span>
+                            <span className="text-xs text-gray-400">{formatEthiopian(t.created_at)}</span>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0 ml-2">
+                          <span className="font-semibold text-sm" style={{ color: typeColor[t.type] }}>
+                            {t.type === 'expense' ? '-' : ''}{m(t.amount || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
