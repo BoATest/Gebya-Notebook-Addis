@@ -1,10 +1,11 @@
 import PrivacyToggle from './PrivacyToggle';
 import { usePrivacy } from '../context/PrivacyContext';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { fmt } from '../utils/format';
 
 function ProfitCard({ transactions }) {
   const { hidden } = usePrivacy();
-  const m = (n) => hidden ? '••••' : n.toLocaleString();
+  const hid = (n) => hidden ? '••••' : fmt(n);
 
   const sales = transactions.filter(t => t.type === 'sale');
   const expenses = transactions.filter(t => t.type === 'expense');
@@ -27,7 +28,7 @@ function ProfitCard({ transactions }) {
           <span className="flex items-center gap-1" style={{ color: '#6b7280' }}>
             <TrendingUp className="w-3.5 h-3.5" style={{ color: '#15803d' }} /> Sales
           </span>
-          <span className="font-semibold" style={{ color: '#15803d' }}>{m(revenue)} birr</span>
+          <span className="font-semibold" style={{ color: '#15803d' }}>{hid(revenue)} birr</span>
         </div>
 
         {expenses_total > 0 && (
@@ -35,7 +36,7 @@ function ProfitCard({ transactions }) {
             <span className="flex items-center gap-1" style={{ color: '#6b7280' }}>
               <TrendingDown className="w-3.5 h-3.5 text-red-500" /> Expenses
             </span>
-            <span className="font-semibold text-red-500">-{m(expenses_total)} birr</span>
+            <span className="font-semibold text-red-500">-{hid(expenses_total)} birr</span>
           </div>
         )}
 
@@ -43,12 +44,12 @@ function ProfitCard({ transactions }) {
           <>
             <div className="flex justify-between text-sm mb-2">
               <span style={{ color: '#6b7280' }}>Cost of goods</span>
-              <span className="font-semibold" style={{ color: '#ea580c' }}>-{m(costOfGoods)} birr</span>
+              <span className="font-semibold" style={{ color: '#ea580c' }}>-{hid(costOfGoods)} birr</span>
             </div>
             <div className="border-t pt-2 flex justify-between text-sm" style={{ borderColor: '#f0e6d4' }}>
               <span className="font-semibold" style={{ color: '#374151' }}>Net Profit</span>
               <span className={`font-bold ${profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
-                {profit >= 0 ? '+' : ''}{m(profit)} birr
+                {profit >= 0 ? '+' : ''}{hid(profit)} birr
               </span>
             </div>
           </>

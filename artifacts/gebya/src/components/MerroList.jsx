@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Users, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { getCreditStatus, formatEthiopianShort } from '../utils/ethiopianCalendar';
 import { usePrivacy } from '../context/PrivacyContext';
+import { fmt } from '../utils/format';
 
 function MerroList({ creditRecords, onSelectCredit }) {
   const { hidden } = usePrivacy();
   const [showPaid, setShowPaid] = useState(false);
-  const m = (n) => hidden ? '••••' : n.toLocaleString();
+  const hid = (n) => hidden ? '••••' : fmt(n);
 
   const active = creditRecords.filter(r => r.status !== 'paid');
   const paid = creditRecords.filter(r => r.status === 'paid');
@@ -24,14 +25,13 @@ function MerroList({ creditRecords, onSelectCredit }) {
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <Users className="w-16 h-16 mb-4" style={{ color: '#e5e7eb' }} />
         <p className="text-lg font-medium" style={{ color: '#9ca3af' }}>No credit records</p>
-        <p className="text-sm mt-1" style={{ color: '#d1d5db' }}>Tap "Credit" on the Today tab to add one</p>
+        <p className="text-sm mt-1" style={{ color: '#d1d5db' }}>Tap "ብድር" on the Today tab to add one</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {/* Summary banner */}
       <div className="rounded-2xl p-4 border" style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -40,7 +40,7 @@ function MerroList({ creditRecords, onSelectCredit }) {
             </div>
             <div>
               <p className="text-sm font-semibold" style={{ color: '#92400e' }}>Total owed to you</p>
-              <p className="text-2xl font-black" style={{ color: '#78350f' }}>{m(total)} birr</p>
+              <p className="text-2xl font-black" style={{ color: '#78350f' }}>{hid(total)} birr</p>
             </div>
           </div>
           <div className="text-right text-xs" style={{ color: '#9ca3af' }}>
@@ -50,7 +50,6 @@ function MerroList({ creditRecords, onSelectCredit }) {
         </div>
       </div>
 
-      {/* Toggle active / paid */}
       {paid.length > 0 && (
         <div className="flex gap-2">
           <button
@@ -76,7 +75,6 @@ function MerroList({ creditRecords, onSelectCredit }) {
         </div>
       )}
 
-      {/* List */}
       <div className="space-y-3">
         {list.length === 0 && (
           <div className="text-center py-10">
@@ -95,7 +93,7 @@ function MerroList({ creditRecords, onSelectCredit }) {
                 <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-green-500" />
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-800">{record.customer_name}</p>
-                  <p className="text-xs text-gray-400">Paid in full · {record.original_amount.toLocaleString()} birr</p>
+                  <p className="text-xs text-gray-400">Paid in full · {hid(record.original_amount)} birr</p>
                 </div>
                 <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">PAID</span>
               </div>
@@ -117,13 +115,13 @@ function MerroList({ creditRecords, onSelectCredit }) {
                   <p className="text-sm text-gray-500">
                     Due {record.due_date ? formatEthiopianShort(record.due_date) : '—'}
                     {record.paid_amount > 0 && (
-                      <span className="ml-2 text-gray-400">· Paid {m(record.paid_amount)}</span>
+                      <span className="ml-2 text-gray-400">· Paid {hid(record.paid_amount)}</span>
                     )}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="font-bold text-gray-800 text-base">{m(record.remaining_amount || 0)} birr</span>
+                <span className="font-bold text-gray-800 text-base">{hid(record.remaining_amount || 0)} birr</span>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </div>
             </button>

@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { ArrowLeft, Phone, CheckCircle2, DollarSign, Clock } from 'lucide-react';
 import { formatEthiopian, getCreditStatus } from '../utils/ethiopianCalendar';
 import { usePrivacy } from '../context/PrivacyContext';
+import { fmt } from '../utils/format';
 
 function CreditDetail({ record, onBack, onPartialPayment, onFullPayment }) {
   const { hidden } = usePrivacy();
-  const m = (n) => hidden ? '••••' : n.toLocaleString();
+  const hid = (n) => hidden ? '••••' : fmt(n);
   const [showPartial, setShowPartial] = useState(false);
   const [partialAmount, setPartialAmount] = useState('');
 
@@ -34,7 +35,7 @@ function CreditDetail({ record, onBack, onPartialPayment, onFullPayment }) {
       <button onClick={onBack} className="flex items-center gap-2 min-h-[44px] -ml-1"
         style={{ color: '#c47c1a' }}>
         <ArrowLeft className="w-5 h-5" />
-        <span className="font-semibold">Back to Merro</span>
+        <span className="font-semibold">Back to ብድር</span>
       </button>
 
       <div className="rounded-2xl p-5 shadow-sm border" style={{ background: '#fff', borderColor: '#f0e6d4' }}>
@@ -53,17 +54,17 @@ function CreditDetail({ record, onBack, onPartialPayment, onFullPayment }) {
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
             <span style={{ color: '#6b7280' }}>Original debt</span>
-            <span className="font-semibold text-gray-800">{m(record.original_amount)} birr</span>
+            <span className="font-semibold text-gray-800">{hid(record.original_amount)} birr</span>
           </div>
           {record.paid_amount > 0 && (
             <div className="flex justify-between text-sm">
               <span style={{ color: '#6b7280' }}>Amount paid</span>
-              <span className="font-semibold text-green-700">-{m(record.paid_amount)} birr</span>
+              <span className="font-semibold text-green-700">-{hid(record.paid_amount)} birr</span>
             </div>
           )}
           <div className="border-t pt-3 flex justify-between" style={{ borderColor: '#f0e6d4' }}>
             <span className="font-bold text-gray-700">Still owes</span>
-            <span className="font-black text-red-600 text-xl">{m(record.remaining_amount || 0)} birr</span>
+            <span className="font-black text-red-600 text-xl">{hid(record.remaining_amount || 0)} birr</span>
           </div>
         </div>
 
@@ -144,18 +145,18 @@ function CreditDetail({ record, onBack, onPartialPayment, onFullPayment }) {
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span style={{ color: '#6b7280' }}>Borrowed</span>
-            <span className="text-gray-800 font-medium">{m(record.original_amount)} birr</span>
+            <span className="text-gray-800 font-medium">{hid(record.original_amount)} birr</span>
           </div>
           {record.paid_amount > 0 && (
             <div className="flex justify-between text-sm">
               <span style={{ color: '#6b7280' }}>Paid back</span>
-              <span className="font-medium text-green-700">{m(record.paid_amount)} birr</span>
+              <span className="font-medium text-green-700">{hid(record.paid_amount)} birr</span>
             </div>
           )}
           {record.remaining_amount > 0 && (
             <div className="flex justify-between text-sm">
               <span style={{ color: '#6b7280' }}>Remaining</span>
-              <span className="font-medium text-red-600">{m(record.remaining_amount)} birr</span>
+              <span className="font-medium text-red-600">{hid(record.remaining_amount)} birr</span>
             </div>
           )}
         </div>

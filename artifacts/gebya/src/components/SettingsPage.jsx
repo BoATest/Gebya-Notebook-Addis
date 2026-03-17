@@ -1,13 +1,24 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight } from 'lucide-react';
+import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import db from '../db';
 
-function SettingsPage({ transactions, creditRecords }) {
+function SettingsPage({ transactions, creditRecords, shopProfile, onProfileSave }) {
   const { hidden, toggle } = usePrivacy();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [cleared, setCleared] = useState(false);
+
+  const [editName, setEditName] = useState(shopProfile?.name || '');
+  const [editPhone, setEditPhone] = useState(shopProfile?.phone || '');
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  const handleProfileSave = async () => {
+    if (!editName.trim()) return;
+    await onProfileSave(editName.trim(), editPhone.trim());
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 2000);
+  };
 
   const exportToCSV = () => {
     const headers = ['Date (Ethiopian)', 'Type', 'Item', 'Quantity', 'Amount (birr)', 'Cost (birr)', 'Profit (birr)', 'Customer'];
@@ -46,9 +57,59 @@ function SettingsPage({ transactions, creditRecords }) {
 
   const totalEntries = transactions.length;
   const totalCredits = creditRecords.length;
+  const profileChanged = editName.trim() !== (shopProfile?.name || '') || editPhone.trim() !== (shopProfile?.phone || '');
 
   return (
     <div className="space-y-5 pb-4">
+
+      {/* Shop Profile */}
+      <section>
+        <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">Shop Profile</h2>
+        <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden">
+          <div className="px-5 pt-5 pb-4 space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
+                <Store className="w-3.5 h-3.5" /> Shop Name
+              </label>
+              <input
+                type="text"
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                placeholder="e.g. Tigist's Store"
+                className="w-full px-4 py-3 border-2 rounded-xl text-sm font-semibold focus:outline-none"
+                style={{ borderColor: editName.trim() ? '#c47c1a' : '#e8d5b0' }}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5" /> Phone Number
+              </label>
+              <input
+                type="tel"
+                inputMode="tel"
+                value={editPhone}
+                onChange={e => setEditPhone(e.target.value)}
+                placeholder="e.g. 0912345678 (optional)"
+                className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
+                style={{ borderColor: '#e8d5b0' }}
+              />
+            </div>
+            <button
+              onClick={handleProfileSave}
+              disabled={!editName.trim() || (!profileChanged && !profileSaved)}
+              className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all min-h-[48px]"
+              style={{
+                background: profileSaved ? '#15803d' : (editName.trim() && profileChanged ? '#c47c1a' : '#e5e7eb'),
+                color: (editName.trim() && (profileChanged || profileSaved)) ? '#fff' : '#9ca3af',
+              }}
+            >
+              {profileSaved ? (
+                <><Check className="w-4 h-4" /> Saved!</>
+              ) : 'Save Changes'}
+            </button>
+          </div>
+        </div>
+      </section>
 
       {/* Privacy */}
       <section>
@@ -68,7 +129,7 @@ function SettingsPage({ transactions, creditRecords }) {
             <div className="flex-1 text-left">
               <div className="font-bold text-gray-800">Hide amounts</div>
               <div className="text-xs text-gray-500 mt-0.5">
-                {hidden ? 'Amounts are hidden everywhere — tap to show' : 'Amounts are visible — tap to hide'}
+                {hidden ? 'Totals are hidden — tap to show' : 'Totals are visible — tap to hide'}
               </div>
             </div>
             <div className={`w-12 h-6 rounded-full transition-colors flex-shrink-0 flex items-center px-1 ${hidden ? 'bg-amber-400' : 'bg-gray-200'}`}>
@@ -144,7 +205,6 @@ function SettingsPage({ transactions, creditRecords }) {
         </div>
       </section>
 
-      {/* Clear confirm modal */}
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">

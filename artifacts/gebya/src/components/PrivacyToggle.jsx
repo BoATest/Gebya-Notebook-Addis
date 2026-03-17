@@ -1,12 +1,13 @@
 import { Eye, EyeOff } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
+import { fmt } from '../utils/format';
 
 function PrivacyToggle({ value, label = "Today's Money", suffix = 'birr', className = '' }) {
   const { hidden, toggle } = usePrivacy();
 
   const displayValue = hidden
     ? '••••••'
-    : `${typeof value === 'number' ? value.toLocaleString() : value} ${suffix}`;
+    : `${typeof value === 'number' ? fmt(value) : value} ${suffix}`;
 
   return (
     <button
@@ -22,7 +23,7 @@ function PrivacyToggle({ value, label = "Today's Money", suffix = 'birr', classN
           : <Eye className="w-5 h-5" style={{ color: '#c47c1a' }} />
         }
       </div>
-      <div className={`text-4xl font-black tracking-tight`} style={{ color: hidden ? '#d1d5db' : '#14532d' }}>
+      <div className="text-4xl font-black tracking-tight" style={{ color: hidden ? '#d1d5db' : '#14532d' }}>
         {displayValue}
       </div>
       {hidden && (

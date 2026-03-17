@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, ChevronDown, ChevronUp, Save, AlertTriangle } from 'lucide-react';
 import VoiceButton from './VoiceButton';
 import { getDueDateOptions } from '../utils/ethiopianCalendar';
+import { fmt } from '../utils/format';
 
 const TYPE_CONFIG = {
   sale:    { title: 'I Sold Something',  itemLabel: 'What did you sell?',    itemPlaceholder: 'e.g. bread, sugar…',   amountLabel: 'How much total?',       buttonText: 'Save Sale',    color: 'green' },
@@ -65,7 +66,6 @@ function TransactionForm({ type, onSave, onCancel }) {
     <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50">
       <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl max-h-[92vh] overflow-y-auto shadow-2xl">
 
-        {/* Header */}
         <div className="sticky top-0 bg-white rounded-t-3xl z-10 px-6 pt-5 pb-4 border-b" style={{ borderColor: '#f0e6d4' }}>
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-black text-gray-900">{config.title}</h2>
@@ -78,7 +78,6 @@ function TransactionForm({ type, onSave, onCancel }) {
 
         <div className="px-6 py-4 space-y-4">
 
-          {/* Item / Name */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">{config.itemLabel}</label>
             <div className="flex gap-2">
@@ -94,7 +93,6 @@ function TransactionForm({ type, onSave, onCancel }) {
             </div>
           </div>
 
-          {/* Quantity — sales & expenses only */}
           {!isCredit && (
             <div>
               <label className="block text-gray-700 font-semibold mb-2">How many?</label>
@@ -104,7 +102,6 @@ function TransactionForm({ type, onSave, onCancel }) {
             </div>
           )}
 
-          {/* Amount */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">{config.amountLabel}</label>
             <div className="relative">
@@ -115,7 +112,6 @@ function TransactionForm({ type, onSave, onCancel }) {
             </div>
           </div>
 
-          {/* Credit: phone */}
           {isCredit && (
             <div>
               <label className="block text-gray-700 font-semibold mb-2">
@@ -127,7 +123,6 @@ function TransactionForm({ type, onSave, onCancel }) {
             </div>
           )}
 
-          {/* Credit: due date */}
           {isCredit && (
             <div>
               <label className="block text-gray-700 font-semibold mb-2">When is it due? <span className="text-red-500">*</span></label>
@@ -165,7 +160,6 @@ function TransactionForm({ type, onSave, onCancel }) {
             </div>
           )}
 
-          {/* Advanced (cost price) — sales & expenses */}
           {!isCredit && (
             <div>
               <button type="button" onClick={() => setShowAdvanced(v => !v)}
@@ -197,7 +191,7 @@ function TransactionForm({ type, onSave, onCancel }) {
                   {cost > 0 && !belowCost && sellingPrice > 0 && (
                     <div className="mt-3 p-3 rounded-xl border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
                       <p className="text-xs text-green-700 font-semibold">
-                        Profit on this sale: {(sellingPrice - cost * qty).toLocaleString()} birr
+                        Profit on this sale: {fmt(sellingPrice - cost * qty)} birr
                       </p>
                     </div>
                   )}

@@ -8,9 +8,10 @@ import MerroList from './components/MerroList';
 import CreditDetail from './components/CreditDetail';
 import HistoryView from './components/HistoryView';
 import SettingsPage from './components/SettingsPage';
+import OnboardingScreen from './components/OnboardingScreen';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
+import { fmt } from './utils/format';
 
-// ── Palette (Tej House warm amber) ──────────────────────────────────────────
 const P = {
   bg: '#fdf8f0',
   header: '#7c3d12',
@@ -29,16 +30,23 @@ function AppInner() {
   const [showForm, setShowForm] = useState(null);
   const [selectedCredit, setSelectedCredit] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [shopProfile, setShopProfile] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, credits] = await Promise.all([
+      const [txns, credits, nameRow, phoneRow] = await Promise.all([
         db.transactions.toArray(),
         db.credit_records.toArray(),
+        db.settings.get('shop_name'),
+        db.settings.get('shop_phone'),
       ]);
       txns.sort((a, b) => b.created_at - a.created_at);
       setTransactions(txns);
       setCreditRecords(credits);
+      setShopProfile({
+        name: nameRow?.value || null,
+        phone: phoneRow?.value || '',
+      });
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
@@ -137,11 +145,17 @@ function AppInner() {
     }
   };
 
+  const handleProfileSave = async (name, phone) => {
+    await db.settings.put({ key: 'shop_name', value: name });
+    await db.settings.put({ key: 'shop_phone', value: phone });
+    setShopProfile({ name, phone });
+  };
+
   const todayTransactions = transactions.filter(
     t => new Date(t.created_at).toDateString() === new Date().toDateString()
   );
 
-  const m = (n) => hidden ? '••••' : n.toLocaleString();
+  const hid = (n) => hidden ? '••••' : fmt(n);
 
   if (loading) {
     return (
@@ -155,11 +169,19 @@ function AppInner() {
     );
   }
 
+  if (!shopProfile || !shopProfile.name) {
+    return (
+      <OnboardingScreen
+        onComplete={(profile) => setShopProfile(profile)}
+      />
+    );
+  }
+
   const tabs = [
-    { id: 'today',   label: 'ዛሬ',   sub: 'Today',   icon: BookOpen },
-    { id: 'merro',   label: 'ሜሮ',   sub: 'Credit',  icon: Users },
-    { id: 'history', label: 'ታሪክ',  sub: 'History', icon: Calendar },
-    { id: 'settings',label: 'ቅንጅት', sub: 'Settings', icon: Settings },
+    { id: 'today',    label: 'ዛሬ',   sub: 'Today',    icon: BookOpen },
+    { id: 'merro',    label: 'ብድር',  sub: 'Credit',   icon: Users },
+    { id: 'history',  label: 'ታሪክ',  sub: 'History',  icon: Calendar },
+    { id: 'settings', label: 'ቅንጅት', sub: 'Settings', icon: Settings },
   ];
 
   const typeEmoji = { sale: '💰', expense: '🛒', credit: '👥' };
@@ -169,12 +191,13 @@ function AppInner() {
   return (
     <div className="min-h-screen flex flex-col max-w-md mx-auto relative" style={{ background: P.bg }}>
 
-      {/* ── Header ────────────────────────────────────────────────────────── */}
       <header className="flex-shrink-0 px-5 pt-10 pb-4" style={{ background: P.header }}>
         <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-2xl font-black text-white tracking-tight">ገበያ</h1>
-            <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.55)' }}>Business Notebook</p>
+            <p className="text-xs mt-0.5 font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>
+              {shopProfile.name}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-xs font-semibold text-white">{getCurrentEthiopianDate()}</p>
@@ -184,7 +207,6 @@ function AppInner() {
           </div>
         </div>
 
-        {/* Quick stats row */}
         {activeTab === 'today' && (
           <div className="flex gap-2">
             {[
@@ -193,20 +215,19 @@ function AppInner() {
             ].map(s => (
               <div key={s.label} className="flex-1 rounded-xl px-3 py-2 text-center" style={{ background: s.color }}>
                 <div className="text-xs font-semibold" style={{ color: s.text }}>{s.label}</div>
-                <div className="font-black text-sm" style={{ color: s.text }}>{m(s.val)} birr</div>
+                <div className="font-black text-sm" style={{ color: s.text }}>{hid(s.val)} birr</div>
               </div>
             ))}
           </div>
         )}
       </header>
 
-      {/* ── Action buttons (Today only) ───────────────────────────────────── */}
       {activeTab === 'today' && (
         <div className="px-4 py-3 flex gap-2 flex-shrink-0" style={{ background: P.actionBar }}>
           {[
-            { type: 'sale',    label: 'ሸጠሁ', sub: 'I Sold',   bg: '#14532d', shadow: '#052e16' },
-            { type: 'expense', label: 'ወጪ',   sub: 'I Spent',  bg: '#991b1b', shadow: '#450a0a' },
-            { type: 'credit',  label: 'ሜሮ',   sub: 'Credit',   bg: '#92400e', shadow: '#431407' },
+            { type: 'sale',    label: 'ሸጠሁ', sub: 'I Sold',  bg: '#14532d', shadow: '#052e16' },
+            { type: 'expense', label: 'ወጪ',   sub: 'I Spent', bg: '#991b1b', shadow: '#450a0a' },
+            { type: 'credit',  label: 'ብድር',  sub: 'Credit',  bg: '#92400e', shadow: '#431407' },
           ].map(b => (
             <button key={b.type} onClick={() => setShowForm(b.type)}
               className="flex-1 py-3 rounded-2xl text-center active:opacity-80 transition-all"
@@ -219,7 +240,6 @@ function AppInner() {
         </div>
       )}
 
-      {/* ── Content ───────────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-y-auto px-4 py-4 pb-28">
 
         {activeTab === 'today' && (
@@ -254,11 +274,11 @@ function AppInner() {
                       </div>
                       <div className="text-right mr-2 flex-shrink-0">
                         <div className="font-bold text-sm" style={{ color: typeColor[t.type] }}>
-                          {t.type === 'expense' ? '-' : ''}{m(t.amount || 0)} birr
+                          {t.type === 'expense' ? '-' : ''}{fmt(t.amount || 0)} birr
                         </div>
                         {t.profit !== null && t.profit !== undefined && (
                           <div className={`text-xs ${t.profit >= 0 ? 'text-green-600' : 'text-red-400'}`}>
-                            {t.profit >= 0 ? '+' : ''}{m(t.profit)} profit
+                            {t.profit >= 0 ? '+' : ''}{fmt(t.profit)} profit
                           </div>
                         )}
                       </div>
@@ -299,11 +319,15 @@ function AppInner() {
         )}
 
         {activeTab === 'settings' && (
-          <SettingsPage transactions={transactions} creditRecords={creditRecords} />
+          <SettingsPage
+            transactions={transactions}
+            creditRecords={creditRecords}
+            shopProfile={shopProfile}
+            onProfileSave={handleProfileSave}
+          />
         )}
       </main>
 
-      {/* ── Bottom nav ────────────────────────────────────────────────────── */}
       <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-40 border-t"
         style={{ background: '#fff', borderColor: P.border }}>
         <div className="flex">
@@ -330,7 +354,6 @@ function AppInner() {
         </div>
       </nav>
 
-      {/* ── Transaction form ──────────────────────────────────────────────── */}
       {showForm && (
         <TransactionForm
           type={showForm}
@@ -339,14 +362,13 @@ function AppInner() {
         />
       )}
 
-      {/* ── Delete confirmation ───────────────────────────────────────────── */}
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
             <div className="text-3xl text-center mb-3">{typeEmoji[deleteTarget.type]}</div>
             <h3 className="text-lg font-black text-gray-900 text-center mb-1">Delete this entry?</h3>
             <p className="text-sm text-gray-500 text-center mb-5">
-              "{deleteTarget.item_name}" · {(deleteTarget.amount || 0).toLocaleString()} birr
+              "{deleteTarget.item_name}" · {fmt(deleteTarget.amount || 0)} birr
             </p>
             <div className="space-y-2">
               <button onClick={() => handleDeleteTransaction(deleteTarget.id)}

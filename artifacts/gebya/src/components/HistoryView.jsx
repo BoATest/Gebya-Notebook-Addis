@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Download, Calendar, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown, ChevronDown, ChevronUp, X, ChevronRight } from 'lucide-react';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
-import { usePrivacy } from '../context/PrivacyContext';
+import { fmt } from '../utils/format';
 
 function groupByDay(transactions) {
   const groups = {};
@@ -39,47 +39,74 @@ function calcStats(transactions) {
   return { revenue, profit, hasCost, expenseTotal };
 }
 
-function exportToCSV(transactions) {
-  const headers = ['Date (Ethiopian)', 'Type', 'Item', 'Quantity', 'Amount (birr)', 'Cost (birr)', 'Profit (birr)', 'Customer'];
-  const rows = transactions.map(t => [
-    formatEthiopian(t.created_at),
-    t.type,
-    `"${t.item_name || ''}"`,
-    t.quantity || 1,
-    t.amount || 0,
-    t.cost_price || '',
-    t.profit !== null && t.profit !== undefined ? t.profit : '',
-    `"${t.customer_name || ''}"`,
-  ]);
-  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `gebya-backup-${new Date().toISOString().split('T')[0]}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+const typeIcon = { sale: '💰', expense: '🛒', credit: '👥' };
+const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#c47c1a' };
+const typeLabel = { sale: 'Sale', expense: 'Expense', credit: 'Credit' };
+
+function TransactionSheet({ t, onClose }) {
+  if (!t) return null;
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50" onClick={onClose}>
+      <div
+        className="bg-white w-full max-w-md rounded-t-3xl p-6 pb-10 shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{typeIcon[t.type]}</span>
+            <div>
+              <p className="font-black text-gray-900 text-lg leading-tight">{t.item_name}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{typeLabel[t.type]}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-full bg-gray-100 min-w-[36px] min-h-[36px] flex items-center justify-center">
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="space-y-3 rounded-2xl border p-4" style={{ borderColor: '#f0e6d4' }}>
+          <Row label="Amount" value={`${t.type === 'expense' ? '-' : ''}${fmt(t.amount || 0)} birr`} color={typeColor[t.type]} />
+          {t.quantity > 1 && <Row label="Quantity" value={`×${t.quantity}`} />}
+          {t.profit !== null && t.profit !== undefined && (
+            <Row
+              label="Profit"
+              value={`${t.profit >= 0 ? '+' : ''}${fmt(t.profit)} birr`}
+              color={t.profit >= 0 ? '#15803d' : '#dc2626'}
+            />
+          )}
+          {t.customer_name && <Row label="Customer" value={t.customer_name} />}
+          <Row label="Ethiopian date" value={formatEthiopian(t.created_at)} />
+          <Row
+            label="Time"
+            value={new Date(t.created_at).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value, color }) {
+  return (
+    <div className="flex justify-between items-center text-sm">
+      <span style={{ color: '#6b7280' }}>{label}</span>
+      <span className="font-semibold" style={{ color: color || '#111827' }}>{value}</span>
+    </div>
+  );
 }
 
 function HistoryView({ transactions }) {
-  const { hidden } = usePrivacy();
-  const m = (n) => hidden ? '••••' : n.toLocaleString();
   const [grouping, setGrouping] = useState('day');
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [selectedTxn, setSelectedTxn] = useState(null);
 
   const toggleGroup = (key) => setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
 
   const dayGroups = groupByDay(transactions);
   const weekGroups = groupByWeek(transactions);
 
-  const typeIcon = { sale: '💰', expense: '🛒', credit: '👥' };
-  const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#c47c1a' };
-
   return (
     <div className="space-y-4 pb-4">
-      {/* Grouping toggle */}
       <div className="flex gap-2">
         {[['day', 'By Day'], ['week', 'By Week']].map(([val, lbl]) => (
           <button key={val} onClick={() => setGrouping(val)}
@@ -127,7 +154,7 @@ function HistoryView({ transactions }) {
                   <div className="flex items-center gap-2">
                     <div className="text-right">
                       <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
-                        {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${m(stats.profit)}` : m(stats.revenue)} birr
+                        {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}` : fmt(stats.revenue)} birr
                       </div>
                       <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? 'profit' : 'revenue'}</div>
                     </div>
@@ -138,7 +165,11 @@ function HistoryView({ transactions }) {
                 {expanded && (
                   <div className="divide-y" style={{ borderColor: '#fef9ec' }}>
                     {group.transactions.map(t => (
-                      <div key={t.id} className="px-4 py-3 flex justify-between items-center">
+                      <button
+                        key={t.id}
+                        onClick={() => setSelectedTxn(t)}
+                        className="w-full px-4 py-3 flex justify-between items-center text-left active:bg-amber-50 transition-colors"
+                      >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className="text-base flex-shrink-0">{typeIcon[t.type]}</span>
                           <div className="min-w-0">
@@ -147,17 +178,20 @@ function HistoryView({ transactions }) {
                             {t.customer_name && <p className="text-xs text-gray-400">{t.customer_name}</p>}
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0 ml-2">
-                          <span className="font-semibold text-sm" style={{ color: typeColor[t.type] }}>
-                            {t.type === 'expense' ? '-' : ''}{m(t.amount || 0)}
-                          </span>
-                          {t.profit !== null && t.profit !== undefined && (
-                            <p className={`text-xs ${t.profit >= 0 ? 'text-green-600' : 'text-red-400'}`}>
-                              {t.profit >= 0 ? '+' : ''}{m(t.profit)} profit
-                            </p>
-                          )}
+                        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                          <div className="text-right">
+                            <span className="font-semibold text-sm" style={{ color: typeColor[t.type] }}>
+                              {t.type === 'expense' ? '-' : ''}{fmt(t.amount || 0)}
+                            </span>
+                            {t.profit !== null && t.profit !== undefined && (
+                              <p className={`text-xs ${t.profit >= 0 ? 'text-green-600' : 'text-red-400'}`}>
+                                {t.profit >= 0 ? '+' : ''}{fmt(t.profit)} profit
+                              </p>
+                            )}
+                          </div>
+                          <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -189,7 +223,7 @@ function HistoryView({ transactions }) {
                   <div className="flex items-center gap-2">
                     <div className="text-right">
                       <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
-                        {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${m(stats.profit)}` : m(stats.revenue)} birr
+                        {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}` : fmt(stats.revenue)} birr
                       </div>
                       <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? 'profit' : 'revenue'}</div>
                     </div>
@@ -200,7 +234,11 @@ function HistoryView({ transactions }) {
                 {expanded && (
                   <div className="divide-y" style={{ borderColor: '#fef9ec' }}>
                     {group.transactions.map(t => (
-                      <div key={t.id} className="px-4 py-3 flex justify-between items-center">
+                      <button
+                        key={t.id}
+                        onClick={() => setSelectedTxn(t)}
+                        className="w-full px-4 py-3 flex justify-between items-center text-left active:bg-amber-50 transition-colors"
+                      >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className="text-base flex-shrink-0">{typeIcon[t.type]}</span>
                           <div className="min-w-0">
@@ -208,12 +246,13 @@ function HistoryView({ transactions }) {
                             <span className="text-xs text-gray-400">{formatEthiopian(t.created_at)}</span>
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0 ml-2">
+                        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
                           <span className="font-semibold text-sm" style={{ color: typeColor[t.type] }}>
-                            {t.type === 'expense' ? '-' : ''}{m(t.amount || 0)}
+                            {t.type === 'expense' ? '-' : ''}{fmt(t.amount || 0)}
                           </span>
+                          <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -221,6 +260,10 @@ function HistoryView({ transactions }) {
             );
           })}
         </div>
+      )}
+
+      {selectedTxn && (
+        <TransactionSheet t={selectedTxn} onClose={() => setSelectedTxn(null)} />
       )}
     </div>
   );
