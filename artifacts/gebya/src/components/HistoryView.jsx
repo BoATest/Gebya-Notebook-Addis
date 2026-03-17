@@ -53,6 +53,7 @@ function HistoryView({ transactions, onEdit }) {
 
   return (
     <div className="space-y-4 pb-4">
+      <h2 className="text-lg font-black text-gray-800 px-1">Report</h2>
       <div className="flex gap-2">
         {[['day', 'By Day'], ['week', 'By Week']].map(([val, lbl]) => (
           <button key={val} onClick={() => setGrouping(val)}
