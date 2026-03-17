@@ -82,20 +82,8 @@ export function FieldNotebook() {
         ))}
       </div>
 
-      {/* Tab selector */}
-      <div className="px-4 py-3 flex-shrink-0">
-        <div className="flex gap-1 p-1 rounded-full" style={{ background: "#efe8da" }}>
-          {([ ["today", "ዛሬ"], ["merro", "ሜሮ"], ["history", "ታሪክ"] ] as const).map(([key, label]) => (
-            <button key={key} onClick={() => setTab(key)} className="flex-1 py-1.5 rounded-full text-sm font-semibold transition-all"
-              style={{ background: tab === key ? "#c47c1a" : "transparent", color: tab === key ? "#fff" : "#8b6a3a" }}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
+      <div className="flex-1 overflow-y-auto px-4 pb-4 pt-3 space-y-2">
         {tab === "today" && D.entries.map((e, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-2xl" style={{ background: "#fff", border: "1px solid #ede0cc" }}>
             <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0"
@@ -158,6 +146,28 @@ export function FieldNotebook() {
             </button>
           </>
         )}
+      </div>
+
+      {/* Bottom navigation */}
+      <div className="flex-shrink-0 flex items-center justify-around px-2 pt-2 pb-6 border-t"
+        style={{ background: "#fff", borderColor: "#ede0cc" }}>
+        {([
+          { key: "today", icon: "🏪", label: "ዛሬ", sub: "Today" },
+          { key: "merro", icon: "📋", label: "ሜሮ", sub: "Credit" },
+          { key: "history", icon: "📅", label: "ታሪክ", sub: "History" },
+        ] as const).map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className="flex flex-col items-center gap-0.5 flex-1 py-1 rounded-xl transition-all"
+            style={{ background: tab === t.key ? "#fff8ed" : "transparent" }}>
+            <span className="text-2xl">{t.icon}</span>
+            <span className="text-sm font-bold" style={{ color: tab === t.key ? "#c47c1a" : "#9ca3af" }}>
+              {t.label}
+            </span>
+            <span className="text-xs" style={{ color: tab === t.key ? "#e8901e" : "#d1d5db" }}>
+              {t.sub}
+            </span>
+          </button>
+        ))}
       </div>
     </div>
   );
