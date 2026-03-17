@@ -244,10 +244,10 @@ function AppInner() {
   }
 
   const tabs = [
-    { id: 'today',    label: 'ዛሬ',   sub: 'Today',    icon: BookOpen },
-    { id: 'merro',    label: 'ብድር',  sub: 'Credit',   icon: Users },
-    { id: 'history',  label: 'ታሪክ',  sub: 'History',  icon: Calendar },
-    { id: 'settings', label: 'ቅንጅት', sub: 'Settings', icon: Settings },
+    { id: 'today',    label: 'ዛሬ',  sub: 'Today',   icon: BookOpen },
+    { id: 'merro',    label: 'ብድር', sub: 'Credit',  icon: Users },
+    { id: 'history',  label: 'Report',               icon: Calendar },
+    { id: 'settings', label: 'Settings',              icon: Settings },
   ];
 
   const typeEmoji = { sale: '💰', expense: '🛒', credit: '👥' };
@@ -441,7 +441,7 @@ function AppInner() {
               >
                 <Icon className="w-5 h-5" />
                 <span className="text-sm font-bold">{tab.label}</span>
-                <span className="text-xs" style={{ opacity: 0.65 }}>{tab.sub}</span>
+                {tab.sub && <span className="text-xs" style={{ opacity: 0.65 }}>{tab.sub}</span>}
               </button>
             );
           })}

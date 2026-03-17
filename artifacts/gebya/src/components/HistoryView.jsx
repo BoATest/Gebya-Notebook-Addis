@@ -69,7 +69,7 @@ function HistoryView({ transactions, onEdit }) {
       {transactions.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Calendar className="w-16 h-16 mb-4" style={{ color: '#e5e7eb' }} />
-          <p className="text-lg font-medium" style={{ color: '#9ca3af' }}>No history yet</p>
+          <p className="text-lg font-medium" style={{ color: '#9ca3af' }}>No records yet</p>
           <p className="text-sm mt-1" style={{ color: '#d1d5db' }}>Record your first sale or expense to start</p>
         </div>
       ) : grouping === 'day' ? (
