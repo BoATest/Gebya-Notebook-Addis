@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import { Users, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { getCreditStatus, formatEthiopianShort } from '../utils/ethiopianCalendar';
-import { usePrivacy } from '../context/PrivacyContext';
 import { fmt } from '../utils/format';
 
 function MerroList({ creditRecords, onSelectCredit }) {
-  const { hidden } = usePrivacy();
   const [showPaid, setShowPaid] = useState(false);
-  const hid = (n) => hidden ? '••••' : fmt(n);
 
   const active = creditRecords.filter(r => r.status !== 'paid');
   const paid = creditRecords.filter(r => r.status === 'paid');
@@ -40,7 +37,7 @@ function MerroList({ creditRecords, onSelectCredit }) {
             </div>
             <div>
               <p className="text-sm font-semibold" style={{ color: '#92400e' }}>Total owed to you</p>
-              <p className="text-2xl font-black" style={{ color: '#78350f' }}>{hid(total)} birr</p>
+              <p className="text-2xl font-black" style={{ color: '#78350f' }}>{fmt(total)} birr</p>
             </div>
           </div>
           <div className="text-right text-xs" style={{ color: '#9ca3af' }}>
@@ -93,7 +90,7 @@ function MerroList({ creditRecords, onSelectCredit }) {
                 <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-green-500" />
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-800">{record.customer_name}</p>
-                  <p className="text-xs text-gray-400">Paid in full · {hid(record.original_amount)} birr</p>
+                  <p className="text-xs text-gray-400">Paid in full · {fmt(record.original_amount)} birr</p>
                 </div>
                 <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">PAID</span>
               </div>
@@ -115,13 +112,13 @@ function MerroList({ creditRecords, onSelectCredit }) {
                   <p className="text-sm text-gray-500">
                     Due {record.due_date ? formatEthiopianShort(record.due_date) : '—'}
                     {record.paid_amount > 0 && (
-                      <span className="ml-2 text-gray-400">· Paid {hid(record.paid_amount)}</span>
+                      <span className="ml-2 text-gray-400">· Paid {fmt(record.paid_amount)}</span>
                     )}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="font-bold text-gray-800 text-base">{hid(record.remaining_amount || 0)} birr</span>
+                <span className="font-bold text-gray-800 text-base">{fmt(record.remaining_amount || 0)} birr</span>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </div>
             </button>

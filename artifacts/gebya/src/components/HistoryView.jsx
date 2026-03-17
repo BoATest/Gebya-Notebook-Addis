@@ -65,6 +65,8 @@ function TransactionSheet({ t, onClose }) {
         </div>
 
         <div className="space-y-3 rounded-2xl border p-4" style={{ borderColor: '#f0e6d4' }}>
+          <Row label="Type" value={typeLabel[t.type]} color={typeColor[t.type]} />
+          {t.payment_type && <Row label="Payment method" value={t.payment_type} />}
           <Row label="Amount" value={`${t.type === 'expense' ? '-' : ''}${fmt(t.amount || 0)} birr`} color={typeColor[t.type]} />
           {t.quantity > 1 && <Row label="Quantity" value={`×${t.quantity}`} />}
           {t.profit !== null && t.profit !== undefined && (
