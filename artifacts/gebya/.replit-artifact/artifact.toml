@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Gebya"
+version = "1.0.0"
+id = "artifacts/gebya"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 21246
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/gebya run dev"
+
+[services.env]
+PORT = "21246"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/gebya", "run", "build"]
+publicDir = "artifacts/gebya/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
