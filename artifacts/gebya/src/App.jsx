@@ -55,6 +55,7 @@ function App() {
         const creditRecord = {
           customer_id: customerId,
           customer_name: transaction.item_name,
+          customer_phone: transaction.customer_phone || null,
           original_amount: transaction.amount,
           paid_amount: 0,
           remaining_amount: transaction.amount,

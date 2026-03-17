@@ -40,7 +40,7 @@ export default defineConfig({
         name: "Gebya - Business Notebook",
         short_name: "Gebya",
         description: "Track your business sales, expenses, and credit offline",
-        theme_color: "#1e293b",
+        theme_color: "#2c3e50",
         background_color: "#f9fafb",
         display: "standalone",
         orientation: "portrait",

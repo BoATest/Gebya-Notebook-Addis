@@ -18,6 +18,7 @@ function TransactionForm({ type, onSave, onCancel }) {
   const [amount, setAmount] = useState('');
   const [costPrice, setCostPrice] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [phone, setPhone] = useState('');
   const [selectedDue, setSelectedDue] = useState(null);
   const [customDue, setCustomDue] = useState('');
 
@@ -48,6 +49,7 @@ function TransactionForm({ type, onSave, onCancel }) {
       cost_price: isCredit ? 0 : cost,
       profit: (!isCredit && cost > 0) ? (sellingPrice - cost * qty) : null,
       is_credit: isCredit,
+      customer_phone: isCredit && phone.trim() ? phone.trim() : null,
       due_date: isCredit ? getEffectiveDueDate() : null,
       created_at: Date.now(),
     };
@@ -120,6 +122,22 @@ function TransactionForm({ type, onSave, onCancel }) {
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">birr</span>
             </div>
           </div>
+
+          {isCredit && (
+            <div>
+              <label className="block text-gray-700 font-medium mb-2 text-base">
+                Phone number <span className="text-gray-400 font-normal text-sm">(optional — to call them)</span>
+              </label>
+              <input
+                type="tel"
+                inputMode="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="e.g. 0912345678"
+                className="w-full p-4 border-2 border-gray-200 rounded-2xl focus:border-blue-400 focus:outline-none text-base min-h-[52px]"
+              />
+            </div>
+          )}
 
           {isCredit && (
             <div>

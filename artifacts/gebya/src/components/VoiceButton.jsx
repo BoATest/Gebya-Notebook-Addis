@@ -8,11 +8,6 @@ function VoiceButton({ onResult }) {
   const isSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
 
   const startListening = () => {
-    if (!isSupported) {
-      setError('Voice not supported');
-      return;
-    }
-
     setError(null);
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
@@ -40,7 +35,11 @@ function VoiceButton({ onResult }) {
     recognition.start();
   };
 
-  if (!isSupported) return null;
+  if (!isSupported) {
+    return (
+      <span className="text-xs text-gray-400 italic">Voice not supported — use keyboard</span>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center">
