@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, ChevronDown, ChevronUp, X, ChevronRight, Pencil } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/format';
 
@@ -41,89 +41,10 @@ function calcStats(transactions) {
 
 const typeIcon  = { sale: '💰', expense: '🛒', credit: '👥' };
 const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#c47c1a' };
-const typeLabel = { sale: 'Sale', expense: 'Expense', credit: 'Credit' };
-
-function Row({ label, value, color }) {
-  return (
-    <div className="flex justify-between items-center text-sm">
-      <span style={{ color: '#6b7280' }}>{label}</span>
-      <span className="font-semibold" style={{ color: color || '#111827' }}>{value}</span>
-    </div>
-  );
-}
-
-function TransactionSheet({ t, onClose, onEdit }) {
-  if (!t) return null;
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50" onClick={onClose}>
-      <div
-        className="bg-white w-full max-w-md rounded-t-3xl p-6 pb-10 shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">{typeIcon[t.type]}</span>
-            <div>
-              <p className="font-black text-gray-900 text-lg leading-tight">{t.item_name}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{typeLabel[t.type]}</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 rounded-full bg-gray-100 min-w-[36px] min-h-[36px] flex items-center justify-center">
-            <X className="w-4 h-4 text-gray-500" />
-          </button>
-        </div>
-
-        <div className="space-y-3 rounded-2xl border p-4 mb-4" style={{ borderColor: '#f0e6d4' }}>
-          <Row label="Type" value={typeLabel[t.type]} color={typeColor[t.type]} />
-          {t.payment_type && <Row label="Payment" value={[t.payment_type, t.payment_provider].filter(Boolean).join(' — ')} />}
-          {t.direction && (
-            <Row
-              label="Direction"
-              value={t.direction === 'i_owe' ? 'I owe them' : 'They owe me'}
-              color={t.direction === 'i_owe' ? '#dc2626' : '#065f46'}
-            />
-          )}
-          <Row label="Amount" value={`${t.type === 'expense' ? '-' : ''}${fmt(t.amount || 0)} birr`} color={typeColor[t.type]} />
-          <Row label="Quantity" value={`×${t.quantity || 1}`} />
-          {t.profit !== null && t.profit !== undefined && (
-            <Row
-              label="Profit"
-              value={`${t.profit >= 0 ? '+' : ''}${fmt(t.profit)} birr`}
-              color={t.profit >= 0 ? '#15803d' : '#dc2626'}
-            />
-          )}
-          {t.customer_name && <Row label="Customer" value={t.customer_name} />}
-          <Row label="Ethiopian date" value={formatEthiopian(t.created_at)} />
-          <Row
-            label="Time"
-            value={new Date(t.created_at).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
-          />
-          {t.updated_at && (
-            <Row
-              label="Edited"
-              value={new Date(t.updated_at).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}
-              color="#9ca3af"
-            />
-          )}
-        </div>
-
-        <button
-          onClick={() => { onEdit(t); onClose(); }}
-          className="w-full p-3.5 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 border-2 transition-all min-h-[48px] active:scale-95"
-          style={{ borderColor: '#c47c1a', color: '#92400e', background: '#fffbeb' }}
-        >
-          <Pencil className="w-4 h-4" />
-          Edit this entry
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function HistoryView({ transactions, onEdit }) {
   const [grouping, setGrouping] = useState('day');
   const [expandedGroups, setExpandedGroups] = useState({});
-  const [selectedTxn, setSelectedTxn] = useState(null);
 
   const toggleGroup = (key) => setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -192,7 +113,7 @@ function HistoryView({ transactions, onEdit }) {
                     {group.transactions.map(t => (
                       <button
                         key={t.id}
-                        onClick={() => setSelectedTxn(t)}
+                        onClick={() => onEdit(t)}
                         className="w-full px-4 py-3 flex justify-between items-center text-left active:bg-amber-50 transition-colors"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -215,7 +136,7 @@ function HistoryView({ transactions, onEdit }) {
                               </p>
                             )}
                           </div>
-                          <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
+                          <Pencil className="w-3.5 h-3.5 text-gray-300" />
                         </div>
                       </button>
                     ))}
@@ -262,7 +183,7 @@ function HistoryView({ transactions, onEdit }) {
                     {group.transactions.map(t => (
                       <button
                         key={t.id}
-                        onClick={() => setSelectedTxn(t)}
+                        onClick={() => onEdit(t)}
                         className="w-full px-4 py-3 flex justify-between items-center text-left active:bg-amber-50 transition-colors"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -277,7 +198,7 @@ function HistoryView({ transactions, onEdit }) {
                           <span className="font-semibold text-sm" style={{ color: typeColor[t.type] }}>
                             {t.type === 'expense' ? '-' : ''}{fmt(t.amount || 0)}
                           </span>
-                          <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
+                          <Pencil className="w-3.5 h-3.5 text-gray-300" />
                         </div>
                       </button>
                     ))}
@@ -289,13 +210,6 @@ function HistoryView({ transactions, onEdit }) {
         </div>
       )}
 
-      {selectedTxn && (
-        <TransactionSheet
-          t={selectedTxn}
-          onClose={() => setSelectedTxn(null)}
-          onEdit={(t) => { setSelectedTxn(null); onEdit(t); }}
-        />
-      )}
     </div>
   );
 }

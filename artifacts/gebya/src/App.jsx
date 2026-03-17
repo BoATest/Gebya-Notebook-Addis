@@ -36,6 +36,7 @@ function AppInner() {
   const [shopProfile, setShopProfile] = useState(null);
   const [enabledProviders, setEnabledProviders] = useState(DEFAULT_PROVIDERS);
   const [recurringExpenses, setRecurringExpenses] = useState([]);
+  const [lastPayment, setLastPayment] = useState({ sale: { type: 'cash', provider: '' }, expense: { type: 'cash', provider: '' } });
 
   const loadData = useCallback(async () => {
     try {
@@ -100,6 +101,16 @@ function AppInner() {
       if (transaction.type === 'credit') {
         setCreditRecords(await db.credit_records.toArray());
       }
+
+      if (transaction.type === 'sale' || transaction.type === 'expense') {
+        setLastPayment(prev => ({
+          ...prev,
+          [transaction.type]: {
+            type: transaction.payment_type || 'cash',
+            provider: transaction.payment_provider || '',
+          },
+        }));
+      }
     } catch (err) {
       console.error('Failed to save:', err);
       alert('Could not save. Please try again.');
@@ -112,6 +123,28 @@ function AppInner() {
       await db.transactions.update(id, { ...updates, updated_at: Date.now() });
       const updated = await db.transactions.get(id);
       setTransactions(prev => prev.map(t => t.id === id ? updated : t));
+
+      if (updated?.type === 'credit' && updated.customer_name) {
+        const matching = await db.credit_records.where('customer_name').equals(updated.customer_name).first();
+        if (matching) {
+          const creditUpdates = {
+            customer_name: updates.item_name || matching.customer_name,
+            customer_phone: updates.customer_phone ?? matching.customer_phone,
+            due_date: updates.due_date ?? matching.due_date,
+            direction: updates.direction ?? matching.direction,
+          };
+          if (updates.amount !== undefined && updates.amount !== matching.original_amount) {
+            const diff = updates.amount - matching.original_amount;
+            const newOriginal = updates.amount;
+            const newRemaining = Math.max(0, matching.remaining_amount + diff);
+            creditUpdates.original_amount = newOriginal;
+            creditUpdates.remaining_amount = newRemaining;
+            creditUpdates.status = newRemaining <= 0 ? 'paid' : 'active';
+          }
+          await db.credit_records.update(matching.id, creditUpdates);
+          setCreditRecords(await db.credit_records.toArray());
+        }
+      }
     } catch (err) {
       console.error('Failed to update:', err);
       alert('Could not update. Please try again.');
@@ -412,6 +445,8 @@ function AppInner() {
           onDone={() => setShowForm(null)}
           enabledProviders={enabledProviders}
           recurringExpenses={recurringExpenses}
+          initialPaymentType={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.type : undefined}
+          initialPaymentProvider={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.provider : undefined}
         />
       )}
 
