@@ -36,7 +36,10 @@ function AppInner() {
   const [shopProfile, setShopProfile] = useState(null);
   const [enabledProviders, setEnabledProviders] = useState(DEFAULT_PROVIDERS);
   const [recurringExpenses, setRecurringExpenses] = useState([]);
-  const [lastPayment, setLastPayment] = useState({ sale: { type: 'cash', provider: '' }, expense: { type: 'cash', provider: '' } });
+  const [lastPayment, setLastPayment] = useState({
+    sale:    { type: 'cash', provider: '', bankProvider: '', walletProvider: '' },
+    expense: { type: 'cash', provider: '', bankProvider: '', walletProvider: '' },
+  });
 
   const loadData = useCallback(async () => {
     try {
@@ -55,8 +58,8 @@ function AppInner() {
         name: nameRow?.value || null,
         phone: phoneRow?.value || '',
       });
-      setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS);
-      setRecurringExpenses(reRow ? JSON.parse(reRow.value) : []);
+      try { setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS); } catch { setEnabledProviders(DEFAULT_PROVIDERS); }
+      try { setRecurringExpenses(reRow ? JSON.parse(reRow.value) : []); } catch { setRecurringExpenses([]); }
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
@@ -103,13 +106,20 @@ function AppInner() {
       }
 
       if (transaction.type === 'sale' || transaction.type === 'expense') {
-        setLastPayment(prev => ({
-          ...prev,
-          [transaction.type]: {
-            type: transaction.payment_type || 'cash',
-            provider: transaction.payment_provider || '',
-          },
-        }));
+        const pType = transaction.payment_type || 'cash';
+        const pProvider = transaction.payment_provider || '';
+        setLastPayment(prev => {
+          const prev_cat = prev[transaction.type] || {};
+          return {
+            ...prev,
+            [transaction.type]: {
+              type: pType,
+              provider: pProvider,
+              bankProvider:   pType === 'bank'   ? pProvider : (prev_cat.bankProvider   || ''),
+              walletProvider: pType === 'wallet' ? pProvider : (prev_cat.walletProvider || ''),
+            },
+          };
+        });
       }
     } catch (err) {
       console.error('Failed to save:', err);
@@ -447,6 +457,10 @@ function AppInner() {
           recurringExpenses={recurringExpenses}
           initialPaymentType={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.type : undefined}
           initialPaymentProvider={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.provider : undefined}
+          lastPaymentHistory={(showForm === 'sale' || showForm === 'expense') ? {
+            bank:   lastPayment[showForm]?.bankProvider   || '',
+            wallet: lastPayment[showForm]?.walletProvider || '',
+          } : undefined}
         />
       )}
 

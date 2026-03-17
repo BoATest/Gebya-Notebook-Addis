@@ -22,8 +22,14 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
   const [amount, setAmount] = useState(String(transaction.amount || ''));
   const [costPrice, setCostPrice] = useState(String(transaction.cost_price || ''));
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [paymentType, setPaymentType] = useState(transaction.payment_type || 'cash');
-  const [paymentProvider, setPaymentProvider] = useState(transaction.payment_provider || '');
+  const initPType = transaction.payment_type || 'cash';
+  const initPProvider = transaction.payment_provider || '';
+  const [paymentType, setPaymentType] = useState(initPType);
+  const [paymentProvider, setPaymentProvider] = useState(initPProvider);
+  const lastProviderByType = {
+    bank:   initPType === 'bank'   ? initPProvider : '',
+    wallet: initPType === 'wallet' ? initPProvider : '',
+  };
   const [phone, setPhone] = useState(transaction.customer_phone || '');
   const [direction, setDirection] = useState(transaction.direction || 'owes_me');
   const [selectedDue, setSelectedDue] = useState(transaction.due_date || null);
@@ -83,7 +89,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                 <h2 className="text-xl font-black text-gray-900">{TYPE_LABELS[type] || 'Edit Entry'}</h2>
               </div>
               {lastEdited && (
-                <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>Last edited {lastEdited}</p>
+                <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>Edited {lastEdited}</p>
               )}
             </div>
             <button onClick={onClose} aria-label="Close"
@@ -208,6 +214,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
               onTypeChange={setPaymentType}
               onProviderChange={setPaymentProvider}
               enabledProviders={enabledProviders}
+              lastProviderByType={lastProviderByType}
             />
           )}
 

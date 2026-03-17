@@ -8,13 +8,23 @@ const TYPES = [
   { id: 'wallet', label: 'Wallet', emoji: '📱' },
 ];
 
-function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChange, enabledProviders }) {
+function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChange, enabledProviders, lastProviderByType }) {
   const enabledBanks  = (enabledProviders?.banks  || ALL_BANKS).filter(b => ALL_BANKS.includes(b));
   const enabledWallets = (enabledProviders?.wallets || ALL_WALLETS).filter(w => ALL_WALLETS.includes(w));
 
   const handleTypeChange = (newType) => {
     onTypeChange(newType);
-    onProviderChange('');
+    if (newType === 'cash') {
+      onProviderChange('');
+    } else if (newType === 'bank') {
+      const lastBank = lastProviderByType?.bank;
+      const autoBank = lastBank && enabledBanks.includes(lastBank) ? lastBank : (enabledBanks[0] || '');
+      onProviderChange(autoBank);
+    } else if (newType === 'wallet') {
+      const lastWallet = lastProviderByType?.wallet;
+      const autoWallet = lastWallet && enabledWallets.includes(lastWallet) ? lastWallet : (enabledWallets[0] || '');
+      onProviderChange(autoWallet);
+    }
   };
 
   const ChipRow = ({ items, selected, onSelect }) => (

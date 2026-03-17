@@ -17,7 +17,7 @@ const ACCENT = {
   amber: { btn: '#c47c1a' },
 };
 
-function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpenses, initialPaymentType, initialPaymentProvider }) {
+function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpenses, initialPaymentType, initialPaymentProvider, lastPaymentHistory }) {
   const config = TYPE_CONFIG[type] || TYPE_CONFIG.sale;
   const isCredit = type === 'credit';
   const isExpense = type === 'expense';
@@ -282,6 +282,7 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
               onTypeChange={setPaymentType}
               onProviderChange={setPaymentProvider}
               enabledProviders={enabledProviders}
+              lastProviderByType={lastPaymentHistory}
             />
           )}
 
