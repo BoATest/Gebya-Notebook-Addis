@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
@@ -27,12 +27,61 @@ if (!basePath) {
   );
 }
 
+function securityHeadersPlugin(): Plugin {
+  const setSecurityHeaders = (res: { setHeader: (k: string, v: string) => void }, isDev: boolean) => {
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader(
+      "Content-Security-Policy",
+      [
+        "default-src 'self'",
+        isDev
+          ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+          : "script-src 'self' 'unsafe-inline'",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com data:",
+        "img-src 'self' data: blob:",
+        "connect-src 'self' https:",
+        "worker-src 'self' blob:",
+        "manifest-src 'self'",
+      ].join("; "),
+    );
+  };
+
+  return {
+    name: "security-headers",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        setSecurityHeaders(res, true);
+        if (req.url && /\.(js|css|woff2?|png|ico|svg)$/.test(req.url)) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else if (req.url && /\.html?$/.test(req.url)) {
+          res.setHeader("Cache-Control", "no-store");
+        }
+        next();
+      });
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use((req, res, next) => {
+        setSecurityHeaders(res, false);
+        if (req.url && /\.(js|css|woff2?|png|ico|svg)$/.test(req.url)) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else if (req.url && /\.html?$/.test(req.url)) {
+          res.setHeader("Cache-Control", "no-store");
+        }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   base: basePath,
   plugins: [
     react(),
     tailwindcss(),
     runtimeErrorOverlay(),
+    securityHeadersPlugin(),
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: "auto",

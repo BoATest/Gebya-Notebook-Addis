@@ -70,7 +70,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
       await onUpdate(transaction.id, updates);
       onClose();
     } catch (err) {
-      console.error('Edit failed:', err);
+      if (import.meta.env.DEV) console.error('Edit failed:', err);
     } finally {
       setSaving(false);
     }

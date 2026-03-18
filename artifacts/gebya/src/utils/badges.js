@@ -76,7 +76,7 @@ export async function checkAndAwardBadges(stats, lang = 'en') {
 
     return earned;
   } catch (err) {
-    console.error('Badge check failed:', err);
+    if (import.meta.env.DEV) console.error('Badge check failed:', err);
     return [];
   }
 }

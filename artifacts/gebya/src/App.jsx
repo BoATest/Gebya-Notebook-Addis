@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { BookOpen, Users, Calendar, Settings, Trash2, Pencil, Calculator, Share2, X } from 'lucide-react';
 import db from './db';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
@@ -152,7 +152,7 @@ function AppInner() {
       try { setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS); } catch { setEnabledProviders(DEFAULT_PROVIDERS); }
       try { setRecurringExpenses(reRow ? JSON.parse(reRow.value) : []); } catch { setRecurringExpenses([]); }
     } catch (err) {
-      console.error('Failed to load data:', err);
+      if (import.meta.env.DEV) console.error('Failed to load data:', err);
     } finally {
       setLoading(false);
     }
@@ -218,7 +218,7 @@ function AppInner() {
       const badges = await checkAndAwardBadges(stats, lang);
       setEarnedBadges(badges);
     } catch (err) {
-      console.error('Analytics tracking failed:', err);
+      if (import.meta.env.DEV) console.error('Analytics tracking failed:', err);
     }
   }, [lang]);
 
@@ -326,7 +326,7 @@ function AppInner() {
         } catch { /* non-critical */ }
       }
     } catch (err) {
-      console.error('Failed to save:', err);
+      if (import.meta.env.DEV) console.error('Failed to save:', err);
       alert('Could not save. Please try again.');
       throw err;
     }
@@ -360,7 +360,7 @@ function AppInner() {
         }
       }
     } catch (err) {
-      console.error('Failed to update:', err);
+      if (import.meta.env.DEV) console.error('Failed to update:', err);
       alert('Could not update. Please try again.');
       throw err;
     }
@@ -372,7 +372,7 @@ function AppInner() {
       setTransactions(prev => prev.filter(t2 => t2.id !== id));
       setDeleteTarget(null);
     } catch (err) {
-      console.error('Failed to delete:', err);
+      if (import.meta.env.DEV) console.error('Failed to delete:', err);
     }
   };
 
@@ -409,7 +409,7 @@ function AppInner() {
         } catch { /* non-critical */ }
       }
     } catch (err) {
-      console.error('Failed to record payment:', err);
+      if (import.meta.env.DEV) console.error('Failed to record payment:', err);
     }
   };
 
@@ -437,7 +437,7 @@ function AppInner() {
         });
       } catch { /* non-critical */ }
     } catch (err) {
-      console.error('Failed to mark paid:', err);
+      if (import.meta.env.DEV) console.error('Failed to mark paid:', err);
     }
   };
 
@@ -448,16 +448,31 @@ function AppInner() {
     setShopProfile({ name, phone, telegram: telegram || '' });
   };
 
-  const todayTransactions = transactions.filter(
-    t2 => new Date(t2.created_at).toDateString() === new Date().toDateString()
+  const todayDateStr = new Date().toDateString();
+
+  const todayTransactions = useMemo(
+    () => transactions.filter(t2 => new Date(t2.created_at).toDateString() === todayDateStr),
+    [transactions, todayDateStr]
   );
 
-  const todaySales = todayTransactions.filter(t2 => t2.type === 'sale');
-  const todayExpenses = todayTransactions.filter(t2 => t2.type === 'expense');
-  const todaySalesTotal = todaySales.reduce((s, t2) => s + (t2.amount || 0), 0);
-  const todayExpensesTotal = todayExpenses.reduce((s, t2) => s + (t2.amount || 0), 0);
+  const todaySales = useMemo(
+    () => todayTransactions.filter(t2 => t2.type === 'sale'),
+    [todayTransactions]
+  );
+  const todayExpenses = useMemo(
+    () => todayTransactions.filter(t2 => t2.type === 'expense'),
+    [todayTransactions]
+  );
+  const todaySalesTotal = useMemo(
+    () => todaySales.reduce((s, t2) => s + (t2.amount || 0), 0),
+    [todaySales]
+  );
+  const todayExpensesTotal = useMemo(
+    () => todayExpenses.reduce((s, t2) => s + (t2.amount || 0), 0),
+    [todayExpenses]
+  );
 
-  const topProducts = (() => {
+  const topProducts = useMemo(() => {
     const counts = {};
     todaySales.forEach(t2 => {
       const name = t2.item_name || 'Unknown';
@@ -467,9 +482,9 @@ function AppInner() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(([name, qty]) => ({ name, qty }));
-  })();
+  }, [todaySales]);
 
-  const sparklineData = (() => {
+  const sparklineData = useMemo(() => {
     const dayLabels = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat];
     const days = [];
     for (let i = 6; i >= 0; i--) {
@@ -482,9 +497,12 @@ function AppInner() {
       days.push({ label: dayLabels[d.getDay()], total, isToday: i === 0 });
     }
     return days;
-  })();
+  }, [transactions, t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]);
 
-  const sparklineMax = Math.max(...sparklineData.map(d => d.total), 1);
+  const sparklineMax = useMemo(
+    () => Math.max(...sparklineData.map(d => d.total), 1),
+    [sparklineData]
+  );
 
   const buildShareSummary = () => {
     const profit = todaySalesTotal - todayExpensesTotal;
