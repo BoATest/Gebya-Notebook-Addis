@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Calendar, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
@@ -43,19 +43,93 @@ function calcStats(transactions) {
 const typeIcon  = { sale: '💰', expense: '🛒', credit: '👥' };
 const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#c47c1a' };
 
+function SevenDayChart({ transactions, onBarClick }) {
+  const { t } = useLang();
+  const dayLabels = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat];
+
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const ds = d.toDateString();
+    const total = transactions
+      .filter(tx => new Date(tx.created_at).toDateString() === ds && tx.type === 'sale')
+      .reduce((s, tx) => s + (tx.amount || 0), 0);
+    days.push({ label: dayLabels[d.getDay()], total, dateStr: ds, isToday: i === 0, date: d });
+  }
+
+  const maxTotal = Math.max(...days.map(d => d.total), 1);
+
+  return (
+    <div className="rounded-2xl px-4 pt-3 pb-2" style={{ background: '#fff', border: '1px solid #f0e6d4' }}>
+      <p className="text-xs font-bold text-gray-500 mb-2">{t.weekTrend}</p>
+      <div className="flex items-end gap-1" style={{ height: '56px' }}>
+        {days.map((d, i) => {
+          const h = Math.max(4, Math.round((d.total / maxTotal) * 48));
+          return (
+            <button
+              key={i}
+              className="flex-1 flex flex-col items-center gap-1 focus:outline-none active:opacity-70"
+              onClick={() => onBarClick(d.dateStr)}
+              aria-label={`${d.label}: ${fmt(d.total)}`}
+            >
+              <div
+                className="w-full rounded-sm transition-all"
+                style={{
+                  height: `${h}px`,
+                  background: d.isToday ? '#c47c1a' : '#e8d5b0',
+                  minHeight: '4px',
+                }}
+              />
+              <span
+                className="font-semibold"
+                style={{
+                  fontSize: '0.55rem',
+                  lineHeight: 1,
+                  color: d.isToday ? '#c47c1a' : '#9ca3af',
+                }}
+              >
+                {d.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function HistoryView({ transactions, onEdit }) {
   const { t } = useLang();
   const [grouping, setGrouping] = useState('day');
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [highlightedKey, setHighlightedKey] = useState(null);
+  const groupRefs = useRef({});
 
   const toggleGroup = (key) => setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
 
   const dayGroups = groupByDay(transactions);
   const weekGroups = groupByWeek(transactions);
 
+  const handleBarClick = (dateStr) => {
+    setGrouping('day');
+    const group = dayGroups.find(g => new Date(g.date).toDateString() === dateStr);
+    if (!group) return;
+    const key = group.date.toString();
+    setExpandedGroups(prev => ({ ...prev, [key]: true }));
+    setHighlightedKey(key);
+    setTimeout(() => {
+      groupRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+    setTimeout(() => setHighlightedKey(null), 1800);
+  };
+
   return (
     <div className="space-y-4 pb-4">
       <h2 className="text-lg font-black text-gray-800 px-1">{t.report}</h2>
+
+      <SevenDayChart transactions={transactions} onBarClick={handleBarClick} />
+
       <div className="flex gap-2">
         {[['day', t.byDay], ['week', t.byWeek]].map(([val, lbl]) => (
           <button key={val} onClick={() => setGrouping(val)}
@@ -82,10 +156,20 @@ function HistoryView({ transactions, onEdit }) {
             const isToday = new Date(group.date).toDateString() === new Date().toDateString();
             const key = group.date.toString();
             const expanded = expandedGroups[key] ?? isToday;
+            const isHighlighted = highlightedKey === key;
             return (
-              <div key={group.date} className="rounded-2xl shadow-sm border overflow-hidden" style={{ background: '#fff', borderColor: '#f0e6d4' }}>
+              <div
+                key={group.date}
+                ref={el => { groupRefs.current[key] = el; }}
+                className="rounded-2xl shadow-sm border overflow-hidden transition-all"
+                style={{
+                  background: '#fff',
+                  borderColor: isHighlighted ? '#c47c1a' : '#f0e6d4',
+                  boxShadow: isHighlighted ? '0 0 0 2px #c47c1a44' : undefined,
+                }}
+              >
                 <button className="w-full px-4 py-3 flex justify-between items-center"
-                  style={{ background: isToday ? '#fffbeb' : '#fafafa' }}
+                  style={{ background: isToday ? '#fffbeb' : isHighlighted ? '#fffbeb' : '#fafafa' }}
                   onClick={() => toggleGroup(key)}>
                   <div>
                     <span className="font-bold text-gray-800 text-sm">

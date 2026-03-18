@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BookOpen, Users, Calendar, Settings, Trash2, Pencil, Calculator, Share2, X } from 'lucide-react';
+import { BookOpen, Users, Calendar, Settings, Trash2, Pencil, Share2, X } from 'lucide-react';
 import db from './db';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { LangProvider, useLang } from './context/LangContext';
@@ -11,7 +11,7 @@ import CreditDetail from './components/CreditDetail';
 import HistoryView from './components/HistoryView';
 import SettingsPage from './components/SettingsPage';
 import OnboardingScreen from './components/OnboardingScreen';
-import ProfitCalculatorModal from './components/ProfitCalculatorModal';
+import DailySuggestions from './components/DailySuggestions';
 import { ToastContainer, fireToast } from './components/Toast';
 import { DEFAULT_PROVIDERS } from './components/PaymentTypeChips';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
@@ -124,7 +124,6 @@ function AppInner() {
     expense: { type: 'cash', provider: '', bankProvider: '', walletProvider: '' },
   });
   const [usageStats, setUsageStats] = useState(null);
-  const [showCalculator, setShowCalculator] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareText, setShareText] = useState('');
   const [earnedBadges, setEarnedBadges] = useState([]);
@@ -484,26 +483,6 @@ function AppInner() {
       .map(([name, qty]) => ({ name, qty }));
   }, [todaySales]);
 
-  const sparklineData = useMemo(() => {
-    const dayLabels = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat];
-    const days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const ds = d.toDateString();
-      const total = transactions
-        .filter(t2 => new Date(t2.created_at).toDateString() === ds && t2.type === 'sale')
-        .reduce((s, t2) => s + (t2.amount || 0), 0);
-      days.push({ label: dayLabels[d.getDay()], total, isToday: i === 0 });
-    }
-    return days;
-  }, [transactions, t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat]);
-
-  const sparklineMax = useMemo(
-    () => Math.max(...sparklineData.map(d => d.total), 1),
-    [sparklineData]
-  );
-
   const buildShareSummary = () => {
     const profit = todaySalesTotal - todayExpensesTotal;
     const topStr = topProducts.length > 0
@@ -679,15 +658,6 @@ function AppInner() {
               <div className="text-white text-xs opacity-70">{b.sub}</div>
             </button>
           ))}
-          <button
-            onClick={() => setShowCalculator(true)}
-            className="py-3 px-3 rounded-2xl text-center active:opacity-80 transition-all flex flex-col items-center justify-center gap-0.5 min-h-[64px]"
-            style={{ background: '#7c5c20', boxShadow: '0 4px 0 #5a3f10', minWidth: '52px' }}
-            aria-label={t.calculator}
-          >
-            <Calculator className="w-5 h-5 text-white" />
-            <span className="text-white font-bold" style={{ fontSize: '0.6rem' }}>{t.calc}</span>
-          </button>
         </div>
       )}
 
@@ -697,31 +667,11 @@ function AppInner() {
           <div className="space-y-3">
             <ProfitCard transactions={todayTransactions} />
 
-            {sparklineData.some(d => d.total > 0) && (
-              <div className="rounded-2xl px-4 pt-3 pb-2" style={{ background: '#fff', border: '1px solid #f0e6d4' }}>
-                <p className="text-xs font-bold text-gray-500 mb-2">{t.weekTrend}</p>
-                <div className="flex items-end gap-1" style={{ height: '48px' }}>
-                  {sparklineData.map((d, i) => {
-                    const h = Math.max(4, Math.round((d.total / sparklineMax) * 44));
-                    return (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                        <div
-                          className="w-full rounded-sm transition-all"
-                          style={{
-                            height: `${h}px`,
-                            background: d.isToday ? P.amber : '#e8d5b0',
-                            minHeight: '4px',
-                          }}
-                        />
-                        <span className="text-gray-400" style={{ fontSize: '0.55rem', lineHeight: 1 }}>
-                          {d.label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <DailySuggestions
+              todayTransactions={todayTransactions}
+              streak={usageStats?.streak || 1}
+              onAction={(type) => setShowForm(type)}
+            />
 
             {topProducts.length > 0 && (
               <div className="rounded-2xl px-4 py-3" style={{ background: '#fff', border: '1px solid #f0e6d4' }}>
@@ -902,10 +852,6 @@ function AppInner() {
           onUpdate={handleUpdateTransaction}
           onClose={() => setEditTarget(null)}
         />
-      )}
-
-      {showCalculator && (
-        <ProfitCalculatorModal onClose={() => setShowCalculator(false)} />
       )}
 
       {showShareModal && (
