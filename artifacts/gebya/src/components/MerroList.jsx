@@ -15,11 +15,24 @@ function MerroList({ creditRecords, onSelectCredit }) {
   const owedToMe  = active.filter(r => !r.direction || r.direction === 'owes_me').reduce((s, r) => s + (r.remaining_amount || 0), 0);
   const iOwe      = active.filter(r => r.direction === 'i_owe').reduce((s, r) => s + (r.remaining_amount || 0), 0);
 
-  const colorMap = {
-    red:    { card: 'border-red-300 bg-red-50',     dot: 'bg-red-500' },
-    yellow: { card: 'border-amber-300 bg-amber-50', dot: 'bg-amber-500' },
-    green:  { card: 'border-emerald-300 bg-emerald-50', dot: 'bg-emerald-500' },
+  const cardStyle = {
+    red:    'border-red-300 bg-red-50',
+    yellow: 'border-amber-300 bg-amber-50',
+    green:  'border-emerald-300 bg-emerald-50',
   };
+
+  const colorBadge = {
+    red:    { bg: '#fee2e2', color: '#b91c1c' },
+    yellow: { bg: '#fef3c7', color: '#92400e' },
+    green:  { bg: '#d1fae5', color: '#065f46' },
+  };
+
+  function getBadgeText(status) {
+    if (status.color === 'green') return t.statusOk;
+    if (status.color === 'yellow') return t.statusDueSoon;
+    if (status.label === 'Overdue') return t.statusOverdue;
+    return t.statusDueSoon;
+  }
 
   if (active.length === 0 && paid.length === 0) {
     return (
@@ -105,17 +118,23 @@ function MerroList({ creditRecords, onSelectCredit }) {
           }
 
           const status = getCreditStatus(record.due_date);
-          const colors = colorMap[status.color];
           const iOweRecord = record.direction === 'i_owe';
+          const badge = colorBadge[status.color];
+          const badgeText = getBadgeText(status);
 
           return (
             <button
               key={record.id}
               onClick={() => onSelectCredit(record)}
-              className={`w-full text-left p-4 rounded-2xl border-l-4 flex items-center justify-between transition-all active:scale-95 min-h-[72px] ${colors.card}`}
+              className={`w-full text-left p-4 rounded-2xl border-l-4 flex items-center justify-between transition-all active:scale-95 min-h-[72px] ${cardStyle[status.color]}`}
             >
               <div className="flex items-center gap-3">
-                <div className={`w-3 h-3 rounded-full flex-shrink-0 ${colors.dot}`} />
+                <span
+                  className="text-xs font-black px-2 py-1 rounded-lg flex-shrink-0"
+                  style={{ background: badge.bg, color: badge.color, minWidth: '60px', textAlign: 'center', letterSpacing: '0.02em' }}
+                >
+                  {badgeText}
+                </span>
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="font-bold text-gray-800 text-base">{record.customer_name}</p>

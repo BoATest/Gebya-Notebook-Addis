@@ -3,8 +3,8 @@ import { useState, useEffect, useCallback } from 'react';
 let toastListeners = [];
 let toastQueue = [];
 
-export function fireToast(message, duration = 2500) {
-  toastQueue.push({ message, id: Date.now() + Math.random(), duration });
+export function fireToast(message, duration = 2500, onUndo = null) {
+  toastQueue.push({ message, id: Date.now() + Math.random(), duration, onUndo });
   toastListeners.forEach(fn => fn([...toastQueue]));
 }
 
@@ -35,14 +35,28 @@ export function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-20 left-0 right-0 flex flex-col items-center gap-2 z-[100] pointer-events-none px-4">
+    <div className="fixed bottom-20 left-0 right-0 flex flex-col items-center gap-2 z-[100] px-4" style={{ pointerEvents: 'none' }}>
       {toasts.map(t => (
         <div
           key={t.id}
-          className="px-5 py-3 rounded-2xl shadow-lg text-sm font-bold text-white"
-          style={{ background: 'rgba(30,20,10,0.88)', maxWidth: '340px', textAlign: 'center' }}
+          className="flex items-center gap-3 px-4 py-3 rounded-2xl shadow-lg text-sm font-bold text-white"
+          style={{
+            background: 'rgba(30,20,10,0.92)',
+            maxWidth: '340px',
+            width: '100%',
+            pointerEvents: 'auto',
+          }}
         >
-          {t.message}
+          <span className="flex-1 text-center">{t.message}</span>
+          {t.onUndo && (
+            <button
+              onClick={() => { t.onUndo(); dismiss(t.id); }}
+              className="flex-shrink-0 px-3 py-1 rounded-xl font-black text-xs"
+              style={{ background: 'rgba(255,255,255,0.22)', color: '#fff', minHeight: '32px' }}
+            >
+              Undo
+            </button>
+          )}
         </div>
       ))}
     </div>

@@ -23,6 +23,11 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 Mobile-first PWA for Ethiopian small shop owners. Serves at path `/`.
 
 **Features:**
+- **3-step intro slides** (IntroSlides.jsx): shown only to first-time users before onboarding. Explains the app concept across 3 colorful slides (business notebook → profit visibility → 3 buttons). Writes `intro_seen` flag to IndexedDB on dismiss/complete.
+- **Empty state on Today tab**: When no entries exist for the day, shows a 📒 icon, descriptive text, and an amber hint arrow pointing at the ሸጠሁ button.
+- **Undo toast on record**: After any transaction is saved, a 4-second toast fires with an Undo button. Tapping Undo deletes the transaction (and credit record if applicable) and fires a "Undone ✓" confirmation toast. Toast.jsx now supports optional `onUndo` callback.
+- **Raised physical action buttons**: ሸጠሁ / ወጪ / ብድር buttons now use a 5px box-shadow and `translateY(5px)` + `boxShadow: none` on press (via `onPointerDown`/`onPointerUp` state) for a satisfying tactile feel on mobile.
+- **Text status badges on Mero list**: Each credit row now shows a text badge — OVERDUE (red), DUE SOON (amber/red), or OK (green) — replacing the color-only dot.
 - Today screen: profit/sales summary with privacy toggle (hidden by default, auto-hides after 30s)
 - I Sold / I Spent / Credit (ብድር) entry forms with modal interface
 - Payment type chips: Cash / Bank / Wallet with provider sub-chips (CBE, Dashen, Awash, Abyssinia / telebirr, CBE Birr)

@@ -236,6 +236,27 @@ const EN = {
   customProviderName: 'Provider name',
   providerEnabled: 'Enabled',
   providerDisabled: 'Disabled',
+
+  introSlide1Title: 'Your Business Notebook',
+  introSlide1Body: 'Track sales, expenses, and credit — all on your phone. No account needed.',
+  introSlide2Title: 'See Your Money at a Glance',
+  introSlide2Body: "Today's profit always shows at the top. Know where you stand in seconds.",
+  introSlide3Title: 'Three Buttons. That\'s It.',
+  introSlide3Body: 'Tap ሸጠሁ to sell, ወጪ to spend, ብድር for credit. Done in 10 seconds.',
+  introLetsStart: "Let's Start 🚀",
+  introNext: 'Next →',
+  introSkip: 'Skip intro',
+
+  noEntriesPrompt: 'Tap ሸጠሁ above to record your first sale',
+
+  saleSaved: 'Sale recorded ✓',
+  expenseSaved: 'Expense recorded ✓',
+  creditSaved: 'Credit recorded ✓',
+  undone: 'Undone ✓',
+
+  statusOverdue: 'OVERDUE',
+  statusDueSoon: 'DUE SOON',
+  statusOk: 'OK',
 };
 
 const AM = {
@@ -467,6 +488,27 @@ const AM = {
   customProviderName: 'ስም',
   providerEnabled: 'ነቋል',
   providerDisabled: 'ተዘግቷል',
+
+  introSlide1Title: 'የሱቅ ማስታወሻ',
+  introSlide1Body: 'ሽያጭ፣ ወጪ፣ ብድር — ሁሉም በስልክ። ምዝገባ አያስፈልግም።',
+  introSlide2Title: 'ገንዘቡን ፈጥኖ ይመልከቱ',
+  introSlide2Body: 'የዛሬ ትርፍ ሁሌ ከላይ ይታያል። ሁኔታዎን በሰከንዶች ያውቁ።',
+  introSlide3Title: 'ሦስት ቁልፎች ብቻ',
+  introSlide3Body: 'ሸጠሁ፣ ወጪ፣ ብድር። ሂደቱ ለ10 ሰኮንዶች ብቻ ነው።',
+  introLetsStart: 'ጀምር 🚀',
+  introNext: 'ቀጣይ →',
+  introSkip: 'ዝለል',
+
+  noEntriesPrompt: 'ለማስቀመጥ ከላይ "ሸጠሁ" ይጫኑ',
+
+  saleSaved: 'ሽያጭ ተቀምጧል ✓',
+  expenseSaved: 'ወጪ ተቀምጧል ✓',
+  creditSaved: 'ብድር ተቀምጧል ✓',
+  undone: 'ተሰርዟል ✓',
+
+  statusOverdue: 'ዘግይቷል',
+  statusDueSoon: 'ይቃረባል',
+  statusOk: 'ጥሩ',
 };
 
 const LangContext = createContext(null);

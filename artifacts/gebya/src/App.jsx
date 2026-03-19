@@ -11,6 +11,7 @@ import CreditDetail from './components/CreditDetail';
 import HistoryView from './components/HistoryView';
 import SettingsPage from './components/SettingsPage';
 import OnboardingScreen from './components/OnboardingScreen';
+import IntroSlides from './components/IntroSlides';
 import DailySuggestions from './components/DailySuggestions';
 import { ToastContainer, fireToast } from './components/Toast';
 import { DEFAULT_PROVIDERS } from './components/PaymentTypeChips';
@@ -128,10 +129,12 @@ function AppInner() {
   const [shareText, setShareText] = useState('');
   const [earnedBadges, setEarnedBadges] = useState([]);
   const [bestDayTotal, setBestDayTotal] = useState(0);
+  const [showIntro, setShowIntro] = useState(false);
+  const [pressedBtn, setPressedBtn] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, credits, nameRow, phoneRow, epRow, reRow, telegramRow] = await Promise.all([
+      const [txns, credits, nameRow, phoneRow, epRow, reRow, telegramRow, introRow] = await Promise.all([
         db.transactions.toArray(),
         db.credit_records.toArray(),
         db.settings.get('shop_name'),
@@ -139,15 +142,20 @@ function AppInner() {
         db.settings.get('enabled_payment_methods'),
         db.settings.get('recurring_expenses'),
         db.settings.get('shop_telegram'),
+        db.settings.get('intro_seen'),
       ]);
       txns.sort((a, b) => b.created_at - a.created_at);
       setTransactions(txns);
       setCreditRecords(credits);
+      const hasName = !!nameRow?.value;
       setShopProfile({
         name: nameRow?.value || null,
         phone: phoneRow?.value || '',
         telegram: telegramRow?.value || '',
       });
+      if (!hasName && !introRow?.value) {
+        setShowIntro(true);
+      }
       try { setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS); } catch { setEnabledProviders(DEFAULT_PROVIDERS); }
       try { setRecurringExpenses(reRow ? JSON.parse(reRow.value) : []); } catch { setRecurringExpenses([]); }
     } catch (err) {
@@ -254,14 +262,16 @@ function AppInner() {
         customer_name: transaction.type === 'credit' ? transaction.item_name : null,
       };
 
+      let creditRecordId = null;
+      let newCustomerId = null;
       if (transaction.type === 'credit') {
-        const customerId = await db.customers.add({
+        newCustomerId = await db.customers.add({
           name: transaction.item_name,
           phone: transaction.customer_phone || null,
           total_debt: transaction.amount,
         });
-        await db.credit_records.add({
-          customer_id: customerId,
+        creditRecordId = await db.credit_records.add({
+          customer_id: newCustomerId,
           customer_name: transaction.item_name,
           customer_phone: transaction.customer_phone || null,
           original_amount: transaction.amount,
@@ -324,6 +334,20 @@ function AppInner() {
           });
         } catch { /* non-critical */ }
       }
+
+      const toastMsg = { sale: t.saleSaved, expense: t.expenseSaved, credit: t.creditSaved }[transaction.type] || '✓';
+      fireToast(toastMsg, 4000, async () => {
+        try {
+          await db.transactions.delete(id);
+          setTransactions(prev => prev.filter(t2 => t2.id !== id));
+          if (creditRecordId !== null) {
+            await db.credit_records.delete(creditRecordId);
+            if (newCustomerId !== null) await db.customers.delete(newCustomerId);
+            setCreditRecords(await db.credit_records.toArray());
+          }
+          fireToast(t.undone, 2000);
+        } catch { /* non-critical */ }
+      });
     } catch (err) {
       if (import.meta.env.DEV) console.error('Failed to save:', err);
       alert('Could not save. Please try again.');
@@ -522,6 +546,12 @@ function AppInner() {
     );
   }
 
+  if (showIntro) {
+    return (
+      <IntroSlides onDone={() => setShowIntro(false)} />
+    );
+  }
+
   if (!shopProfile || !shopProfile.name) {
     return (
       <OnboardingScreen
@@ -649,15 +679,29 @@ function AppInner() {
             { type: 'sale',    label: t.iSoldLabel, sub: t.iSold,  bg: '#14532d', shadow: '#052e16' },
             { type: 'expense', label: t.iSpentLabel, sub: t.iSpent, bg: '#991b1b', shadow: '#450a0a' },
             { type: 'credit',  label: t.creditBtnLabel, sub: t.creditBtn,  bg: '#92400e', shadow: '#431407' },
-          ].map(b => (
-            <button key={b.type} onClick={() => setShowForm(b.type)}
-              className="flex-1 py-3 rounded-2xl text-center active:opacity-80 transition-all min-h-[64px]"
-              style={{ background: b.bg, boxShadow: `0 4px 0 ${b.shadow}` }}>
-              <div className="font-black text-white text-lg leading-none">+</div>
-              <div className="font-bold text-white text-sm">{b.label}</div>
-              <div className="text-white text-xs opacity-70">{b.sub}</div>
-            </button>
-          ))}
+          ].map(b => {
+            const pressed = pressedBtn === b.type;
+            return (
+              <button
+                key={b.type}
+                onClick={() => setShowForm(b.type)}
+                onPointerDown={() => setPressedBtn(b.type)}
+                onPointerUp={() => setPressedBtn(null)}
+                onPointerLeave={() => setPressedBtn(null)}
+                onPointerCancel={() => setPressedBtn(null)}
+                className="flex-1 py-3 rounded-2xl text-center transition-all min-h-[72px]"
+                style={{
+                  background: b.bg,
+                  boxShadow: pressed ? 'none' : `0 5px 0 ${b.shadow}`,
+                  transform: pressed ? 'translateY(5px)' : 'none',
+                }}
+              >
+                <div className="font-black text-white text-lg leading-none">+</div>
+                <div className="font-black text-white text-base leading-snug">{b.label}</div>
+                <div className="text-white text-xs opacity-70">{b.sub}</div>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -703,8 +747,11 @@ function AppInner() {
 
               {todayTransactions.length === 0 ? (
                 <div className="px-4 py-10 text-center">
-                  <p className="text-3xl mb-2">📝</p>
-                  <p className="text-sm" style={{ color: '#9ca3af' }}>{t.noEntries}</p>
+                  <p className="text-5xl mb-3">📒</p>
+                  <p className="font-bold text-base mb-1" style={{ color: '#6b7280' }}>{t.noEntries}</p>
+                  <p className="text-sm" style={{ color: '#c47c1a' }}>
+                    ↑ {t.noEntriesPrompt}
+                  </p>
                 </div>
               ) : (
                 <div className="divide-y" style={{ borderColor: '#fef9ec' }}>
