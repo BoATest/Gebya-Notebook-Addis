@@ -1,0 +1,81 @@
+Let me build it. I'll create a single merged mockup that combines the best of your variants with the fixes I described.Now let me build the improved version:Now register the component so the preview server picks it up:The build uses Replit's catalog system so I can't compile locally, but the component is pure React + Tailwind — same deps as your other variants. Let me clean up and show you what I built:Let me render it so you can see it:Can't render it directly here, but the file is ready at:
+
+```
+artifacts/mockup-sandbox/src/components/mockups/gebya-improved/GebyaImproved.tsx
+```
+
+Your Replit preview server should auto-pick it up. Here's what I changed vs your originals and why:
+
+---
+
+### What's in the merged mockup
+
+**1. Bigger, physical buttons (AutoresizingFirst approach, amplified)**
+Your original buttons are ~48px tall flat rectangles. Mine are **72px+** with:
+- Raised shadow (`boxShadow: 0 5px 0`) so they look physically pressable
+- Emoji icons (📦 💸 📋) as the primary visual — faster to scan than reading
+- `active:scale-95` press animation — gives tactile feedback
+- Amharic label is the BIGGEST text, English subtitle is secondary
+
+``
+BEFORE (yours):           AFTER (mine):
+┌────────────────┐      ┌────────────────┐
+│ ሸጠሁ    ወጪ  ሜሮ │      │ 📦        💸       📋  │
+│ Sold  Spent Cred │      │ ሸጠሁ     ወጪ      ሜሮ  │
+└──────────────────┘      │ I Sold  I Spent  Credit│
+                          └────────▲────────┘
+                          (raised, physical, 72px tall)
+``
+
+**2. Onboarding flow (3-step intro)**
+First-time users see:
+- Step 1: "Your business notebook — on your phone"
+- Step 2: "The big number at the top = your money"
+- Step 3: "Three buttons, that's it"
+
+Then hits "Let's Start! 🚀" → lands on main app. No more blank screen confusion.
+
+**3. Empty state**
+When today has zero entries, instead of a blank list:
+- Big 📒 icon
+- "No entries yet today"
+- "Tap **ሸጠሁ** to record your first sale. It's faster than paper — promise."
+- Arrow pointing to the big green button
+
+There's a toggle button to demo this: "Show empty state demo"
+
+**4. Search bar**
+Between the action buttons and the list, there's a search field:
+- Filters entries in real-time
+- "Search items, names..." placeholder
+- Shows "No matches" state when search yields nothing
+
+**5. Undo toast**
+After tapping any action button, a green toast slides in:
+- "Sale recorded ✓" with an **Undo** button
+- Auto-dismisses after 3 seconds
+- Makes users feel safe — mistakes are reversible
+
+**6. Mero (Credit) gets proper depth**
+Each credit entry now shows:
+- Text badge "OVERDUE" / "DUE SOON" / "OK" (not just a colored dot)
+- Progress bar showing % paid back (e.g. "Paid 50% — 450 of 90 ብር")
+- Note field ("📝 Injera for wedding")
+- "Record Payment" button for partial payments
+
+**7. History gets a weekly sparkline**
+Simple bar chart showing daily profit trend + "Week total" and "Best day" summary.
+
+**8. Offline indicator**
+Header shows a green "Saved" pill so users know their data is safe locally.
+
+**9. Unified design language**
+- Dark chocolate header (from TheSouk/Ledger) — feels premium, not generic
+- Hero profit number (from HierarchyFirst) — 48px, impossible to miss
+- Text badges + WCAG contrast (from AccessibilityFirst) — works on cracked cheap Androids in sunlight
+- Physical raised buttons (from AffordanceFirst) — satisfying to tap
+- Progress bars on credit (from Ledger) — shows partial payments
+
+---
+
+Open it in your Replit preview at `/preview/gebya-improved/GebyaImproved` to see it live. Want me to adjust anything — colors, layout, add more screens?
