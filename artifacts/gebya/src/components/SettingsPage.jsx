@@ -3,7 +3,7 @@ import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
-import { fmt } from '../utils/format';
+import { fmt } from '../utils/numformat';
 import db from '../db';
 import { ALL_BANKS, ALL_WALLETS } from './PaymentTypeChips';
 import { BADGE_DEFINITIONS } from '../utils/badges';

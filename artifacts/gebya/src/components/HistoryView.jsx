@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Calendar, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
-import { fmt } from '../utils/format';
+import { fmt } from '../utils/numformat';
 
 function groupByDay(transactions) {
   const groups = {};

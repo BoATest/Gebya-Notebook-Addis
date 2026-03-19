@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Users, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { getCreditStatus, formatEthiopianShort } from '../utils/ethiopianCalendar';
-import { fmt } from '../utils/format';
+import { fmt } from '../utils/numformat';
 
 function MerroList({ creditRecords, onSelectCredit }) {
   const { t } = useLang();

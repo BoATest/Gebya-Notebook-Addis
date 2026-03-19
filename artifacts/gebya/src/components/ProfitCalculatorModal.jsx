@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useLang } from '../context/LangContext';
-import { fmt } from '../utils/format';
+import { fmt } from '../utils/numformat';
 
 export default function ProfitCalculatorModal({ onClose }) {
   const { t } = useLang();

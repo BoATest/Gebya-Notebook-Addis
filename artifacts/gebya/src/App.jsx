@@ -16,7 +16,7 @@ import DailySuggestions from './components/DailySuggestions';
 import { ToastContainer, fireToast } from './components/Toast';
 import { DEFAULT_PROVIDERS } from './components/PaymentTypeChips';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
-import { fmt } from './utils/format';
+import { fmt } from './utils/numformat';
 import { checkAndAwardBadges } from './utils/badges';
 
 const P = {

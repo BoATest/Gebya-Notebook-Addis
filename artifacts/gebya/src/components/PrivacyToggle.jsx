@@ -1,7 +1,7 @@
 import { Eye, EyeOff } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
-import { fmt } from '../utils/format';
+import { fmt } from '../utils/numformat';
 
 function PrivacyToggle({ value, label, suffix, className = '' }) {
   const { hidden, toggle } = usePrivacy();

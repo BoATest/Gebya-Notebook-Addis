@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, Phone, CheckCircle2, DollarSign, Clock } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { formatEthiopian, getCreditStatus } from '../utils/ethiopianCalendar';
-import { fmt } from '../utils/format';
+import { fmt } from '../utils/numformat';
 
 function CreditDetail({ record, onBack, onPartialPayment, onFullPayment }) {
   const { t } = useLang();
