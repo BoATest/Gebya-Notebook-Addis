@@ -4,7 +4,14 @@ import { useLang } from '../context/LangContext';
 import VoiceButton from './VoiceButton';
 import PaymentTypeChips from './PaymentTypeChips';
 import { getDueDateOptions } from '../utils/ethiopianCalendar';
-import { fmt } from '../utils/format';
+import { fmt, fmtInput } from '../utils/format';
+
+function handleNumericInput(e, setter) {
+  let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
+  const parts = raw.split('.');
+  if (parts.length > 2) raw = parts[0] + '.' + parts.slice(1).join('');
+  setter(raw);
+}
 
 const ACCENT = {
   sale:    { btn: '#15803d', border: '#86efac' },
@@ -33,16 +40,23 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
     bank:   initPType === 'bank'   ? initPProvider : '',
     wallet: initPType === 'wallet' ? initPProvider : '',
   };
-  const [phone, setPhone] = useState(transaction.customer_phone || '');
+  const [phoneDigits, setPhoneDigits] = useState(() => {
+    const raw = transaction.customer_phone || '';
+    return raw.startsWith('+251') ? raw.slice(4) : raw.replace(/\D/g, '').slice(-9);
+  });
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [direction, setDirection] = useState(transaction.direction || 'owes_me');
   const [selectedDue, setSelectedDue] = useState(transaction.due_date || null);
   const [customDue, setCustomDue] = useState('');
   const [saving, setSaving] = useState(false);
 
   const dueDateOptions = getDueDateOptions();
+  const phoneValid = !phoneDigits || /^[79]\d{8}$/.test(phoneDigits);
+  const phoneEntered = phoneDigits.length > 0;
+
   const sellingPrice = parseFloat(amount) || 0;
   const cost = parseFloat(costPrice) || 0;
-  const qty = parseFloat(quantity) || 1;
+  const qty = Math.max(1, parseInt(quantity) || 1);
   const belowCost = !isCredit && cost > 0 && sellingPrice < cost * qty;
   const canSave = item.trim() && sellingPrice > 0;
 
@@ -63,7 +77,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
         profit: (!isCredit && cost > 0) ? sellingPrice - cost * qty : null,
         payment_type: isCredit ? null : paymentType,
         payment_provider: (!isCredit && paymentType !== 'cash') ? paymentProvider || null : null,
-        customer_phone: isCredit ? (phone.trim() || null) : null,
+        customer_phone: isCredit ? (phoneEntered && phoneValid ? '+251' + phoneDigits : null) : null,
         direction: isCredit ? direction : null,
         due_date: isCredit ? getEffectiveDueDate() : null,
       };
@@ -146,20 +160,38 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
           {!isCredit && (
             <div>
               <label className="block text-gray-700 font-semibold mb-2">{t.quantity}</label>
-              <input type="number" inputMode="numeric" value={quantity}
-                onChange={e => setQuantity(e.target.value)} min="1"
+              <input
+                type="number"
+                inputMode="numeric"
+                value={quantity}
+                onChange={e => {
+                  const v = parseInt(e.target.value);
+                  if (isNaN(v) || v < 1) setQuantity('1');
+                  else setQuantity(String(v));
+                }}
+                onBlur={e => {
+                  const v = parseInt(e.target.value);
+                  if (isNaN(v) || v < 1) setQuantity('1');
+                }}
+                min="1"
                 className="w-full p-4 border-2 rounded-2xl focus:outline-none text-base min-h-[52px]"
-                style={{ borderColor: '#e8d5b0' }} />
+                style={{ borderColor: '#e8d5b0' }}
+              />
             </div>
           )}
 
           <div>
             <label className="block text-gray-700 font-semibold mb-2">{t.amount}</label>
             <div className="relative">
-              <input type="number" inputMode="decimal" value={amount}
-                onChange={e => setAmount(e.target.value)} placeholder="0"
+              <input
+                type="text"
+                inputMode="decimal"
+                value={fmtInput(amount)}
+                onChange={e => handleNumericInput(e, setAmount)}
+                placeholder="0"
                 className="w-full p-4 pr-16 border-2 rounded-2xl focus:outline-none text-base min-h-[52px]"
-                style={{ borderColor: '#e8d5b0' }} />
+                style={{ borderColor: '#e8d5b0' }}
+              />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">{t.birr}</span>
             </div>
           </div>
@@ -169,10 +201,34 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
               <label className="block text-gray-700 font-semibold mb-2">
                 {t.phoneOptional} <span className="text-gray-400 font-normal text-sm">{t.phoneOptionalHint}</span>
               </label>
-              <input type="tel" inputMode="tel" value={phone}
-                onChange={e => setPhone(e.target.value)} placeholder={t.phonePlaceholder}
-                className="w-full p-4 border-2 rounded-2xl focus:outline-none text-base min-h-[52px]"
-                style={{ borderColor: '#e8d5b0' }} />
+              <div className="flex gap-0">
+                <div
+                  className="flex items-center justify-center px-3 py-3 rounded-l-xl border-2 border-r-0 text-sm font-bold flex-shrink-0"
+                  style={{ background: '#f5f0e8', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : '#e8d5b0', color: '#7c3d12', minWidth: '64px' }}
+                >
+                  +251
+                </div>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={phoneDigits}
+                  onChange={e => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    if (raw.length <= 9) setPhoneDigits(raw);
+                  }}
+                  onBlur={() => setPhoneTouched(true)}
+                  placeholder="9XXXXXXXX"
+                  maxLength={9}
+                  className="flex-1 p-4 border-2 rounded-r-xl text-base focus:outline-none min-h-[52px]"
+                  style={{ borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : (phoneEntered && phoneValid ? '#c47c1a' : '#e8d5b0') }}
+                />
+              </div>
+              {phoneTouched && phoneEntered && !phoneValid && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{t.creditPhoneHint}</p>
+              )}
+              {!phoneTouched && (
+                <p className="text-xs text-gray-400 mt-1">{t.creditPhoneHint}</p>
+              )}
             </div>
           )}
 
@@ -236,10 +292,15 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                     {t.costPriceLabel} <span style={{ color: '#9ca3af' }}>{t.perUnit}</span>
                   </label>
                   <div className="relative">
-                    <input type="number" inputMode="decimal" value={costPrice}
-                      onChange={e => setCostPrice(e.target.value)} placeholder="0"
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={fmtInput(costPrice)}
+                      onChange={e => handleNumericInput(e, setCostPrice)}
+                      placeholder="0"
                       className="w-full p-4 pr-16 border-2 rounded-2xl focus:outline-none text-base min-h-[52px]"
-                      style={{ borderColor: '#e8d5b0' }} />
+                      style={{ borderColor: '#e8d5b0' }}
+                    />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">{t.birr}</span>
                   </div>
                   {belowCost && (

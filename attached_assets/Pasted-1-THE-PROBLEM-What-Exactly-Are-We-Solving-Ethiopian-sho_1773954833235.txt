@@ -1,0 +1,146 @@
+1. THE PROBLEM — What Exactly Are We Solving?
+
+Ethiopian shop owners are stuck between paper and tools not built for them. That gap is real. But we must be precise.
+
+
+Questions:
+
+
+What is the single biggest pain point? Is it:
+
+Knowing how much profit they actually made today?
+Remembering who owes them money (credit/debt tracking)?
+Tracking inventory so they know when to restock?
+Recording sales so they can compare months?
+Something else entirely?
+When a shop owner finishes a day, what is the ONE question they wish they could answer easily?
+
+What happens when a shop owner loses their paper notebook? What is the real consequence?
+
+Are most sales cash-based, or is there significant credit (buy now, pay later) in Ethiopian retail?
+
+
+
+2. THE USER — Who Are We Building For?
+
+This changes everything about design, language, features.
+
+
+Questions:
+
+
+What is the typical shop? A small kiosk? A medium-sized store? A clothing shop? A grocery?
+
+What language does the user think in? Amharic? Oromo? English? Mixed? Does the app need full Amharic support or is English acceptable?
+
+What phone do they use? Android? What price range? Is it a smartphone with good internet, or a basic Android with limited storage and slow 3G?
+
+How tech-comfortable are they? Can they install an app from Play Store? Do they already use Telegram confidently? Do they understand "login" and "password"?
+
+How many transactions does a typical shop have per day? 10? 50? 200?
+
+Do they have employees who also need to record sales, or is it always one person?
+
+
+
+3. THE PRODUCT — What Are We Actually Building?
+
+This is where vision meets execution.
+
+
+Questions:
+
+
+Is this a web app, a mobile app, a Telegram bot, or a Progressive Web App (PWA)? Since you are using Replit, are you building a web-based tool that opens in a browser?
+
+What is the ONE core screen? If the user opens the app and sees only one thing, what should it be?
+
+What is the minimum feature set for v1? Can you list exactly 3–5 features and nothing more?
+
+How does data entry work? Does the user type product names every time, or do they set up products once and then just tap to record a sale?
+
+How do you handle Ethiopian Birr (ETB) formatting? Currency, number formatting?
+
+Is offline support important? Many Ethiopian shops have unreliable internet. Can the app work without a connection and sync later?
+
+
+
+4. THE CODE — How Is It Built on Replit?
+
+To help you architect this properly.
+
+
+Questions:
+
+
+What language/framework are you using? Python (Flask/Django)? JavaScript (Express/React)? HTML/CSS/JS only?
+
+Are you using a database? Which one? SQLite? PostgreSQL? Firebase? Or just storing data in a file or browser localStorage?
+
+How is user data stored right now? Is there a concept of accounts/login, or does everyone share one view?
+
+Is there a backend API, or is it all frontend?
+
+What is the current file/folder structure? Can you share a rough listing?
+
+Are you using any libraries or frameworks for the UI? Tailwind? Bootstrap? Or custom CSS?
+
+
+
+5. THE ENGAGEMENT — How Do We Make Them Come Back?
+
+The hardest problem in tools for non-technical users is retention.
+
+
+Questions:
+
+
+What will make a shop owner open this app EVERY DAY instead of reaching for their notebook?
+
+What is the "aha moment"? The first time they see value. Is it seeing a daily total? Seeing who owes them money?
+
+How do you handle the setup cost? Entering all existing products takes time. How do you make onboarding take less than 2 minutes?
+
+Do you plan to send reminders? For example, "You have 3 customers who owe you money" or "You sold less today than yesterday"?
+
+Is there a social or trust element? Ethiopian business culture is relationship-heavy. Does the tool acknowledge that?
+
+
+
+6. THE FUTURE — Where Does This Go?
+
+Thinking ahead shapes today's architecture.
+
+
+Questions:
+
+
+Do you envision multiple shops using this, or is it one-shop-at-a-time?
+
+Could this eventually connect to mobile money (TeleBirr, M-Pesa)?
+
+Would you want to add inventory management later?
+
+Is there a possibility of a simple receipt/invoice feature? Print or share via WhatsApp/Telegram?
+
+Would you ever want a dashboard that shows monthly trends, best-selling products, etc.?
+
+
+
+7. THE CULTURAL CONTEXT — Ethiopian Trade Realities
+
+Research-informed understanding.
+
+
+Questions:
+
+
+Do Ethiopian shop owners commonly give goods on credit (ደ Câm)? Is tracking debts a major pain?
+
+Do they buy inventory from wholesalers and need to track costs vs selling prices?
+
+Is there a common way Ethiopian shop owners calculate profit, or do many just "feel" whether they are doing well?
+
+Do they operate on a calendar system? Ethiopian calendar (EC) vs Gregorian? This matters for date handling in the app.
+
+Are there common product categories? (Merkato-style goods, groceries, clothing, electronics parts...) Does the app need category templates?

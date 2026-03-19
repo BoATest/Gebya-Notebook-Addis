@@ -13,8 +13,8 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
     { id: 'wallet', label: t.wallet, emoji: '📱' },
   ];
 
-  const enabledBanks  = (enabledProviders?.banks  || ALL_BANKS).filter(b => ALL_BANKS.includes(b));
-  const enabledWallets = (enabledProviders?.wallets || ALL_WALLETS).filter(w => ALL_WALLETS.includes(w));
+  const enabledBanks   = enabledProviders?.banks  || ALL_BANKS;
+  const enabledWallets = enabledProviders?.wallets || ALL_WALLETS;
 
   const handleTypeChange = (newType) => {
     onTypeChange(newType);
@@ -73,10 +73,21 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
         ))}
       </div>
 
-      {paymentType === 'bank' && enabledBanks.length > 0 && (
+      {paymentType === 'bank' && enabledBanks.length === 1 && (
+        <p className="text-xs text-amber-700 mt-2 font-semibold px-1">
+          ✓ {t.payingVia} {enabledBanks[0]}
+        </p>
+      )}
+      {paymentType === 'bank' && enabledBanks.length > 1 && (
         <ChipRow items={enabledBanks} selected={provider} onSelect={onProviderChange} />
       )}
-      {paymentType === 'wallet' && enabledWallets.length > 0 && (
+
+      {paymentType === 'wallet' && enabledWallets.length === 1 && (
+        <p className="text-xs text-amber-700 mt-2 font-semibold px-1">
+          ✓ {t.payingVia} {enabledWallets[0]}
+        </p>
+      )}
+      {paymentType === 'wallet' && enabledWallets.length > 1 && (
         <ChipRow items={enabledWallets} selected={provider} onSelect={onProviderChange} />
       )}
     </div>

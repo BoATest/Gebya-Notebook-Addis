@@ -227,6 +227,15 @@ const EN = {
   tryAgain: 'Try again',
 
   close: 'Close',
+
+  todaysBreakdown: "Today's Breakdown",
+  payingVia: 'Paying via',
+  creditPhoneHint: '9 digits starting with 7 or 9',
+  addCustomBank: 'Add bank…',
+  addCustomWallet: 'Add wallet…',
+  customProviderName: 'Provider name',
+  providerEnabled: 'Enabled',
+  providerDisabled: 'Disabled',
 };
 
 const AM = {
@@ -449,6 +458,15 @@ const AM = {
   tryAgain: 'እንደገና ሞክር',
 
   close: 'ዝጋ',
+
+  todaysBreakdown: 'የዛሬ ሂሳብ',
+  payingVia: 'በ',
+  creditPhoneHint: '9 አሃዞች፣ ከ7 ወይም 9 ይጀምሩ',
+  addCustomBank: 'ባንክ አክል…',
+  addCustomWallet: 'ዋሌት አክል…',
+  customProviderName: 'ስም',
+  providerEnabled: 'ነቋል',
+  providerDisabled: 'ተዘግቷል',
 };
 
 const LangContext = createContext(null);

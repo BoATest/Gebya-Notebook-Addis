@@ -790,6 +790,7 @@ function AppInner() {
         {activeTab === 'settings' && (
           <SettingsPage
             transactions={transactions}
+            todayTransactions={todayTransactions}
             creditRecords={creditRecords}
             shopProfile={shopProfile}
             onProfileSave={handleProfileSave}

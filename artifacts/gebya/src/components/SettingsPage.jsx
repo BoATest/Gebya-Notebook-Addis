@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
@@ -7,12 +7,14 @@ import { fmt } from '../utils/format';
 import db from '../db';
 import { ALL_BANKS, ALL_WALLETS } from './PaymentTypeChips';
 import { BADGE_DEFINITIONS } from '../utils/badges';
+import { fireToast } from './Toast';
 
 const FREQ_LABELS_EN = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
 const FREQ_LABELS_AM = { daily: 'ዕለታዊ', weekly: 'ሳምንታዊ', monthly: 'ወርሃዊ' };
 
 function SettingsPage({
   transactions,
+  todayTransactions,
   creditRecords,
   shopProfile,
   onProfileSave,
@@ -47,11 +49,34 @@ function SettingsPage({
 
   const [providers, setProviders] = useState(enabledProviders || { banks: [...ALL_BANKS], wallets: [...ALL_WALLETS] });
 
+  const [customBanks, setCustomBanks] = useState([]);
+  const [customWallets, setCustomWallets] = useState([]);
+  const [addBankInput, setAddBankInput] = useState('');
+  const [addWalletInput, setAddWalletInput] = useState('');
+  const [showAddBank, setShowAddBank] = useState(false);
+  const [showAddWallet, setShowAddWallet] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      const cbRow = await db.settings.get('custom_banks');
+      const cwRow = await db.settings.get('custom_wallets');
+      if (cbRow?.value) {
+        try { setCustomBanks(JSON.parse(cbRow.value)); } catch { /* ignore */ }
+      }
+      if (cwRow?.value) {
+        try { setCustomWallets(JSON.parse(cwRow.value)); } catch { /* ignore */ }
+      }
+    };
+    load();
+  }, []);
+
   const [recurring, setRecurring] = useState(recurringExpenses || []);
   const [reName, setReName] = useState('');
   const [reAmount, setReAmount] = useState('');
   const [reFreq, setReFreq] = useState('monthly');
   const [showReForm, setShowReForm] = useState(false);
+
+  const [shareCopied, setShareCopied] = useState(false);
 
   const handleProfileSave = async () => {
     if (!editName.trim() || !phoneValid) return;
@@ -97,22 +122,59 @@ function SettingsPage({
     setTimeout(() => window.location.reload(), 800);
   };
 
+  const allBanks = [...ALL_BANKS, ...customBanks.filter(b => !ALL_BANKS.includes(b))];
+  const allWallets = [...ALL_WALLETS, ...customWallets.filter(w => !ALL_WALLETS.includes(w))];
+
   const toggleBank = async (bank) => {
     const cur = providers.banks || [];
-    const next = cur.includes(bank) ? cur.filter(b => b !== bank) : [...cur, bank];
+    const nowEnabled = !cur.includes(bank);
+    const next = nowEnabled ? [...cur, bank] : cur.filter(b => b !== bank);
     const updated = { ...providers, banks: next };
     setProviders(updated);
     await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(updated) });
     onProvidersChange?.(updated);
+    fireToast(nowEnabled ? `✓ ${bank} ${t.providerEnabled}` : `${bank} ${t.providerDisabled}`, 1800);
   };
 
   const toggleWallet = async (wallet) => {
     const cur = providers.wallets || [];
-    const next = cur.includes(wallet) ? cur.filter(w => w !== wallet) : [...cur, wallet];
+    const nowEnabled = !cur.includes(wallet);
+    const next = nowEnabled ? [...cur, wallet] : cur.filter(w => w !== wallet);
     const updated = { ...providers, wallets: next };
     setProviders(updated);
     await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(updated) });
     onProvidersChange?.(updated);
+    fireToast(nowEnabled ? `✓ ${wallet} ${t.providerEnabled}` : `${wallet} ${t.providerDisabled}`, 1800);
+  };
+
+  const addCustomBank = async () => {
+    const name = addBankInput.trim();
+    if (!name || allBanks.includes(name)) return;
+    const updatedCustom = [...customBanks, name];
+    setCustomBanks(updatedCustom);
+    await db.settings.put({ key: 'custom_banks', value: JSON.stringify(updatedCustom) });
+    const updatedProviders = { ...providers, banks: [...(providers.banks || []), name] };
+    setProviders(updatedProviders);
+    await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(updatedProviders) });
+    onProvidersChange?.(updatedProviders);
+    setAddBankInput('');
+    setShowAddBank(false);
+    fireToast(`✓ ${name} ${t.providerEnabled}`, 1800);
+  };
+
+  const addCustomWallet = async () => {
+    const name = addWalletInput.trim();
+    if (!name || allWallets.includes(name)) return;
+    const updatedCustom = [...customWallets, name];
+    setCustomWallets(updatedCustom);
+    await db.settings.put({ key: 'custom_wallets', value: JSON.stringify(updatedCustom) });
+    const updatedProviders = { ...providers, wallets: [...(providers.wallets || []), name] };
+    setProviders(updatedProviders);
+    await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(updatedProviders) });
+    onProvidersChange?.(updatedProviders);
+    setAddWalletInput('');
+    setShowAddWallet(false);
+    fireToast(`✓ ${name} ${t.providerEnabled}`, 1800);
   };
 
   const addRecurring = async () => {
@@ -136,6 +198,31 @@ function SettingsPage({
     onRecurringChange?.(updated);
   };
 
+  const handleShareStats = async () => {
+    if (!usageStats) return;
+    const { streak, longestStreak, daysActive, featureCounts, sessionCount, firstUsed } = usageStats;
+    const fc = featureCounts || {};
+    let firstUsedDisplay = firstUsed;
+    try { firstUsedDisplay = firstUsed ? formatEthiopian(new Date(firstUsed)) : firstUsed; } catch { /* keep ISO fallback */ }
+    const text = [
+      `📊 Gebya usage stats for ${shopProfile?.name || 'my shop'}:`,
+      `🔥 Current streak: ${streak} day${streak !== 1 ? 's' : ''} (longest: ${longestStreak})`,
+      `📅 Using since: ${firstUsedDisplay}`,
+      `📈 Total days active: ${daysActive?.length || 1}`,
+      `🛒 Entries: ${fc.sales || 0} sales · ${fc.expenses || 0} expenses · ${fc.credits || 0} credits`,
+      `📱 Sessions opened: ${sessionCount}`,
+    ].join('\n');
+
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Gebya Stats', text }); return; } catch { /* fall through to clipboard */ }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2500);
+    } catch { /* ignore */ }
+  };
+
   const totalEntries = transactions.length;
   const totalCredits = creditRecords.length;
   const currentFullPhone = '+251' + editPhoneDigits;
@@ -147,8 +234,60 @@ function SettingsPage({
 
   const badgeList = (earnedBadges || []);
 
+  const todaySales = (todayTransactions || []).filter(tx => tx.type === 'sale');
+  const todayExpenses = (todayTransactions || []).filter(tx => tx.type === 'expense');
+  const todayRevenue = todaySales.reduce((s, tx) => s + (tx.amount || 0), 0);
+  const todayCostOfGoods = todaySales.reduce((s, tx) => s + ((tx.cost_price || 0) * (tx.quantity || 1)), 0);
+  const todayExpTotal = todayExpenses.reduce((s, tx) => s + (tx.amount || 0), 0);
+  const todayHasCost = todaySales.some(tx => tx.cost_price > 0);
+  const todayProfit = todayRevenue - todayCostOfGoods - todayExpTotal;
+
   return (
     <div className="space-y-5 pb-4">
+
+      {(todayTransactions && todayTransactions.length > 0) && (
+        <section>
+          <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.todaysBreakdown}</h2>
+          <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden">
+            <div className="px-4 py-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="flex items-center gap-1.5" style={{ color: '#6b7280' }}>
+                  <TrendingUp className="w-3.5 h-3.5 text-green-600" /> {t.salesLabel}
+                </span>
+                <span className="font-bold" style={{ color: '#15803d' }}>{fmt(todayRevenue)} {t.birr}</span>
+              </div>
+
+              {todayExpTotal > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="flex items-center gap-1.5" style={{ color: '#6b7280' }}>
+                    <TrendingDown className="w-3.5 h-3.5 text-red-500" /> {t.expenses}
+                  </span>
+                  <span className="font-bold text-red-500">-{fmt(todayExpTotal)} {t.birr}</span>
+                </div>
+              )}
+
+              {todayHasCost && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: '#6b7280' }}>{t.costOfGoods}</span>
+                    <span className="font-bold" style={{ color: '#ea580c' }}>-{fmt(todayCostOfGoods)} {t.birr}</span>
+                  </div>
+                  <div className="border-t pt-2 flex justify-between text-sm" style={{ borderColor: '#f0e6d4' }}>
+                    <span className="font-bold" style={{ color: '#374151' }}>{t.netProfit}</span>
+                    <span className={`font-black ${todayProfit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
+                      {todayProfit >= 0 ? '+' : ''}{fmt(todayProfit)} {t.birr}
+                    </span>
+                  </div>
+                </>
+              )}
+
+              {!todayHasCost && !todayExpTotal && (
+                <p className="text-xs" style={{ color: '#9ca3af' }}>{t.advancedHint}</p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.achievementBadges}</h2>
@@ -185,6 +324,58 @@ function SettingsPage({
           </div>
         </div>
       </section>
+
+      {usageStats && (
+        <section>
+          <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.usageInsights}</h2>
+          <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden">
+            <div className="px-4 pt-4 pb-3 space-y-3">
+              <div className="flex gap-3">
+                <div className="flex-1 rounded-xl p-3 text-center" style={{ background: '#fff7ed', border: '1.5px solid #fed7aa' }}>
+                  <div className="text-2xl font-black" style={{ color: '#c2410c' }}>🔥 {usageStats.streak}</div>
+                  <div className="text-xs font-semibold text-gray-600 mt-0.5">{t.dayStreak}</div>
+                  <div className="text-xs text-gray-400">{t.best}: {usageStats.longestStreak}</div>
+                </div>
+                <div className="flex-1 rounded-xl p-3 text-center" style={{ background: '#f0fdf4', border: '1.5px solid #bbf7d0' }}>
+                  <div className="text-2xl font-black text-green-700">📅 {usageStats.daysActive?.length || 1}</div>
+                  <div className="text-xs font-semibold text-gray-600 mt-0.5">{t.daysActive}</div>
+                  <div className="text-xs text-gray-400">
+                    {t.since} {usageStats.firstUsed ? (() => { try { return formatEthiopian(new Date(usageStats.firstUsed)); } catch { return usageStats.firstUsed; } })() : '—'}
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl p-3" style={{ background: '#faf5eb', border: '1.5px solid #f0e6d4' }}>
+                <div className="text-xs font-bold text-gray-500 mb-1.5">📊 {t.totalEntries}</div>
+                <div className="flex justify-around text-center">
+                  <div>
+                    <div className="text-base font-black text-green-700">{usageStats.featureCounts?.sales || 0}</div>
+                    <div className="text-xs text-gray-500">{t.salesLabel}</div>
+                  </div>
+                  <div>
+                    <div className="text-base font-black text-red-500">{usageStats.featureCounts?.expenses || 0}</div>
+                    <div className="text-xs text-gray-500">{t.expenses}</div>
+                  </div>
+                  <div>
+                    <div className="text-base font-black" style={{ color: '#c47c1a' }}>{usageStats.featureCounts?.credits || 0}</div>
+                    <div className="text-xs text-gray-500">{t.credit}</div>
+                  </div>
+                  <div>
+                    <div className="text-base font-black text-gray-700">{usageStats.sessionCount || 0}</div>
+                    <div className="text-xs text-gray-500">{t.sessions}</div>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={handleShareStats}
+                className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all min-h-[44px]"
+                style={{ background: shareCopied ? '#15803d' : '#c47c1a' }}
+              >
+                {shareCopied ? `✓ ${t.copiedToClipboard}` : t.shareMyStats}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.shopProfile}</h2>
@@ -288,12 +479,44 @@ function SettingsPage({
       <section>
         <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.paymentMethods}</h2>
         <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden divide-y divide-amber-50">
+
           <div className="px-5 py-3">
-            <p className="text-xs text-gray-500 mb-2 font-medium flex items-center gap-1">
-              <CreditCard className="w-3.5 h-3.5" /> {t.banks}
-            </p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-gray-500 font-medium flex items-center gap-1">
+                <CreditCard className="w-3.5 h-3.5" /> {t.banks}
+              </p>
+              <button
+                onClick={() => { setShowAddBank(v => !v); setAddBankInput(''); }}
+                className="flex items-center gap-1 text-xs font-bold min-h-[36px] px-2 rounded-lg transition-colors"
+                style={{ color: '#c47c1a', background: showAddBank ? '#fef3c7' : 'transparent' }}
+              >
+                {showAddBank ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                {showAddBank ? t.cancel : t.addCustomBank}
+              </button>
+            </div>
+            {showAddBank && (
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={addBankInput}
+                  onChange={e => setAddBankInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addCustomBank()}
+                  placeholder={t.customProviderName}
+                  className="flex-1 px-3 py-2 border-2 rounded-xl text-sm focus:outline-none"
+                  style={{ borderColor: '#e8d5b0' }}
+                />
+                <button
+                  onClick={addCustomBank}
+                  disabled={!addBankInput.trim()}
+                  className="px-3 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-40 min-h-[40px]"
+                  style={{ background: '#c47c1a' }}
+                >
+                  {t.add}
+                </button>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
-              {ALL_BANKS.map(bank => {
+              {allBanks.map(bank => {
                 const enabled = (providers.banks || []).includes(bank);
                 return (
                   <button
@@ -312,10 +535,42 @@ function SettingsPage({
               })}
             </div>
           </div>
+
           <div className="px-5 py-3">
-            <p className="text-xs text-gray-500 mb-2 font-medium">📱 {t.mobileWallets}</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-gray-500 font-medium">📱 {t.mobileWallets}</p>
+              <button
+                onClick={() => { setShowAddWallet(v => !v); setAddWalletInput(''); }}
+                className="flex items-center gap-1 text-xs font-bold min-h-[36px] px-2 rounded-lg transition-colors"
+                style={{ color: '#c47c1a', background: showAddWallet ? '#fef3c7' : 'transparent' }}
+              >
+                {showAddWallet ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                {showAddWallet ? t.cancel : t.addCustomWallet}
+              </button>
+            </div>
+            {showAddWallet && (
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  value={addWalletInput}
+                  onChange={e => setAddWalletInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && addCustomWallet()}
+                  placeholder={t.customProviderName}
+                  className="flex-1 px-3 py-2 border-2 rounded-xl text-sm focus:outline-none"
+                  style={{ borderColor: '#e8d5b0' }}
+                />
+                <button
+                  onClick={addCustomWallet}
+                  disabled={!addWalletInput.trim()}
+                  className="px-3 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-40 min-h-[40px]"
+                  style={{ background: '#c47c1a' }}
+                >
+                  {t.add}
+                </button>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
-              {ALL_WALLETS.map(wallet => {
+              {allWallets.map(wallet => {
                 const enabled = (providers.wallets || []).includes(wallet);
                 return (
                   <button
@@ -334,6 +589,7 @@ function SettingsPage({
               })}
             </div>
           </div>
+
           <div className="px-5 py-3">
             <p className="text-xs text-gray-400">{t.onlyEnabled}</p>
           </div>
@@ -513,7 +769,8 @@ function SettingsPage({
               <button onClick={clearAllData} className="w-full p-4 bg-red-500 text-white rounded-2xl font-bold min-h-[52px]">
                 {t.yesDelete}
               </button>
-              <button onClick={() => setShowClearConfirm(false)} className="w-full p-4 bg-gray-100 text-gray-700 rounded-2xl font-bold min-h-[52px]">
+              <button onClick={() => setShowClearConfirm(false)} className="w-full p-4 rounded-2xl font-bold min-h-[52px]"
+                style={{ background: '#f5f5f5', color: '#374151' }}>
                 {t.cancel}
               </button>
             </div>
@@ -524,9 +781,9 @@ function SettingsPage({
       {cleared && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-white rounded-3xl p-8 text-center shadow-2xl">
-            <div className="text-5xl mb-3">✅</div>
+            <div className="text-4xl mb-3">🗑️</div>
             <p className="font-bold text-gray-800">{t.dataCleared}</p>
-            <p className="text-sm text-gray-400 mt-1">{t.reloading}</p>
+            <p className="text-sm text-gray-500 mt-1">{t.reloading}</p>
           </div>
         </div>
       )}
