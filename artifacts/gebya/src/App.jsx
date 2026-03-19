@@ -748,9 +748,10 @@ function AppInner() {
               {todayTransactions.length === 0 ? (
                 <div className="px-4 py-10 text-center">
                   <p className="text-5xl mb-3">📒</p>
-                  <p className="font-bold text-base mb-1" style={{ color: '#6b7280' }}>{t.noEntries}</p>
-                  <p className="text-sm" style={{ color: '#c47c1a' }}>
-                    ↑ {t.noEntriesPrompt}
+                  <p className="font-bold text-base" style={{ color: '#6b7280' }}>No entries yet</p>
+                  <p className="font-bold text-base mb-2" style={{ color: '#6b7280' }}>ምንም ግቤት የለም</p>
+                  <p className="text-sm font-semibold" style={{ color: '#c47c1a' }}>
+                    ↑ Tap <strong>ሸጠሁ</strong> above to record your first sale
                   </p>
                 </div>
               ) : (
