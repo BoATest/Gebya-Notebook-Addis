@@ -54,7 +54,7 @@ function securityHeadersPlugin(): Plugin {
       server.middlewares.use((req, res, next) => {
         setSecurityHeaders(res, true);
         if (req.url && /\.(js|css|woff2?|png|ico|svg)$/.test(req.url)) {
-          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+          res.setHeader("Cache-Control", "no-store");
         } else if (req.url && /\.html?$/.test(req.url)) {
           res.setHeader("Cache-Control", "no-store");
         }
