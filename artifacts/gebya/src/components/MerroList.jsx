@@ -31,8 +31,8 @@ function MerroList({ creditRecords, onSelectCredit }) {
       };
     }
     return {
-      card: 'border-amber-300 bg-amber-50',
-      badge: { bg: '#fef3c7', color: '#92400e' },
+      card: 'border-yellow-300 bg-yellow-50',
+      badge: { bg: 'rgba(196,136,58,0.15)', color: '#8a5e1a' },
       text: t.statusDueSoon,
     };
   }
@@ -50,15 +50,15 @@ function MerroList({ creditRecords, onSelectCredit }) {
   return (
     <div className="space-y-4">
 
-      <div className="rounded-2xl p-4 border" style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
+      <div className="p-4 border animate-elastic texture-noise" style={{ background: 'rgba(27,67,50,0.06)', borderColor: 'rgba(27,67,50,0.2)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#fde68a' }}>
-              <Users className="w-5 h-5" style={{ color: '#92400e' }} />
+            <div className="w-10 h-10 flex items-center justify-center" style={{ background: '#1B4332', borderRadius: 'var(--radius-sm)' }}>
+              <Users className="w-5 h-5" style={{ color: '#fff' }} />
             </div>
             <div>
-              <p className="text-sm font-semibold" style={{ color: '#92400e' }}>{t.owedToMe}</p>
-              <p className="text-2xl font-black" style={{ color: '#78350f' }}>{fmt(owedToMe)} {t.birr}</p>
+              <p className="text-sm font-semibold" style={{ color: '#1B4332' }}>{t.owedToMe}</p>
+              <p className="text-2xl font-black" style={{ color: '#1B4332' }}>{fmt(owedToMe)} {t.birr}</p>
             </div>
           </div>
           <div className="text-right">
@@ -80,15 +80,15 @@ function MerroList({ creditRecords, onSelectCredit }) {
         <div className="flex gap-2">
           <button
             onClick={() => setShowPaid(false)}
-            className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
-            style={{ background: !showPaid ? '#c47c1a' : '#f5f5f5', color: !showPaid ? '#fff' : '#6b7280' }}
+            className="flex-1 py-2.5 text-sm font-bold transition-all press-scale"
+            style={{ background: !showPaid ? '#1B4332' : '#f5f5f5', color: !showPaid ? '#fff' : '#6b7280', borderRadius: 'var(--radius-sm)' }}
           >
             {t.activeTab} ({active.length})
           </button>
           <button
             onClick={() => setShowPaid(true)}
-            className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
-            style={{ background: showPaid ? '#c47c1a' : '#f5f5f5', color: showPaid ? '#fff' : '#6b7280' }}
+            className="flex-1 py-2.5 text-sm font-bold transition-all press-scale"
+            style={{ background: showPaid ? '#1B4332' : '#f5f5f5', color: showPaid ? '#fff' : '#6b7280', borderRadius: 'var(--radius-sm)' }}
           >
             {t.paidTab} ({paid.length})
           </button>
@@ -108,8 +108,8 @@ function MerroList({ creditRecords, onSelectCredit }) {
         {list.map(record => {
           if (showPaid) {
             return (
-              <div key={record.id} className="rounded-2xl border px-4 py-3 flex items-center gap-3"
-                style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+              <div key={record.id} className="border px-4 py-3 flex items-center gap-3 animate-slide-up"
+                style={{ background: '#f0fdf4', borderColor: '#bbf7d0', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}>
                 <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-green-500" />
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-800">{record.customer_name}</p>
@@ -128,12 +128,13 @@ function MerroList({ creditRecords, onSelectCredit }) {
             <button
               key={record.id}
               onClick={() => onSelectCredit(record)}
-              className={`w-full text-left p-4 rounded-2xl border-l-4 flex items-center justify-between transition-all active:scale-95 min-h-[72px] ${display.card}`}
+              className={`w-full text-left p-4 border-l-4 flex items-center justify-between transition-all active:scale-95 min-h-[72px] press-scale animate-slide-up ${display.card}`}
+              style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
             >
               <div className="flex items-center gap-3">
                 <span
-                  className="text-xs font-black px-2 py-1 rounded-lg flex-shrink-0"
-                  style={{ background: display.badge.bg, color: display.badge.color, minWidth: '60px', textAlign: 'center', letterSpacing: '0.02em' }}
+                  className="text-xs font-black px-2 py-1 flex-shrink-0"
+                  style={{ background: display.badge.bg, color: display.badge.color, minWidth: '60px', textAlign: 'center', letterSpacing: '0.02em', borderRadius: 'var(--radius-sm)' }}
                 >
                   {display.text}
                 </span>
@@ -141,11 +142,11 @@ function MerroList({ creditRecords, onSelectCredit }) {
                   <div className="flex items-center gap-2">
                     <p className="font-bold text-gray-800 text-base">{record.customer_name}</p>
                     {iOweRecord ? (
-                      <span className="px-1.5 py-0.5 rounded text-xs font-bold" style={{ background: '#fee2e2', color: '#dc2626' }}>
+                      <span className="px-1.5 py-0.5 text-xs font-bold" style={{ background: '#fee2e2', color: '#dc2626', borderRadius: '4px' }}>
                         {t.iOweTag}
                       </span>
                     ) : (
-                      <span className="px-1.5 py-0.5 rounded text-xs font-bold" style={{ background: '#d1fae5', color: '#065f46' }}>
+                      <span className="px-1.5 py-0.5 text-xs font-bold" style={{ background: '#d1fae5', color: '#065f46', borderRadius: '4px' }}>
                         {t.owesMeLabel}
                       </span>
                     )}

@@ -20,12 +20,14 @@ import { fmt } from './utils/numformat';
 import { checkAndAwardBadges } from './utils/badges';
 
 const P = {
-  bg: '#fdf8f0',
-  header: '#7c3d12',
-  actionBar: '#9a4c18',
-  amber: '#c47c1a',
-  amberLight: '#fef3c7',
-  border: '#f0e6d4',
+  bg: '#FAF8F5',
+  header: '#1B4332',
+  actionBar: '#163a2a',
+  amber: '#C4883A',
+  amberLight: 'rgba(196,136,58,0.12)',
+  coral: '#D4654A',
+  border: '#e8e2d8',
+  borderLight: '#f0ede8',
 };
 
 function ShareModal({ summary, telegram, onClose, t }) {
@@ -53,15 +55,15 @@ function ShareModal({ summary, telegram, onClose, t }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 flex items-end justify-center z-50"
+      className="fixed inset-0 bg-black/60 flex items-end justify-center z-50 animate-fade"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white rounded-t-3xl w-full max-w-md shadow-2xl pb-safe">
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-amber-50">
-          <h2 className="text-base font-black text-gray-800">📤 {t.shareTitle}</h2>
+      <div className="bg-white w-full max-w-md pb-safe animate-slide-up" style={{ borderRadius: '24px 24px 0 0', boxShadow: 'var(--shadow-lg)' }}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: 'var(--color-border-light)' }}>
+          <h2 className="text-base font-black text-gray-800 font-sans">📤 {t.shareTitle}</h2>
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-full flex items-center justify-center min-w-[44px] min-h-[44px]"
+            className="w-10 h-10 rounded-full flex items-center justify-center min-w-[44px] min-h-[44px] press-scale"
             style={{ background: '#f5f5f5' }}
             aria-label={t.cancel}
           >
@@ -70,16 +72,16 @@ function ShareModal({ summary, telegram, onClose, t }) {
         </div>
         <div className="px-5 py-4 space-y-2">
           <div
-            className="rounded-2xl px-4 py-3 text-xs text-gray-500 font-mono whitespace-pre-wrap"
-            style={{ background: '#faf5eb', border: '1px solid #f0e6d4', maxHeight: '140px', overflowY: 'auto', fontSize: '0.7rem', lineHeight: 1.5 }}
+            className="px-4 py-3 text-xs text-gray-500 font-mono whitespace-pre-wrap"
+            style={{ background: '#FAF8F5', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', maxHeight: '140px', overflowY: 'auto', fontSize: '0.7rem', lineHeight: 1.5 }}
           >
             {summary}
           </div>
           {typeof navigator !== 'undefined' && navigator.share && (
             <button
               onClick={handleNativeShare}
-              className="w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 min-h-[48px]"
-              style={{ background: '#c47c1a', color: '#fff' }}
+              className="w-full py-3 font-bold text-sm flex items-center justify-center gap-2 min-h-[48px] hover-lift press-scale"
+              style={{ background: 'var(--color-accent-amber)', color: '#fff', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
             >
               <Share2 className="w-4 h-4" /> {t.shareViaDevice}
             </button>
@@ -87,16 +89,16 @@ function ShareModal({ summary, telegram, onClose, t }) {
           {isUsername && handle && (
             <button
               onClick={handleTelegram}
-              className="w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 min-h-[48px]"
-              style={{ background: '#2481cc', color: '#fff' }}
+              className="w-full py-3 font-bold text-sm flex items-center justify-center gap-2 min-h-[48px] hover-lift press-scale"
+              style={{ background: '#2481cc', color: '#fff', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
             >
               ✈️ {t.openTelegram}
             </button>
           )}
           <button
             onClick={handleCopy}
-            className="w-full py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 min-h-[48px]"
-            style={{ background: '#f5f5f5', color: '#374151' }}
+            className="w-full py-3 font-bold text-sm flex items-center justify-center gap-2 min-h-[48px] press-scale"
+            style={{ background: '#f5f5f5', color: '#374151', borderRadius: 'var(--radius-md)' }}
           >
             📋 {t.copyText}
           </button>
@@ -537,9 +539,9 @@ function AppInner() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: P.bg }}>
-        <div className="text-center">
+        <div className="text-center animate-elastic">
           <div className="text-5xl mb-3">📒</div>
-          <h1 className="text-2xl font-black" style={{ color: P.header }}>ገበያ</h1>
+          <h1 className="text-2xl font-black font-serif" style={{ color: P.header }}>ገበያ</h1>
           <p className="text-sm mt-2" style={{ color: '#9ca3af' }}>{t.loading}</p>
         </div>
       </div>
@@ -568,17 +570,17 @@ function AppInner() {
   ];
 
   const typeEmoji = { sale: '💰', expense: '🛒', credit: '👥' };
-  const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#c47c1a' };
+  const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#C4883A' };
   const typeBorderColor = { sale: '#86efac', expense: '#fca5a5', credit: '#fcd34d' };
 
   return (
     <div className="min-h-screen flex flex-col max-w-md mx-auto relative" style={{ background: P.bg }}>
 
-      <header className="flex-shrink-0 px-4 pt-10 pb-4" style={{ background: P.header }}>
+      <header className="flex-shrink-0 px-4 pt-10 pb-4 texture-noise" style={{ background: P.header }}>
         <div className="flex items-start justify-between mb-3 gap-2">
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-black text-white tracking-tight">ገበያ</h1>
-            <p className="font-black text-white truncate" style={{ fontSize: '0.95rem' }}>
+            <h1 className="text-2xl font-black text-white tracking-tight font-serif">ገበያ</h1>
+            <p className="font-black text-white truncate font-sans" style={{ fontSize: '0.95rem' }}>
               {shopProfile.name}
             </p>
           </div>
@@ -592,7 +594,7 @@ function AppInner() {
               </span>
               <button
                 onClick={toggleLang}
-                className="text-xs font-bold rounded-full border transition-all flex items-center overflow-hidden"
+                className="text-xs font-bold rounded-full border transition-all flex items-center overflow-hidden press-scale"
                 style={{
                   borderColor: 'rgba(255,255,255,0.4)',
                   minHeight: '44px',
@@ -603,7 +605,7 @@ function AppInner() {
                   className="px-2.5 py-2 flex items-center justify-center"
                   style={{
                     background: lang === 'en' ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.12)',
-                    color: lang === 'en' ? '#7c3d12' : 'rgba(255,255,255,0.6)',
+                    color: lang === 'en' ? '#1B4332' : 'rgba(255,255,255,0.6)',
                     fontWeight: lang === 'en' ? 800 : 600,
                     minWidth: '32px',
                   }}
@@ -612,7 +614,7 @@ function AppInner() {
                   className="px-2.5 py-2 flex items-center justify-center"
                   style={{
                     background: lang === 'am' ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.12)',
-                    color: lang === 'am' ? '#7c3d12' : 'rgba(255,255,255,0.6)',
+                    color: lang === 'am' ? '#1B4332' : 'rgba(255,255,255,0.6)',
                     fontWeight: lang === 'am' ? 800 : 600,
                     minWidth: '32px',
                   }}
@@ -629,12 +631,12 @@ function AppInner() {
         {activeTab === 'today' && (
           <div className="flex gap-2">
             {[
-              { label: t.sales, val: todaySalesTotal, color: '#bbf7d0', text: '#14532d' },
-              { label: t.spent, val: todayExpensesTotal, color: '#fecaca', text: '#991b1b' },
+              { label: t.sales, val: todaySalesTotal, color: 'rgba(255,255,255,0.15)', text: '#fff' },
+              { label: t.spent, val: todayExpensesTotal, color: 'rgba(212,101,74,0.35)', text: '#fff' },
             ].map(s => (
-              <div key={s.label} className="flex-1 rounded-xl px-3 py-2 text-center" style={{ background: s.color }}>
-                <div className="text-xs font-semibold" style={{ color: s.text }}>{s.label}</div>
-                <div className="font-black text-sm" style={{ color: s.text }}>{hid(s.val)} {t.birr}</div>
+              <div key={s.label} className="flex-1 px-3 py-2 text-center animate-elastic" style={{ background: s.color, borderRadius: 'var(--radius-sm)' }}>
+                <div className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>{s.label}</div>
+                <div className="font-black text-sm text-white">{hid(s.val)} {t.birr}</div>
               </div>
             ))}
           </div>
@@ -643,7 +645,7 @@ function AppInner() {
 
       {activeTab === 'today' && usageStats && (
         <div className="px-4 pt-3 pb-0 flex-shrink-0" style={{ background: P.header }}>
-          <div className="rounded-2xl px-4 py-2.5 flex items-center gap-3" style={{ background: 'rgba(255,255,255,0.13)' }}>
+          <div className="px-4 py-2.5 flex items-center gap-3" style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 'var(--radius-md)' }}>
             <div className="text-center flex-shrink-0">
               <div className="text-base font-black text-white">🔥 {usageStats.streak}</div>
               <div className="text-xs text-white opacity-75">{t.dayStreak}</div>
@@ -662,8 +664,8 @@ function AppInner() {
             </div>
             <button
               onClick={handleShareReport}
-              className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2 rounded-xl min-h-[44px] min-w-[44px] justify-center"
-              style={{ background: 'rgba(255,255,255,0.18)' }}
+              className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2 min-h-[44px] min-w-[44px] justify-center press-scale"
+              style={{ background: 'rgba(255,255,255,0.18)', borderRadius: 'var(--radius-sm)' }}
               aria-label={t.shareReport}
             >
               <Share2 className="w-4 h-4 text-white" />
@@ -676,9 +678,9 @@ function AppInner() {
       {activeTab === 'today' && (
         <div className="px-3 py-3 flex gap-2 flex-shrink-0" style={{ background: P.actionBar }}>
           {[
-            { type: 'sale',    label: t.iSoldLabel, sub: t.iSold,  bg: '#14532d', shadow: '#052e16' },
-            { type: 'expense', label: t.iSpentLabel, sub: t.iSpent, bg: '#991b1b', shadow: '#450a0a' },
-            { type: 'credit',  label: t.creditBtnLabel, sub: t.creditBtn,  bg: '#92400e', shadow: '#431407' },
+            { type: 'sale',    label: t.iSoldLabel, sub: t.iSold,  bg: '#2d6a4f', shadow: '#1B4332' },
+            { type: 'expense', label: t.iSpentLabel, sub: t.iSpent, bg: '#D4654A', shadow: '#a84c37' },
+            { type: 'credit',  label: t.creditBtnLabel, sub: t.creditBtn,  bg: '#C4883A', shadow: '#96662b' },
           ].map(b => {
             const pressed = pressedBtn === b.type;
             return (
@@ -689,15 +691,16 @@ function AppInner() {
                 onPointerUp={() => setPressedBtn(null)}
                 onPointerLeave={() => setPressedBtn(null)}
                 onPointerCancel={() => setPressedBtn(null)}
-                className="flex-1 py-3 rounded-2xl text-center transition-all min-h-[72px]"
+                className="flex-1 py-3 text-center transition-all min-h-[72px]"
                 style={{
                   background: b.bg,
+                  borderRadius: 'var(--radius-lg)',
                   boxShadow: pressed ? 'none' : `0 5px 0 ${b.shadow}`,
                   transform: pressed ? 'translateY(5px)' : 'none',
                 }}
               >
                 <div className="font-black text-white text-lg leading-none">+</div>
-                <div className="font-black text-white text-base leading-snug">{b.label}</div>
+                <div className="font-black text-white text-base leading-snug font-sans">{b.label}</div>
                 <div className="text-white text-xs opacity-70">{b.sub}</div>
               </button>
             );
@@ -718,15 +721,15 @@ function AppInner() {
             />
 
             {topProducts.length > 0 && (
-              <div className="rounded-2xl px-4 py-3" style={{ background: '#fff', border: '1px solid #f0e6d4' }}>
+              <div className="px-4 py-3 animate-elastic stagger-2 texture-noise" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
                 <p className="text-xs font-bold text-gray-500 mb-2">🏆 {t.topProducts}</p>
                 <div className="space-y-1.5">
                   {topProducts.map((p, i) => (
                     <div key={p.name} className="flex items-center gap-2">
                       <span className="text-sm flex-shrink-0">{['🥇', '🥈', '🥉'][i]}</span>
                       <span className="text-sm font-semibold text-gray-700 flex-1 truncate">{p.name}</span>
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                        style={{ background: P.amberLight, color: P.amber }}>
+                      <span className="text-xs font-bold px-2 py-0.5 flex-shrink-0"
+                        style={{ background: 'rgba(196,136,58,0.12)', color: P.amber, borderRadius: 'var(--radius-sm)' }}>
                         ×{p.qty}
                       </span>
                     </div>
@@ -735,11 +738,11 @@ function AppInner() {
               </div>
             )}
 
-            <div className="rounded-2xl shadow-sm border overflow-hidden" style={{ background: '#fff', borderColor: P.border }}>
-              <div className="px-4 py-3 border-b" style={{ borderColor: P.border }}>
-                <h3 className="font-bold text-gray-700 text-sm">
+            <div className="overflow-hidden animate-elastic stagger-3" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
+              <div className="px-4 py-3 border-b" style={{ borderColor: P.borderLight }}>
+                <h3 className="font-bold text-gray-700 text-sm font-sans">
                   {t.todaysEntries}
-                  <span className="ml-2 text-xs px-2 py-0.5 rounded-full" style={{ background: P.amberLight, color: P.amber }}>
+                  <span className="ml-2 text-xs px-2 py-0.5" style={{ background: 'rgba(27,67,50,0.08)', color: P.header, borderRadius: 'var(--radius-sm)' }}>
                     {todayTransactions.length}
                   </span>
                 </h3>
@@ -750,12 +753,12 @@ function AppInner() {
                   <p className="text-5xl mb-3">📒</p>
                   <p className="font-bold text-base" style={{ color: '#6b7280' }}>No entries yet</p>
                   <p className="font-bold text-base mb-2" style={{ color: '#6b7280' }}>ምንም ግቤት የለም</p>
-                  <p className="text-sm font-semibold" style={{ color: '#c47c1a' }}>
+                  <p className="text-sm font-semibold" style={{ color: P.amber }}>
                     ↑ Tap <strong>ሸጠሁ</strong> above to record your first sale
                   </p>
                 </div>
               ) : (
-                <div className="divide-y" style={{ borderColor: '#fef9ec' }}>
+                <div className="divide-y" style={{ borderColor: P.borderLight }}>
                   {todayTransactions.map(tx => (
                     <div key={tx.id}
                       className="px-3 py-3 flex items-center border-l-4"
@@ -767,7 +770,7 @@ function AppInner() {
                       >
                         <div className="flex items-center gap-1.5">
                           <span className="font-semibold text-gray-800 text-sm truncate">{tx.item_name}</span>
-                          {tx.updated_at && <span className="text-xs" style={{ color: '#c47c1a' }}>{t.edited}</span>}
+                          {tx.updated_at && <span className="text-xs" style={{ color: P.amber }}>{t.edited}</span>}
                         </div>
                         {tx.quantity > 1 && <span className="text-xs text-gray-400">×{tx.quantity}</span>}
                         {tx.payment_type && tx.payment_type !== 'cash' && (
@@ -789,16 +792,16 @@ function AppInner() {
                       <div className="flex gap-1 flex-shrink-0">
                         <button
                           onClick={() => setEditTarget(tx)}
-                          className="p-2 rounded-xl flex items-center justify-center"
-                          style={{ background: '#fffbeb', minWidth: '44px', minHeight: '44px' }}
+                          className="p-2 flex items-center justify-center press-scale"
+                          style={{ background: 'rgba(196,136,58,0.1)', minWidth: '44px', minHeight: '44px', borderRadius: 'var(--radius-sm)' }}
                           aria-label={t.editEntry}
                         >
-                          <Pencil className="w-3.5 h-3.5" style={{ color: '#c47c1a' }} />
+                          <Pencil className="w-3.5 h-3.5" style={{ color: P.amber }} />
                         </button>
                         <button
                           onClick={() => setDeleteTarget(tx)}
-                          className="p-2 rounded-xl flex items-center justify-center"
-                          style={{ background: '#fff1f2', minWidth: '44px', minHeight: '44px' }}
+                          className="p-2 flex items-center justify-center press-scale"
+                          style={{ background: '#fff1f2', minWidth: '44px', minHeight: '44px', borderRadius: 'var(--radius-sm)' }}
                           aria-label={t.deleteEntryLabel}
                         >
                           <Trash2 className="w-3.5 h-3.5 text-red-400" />
@@ -862,11 +865,11 @@ function AppInner() {
               <button
                 key={tab.id}
                 onClick={() => { setActiveTab(tab.id); setSelectedCredit(null); }}
-                className="flex-1 flex flex-col items-center gap-0.5 py-2 min-h-[60px] transition-colors"
+                className="flex-1 flex flex-col items-center gap-0.5 py-2 min-h-[60px] transition-colors press-scale"
                 style={{
-                  background: isActive ? P.amberLight : 'transparent',
-                  borderBottom: isActive ? `3px solid ${P.amber}` : '3px solid transparent',
-                  color: isActive ? P.amber : '#9ca3af',
+                  background: isActive ? 'rgba(27,67,50,0.07)' : 'transparent',
+                  borderBottom: isActive ? `3px solid ${P.header}` : '3px solid transparent',
+                  color: isActive ? P.header : '#9ca3af',
                 }}
               >
                 <Icon className="w-5 h-5" />
@@ -913,21 +916,22 @@ function AppInner() {
       )}
 
       {deleteTarget && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6 animate-fade">
+          <div className="bg-white p-6 w-full max-w-sm animate-elastic" style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)' }}>
             <div className="text-3xl text-center mb-3">{typeEmoji[deleteTarget.type]}</div>
-            <h3 className="text-lg font-black text-gray-900 text-center mb-1">{t.deleteEntry}</h3>
+            <h3 className="text-lg font-black text-gray-900 text-center mb-1 font-sans">{t.deleteEntry}</h3>
             <p className="text-sm text-gray-500 text-center mb-5">
               "{deleteTarget.item_name}" · {fmt(deleteTarget.amount || 0)} {t.birr}
             </p>
             <div className="space-y-2">
               <button onClick={() => handleDeleteTransaction(deleteTarget.id)}
-                className="w-full p-4 bg-red-500 text-white rounded-2xl font-black min-h-[52px]">
+                className="w-full p-4 bg-red-500 text-white font-black min-h-[52px] press-scale"
+                style={{ borderRadius: 'var(--radius-md)' }}>
                 {t.delete}
               </button>
               <button onClick={() => setDeleteTarget(null)}
-                className="w-full p-4 rounded-2xl font-bold min-h-[52px]"
-                style={{ background: '#f5f5f5', color: '#374151' }}>
+                className="w-full p-4 font-bold min-h-[52px] press-scale"
+                style={{ background: '#f5f5f5', color: '#374151', borderRadius: 'var(--radius-md)' }}>
                 {t.cancel}
               </button>
             </div>

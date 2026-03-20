@@ -247,8 +247,8 @@ function SettingsPage({
 
       {(todayTransactions && todayTransactions.length > 0) && (
         <section>
-          <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.todaysBreakdown}</h2>
-          <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden">
+          <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.todaysBreakdown}</h2>
+          <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
             <div className="px-4 py-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="flex items-center gap-1.5" style={{ color: '#6b7280' }}>
@@ -272,7 +272,7 @@ function SettingsPage({
                     <span style={{ color: '#6b7280' }}>{t.costOfGoods}</span>
                     <span className="font-bold" style={{ color: '#ea580c' }}>-{fmt(todayCostOfGoods)} {t.birr}</span>
                   </div>
-                  <div className="border-t pt-2 flex justify-between text-sm" style={{ borderColor: '#f0e6d4' }}>
+                  <div className="border-t pt-2 flex justify-between text-sm" style={{ borderColor: 'var(--color-border)' }}>
                     <span className="font-bold" style={{ color: '#374151' }}>{t.netProfit}</span>
                     <span className={`font-black ${todayProfit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
                       {todayProfit >= 0 ? '+' : ''}{fmt(todayProfit)} {t.birr}
@@ -290,8 +290,8 @@ function SettingsPage({
       )}
 
       <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.achievementBadges}</h2>
-        <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden">
+        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.achievementBadges}</h2>
+        <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-4 pt-4 pb-3">
             {badgeList.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-2">{t.noBadges}</p>
@@ -301,14 +301,14 @@ function SettingsPage({
                   <div
                     key={badge.id}
                     className="flex items-center gap-2 px-3 py-2 rounded-2xl"
-                    style={{ background: '#fef3c7', border: '1.5px solid #fcd34d' }}
+                    style={{ background: 'rgba(196,136,58,0.12)', border: '1.5px solid #C4883A' }}
                   >
                     <span className="text-xl">{badge.emoji}</span>
                     <div>
-                      <div className="text-xs font-bold text-amber-800">
+                      <div className="text-xs font-bold text-green-900">
                         {lang === 'am' ? badge.titleAm : badge.title}
                       </div>
-                      <div className="text-xs text-amber-600">
+                      <div className="text-xs text-green-700">
                         {lang === 'am' ? badge.descriptionAm : badge.description}
                       </div>
                     </div>
@@ -327,8 +327,8 @@ function SettingsPage({
 
       {usageStats && (
         <section>
-          <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.usageInsights}</h2>
-          <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden">
+          <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.usageInsights}</h2>
+          <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
             <div className="px-4 pt-4 pb-3 space-y-3">
               <div className="flex gap-3">
                 <div className="flex-1 rounded-xl p-3 text-center" style={{ background: '#fff7ed', border: '1.5px solid #fed7aa' }}>
@@ -344,7 +344,7 @@ function SettingsPage({
                   </div>
                 </div>
               </div>
-              <div className="rounded-xl p-3" style={{ background: '#faf5eb', border: '1.5px solid #f0e6d4' }}>
+              <div className="rounded-xl p-3" style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
                 <div className="text-xs font-bold text-gray-500 mb-1.5">📊 {t.totalEntries}</div>
                 <div className="flex justify-around text-center">
                   <div>
@@ -356,7 +356,7 @@ function SettingsPage({
                     <div className="text-xs text-gray-500">{t.expenses}</div>
                   </div>
                   <div>
-                    <div className="text-base font-black" style={{ color: '#c47c1a' }}>{usageStats.featureCounts?.credits || 0}</div>
+                    <div className="text-base font-black" style={{ color: '#C4883A' }}>{usageStats.featureCounts?.credits || 0}</div>
                     <div className="text-xs text-gray-500">{t.credit}</div>
                   </div>
                   <div>
@@ -368,7 +368,7 @@ function SettingsPage({
               <button
                 onClick={handleShareStats}
                 className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all min-h-[44px]"
-                style={{ background: shareCopied ? '#15803d' : '#c47c1a' }}
+                style={{ background: shareCopied ? '#15803d' : '#C4883A' }}
               >
                 {shareCopied ? `✓ ${t.copiedToClipboard}` : t.shareMyStats}
               </button>
@@ -378,8 +378,8 @@ function SettingsPage({
       )}
 
       <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.shopProfile}</h2>
-        <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden">
+        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.shopProfile}</h2>
+        <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 pt-5 pb-4 space-y-3">
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
@@ -391,7 +391,7 @@ function SettingsPage({
                 onChange={e => setEditName(e.target.value)}
                 placeholder={t.onboardNamePlaceholder || 'e.g. Tigist'}
                 className="w-full px-4 py-3 border-2 rounded-xl text-sm font-semibold focus:outline-none"
-                style={{ borderColor: editName.trim() ? '#c47c1a' : '#e8d5b0' }}
+                style={{ borderColor: editName.trim() ? '#C4883A' : '#e8e2d8' }}
               />
             </div>
             <div>
@@ -401,7 +401,7 @@ function SettingsPage({
               <div className="flex gap-0">
                 <div
                   className="flex items-center justify-center px-3 py-3 rounded-l-xl border-2 border-r-0 text-sm font-bold"
-                  style={{ background: '#f5f0e8', borderColor: (phoneTouched && !phoneValid) ? '#dc2626' : '#e8d5b0', color: '#7c3d12', minWidth: '64px' }}
+                  style={{ background: '#f5f0e8', borderColor: (phoneTouched && !phoneValid) ? '#dc2626' : '#e8e2d8', color: '#1B4332', minWidth: '64px' }}
                 >
                   +251
                 </div>
@@ -414,7 +414,7 @@ function SettingsPage({
                   placeholder="9XXXXXXXX"
                   maxLength={9}
                   className="flex-1 px-4 py-3 border-2 rounded-r-xl text-sm focus:outline-none"
-                  style={{ borderColor: (phoneTouched && !phoneValid) ? '#dc2626' : (phoneValid ? '#c47c1a' : '#e8d5b0') }}
+                  style={{ borderColor: (phoneTouched && !phoneValid) ? '#dc2626' : (phoneValid ? '#C4883A' : '#e8e2d8') }}
                 />
               </div>
               {phoneTouched && !phoneValid && editPhoneDigits.length > 0 && (
@@ -434,7 +434,7 @@ function SettingsPage({
                 onChange={e => setEditTelegram(e.target.value)}
                 placeholder={t.telegramPlaceholder}
                 className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
-                style={{ borderColor: '#e8d5b0' }}
+                style={{ borderColor: '#e8e2d8' }}
               />
             </div>
             <button
@@ -442,7 +442,7 @@ function SettingsPage({
               disabled={!editName.trim() || !phoneValid || (!profileChanged && !profileSaved)}
               className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all min-h-[48px]"
               style={{
-                background: profileSaved ? '#15803d' : (editName.trim() && phoneValid && profileChanged ? '#c47c1a' : '#e5e7eb'),
+                background: profileSaved ? '#15803d' : (editName.trim() && phoneValid && profileChanged ? '#C4883A' : '#e5e7eb'),
                 color: (editName.trim() && phoneValid && (profileChanged || profileSaved)) ? '#fff' : '#9ca3af',
               }}
             >
@@ -453,15 +453,15 @@ function SettingsPage({
       </section>
 
       <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.privacy}</h2>
-        <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden">
+        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.privacy}</h2>
+        <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <button
             onClick={toggle}
-            className="w-full flex items-center gap-4 px-5 py-4 active:bg-amber-50 transition-colors min-h-[64px]"
+            className="w-full flex items-center gap-4 px-5 py-4 active:bg-green-50 transition-colors min-h-[64px]"
           >
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: hidden ? '#fef3c7' : '#dcfce7' }}>
-              {hidden ? <EyeOff className="w-5 h-5 text-amber-700" /> : <Eye className="w-5 h-5 text-green-700" />}
+              style={{ background: hidden ? 'rgba(196,136,58,0.12)' : '#dcfce7' }}>
+              {hidden ? <EyeOff className="w-5 h-5 text-green-800" /> : <Eye className="w-5 h-5 text-green-700" />}
             </div>
             <div className="flex-1 text-left">
               <div className="font-bold text-gray-800">{t.hideAmounts}</div>
@@ -469,7 +469,7 @@ function SettingsPage({
                 {hidden ? t.totalsHidden : t.totalsVisible}
               </div>
             </div>
-            <div className={`w-12 h-6 rounded-full transition-colors flex-shrink-0 flex items-center px-1 ${hidden ? 'bg-amber-400' : 'bg-gray-200'}`}>
+            <div className={`w-12 h-6 rounded-full transition-colors flex-shrink-0 flex items-center px-1 ${hidden ? 'bg-green-700' : 'bg-gray-200'}`}>
               <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${hidden ? 'translate-x-6' : 'translate-x-0'}`} />
             </div>
           </button>
@@ -477,8 +477,8 @@ function SettingsPage({
       </section>
 
       <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.paymentMethods}</h2>
-        <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden divide-y divide-amber-50">
+        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.paymentMethods}</h2>
+        <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden divide-y divide-green-100/30">
 
           <div className="px-5 py-3">
             <div className="flex items-center justify-between mb-2">
@@ -488,7 +488,7 @@ function SettingsPage({
               <button
                 onClick={() => { setShowAddBank(v => !v); setAddBankInput(''); }}
                 className="flex items-center gap-1 text-xs font-bold min-h-[36px] px-2 rounded-lg transition-colors"
-                style={{ color: '#c47c1a', background: showAddBank ? '#fef3c7' : 'transparent' }}
+                style={{ color: '#C4883A', background: showAddBank ? 'rgba(196,136,58,0.12)' : 'transparent' }}
               >
                 {showAddBank ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
                 {showAddBank ? t.cancel : t.addCustomBank}
@@ -503,13 +503,13 @@ function SettingsPage({
                   onKeyDown={e => e.key === 'Enter' && addCustomBank()}
                   placeholder={t.customProviderName}
                   className="flex-1 px-3 py-2 border-2 rounded-xl text-sm focus:outline-none"
-                  style={{ borderColor: '#e8d5b0' }}
+                  style={{ borderColor: '#e8e2d8' }}
                 />
                 <button
                   onClick={addCustomBank}
                   disabled={!addBankInput.trim()}
                   className="px-3 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-40 min-h-[40px]"
-                  style={{ background: '#c47c1a' }}
+                  style={{ background: '#C4883A' }}
                 >
                   {t.add}
                 </button>
@@ -524,9 +524,9 @@ function SettingsPage({
                     onClick={() => toggleBank(bank)}
                     className="px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all min-h-[36px]"
                     style={{
-                      borderColor: enabled ? '#c47c1a' : '#e8d5b0',
-                      background: enabled ? '#fde68a' : '#f9fafb',
-                      color: enabled ? '#92400e' : '#9ca3af',
+                      borderColor: enabled ? '#C4883A' : '#e8e2d8',
+                      background: enabled ? 'rgba(196,136,58,0.15)' : '#f9fafb',
+                      color: enabled ? '#1B4332' : '#9ca3af',
                     }}
                   >
                     {enabled ? '✓ ' : ''}{bank}
@@ -542,7 +542,7 @@ function SettingsPage({
               <button
                 onClick={() => { setShowAddWallet(v => !v); setAddWalletInput(''); }}
                 className="flex items-center gap-1 text-xs font-bold min-h-[36px] px-2 rounded-lg transition-colors"
-                style={{ color: '#c47c1a', background: showAddWallet ? '#fef3c7' : 'transparent' }}
+                style={{ color: '#C4883A', background: showAddWallet ? 'rgba(196,136,58,0.12)' : 'transparent' }}
               >
                 {showAddWallet ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
                 {showAddWallet ? t.cancel : t.addCustomWallet}
@@ -557,13 +557,13 @@ function SettingsPage({
                   onKeyDown={e => e.key === 'Enter' && addCustomWallet()}
                   placeholder={t.customProviderName}
                   className="flex-1 px-3 py-2 border-2 rounded-xl text-sm focus:outline-none"
-                  style={{ borderColor: '#e8d5b0' }}
+                  style={{ borderColor: '#e8e2d8' }}
                 />
                 <button
                   onClick={addCustomWallet}
                   disabled={!addWalletInput.trim()}
                   className="px-3 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-40 min-h-[40px]"
-                  style={{ background: '#c47c1a' }}
+                  style={{ background: '#C4883A' }}
                 >
                   {t.add}
                 </button>
@@ -578,9 +578,9 @@ function SettingsPage({
                     onClick={() => toggleWallet(wallet)}
                     className="px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all min-h-[36px]"
                     style={{
-                      borderColor: enabled ? '#c47c1a' : '#e8d5b0',
-                      background: enabled ? '#fde68a' : '#f9fafb',
-                      color: enabled ? '#92400e' : '#9ca3af',
+                      borderColor: enabled ? '#C4883A' : '#e8e2d8',
+                      background: enabled ? 'rgba(196,136,58,0.15)' : '#f9fafb',
+                      color: enabled ? '#1B4332' : '#9ca3af',
                     }}
                   >
                     {enabled ? '✓ ' : ''}{wallet}
@@ -597,8 +597,8 @@ function SettingsPage({
       </section>
 
       <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.recurringExpenses}</h2>
-        <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden">
+        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.recurringExpenses}</h2>
+        <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 pt-4 pb-2">
             <p className="text-xs text-gray-500 mb-3">{t.recurringHint}</p>
 
@@ -606,8 +606,8 @@ function SettingsPage({
               <div className="space-y-2 mb-3">
                 {recurring.map(re => (
                   <div key={re.id} className="flex items-center gap-3 p-3 rounded-xl"
-                    style={{ background: '#faf5eb', border: '1.5px solid #f0e6d4' }}>
-                    <RefreshCw className="w-4 h-4 flex-shrink-0" style={{ color: '#c47c1a' }} />
+                    style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
+                    <RefreshCw className="w-4 h-4 flex-shrink-0" style={{ color: '#C4883A' }} />
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-gray-800 text-sm truncate">{re.name}</p>
                       <p className="text-xs text-gray-500">{fmt(re.amount)} {t.birr} · {FREQ_LABELS[re.freq] || re.freq}</p>
@@ -627,19 +627,19 @@ function SettingsPage({
               <button
                 onClick={() => setShowReForm(true)}
                 className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 border-2 border-dashed transition-all min-h-[48px]"
-                style={{ borderColor: '#e8d5b0', color: '#c47c1a', background: '#faf5eb' }}
+                style={{ borderColor: '#e8e2d8', color: '#C4883A', background: '#FAF8F5' }}
               >
                 <Plus className="w-4 h-4" /> {t.addRecurring}
               </button>
             ) : (
-              <div className="space-y-2 p-3 rounded-xl border" style={{ background: '#faf5eb', borderColor: '#f0e6d4' }}>
+              <div className="space-y-2 p-3 rounded-xl border" style={{ background: '#FAF8F5', borderColor: 'var(--color-border)' }}>
                 <input
                   type="text"
                   value={reName}
                   onChange={e => setReName(e.target.value)}
                   placeholder={t.expenseName}
                   className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-                  style={{ borderColor: '#e8d5b0' }}
+                  style={{ borderColor: '#e8e2d8' }}
                 />
                 <div className="relative">
                   <input
@@ -649,7 +649,7 @@ function SettingsPage({
                     onChange={e => setReAmount(e.target.value)}
                     placeholder={t.amount}
                     className="w-full px-3 py-2.5 pr-14 border-2 rounded-xl text-sm focus:outline-none"
-                    style={{ borderColor: '#e8d5b0' }}
+                    style={{ borderColor: '#e8e2d8' }}
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium">{t.birr}</span>
                 </div>
@@ -661,9 +661,9 @@ function SettingsPage({
                       onClick={() => setReFreq(f)}
                       className="flex-1 py-2 rounded-lg text-xs font-bold border-2 transition-all min-h-[40px]"
                       style={{
-                        borderColor: reFreq === f ? '#c47c1a' : '#e8d5b0',
-                        background: reFreq === f ? '#fde68a' : '#fff',
-                        color: reFreq === f ? '#92400e' : '#6b7280',
+                        borderColor: reFreq === f ? '#C4883A' : '#e8e2d8',
+                        background: reFreq === f ? 'rgba(196,136,58,0.15)' : '#fff',
+                        color: reFreq === f ? '#1B4332' : '#6b7280',
                       }}
                     >
                       {FREQ_LABELS[f]}
@@ -681,7 +681,7 @@ function SettingsPage({
                     onClick={addRecurring}
                     disabled={!reName.trim() || !parseFloat(reAmount)}
                     className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 min-h-[44px]"
-                    style={{ background: '#c47c1a' }}
+                    style={{ background: '#C4883A' }}
                   >
                     {t.add}
                   </button>
@@ -694,8 +694,8 @@ function SettingsPage({
       </section>
 
       <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.yourData}</h2>
-        <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden divide-y divide-amber-50">
+        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.yourData}</h2>
+        <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden divide-y divide-green-100/30">
           <div className="px-5 py-4 flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#f0fdf4' }}>
               <Info className="w-5 h-5 text-green-700" />
@@ -709,7 +709,7 @@ function SettingsPage({
           <button
             onClick={exportToCSV}
             disabled={totalEntries === 0}
-            className="w-full flex items-center gap-4 px-5 py-4 active:bg-amber-50 transition-colors min-h-[64px] disabled:opacity-40"
+            className="w-full flex items-center gap-4 px-5 py-4 active:bg-green-50 transition-colors min-h-[64px] disabled:opacity-40"
           >
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#eff6ff' }}>
               <Download className="w-5 h-5 text-blue-700" />
@@ -738,10 +738,10 @@ function SettingsPage({
       </section>
 
       <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-amber-700 mb-2 px-1">{t.about}</h2>
-        <div className="bg-white rounded-2xl border border-amber-100 overflow-hidden">
+        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.about}</h2>
+        <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 py-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: '#fef3c7' }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: 'rgba(196,136,58,0.12)' }}>
               📒
             </div>
             <div className="flex-1">
@@ -750,8 +750,8 @@ function SettingsPage({
               <div className="text-xs text-gray-400 mt-1">{t.worksOffline}</div>
             </div>
           </div>
-          <div className="px-5 py-3 border-t border-amber-50 flex items-center gap-2">
-            <Shield className="w-4 h-4 text-amber-600 flex-shrink-0" />
+          <div className="px-5 py-3 border-t border-green-100/30 flex items-center gap-2">
+            <Shield className="w-4 h-4 text-green-700 flex-shrink-0" />
             <p className="text-xs text-gray-500">{t.privacyNote}</p>
           </div>
         </div>

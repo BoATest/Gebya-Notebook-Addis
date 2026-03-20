@@ -7,8 +7,8 @@ const slides = [
     emoji: '📒',
     titleKey: 'introSlide1Title',
     bodyKey: 'introSlide1Body',
-    bg: '#7c3d12',
-    accent: '#c47c1a',
+    bg: '#1B4332',
+    accent: '#C4883A',
   },
   {
     emoji: '💰',
@@ -21,8 +21,8 @@ const slides = [
     emoji: '⚡',
     titleKey: 'introSlide3Title',
     bodyKey: 'introSlide3Body',
-    bg: '#1e3a5f',
-    accent: '#93c5fd',
+    bg: '#163a2a',
+    accent: '#D4654A',
   },
 ];
 
@@ -48,20 +48,20 @@ function IntroSlides({ onDone }) {
 
   return (
     <div
-      className="min-h-screen flex flex-col"
+      className="min-h-screen flex flex-col texture-noise"
       style={{ background: slide.bg, transition: 'background 0.4s ease' }}
     >
       <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
-        <div className="text-8xl mb-8" style={{ lineHeight: 1 }}>{slide.emoji}</div>
+        <div className="text-8xl mb-8 animate-elastic" style={{ lineHeight: 1 }}>{slide.emoji}</div>
 
         <h1
-          className="text-3xl font-black text-white mb-4 leading-tight"
+          className="text-3xl font-black text-white mb-4 leading-tight font-serif animate-slide-up"
         >
           {t[slide.titleKey]}
         </h1>
 
         <p
-          className="text-base font-medium leading-relaxed"
+          className="text-base font-medium leading-relaxed font-sans animate-fade"
           style={{ color: 'rgba(255,255,255,0.75)', maxWidth: '300px' }}
         >
           {t[slide.bodyKey]}
@@ -85,11 +85,12 @@ function IntroSlides({ onDone }) {
 
         <button
           onClick={handleNext}
-          className="w-full py-4 rounded-2xl font-black text-base transition-all active:scale-95"
+          className="w-full py-4 font-black text-base transition-all active:scale-95 press-scale"
           style={{
             background: '#fff',
             color: slide.bg,
-            boxShadow: '0 5px 0 rgba(0,0,0,0.2)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: '0 5px 0 rgba(0,0,0,0.2), var(--shadow-md)',
           }}
         >
           {isLast ? t.introLetsStart : t.introNext}
@@ -98,7 +99,7 @@ function IntroSlides({ onDone }) {
         {!isLast && (
           <button
             onClick={finish}
-            className="w-full mt-3 py-2 font-semibold text-sm"
+            className="w-full mt-3 py-2 font-semibold text-sm font-sans"
             style={{ color: 'rgba(255,255,255,0.5)' }}
           >
             {t.introSkip}

@@ -14,9 +14,9 @@ function handleNumericInput(e, setter) {
 }
 
 const ACCENT = {
-  sale:    { btn: '#15803d', border: '#86efac' },
-  expense: { btn: '#dc2626', border: '#fca5a5' },
-  credit:  { btn: '#c47c1a', border: '#fcd34d' },
+  sale:    { btn: '#2d6a4f', shadow: '#1B4332' },
+  expense: { btn: '#D4654A', shadow: '#a84c37' },
+  credit:  { btn: '#C4883A', shadow: '#96662b' },
 };
 
 function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose }) {
@@ -95,22 +95,22 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
     : null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50">
-      <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl max-h-[92vh] overflow-y-auto shadow-2xl">
+    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 animate-fade">
+      <div className="bg-white w-full max-w-md max-h-[92vh] overflow-y-auto animate-slide-up" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', boxShadow: 'var(--shadow-lg)' }}>
 
-        <div className="sticky top-0 bg-white rounded-t-3xl z-10 px-6 pt-5 pb-4 border-b" style={{ borderColor: '#f0e6d4' }}>
+        <div className="sticky top-0 bg-white z-10 px-6 pt-5 pb-4 border-b" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', borderColor: 'var(--color-border-light)' }}>
           <div className="flex justify-between items-center">
             <div>
               <div className="flex items-center gap-2">
-                <Pencil className="w-4 h-4" style={{ color: '#c47c1a' }} />
-                <h2 className="text-xl font-black text-gray-900">{typeLabels[type] || t.editEntryLabel}</h2>
+                <Pencil className="w-4 h-4" style={{ color: '#C4883A' }} />
+                <h2 className="text-xl font-black text-gray-900 font-sans">{typeLabels[type] || t.editEntryLabel}</h2>
               </div>
               {lastEdited && (
-                <p className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>{t.editedAt} {lastEdited}</p>
+                <p className="text-xs mt-0.5 font-sans" style={{ color: '#9ca3af' }}>{t.editedAt} {lastEdited}</p>
               )}
             </div>
             <button onClick={onClose} aria-label={t.close}
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center press-scale">
               <X className="w-5 h-5 text-gray-500" />
             </button>
           </div>
@@ -120,21 +120,22 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
 
           {isCredit && (
             <div>
-              <label className="block text-gray-700 font-semibold mb-2 text-sm">{t.direction}</label>
+              <label className="block text-gray-700 font-semibold mb-2 text-sm font-sans">{t.direction}</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: 'owes_me', label: t.owesMe, sub: t.theyOweMe },
                   { id: 'i_owe',   label: t.iOweLabel, sub: t.iOweThem },
                 ].map(d => (
                   <button key={d.id} type="button" onClick={() => setDirection(d.id)}
-                    className="p-3 rounded-xl border-2 text-center transition-all min-h-[56px]"
+                    className="p-3 border-2 text-center transition-all min-h-[56px] press-scale"
                     style={{
-                      borderColor: direction === d.id ? '#c47c1a' : '#e8d5b0',
-                      background: direction === d.id ? '#fffbeb' : '#fff',
-                      color: direction === d.id ? '#92400e' : '#4b5563',
+                      borderRadius: 'var(--radius-sm)',
+                      borderColor: direction === d.id ? '#1B4332' : '#e8e2d8',
+                      background: direction === d.id ? 'rgba(27,67,50,0.07)' : '#fff',
+                      color: direction === d.id ? '#1B4332' : '#4b5563',
                     }}>
-                    <div className="font-bold text-sm">{d.label}</div>
-                    <div className="text-xs opacity-70 mt-0.5">{d.sub}</div>
+                    <div className="font-bold text-sm font-sans">{d.label}</div>
+                    <div className="text-xs opacity-70 mt-0.5 font-sans">{d.sub}</div>
                   </button>
                 ))}
               </div>
@@ -142,7 +143,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
           )}
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">
+            <label className="block text-gray-700 font-semibold mb-2 font-sans">
               {isCredit ? t.creditNameLabel : t.item}
             </label>
             <div className="flex gap-2">
@@ -150,8 +151,8 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                 type="text"
                 value={item}
                 onChange={e => setItem(e.target.value)}
-                className="flex-1 p-4 border-2 rounded-2xl focus:outline-none text-base min-h-[52px]"
-                style={{ borderColor: '#e8d5b0' }}
+                className="flex-1 p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
               />
               <VoiceButton onResult={setItem} />
             </div>
@@ -159,7 +160,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
 
           {!isCredit && (
             <div>
-              <label className="block text-gray-700 font-semibold mb-2">{t.quantity}</label>
+              <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.quantity}</label>
               <input
                 type="number"
                 inputMode="numeric"
@@ -174,14 +175,14 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                   if (isNaN(v) || v < 1) setQuantity('1');
                 }}
                 min="1"
-                className="w-full p-4 border-2 rounded-2xl focus:outline-none text-base min-h-[52px]"
-                style={{ borderColor: '#e8d5b0' }}
+                className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
               />
             </div>
           )}
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">{t.amount}</label>
+            <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.amount}</label>
             <div className="relative">
               <input
                 type="text"
@@ -189,22 +190,22 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                 value={fmtInput(amount)}
                 onChange={e => handleNumericInput(e, setAmount)}
                 placeholder="0"
-                className="w-full p-4 pr-16 border-2 rounded-2xl focus:outline-none text-base min-h-[52px]"
-                style={{ borderColor: '#e8d5b0' }}
+                className="w-full p-4 pr-16 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">{t.birr}</span>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
             </div>
           </div>
 
           {isCredit && (
             <div>
-              <label className="block text-gray-700 font-semibold mb-2">
-                {t.phoneOptional} <span className="text-gray-400 font-normal text-sm">{t.phoneOptionalHint}</span>
+              <label className="block text-gray-700 font-semibold mb-2 font-sans">
+                {t.phoneOptional} <span className="text-gray-400 font-normal text-sm font-sans">{t.phoneOptionalHint}</span>
               </label>
               <div className="flex gap-0">
                 <div
-                  className="flex items-center justify-center px-3 py-3 rounded-l-xl border-2 border-r-0 text-sm font-bold flex-shrink-0"
-                  style={{ background: '#f5f0e8', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : '#e8d5b0', color: '#7c3d12', minWidth: '64px' }}
+                  className="flex items-center justify-center px-3 py-3 border-2 border-r-0 text-sm font-bold flex-shrink-0 font-sans"
+                  style={{ background: 'rgba(27,67,50,0.06)', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : '#e8e2d8', color: '#1B4332', minWidth: '64px', borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)' }}
                 >
                   +251
                 </div>
@@ -219,30 +220,31 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                   onBlur={() => setPhoneTouched(true)}
                   placeholder="9XXXXXXXX"
                   maxLength={9}
-                  className="flex-1 p-4 border-2 rounded-r-xl text-base focus:outline-none min-h-[52px]"
-                  style={{ borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : (phoneEntered && phoneValid ? '#c47c1a' : '#e8d5b0') }}
+                  className="flex-1 p-4 border-2 text-base focus:outline-none min-h-[52px] font-sans"
+                  style={{ borderRadius: '0 var(--radius-sm) var(--radius-sm) 0', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : (phoneEntered && phoneValid ? '#1B4332' : '#e8e2d8') }}
                 />
               </div>
               {phoneTouched && phoneEntered && !phoneValid && (
-                <p className="text-xs text-red-500 mt-1 font-medium">{t.creditPhoneHint}</p>
+                <p className="text-xs text-red-500 mt-1 font-medium font-sans">{t.creditPhoneHint}</p>
               )}
               {!phoneTouched && (
-                <p className="text-xs text-gray-400 mt-1">{t.creditPhoneHint}</p>
+                <p className="text-xs text-gray-400 mt-1 font-sans">{t.creditPhoneHint}</p>
               )}
             </div>
           )}
 
           {isCredit && (
             <div>
-              <label className="block text-gray-700 font-semibold mb-2">{t.dueDate}</label>
+              <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.dueDate}</label>
               <div className="grid grid-cols-3 gap-2 mb-2">
                 {dueDateOptions.map(opt => (
                   <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)}
-                    className="p-3 rounded-xl border-2 text-sm font-medium transition-colors min-h-[52px]"
+                    className="p-3 border-2 text-sm font-medium transition-colors min-h-[52px] press-scale font-sans"
                     style={{
-                      borderColor: selectedDue === opt.value ? '#c47c1a' : '#e8d5b0',
-                      background: selectedDue === opt.value ? '#fffbeb' : '#fff',
-                      color: selectedDue === opt.value ? '#92400e' : '#4b5563',
+                      borderRadius: 'var(--radius-sm)',
+                      borderColor: selectedDue === opt.value ? '#1B4332' : '#e8e2d8',
+                      background: selectedDue === opt.value ? 'rgba(27,67,50,0.07)' : '#fff',
+                      color: selectedDue === opt.value ? '#1B4332' : '#4b5563',
                     }}>
                     <div className="font-bold">{opt.label.split(' ')[0]}</div>
                     <div className="text-xs opacity-70">{opt.display}</div>
@@ -250,18 +252,19 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                 ))}
               </div>
               <button type="button" onClick={() => setSelectedDue('custom')}
-                className="w-full p-3 rounded-xl border-2 text-sm font-semibold min-h-[52px]"
+                className="w-full p-3 border-2 text-sm font-semibold min-h-[52px] press-scale font-sans"
                 style={{
-                  borderColor: selectedDue === 'custom' ? '#c47c1a' : '#e8d5b0',
-                  background: selectedDue === 'custom' ? '#fffbeb' : '#fff',
-                  color: selectedDue === 'custom' ? '#92400e' : '#4b5563',
+                  borderRadius: 'var(--radius-sm)',
+                  borderColor: selectedDue === 'custom' ? '#1B4332' : '#e8e2d8',
+                  background: selectedDue === 'custom' ? 'rgba(27,67,50,0.07)' : '#fff',
+                  color: selectedDue === 'custom' ? '#1B4332' : '#4b5563',
                 }}>
                 {t.pickDate}
               </button>
               {selectedDue === 'custom' && (
                 <input type="date" value={customDue} onChange={e => setCustomDue(e.target.value)}
-                  className="w-full mt-2 p-4 border-2 rounded-2xl focus:outline-none text-base"
-                  style={{ borderColor: '#e8d5b0' }} />
+                  className="w-full mt-2 p-4 border-2 focus:outline-none text-base font-sans"
+                  style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
               )}
             </div>
           )}
@@ -280,15 +283,15 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
           {!isCredit && (
             <div>
               <button type="button" onClick={() => setShowAdvanced(v => !v)}
-                className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[44px]"
-                style={{ color: '#c47c1a' }}>
+                className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[44px] font-sans"
+                style={{ color: '#C4883A' }}>
                 {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 {t.advancedOptional}
               </button>
 
               {showAdvanced && (
-                <div className="mt-2 p-4 rounded-2xl border" style={{ background: '#faf5eb', borderColor: '#f0e6d4' }}>
-                  <label className="block text-gray-600 text-sm font-semibold mb-2">
+                <div className="mt-2 p-4 border animate-slide-up" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+                  <label className="block text-gray-600 text-sm font-semibold mb-2 font-sans">
                     {t.costPriceLabel} <span style={{ color: '#9ca3af' }}>{t.perUnit}</span>
                   </label>
                   <div className="relative">
@@ -298,20 +301,20 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                       value={fmtInput(costPrice)}
                       onChange={e => handleNumericInput(e, setCostPrice)}
                       placeholder="0"
-                      className="w-full p-4 pr-16 border-2 rounded-2xl focus:outline-none text-base min-h-[52px]"
-                      style={{ borderColor: '#e8d5b0' }}
+                      className="w-full p-4 pr-16 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+                      style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">{t.birr}</span>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
                   </div>
                   {belowCost && (
-                    <div className="mt-3 flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-                      <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-amber-700">{t.sellingBelowCostShort}</p>
+                    <div className="mt-3 flex items-start gap-2 p-3" style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)' }}>
+                      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#d97706' }} />
+                      <p className="text-xs font-sans" style={{ color: '#92400e' }}>{t.sellingBelowCostShort}</p>
                     </div>
                   )}
                   {cost > 0 && !belowCost && sellingPrice > 0 && (
-                    <div className="mt-3 p-3 rounded-xl border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
-                      <p className="text-xs text-green-700 font-semibold">
+                    <div className="mt-3 p-3 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', borderRadius: 'var(--radius-sm)' }}>
+                      <p className="text-xs text-green-700 font-semibold font-sans">
                         {t.profitLabel} {fmt(sellingPrice - cost * qty)} {t.birr}
                       </p>
                     </div>
@@ -324,8 +327,13 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
 
         <div className="px-6 pb-8 pt-2">
           <button onClick={handleSave} disabled={!canSave || saving}
-            className="w-full p-4 rounded-2xl font-black text-white text-base flex items-center justify-center gap-2 transition-all min-h-[56px] active:scale-95"
-            style={{ background: canSave ? accent.btn : '#e5e7eb', color: canSave ? '#fff' : '#9ca3af' }}>
+            className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 transition-all min-h-[56px] active:scale-95 press-scale font-sans"
+            style={{
+              background: canSave ? accent.btn : '#e5e7eb',
+              color: canSave ? '#fff' : '#9ca3af',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: canSave ? `0 4px 0 ${accent.shadow}, var(--shadow-sm)` : 'none',
+            }}>
             <Save className="w-5 h-5" />
             {saving ? t.saving : t.saveChanges}
           </button>

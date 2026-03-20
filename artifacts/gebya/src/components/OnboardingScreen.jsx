@@ -32,30 +32,30 @@ function OnboardingScreen({ onComplete }) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 pb-12"
-      style={{ background: '#7c3d12' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 pb-12 texture-noise"
+      style={{ background: '#1B4332' }}>
 
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 animate-elastic">
           <div className="text-7xl mb-4">📒</div>
-          <h1 className="text-4xl font-black text-white tracking-tight mb-1">ገበያ</h1>
-          <p className="text-base font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>
+          <h1 className="text-4xl font-black text-white tracking-tight mb-1 font-serif">ገበያ</h1>
+          <p className="text-base font-medium font-sans" style={{ color: 'rgba(255,255,255,0.65)' }}>
             {t.onboardTagline}
           </p>
-          <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
+          <p className="text-sm mt-1 font-sans" style={{ color: 'rgba(255,255,255,0.45)' }}>
             {t.onboardSubtitle}
           </p>
         </div>
 
-        <div className="bg-white rounded-3xl p-6 shadow-2xl">
-          <h2 className="text-xl font-black text-gray-900 mb-1">{t.onboardWelcome}</h2>
-          <p className="text-sm text-gray-500 mb-5">
+        <div className="bg-white p-6 animate-slide-up" style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)' }}>
+          <h2 className="text-xl font-black text-gray-900 mb-1 font-sans">{t.onboardWelcome}</h2>
+          <p className="text-sm text-gray-500 mb-5 font-sans">
             {t.onboardDesc}
           </p>
 
           <div className="space-y-4">
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5 text-sm">
+              <label className="block font-semibold text-gray-700 mb-1.5 text-sm font-sans">
                 {t.userName} <span className="text-red-500">*</span>
               </label>
               <input
@@ -65,20 +65,20 @@ function OnboardingScreen({ onComplete }) {
                 onBlur={() => setTouched(p => ({ ...p, name: true }))}
                 placeholder={t.onboardNamePlaceholder}
                 autoFocus
-                className="w-full p-4 border-2 rounded-2xl text-base focus:outline-none"
-                style={{ borderColor: (touched.name && !nameValid) ? '#dc2626' : (nameValid ? '#c47c1a' : '#e8d5b0') }}
+                className="w-full p-4 border-2 text-base focus:outline-none font-sans"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: (touched.name && !nameValid) ? '#dc2626' : (nameValid ? '#1B4332' : '#e8e2d8') }}
                 onKeyDown={e => { if (e.key === 'Enter' && canProceed) handleStart(); }}
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-gray-700 mb-1.5 text-sm">
+              <label className="block font-semibold text-gray-700 mb-1.5 text-sm font-sans">
                 {t.phoneNumber} <span className="text-red-500">*</span>
               </label>
               <div className="flex gap-0">
                 <div
-                  className="flex items-center justify-center px-3 py-4 rounded-l-2xl border-2 border-r-0 text-base font-bold"
-                  style={{ background: '#f5f0e8', borderColor: (touched.phone && !phoneValid) ? '#dc2626' : '#e8d5b0', color: '#7c3d12', minWidth: '72px' }}
+                  className="flex items-center justify-center px-3 py-4 border-2 border-r-0 text-base font-bold font-sans"
+                  style={{ background: 'rgba(27,67,50,0.06)', borderColor: (touched.phone && !phoneValid) ? '#dc2626' : '#e8e2d8', color: '#1B4332', minWidth: '72px', borderRadius: 'var(--radius-md) 0 0 var(--radius-md)' }}
                 >
                   +251
                 </div>
@@ -90,16 +90,16 @@ function OnboardingScreen({ onComplete }) {
                   onBlur={() => setTouched(p => ({ ...p, phone: true }))}
                   placeholder="9XXXXXXXX"
                   maxLength={9}
-                  className="flex-1 p-4 border-2 rounded-r-2xl text-base focus:outline-none"
-                  style={{ borderColor: (touched.phone && !phoneValid) ? '#dc2626' : (phoneValid ? '#c47c1a' : '#e8d5b0') }}
+                  className="flex-1 p-4 border-2 text-base focus:outline-none font-sans"
+                  style={{ borderRadius: '0 var(--radius-md) var(--radius-md) 0', borderColor: (touched.phone && !phoneValid) ? '#dc2626' : (phoneValid ? '#1B4332' : '#e8e2d8') }}
                   onKeyDown={e => { if (e.key === 'Enter' && canProceed) handleStart(); }}
                 />
               </div>
               {touched.phone && phoneDigits.length > 0 && !phoneValid && (
-                <p className="text-xs text-red-500 mt-1 font-medium">{t.phoneInvalid}</p>
+                <p className="text-xs text-red-500 mt-1 font-medium font-sans">{t.phoneInvalid}</p>
               )}
               {touched.phone && phoneDigits.length === 0 && (
-                <p className="text-xs text-red-500 mt-1 font-medium">{t.phoneRequired}</p>
+                <p className="text-xs text-red-500 mt-1 font-medium font-sans">{t.phoneRequired}</p>
               )}
             </div>
           </div>
@@ -107,18 +107,19 @@ function OnboardingScreen({ onComplete }) {
           <button
             onClick={handleStart}
             disabled={!canProceed || saving}
-            className="w-full mt-5 p-4 rounded-2xl font-black text-white text-base min-h-[56px] transition-all active:scale-95"
+            className="w-full mt-5 p-4 font-black text-white text-base min-h-[56px] transition-all active:scale-95 font-sans press-scale"
             style={{
-              background: canProceed ? '#c47c1a' : '#e5e7eb',
+              background: canProceed ? '#1B4332' : '#e5e7eb',
               color: canProceed ? '#fff' : '#9ca3af',
-              boxShadow: canProceed ? '0 4px 0 #92400e' : 'none',
+              boxShadow: canProceed ? '0 4px 0 #0f2b20, var(--shadow-sm)' : 'none',
+              borderRadius: 'var(--radius-md)',
             }}
           >
             {saving ? t.onboardSettingUp : t.onboardGetStarted}
           </button>
         </div>
 
-        <p className="text-center text-xs mt-5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <p className="text-center text-xs mt-5 font-sans" style={{ color: 'rgba(255,255,255,0.4)' }}>
           {t.onboardFooter}
         </p>
       </div>

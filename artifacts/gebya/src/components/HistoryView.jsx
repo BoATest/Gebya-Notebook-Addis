@@ -41,7 +41,7 @@ function calcStats(transactions) {
 }
 
 const typeIcon  = { sale: '💰', expense: '🛒', credit: '👥' };
-const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#c47c1a' };
+const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#C4883A' };
 
 function SevenDayChart({ transactions, onBarClick }) {
   const { t } = useLang();
@@ -61,7 +61,7 @@ function SevenDayChart({ transactions, onBarClick }) {
   const maxTotal = Math.max(...days.map(d => d.total), 1);
 
   return (
-    <div className="rounded-2xl px-4 pt-3 pb-2" style={{ background: '#fff', border: '1px solid #f0e6d4' }}>
+    <div className="px-4 pt-3 pb-2" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
       <p className="text-xs font-bold text-gray-500 mb-2">{t.weekTrend}</p>
       <div className="flex items-end gap-1" style={{ height: '56px' }}>
         {days.map((d, i) => {
@@ -74,11 +74,12 @@ function SevenDayChart({ transactions, onBarClick }) {
               aria-label={`${d.label}: ${fmt(d.total)}`}
             >
               <div
-                className="w-full rounded-sm transition-all"
+                className="w-full transition-all"
                 style={{
                   height: `${h}px`,
-                  background: d.isToday ? '#c47c1a' : '#e8d5b0',
+                  background: d.isToday ? '#1B4332' : 'rgba(27,67,50,0.2)',
                   minHeight: '4px',
+                  borderRadius: '3px 3px 0 0',
                 }}
               />
               <span
@@ -86,7 +87,7 @@ function SevenDayChart({ transactions, onBarClick }) {
                 style={{
                   fontSize: '0.55rem',
                   lineHeight: 1,
-                  color: d.isToday ? '#c47c1a' : '#9ca3af',
+                  color: d.isToday ? '#1B4332' : '#9ca3af',
                 }}
               >
                 {d.label}
@@ -126,17 +127,18 @@ function HistoryView({ transactions, onEdit }) {
 
   return (
     <div className="space-y-4 pb-4">
-      <h2 className="text-lg font-black text-gray-800 px-1">{t.report}</h2>
+      <h2 className="text-lg font-black text-gray-800 px-1 font-serif">{t.report}</h2>
 
       <SevenDayChart transactions={transactions} onBarClick={handleBarClick} />
 
       <div className="flex gap-2">
         {[['day', t.byDay], ['week', t.byWeek]].map(([val, lbl]) => (
           <button key={val} onClick={() => setGrouping(val)}
-            className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
+            className="flex-1 py-2.5 text-sm font-bold transition-all press-scale"
             style={{
-              background: grouping === val ? '#c47c1a' : '#f5f5f5',
+              background: grouping === val ? '#1B4332' : '#f5f5f5',
               color: grouping === val ? '#fff' : '#6b7280',
+              borderRadius: 'var(--radius-sm)',
             }}>
             {lbl}
           </button>
@@ -161,18 +163,19 @@ function HistoryView({ transactions, onEdit }) {
               <div
                 key={group.date}
                 ref={el => { groupRefs.current[key] = el; }}
-                className="rounded-2xl shadow-sm border overflow-hidden transition-all"
+                className="border overflow-hidden transition-all animate-slide-up"
                 style={{
                   background: '#fff',
-                  borderColor: isHighlighted ? '#c47c1a' : '#f0e6d4',
-                  boxShadow: isHighlighted ? '0 0 0 2px #c47c1a44' : undefined,
+                  borderColor: isHighlighted ? '#1B4332' : 'var(--color-border)',
+                  boxShadow: isHighlighted ? '0 0 0 2px rgba(27,67,50,0.25), var(--shadow-sm)' : 'var(--shadow-xs)',
+                  borderRadius: 'var(--radius-md)',
                 }}
               >
                 <button className="w-full px-4 py-3 flex justify-between items-center"
-                  style={{ background: isToday ? '#fffbeb' : isHighlighted ? '#fffbeb' : '#fafafa' }}
+                  style={{ background: isToday ? 'rgba(27,67,50,0.05)' : isHighlighted ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
                   onClick={() => toggleGroup(key)}>
                   <div>
-                    <span className="font-bold text-gray-800 text-sm">
+                    <span className="font-bold text-gray-800 text-sm font-sans">
                       {isToday ? t.today : formatEthiopian(group.date)}
                     </span>
                     {!isToday && (
@@ -196,12 +199,13 @@ function HistoryView({ transactions, onEdit }) {
                 </button>
 
                 {expanded && (
-                  <div className="divide-y" style={{ borderColor: '#fef9ec' }}>
+                  <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
                     {group.transactions.map(tx => (
                       <button
                         key={tx.id}
                         onClick={() => onEdit(tx)}
-                        className="w-full px-4 py-3 flex justify-between items-center text-left active:bg-amber-50 transition-colors"
+                        className="w-full px-4 py-3 flex justify-between items-center text-left transition-colors press-scale"
+                        style={{ background: 'transparent' }}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className="text-base flex-shrink-0">{typeIcon[tx.type]}</span>
@@ -209,7 +213,7 @@ function HistoryView({ transactions, onEdit }) {
                             <span className="font-medium text-gray-800 text-sm truncate block">{tx.item_name}</span>
                             {tx.quantity > 1 && <span className="text-xs text-gray-400">×{tx.quantity}</span>}
                             {tx.customer_name && <p className="text-xs text-gray-400">{tx.customer_name}</p>}
-                            {tx.updated_at && <p className="text-xs" style={{ color: '#c47c1a' }}>{t.edited}</p>}
+                            {tx.updated_at && <p className="text-xs" style={{ color: '#C4883A' }}>{t.edited}</p>}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0 ml-2">
@@ -242,12 +246,12 @@ function HistoryView({ transactions, onEdit }) {
             const expanded = expandedGroups[key];
             const isCurrentWeek = Date.now() >= group.weekStart && Date.now() <= group.weekStart + 7 * 86400000;
             return (
-              <div key={group.weekStart} className="rounded-2xl shadow-sm border overflow-hidden" style={{ background: '#fff', borderColor: '#f0e6d4' }}>
+              <div key={group.weekStart} className="border overflow-hidden animate-slide-up" style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}>
                 <button className="w-full px-4 py-3 flex justify-between items-center"
-                  style={{ background: isCurrentWeek ? '#fffbeb' : '#fafafa' }}
+                  style={{ background: isCurrentWeek ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
                   onClick={() => toggleGroup(key)}>
                   <div>
-                    <span className="font-bold text-gray-800 text-sm">
+                    <span className="font-bold text-gray-800 text-sm font-sans">
                       {isCurrentWeek ? t.thisWeek : `${formatEthiopian(group.weekStart)} – ${formatEthiopian(weekEnd.getTime())}`}
                     </span>
                     <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
@@ -266,19 +270,19 @@ function HistoryView({ transactions, onEdit }) {
                 </button>
 
                 {expanded && (
-                  <div className="divide-y" style={{ borderColor: '#fef9ec' }}>
+                  <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
                     {group.transactions.map(tx => (
                       <button
                         key={tx.id}
                         onClick={() => onEdit(tx)}
-                        className="w-full px-4 py-3 flex justify-between items-center text-left active:bg-amber-50 transition-colors"
+                        className="w-full px-4 py-3 flex justify-between items-center text-left transition-colors press-scale"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className="text-base flex-shrink-0">{typeIcon[tx.type]}</span>
                           <div className="min-w-0">
                             <span className="font-medium text-gray-800 text-sm truncate block">{tx.item_name}</span>
                             <span className="text-xs text-gray-400">{formatEthiopian(tx.created_at)}</span>
-                            {tx.updated_at && <p className="text-xs" style={{ color: '#c47c1a' }}>{t.edited}</p>}
+                            {tx.updated_at && <p className="text-xs" style={{ color: '#C4883A' }}>{t.edited}</p>}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0 ml-2">

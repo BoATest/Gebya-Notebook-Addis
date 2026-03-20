@@ -69,15 +69,15 @@ export default function DailySuggestions({ todayTransactions, streak = 1, onActi
 
   return (
     <div
-      className="rounded-2xl px-4 py-3 flex items-center gap-3"
-      style={{ background: '#fff', border: '1px solid #f0e6d4' }}
+      className="px-4 py-3 flex items-center gap-3 animate-elastic"
+      style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
     >
       <span className="text-2xl flex-shrink-0">{suggestion.icon}</span>
-      <p className="flex-1 text-sm text-gray-600 font-medium leading-snug">{message}</p>
+      <p className="flex-1 text-sm text-gray-600 font-medium leading-snug font-sans">{message}</p>
       <button
         onClick={() => onAction(suggestion.action)}
-        className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold text-white transition-all active:opacity-80"
-        style={{ background: '#c47c1a' }}
+        className="flex-shrink-0 px-3 py-2 text-xs font-bold text-white transition-all press-scale font-sans"
+        style={{ background: '#1B4332', borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-xs)' }}
       >
         {suggestion.actionLabel}
       </button>

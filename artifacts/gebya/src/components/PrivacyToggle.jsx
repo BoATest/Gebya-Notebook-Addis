@@ -18,21 +18,21 @@ function PrivacyToggle({ value, label, suffix, className = '' }) {
     <button
       onClick={toggle}
       aria-label={hidden ? t.tapToRevealAria : t.hideAmountAria}
-      className={`w-full text-left rounded-2xl p-5 shadow-sm border active:scale-95 transition-transform cursor-pointer ${className}`}
-      style={{ background: '#fff', borderColor: '#f0e6d4' }}
+      className={`w-full text-left p-5 active:scale-95 transition-transform cursor-pointer press-scale ${className}`}
+      style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
     >
       <div className="flex justify-between items-center mb-1">
-        <span className="text-sm font-semibold uppercase tracking-wide" style={{ color: '#92400e' }}>{labelText}</span>
+        <span className="text-sm font-semibold uppercase tracking-wide font-sans" style={{ color: '#1B4332' }}>{labelText}</span>
         {hidden
-          ? <EyeOff className="w-5 h-5" style={{ color: '#c47c1a' }} />
-          : <Eye className="w-5 h-5" style={{ color: '#c47c1a' }} />
+          ? <EyeOff className="w-5 h-5" style={{ color: '#C4883A' }} />
+          : <Eye className="w-5 h-5" style={{ color: '#C4883A' }} />
         }
       </div>
-      <div className="text-4xl font-black tracking-tight" style={{ color: hidden ? '#d1d5db' : '#14532d' }}>
+      <div className="text-4xl font-black tracking-tight font-sans" style={{ color: hidden ? '#d1d5db' : '#14532d' }}>
         {displayValue}
       </div>
       {hidden && (
-        <div className="text-xs mt-1" style={{ color: '#c47c1a' }}>{t.tapToReveal}</div>
+        <div className="text-xs mt-1 font-sans" style={{ color: '#C4883A' }}>{t.tapToReveal}</div>
       )}
     </button>
   );

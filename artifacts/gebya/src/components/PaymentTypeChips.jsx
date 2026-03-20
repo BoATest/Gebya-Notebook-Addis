@@ -38,11 +38,12 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
           key={item}
           type="button"
           onClick={() => onSelect(selected === item ? '' : item)}
-          className="px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all"
+          className="px-3 py-1.5 text-xs font-bold border-2 transition-all press-scale"
           style={{
-            borderColor: selected === item ? '#c47c1a' : '#e8d5b0',
-            background: selected === item ? '#fde68a' : '#fff',
-            color: selected === item ? '#92400e' : '#6b7280',
+            borderRadius: 'var(--radius-xl)',
+            borderColor: selected === item ? '#1B4332' : '#e8e2d8',
+            background: selected === item ? 'rgba(27,67,50,0.1)' : '#fff',
+            color: selected === item ? '#1B4332' : '#6b7280',
           }}
         >
           {item}
@@ -53,18 +54,19 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
 
   return (
     <div>
-      <label className="block text-gray-700 font-semibold mb-2 text-sm">{t.paymentType}</label>
+      <label className="block text-gray-700 font-semibold mb-2 text-sm font-sans">{t.paymentType}</label>
       <div className="flex gap-2">
         {TYPES.map(tp => (
           <button
             key={tp.id}
             type="button"
             onClick={() => handleTypeChange(tp.id)}
-            className="flex-1 flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl border-2 text-xs font-bold transition-all min-h-[56px]"
+            className="flex-1 flex flex-col items-center gap-1 py-2.5 px-1 border-2 text-xs font-bold transition-all min-h-[56px] press-scale"
             style={{
-              borderColor: paymentType === tp.id ? '#c47c1a' : '#e8d5b0',
-              background: paymentType === tp.id ? '#fffbeb' : '#fff',
-              color: paymentType === tp.id ? '#92400e' : '#6b7280',
+              borderRadius: 'var(--radius-md)',
+              borderColor: paymentType === tp.id ? '#1B4332' : '#e8e2d8',
+              background: paymentType === tp.id ? 'rgba(27,67,50,0.07)' : '#fff',
+              color: paymentType === tp.id ? '#1B4332' : '#6b7280',
             }}
           >
             <span className="text-base">{tp.emoji}</span>
@@ -74,7 +76,7 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
       </div>
 
       {paymentType === 'bank' && enabledBanks.length === 1 && (
-        <p className="text-xs text-amber-700 mt-2 font-semibold px-1">
+        <p className="text-xs mt-2 font-semibold px-1" style={{ color: '#1B4332' }}>
           ✓ {t.payingVia} {enabledBanks[0]}
         </p>
       )}
@@ -83,7 +85,7 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
       )}
 
       {paymentType === 'wallet' && enabledWallets.length === 1 && (
-        <p className="text-xs text-amber-700 mt-2 font-semibold px-1">
+        <p className="text-xs mt-2 font-semibold px-1" style={{ color: '#1B4332' }}>
           ✓ {t.payingVia} {enabledWallets[0]}
         </p>
       )}

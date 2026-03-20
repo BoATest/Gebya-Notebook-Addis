@@ -39,20 +39,22 @@ export function ToastContainer() {
       {toasts.map(t => (
         <div
           key={t.id}
-          className="flex items-center gap-3 px-4 py-3 rounded-2xl shadow-lg text-sm font-bold text-white"
+          className="flex items-center gap-3 px-4 py-3 text-sm font-bold text-white animate-slide-up"
           style={{
-            background: 'rgba(30,20,10,0.92)',
+            background: 'rgba(27,67,50,0.95)',
             maxWidth: '340px',
             width: '100%',
             pointerEvents: 'auto',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: 'var(--shadow-lg)',
           }}
         >
-          <span className="flex-1 text-center">{t.message}</span>
+          <span className="flex-1 text-center font-sans">{t.message}</span>
           {t.onUndo && (
             <button
               onClick={() => { t.onUndo(); dismiss(t.id); }}
-              className="flex-shrink-0 px-3 py-1 rounded-xl font-black text-xs"
-              style={{ background: 'rgba(255,255,255,0.22)', color: '#fff', minHeight: '32px' }}
+              className="flex-shrink-0 px-3 py-1 font-black text-xs press-scale font-sans"
+              style={{ background: 'rgba(255,255,255,0.22)', color: '#fff', minHeight: '32px', borderRadius: 'var(--radius-sm)' }}
             >
               Undo
             </button>
