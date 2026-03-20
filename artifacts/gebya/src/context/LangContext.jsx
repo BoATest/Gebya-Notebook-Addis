@@ -257,6 +257,23 @@ const EN = {
   statusOverdue: 'OVERDUE',
   statusDueSoon: 'DUE SOON',
   statusOk: 'OK',
+
+  periodDay: 'Day',
+  periodWeek: 'Week',
+  periodMonth: 'Month',
+  totalSales: 'Total Sales',
+  totalExpenses: 'Total Expenses',
+  netProfit: 'Net Profit',
+  topProductsWeek: 'Top Products This Week',
+  topProductsMonth: 'Top Products This Month',
+  topProductsDay: 'Top Products Today',
+  byQuantity: 'by qty',
+  byRevenue: 'by revenue',
+  weekBreakdown: 'Day-by-Day',
+  monthBreakdown: 'Week-by-Week',
+  weekOf: 'Week of',
+  noSalesThisPeriod: 'No sales this period',
+  week: 'Wk',
 };
 
 const AM = {
@@ -509,6 +526,23 @@ const AM = {
   statusOverdue: 'ዘግይቷል',
   statusDueSoon: 'ይቃረባል',
   statusOk: 'ጥሩ',
+
+  periodDay: 'ቀን',
+  periodWeek: 'ሳምንት',
+  periodMonth: 'ወር',
+  totalSales: 'ጠቅላላ ሽያጭ',
+  totalExpenses: 'ጠቅላላ ወጪ',
+  netProfit: 'ንጹህ ትርፍ',
+  topProductsWeek: 'የሳምንቱ ምርጥ ሽያጭ',
+  topProductsMonth: 'የወሩ ምርጥ ሽያጭ',
+  topProductsDay: 'ዛሬ ምርጥ ሽያጭ',
+  byQuantity: 'በብዛት',
+  byRevenue: 'በገቢ',
+  weekBreakdown: 'በቀን',
+  monthBreakdown: 'በሳምንት',
+  weekOf: 'ሳምንት',
+  noSalesThisPeriod: 'በዚህ ወቅት ሽያጭ የለም',
+  week: 'ሳምንት',
 };
 
 const LangContext = createContext(null);
