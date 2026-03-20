@@ -576,55 +576,54 @@ function AppInner() {
   return (
     <div className="min-h-screen flex flex-col max-w-md mx-auto relative" style={{ background: P.bg }}>
 
-      <header className="flex-shrink-0 px-4 pt-10 pb-4 texture-noise" style={{ background: P.header }}>
-        <div className="flex items-start justify-between mb-3 gap-2">
+      <header className="flex-shrink-0 px-4 pt-9 pb-3 texture-noise" style={{ background: P.header }}>
+        <div className="flex items-center justify-between mb-3 gap-3">
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-black text-white tracking-tight font-serif">ገበያ</h1>
-            <p className="font-black text-white truncate font-sans" style={{ fontSize: '0.95rem' }}>
+            <p className="text-xs font-bold tracking-widest uppercase mb-0.5" style={{ color: 'rgba(255,255,255,0.45)', letterSpacing: '0.12em' }}>ገበያ</p>
+            <h1 className="text-2xl font-black text-white tracking-tight font-serif leading-tight truncate">
               {shopProfile.name}
+            </h1>
+            <p className="text-xs font-semibold mt-0.5" style={{ color: 'rgba(255,255,255,0.65)' }}>
+              {getCurrentEthiopianDate()} · {new Date().toLocaleDateString('en', { weekday: 'short', day: 'numeric', month: 'short' })}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <span
-                className="text-xs font-bold px-2 py-1 rounded-full"
-                style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', minHeight: '28px', display: 'flex', alignItems: 'center' }}
-              >
-                🔥 {usageStats?.streak || 0}d
-              </span>
-              <button
-                onClick={toggleLang}
-                className="text-xs font-bold rounded-full border transition-all flex items-center overflow-hidden press-scale"
-                style={{
-                  borderColor: 'rgba(255,255,255,0.4)',
-                  minHeight: '44px',
-                }}
-                aria-label={lang === 'en' ? 'Switch to Amharic' : 'Switch to English'}
-              >
-                <span
-                  className="px-2.5 py-2 flex items-center justify-center"
-                  style={{
-                    background: lang === 'en' ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.12)',
-                    color: lang === 'en' ? '#1B4332' : 'rgba(255,255,255,0.6)',
-                    fontWeight: lang === 'en' ? 800 : 600,
-                    minWidth: '32px',
-                  }}
-                >EN</span>
-                <span
-                  className="px-2.5 py-2 flex items-center justify-center"
-                  style={{
-                    background: lang === 'am' ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.12)',
-                    color: lang === 'am' ? '#1B4332' : 'rgba(255,255,255,0.6)',
-                    fontWeight: lang === 'am' ? 800 : 600,
-                    minWidth: '32px',
-                  }}
-                >አማ</span>
-              </button>
-            </div>
-            <p className="text-xs font-semibold text-white">{getCurrentEthiopianDate()}</p>
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
-              {new Date().toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
-            </p>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span
+              className="text-xs font-bold px-2 py-1 rounded-full"
+              style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)', whiteSpace: 'nowrap' }}
+            >
+              🔥 {usageStats?.streak || 0}d
+            </span>
+            <button
+              onClick={toggleLang}
+              className="text-xs font-bold transition-all flex items-center press-scale"
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                borderRadius: '10px',
+                padding: '3px',
+                gap: '2px',
+              }}
+              aria-label={lang === 'en' ? 'Switch to Amharic' : 'Switch to English'}
+            >
+              <span style={{
+                background: lang === 'en' ? 'rgba(255,255,255,0.95)' : 'transparent',
+                color: lang === 'en' ? '#1B4332' : 'rgba(255,255,255,0.6)',
+                fontWeight: lang === 'en' ? 800 : 600,
+                padding: '4px 10px',
+                borderRadius: '8px',
+                transition: 'all 0.18s',
+                display: 'block',
+              }}>EN</span>
+              <span style={{
+                background: lang === 'am' ? 'rgba(255,255,255,0.95)' : 'transparent',
+                color: lang === 'am' ? '#1B4332' : 'rgba(255,255,255,0.6)',
+                fontWeight: lang === 'am' ? 800 : 600,
+                padding: '4px 9px',
+                borderRadius: '8px',
+                transition: 'all 0.18s',
+                display: 'block',
+              }}>አማ</span>
+            </button>
           </div>
         </div>
 

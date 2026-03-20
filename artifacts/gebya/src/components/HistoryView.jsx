@@ -1,7 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Calendar, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import { useLang } from '../context/LangContext';
-import { usePrivacy } from '../context/PrivacyContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/numformat';
 
@@ -103,7 +102,6 @@ const medals    = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
 
 function TopProductsList({ transactions, title }) {
   const { t } = useLang();
-  const { hidden } = usePrivacy();
   const { topByQty, topByRev } = getTopProducts(transactions);
   const [tab, setTab] = useState('qty');
 
@@ -145,7 +143,7 @@ function TopProductsList({ transactions, title }) {
             <span className="text-sm font-semibold text-gray-700 flex-1 truncate">{p.name}</span>
             <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
               style={{ background: 'rgba(27,67,50,0.1)', color: '#1B4332' }}>
-              {tab === 'qty' ? `×${p.qty}` : (hidden ? '••••' : `${fmt(p.revenue)} ${t.birr}`)}
+              {tab === 'qty' ? `×${p.qty}` : `${fmt(p.revenue)} ${t.birr}`}
             </span>
           </div>
         ))}
@@ -156,7 +154,6 @@ function TopProductsList({ transactions, title }) {
 
 function StatsSummary({ transactions }) {
   const { t } = useLang();
-  const { hidden } = usePrivacy();
   const { revenue, profit, expenseTotal, hasCost } = calcStats(transactions);
   const netProfit = hasCost ? profit : revenue - expenseTotal;
 
@@ -165,20 +162,20 @@ function StatsSummary({ transactions }) {
       <div className="flex justify-between items-center">
         <span className="text-xs text-gray-500">{t.totalSales}</span>
         <span className="text-sm font-bold text-green-700">
-          {hidden ? '••••' : `${fmt(revenue)} ${t.birr}`}
+          {`${fmt(revenue)} ${t.birr}`}
         </span>
       </div>
       <div className="flex justify-between items-center">
         <span className="text-xs text-gray-500">{t.totalExpenses}</span>
         <span className="text-sm font-bold text-red-500">
-          {hidden ? '••••' : `${fmt(expenseTotal)} ${t.birr}`}
+          {`${fmt(expenseTotal)} ${t.birr}`}
         </span>
       </div>
       <div className="border-t pt-2" style={{ borderColor: 'var(--color-border)' }}>
         <div className="flex justify-between items-center">
           <span className="text-xs font-bold text-gray-600">{t.netProfit}</span>
           <span className={`text-sm font-black ${netProfit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
-            {hidden ? '••••' : `${netProfit >= 0 ? '+' : ''}${fmt(netProfit)} ${t.birr}`}
+            {`${netProfit >= 0 ? '+' : ''}${fmt(netProfit)} ${t.birr}`}
           </span>
         </div>
       </div>
@@ -299,70 +296,11 @@ function MonthWeekChart({ transactions }) {
   );
 }
 
-function SevenDayChart({ transactions, onBarClick }) {
-  const { t } = useLang();
-  const dayLabels = [t.sun, t.mon, t.tue, t.wed, t.thu, t.fri, t.sat];
-
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const ds = d.toDateString();
-    const total = transactions
-      .filter(tx => new Date(tx.created_at).toDateString() === ds && tx.type === 'sale')
-      .reduce((s, tx) => s + (tx.amount || 0), 0);
-    days.push({ label: dayLabels[d.getDay()], total, dateStr: ds, isToday: i === 0, date: d });
-  }
-
-  const maxTotal = Math.max(...days.map(d => d.total), 1);
-
-  return (
-    <div className="px-4 pt-3 pb-2" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
-      <p className="text-xs font-bold text-gray-500 mb-2">{t.weekTrend}</p>
-      <div className="flex items-end gap-1" style={{ height: '56px' }}>
-        {days.map((d, i) => {
-          const h = Math.max(4, Math.round((d.total / maxTotal) * 48));
-          return (
-            <button
-              key={i}
-              className="flex-1 flex flex-col items-center gap-1 focus:outline-none active:opacity-70"
-              onClick={() => onBarClick(d.dateStr)}
-              aria-label={`${d.label}: ${fmt(d.total)}`}
-            >
-              <div
-                className="w-full transition-all"
-                style={{
-                  height: `${h}px`,
-                  background: d.isToday ? '#1B4332' : 'rgba(27,67,50,0.2)',
-                  minHeight: '4px',
-                  borderRadius: '3px 3px 0 0',
-                }}
-              />
-              <span
-                className="font-semibold"
-                style={{
-                  fontSize: '0.55rem',
-                  lineHeight: 1,
-                  color: d.isToday ? '#1B4332' : '#9ca3af',
-                }}
-              >
-                {d.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function HistoryView({ transactions, onEdit }) {
   const { t } = useLang();
   const [period, setPeriod] = useState('day');
   const [grouping, setGrouping] = useState('day');
   const [expandedGroups, setExpandedGroups] = useState({});
-  const [highlightedKey, setHighlightedKey] = useState(null);
-  const groupRefs = useRef({});
 
   const toggleGroup = (key) => setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -371,18 +309,6 @@ function HistoryView({ transactions, onEdit }) {
 
   const weekTransactions = filterCurrentWeek(transactions);
   const monthTransactions = filterCurrentMonth(transactions);
-
-  const handleBarClick = (dateStr) => {
-    const group = dayGroups.find(g => new Date(g.date).toDateString() === dateStr);
-    if (!group) return;
-    const key = group.date.toString();
-    setExpandedGroups(prev => ({ ...prev, [key]: true }));
-    setHighlightedKey(key);
-    setTimeout(() => {
-      groupRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
-    setTimeout(() => setHighlightedKey(null), 1800);
-  };
 
   const periods = [
     { id: 'day',   label: t.periodDay },
@@ -413,8 +339,6 @@ function HistoryView({ transactions, onEdit }) {
 
       {period === 'day' && (
         <>
-          <SevenDayChart transactions={transactions} onBarClick={handleBarClick} />
-
           <div className="flex gap-2">
             {[['day', t.byDay], ['week', t.byWeek]].map(([val, lbl]) => (
               <button key={val} onClick={() => setGrouping(val)}
@@ -442,21 +366,19 @@ function HistoryView({ transactions, onEdit }) {
                 const isToday = new Date(group.date).toDateString() === new Date().toDateString();
                 const key = group.date.toString();
                 const expanded = expandedGroups[key] ?? isToday;
-                const isHighlighted = highlightedKey === key;
                 return (
                   <div
                     key={group.date}
-                    ref={el => { groupRefs.current[key] = el; }}
                     className="border overflow-hidden transition-all animate-slide-up"
                     style={{
                       background: '#fff',
-                      borderColor: isHighlighted ? '#1B4332' : 'var(--color-border)',
-                      boxShadow: isHighlighted ? '0 0 0 2px rgba(27,67,50,0.25), var(--shadow-sm)' : 'var(--shadow-xs)',
+                      borderColor: 'var(--color-border)',
+                      boxShadow: 'var(--shadow-xs)',
                       borderRadius: 'var(--radius-md)',
                     }}
                   >
                     <button className="w-full px-4 py-3 flex justify-between items-center"
-                      style={{ background: isToday ? 'rgba(27,67,50,0.05)' : isHighlighted ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
+                      style={{ background: isToday ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
                       onClick={() => toggleGroup(key)}>
                       <div>
                         <span className="font-bold text-gray-800 text-sm font-sans">

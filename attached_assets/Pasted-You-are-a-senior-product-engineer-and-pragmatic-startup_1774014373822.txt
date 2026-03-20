@@ -1,0 +1,206 @@
+You are a senior product engineer and pragmatic startup CTO.
+
+I am building a mobile-first sales recording app for Ethiopian shop owners, retailers, wholesalers, and informal sellers. The current product already has manual sale entry screens, but I want to shift the product to a voice-first MVP.
+
+Your job is to HELP ME BUILD the MVP directly in the existing project, not to overdesign it, not to add unnecessary features, and not to drift into generic architecture discussion.
+
+CORE PRODUCT INTENT
+- The app should make recording a sale easier than writing in a notebook.
+- This is for real sellers in Ethiopia.
+- Many users speak Amharic or mixed Amharic + English.
+- Product names may be in English, while the rest of the sentence may be in Amharic.
+- Sellers may speak casually, incompletely, or in noisy environments.
+- The goal is NOT perfect AI.
+- The goal is speed, convenience, and collecting real usage data.
+
+STRATEGIC RULES
+- Voice-first
+- Draft-first, not auto-final
+- Correction-friendly
+- Short recordings
+- Store everything useful for learning
+- Do not over-specialize by seller category yet
+- Do not build heavy inventory yet
+- Do not promise perfect understanding
+- Do not build a complex item parser in V1
+- Do not create a confusing UI with too many actions
+
+IMPORTANT MVP DECISION
+For Version 1, do NOT try to confidently parse full item breakdowns from voice.
+Instead, do this flow:
+
+1. User taps a big microphone button
+2. User records a short sale note
+3. Audio is sent to speech-to-text
+4. App returns:
+   - transcript
+   - detected_total (best effort, simple logic)
+5. App shows:
+   - what it heard
+   - detected total
+   - buttons: Save / Fix / Re-record
+6. If user taps Fix:
+   - allow manual edit of total
+   - allow manual selection/edit of payment method
+   - optional simple note field
+7. Save the record
+
+DETECTED TOTAL LOGIC
+- Keep it simple for MVP
+- Extract numeric values from transcript
+- Use the largest plausible number as the likely total
+- If confidence is weak or no number is found, set detected_total = null
+- Never pretend certainty when unclear
+
+OFFLINE / FAILURE RULES
+- Manual entry must remain available
+- If transcription fails, user must not be blocked
+- If network is unavailable, show a clear fallback path
+- Store data locally if needed before sync
+- Never trap the user in a dead end
+
+DATA / LEARNING RULES
+Even if the V1 UI is simple, structure the data model for future growth.
+Create a general transaction schema that works across seller categories.
+
+Include fields like:
+- id
+- created_at
+- source_type (voice/manual)
+- raw_audio_url or raw_audio_ref if available
+- raw_transcript
+- detected_total
+- final_total
+- payment_method
+- notes
+- status
+- was_edited
+- transcription_provider
+- parsing_confidence or null
+- optional structured fields for future use:
+  - items: []
+  - item_name
+  - quantity
+  - unit
+  - unit_price
+  - line_total
+  - optional_attributes
+  - color
+  - size
+  - package
+  - customer_name
+
+IMPORTANT:
+- It is okay if many of these future fields are null in V1
+- Design the schema so V1.1 and V2 can grow into it
+- Store raw input + corrected outcome so the dataset becomes valuable over time
+
+WHAT TO BUILD NOW
+Build only the MVP voice-to-draft sales flow inside the existing app.
+
+I want:
+1. A clean home/dashboard update that makes voice the primary action
+2. A voice recording UI
+3. A backend transcription endpoint
+4. Simple total extraction
+5. A result/confirmation screen
+6. A quick-fix flow
+7. Saving of the final transaction record
+8. Error handling and fallback handling
+9. Keep the current manual form as fallback, not primary
+
+UI REQUIREMENTS
+- Mobile-first
+- Extremely simple
+- Large tap targets
+- Minimal text
+- Clear states
+- Fast interaction
+- No clutter
+- Voice should feel primary
+- Manual should feel like fallback
+- Avoid showing complex parsed item rows in V1
+- Show transcript and total clearly
+- Show Save / Fix / Re-record clearly
+
+RECORDING UX
+- Short recordings only
+- Target 5–15 seconds
+- Soft warning after around 15 seconds
+- Hard stop around 30 seconds maximum
+- Allow user to stop manually
+- Show a visible recording state and timer
+
+TECHNICAL EXPECTATIONS
+Use the existing stack in the project where possible.
+Prefer practical implementation over theoretical perfection.
+
+Build:
+- frontend changes
+- backend endpoint(s)
+- storage updates
+- clean types/interfaces
+- basic validation
+- clear comments only where useful
+
+If speech-to-text provider is not fully wired yet, abstract it cleanly so I can plug in OpenAI or Azure later.
+
+TRANSCRIPTION ABSTRACTION
+Create a transcription service layer like:
+- transcribeAudio(file): Promise<{ transcript: string, confidence?: number | null }>
+
+Then create a simple total extraction helper like:
+- extractLikelyTotal(transcript): number | null
+
+QUICK FIX SCOPE
+In V1 quick fix should allow:
+- edit total
+- choose payment method
+- optional note
+Do NOT create a full accounting form in the quick fix.
+
+KEEP / DO NOT REMOVE
+- Keep current manual transaction entry path
+- Keep room in schema for later structured parsing
+- Keep room for future seller learning and personalization
+
+DO NOT BUILD YET
+- Inventory management
+- Full item parsing with strong claims
+- Category-specific seller modes
+- Credit workflows beyond schema readiness
+- Complex analytics
+- Multi-step onboarding
+- Long forms
+- Heavy admin screens
+
+EXPECTED OUTPUT FORMAT
+I want you to act like an implementation partner inside the codebase.
+
+Please do the following in order:
+1. Inspect the current project structure
+2. Identify the existing manual sales entry flow and relevant files
+3. Reuse existing components and styling where sensible
+4. Add the new voice-first MVP flow
+5. Show me exactly what files you created or modified
+6. Explain any assumptions briefly
+7. Keep implementation lean and production-minded
+
+IMPORTANT ENGINEERING BEHAVIOR
+- Do not rewrite the whole app unnecessarily
+- Do not introduce random dependencies unless clearly justified
+- Prefer stable, simple solutions
+- Prefer incremental improvement over big rewrites
+- If something is unclear in the codebase, make the safest grounded assumption and proceed
+- Optimize for shipping a usable MVP fast
+
+SUCCESS CRITERIA
+The MVP is successful if:
+- A seller can tap one main voice button
+- Record a short sales statement
+- Get back a transcript + likely total
+- Save it quickly
+- Fix it quickly if wrong
+- Fall back safely if voice fails
+
+Now start by inspecting the current codebase and implementing this voice-first MVP directly.

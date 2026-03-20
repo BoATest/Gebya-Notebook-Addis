@@ -1,0 +1,156 @@
+MOBILE WIREFRAME (SCREEN BY SCREEN)
+
+This is designed specifically for your current UI, not replacing it.
+
+🟢 SCREEN 1 — HOME (UPDATED, NOT REBUILT)
+--------------------------------------------------
+[ Sales ]        [ Spent ]
+
+[ 🔥 4 day streak ] [ 📅 4 days active ] [ 5 entries ]
+
+--------------------------------------------------
+🟩 PRIMARY ACTION (NEW)
+--------------------------------------------------
+🎤 Record by Voice
+Fastest way to save a sale
+
+[ Tap to Speak ]
+
+--------------------------------------------------
+🟨 SECONDARY ACTIONS (EXISTING, KEEP THEM)
+--------------------------------------------------
+[ + Type Sale ]   [ + I Spent ]   [ + Credit ]
+
+--------------------------------------------------
+📊 TODAY’S SALES (keep your existing card)
+--------------------------------------------------
+
+[ Tap to reveal ]
+
+--------------------------------------------------
+📒 ENTRIES (existing)
+--------------------------------------------------
+No entries yet / list of entries
+--------------------------------------------------
+🔥 Key change
+
+Voice = BIG
+
+Manual = STILL THERE
+
+Nothing removed
+
+🟢 SCREEN 2 — VOICE RECORDING
+--------------------------------------------------
+🎤 Listening...
+
+Speak your sale clearly
+
+⏱ 00:08 / 00:30
+
+██████████████░░░░░░░
+
+⚠️ Try to finish soon (after ~15s)
+
+--------------------------------------------------
+[ ⬛ Stop ]
+[ ⌨️ Type instead ]
+--------------------------------------------------
+Behavior
+
+Tap → starts instantly
+
+No menus
+
+No complexity
+
+🟢 SCREEN 3 — RESULT (MOST IMPORTANT SCREEN)
+--------------------------------------------------
+✅ Got it
+
+I heard:
+“bread ten 10 birr milk five 50 cash”
+
+-----------------------------------
+💰 Total: 350 birr
+-----------------------------------
+
+[ ✅ Save ]
+[ ✏️ Fix ]
+[ 🔄 Re-record ]
+--------------------------------------------------
+⚠️ Critical rule
+
+DO NOT show complex breakdown yet
+
+ONLY transcript + total
+
+🟢 SCREEN 4 — FIX (LIGHTWEIGHT)
+--------------------------------------------------
+✏️ Fix Sale
+
+Total:
+[ 350 ]
+
+Payment:
+[ Cash ▼ ]
+
+Note (optional):
+[                ]
+
+--------------------------------------------------
+[ ✅ Save ]
+--------------------------------------------------
+⚠️ Keep it simple
+
+No full form
+
+No item list
+
+No overload
+
+🟢 SCREEN 5 — MANUAL ENTRY (YOUR CURRENT ONE)
+
+KEEP THIS:
+
+I Sold Something
+
+What did you sell?
+How many?
+How much total?
+
+Payment
+Advanced (optional)
+
+[ Save Sale ]
+BUT CHANGE LABEL FROM HOME:
+
+Instead of:
+
+I Sold
+
+Use:
+
+Type Sale
+
+🟢 SCREEN 6 — ERROR / NO INTERNET
+--------------------------------------------------
+⚠️ No internet connection
+
+Voice recording needs internet.
+
+--------------------------------------------------
+[ ✍️ Type Sale Instead ]
+[ 🔄 Retry ]
+--------------------------------------------------
+🧠 UX PRINCIPLES YOU ARE FOLLOWING
+
+This design achieves:
+
+No user is forced into voice
+
+Voice is clearly better but optional
+
+Manual builds trust
+
+Transition happens naturally
