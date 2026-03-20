@@ -193,6 +193,164 @@ function StatsSummary({ transactions }) {
   );
 }
 
+function TxRow({ tx, onEdit, t }) {
+  return (
+    <button
+      onClick={() => onEdit(tx)}
+      className="w-full px-4 py-3 flex justify-between items-center text-left transition-colors press-scale"
+      style={{ background: 'transparent' }}
+    >
+      <div className="flex items-center gap-2.5 min-w-0">
+        <span className="text-base flex-shrink-0">{typeIcon[tx.type]}</span>
+        <div className="min-w-0">
+          <span className="font-medium text-gray-800 text-sm truncate block">{tx.item_name}</span>
+          {tx.quantity > 1 && <span className="text-xs text-gray-400">×{tx.quantity}</span>}
+          {tx.customer_name && <p className="text-xs text-gray-400">{tx.customer_name}</p>}
+          {tx.updated_at && <p className="text-xs" style={{ color: '#C4883A' }}>{t.edited}</p>}
+        </div>
+      </div>
+      <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+        <div className="text-right">
+          <span className="font-semibold text-sm" style={{ color: typeColor[tx.type] }}>
+            {tx.type === 'expense' ? '-' : ''}{fmt(tx.amount || 0)}
+          </span>
+          {tx.profit !== null && tx.profit !== undefined && (
+            <p className={`text-xs ${tx.profit >= 0 ? 'text-green-600' : 'text-red-400'}`}>
+              {tx.profit >= 0 ? '+' : ''}{fmt(tx.profit)} {t.profit}
+            </p>
+          )}
+        </div>
+        <Pencil className="w-3.5 h-3.5 text-gray-300" />
+      </div>
+    </button>
+  );
+}
+
+function DayGroupList({ groups, onEdit, expandedGroups, toggleGroup, t }) {
+  return (
+    <div className="space-y-3">
+      {groups.map(group => {
+        const stats = calcStats(group.transactions);
+        const isToday = new Date(group.date).toDateString() === new Date().toDateString();
+        const key = group.date.toString();
+        const expanded = expandedGroups[key] ?? isToday;
+        return (
+          <div
+            key={group.date}
+            className="border overflow-hidden transition-all animate-slide-up"
+            style={{
+              background: '#fff',
+              borderColor: 'var(--color-border)',
+              boxShadow: 'var(--shadow-xs)',
+              borderRadius: 'var(--radius-md)',
+            }}
+          >
+            <button className="w-full px-4 py-3 flex justify-between items-center"
+              style={{ background: isToday ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
+              onClick={() => toggleGroup(key)}>
+              <div>
+                <span className="font-bold text-gray-800 text-sm font-sans">
+                  {isToday ? t.today : formatEthiopian(group.date)}
+                </span>
+                {!isToday && (
+                  <span className="text-xs ml-2" style={{ color: '#9ca3af' }}>
+                    {new Date(group.date).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </span>
+                )}
+                <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
+                  {group.transactions.length} {t.entries}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
+                    {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}` : fmt(stats.revenue)} {t.birr}
+                  </div>
+                  <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? t.profit : t.revenue}</div>
+                </div>
+                {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+              </div>
+            </button>
+
+            {expanded && (
+              <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
+                {group.transactions.map(tx => (
+                  <TxRow key={tx.id} tx={tx} onEdit={onEdit} t={t} />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function WeekGroupList({ groups, onEdit, expandedGroups, toggleGroup, t }) {
+  return (
+    <div className="space-y-3">
+      {groups.map(group => {
+        const stats = calcStats(group.transactions);
+        const weekEnd = new Date(group.weekStart + 6 * 86400000);
+        const key = group.weekStart.toString();
+        const expanded = expandedGroups[key];
+        const isCurrentWeek = Date.now() >= group.weekStart && Date.now() <= group.weekStart + 7 * 86400000;
+        return (
+          <div key={group.weekStart} className="border overflow-hidden animate-slide-up"
+            style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}>
+            <button className="w-full px-4 py-3 flex justify-between items-center"
+              style={{ background: isCurrentWeek ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
+              onClick={() => toggleGroup(key)}>
+              <div>
+                <span className="font-bold text-gray-800 text-sm font-sans">
+                  {isCurrentWeek ? t.thisWeek : `${formatEthiopian(group.weekStart)} – ${formatEthiopian(weekEnd.getTime())}`}
+                </span>
+                <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
+                  {group.transactions.length} {t.entries}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
+                    {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}` : fmt(stats.revenue)} {t.birr}
+                  </div>
+                  <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? t.profit : t.revenue}</div>
+                </div>
+                {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+              </div>
+            </button>
+
+            {expanded && (
+              <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
+                {group.transactions.map(tx => (
+                  <TxRow key={tx.id} tx={tx} onEdit={onEdit} t={t} />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function EmptyState({ hasSearch, searchQuery, t }) {
+  if (hasSearch) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Search className="w-12 h-12 mb-3" style={{ color: '#e5e7eb' }} />
+        <p className="text-base font-medium" style={{ color: '#9ca3af' }}>{t.noSearchResults} "{searchQuery}"</p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <Calendar className="w-12 h-12 mb-3" style={{ color: '#e5e7eb' }} />
+      <p className="text-base font-medium" style={{ color: '#9ca3af' }}>{t.noSalesThisPeriod}</p>
+    </div>
+  );
+}
+
 function HistoryView({ transactions, onEdit }) {
   const { t } = useLang();
   const [period, setPeriod] = useState('day');
@@ -209,6 +367,9 @@ function HistoryView({ transactions, onEdit }) {
 
   const weekTransactions = filterCurrentWeek(filteredTransactions);
   const monthTransactions = filterCurrentMonth(filteredTransactions);
+
+  const weekDayGroups = groupByDay(weekTransactions);
+  const monthDayGroups = groupByDay(monthTransactions);
 
   const periods = [
     { id: 'day',   label: t.periodDay },
@@ -298,195 +459,61 @@ function HistoryView({ transactions, onEdit }) {
               </div>
             )
           ) : grouping === 'day' ? (
-            <div className="space-y-3">
-              {dayGroups.map(group => {
-                const stats = calcStats(group.transactions);
-                const isToday = new Date(group.date).toDateString() === new Date().toDateString();
-                const key = group.date.toString();
-                const expanded = expandedGroups[key] ?? isToday;
-                return (
-                  <div
-                    key={group.date}
-                    className="border overflow-hidden transition-all animate-slide-up"
-                    style={{
-                      background: '#fff',
-                      borderColor: 'var(--color-border)',
-                      boxShadow: 'var(--shadow-xs)',
-                      borderRadius: 'var(--radius-md)',
-                    }}
-                  >
-                    <button className="w-full px-4 py-3 flex justify-between items-center"
-                      style={{ background: isToday ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
-                      onClick={() => toggleGroup(key)}>
-                      <div>
-                        <span className="font-bold text-gray-800 text-sm font-sans">
-                          {isToday ? t.today : formatEthiopian(group.date)}
-                        </span>
-                        {!isToday && (
-                          <span className="text-xs ml-2" style={{ color: '#9ca3af' }}>
-                            {new Date(group.date).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
-                          </span>
-                        )}
-                        <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
-                          {group.transactions.length} {t.entries}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-right">
-                          <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
-                            {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}` : fmt(stats.revenue)} {t.birr}
-                          </div>
-                          <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? t.profit : t.revenue}</div>
-                        </div>
-                        {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-                      </div>
-                    </button>
-
-                    {expanded && (
-                      <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
-                        {group.transactions.map(tx => (
-                          <button
-                            key={tx.id}
-                            onClick={() => onEdit(tx)}
-                            className="w-full px-4 py-3 flex justify-between items-center text-left transition-colors press-scale"
-                            style={{ background: 'transparent' }}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <span className="text-base flex-shrink-0">{typeIcon[tx.type]}</span>
-                              <div className="min-w-0">
-                                <span className="font-medium text-gray-800 text-sm truncate block">{tx.item_name}</span>
-                                {tx.quantity > 1 && <span className="text-xs text-gray-400">×{tx.quantity}</span>}
-                                {tx.customer_name && <p className="text-xs text-gray-400">{tx.customer_name}</p>}
-                                {tx.updated_at && <p className="text-xs" style={{ color: '#C4883A' }}>{t.edited}</p>}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                              <div className="text-right">
-                                <span className="font-semibold text-sm" style={{ color: typeColor[tx.type] }}>
-                                  {tx.type === 'expense' ? '-' : ''}{fmt(tx.amount || 0)}
-                                </span>
-                                {tx.profit !== null && tx.profit !== undefined && (
-                                  <p className={`text-xs ${tx.profit >= 0 ? 'text-green-600' : 'text-red-400'}`}>
-                                    {tx.profit >= 0 ? '+' : ''}{fmt(tx.profit)} {t.profit}
-                                  </p>
-                                )}
-                              </div>
-                              <Pencil className="w-3.5 h-3.5 text-gray-300" />
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <DayGroupList
+              groups={dayGroups}
+              onEdit={onEdit}
+              expandedGroups={expandedGroups}
+              toggleGroup={toggleGroup}
+              t={t}
+            />
           ) : (
-            <div className="space-y-3">
-              {weekGroups.map(group => {
-                const stats = calcStats(group.transactions);
-                const weekEnd = new Date(group.weekStart + 6 * 86400000);
-                const key = group.weekStart.toString();
-                const expanded = expandedGroups[key];
-                const isCurrentWeek = Date.now() >= group.weekStart && Date.now() <= group.weekStart + 7 * 86400000;
-                return (
-                  <div key={group.weekStart} className="border overflow-hidden animate-slide-up" style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}>
-                    <button className="w-full px-4 py-3 flex justify-between items-center"
-                      style={{ background: isCurrentWeek ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
-                      onClick={() => toggleGroup(key)}>
-                      <div>
-                        <span className="font-bold text-gray-800 text-sm font-sans">
-                          {isCurrentWeek ? t.thisWeek : `${formatEthiopian(group.weekStart)} – ${formatEthiopian(weekEnd.getTime())}`}
-                        </span>
-                        <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
-                          {group.transactions.length} {t.entries}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-right">
-                          <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
-                            {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}` : fmt(stats.revenue)} {t.birr}
-                          </div>
-                          <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? t.profit : t.revenue}</div>
-                        </div>
-                        {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-                      </div>
-                    </button>
-
-                    {expanded && (
-                      <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
-                        {group.transactions.map(tx => (
-                          <button
-                            key={tx.id}
-                            onClick={() => onEdit(tx)}
-                            className="w-full px-4 py-3 flex justify-between items-center text-left transition-colors press-scale"
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <span className="text-base flex-shrink-0">{typeIcon[tx.type]}</span>
-                              <div className="min-w-0">
-                                <span className="font-medium text-gray-800 text-sm truncate block">{tx.item_name}</span>
-                                <span className="text-xs text-gray-400">{formatEthiopian(tx.created_at)}</span>
-                                {tx.updated_at && <p className="text-xs" style={{ color: '#C4883A' }}>{t.edited}</p>}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                              <span className="font-semibold text-sm" style={{ color: typeColor[tx.type] }}>
-                                {tx.type === 'expense' ? '-' : ''}{fmt(tx.amount || 0)}
-                              </span>
-                              <Pencil className="w-3.5 h-3.5 text-gray-300" />
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <WeekGroupList
+              groups={weekGroups}
+              onEdit={onEdit}
+              expandedGroups={expandedGroups}
+              toggleGroup={toggleGroup}
+              t={t}
+            />
           )}
         </>
       )}
 
       {period === 'week' && (
         <div className="space-y-4">
-          <StatsSummary transactions={weekTransactions} />
-          <TopProductsList transactions={weekTransactions} title={t.topProductsWeek} />
-          {weekTransactions.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              {hasSearch ? (
-                <>
-                  <Search className="w-12 h-12 mb-3" style={{ color: '#e5e7eb' }} />
-                  <p className="text-base font-medium" style={{ color: '#9ca3af' }}>{t.noSearchResults} "{searchQuery}"</p>
-                </>
-              ) : (
-                <>
-                  <Calendar className="w-12 h-12 mb-3" style={{ color: '#e5e7eb' }} />
-                  <p className="text-base font-medium" style={{ color: '#9ca3af' }}>{t.noSalesThisPeriod}</p>
-                </>
-              )}
-            </div>
+          {weekTransactions.length === 0 ? (
+            <EmptyState hasSearch={hasSearch} searchQuery={searchQuery} t={t} />
+          ) : (
+            <>
+              <StatsSummary transactions={weekTransactions} />
+              <DayGroupList
+                groups={weekDayGroups}
+                onEdit={onEdit}
+                expandedGroups={expandedGroups}
+                toggleGroup={toggleGroup}
+                t={t}
+              />
+              <TopProductsList transactions={weekTransactions} title={t.topProductsWeek} />
+            </>
           )}
         </div>
       )}
 
       {period === 'month' && (
         <div className="space-y-4">
-          <StatsSummary transactions={monthTransactions} />
-          <TopProductsList transactions={monthTransactions} title={t.topProductsMonth} />
-          {monthTransactions.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              {hasSearch ? (
-                <>
-                  <Search className="w-12 h-12 mb-3" style={{ color: '#e5e7eb' }} />
-                  <p className="text-base font-medium" style={{ color: '#9ca3af' }}>{t.noSearchResults} "{searchQuery}"</p>
-                </>
-              ) : (
-                <>
-                  <Calendar className="w-12 h-12 mb-3" style={{ color: '#e5e7eb' }} />
-                  <p className="text-base font-medium" style={{ color: '#9ca3af' }}>{t.noSalesThisPeriod}</p>
-                </>
-              )}
-            </div>
+          {monthTransactions.length === 0 ? (
+            <EmptyState hasSearch={hasSearch} searchQuery={searchQuery} t={t} />
+          ) : (
+            <>
+              <StatsSummary transactions={monthTransactions} />
+              <DayGroupList
+                groups={monthDayGroups}
+                onEdit={onEdit}
+                expandedGroups={expandedGroups}
+                toggleGroup={toggleGroup}
+                t={t}
+              />
+              <TopProductsList transactions={monthTransactions} title={t.topProductsMonth} />
+            </>
           )}
         </div>
       )}
