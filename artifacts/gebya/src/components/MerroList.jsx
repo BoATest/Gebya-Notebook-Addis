@@ -4,6 +4,13 @@ import { useLang } from '../context/LangContext';
 import { getCreditStatus, formatEthiopianShort } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/numformat';
 
+function getInitials(name) {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 function MerroList({ creditRecords, onSelectCredit }) {
   const { t } = useLang();
   const [showPaid, setShowPaid] = useState(false);
@@ -12,29 +19,19 @@ function MerroList({ creditRecords, onSelectCredit }) {
   const paid = creditRecords.filter(r => r.status === 'paid');
   const list = showPaid ? paid : active;
 
-  const owedToMe  = active.filter(r => !r.direction || r.direction === 'owes_me').reduce((s, r) => s + (r.remaining_amount || 0), 0);
-  const iOwe      = active.filter(r => r.direction === 'i_owe').reduce((s, r) => s + (r.remaining_amount || 0), 0);
+  const owedToMeRecords = active.filter(r => !r.direction || r.direction === 'owes_me');
+  const iOweRecords = active.filter(r => r.direction === 'i_owe');
+  const owedToMe = owedToMeRecords.reduce((s, r) => s + (r.remaining_amount || 0), 0);
+  const iOwe = iOweRecords.reduce((s, r) => s + (r.remaining_amount || 0), 0);
 
   function getStatusDisplay(status) {
     if (status.label === 'Overdue') {
-      return {
-        card: 'border-red-300 bg-red-50',
-        badge: { bg: '#fee2e2', color: '#b91c1c' },
-        text: t.statusOverdue,
-      };
+      return { key: 'overdue', text: t.statusOverdue };
     }
     if (status.color === 'green') {
-      return {
-        card: 'border-emerald-300 bg-emerald-50',
-        badge: { bg: '#d1fae5', color: '#065f46' },
-        text: t.statusOk,
-      };
+      return { key: 'ok', text: t.statusOk };
     }
-    return {
-      card: 'border-yellow-300 bg-yellow-50',
-      badge: { bg: 'rgba(196,136,58,0.15)', color: '#8a5e1a' },
-      text: t.statusDueSoon,
-    };
+    return { key: 'due_soon', text: t.statusDueSoon };
   }
 
   if (active.length === 0 && paid.length === 0) {
@@ -50,30 +47,48 @@ function MerroList({ creditRecords, onSelectCredit }) {
   return (
     <div className="space-y-4">
 
-      <div className="p-4 border animate-elastic texture-noise" style={{ background: 'rgba(27,67,50,0.06)', borderColor: 'rgba(27,67,50,0.2)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 flex items-center justify-center" style={{ background: '#1B4332', borderRadius: 'var(--radius-sm)' }}>
-              <Users className="w-5 h-5" style={{ color: '#fff' }} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: '#1B4332' }}>{t.owedToMe}</p>
-              <p className="text-2xl font-black" style={{ color: '#1B4332' }}>{fmt(owedToMe)} {t.birr}</p>
-            </div>
-          </div>
-          <div className="text-right">
-            {iOwe > 0 && (
-              <div className="mb-1">
-                <p className="text-xs font-semibold text-red-500">{t.iOweAmount}</p>
-                <p className="text-sm font-black text-red-600">{fmt(iOwe)} {t.birr}</p>
-              </div>
-            )}
-            <div className="text-xs" style={{ color: '#9ca3af' }}>
-              <div>{active.length} {t.active}</div>
-              {paid.length > 0 && <div>{paid.length} {t.paid}</div>}
-            </div>
-          </div>
+      <div className="flex gap-3">
+        <div
+          className="flex-1 p-4 animate-elastic texture-noise"
+          style={{
+            background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+            border: '1.5px solid #86efac',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: '#166534' }}>
+            {t.owedToMe}
+          </p>
+          <p className="text-2xl font-black leading-tight" style={{ color: '#14532d' }}>
+            {fmt(owedToMe)}
+          </p>
+          <p className="text-xs font-semibold mt-0.5" style={{ color: '#166534' }}>
+            {t.birr} · {owedToMeRecords.length} {t.active}
+          </p>
         </div>
+
+        {iOwe > 0 && (
+          <div
+            className="flex-1 p-4 animate-elastic texture-noise"
+            style={{
+              background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+              border: '1.5px solid #fca5a5',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: '#991b1b' }}>
+              {t.iOweAmount}
+            </p>
+            <p className="text-2xl font-black leading-tight" style={{ color: '#7f1d1d' }}>
+              {fmt(iOwe)}
+            </p>
+            <p className="text-xs font-semibold mt-0.5" style={{ color: '#991b1b' }}>
+              {t.birr} · {iOweRecords.length} {t.active}
+            </p>
+          </div>
+        )}
       </div>
 
       {paid.length > 0 && (
@@ -121,36 +136,56 @@ function MerroList({ creditRecords, onSelectCredit }) {
           }
 
           const status = getCreditStatus(record.due_date);
-          const iOweRecord = record.direction === 'i_owe';
+          const isIOwe = record.direction === 'i_owe';
           const display = getStatusDisplay(status);
+
+          const cardBg = isIOwe
+            ? 'linear-gradient(to bottom right, #fff5f5, #fff1f1)'
+            : 'linear-gradient(to bottom right, #f0fdf4, #ecfdf5)';
+          const cardBorder = isIOwe ? '#fca5a5' : '#6ee7b7';
+          const headerBg = isIOwe ? '#ef4444' : '#10b981';
+          const headerText = '#ffffff';
+          const avatarBg = isIOwe ? '#b91c1c' : '#059669';
 
           return (
             <button
               key={record.id}
               onClick={() => onSelectCredit(record)}
-              className={`w-full text-left p-4 border-l-4 flex items-center justify-between transition-all active:scale-95 min-h-[72px] press-scale animate-slide-up ${display.card}`}
-              style={{ borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
+              className="w-full text-left transition-all active:scale-95 press-scale animate-slide-up overflow-hidden"
+              style={{
+                background: cardBg,
+                border: `1.5px solid ${cardBorder}`,
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-xs)',
+              }}
             >
-              <div className="flex items-center gap-3">
-                <span
-                  className="text-xs font-black px-2 py-1 flex-shrink-0"
-                  style={{ background: display.badge.bg, color: display.badge.color, minWidth: '60px', textAlign: 'center', letterSpacing: '0.02em', borderRadius: 'var(--radius-sm)' }}
-                >
-                  {display.text}
+              <div
+                className="px-4 py-2 flex items-center justify-between"
+                style={{ background: headerBg }}
+              >
+                <span className="text-sm font-black tracking-wide" style={{ color: headerText }}>
+                  {isIOwe ? t.iOweTag : t.owesMeLabel}
                 </span>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-bold text-gray-800 text-base">{record.customer_name}</p>
-                    {iOweRecord ? (
-                      <span className="px-1.5 py-0.5 text-xs font-bold" style={{ background: '#fee2e2', color: '#dc2626', borderRadius: '4px' }}>
-                        {t.iOweTag}
-                      </span>
-                    ) : (
-                      <span className="px-1.5 py-0.5 text-xs font-bold" style={{ background: '#d1fae5', color: '#065f46', borderRadius: '4px' }}>
-                        {t.owesMeLabel}
-                      </span>
-                    )}
-                  </div>
+                <span className="text-sm font-black" style={{ color: headerText }}>
+                  {fmt(record.remaining_amount || 0)} {t.birr}
+                </span>
+              </div>
+
+              <div className="px-4 py-3 flex items-center gap-3">
+                <div
+                  className="w-10 h-10 flex-shrink-0 flex items-center justify-center text-sm font-black"
+                  style={{
+                    background: avatarBg,
+                    color: '#fff',
+                    borderRadius: '50%',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {getInitials(record.customer_name)}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-gray-900 text-base truncate">{record.customer_name}</p>
                   <p className="text-sm text-gray-500">
                     {t.due} {record.due_date ? formatEthiopianShort(record.due_date) : '—'}
                     {record.paid_amount > 0 && (
@@ -158,16 +193,80 @@ function MerroList({ creditRecords, onSelectCredit }) {
                     )}
                   </p>
                 </div>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="font-bold text-gray-800 text-base">{fmt(record.remaining_amount || 0)} {t.birr}</span>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <StatusBadge display={display} />
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </div>
               </div>
             </button>
           );
         })}
       </div>
+
+      <style>{`
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.4); }
+        }
+        .pulsing-dot {
+          animation: pulse-dot 1.2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
+  );
+}
+
+function StatusBadge({ display }) {
+  if (display.key === 'overdue') {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-black uppercase tracking-wide"
+        style={{
+          background: '#dc2626',
+          color: '#fff',
+          borderRadius: '6px',
+          letterSpacing: '0.05em',
+          fontSize: '11px',
+        }}
+      >
+        <span
+          className="pulsing-dot inline-block w-2 h-2 rounded-full flex-shrink-0"
+          style={{ background: '#fca5a5' }}
+        />
+        {display.text}
+      </span>
+    );
+  }
+
+  if (display.key === 'ok') {
+    return (
+      <span
+        className="inline-flex items-center px-2.5 py-1 text-xs font-semibold"
+        style={{
+          background: '#d1fae5',
+          color: '#065f46',
+          borderRadius: '6px',
+          fontSize: '11px',
+        }}
+      >
+        {display.text}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold"
+      style={{
+        background: 'rgba(196,136,58,0.18)',
+        color: '#7c4f0a',
+        borderRadius: '6px',
+        fontSize: '11px',
+      }}
+    >
+      {display.text}
+    </span>
   );
 }
 
