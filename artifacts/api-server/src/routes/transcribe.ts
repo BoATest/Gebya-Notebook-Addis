@@ -1,6 +1,43 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
+import multer, { MulterError } from "multer";
+import { getTranscriptionService } from "../services/transcriptionService";
 
 const router = Router();
+
+interface MulterRequest extends Request {
+  file?: Express.Multer.File;
+}
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("audio/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only audio files are accepted"));
+    }
+  },
+});
+
+const NULL_RESPONSE = { transcript: null, confidence: null, detected_total: null };
+
+function handleMulterError(
+  err: unknown,
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  if (err instanceof MulterError) {
+    res.status(400).json({ error: err.message, ...NULL_RESPONSE });
+    return;
+  }
+  if (err instanceof Error && err.message === "Only audio files are accepted") {
+    res.status(400).json({ error: err.message, ...NULL_RESPONSE });
+    return;
+  }
+  next(err);
+}
 
 const AMHARIC_WORDS: Record<string, number> = {
   "አንድ": 1, "ሁለት": 2, "ሦስት": 3, "ሶስት": 3, "አራት": 4, "አምስት": 5,
@@ -24,28 +61,7 @@ const ENGLISH_WORDS: Record<string, number> = {
   "hundred": 100, "thousand": 1000,
 };
 
-function extractNumber(transcript: string): number | null {
-  const text = transcript.toLowerCase().trim();
-
-  // Try Arabic numerals first (with optional comma separators)
-  const arabicMatch = text.match(/(\d[\d,]*(?:\.\d+)?)/);
-  if (arabicMatch) {
-    const num = parseFloat(arabicMatch[1].replace(/,/g, ""));
-    if (!isNaN(num) && num > 0) return num;
-  }
-
-  // Try multi-word Amharic amounts (longest match first)
-  const amharicKeys = Object.keys(AMHARIC_WORDS)
-    .filter(k => AMHARIC_WORDS[k] > 0)
-    .sort((a, b) => b.length - a.length);
-
-  for (const key of amharicKeys) {
-    if (transcript.includes(key)) {
-      return AMHARIC_WORDS[key];
-    }
-  }
-
-  // Try English word-based number extraction
+function extractEnglishWordNumber(text: string): number | null {
   let total = 0;
   let current = 0;
   let found = false;
@@ -75,17 +91,117 @@ function extractNumber(transcript: string): number | null {
   return null;
 }
 
-router.post("/transcribe", (req, res) => {
-  const { transcript } = req.body;
+export function extractLikelyTotal(transcript: string): number | null {
+  const text = transcript.toLowerCase().trim();
+  const candidates: number[] = [];
 
-  if (!transcript || typeof transcript !== "string") {
-    return res.status(400).json({ error: "transcript is required and must be a string" });
+  // Collect all Arabic numerals from the transcript
+  const arabicMatches = text.matchAll(/(\d[\d,]*(?:\.\d+)?)/g);
+  for (const match of arabicMatches) {
+    const num = parseFloat(match[1].replace(/,/g, ""));
+    if (!isNaN(num) && num > 0) {
+      candidates.push(num);
+    }
   }
 
-  const trimmed = transcript.trim();
-  const detected_total = extractNumber(trimmed);
+  // If we found Arabic numerals, return the largest one
+  if (candidates.length > 0) {
+    return Math.max(...candidates);
+  }
 
-  return res.json({ transcript: trimmed, detected_total });
-});
+  // Try multi-word Amharic amounts (longest match first)
+  const amharicKeys = Object.keys(AMHARIC_WORDS)
+    .filter(k => AMHARIC_WORDS[k] > 0)
+    .sort((a, b) => b.length - a.length);
+
+  const amharicCandidates: number[] = [];
+  for (const key of amharicKeys) {
+    if (transcript.includes(key)) {
+      amharicCandidates.push(AMHARIC_WORDS[key]);
+    }
+  }
+
+  if (amharicCandidates.length > 0) {
+    return Math.max(...amharicCandidates);
+  }
+
+  // Try English word-based number extraction
+  const wordNum = extractEnglishWordNumber(text);
+  if (wordNum !== null) return wordNum;
+
+  return null;
+}
+
+router.post(
+  "/transcribe",
+  (req: Request, res: Response, next: NextFunction) => {
+    const contentType = req.headers["content-type"] ?? "";
+    if (contentType.includes("multipart/form-data")) {
+      upload.single("audio")(req, res, next);
+    } else {
+      next();
+    }
+  },
+  handleMulterError,
+  async (req: MulterRequest, res: Response) => {
+    try {
+      const contentType = req.headers["content-type"] ?? "";
+
+      if (contentType.includes("multipart/form-data")) {
+        if (!req.file) {
+          res.status(400).json({
+            error: "audio file is required when using multipart upload",
+            ...NULL_RESPONSE,
+          });
+          return;
+        }
+
+        const svc = getTranscriptionService();
+        let transcript = "";
+        let confidence: number | null = null;
+
+        try {
+          const result = await svc.transcribeAudio(req.file);
+          transcript = result.transcript;
+          confidence = result.confidence;
+        } catch {
+          res.status(500).json({
+            error: "Transcription service failed",
+            ...NULL_RESPONSE,
+          });
+          return;
+        }
+
+        const detected_total = extractLikelyTotal(transcript);
+        res.json({ transcript, confidence, detected_total });
+        return;
+      }
+
+      const { transcript } = req.body as { transcript?: unknown };
+
+      if (!transcript || typeof transcript !== "string") {
+        res.status(400).json({
+          error: "transcript is required and must be a string",
+          ...NULL_RESPONSE,
+        });
+        return;
+      }
+
+      const trimmed = transcript.trim();
+      const detected_total = extractLikelyTotal(trimmed);
+
+      res.json({
+        transcript: trimmed,
+        confidence: null,
+        detected_total,
+      });
+    } catch {
+      res.status(500).json({
+        error: "Internal server error",
+        ...NULL_RESPONSE,
+      });
+    }
+  }
+);
 
 export default router;

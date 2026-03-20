@@ -139,6 +139,8 @@ function AppInner() {
   const [voiceStep, setVoiceStep] = useState(null);
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [voiceDetectedTotal, setVoiceDetectedTotal] = useState(null);
+  const [voiceItems, setVoiceItems] = useState([]);
+  const [voiceConfidence, setVoiceConfidence] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -363,8 +365,16 @@ function AppInner() {
     }
   };
 
-  const handleVoiceSave = async ({ amount, note, paymentType = 'cash', paymentProvider = '' }) => {
+  const handleVoiceSave = async ({ amount, note, paymentType = 'cash', paymentProvider = '', wasEdited = false }) => {
     const now = Date.now();
+    const hasMultiple = voiceItems.length > 1;
+    const combinedTranscript = hasMultiple
+      ? voiceItems.map(it => it.transcript).join(' | ')
+      : (voiceTranscript || null);
+    const savedDetectedTotal = hasMultiple
+      ? voiceItems.reduce((sum, it) => sum + (it.detectedTotal || 0), 0)
+      : (voiceDetectedTotal ?? null);
+
     const transaction = {
       type: 'sale',
       item_name: note || 'Voice sale',
@@ -379,12 +389,21 @@ function AppInner() {
       payment_provider: paymentType !== 'cash' ? paymentProvider || null : null,
       direction: null,
       source: 'voice',
+      raw_transcript: combinedTranscript,
+      detected_total: savedDetectedTotal,
+      was_edited: wasEdited || false,
+      transcription_provider: null,
+      parsing_confidence: hasMultiple ? null : (voiceConfidence ?? null),
+      voice_note: note || null,
+      raw_audio_ref: null,
       created_at: now,
     };
     await handleAddTransaction(transaction);
     setVoiceStep(null);
     setVoiceTranscript('');
     setVoiceDetectedTotal(null);
+    setVoiceItems([]);
+    setVoiceConfidence(null);
   };
 
   const handleUpdateTransaction = async (id, updates) => {
@@ -939,12 +958,16 @@ function AppInner() {
 
       {voiceStep === 'record' && (
         <VoiceRecordScreen
-          onTranscript={(transcript, detectedTotal) => {
+          onTranscript={(transcript, detectedTotal, confidence) => {
+            const newItem = { transcript, detectedTotal };
+            const updatedItems = [...voiceItems, newItem];
+            setVoiceItems(updatedItems);
             setVoiceTranscript(transcript);
             setVoiceDetectedTotal(detectedTotal);
+            setVoiceConfidence(confidence ?? null);
             setVoiceStep('result');
           }}
-          onTypeInstead={() => { setVoiceStep(null); setShowForm('sale'); }}
+          onTypeInstead={() => { setVoiceStep(null); setVoiceItems([]); setVoiceConfidence(null); setShowForm('sale'); }}
         />
       )}
 
@@ -952,10 +975,12 @@ function AppInner() {
         <VoiceResultScreen
           transcript={voiceTranscript}
           detectedTotal={voiceDetectedTotal}
+          items={voiceItems}
           onSave={handleVoiceSave}
           onFix={() => setVoiceStep('fix')}
-          onReRecord={() => { setVoiceTranscript(''); setVoiceDetectedTotal(null); setVoiceStep('record'); }}
-          onTypeInstead={() => { setVoiceStep(null); setShowForm('sale'); }}
+          onAddAnother={() => setVoiceStep('record')}
+          onReRecord={() => { setVoiceTranscript(''); setVoiceDetectedTotal(null); setVoiceItems([]); setVoiceConfidence(null); setVoiceStep('record'); }}
+          onTypeInstead={() => { setVoiceStep(null); setVoiceItems([]); setVoiceConfidence(null); setShowForm('sale'); }}
         />
       )}
 
@@ -963,7 +988,8 @@ function AppInner() {
         <VoiceFixScreen
           transcript={voiceTranscript}
           detectedTotal={voiceDetectedTotal}
-          onSave={handleVoiceSave}
+          items={voiceItems}
+          onSave={(data) => handleVoiceSave({ ...data, wasEdited: true })}
           onCancel={() => setVoiceStep('result')}
           enabledProviders={enabledProviders}
         />

@@ -16,13 +16,13 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
   const stoppedRef = useRef(false);
 
   const cleanupRecording = useCallback(() => {
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch { /* ignore */ }
-      recognitionRef.current = null;
-    }
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
+    }
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch { /* ignore */ }
+      recognitionRef.current = null;
     }
   }, []);
 
@@ -54,7 +54,7 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
       });
       if (!resp.ok) throw new Error('Server error');
       const data = await resp.json();
-      onTranscript(data.transcript, data.detected_total);
+      onTranscript(data.transcript, data.detected_total, data.confidence ?? null);
     } catch {
       if (!navigator.onLine) {
         onNoInternet();
@@ -67,6 +67,9 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
   }, [cleanupRecording, onTranscript, onNoInternet, t]);
 
   useEffect(() => {
+    stoppedRef.current = false;
+    transcriptRef.current = '';
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setError(t.voiceNotSupported);

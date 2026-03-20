@@ -11,10 +11,14 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-function VoiceFixScreen({ transcript, detectedTotal, onSave, onCancel, enabledProviders }) {
+function VoiceFixScreen({ transcript, detectedTotal, items = [], onSave, onCancel, enabledProviders }) {
   const { t } = useLang();
-  const [amount, setAmount] = useState(detectedTotal != null ? String(detectedTotal) : '');
-  const [note, setNote] = useState(transcript || '');
+  const hasMultiple = items.length > 1;
+  const runningTotal = hasMultiple ? items.reduce((sum, it) => sum + (it.detectedTotal || 0), 0) : null;
+  const effectiveTotal = runningTotal ?? detectedTotal;
+  const [amount, setAmount] = useState(effectiveTotal != null ? String(effectiveTotal) : '');
+  const combinedNote = hasMultiple ? items.map(it => it.transcript).join(', ') : (transcript || '');
+  const [note, setNote] = useState(combinedNote);
   const [paymentType, setPaymentType] = useState('cash');
   const [paymentProvider, setPaymentProvider] = useState('');
 

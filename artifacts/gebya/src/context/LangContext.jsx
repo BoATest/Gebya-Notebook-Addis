@@ -299,6 +299,9 @@ const EN = {
   voiceNoteLabel: 'Note (optional)',
   voiceNotePlaceholder: 'e.g. bread, sugar…',
   voiceSaleSaved: 'Voice sale saved ✓',
+  voiceAddAnotherItem: 'Add another item',
+  voiceRunningTotal: 'Running Total',
+  voiceItemsRecorded: 'items recorded',
 };
 
 const AM = {
@@ -593,6 +596,9 @@ const AM = {
   voiceNoteLabel: 'ማስታወሻ (ምርጫ)',
   voiceNotePlaceholder: 'ለምሳሌ ዳቦ፣ ስኳር…',
   voiceSaleSaved: 'የድምጽ ሽያጭ ተቀምጧል ✓',
+  voiceAddAnotherItem: 'ሌላ ዕቃ አክል',
+  voiceRunningTotal: 'ድምር ጠቅላላ',
+  voiceItemsRecorded: 'ዕቃዎች ተቀርጿል',
 };
 
 const LangContext = createContext(null);
