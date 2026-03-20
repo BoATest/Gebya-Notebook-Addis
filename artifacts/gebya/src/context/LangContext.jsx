@@ -171,6 +171,9 @@ const EN = {
   saving: 'Saving…',
 
   todaysProfit: "Today's Profit",
+  estimatedProfit: "Estimated Profit",
+  partialCostDisclaimer: "Some items are missing a cost price — this estimate may be lower than your actual profit",
+  partialCostTip: "Add cost prices to your items for an accurate profit figure",
   todaysSales: "Today's Sales",
   salesLabel: 'Sales',
   expenses: 'Expenses',
@@ -476,6 +479,9 @@ const AM = {
   saving: 'እየተቀመጠ…',
 
   todaysProfit: 'የዛሬ ትርፍ',
+  estimatedProfit: 'የተቀመጠ ትርፍ',
+  partialCostDisclaimer: 'አንዳንድ ዕቃዎች የዋጋ መረጃ ጎድሏቸዋል — ይህ ግምት ከትክክለኛው ትርፍ ያነሰ ሊሆን ይችላል',
+  partialCostTip: 'ትክክለኛ ትርፍ ለማየት ለዕቃዎቹ የዋጋ ያስገቡ',
   todaysSales: 'የዛሬ ሽያጭ',
   salesLabel: 'ሽያጭ',
   expenses: 'ወጪዎች',
