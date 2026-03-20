@@ -15,6 +15,9 @@ import IntroSlides from './components/IntroSlides';
 import DailySuggestions from './components/DailySuggestions';
 import { ToastContainer, fireToast } from './components/Toast';
 import { DEFAULT_PROVIDERS } from './components/PaymentTypeChips';
+import VoiceRecordScreen from './components/VoiceRecordScreen';
+import VoiceResultScreen from './components/VoiceResultScreen';
+import VoiceFixScreen from './components/VoiceFixScreen';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
 import { fmt } from './utils/numformat';
 import { checkAndAwardBadges } from './utils/badges';
@@ -133,6 +136,9 @@ function AppInner() {
   const [bestDayTotal, setBestDayTotal] = useState(0);
   const [showIntro, setShowIntro] = useState(false);
   const [pressedBtn, setPressedBtn] = useState(null);
+  const [voiceStep, setVoiceStep] = useState(null);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceDetectedTotal, setVoiceDetectedTotal] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -355,6 +361,30 @@ function AppInner() {
       alert('Could not save. Please try again.');
       throw err;
     }
+  };
+
+  const handleVoiceSave = async ({ amount, note, paymentType = 'cash', paymentProvider = '' }) => {
+    const now = Date.now();
+    const transaction = {
+      type: 'sale',
+      item_name: note || 'Voice sale',
+      quantity: 1,
+      amount,
+      cost_price: 0,
+      profit: null,
+      is_credit: false,
+      customer_phone: null,
+      due_date: null,
+      payment_type: paymentType,
+      payment_provider: paymentType !== 'cash' ? paymentProvider || null : null,
+      direction: null,
+      source: 'voice',
+      created_at: now,
+    };
+    await handleAddTransaction(transaction);
+    setVoiceStep(null);
+    setVoiceTranscript('');
+    setVoiceDetectedTotal(null);
   };
 
   const handleUpdateTransaction = async (id, updates) => {
@@ -675,9 +705,19 @@ function AppInner() {
       )}
 
       {activeTab === 'today' && (
-        <div className="px-3 py-3 flex gap-2 flex-shrink-0" style={{ background: P.actionBar }}>
+        <div className="px-3 pt-3 pb-1 flex-shrink-0" style={{ background: P.actionBar }}>
+          <button
+            onClick={() => setVoiceStep('record')}
+            className="w-full mb-2 py-4 flex flex-col items-center justify-center font-black text-white text-base transition-all active:scale-95 press-scale"
+            style={{ background: '#1a5c3a', border: '2px solid rgba(255,255,255,0.25)', borderRadius: 'var(--radius-lg)', boxShadow: '0 5px 0 #0f3d25' }}
+          >
+            <span className="text-2xl leading-none mb-0.5">🎤</span>
+            <span className="text-base font-black leading-snug">{t.recordByVoice}</span>
+            <span className="text-xs opacity-70">{t.recordByVoiceSubLabel}</span>
+          </button>
+          <div className="flex gap-2 pb-2">
           {[
-            { type: 'sale',    label: t.iSoldLabel, sub: t.iSold,  bg: '#2d6a4f', shadow: '#1B4332' },
+            { type: 'sale',    label: t.typeSaleLabel, sub: t.typeSale,  bg: '#2d6a4f', shadow: '#1B4332' },
             { type: 'expense', label: t.iSpentLabel, sub: t.iSpent, bg: '#D4654A', shadow: '#a84c37' },
             { type: 'credit',  label: t.creditBtnLabel, sub: t.creditBtn,  bg: '#C4883A', shadow: '#96662b' },
           ].map(b => {
@@ -704,6 +744,7 @@ function AppInner() {
               </button>
             );
           })}
+          </div>
         </div>
       )}
 
@@ -893,6 +934,38 @@ function AppInner() {
             bank:   lastPayment[showForm]?.bankProvider   || '',
             wallet: lastPayment[showForm]?.walletProvider || '',
           } : undefined}
+        />
+      )}
+
+      {voiceStep === 'record' && (
+        <VoiceRecordScreen
+          onTranscript={(transcript, detectedTotal) => {
+            setVoiceTranscript(transcript);
+            setVoiceDetectedTotal(detectedTotal);
+            setVoiceStep('result');
+          }}
+          onTypeInstead={() => { setVoiceStep(null); setShowForm('sale'); }}
+        />
+      )}
+
+      {voiceStep === 'result' && (
+        <VoiceResultScreen
+          transcript={voiceTranscript}
+          detectedTotal={voiceDetectedTotal}
+          onSave={handleVoiceSave}
+          onFix={() => setVoiceStep('fix')}
+          onReRecord={() => { setVoiceTranscript(''); setVoiceDetectedTotal(null); setVoiceStep('record'); }}
+          onTypeInstead={() => { setVoiceStep(null); setShowForm('sale'); }}
+        />
+      )}
+
+      {voiceStep === 'fix' && (
+        <VoiceFixScreen
+          transcript={voiceTranscript}
+          detectedTotal={voiceDetectedTotal}
+          onSave={handleVoiceSave}
+          onCancel={() => setVoiceStep('result')}
+          enabledProviders={enabledProviders}
         />
       )}
 
