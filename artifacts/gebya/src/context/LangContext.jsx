@@ -184,6 +184,9 @@ const EN = {
 
   byDay: 'By Day',
   byWeek: 'By Week',
+  groupBy: 'Group:',
+  searchPlaceholder: 'Search by item or customer…',
+  noSearchResults: 'No results for',
   noRecords: 'No records yet',
   startRecording: 'Record your first sale or expense to start',
   entries: 'entries',
@@ -481,6 +484,9 @@ const AM = {
 
   byDay: 'በቀን',
   byWeek: 'በሳምንት',
+  groupBy: 'ቡድን:',
+  searchPlaceholder: 'በዕቃ ወይም ደንበኛ ፈልግ…',
+  noSearchResults: 'ምንም ውጤት',
   noRecords: 'እስካሁን ምንም መዝገብ የለም',
   startRecording: 'ለመጀመር የመጀመሪያ ሽያጭ ወይም ወጪ ይመዝግቡ',
   entries: 'ግቤቶች',
