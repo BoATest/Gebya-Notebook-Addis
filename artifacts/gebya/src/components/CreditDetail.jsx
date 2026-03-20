@@ -1,22 +1,62 @@
 import { useState } from 'react';
-import { ArrowLeft, Phone, CheckCircle2, DollarSign, Clock } from 'lucide-react';
+import { ArrowLeft, Phone, CheckCircle2, Clock, Banknote, Building2, Smartphone } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { formatEthiopian, getCreditStatus } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/numformat';
 
-function CreditDetail({ record, onBack, onPartialPayment, onFullPayment }) {
+const METHOD_ICONS = {
+  cash: Banknote,
+  bank: Building2,
+  mobile: Smartphone,
+};
+
+const METHOD_COLORS = {
+  cash: { bg: '#f0fdf4', border: '#bbf7d0', text: '#15803d', badge: '#dcfce7', badgeText: '#166534' },
+  bank: { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', badge: '#dbeafe', badgeText: '#1e40af' },
+  mobile: { bg: '#faf5ff', border: '#e9d5ff', text: '#7c3aed', badge: '#ede9fe', badgeText: '#5b21b6' },
+};
+
+const DEFAULT_BADGE_COLORS = { badge: '#f3f4f6', badgeText: '#6b7280' };
+
+function MethodBadge({ method, t }) {
+  if (!method) return null;
+  const Icon = METHOD_ICONS[method] || null;
+  const colors = METHOD_COLORS[method] || DEFAULT_BADGE_COLORS;
+  const label = method === 'cash' ? t.payMethodCash
+    : method === 'bank' ? t.payMethodBank
+    : method === 'mobile' ? t.payMethodMobile
+    : method;
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold font-sans"
+      style={{ background: colors.badge, color: colors.badgeText, borderRadius: 'var(--radius-xl)' }}>
+      {Icon && <Icon className="w-3 h-3" />}
+      {label}
+    </span>
+  );
+}
+
+function CreditDetail({ record, onBack, onPartialPayment, onFullPayment, paymentLogs = [] }) {
   const { t } = useLang();
-  const [showPartial, setShowPartial] = useState(false);
   const [partialAmount, setPartialAmount] = useState('');
+  const [selectedMethod, setSelectedMethod] = useState(null);
 
   const status = getCreditStatus(record.due_date);
 
   const handlePartial = () => {
     const amt = parseFloat(partialAmount);
     if (!amt || amt <= 0) return;
-    onPartialPayment(record.id, Math.min(amt, record.remaining_amount));
-    setShowPartial(false);
+    onPartialPayment(record.id, Math.min(amt, record.remaining_amount), selectedMethod);
     setPartialAmount('');
+    setSelectedMethod(null);
+  };
+
+  const handleFull = () => {
+    onFullPayment(record.id, selectedMethod);
+    setSelectedMethod(null);
+  };
+
+  const toggleMethod = (method) => {
+    setSelectedMethod(prev => prev === method ? null : method);
   };
 
   const paidPercent = record.original_amount > 0
@@ -28,6 +68,15 @@ function CreditDetail({ record, onBack, onPartialPayment, onFullPayment }) {
     yellow: 'bg-yellow-50 text-yellow-800 border-yellow-300',
     green: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   };
+
+  const methods = [
+    { key: 'cash', label: t.payMethodCash, Icon: Banknote },
+    { key: 'bank', label: t.payMethodBank, Icon: Building2 },
+    { key: 'mobile', label: t.payMethodMobile, Icon: Smartphone },
+  ];
+
+  const hasLogs = paymentLogs.length > 0;
+  const sortedLogs = [...paymentLogs].sort((a, b) => b.paid_at - a.paid_at);
 
   return (
     <div className="space-y-4">
@@ -81,23 +130,61 @@ function CreditDetail({ record, onBack, onPartialPayment, onFullPayment }) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="p-5 border animate-elastic" style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)' }}>
+        <h3 className="font-bold text-gray-800 mb-3 font-sans">{t.recordPayment}</h3>
+        <div className="relative mb-3">
+          <input
+            type="number"
+            inputMode="decimal"
+            value={partialAmount}
+            onChange={e => setPartialAmount(e.target.value)}
+            placeholder="0"
+            max={record.remaining_amount}
+            className="w-full p-4 pr-16 border-2 focus:outline-none text-xl font-bold min-h-[56px] font-sans"
+            style={{ borderRadius: 'var(--radius-md)', borderColor: partialAmount ? '#1B4332' : 'var(--color-border)' }}
+          />
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
+        </div>
+
+        <div className="flex gap-2 mb-4">
+          {methods.map(({ key, label, Icon }) => {
+            const colors = METHOD_COLORS[key];
+            const active = selectedMethod === key;
+            return (
+              <button
+                key={key}
+                onClick={() => toggleMethod(key)}
+                className="flex-1 flex flex-col items-center gap-1 py-2 px-1 border-2 font-semibold text-xs transition-all font-sans"
+                style={{
+                  borderRadius: 'var(--radius-md)',
+                  background: active ? colors.bg : '#fafafa',
+                  borderColor: active ? colors.border : '#e5e7eb',
+                  color: active ? colors.text : '#9ca3af',
+                }}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="text-center leading-tight">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+
         <button
-          onClick={() => setShowPartial(v => !v)}
-          className="flex flex-col items-center gap-1.5 p-4 font-semibold min-h-[72px] active:scale-95 transition-all border press-scale animate-elastic stagger-1 font-sans"
-          style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1d4ed8', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
+          onClick={handlePartial}
+          disabled={!parseFloat(partialAmount)}
+          className="w-full p-4 font-bold text-white disabled:opacity-40 min-h-[52px] press-scale font-sans"
+          style={{ background: '#1B4332', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
         >
-          <DollarSign className="w-5 h-5" />
-          <span className="text-sm">{t.paidSome}</span>
+          {t.recordPayment}
         </button>
 
         <button
-          onClick={() => onFullPayment(record.id)}
-          className="flex flex-col items-center gap-1.5 p-4 font-semibold min-h-[72px] active:scale-95 transition-all border press-scale animate-elastic stagger-2 font-sans"
-          style={{ background: '#f0fdf4', borderColor: '#bbf7d0', color: '#15803d', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
+          onClick={handleFull}
+          className="w-full mt-2 p-3 font-semibold border-2 min-h-[44px] press-scale font-sans flex items-center justify-center gap-2"
+          style={{ borderColor: '#1B4332', color: '#1B4332', borderRadius: 'var(--radius-md)', background: 'transparent' }}
         >
-          <CheckCircle2 className="w-5 h-5" />
-          <span className="text-sm">{t.allPaid}</span>
+          <CheckCircle2 className="w-4 h-4" />
+          {t.markFullyPaid}
         </button>
       </div>
 
@@ -110,55 +197,44 @@ function CreditDetail({ record, onBack, onPartialPayment, onFullPayment }) {
         </a>
       )}
 
-      {showPartial && (
-        <div className="p-5 border animate-elastic" style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)' }}>
-          <h3 className="font-bold text-gray-800 mb-3 font-sans">{t.recordPartialPayment}</h3>
-          <div className="relative mb-3">
-            <input
-              type="number"
-              inputMode="decimal"
-              value={partialAmount}
-              onChange={e => setPartialAmount(e.target.value)}
-              placeholder="0"
-              max={record.remaining_amount}
-              className="w-full p-4 pr-16 border-2 focus:outline-none text-base min-h-[52px] font-sans"
-              style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)' }}
-            />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
-          </div>
-          <button
-            onClick={handlePartial}
-            disabled={!parseFloat(partialAmount)}
-            className="w-full p-4 font-bold text-white disabled:opacity-40 min-h-[52px] press-scale font-sans"
-            style={{ background: '#1B4332', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
-          >
-            {t.recordPayment}
-          </button>
-        </div>
-      )}
-
       <div className="p-4 border animate-elastic stagger-3" style={{ background: 'rgba(27,67,50,0.04)', borderColor: 'rgba(27,67,50,0.15)', borderRadius: 'var(--radius-md)' }}>
         <h3 className="font-semibold text-sm mb-3 flex items-center gap-1 font-sans" style={{ color: '#1B4332' }}>
           <Clock className="w-4 h-4" /> {t.paymentHistory}
         </h3>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="font-sans" style={{ color: '#6b7280' }}>{t.borrowed}</span>
-            <span className="text-gray-800 font-medium font-sans">{fmt(record.original_amount)} {t.birr}</span>
+        {hasLogs ? (
+          <div className="space-y-2">
+            {sortedLogs.map(log => (
+              <div key={log.id} className="flex items-center justify-between text-sm py-1.5 border-b last:border-b-0" style={{ borderColor: 'rgba(27,67,50,0.1)' }}>
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-sans text-xs" style={{ color: '#6b7280' }}>
+                    {formatEthiopian(log.paid_at)}
+                  </span>
+                  {log.payment_method && <MethodBadge method={log.payment_method} t={t} />}
+                </div>
+                <span className="font-semibold text-green-700 font-sans">+{fmt(log.amount)} {t.birr}</span>
+              </div>
+            ))}
           </div>
-          {record.paid_amount > 0 && (
+        ) : (
+          <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="font-sans" style={{ color: '#6b7280' }}>{t.paidBack}</span>
-              <span className="font-medium text-green-700 font-sans">{fmt(record.paid_amount)} {t.birr}</span>
+              <span className="font-sans" style={{ color: '#6b7280' }}>{t.borrowed}</span>
+              <span className="text-gray-800 font-medium font-sans">{fmt(record.original_amount)} {t.birr}</span>
             </div>
-          )}
-          {record.remaining_amount > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="font-sans" style={{ color: '#6b7280' }}>{t.remaining}</span>
-              <span className="font-medium text-red-600 font-sans">{fmt(record.remaining_amount)} {t.birr}</span>
-            </div>
-          )}
-        </div>
+            {record.paid_amount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="font-sans" style={{ color: '#6b7280' }}>{t.paidBack}</span>
+                <span className="font-medium text-green-700 font-sans">{fmt(record.paid_amount)} {t.birr}</span>
+              </div>
+            )}
+            {record.remaining_amount > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="font-sans" style={{ color: '#6b7280' }}>{t.remaining}</span>
+                <span className="font-medium text-red-600 font-sans">{fmt(record.remaining_amount)} {t.birr}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

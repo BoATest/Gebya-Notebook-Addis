@@ -116,6 +116,7 @@ function AppInner() {
   const { lang, toggleLang, t } = useLang();
   const [transactions, setTransactions] = useState([]);
   const [creditRecords, setCreditRecords] = useState([]);
+  const [creditPaymentLogs, setCreditPaymentLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('today');
   const [showForm, setShowForm] = useState(null);
@@ -144,9 +145,10 @@ function AppInner() {
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, credits, nameRow, phoneRow, epRow, reRow, telegramRow, introRow] = await Promise.all([
+      const [txns, credits, payLogs, nameRow, phoneRow, epRow, reRow, telegramRow, introRow] = await Promise.all([
         db.transactions.toArray(),
         db.credit_records.toArray(),
+        db.credit_payment_logs.toArray(),
         db.settings.get('shop_name'),
         db.settings.get('shop_phone'),
         db.settings.get('enabled_payment_methods'),
@@ -157,6 +159,7 @@ function AppInner() {
       txns.sort((a, b) => b.created_at - a.created_at);
       setTransactions(txns);
       setCreditRecords(credits);
+      setCreditPaymentLogs(payLogs);
       const hasName = !!nameRow?.value;
       setShopProfile({
         name: nameRow?.value || null,
@@ -450,7 +453,7 @@ function AppInner() {
     }
   };
 
-  const handlePartialPayment = async (creditId, amount) => {
+  const handlePartialPayment = async (creditId, amount, paymentMethod = null) => {
     try {
       const record = await db.credit_records.get(creditId);
       if (!record) return;
@@ -462,8 +465,18 @@ function AppInner() {
         remaining_amount: Math.max(0, newRemaining),
         status: newStatus,
       });
-      const credits = await db.credit_records.toArray();
+      await db.credit_payment_logs.add({
+        credit_record_id: creditId,
+        amount,
+        payment_method: paymentMethod || null,
+        paid_at: Date.now(),
+      });
+      const [credits, payLogs] = await Promise.all([
+        db.credit_records.toArray(),
+        db.credit_payment_logs.toArray(),
+      ]);
       setCreditRecords(credits);
+      setCreditPaymentLogs(payLogs);
       if (selectedCredit?.id === creditId) {
         const updated = credits.find(c => c.id === creditId);
         setSelectedCredit(newStatus === 'paid' ? null : (updated || null));
@@ -487,16 +500,29 @@ function AppInner() {
     }
   };
 
-  const handleFullPayment = async (creditId) => {
+  const handleFullPayment = async (creditId, paymentMethod = null) => {
     try {
       const record = await db.credit_records.get(creditId);
       if (!record) return;
+      if (record.status === 'paid' || record.remaining_amount <= 0) return;
+      const amountPaid = record.remaining_amount;
       await db.credit_records.update(creditId, {
         paid_amount: record.original_amount,
         remaining_amount: 0,
         status: 'paid',
       });
-      setCreditRecords(await db.credit_records.toArray());
+      await db.credit_payment_logs.add({
+        credit_record_id: creditId,
+        amount: amountPaid,
+        payment_method: paymentMethod || null,
+        paid_at: Date.now(),
+      });
+      const [credits, payLogs] = await Promise.all([
+        db.credit_records.toArray(),
+        db.credit_payment_logs.toArray(),
+      ]);
+      setCreditRecords(credits);
+      setCreditPaymentLogs(payLogs);
       setSelectedCredit(null);
 
       try {
@@ -882,6 +908,7 @@ function AppInner() {
               onBack={() => setSelectedCredit(null)}
               onPartialPayment={handlePartialPayment}
               onFullPayment={handleFullPayment}
+              paymentLogs={creditPaymentLogs.filter(l => l.credit_record_id === selectedCredit.id)}
             />
           ) : (
             <MerroList
