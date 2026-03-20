@@ -56,6 +56,15 @@ db.version(7).stores({
   credit_payment_logs: '++id, credit_record_id, amount, payment_method, paid_at',
 });
 
+db.version(8).stores({
+  transactions: '++id, type, amount, item_name, cost_price, quantity, profit, is_credit, customer_id, customer_name, created_at, ethiopian_date, payment_type, payment_provider, updated_at, source, raw_transcript, detected_total, was_edited, transcription_provider, parsing_confidence, voice_note, raw_audio_ref',
+  customers: '++id, name, phone, total_debt',
+  credit_records: '++id, customer_id, customer_name, original_amount, paid_amount, remaining_amount, due_date, status, created_at, direction',
+  settings: 'key, value',
+  analytics: 'key, value',
+  credit_payment_logs: '++id, credit_record_id, amount, payment_method, paid_at',
+});
+
 db.on('ready', async () => {
   const privacySetting = await db.settings.get('privacy_mode');
   if (!privacySetting) {

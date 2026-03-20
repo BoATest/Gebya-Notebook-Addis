@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, Phone, CheckCircle2, Clock, Banknote, Building2, Smartphone } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { formatEthiopian, getCreditStatus } from '../utils/ethiopianCalendar';
-import { fmt } from '../utils/numformat';
+import { fmt, fmtInput, parseInput } from '../utils/numformat';
 
 const METHOD_ICONS = {
   cash: Banknote,
@@ -37,16 +37,36 @@ function MethodBadge({ method, t }) {
 
 function CreditDetail({ record, onBack, onPartialPayment, onFullPayment, paymentLogs = [] }) {
   const { t } = useLang();
-  const [partialAmount, setPartialAmount] = useState('');
+  const [rawAmount, setRawAmount] = useState('');
+  const [amountError, setAmountError] = useState('');
   const [selectedMethod, setSelectedMethod] = useState(null);
 
   const status = getCreditStatus(record.due_date);
+  const remaining = record.remaining_amount || 0;
+
+  const handleAmountChange = (e) => {
+    const raw = parseInput(e.target.value);
+    if (!/^\d*\.?\d{0,2}$/.test(raw)) return;
+    setRawAmount(raw);
+    setAmountError('');
+    const num = parseFloat(raw);
+    if (!isNaN(num) && num > remaining) {
+      setAmountError(t.paymentExceedsOwed || `Maximum is ${fmt(remaining)} birr`);
+    }
+  };
+
+  const parsedAmt = parseFloat(rawAmount) || 0;
+  const isOverLimit = parsedAmt > remaining;
 
   const handlePartial = () => {
-    const amt = parseFloat(partialAmount);
-    if (!amt || amt <= 0) return;
-    onPartialPayment(record.id, Math.min(amt, record.remaining_amount), selectedMethod);
-    setPartialAmount('');
+    if (!parsedAmt || parsedAmt <= 0) return;
+    if (isOverLimit) {
+      setAmountError(t.paymentExceedsOwed || `Maximum is ${fmt(remaining)} birr`);
+      return;
+    }
+    onPartialPayment(record.id, parsedAmt, selectedMethod);
+    setRawAmount('');
+    setAmountError('');
     setSelectedMethod(null);
   };
 
@@ -132,19 +152,25 @@ function CreditDetail({ record, onBack, onPartialPayment, onFullPayment, payment
 
       <div className="p-5 border animate-elastic" style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-md)' }}>
         <h3 className="font-bold text-gray-800 mb-3 font-sans">{t.recordPayment}</h3>
-        <div className="relative mb-3">
+        <div className="relative mb-1">
           <input
-            type="number"
+            type="text"
             inputMode="decimal"
-            value={partialAmount}
-            onChange={e => setPartialAmount(e.target.value)}
+            value={fmtInput(rawAmount)}
+            onChange={handleAmountChange}
             placeholder="0"
-            max={record.remaining_amount}
             className="w-full p-4 pr-16 border-2 focus:outline-none text-xl font-bold min-h-[56px] font-sans"
-            style={{ borderRadius: 'var(--radius-md)', borderColor: partialAmount ? '#1B4332' : 'var(--color-border)' }}
+            style={{
+              borderRadius: 'var(--radius-md)',
+              borderColor: amountError ? '#ef4444' : rawAmount ? '#1B4332' : 'var(--color-border)',
+            }}
           />
           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
         </div>
+        {amountError && (
+          <p className="text-xs font-semibold text-red-500 mb-2 px-1 font-sans">{amountError}</p>
+        )}
+        {!amountError && <div className="mb-3" />}
 
         <div className="flex gap-2 mb-4">
           {methods.map(({ key, label, Icon }) => {
@@ -171,7 +197,7 @@ function CreditDetail({ record, onBack, onPartialPayment, onFullPayment, payment
 
         <button
           onClick={handlePartial}
-          disabled={!parseFloat(partialAmount)}
+          disabled={!parsedAmt || isOverLimit}
           className="w-full p-4 font-bold text-white disabled:opacity-40 min-h-[52px] press-scale font-sans"
           style={{ background: '#1B4332', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
         >

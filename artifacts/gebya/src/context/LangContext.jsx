@@ -228,6 +228,7 @@ const EN = {
   payMethodCash: 'Cash',
   payMethodBank: 'Bank Transfer',
   payMethodMobile: 'Mobile Money',
+  paymentExceedsOwed: 'Amount cannot exceed what is owed',
 
   voiceNotSupported: 'Voice not supported — use keyboard',
   voiceInput: 'Voice input',
@@ -532,6 +533,7 @@ const AM = {
   payMethodCash: 'ጥሬ ገንዘብ',
   payMethodBank: 'ባንክ ዝውውር',
   payMethodMobile: 'ሞባይል ገንዘብ',
+  paymentExceedsOwed: 'መጠኑ ከሚገባው መጠን ሊበልጥ አይችልም',
 
   voiceNotSupported: 'ድምጽ አይደገፍም — የቁልፍ ሰሌዳ ይጠቀሙ',
   voiceInput: 'ድምጽ',
