@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown } from 'lucide-react';
+import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown, Share2 } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
@@ -24,6 +24,7 @@ function SettingsPage({
   onRecurringChange,
   usageStats,
   earnedBadges,
+  onShareToday,
 }) {
   const { hidden, toggle } = usePrivacy();
   const { lang, t } = useLang();
@@ -365,6 +366,16 @@ function SettingsPage({
                   </div>
                 </div>
               </div>
+              {onShareToday && (
+                <button
+                  onClick={onShareToday}
+                  className="w-full py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 min-h-[44px]"
+                  style={{ background: '#1B4332' }}
+                >
+                  <Share2 className="w-4 h-4" />
+                  {t.shareReportBtn}
+                </button>
+              )}
               <button
                 onClick={handleShareStats}
                 className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all min-h-[44px]"

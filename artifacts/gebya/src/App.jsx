@@ -585,6 +585,18 @@ function AppInner() {
 
   const hid = (n) => hidden ? '••••' : fmt(n);
 
+  const getTimeGreeting = () => {
+    const h = new Date().getHours();
+    if (lang === 'am') {
+      if (h < 12) return '👋 እንኳን ደህና መጡ — ዛሬን ሽያጥ ይቁጠሩ';
+      if (h < 17) return '📌 ሲሸጡ ይቅዱ — ዝርዝር ቆይቶ ማስተካከል ይቻላል';
+      return '🌙 ዛሬን ሽያጥ አይርሱ — ሁሉ ይቅዱ';
+    }
+    if (h < 12) return '👋 Good morning — start tracking today\'s sales';
+    if (h < 17) return '📌 Keep going — record your sales as you sell';
+    return '🌙 Don\'t forget today\'s last sales';
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: P.bg }}>
@@ -661,6 +673,18 @@ function AppInner() {
             </p>
           </div>
 
+          {/* Streak pill */}
+          {(usageStats?.streak || 0) > 0 && (
+            <span className="flex-shrink-0 text-xs font-black px-2 py-1" style={{
+              background: 'rgba(255,255,255,0.15)',
+              color: 'rgba(255,255,255,0.9)',
+              borderRadius: '8px',
+              whiteSpace: 'nowrap',
+            }}>
+              🔥 {usageStats.streak}
+            </span>
+          )}
+
           {/* Language toggle */}
           <button
             onClick={toggleLang}
@@ -709,49 +733,26 @@ function AppInner() {
         )}
       </header>
 
-      {activeTab === 'today' && usageStats && (
-        <div className="px-4 pt-3 pb-0 flex-shrink-0" style={{ background: P.header }}>
-          <div className="px-4 py-2.5 flex items-center gap-3" style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 'var(--radius-md)' }}>
-            <div className="text-center flex-shrink-0">
-              <div className="text-base font-black text-white">🔥 {usageStats.streak}</div>
-              <div className="text-xs text-white opacity-75">{t.dayStreak}</div>
-            </div>
-            <div className="w-px h-8" style={{ background: 'rgba(255,255,255,0.3)' }} />
-            <div className="text-center flex-shrink-0">
-              <div className="text-base font-black text-white">📅 {usageStats.daysActive?.length || 1}</div>
-              <div className="text-xs text-white opacity-75">{t.daysActive}</div>
-            </div>
-            <div className="w-px h-8" style={{ background: 'rgba(255,255,255,0.3)' }} />
-            <div className="text-center flex-1 min-w-0">
-              <div className="text-sm font-black text-white">
-                {(usageStats.featureCounts?.sales || 0) + (usageStats.featureCounts?.expenses || 0)}
-              </div>
-              <div className="text-xs text-white opacity-75 truncate">{t.totalEntries}</div>
-            </div>
-            <button
-              onClick={handleShareReport}
-              className="flex-shrink-0 flex flex-col items-center gap-0.5 px-2 min-h-[44px] min-w-[44px] justify-center press-scale"
-              style={{ background: 'rgba(255,255,255,0.18)', borderRadius: 'var(--radius-sm)' }}
-              aria-label={t.shareReport}
-            >
-              <Share2 className="w-4 h-4 text-white" />
-              <span className="text-white font-bold" style={{ fontSize: '0.6rem' }}>{t.shareReportBtn}</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {activeTab === 'today' && (
-        <div className="px-3 pt-3 pb-1 flex-shrink-0" style={{ background: P.actionBar }}>
+        <div className="px-3 pt-2 pb-1 flex-shrink-0" style={{ background: P.actionBar }}>
+          {/* Time-based greeting */}
+          <p className="text-center text-xs font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
+            {getTimeGreeting()}
+          </p>
+          {/* Voice — primary action */}
           <button
             onClick={() => setVoiceStep('record')}
-            className="w-full mb-2 py-4 flex flex-col items-center justify-center font-black text-white text-base transition-all active:scale-95 press-scale"
+            className="w-full mb-1 py-4 flex flex-col items-center justify-center font-black text-white text-base transition-all active:scale-95 press-scale"
             style={{ background: '#1a5c3a', border: '2px solid rgba(255,255,255,0.25)', borderRadius: 'var(--radius-lg)', boxShadow: '0 5px 0 #0f3d25' }}
           >
             <span className="text-2xl leading-none mb-0.5">🎤</span>
             <span className="text-base font-black leading-snug">{t.recordByVoice}</span>
             <span className="text-xs opacity-70">{t.recordByVoiceSubLabel}</span>
           </button>
+          <p className="text-center text-xs mb-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            {lang === 'am' ? 'ይናገሩ — ቆይቶ ማስተካከል ይቻላል' : 'Speak your sale — you can fix it after'}
+          </p>
           <div className="flex gap-2 pb-2">
           {[
             { type: 'sale',    label: t.typeSaleLabel, sub: t.typeSale,  bg: '#2d6a4f', shadow: '#1B4332' },
@@ -797,23 +798,6 @@ function AppInner() {
               onAction={(type) => setShowForm(type)}
             />
 
-            {topProducts.length > 0 && (
-              <div className="px-4 py-3 animate-elastic stagger-2 texture-noise" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
-                <p className="text-xs font-bold text-gray-500 mb-2">🏆 {t.topProducts}</p>
-                <div className="space-y-1.5">
-                  {topProducts.map((p, i) => (
-                    <div key={p.name} className="flex items-center gap-2">
-                      <span className="text-sm flex-shrink-0">{['🥇', '🥈', '🥉'][i]}</span>
-                      <span className="text-sm font-semibold text-gray-700 flex-1 truncate">{p.name}</span>
-                      <span className="text-xs font-bold px-2 py-0.5 flex-shrink-0"
-                        style={{ background: 'rgba(196,136,58,0.12)', color: P.amber, borderRadius: 'var(--radius-sm)' }}>
-                        ×{p.qty}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             <div className="overflow-hidden animate-elastic stagger-3" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
               <div className="px-4 py-3 border-b" style={{ borderColor: P.borderLight }}>
@@ -827,11 +811,10 @@ function AppInner() {
 
               {todayTransactions.length === 0 ? (
                 <div className="px-4 py-10 text-center">
-                  <p className="text-5xl mb-3">📒</p>
-                  <p className="font-bold text-base" style={{ color: '#6b7280' }}>No entries yet</p>
-                  <p className="font-bold text-base mb-2" style={{ color: '#6b7280' }}>ምንም ግቤት የለም</p>
+                  <p className="text-4xl mb-3">🎤</p>
+                  <p className="font-bold text-base mb-1" style={{ color: '#374151' }}>No sales recorded yet</p>
                   <p className="text-sm font-semibold" style={{ color: P.amber }}>
-                    ↑ Tap <strong>ሸጠሁ</strong> above to record your first sale
+                    ↑ Tap above to record your first sale
                   </p>
                 </div>
               ) : (
@@ -928,6 +911,7 @@ function AppInner() {
             onRecurringChange={setRecurringExpenses}
             usageStats={usageStats}
             earnedBadges={earnedBadges}
+            onShareToday={handleShareReport}
           />
         )}
       </main>

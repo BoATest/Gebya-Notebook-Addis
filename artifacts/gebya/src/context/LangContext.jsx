@@ -249,7 +249,7 @@ const EN = {
 
   noEntriesPrompt: 'Tap ሸጠሁ above to record your first sale',
 
-  saleSaved: 'Sale recorded ✓',
+  saleSaved: '✅ Sale saved · 🔥 Keep going',
   expenseSaved: 'Expense recorded ✓',
   creditSaved: 'Credit recorded ✓',
   undone: 'Undone ✓',
@@ -274,8 +274,8 @@ const EN = {
   noSalesThisPeriod: 'No sales this period',
   week: 'Wk',
 
-  recordByVoice: '🎤 Record by Voice',
-  recordByVoiceSubLabel: 'Speak your sale',
+  recordByVoice: 'Speak to Record Sale',
+  recordByVoiceSubLabel: 'Fastest way to save a sale',
   typeSale: 'Type Sale',
   typeSaleLabel: 'Type Sale',
   voiceRecordingTitle: 'Recording…',
@@ -546,7 +546,7 @@ const AM = {
 
   noEntriesPrompt: 'ለማስቀመጥ ከላይ "ሸጠሁ" ይጫኑ',
 
-  saleSaved: 'ሽያጭ ተቀምጧል ✓',
+  saleSaved: '✅ ሽያጥ ተቀምጧል · 🔥 ቀጥሏል',
   expenseSaved: 'ወጪ ተቀምጧል ✓',
   creditSaved: 'ብድር ተቀምጧል ✓',
   undone: 'ተሰርዟል ✓',
@@ -571,8 +571,8 @@ const AM = {
   noSalesThisPeriod: 'በዚህ ወቅት ሽያጭ የለም',
   week: 'ሳምንት',
 
-  recordByVoice: '🎤 በድምጽ መዝግብ',
-  recordByVoiceSubLabel: 'ሽያጭዎን ይናገሩ',
+  recordByVoice: 'ሽያጭ ለማስቀምጥ ይናገሩ',
+  recordByVoiceSubLabel: 'ሽያጥ ለማስቀምጥ ቀላሉ መንገድ',
   typeSale: 'በጽሑፍ ሸጥ',
   typeSaleLabel: 'በጽሑፍ ሸጥ',
   voiceRecordingTitle: 'እየቀዳ…',
