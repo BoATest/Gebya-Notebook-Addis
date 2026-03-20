@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { X, ChevronDown, ChevronUp, Save, AlertTriangle, CheckCircle2, Plus } from 'lucide-react';
 import { useLang } from '../context/LangContext';
-import VoiceButton from './VoiceButton';
 import PaymentTypeChips from './PaymentTypeChips';
 import { getDueDateOptions } from '../utils/ethiopianCalendar';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
@@ -207,17 +206,14 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
 
           <div>
             <label className="block text-gray-700 font-semibold mb-2 font-sans">{config.itemLabel}</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={item}
-                onChange={e => setItem(e.target.value)}
-                placeholder={config.itemPlaceholder}
-                className="flex-1 p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-              />
-              <VoiceButton onResult={setItem} />
-            </div>
+            <input
+              type="text"
+              value={item}
+              onChange={e => setItem(e.target.value)}
+              placeholder={config.itemPlaceholder}
+              className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+            />
           </div>
 
           {!isCredit && (
@@ -228,13 +224,14 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
                 inputMode="numeric"
                 value={quantity}
                 onChange={e => {
-                  const v = parseInt(e.target.value);
-                  if (isNaN(v) || v < 1) setQuantity('1');
-                  else setQuantity(String(v));
+                  const raw = e.target.value;
+                  if (raw === '') { setQuantity(''); return; }
+                  const v = parseInt(raw);
+                  if (!isNaN(v) && v >= 1) setQuantity(String(v));
                 }}
                 onBlur={e => {
                   const v = parseInt(e.target.value);
-                  if (isNaN(v) || v < 1) setQuantity('1');
+                  setQuantity(isNaN(v) || v < 1 ? '1' : String(v));
                 }}
                 min="1"
                 className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"

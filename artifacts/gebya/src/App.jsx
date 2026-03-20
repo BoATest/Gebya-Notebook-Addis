@@ -637,12 +637,43 @@ function AppInner() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span
-              className="text-xs font-bold px-2 py-1 rounded-full"
-              style={{ background: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.9)', whiteSpace: 'nowrap' }}
+            <button
+              onClick={() => setActiveTab('settings')}
+              className="relative flex-shrink-0 press-scale"
+              aria-label="Open profile & settings"
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.18)',
+                border: '2px solid rgba(255,255,255,0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.1rem',
+                fontWeight: 900,
+                color: '#fff',
+                fontFamily: 'var(--font-serif)',
+              }}
             >
-              🔥 {usageStats?.streak || 0}d
-            </span>
+              {shopProfile.name.charAt(0).toUpperCase()}
+              {(usageStats?.streak || 0) > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  bottom: '-3px',
+                  right: '-3px',
+                  fontSize: '0.6rem',
+                  background: '#C4883A',
+                  color: '#fff',
+                  borderRadius: '10px',
+                  padding: '1px 4px',
+                  fontWeight: 800,
+                  lineHeight: 1.4,
+                  border: '1.5px solid rgba(27,67,50,0.9)',
+                  whiteSpace: 'nowrap',
+                }}>🔥{usageStats.streak}</span>
+              )}
+            </button>
             <button
               onClick={toggleLang}
               className="text-xs font-bold transition-all flex items-center press-scale"
