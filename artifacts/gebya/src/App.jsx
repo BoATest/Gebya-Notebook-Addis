@@ -626,85 +626,72 @@ function AppInner() {
     <div className="min-h-screen flex flex-col max-w-md mx-auto relative" style={{ background: P.bg }}>
 
       <header className="flex-shrink-0 px-4 pt-9 pb-3 texture-noise" style={{ background: P.header }}>
-        <div className="flex items-center justify-between mb-3 gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold tracking-widest uppercase mb-0.5" style={{ color: 'rgba(255,255,255,0.45)', letterSpacing: '0.12em' }}>ገበያ</p>
-            <h1 className="text-2xl font-black text-white tracking-tight font-serif leading-tight truncate">
+        <div className="flex items-center gap-3 mb-3">
+          {/* Avatar — taps to settings */}
+          <button
+            onClick={() => setActiveTab('settings')}
+            className="flex-shrink-0 press-scale"
+            aria-label="Open profile & settings"
+            style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.2)',
+              border: '2px solid rgba(255,255,255,0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.25rem',
+              fontWeight: 900,
+              color: '#fff',
+              fontFamily: 'var(--font-serif)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            {shopProfile.name.charAt(0).toUpperCase()}
+          </button>
+
+          {/* Shop name + date */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-black text-white tracking-tight font-serif leading-tight truncate">
               {shopProfile.name}
             </h1>
-            <p className="text-xs font-semibold mt-0.5" style={{ color: 'rgba(255,255,255,0.65)' }}>
-              {getCurrentEthiopianDate()} · {new Date().toLocaleDateString('en', { weekday: 'short', day: 'numeric', month: 'short' })}
+            <p className="text-xs font-semibold mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              ገበያ · {getCurrentEthiopianDate()} · {new Date().toLocaleDateString('en', { day: 'numeric', month: 'short' })}
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={() => setActiveTab('settings')}
-              className="relative flex-shrink-0 press-scale"
-              aria-label="Open profile & settings"
-              style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '50%',
-                background: 'rgba(255,255,255,0.18)',
-                border: '2px solid rgba(255,255,255,0.35)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.1rem',
-                fontWeight: 900,
-                color: '#fff',
-                fontFamily: 'var(--font-serif)',
-              }}
-            >
-              {shopProfile.name.charAt(0).toUpperCase()}
-              {(usageStats?.streak || 0) > 0 && (
-                <span style={{
-                  position: 'absolute',
-                  bottom: '-3px',
-                  right: '-3px',
-                  fontSize: '0.6rem',
-                  background: '#C4883A',
-                  color: '#fff',
-                  borderRadius: '10px',
-                  padding: '1px 4px',
-                  fontWeight: 800,
-                  lineHeight: 1.4,
-                  border: '1.5px solid rgba(27,67,50,0.9)',
-                  whiteSpace: 'nowrap',
-                }}>🔥{usageStats.streak}</span>
-              )}
-            </button>
-            <button
-              onClick={toggleLang}
-              className="text-xs font-bold transition-all flex items-center press-scale"
-              style={{
-                background: 'rgba(255,255,255,0.15)',
-                borderRadius: '10px',
-                padding: '3px',
-                gap: '2px',
-              }}
-              aria-label={lang === 'en' ? 'Switch to Amharic' : 'Switch to English'}
-            >
-              <span style={{
-                background: lang === 'en' ? 'rgba(255,255,255,0.95)' : 'transparent',
-                color: lang === 'en' ? '#1B4332' : 'rgba(255,255,255,0.6)',
-                fontWeight: lang === 'en' ? 800 : 600,
-                padding: '4px 10px',
-                borderRadius: '8px',
-                transition: 'all 0.18s',
-                display: 'block',
-              }}>EN</span>
-              <span style={{
-                background: lang === 'am' ? 'rgba(255,255,255,0.95)' : 'transparent',
-                color: lang === 'am' ? '#1B4332' : 'rgba(255,255,255,0.6)',
-                fontWeight: lang === 'am' ? 800 : 600,
-                padding: '4px 9px',
-                borderRadius: '8px',
-                transition: 'all 0.18s',
-                display: 'block',
-              }}>አማ</span>
-            </button>
-          </div>
+
+          {/* Language toggle */}
+          <button
+            onClick={toggleLang}
+            className="text-xs font-bold transition-all flex items-center flex-shrink-0 press-scale"
+            style={{
+              background: 'rgba(255,255,255,0.15)',
+              borderRadius: '10px',
+              padding: '3px',
+              gap: '2px',
+            }}
+            aria-label={lang === 'en' ? 'Switch to Amharic' : 'Switch to English'}
+          >
+            <span style={{
+              background: lang === 'en' ? 'rgba(255,255,255,0.95)' : 'transparent',
+              color: lang === 'en' ? '#1B4332' : 'rgba(255,255,255,0.6)',
+              fontWeight: lang === 'en' ? 800 : 600,
+              padding: '4px 10px',
+              borderRadius: '8px',
+              transition: 'all 0.18s',
+              display: 'block',
+            }}>EN</span>
+            <span style={{
+              background: lang === 'am' ? 'rgba(255,255,255,0.95)' : 'transparent',
+              color: lang === 'am' ? '#1B4332' : 'rgba(255,255,255,0.6)',
+              fontWeight: lang === 'am' ? 800 : 600,
+              padding: '4px 9px',
+              borderRadius: '8px',
+              transition: 'all 0.18s',
+              display: 'block',
+            }}>አማ</span>
+          </button>
         </div>
 
         {activeTab === 'today' && (
