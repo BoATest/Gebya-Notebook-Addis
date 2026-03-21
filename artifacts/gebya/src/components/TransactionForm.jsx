@@ -4,6 +4,7 @@ import { useLang } from '../context/LangContext';
 import PaymentTypeChips from './PaymentTypeChips';
 import { getDueDateOptions } from '../utils/ethiopianCalendar';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
+import { db } from '../db';
 
 function handleNumericInput(e, setter) {
   let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
@@ -12,7 +13,7 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpenses, initialPaymentType, initialPaymentProvider, lastPaymentHistory }) {
+function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpenses, onRecurringChange, initialPaymentType, initialPaymentProvider, lastPaymentHistory }) {
   const { t } = useLang();
 
   const configs = {
@@ -44,6 +45,12 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
   const [creditDirection, setCreditDirection] = useState('owes_me');
   const [saveState, setSaveState] = useState('idle');
   const [lastSaved, setLastSaved] = useState(null);
+
+  const [showAddRecurring, setShowAddRecurring] = useState(false);
+  const [popupName, setPopupName] = useState('');
+  const [popupAmount, setPopupAmount] = useState('');
+  const [popupFreq, setPopupFreq] = useState('monthly');
+  const [addRecurringHint, setAddRecurringHint] = useState(false);
 
   const dueDateOptions = getDueDateOptions();
   const sellingPrice = parseFloat(parseInput(amount)) || 0;
@@ -93,6 +100,28 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
     } catch (err) {
       // error handled in App.jsx
     }
+  };
+
+  const openAddRecurring = (demoName = '') => {
+    setPopupName(demoName);
+    setPopupAmount('');
+    setPopupFreq('monthly');
+    setShowAddRecurring(true);
+  };
+
+  const handleAddAndUse = async () => {
+    const amt = parseFloat(parseInput(popupAmount));
+    if (!popupName.trim() || !amt) return;
+    const newItem = { id: Date.now(), name: popupName.trim(), amount: amt, freq: popupFreq };
+    const current = recurringExpenses || [];
+    const updated = [...current, newItem];
+    await db.settings.put({ key: 'recurring_expenses', value: JSON.stringify(updated) });
+    onRecurringChange?.(updated);
+    setShowAddRecurring(false);
+    setItem(newItem.name);
+    setAmount(String(newItem.amount));
+    setAddRecurringHint(true);
+    setTimeout(() => setAddRecurringHint(false), 4000);
   };
 
   const handleAddAnother = () => {
@@ -202,6 +231,53 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
                 ))}
               </div>
             </div>
+          )}
+
+          {isExpense && (!recurringExpenses || recurringExpenses.length === 0) && (
+            <div>
+              <label className="block text-gray-600 text-xs font-bold mb-2 uppercase tracking-wide font-sans">{t.demoCardSectionLabel}</label>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {['Rent', 'እቁብ'].map(demoName => (
+                  <button
+                    key={demoName}
+                    type="button"
+                    onClick={() => openAddRecurring(demoName)}
+                    className="flex-shrink-0 px-3 py-2 border-2 text-xs font-bold transition-all press-scale"
+                    style={{
+                      borderRadius: 'var(--radius-sm)',
+                      borderColor: '#c9bfa8',
+                      borderStyle: 'dashed',
+                      background: '#faf9f7',
+                      color: '#9ca3af',
+                    }}
+                  >
+                    <div>{demoName}</div>
+                    <div className="font-normal mt-0.5 text-xs" style={{ color: '#c4b89a' }}>— {t.birr}</div>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => openAddRecurring('')}
+                  className="flex-shrink-0 px-3 py-2 border-2 text-xs font-bold transition-all press-scale flex flex-col items-center justify-center min-w-[52px]"
+                  style={{
+                    borderRadius: 'var(--radius-sm)',
+                    borderColor: '#c9bfa8',
+                    borderStyle: 'dashed',
+                    background: '#faf9f7',
+                    color: '#9ca3af',
+                  }}
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+              {addRecurringHint && (
+                <p className="text-xs mt-1.5 font-medium font-sans" style={{ color: '#C4883A' }}>{t.addRecurringHint}</p>
+              )}
+            </div>
+          )}
+
+          {isExpense && recurringExpenses && recurringExpenses.length > 0 && addRecurringHint && (
+            <p className="text-xs font-medium font-sans -mt-2" style={{ color: '#C4883A' }}>{t.addRecurringHint}</p>
           )}
 
           <div>
@@ -404,6 +480,90 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
           </button>
         </div>
       </div>
+
+      {showAddRecurring && (
+        <div className="fixed inset-0 flex items-end sm:items-center justify-center" style={{ zIndex: 60, background: 'rgba(0,0,0,0.4)' }}>
+          <div className="bg-white w-full max-w-md p-6 animate-slide-up" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', boxShadow: 'var(--shadow-lg)' }}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-base font-black text-gray-900 font-sans">{t.addRecurring}</h3>
+              <button onClick={() => setShowAddRecurring(false)} aria-label={t.close}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center press-scale">
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500 mb-4 font-sans">{t.addRecurringPopupGuide}</p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1 text-sm font-sans">{t.whatDidYouSpendOn}</label>
+                <input
+                  type="text"
+                  value={popupName}
+                  onChange={e => setPopupName(e.target.value)}
+                  placeholder={t.spendPlaceholder}
+                  className="w-full p-3 border-2 focus:outline-none text-sm font-sans"
+                  style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1 text-sm font-sans">{t.howMuchTotal}</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={fmtInput(popupAmount)}
+                    onChange={e => handleNumericInput(e, setPopupAmount)}
+                    placeholder="0"
+                    className="w-full p-3 pr-14 border-2 focus:outline-none text-sm font-sans"
+                    style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium font-sans">{t.birr}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1 text-sm font-sans">{t.frequency}</label>
+                <div className="flex gap-2">
+                  {[
+                    { id: 'daily',   label: t.daily },
+                    { id: 'weekly',  label: t.weekly },
+                    { id: 'monthly', label: t.monthly },
+                  ].map(f => (
+                    <button key={f.id} type="button"
+                      onClick={() => setPopupFreq(f.id)}
+                      className="flex-1 py-2 text-xs font-bold border-2 transition-all press-scale font-sans"
+                      style={{
+                        borderRadius: 'var(--radius-sm)',
+                        borderColor: popupFreq === f.id ? '#D4654A' : '#e8e2d8',
+                        background: popupFreq === f.id ? 'rgba(212,101,74,0.08)' : '#fff',
+                        color: popupFreq === f.id ? '#D4654A' : '#6b7280',
+                      }}>
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleAddAndUse}
+              disabled={!popupName.trim() || !parseFloat(parseInput(popupAmount))}
+              className="w-full mt-5 p-4 font-black text-base flex items-center justify-center gap-2 transition-all min-h-[52px] press-scale font-sans"
+              style={{
+                borderRadius: 'var(--radius-md)',
+                background: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#D4654A' : '#e5e7eb',
+                color: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#fff' : '#9ca3af',
+                cursor: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? 'pointer' : 'not-allowed',
+                boxShadow: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '0 4px 0 #a84c37' : 'none',
+              }}>
+              <Plus className="w-5 h-5" />
+              {t.addAndUse}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

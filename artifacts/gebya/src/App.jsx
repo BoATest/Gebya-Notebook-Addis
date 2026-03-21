@@ -976,6 +976,7 @@ function AppInner() {
           onDone={() => setShowForm(null)}
           enabledProviders={enabledProviders}
           recurringExpenses={recurringExpenses}
+          onRecurringChange={setRecurringExpenses}
           initialPaymentType={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.type : undefined}
           initialPaymentProvider={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.provider : undefined}
           lastPaymentHistory={(showForm === 'sale' || showForm === 'expense') ? {
