@@ -5,7 +5,7 @@ import cors from "cors";
 import helmet from "helmet";
 // @ts-ignore - express-rate-limit uses dynamic exports  
 import rateLimit from "express-rate-limit";
-import router from "./routes";
+import router from "./routes/index.js";
 
 const app: Express = express();
 
