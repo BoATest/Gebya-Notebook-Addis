@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import cors from "cors";
-import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import * as helmet from "helmet";
+import * as rateLimit from "express-rate-limit";
 import router from "./routes";
 
 const app: Express = express();
