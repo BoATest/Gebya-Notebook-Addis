@@ -3,6 +3,7 @@ import { useLang } from '../context/LangContext';
 
 const TOTAL_DURATION = 30;
 const NUDGE_AT = 15;
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
   const { t } = useLang();
@@ -46,7 +47,7 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
 
     setIsProcessing(true);
     try {
-      const apiUrl = '/api/transcribe';
+      const apiUrl = `${API_BASE_URL}/api/transcribe`;
       const resp = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

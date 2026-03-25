@@ -9,9 +9,14 @@ import router from "./routes/index.js";
 
 const app: Express = express();
 
+const configuredOrigins = (process.env.CORS_ORIGIN ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const allowedOrigins = [
   process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null,
-  process.env.CORS_ORIGIN,
+  ...configuredOrigins,
 ].filter(Boolean) as string[];
 
 app.use(helmet());
