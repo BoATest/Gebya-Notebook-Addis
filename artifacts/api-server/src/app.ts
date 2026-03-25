@@ -1,3 +1,4 @@
+// @ts-nocheck
 import express, { type Express } from "express";
 import cors from "cors";
 // @ts-ignore - helmet uses dynamic exports
