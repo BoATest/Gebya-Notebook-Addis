@@ -1,5 +1,11 @@
 {
   "functions": {
+    "api/healthz.ts": {
+      "maxDuration": 10
+    },
+    "api/transcribe.ts": {
+      "maxDuration": 60
+    },
     "api/[...route].ts": {
       "maxDuration": 60
     }
