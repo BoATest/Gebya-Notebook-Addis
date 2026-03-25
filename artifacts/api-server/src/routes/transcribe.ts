@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import multer, { MulterError } from "multer";
-import { getTranscriptionService } from "../services/transcriptionService";
+import { getTranscriptionService } from "../services/transcriptionService.js";
 
 const router = Router();
 
@@ -133,7 +133,7 @@ export function extractLikelyTotal(transcript: string): number | null {
 }
 
 router.post(
-  "/transcribe",
+  "/",
   (req: Request, res: Response, next: NextFunction) => {
     const contentType = req.headers["content-type"] ?? "";
     if (contentType.includes("multipart/form-data")) {
