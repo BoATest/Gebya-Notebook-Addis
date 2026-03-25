@@ -1,9 +1,11 @@
 {
   "compilerOptions": {
+    "noEmit": false,
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
     "isolatedModules": true,
     "lib": ["es2022"],
     "module": "esnext",
-    "moduleResolution": "bundler",
     "noEmitOnError": true,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": false,
@@ -17,7 +19,6 @@
     "strictPropertyInitialization": true,
     "useUnknownInCatchVariables": true,
     "alwaysStrict": true,
-    "skipLibCheck": true,
     "target": "es2022",
     "types": [],
     "customConditions": ["workspace"]
