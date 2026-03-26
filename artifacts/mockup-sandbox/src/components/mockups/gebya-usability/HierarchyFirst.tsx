@@ -10,7 +10,7 @@ type Tab = "today" | "merro" | "history";
 
 const D = {
   date: "8 ጥቅምት 2017",
-  sales: 2450, expenses: 680, net: 1770,
+  sales: 2450, spent: 680, net: 1770,
   income: [
     { label: "Injera (40 pcs)", amount: 850, profit: 320 },
     { label: "Sugar (5 kg)", amount: 650, profit: 200 },
@@ -78,7 +78,7 @@ export function HierarchyFirst() {
           </div>
           <div>
             <div className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>Spent</div>
-            <div className="font-bold text-base" style={{ color: "rgba(255,255,255,0.85)" }}>{m(D.expenses)} ብር</div>
+            <div className="font-bold text-base" style={{ color: "rgba(255,255,255,0.85)" }}>{m(D.spent)} ብር</div>
           </div>
         </div>
       </div>
@@ -125,7 +125,7 @@ export function HierarchyFirst() {
             {/* Expense group */}
             <div>
               <div className="text-xs font-bold tracking-widest uppercase mb-2 px-1" style={{ color: "#dc2626" }}>
-                Expenses — {m(D.expenses)} ብር
+                Expenses — {m(D.spent)} ብር
               </div>
               <div className="space-y-1.5">
                 {D.expenses.map((e, i) => (
