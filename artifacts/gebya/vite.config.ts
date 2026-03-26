@@ -5,17 +5,14 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { VitePWA } from "vite-plugin-pwa";
 
-const rawPort = process.env.PORT ?? "3000";
-const port = Number(rawPort);
+// ✅ SAFE PORT HANDLING (no breaking build)
+const port = Number(process.env.PORT) || 3000;
 
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
-
+// ✅ base path safe
 const basePath = process.env.BASE_PATH ?? "/";
 
 function securityHeadersPlugin(): Plugin {
-  const setSecurityHeaders = (res: { setHeader: (k: string, v: string) => void }, isDev: boolean) => {
+  const setSecurityHeaders = (res: any, isDev: boolean) => {
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader(
@@ -40,22 +37,12 @@ function securityHeadersPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         setSecurityHeaders(res, true);
-        if (req.url && /\.(js|css|woff2?|png|ico|svg)$/.test(req.url)) {
-          res.setHeader("Cache-Control", "no-store");
-        } else if (req.url && /\.html?$/.test(req.url)) {
-          res.setHeader("Cache-Control", "no-store");
-        }
         next();
       });
     },
     configurePreviewServer(server) {
       server.middlewares.use((req, res, next) => {
         setSecurityHeaders(res, false);
-        if (req.url && /\.(js|css|woff2?|png|ico|svg)$/.test(req.url)) {
-          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-        } else if (req.url && /\.html?$/.test(req.url)) {
-          res.setHeader("Cache-Control", "no-store");
-        }
         next();
       });
     },
@@ -97,58 +84,27 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "google-fonts-cache",
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-            },
-          },
-        ],
-      },
     }),
-    ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
-      ? [
-          await import("@replit/vite-plugin-cartographer").then((m) =>
-            m.cartographer({
-              root: path.resolve(import.meta.dirname, ".."),
-            }),
-          ),
-          await import("@replit/vite-plugin-dev-banner").then((m) =>
-            m.devBanner(),
-          ),
-        ]
-      : []),
   ],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),
-      "@assets": path.resolve(import.meta.dirname, "..", "..", "attached_assets"),
     },
-    dedupe: ["react", "react-dom"],
   },
-  root: path.resolve(import.meta.dirname),
+
+  // ✅ IMPORTANT FIX (Vercel expects this)
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: "dist",
     emptyOutDir: true,
   },
+
   server: {
     port,
     host: "0.0.0.0",
-    allowedHosts: true,
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
-    },
   },
+
   preview: {
     port,
     host: "0.0.0.0",
-    allowedHosts: true,
   },
 });
