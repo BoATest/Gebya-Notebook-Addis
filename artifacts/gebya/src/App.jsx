@@ -10,6 +10,7 @@ import CustomerList from './components/CustomerList';
 import CustomerDetail from './components/CustomerDetail';
 import CustomerForm from './components/CustomerForm';
 import CustomerTransactionSheet from './components/CustomerTransactionSheet';
+import CustomerTelegramConnectSheet from './components/CustomerTelegramConnectSheet';
 import HistoryView from './components/HistoryView';
 import SettingsPage from './components/SettingsPage';
 import OnboardingScreen from './components/OnboardingScreen';
@@ -25,6 +26,7 @@ import { fmt } from './utils/numformat';
 import { checkAndAwardBadges } from './utils/badges';
 import { buildCustomerSummaries, getCustomerBalance } from './utils/customerLedger';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from './utils/customerTransactionTypes';
+import { buildCustomerLedgerTelegramMessage, buildTelegramMessageUrl, createCustomerTelegramLinkToken } from './utils/customerTelegram';
 
 const P = {
   bg: '#FAF8F5',
@@ -36,24 +38,6 @@ const P = {
   border: '#e8e2d8',
   borderLight: '#f0ede8',
 };
-
-function buildTelegramMessageUrl(value, message) {
-  const trimmed = String(value || '').trim();
-  if (!trimmed) return null;
-
-  if (/^https?:\/\/t\.me\//i.test(trimmed)) {
-    const separator = trimmed.includes('?') ? '&' : '?';
-    return `${trimmed}${separator}text=${encodeURIComponent(message)}`;
-  }
-
-  if (/^t\.me\//i.test(trimmed)) {
-    return `https://${trimmed}?text=${encodeURIComponent(message)}`;
-  }
-
-  const handle = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
-  if (!handle) return null;
-  return `https://t.me/${handle}?text=${encodeURIComponent(message)}`;
-}
 
 function ShareModal({ summary, telegram, onClose, t }) {
   const isUsername = telegram?.startsWith('@') && telegram.length > 1;
@@ -143,6 +127,7 @@ function AppInner() {
   const [activeTab, setActiveTab] = useState('today');
   const [showForm, setShowForm] = useState(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
+  const [telegramConnectCustomerId, setTelegramConnectCustomerId] = useState(null);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [customerTransactionModal, setCustomerTransactionModal] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -441,14 +426,23 @@ function AppInner() {
     [customerSummaries, selectedCustomerId]
   );
 
+  const telegramConnectCustomer = useMemo(
+    () => customerSummaries.find(c => c.id === telegramConnectCustomerId) || null,
+    [customerSummaries, telegramConnectCustomerId]
+  );
+
   const handleAddCustomer = async (payload) => {
     const now = Date.now();
+    const linkToken = createCustomerTelegramLinkToken();
     const id = await db.customers.add({
       display_name: payload.display_name,
       note: payload.note || null,
       phone_number: payload.phone_number || null,
       telegram_username: payload.telegram_username || null,
       telegram_chat_id: null,
+      telegram_notify_enabled: !!payload.telegram_notify_enabled,
+      telegram_link_token: linkToken,
+      telegram_linked_at: payload.telegram_username ? now : null,
       created_at: now,
       updated_at: now,
     });
@@ -457,25 +451,53 @@ function AppInner() {
     setShowCustomerForm(false);
     setSelectedCustomerId(id);
     setActiveTab('merro');
-    fireToast('Customer saved', 1800);
+    fireToast(t.customerSaved, 1800);
+  };
+
+  const handleUpdateCustomerRecord = async (customerId, updates) => {
+    const now = Date.now();
+    const nextUpdates = { ...updates, updated_at: now };
+    await db.customers.update(customerId, nextUpdates);
+    setLedgerCustomers(prev => prev.map(customer => (
+      customer.id === customerId ? { ...customer, ...nextUpdates } : customer
+    )));
+  };
+
+  const handleToggleCustomerTelegramNotify = async (customer) => {
+    if (!customer) return;
+    await handleUpdateCustomerRecord(customer.id, {
+      telegram_notify_enabled: !customer.telegram_notify_enabled,
+    });
+  };
+
+  const handleConfirmCustomerTelegramConnection = async (customer, payload) => {
+    if (!customer) return;
+    const now = Date.now();
+    await handleUpdateCustomerRecord(customer.id, {
+      telegram_username: payload.telegram_username || customer.telegram_username || null,
+      telegram_link_token: customer.telegram_link_token || createCustomerTelegramLinkToken(customer.id),
+      telegram_linked_at: payload.telegram_username || customer.telegram_username ? now : customer.telegram_linked_at || null,
+    });
+    fireToast(t.saved, 1800);
+    setTelegramConnectCustomerId(null);
   };
 
   const handleSaveCustomerTransaction = async (payload) => {
     if (!isValidCustomerTransactionType(payload.type)) return;
     const customer = customerSummaries.find(c => c.id === payload.customer_id);
     if (!customer) {
-      fireToast('Customer not found', 2200);
+      fireToast(t.customerNotFound, 2200);
       return;
     }
 
     const amount = Number(payload.amount) || 0;
     if (amount <= 0) {
-      fireToast('Enter a valid amount', 2200);
+      fireToast(t.validAmountRequired, 2200);
       return;
     }
 
     if (payload.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT && amount > Math.max(customer.balance || 0, 0)) {
-      fireToast('Payment is more than the current balance', 2600);
+      fireToast(t.paymentMoreThanBalance, 2600);
       return;
     }
 
@@ -492,6 +514,8 @@ function AppInner() {
 
     const id = await db.customer_transactions.add(entry);
     const saved = await db.customer_transactions.get(id);
+    const nextCustomerTx = [saved, ...ledgerTransactions].filter(tx => tx.customer_id === payload.customer_id);
+    const nextBalance = getCustomerBalance(nextCustomerTx);
 
     setLedgerTransactions(prev => [saved, ...prev]);
     await db.customers.update(payload.customer_id, { updated_at: now });
@@ -509,14 +533,18 @@ function AppInner() {
       } catch { /* non-critical */ }
     }
 
-    if (customer?.telegram_username) {
-      const nextCustomerTx = [saved, ...ledgerTransactions].filter(tx => tx.customer_id === payload.customer_id);
-      const nextBalance = getCustomerBalance(nextCustomerTx);
-      const txText = payload.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? 'Payment' : 'Credit';
-      const message = `${txText}: ${fmt(amount)} birr\nBalance: ${fmt(nextBalance)} birr`;
+    if (customer?.telegram_notify_enabled && customer?.telegram_username) {
+      const message = buildCustomerLedgerTelegramMessage({
+        shopName: shopProfile?.name,
+        type: payload.type,
+        amount,
+        previousBalance: customer.balance || 0,
+        updatedBalance: nextBalance,
+        createdAt: now,
+      });
       const telegramUrl = buildTelegramMessageUrl(customer.telegram_username, message);
-      if (telegramUrl && window.confirm('Notify customer on Telegram?')) {
-        window.open(telegramUrl, '_blank');
+      if (telegramUrl) {
+        window.open(telegramUrl, '_blank', 'noopener,noreferrer');
       }
     }
   };
@@ -894,6 +922,8 @@ function AppInner() {
                 mode: CUSTOMER_TRANSACTION_TYPES.PAYMENT,
                 customer: selectedCustomer,
               })}
+              onToggleTelegramNotify={() => handleToggleCustomerTelegramNotify(selectedCustomer)}
+              onOpenTelegramConnect={() => setTelegramConnectCustomerId(selectedCustomer.id)}
             />
           ) : (
             <CustomerList
@@ -988,6 +1018,15 @@ function AppInner() {
           mode={customerTransactionModal.mode}
           onSave={handleSaveCustomerTransaction}
           onDone={() => setCustomerTransactionModal(null)}
+        />
+      )}
+
+      {telegramConnectCustomer && (
+        <CustomerTelegramConnectSheet
+          customer={telegramConnectCustomer}
+          shopProfile={shopProfile}
+          onSave={(payload) => handleConfirmCustomerTelegramConnection(telegramConnectCustomer, payload)}
+          onDone={() => setTelegramConnectCustomerId(null)}
         />
       )}
 

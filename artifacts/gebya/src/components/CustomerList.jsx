@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Plus, Search, Users } from 'lucide-react';
 import { fmt } from '../utils/numformat';
+import { useLang } from '../context/LangContext';
 
 function matchesCustomer(customer, query) {
   const q = query.trim().toLowerCase();
@@ -17,6 +18,7 @@ function matchesCustomer(customer, query) {
 
 function CustomerList({ customers = [], onSelectCustomer, onAddCustomer }) {
   const [query, setQuery] = useState('');
+  const { t } = useLang();
 
   const filteredCustomers = useMemo(
     () => customers.filter((customer) => matchesCustomer(customer, query)),
@@ -37,7 +39,7 @@ function CustomerList({ customers = [], onSelectCustomer, onAddCustomer }) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-wide font-bold" style={{ color: '#9ca3af' }}>
-              Total Balance
+              {t.customerTotalBalance}
             </p>
             <p className="text-xl font-black" style={{ color: '#92400e' }}>
               {fmt(outstanding)} birr
@@ -50,7 +52,7 @@ function CustomerList({ customers = [], onSelectCustomer, onAddCustomer }) {
             type="button"
           >
             <span className="inline-flex items-center gap-1">
-              <Plus className="w-4 h-4" /> Add Customer
+              <Plus className="w-4 h-4" /> {t.addCustomer}
             </span>
           </button>
         </div>
@@ -62,7 +64,7 @@ function CustomerList({ customers = [], onSelectCustomer, onAddCustomer }) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search customer or note..."
+          placeholder={t.searchCustomerPlaceholder}
           className="w-full pl-9 pr-4 py-3 text-sm bg-white border outline-none"
           style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
         />
@@ -86,12 +88,12 @@ function CustomerList({ customers = [], onSelectCustomer, onAddCustomer }) {
                   </p>
                 )}
                 <p className="text-xs mt-2" style={{ color: '#9ca3af' }}>
-                  {(customer.transaction_count || 0)} entries
+                  {(customer.transaction_count || 0)} {t.entries}
                 </p>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#9ca3af' }}>
-                  Balance
+                  {t.customerBalance}
                 </p>
                 <p className="text-lg font-black" style={{ color: '#92400e' }}>
                   {fmt(customer.balance || 0)} birr
@@ -108,7 +110,7 @@ function CustomerList({ customers = [], onSelectCustomer, onAddCustomer }) {
           >
             <Users className="w-8 h-8 mb-2" style={{ color: '#d1d5db' }} />
             <p className="text-sm" style={{ color: '#9ca3af' }}>
-              No customers found
+              {t.noCustomersFound}
             </p>
           </div>
         )}

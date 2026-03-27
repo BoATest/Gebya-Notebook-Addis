@@ -1,9 +1,18 @@
-import { ArrowLeft, MessageCircle, Phone, Plus, Wallet } from 'lucide-react';
+import { ArrowLeft, Bell, Link2, MessageCircle, Phone, Plus, Wallet } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
+import { useLang } from '../context/LangContext';
 
-function CustomerDetail({ customer, onBack, onAddCredit, onRecordPayment }) {
+function CustomerDetail({
+  customer,
+  onBack,
+  onAddCredit,
+  onRecordPayment,
+  onToggleTelegramNotify,
+  onOpenTelegramConnect,
+}) {
+  const { t } = useLang();
   if (!customer) return null;
 
   return (
@@ -15,7 +24,7 @@ function CustomerDetail({ customer, onBack, onAddCredit, onRecordPayment }) {
         style={{ color: '#1B4332' }}
       >
         <ArrowLeft className="w-5 h-5" />
-        <span className="font-semibold">Back to customers</span>
+        <span className="font-semibold">{t.backToCustomers}</span>
       </button>
 
       <div
@@ -33,10 +42,10 @@ function CustomerDetail({ customer, onBack, onAddCredit, onRecordPayment }) {
           </div>
           <div className="text-right flex-shrink-0">
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#9ca3af' }}>
-              Current Balance
+              {t.currentBalance}
             </p>
             <p className="text-2xl font-black" style={{ color: '#92400e' }}>
-              {fmt(customer.balance || 0)} birr
+              {fmt(customer.balance || 0)} {t.birr}
             </p>
           </div>
         </div>
@@ -64,6 +73,59 @@ function CustomerDetail({ customer, onBack, onAddCredit, onRecordPayment }) {
         </div>
       </div>
 
+      <div
+        className="p-4 border space-y-3"
+        style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-black text-gray-900">{t.telegramConnection}</p>
+            <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
+              {customer.telegram_username ? t.telegramConnectedHint : t.telegramConnectHint}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenTelegramConnect}
+            className="px-3 py-2 text-sm font-black min-h-[44px] border press-scale"
+            style={{ background: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe', borderRadius: 'var(--radius-sm)' }}
+          >
+            <span className="inline-flex items-center gap-1">
+              <Link2 className="w-4 h-4" />
+              {customer.telegram_username ? t.manageTelegram : t.connectTelegram}
+            </span>
+          </button>
+        </div>
+
+        <div
+          className="flex items-center justify-between gap-3 p-3 border"
+          style={{ background: customer.telegram_notify_enabled ? '#f0fdf4' : '#fafafa', borderColor: customer.telegram_notify_enabled ? '#bbf7d0' : '#e5e7eb', borderRadius: 'var(--radius-md)' }}
+        >
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-gray-900">{t.notifyOnTelegram}</p>
+            <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
+              {customer.telegram_notify_enabled ? t.telegramNotifyEnabledState : t.telegramNotifyDisabledState}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onToggleTelegramNotify}
+            className={`w-11 h-6 rounded-full transition-colors ${customer.telegram_notify_enabled ? 'bg-green-900' : 'bg-gray-300'}`}
+            style={{ padding: '2px', flexShrink: 0 }}
+            aria-label={t.notifyOnTelegram}
+          >
+            <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${customer.telegram_notify_enabled ? 'translate-x-5' : 'translate-x-0'}`} />
+          </button>
+        </div>
+
+        {!customer.telegram_username && customer.telegram_notify_enabled && (
+          <div className="flex items-center gap-2 text-xs font-medium" style={{ color: '#b45309' }}>
+            <Bell className="w-4 h-4" />
+            <span>{t.telegramNeedContactHint}</span>
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
@@ -72,7 +134,7 @@ function CustomerDetail({ customer, onBack, onAddCredit, onRecordPayment }) {
           style={{ background: '#C4883A', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 #96662b' }}
         >
           <Plus className="w-5 h-5" />
-          Add Credit
+          {t.addCredit}
         </button>
         <button
           type="button"
@@ -81,7 +143,7 @@ function CustomerDetail({ customer, onBack, onAddCredit, onRecordPayment }) {
           style={{ background: '#2d6a4f', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 #1B4332' }}
         >
           <Wallet className="w-5 h-5" />
-          Record Payment
+          {t.recordPayment}
         </button>
       </div>
 
@@ -91,10 +153,10 @@ function CustomerDetail({ customer, onBack, onAddCredit, onRecordPayment }) {
       >
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-sm" style={{ color: '#1B4332' }}>
-            Transaction History
+            {t.customerTransactionHistory}
           </h3>
           <span className="text-xs" style={{ color: '#9ca3af' }}>
-            {(customer.transaction_count || 0)} entries
+            {(customer.transaction_count || 0)} {t.entries}
           </span>
         </div>
 
@@ -114,7 +176,7 @@ function CustomerDetail({ customer, onBack, onAddCredit, onRecordPayment }) {
                 >
                   <div className="min-w-0">
                     <p className="font-bold text-sm" style={{ color: isPayment ? '#166534' : '#92400e' }}>
-                      {isPayment ? 'Payment' : 'Credit added'}
+                      {isPayment ? t.paymentRecordedLabel : t.creditAddedLabel}
                     </p>
                     {item.item_note && (
                       <p className="text-sm mt-1" style={{ color: '#4b5563' }}>
@@ -123,13 +185,13 @@ function CustomerDetail({ customer, onBack, onAddCredit, onRecordPayment }) {
                     )}
                     <div className="text-xs mt-1" style={{ color: '#9ca3af' }}>
                       {formatEthiopian(item.created_at)}
-                      {!isPayment && item.due_date ? ` · Due ${formatEthiopian(item.due_date)}` : ''}
+                      {!isPayment && item.due_date ? ` · ${t.due} ${formatEthiopian(item.due_date)}` : ''}
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="font-black text-sm" style={{ color: isPayment ? '#166534' : '#92400e' }}>
                       {isPayment ? '-' : '+'}
-                      {fmt(item.amount || 0)} birr
+                      {fmt(item.amount || 0)} {t.birr}
                     </p>
                   </div>
                 </div>
@@ -138,7 +200,7 @@ function CustomerDetail({ customer, onBack, onAddCredit, onRecordPayment }) {
           </div>
         ) : (
           <p className="text-sm" style={{ color: '#9ca3af' }}>
-            No transactions yet
+            {t.noTransactionsYet}
           </p>
         )}
       </div>
@@ -147,4 +209,3 @@ function CustomerDetail({ customer, onBack, onAddCredit, onRecordPayment }) {
 }
 
 export default CustomerDetail;
-

@@ -1,20 +1,15 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Save, X } from 'lucide-react';
-
-function normalizeTelegram(value) {
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-  if (trimmed.startsWith('@')) return trimmed;
-  if (/^https?:\/\/t\.me\//i.test(trimmed)) return trimmed;
-  if (/^t\.me\//i.test(trimmed)) return `https://${trimmed}`;
-  return `@${trimmed.replace(/^@+/, '')}`;
-}
+import { useLang } from '../context/LangContext';
+import { normalizeTelegram } from '../utils/customerTelegram';
 
 function CustomerForm({ onSave, onDone }) {
+  const { t } = useLang();
   const [displayName, setDisplayName] = useState('');
   const [note, setNote] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [telegramUsername, setTelegramUsername] = useState('');
+  const [notifyOnTelegram, setNotifyOnTelegram] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -29,6 +24,7 @@ function CustomerForm({ onSave, onDone }) {
         note: note.trim() || null,
         phone_number: phoneNumber.trim() || null,
         telegram_username: normalizeTelegram(telegramUsername) || null,
+        telegram_notify_enabled: notifyOnTelegram,
       });
       onDone?.();
     } finally {
@@ -42,10 +38,10 @@ function CustomerForm({ onSave, onDone }) {
         <div className="sticky top-0 bg-white z-10 px-6 pt-5 pb-4 border-b" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', borderColor: 'var(--color-border-light)' }}>
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-black text-gray-900">Add Customer</h2>
-              <p className="text-sm mt-1" style={{ color: '#6b7280' }}>Use any label you recognize later.</p>
+              <h2 className="text-xl font-black text-gray-900">{t.addCustomer}</h2>
+              <p className="text-sm mt-1" style={{ color: '#6b7280' }}>{t.customerHelperText}</p>
             </div>
-            <button onClick={onDone} aria-label="Close" className="p-2 rounded-full hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center press-scale">
+            <button onClick={onDone} aria-label={t.close} className="p-2 rounded-full hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center press-scale">
               <X className="w-5 h-5 text-gray-500" />
             </button>
           </div>
@@ -54,13 +50,13 @@ function CustomerForm({ onSave, onDone }) {
         <div className="px-6 py-4 space-y-4">
           <div>
             <label className="block text-gray-700 font-semibold mb-2">
-              Customer identifier <span className="text-red-500">*</span>
+              {t.customerIdentifier} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Name, nickname, relation, place, or vehicle clue"
+              placeholder={t.customerIdentifierPlaceholder}
               autoFocus
               className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px]"
               style={{ borderRadius: 'var(--radius-md)', borderColor: displayName.trim() ? '#1B4332' : '#e8e2d8' }}
@@ -70,23 +66,42 @@ function CustomerForm({ onSave, onDone }) {
           <div>
             <button type="button" onClick={() => setShowMore((v) => !v)} className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[44px]" style={{ color: '#C4883A' }}>
               {showMore ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              More (optional)
+              {t.moreOptional}
             </button>
 
             {showMore && (
               <div className="mt-2 p-4 border animate-slide-up space-y-3" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)' }}>
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2 text-sm">Note</label>
-                  <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything that helps you recognize this customer" rows={3} className="w-full p-3 border-2 focus:outline-none text-sm resize-none" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
+                  <label className="block text-gray-700 font-semibold mb-2 text-sm">{t.noteLabel}</label>
+                  <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t.customerNotePlaceholder} rows={3} className="w-full p-3 border-2 focus:outline-none text-sm resize-none" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
                 </div>
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2 text-sm">Phone (optional)</label>
-                  <input type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="Phone number" className="w-full p-3 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
+                  <label className="block text-gray-700 font-semibold mb-2 text-sm">{t.customerPhoneOptional}</label>
+                  <input type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder={t.customerPhonePlaceholder} className="w-full p-3 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
                 </div>
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2 text-sm">Telegram (optional)</label>
-                  <input type="text" value={telegramUsername} onChange={(e) => setTelegramUsername(e.target.value)} placeholder="@username or t.me/link" className="w-full p-3 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
+                  <label className="block text-gray-700 font-semibold mb-2 text-sm">{t.customerTelegramOptional}</label>
+                  <input type="text" value={telegramUsername} onChange={(e) => setTelegramUsername(e.target.value)} placeholder={t.customerTelegramPlaceholder} className="w-full p-3 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setNotifyOnTelegram((value) => !value)}
+                  className="w-full flex items-center justify-between gap-3 p-3 border min-h-[52px]"
+                  style={{ background: '#fff', borderColor: notifyOnTelegram ? '#1B4332' : '#e8e2d8', borderRadius: 'var(--radius-md)' }}
+                >
+                  <div className="text-left">
+                    <p className="text-sm font-bold text-gray-900">{t.notifyOnTelegram}</p>
+                    <p className="text-xs mt-0.5" style={{ color: '#6b7280' }}>{t.notifyOnTelegramHint}</p>
+                  </div>
+                  <div className={`w-11 h-6 rounded-full transition-colors ${notifyOnTelegram ? 'bg-green-900' : 'bg-gray-300'}`} style={{ padding: '2px' }}>
+                    <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${notifyOnTelegram ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </div>
+                </button>
+                {notifyOnTelegram && !telegramUsername.trim() && (
+                  <p className="text-xs font-medium" style={{ color: '#b45309' }}>
+                    {t.telegramNeedContactHint}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -95,7 +110,7 @@ function CustomerForm({ onSave, onDone }) {
         <div className="px-6 pb-8 pt-2">
           <button onClick={handleSave} disabled={!canSave || saving} className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 min-h-[56px] press-scale" style={{ background: canSave ? '#1B4332' : '#e5e7eb', color: canSave ? '#fff' : '#9ca3af', borderRadius: 'var(--radius-md)', boxShadow: canSave ? '0 4px 0 #0f2b20, var(--shadow-sm)' : 'none' }}>
             <Save className="w-5 h-5" />
-            {saving ? 'Saving...' : 'Save customer'}
+            {saving ? t.saving : t.saveCustomer}
           </button>
         </div>
       </div>
