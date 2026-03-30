@@ -1,18 +1,44 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
-# compiled output
-dist
-tmp
-out-tsc
-*.tsbuildinfo
-.expo
-.expo-shared
+# Build outputs
+dist/
+out-tsc/
+tmp/
+output/
 
-# dependencies
-node_modules
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Testing
+coverage/
+.playwright/
+
+# Vercel
+.vercel/
+
+# TypeScript
+*.tsbuildinfo
+
+# Expo (if used)
+.expo/
+.expo-shared/
 
 # IDEs and editors
-/.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+.idea/
 .project
 .classpath
 .c9/
@@ -20,30 +46,19 @@ node_modules
 .settings/
 *.sublime-workspace
 
-# IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-# misc
-/.sass-cache
-/connect.lock
-/coverage
-/libpeerconnection.log
-npm-debug.log
-yarn-error.log
+# Misc
+.sass-cache/
+connect.lock
+libpeerconnection.log
 testem.log
-/typings
+typings/
 
-# System Files
+# System files
 .DS_Store
 Thumbs.db
 
-.cursor/rules/nx-rules.mdc
-.github/instructions/nx.instructions.md
-
-# Replit
+# Project-specific
+.cursor/
+.github/instructions/
 .cache/
 .local/
