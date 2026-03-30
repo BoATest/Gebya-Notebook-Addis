@@ -44,10 +44,10 @@ export const BADGE_DEFINITIONS = [
   {
     id: 'first_credit_repaid',
     emoji: '✅',
-    title: 'First Credit Repaid',
-    titleAm: 'የመጀመሪያ ብድር ተከፍሏል',
-    description: 'A customer fully repaid a credit',
-    descriptionAm: 'ደንበኛ ብድር ሙሉ ተከፍሏል',
+    title: 'First Dubie Repaid',
+    titleAm: 'የመጀመሪያ ዱቤ ተከፍሏል',
+    description: 'A customer fully repaid a Dubie',
+    descriptionAm: 'ደንበኛ ዱቤ ሙሉ ተከፍሏል',
     check: (stats) => (stats.creditsRepaid || 0) >= 1,
   },
 ];

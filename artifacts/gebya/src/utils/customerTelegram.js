@@ -68,7 +68,7 @@ export function buildCustomerLedgerTelegramMessage({
   createdAt,
 }) {
   const isPayment = type === CUSTOMER_TRANSACTION_TYPES.PAYMENT;
-  const title = isPayment ? '✅ Payment Recorded' : '🛒 New Credit Recorded';
+  const title = isPayment ? '✅ Payment Recorded' : '🛒 New Dubie Recorded';
   const actionLine = isPayment
     ? `You paid today: ${fmt(amount)} birr`
     : `You took today: ${fmt(amount)} birr`;

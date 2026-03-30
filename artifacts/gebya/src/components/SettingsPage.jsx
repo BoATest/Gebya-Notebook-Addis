@@ -210,7 +210,7 @@ function SettingsPage({
       `🔥 Current streak: ${streak} day${streak !== 1 ? 's' : ''} (longest: ${longestStreak})`,
       `📅 Using since: ${firstUsedDisplay}`,
       `📈 Total days active: ${daysActive?.length || 1}`,
-      `🛒 Entries: ${fc.sales || 0} sales · ${fc.expenses || 0} expenses · ${fc.credits || 0} credits`,
+      `🛒 Entries: ${fc.sales || 0} sales · ${fc.expenses || 0} expenses · ${fc.credits || 0} Dubie`,
       `📱 Sessions opened: ${sessionCount}`,
     ].join('\n');
 
@@ -713,7 +713,7 @@ function SettingsPage({
             </div>
             <div className="flex-1">
               <div className="font-bold text-gray-800">{t.storedOnDevice}</div>
-              <div className="text-xs text-gray-500 mt-0.5">{totalEntries} entries · {totalCustomersWithLedger} customers in credit ledger</div>
+              <div className="text-xs text-gray-500 mt-0.5">{totalEntries} entries · {totalCustomersWithLedger} customers in Dubie ledger</div>
             </div>
           </div>
 
