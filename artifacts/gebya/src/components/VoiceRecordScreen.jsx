@@ -14,7 +14,9 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
   const transcriptRef = useRef('');
+  const finalTranscriptRef = useRef('');
   const stoppedRef = useRef(false);
+  const processedRef = useRef(false);
 
   const cleanupRecording = useCallback(() => {
     if (timerRef.current) {
@@ -28,14 +30,16 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
   }, []);
 
   const handleStop = useCallback(async () => {
-    if (stoppedRef.current) return;
+    if (stoppedRef.current || processedRef.current) return;
     stoppedRef.current = true;
+    processedRef.current = true;
     cleanupRecording();
 
     const transcript = transcriptRef.current.trim();
 
     if (!transcript) {
       stoppedRef.current = false;
+      processedRef.current = false;
       setError(t.tryAgain);
       return;
     }
@@ -55,12 +59,13 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
       });
       if (!resp.ok) throw new Error('Server error');
       const data = await resp.json();
-      onTranscript(data.transcript, data.detected_total, data.confidence ?? null);
+      onTranscript(data.transcript, data.detected_total, data.confidence ?? null, data.draft ?? null);
     } catch {
       if (!navigator.onLine) {
         onNoInternet();
       } else {
         stoppedRef.current = false;
+        processedRef.current = false;
         setIsProcessing(false);
         setError(t.tryAgain);
       }
@@ -69,7 +74,9 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
 
   useEffect(() => {
     stoppedRef.current = false;
+    processedRef.current = false;
     transcriptRef.current = '';
+    finalTranscriptRef.current = '';
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -84,14 +91,30 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
     recognition.continuous = true;
 
     recognition.onresult = (event) => {
-      let combined = '';
-      for (let i = 0; i < event.results.length; i++) {
-        combined += event.results[i][0].transcript + ' ';
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const nextChunk = event.results[i][0]?.transcript?.trim();
+        if (!nextChunk) continue;
+
+        if (event.results[i].isFinal) {
+          const existingFinal = finalTranscriptRef.current.trim();
+          if (!existingFinal.endsWith(nextChunk)) {
+            finalTranscriptRef.current = `${existingFinal} ${nextChunk}`.trim();
+          }
+        } else {
+          interim = `${interim} ${nextChunk}`.trim();
+        }
       }
-      transcriptRef.current = combined.trim();
+
+      transcriptRef.current = `${finalTranscriptRef.current} ${interim}`.trim();
     };
 
     recognition.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        setError(t.voiceMicBlocked || t.tryAgain);
+        cleanupRecording();
+        return;
+      }
       if (e.error === 'network') {
         onNoInternet();
         cleanupRecording();
@@ -102,8 +125,8 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
     };
 
     recognition.onend = () => {
-      if (recognitionRef.current && !stoppedRef.current) {
-        try { recognitionRef.current.start(); } catch { /* ignore */ }
+      if (!stoppedRef.current) {
+        handleStop();
       }
     };
 
@@ -126,7 +149,7 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
       stoppedRef.current = true;
       cleanupRecording();
     };
-  }, []);
+  }, [cleanupRecording, handleStop, onNoInternet, t]);
 
   const progress = Math.min((elapsed / TOTAL_DURATION) * 100, 100);
   const minutes = Math.floor(elapsed / 60);

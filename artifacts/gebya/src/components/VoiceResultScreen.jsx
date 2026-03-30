@@ -2,14 +2,23 @@ import { useLang } from '../context/LangContext';
 import { fmt } from '../utils/numformat';
 
 const MAX_ITEMS = 5;
+const INTENT_LABELS = {
+  sale: 'voiceIntentSale',
+  credit: 'voiceIntentCredit',
+  payment: 'voiceIntentPayment',
+};
 
-function VoiceResultScreen({ transcript, detectedTotal, items = [], onSave, onFix, onAddAnother, onReRecord, onTypeInstead }) {
+function VoiceResultScreen({ transcript, detectedTotal, items = [], draft, onSave, onFix, onAddAnother, onReRecord, onTypeInstead }) {
   const { t } = useLang();
 
   const hasMultiple = items.length > 1;
-  const runningTotal = items.reduce((sum, it) => sum + (it.detectedTotal || 0), 0);
-  const effectiveTotal = hasMultiple ? runningTotal : detectedTotal;
+  const runningTotal = draft?.total_amount ?? items.reduce((sum, it) => sum + (it.detectedTotal || 0), 0);
+  const effectiveTotal = hasMultiple ? runningTotal : (draft?.total_amount ?? detectedTotal);
   const canAddMore = items.length < MAX_ITEMS;
+  const parsedItems = draft?.items || [];
+  const summaryNote = parsedItems.length
+    ? parsedItems.map((item) => `${item.quantity && item.quantity !== 1 ? `${item.quantity}x ` : ''}${item.name}`).join(', ')
+    : transcript;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white" style={{ fontFamily: 'var(--font-sans)' }}>
@@ -39,6 +48,49 @@ function VoiceResultScreen({ transcript, detectedTotal, items = [], onSave, onFi
           </div>
         )}
 
+        {(draft?.customer_name || draft?.intent || parsedItems.length > 0) && (
+          <div className="p-4 rounded-xl space-y-3" style={{ background: '#fff', border: '1px solid #e8e2d8' }}>
+            <div className="flex gap-2 flex-wrap">
+              {draft?.intent && (
+                <span className="px-3 py-1 text-xs font-black" style={{ background: '#eef6f1', color: '#1B4332', borderRadius: 999 }}>
+                  {t.voiceIntent}: {t[INTENT_LABELS[draft.intent]] || draft.intent}
+                </span>
+              )}
+              {draft?.customer_name && (
+                <span className="px-3 py-1 text-xs font-black" style={{ background: '#FAF8F5', color: '#6b7280', borderRadius: 999 }}>
+                  {t.voiceCustomerName}: {draft.customer_name}
+                </span>
+              )}
+            </div>
+
+            {parsedItems.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-400 font-sans">{t.voiceParsedItems}</p>
+                {parsedItems.map((item, index) => (
+                  <div key={`${item.name}-${index}`} className="p-3 rounded-xl flex items-center justify-between gap-3" style={{ background: '#FAF8F5' }}>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-gray-800 truncate">{item.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {t.voiceQuantity}: {item.quantity || 1}
+                        {item.unit_price != null ? ` · ${t.voiceUnitPrice}: ${fmt(item.unit_price)}` : ''}
+                      </p>
+                    </div>
+                    <span className="text-sm font-black flex-shrink-0" style={{ color: '#1B4332' }}>
+                      {item.line_total != null ? fmt(item.line_total) : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {draft?.needs_review && (
+              <p className="text-sm font-semibold" style={{ color: '#92400e' }}>
+                {t.voiceNeedsReview}
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="p-5 rounded-xl text-center" style={{ background: effectiveTotal ? '#f0fdf4' : '#fff7ed', border: `1px solid ${effectiveTotal ? '#bbf7d0' : '#fde68a'}` }}>
           <p className="text-xs font-bold uppercase tracking-wide mb-2 font-sans" style={{ color: effectiveTotal ? '#166534' : '#92400e' }}>
             {hasMultiple ? t.voiceRunningTotal || 'Running Total' : t.voiceDetectedTotal}
@@ -59,7 +111,7 @@ function VoiceResultScreen({ transcript, detectedTotal, items = [], onSave, onFi
       <div className="px-6 pb-8 pt-2 space-y-3 flex-shrink-0">
         {effectiveTotal != null && effectiveTotal > 0 && (
           <button
-            onClick={() => onSave({ amount: effectiveTotal, note: hasMultiple ? items.map(it => it.transcript).join(', ') : transcript })}
+            onClick={() => onSave({ amount: effectiveTotal, note: summaryNote, draft })}
             className="w-full py-4 font-black text-white text-base font-sans"
             style={{ background: '#2d6a4f', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 #1B4332' }}
           >

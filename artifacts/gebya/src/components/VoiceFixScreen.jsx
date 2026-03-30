@@ -11,25 +11,61 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-function VoiceFixScreen({ transcript, detectedTotal, items = [], onSave, onCancel, enabledProviders }) {
+function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, onCancel, enabledProviders }) {
   const { t } = useLang();
   const hasMultiple = items.length > 1;
-  const runningTotal = hasMultiple ? items.reduce((sum, it) => sum + (it.detectedTotal || 0), 0) : null;
+  const parsedItems = draft?.items?.length
+    ? draft.items.map((item) => ({
+      name: item.name || '',
+      quantity: item.quantity != null ? String(item.quantity) : '1',
+      unit_price: item.unit_price != null ? String(item.unit_price) : '',
+    }))
+    : [];
+  const runningTotal = draft?.total_amount ?? (hasMultiple ? items.reduce((sum, it) => sum + (it.detectedTotal || 0), 0) : null);
   const effectiveTotal = runningTotal ?? detectedTotal;
-  const [amount, setAmount] = useState(effectiveTotal != null ? String(effectiveTotal) : '');
   const combinedNote = hasMultiple ? items.map(it => it.transcript).join(', ') : (transcript || '');
+  const [amount, setAmount] = useState(effectiveTotal != null ? String(effectiveTotal) : '');
   const [note, setNote] = useState(combinedNote);
+  const [customerName, setCustomerName] = useState(draft?.customer_name || '');
+  const [draftItems, setDraftItems] = useState(parsedItems);
   const [paymentType, setPaymentType] = useState('cash');
   const [paymentProvider, setPaymentProvider] = useState('');
 
-  const parsedAmount = parseFloat(parseInput(amount)) || 0;
+  const normalizedItems = draftItems.map((item) => {
+    const quantity = Math.max(1, parseFloat(parseInput(item.quantity || '1')) || 1);
+    const unitPrice = item.unit_price ? (parseFloat(parseInput(item.unit_price)) || 0) : null;
+    return {
+      name: item.name.trim(),
+      quantity,
+      unit_price: unitPrice,
+      line_total: unitPrice != null ? quantity * unitPrice : null,
+    };
+  }).filter((item) => item.name);
+
+  const computedAmount = normalizedItems.length > 0 && normalizedItems.every((item) => item.line_total != null)
+    ? normalizedItems.reduce((sum, item) => sum + (item.line_total || 0), 0)
+    : null;
+  const parsedAmount = computedAmount ?? (parseFloat(parseInput(amount)) || 0);
   const canSave = parsedAmount > 0;
+
+  const updateDraftItem = (index, field, value) => {
+    setDraftItems((current) => current.map((item, itemIndex) => (
+      itemIndex === index ? { ...item, [field]: value } : item
+    )));
+  };
 
   const handleSave = () => {
     if (!canSave) return;
     onSave({
       amount: parsedAmount,
       note: note.trim(),
+      draft: {
+        customer_name: customerName.trim() || null,
+        items: normalizedItems,
+        total_amount: parsedAmount,
+        intent: draft?.intent || 'sale',
+        needs_review: false,
+      },
       paymentType,
       paymentProvider: paymentType !== 'cash' ? paymentProvider : '',
     });
@@ -69,6 +105,21 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], onSave, onCance
             />
             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
           </div>
+          {computedAmount != null && (
+            <p className="text-xs text-gray-500 mt-2">{t.voiceAutoCalculatedTotal}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.voiceCustomerName}</label>
+          <input
+            type="text"
+            value={customerName}
+            onChange={e => setCustomerName(e.target.value)}
+            placeholder={t.voiceCustomerPlaceholder}
+            className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+            style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+          />
         </div>
 
         <PaymentTypeChips
@@ -79,6 +130,46 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], onSave, onCance
           enabledProviders={enabledProviders}
           lastProviderByType={{}}
         />
+
+        {draftItems.length > 0 && (
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.voiceParsedItems}</label>
+            <div className="space-y-3">
+              {draftItems.map((item, index) => (
+                <div key={index} className="p-3 rounded-xl" style={{ background: '#FAF8F5', border: '1px solid #e8e2d8' }}>
+                  <input
+                    type="text"
+                    value={item.name}
+                    onChange={e => updateDraftItem(index, 'name', e.target.value)}
+                    placeholder={t.voiceItemNamePlaceholder}
+                    className="w-full p-3 border-2 focus:outline-none text-base min-h-[48px] font-sans mb-3"
+                    style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8', background: '#fff' }}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={item.quantity}
+                      onChange={e => handleNumericInput(e, value => updateDraftItem(index, 'quantity', value))}
+                      placeholder={t.voiceQuantity}
+                      className="w-full p-3 border-2 focus:outline-none text-base min-h-[48px] font-sans"
+                      style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8', background: '#fff' }}
+                    />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={fmtInput(item.unit_price)}
+                      onChange={e => handleNumericInput(e, value => updateDraftItem(index, 'unit_price', value))}
+                      placeholder={t.voiceUnitPrice}
+                      className="w-full p-3 border-2 focus:outline-none text-base min-h-[48px] font-sans"
+                      style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8', background: '#fff' }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.voiceNoteLabel}</label>

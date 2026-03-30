@@ -39,6 +39,38 @@ const P = {
   borderLight: '#f0ede8',
 };
 
+function buildVoiceSummaryFromDraft(draft) {
+  if (!draft?.items?.length) return '';
+  return draft.items
+    .map((item) => {
+      const qty = item.quantity && item.quantity !== 1 ? `${item.quantity}x ` : '';
+      const price = item.unit_price != null ? ` ${item.unit_price}` : '';
+      return `${qty}${item.name}${price}`.trim();
+    })
+    .join(', ');
+}
+
+function mergeVoiceDrafts(utterances = [], fallbackDraft = null) {
+  if (utterances.length <= 1) {
+    return fallbackDraft;
+  }
+
+  const drafts = utterances
+    .map((entry) => entry.draft)
+    .filter(Boolean);
+
+  const items = drafts.flatMap((draft) => draft.items || []);
+  const allTotalsKnown = items.length > 0 && items.every((item) => item.line_total != null);
+
+  return {
+    customer_name: drafts.find((draft) => draft.customer_name)?.customer_name || fallbackDraft?.customer_name || null,
+    items,
+    total_amount: allTotalsKnown ? items.reduce((sum, item) => sum + (item.line_total || 0), 0) : (drafts.reduce((sum, draft) => sum + (draft.total_amount || 0), 0) || fallbackDraft?.total_amount || null),
+    intent: drafts.find((draft) => draft.intent && draft.intent !== 'sale')?.intent || fallbackDraft?.intent || 'sale',
+    needs_review: drafts.some((draft) => draft.needs_review) || items.some((item) => item.unit_price == null),
+  };
+}
+
 function ShareModal({ summary, telegram, onClose, t }) {
   const isUsername = telegram?.startsWith('@') && telegram.length > 1;
   const handle = isUsername ? telegram.slice(1) : null;
@@ -151,6 +183,7 @@ function AppInner() {
   const [voiceDetectedTotal, setVoiceDetectedTotal] = useState(null);
   const [voiceItems, setVoiceItems] = useState([]);
   const [voiceConfidence, setVoiceConfidence] = useState(null);
+  const [voiceDraft, setVoiceDraft] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -346,25 +379,29 @@ function AppInner() {
     }
   };
 
-  const handleVoiceSave = async ({ amount, note, paymentType = 'cash', paymentProvider = '', wasEdited = false }) => {
+  const handleVoiceSave = async ({ amount, note, paymentType = 'cash', paymentProvider = '', wasEdited = false, draft = null }) => {
     const now = Date.now();
     const hasMultiple = voiceItems.length > 1;
+    const mergedDraft = hasMultiple ? mergeVoiceDrafts(voiceItems, draft || voiceDraft) : (draft || voiceDraft);
     const combinedTranscript = hasMultiple
       ? voiceItems.map(it => it.transcript).join(' | ')
       : (voiceTranscript || null);
     const savedDetectedTotal = hasMultiple
-      ? voiceItems.reduce((sum, it) => sum + (it.detectedTotal || 0), 0)
-      : (voiceDetectedTotal ?? null);
+      ? (mergedDraft?.total_amount ?? voiceItems.reduce((sum, it) => sum + (it.detectedTotal || 0), 0))
+      : (mergedDraft?.total_amount ?? voiceDetectedTotal ?? null);
+    const summaryNote = note || buildVoiceSummaryFromDraft(mergedDraft) || 'Voice sale';
+    const primaryItem = mergedDraft?.items?.length === 1 ? mergedDraft.items[0] : null;
 
     const transaction = {
       type: 'sale',
-      item_name: note || 'Voice sale',
-      quantity: 1,
+      item_name: primaryItem?.name || summaryNote,
+      quantity: primaryItem?.quantity || 1,
       amount,
       cost_price: 0,
       profit: null,
       is_credit: false,
       customer_phone: null,
+      customer_name: mergedDraft?.customer_name || null,
       due_date: null,
       payment_type: paymentType,
       payment_provider: paymentType !== 'cash' ? paymentProvider || null : null,
@@ -375,7 +412,7 @@ function AppInner() {
       was_edited: wasEdited || false,
       transcription_provider: null,
       parsing_confidence: hasMultiple ? null : (voiceConfidence ?? null),
-      voice_note: note || null,
+      voice_note: summaryNote || null,
       raw_audio_ref: null,
       created_at: now,
     };
@@ -385,6 +422,7 @@ function AppInner() {
     setVoiceDetectedTotal(null);
     setVoiceItems([]);
     setVoiceConfidence(null);
+    setVoiceDraft(null);
   };
 
   const handleUpdateTransaction = async (id, updates) => {
@@ -429,6 +467,11 @@ function AppInner() {
   const telegramConnectCustomer = useMemo(
     () => customerSummaries.find(c => c.id === telegramConnectCustomerId) || null,
     [customerSummaries, telegramConnectCustomerId]
+  );
+
+  const mergedVoiceDraft = useMemo(
+    () => mergeVoiceDrafts(voiceItems, voiceDraft),
+    [voiceDraft, voiceItems]
   );
 
   const handleAddCustomer = async (payload) => {
@@ -483,42 +526,73 @@ function AppInner() {
   };
 
   const handleSaveCustomerTransaction = async (payload) => {
-    if (!isValidCustomerTransactionType(payload.type)) return;
+    if (!isValidCustomerTransactionType(payload.type)) return false;
     const customer = customerSummaries.find(c => c.id === payload.customer_id);
     if (!customer) {
       fireToast(t.customerNotFound, 2200);
-      return;
+      return false;
     }
 
     const amount = Number(payload.amount) || 0;
     if (amount <= 0) {
       fireToast(t.validAmountRequired, 2200);
-      return;
+      return false;
     }
 
     if (payload.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT && amount > Math.max(customer.balance || 0, 0)) {
       fireToast(t.paymentMoreThanBalance, 2600);
-      return;
+      return false;
     }
 
     const now = Date.now();
-    const entry = {
-      customer_id: payload.customer_id,
-      type: payload.type,
-      amount,
-      item_note: payload.item_note || null,
-      due_date: payload.due_date || null,
-      created_at: now,
-      updated_at: now,
-    };
+    let customerMissing = false;
+    let staleOverPayment = false;
+    let saved = null;
+    let nextBalance = 0;
+    let previousBalance = Math.max(customer.balance || 0, 0);
 
-    const id = await db.customer_transactions.add(entry);
-    const saved = await db.customer_transactions.get(id);
-    const nextCustomerTx = [saved, ...ledgerTransactions].filter(tx => tx.customer_id === payload.customer_id);
-    const nextBalance = getCustomerBalance(nextCustomerTx);
+    await db.transaction('rw', db.customer_transactions, db.customers, async () => {
+      const customerRecord = await db.customers.get(payload.customer_id);
+      if (!customerRecord) {
+        customerMissing = true;
+        return;
+      }
+
+      const existingTx = await db.customer_transactions.where('customer_id').equals(payload.customer_id).toArray();
+      previousBalance = Math.max(getCustomerBalance(existingTx), 0);
+
+      if (payload.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT && amount > previousBalance) {
+        staleOverPayment = true;
+        return;
+      }
+
+      const entry = {
+        customer_id: payload.customer_id,
+        type: payload.type,
+        amount,
+        item_note: payload.item_note || null,
+        due_date: payload.due_date || null,
+        created_at: now,
+        updated_at: now,
+      };
+
+      const id = await db.customer_transactions.add(entry);
+      saved = await db.customer_transactions.get(id);
+      nextBalance = getCustomerBalance([saved, ...existingTx]);
+      await db.customers.update(payload.customer_id, { updated_at: now });
+    });
+
+    if (customerMissing) {
+      fireToast(t.customerNotFound, 2200);
+      return false;
+    }
+
+    if (staleOverPayment || !saved) {
+      fireToast(t.paymentMoreThanBalance, 2600);
+      return false;
+    }
 
     setLedgerTransactions(prev => [saved, ...prev]);
-    await db.customers.update(payload.customer_id, { updated_at: now });
     setLedgerCustomers(prev => prev.map(c => c.id === payload.customer_id ? { ...c, updated_at: now } : c));
     setCustomerTransactionModal(null);
 
@@ -538,7 +612,7 @@ function AppInner() {
         shopName: shopProfile?.name,
         type: payload.type,
         amount,
-        previousBalance: customer.balance || 0,
+        previousBalance,
         updatedBalance: nextBalance,
         createdAt: now,
       });
@@ -547,6 +621,8 @@ function AppInner() {
         window.open(telegramUrl, '_blank', 'noopener,noreferrer');
       }
     }
+
+    return true;
   };
 
   const todayDateStr = new Date().toDateString();
@@ -1032,16 +1108,17 @@ function AppInner() {
 
       {voiceStep === 'record' && (
         <VoiceRecordScreen
-          onTranscript={(transcript, detectedTotal, confidence) => {
-            const newItem = { transcript, detectedTotal };
+          onTranscript={(transcript, detectedTotal, confidence, draft) => {
+            const newItem = { transcript, detectedTotal, draft };
             const updatedItems = [...voiceItems, newItem];
             setVoiceItems(updatedItems);
             setVoiceTranscript(transcript);
             setVoiceDetectedTotal(detectedTotal);
             setVoiceConfidence(confidence ?? null);
+            setVoiceDraft(draft ?? null);
             setVoiceStep('result');
           }}
-          onTypeInstead={() => { setVoiceStep(null); setVoiceItems([]); setVoiceConfidence(null); setShowForm('sale'); }}
+          onTypeInstead={() => { setVoiceStep(null); setVoiceItems([]); setVoiceConfidence(null); setVoiceDraft(null); setShowForm('sale'); }}
         />
       )}
 
@@ -1050,11 +1127,12 @@ function AppInner() {
           transcript={voiceTranscript}
           detectedTotal={voiceDetectedTotal}
           items={voiceItems}
+          draft={mergedVoiceDraft}
           onSave={handleVoiceSave}
           onFix={() => setVoiceStep('fix')}
           onAddAnother={() => setVoiceStep('record')}
-          onReRecord={() => { setVoiceTranscript(''); setVoiceDetectedTotal(null); setVoiceItems([]); setVoiceConfidence(null); setVoiceStep('record'); }}
-          onTypeInstead={() => { setVoiceStep(null); setVoiceItems([]); setVoiceConfidence(null); setShowForm('sale'); }}
+          onReRecord={() => { setVoiceTranscript(''); setVoiceDetectedTotal(null); setVoiceItems([]); setVoiceConfidence(null); setVoiceDraft(null); setVoiceStep('record'); }}
+          onTypeInstead={() => { setVoiceStep(null); setVoiceItems([]); setVoiceConfidence(null); setVoiceDraft(null); setShowForm('sale'); }}
         />
       )}
 
@@ -1063,6 +1141,7 @@ function AppInner() {
           transcript={voiceTranscript}
           detectedTotal={voiceDetectedTotal}
           items={voiceItems}
+          draft={mergedVoiceDraft}
           onSave={(data) => handleVoiceSave({ ...data, wasEdited: true })}
           onCancel={() => setVoiceStep('result')}
           enabledProviders={enabledProviders}
