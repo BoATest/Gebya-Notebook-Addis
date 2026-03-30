@@ -1,0 +1,20 @@
+- generic [ref=e21]:
+  - generic [ref=e22]:
+    - generic [ref=e23]: 📒
+    - heading "ገበያ" [level=1] [ref=e24]
+    - paragraph [ref=e25]: የሱቅ ማስታወሻ ደብተር
+    - paragraph [ref=e26]: Your business notebook
+  - generic [ref=e27]:
+    - heading "Welcome!" [level=2] [ref=e28]
+    - paragraph [ref=e29]: Let's set up your profile. You can change these any time in Settings.
+    - generic [ref=e30]:
+      - generic [ref=e31]:
+        - generic [ref=e32]: Name *
+        - textbox "e.g. Tigist" [ref=e33]: Test Shop
+      - generic [ref=e34]:
+        - generic [ref=e35]: Phone Number *
+        - generic [ref=e36]:
+          - generic [ref=e37]: "+251"
+          - textbox "9XXXXXXXX" [active] [ref=e38]: "911111111"
+    - button "ጀምር — Get Started" [ref=e39]
+  - paragraph [ref=e40]: All data stays on your phone · No account needed · Free

@@ -3,11 +3,14 @@ import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
-import { fmt } from '../utils/numformat';
+import { fmt, parseInput } from '../utils/numformat';
 import db from '../db';
 import { ALL_BANKS, ALL_WALLETS } from './PaymentTypeChips';
 import { BADGE_DEFINITIONS } from '../utils/badges';
 import { fireToast } from './Toast';
+import { normalizeTelegram } from '../utils/customerTelegram';
+import PwaInstallPanel from './PwaInstallPanel.jsx';
+import { SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger';
 
 const FREQ_LABELS_EN = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
 const FREQ_LABELS_AM = { daily: 'ዕለታዊ', weekly: 'ሳምንታዊ', monthly: 'ወርሃዊ' };
@@ -16,6 +19,8 @@ function SettingsPage({
   transactions,
   todayTransactions,
   customerSummaries,
+  catalogEntries,
+  supplierSummaries,
   shopProfile,
   onProfileSave,
   enabledProviders,
@@ -25,6 +30,11 @@ function SettingsPage({
   usageStats,
   earnedBadges,
   onShareToday,
+  onSaveCatalogEntry,
+  onToggleCatalogEntryActive,
+  onSaveSupplier,
+  onSaveSupplierTransaction,
+  pwa,
 }) {
   const { hidden, toggle } = usePrivacy();
   const { lang, t } = useLang();
@@ -32,6 +42,28 @@ function SettingsPage({
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [cleared, setCleared] = useState(false);
+  const [catalogForm, setCatalogForm] = useState({
+    id: null,
+    name: '',
+    kind: 'item',
+    default_price: '',
+    default_cost: '',
+    note: '',
+  });
+  const [supplierForm, setSupplierForm] = useState({
+    display_name: '',
+    phone_number: '',
+    note: '',
+  });
+  const [supplierTxForm, setSupplierTxForm] = useState({
+    supplier_id: '',
+    type: SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD,
+    catalog_entry_id: '',
+    item_name: '',
+    quantity: '1',
+    amount: '',
+    note: '',
+  });
 
   const [editName, setEditName] = useState(shopProfile?.name || '');
   const [editPhoneDigits, setEditPhoneDigits] = useState(() => {
@@ -43,6 +75,8 @@ function SettingsPage({
   const [phoneTouched, setPhoneTouched] = useState(false);
 
   const phoneValid = /^[79]\d{8}$/.test(editPhoneDigits);
+  const normalizedTelegram = normalizeTelegram(editTelegram);
+  const telegramValid = !editTelegram.trim() || !!normalizedTelegram;
   const handlePhoneChange = (e) => {
     const raw = e.target.value.replace(/\D/g, '');
     if (raw.length <= 9) setEditPhoneDigits(raw);
@@ -78,11 +112,14 @@ function SettingsPage({
   const [showReForm, setShowReForm] = useState(false);
 
   const [shareCopied, setShareCopied] = useState(false);
+  const activeCatalogEntries = (catalogEntries || []).filter(entry => entry.active !== false);
+  const selectedSupplier = (supplierSummaries || []).find(item => String(item.id) === String(supplierTxForm.supplier_id)) || null;
 
   const handleProfileSave = async () => {
-    if (!editName.trim() || !phoneValid) return;
+    if (!editName.trim() || !phoneValid || !telegramValid) return;
     const fullPhone = '+251' + editPhoneDigits;
-    await onProfileSave(editName.trim(), fullPhone, editTelegram.trim());
+    await onProfileSave(editName.trim(), fullPhone, normalizedTelegram || '');
+    setEditTelegram(normalizedTelegram || '');
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2000);
   };
@@ -117,6 +154,9 @@ function SettingsPage({
       db.transactions.clear(),
       db.customers.clear(),
       db.customer_transactions.clear(),
+      db.catalog_entries.clear(),
+      db.suppliers.clear(),
+      db.supplier_transactions.clear(),
     ]);
     setCleared(true);
     setShowClearConfirm(false);
@@ -226,6 +266,7 @@ function SettingsPage({
 
   const totalEntries = transactions.length;
   const totalCustomersWithLedger = customerSummaries.length;
+  const totalSupplierDubie = (supplierSummaries || []).reduce((sum, supplier) => sum + Math.max(supplier.balance || 0, 0), 0);
   const currentFullPhone = '+251' + editPhoneDigits;
   const profileChanged = (
     editName.trim() !== (shopProfile?.name || '') ||
@@ -243,8 +284,87 @@ function SettingsPage({
   const todayHasCost = todaySales.some(tx => tx.cost_price > 0);
   const todayProfit = todayRevenue - todayCostOfGoods - todayExpTotal;
 
+  const resetCatalogForm = () => {
+    setCatalogForm({
+      id: null,
+      name: '',
+      kind: 'item',
+      default_price: '',
+      default_cost: '',
+      note: '',
+    });
+  };
+
+  const resetSupplierForm = () => {
+    setSupplierForm({
+      display_name: '',
+      phone_number: '',
+      note: '',
+    });
+  };
+
+  const resetSupplierTxForm = () => {
+    setSupplierTxForm(prev => ({
+      supplier_id: prev.supplier_id,
+      type: SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD,
+      catalog_entry_id: '',
+      item_name: '',
+      quantity: '1',
+      amount: '',
+      note: '',
+    }));
+  };
+
+  const handleCatalogSubmit = async () => {
+    const saved = await onSaveCatalogEntry?.({
+      id: catalogForm.id,
+      name: catalogForm.name,
+      kind: catalogForm.kind,
+      default_price: parseInput(catalogForm.default_price),
+      default_cost: parseInput(catalogForm.default_cost),
+      note: catalogForm.note,
+      active: true,
+    });
+    if (!saved) return;
+    fireToast(catalogForm.id ? 'Catalog updated' : 'Saved to items & services', 1800);
+    resetCatalogForm();
+  };
+
+  const handleSupplierSubmit = async () => {
+    const saved = await onSaveSupplier?.(supplierForm);
+    if (!saved) return;
+    fireToast('Supplier saved', 1800);
+    setSupplierTxForm(prev => ({ ...prev, supplier_id: String(saved.id) }));
+    resetSupplierForm();
+  };
+
+  const handleSupplierTransactionSubmit = async () => {
+    const quantity = Math.max(parseInt(supplierTxForm.quantity || '1', 10) || 1, 1);
+    const selectedCatalog = activeCatalogEntries.find(entry => String(entry.id) === String(supplierTxForm.catalog_entry_id));
+    const didSave = await onSaveSupplierTransaction?.({
+      supplier_id: Number(supplierTxForm.supplier_id),
+      type: supplierTxForm.type,
+      catalog_entry_id: supplierTxForm.catalog_entry_id ? Number(supplierTxForm.catalog_entry_id) : null,
+      item_name: supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD
+        ? (supplierTxForm.item_name.trim() || selectedCatalog?.name || null)
+        : null,
+      item_kind: selectedCatalog?.kind || null,
+      quantity,
+      amount: parseInput(supplierTxForm.amount),
+      note: supplierTxForm.note.trim() || null,
+    });
+    if (!didSave) return;
+    fireToast(
+      supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? 'Supplier dubie saved' : 'Supplier payment saved',
+      1800
+    );
+    resetSupplierTxForm();
+  };
+
   return (
     <div className="space-y-5 pb-4">
+
+      <PwaInstallPanel pwa={pwa} variant="settings" />
 
       {(todayTransactions && todayTransactions.length > 0) && (
         <section>
@@ -445,20 +565,376 @@ function SettingsPage({
                 onChange={e => setEditTelegram(e.target.value)}
                 placeholder={t.telegramPlaceholder}
                 className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
-                style={{ borderColor: '#e8e2d8' }}
+                style={{ borderColor: telegramValid ? '#e8e2d8' : '#dc2626' }}
               />
+              {!telegramValid && (
+                <p className="text-xs text-red-500 mt-1 font-medium">{t.telegramFormatHint}</p>
+              )}
             </div>
             <button
               onClick={handleProfileSave}
-              disabled={!editName.trim() || !phoneValid || (!profileChanged && !profileSaved)}
+              disabled={!editName.trim() || !phoneValid || !telegramValid || (!profileChanged && !profileSaved)}
               className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all min-h-[48px]"
               style={{
-                background: profileSaved ? '#15803d' : (editName.trim() && phoneValid && profileChanged ? '#C4883A' : '#e5e7eb'),
-                color: (editName.trim() && phoneValid && (profileChanged || profileSaved)) ? '#fff' : '#9ca3af',
+                background: profileSaved ? '#15803d' : (editName.trim() && phoneValid && telegramValid && profileChanged ? '#C4883A' : '#e5e7eb'),
+                color: (editName.trim() && phoneValid && telegramValid && (profileChanged || profileSaved)) ? '#fff' : '#9ca3af',
               }}
             >
               {profileSaved ? <><Check className="w-4 h-4" /> {t.saved}</> : t.saveChanges}
             </button>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">Items & Services</h2>
+        <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
+          <div className="px-5 pt-5 pb-4 space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              {['item', 'service'].map(kind => (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => setCatalogForm(prev => ({ ...prev, kind }))}
+                  className="py-3 rounded-xl text-sm font-bold border-2 transition-all min-h-[44px]"
+                  style={{
+                    borderColor: catalogForm.kind === kind ? '#1B4332' : '#e8e2d8',
+                    background: catalogForm.kind === kind ? 'rgba(27,67,50,0.07)' : '#fff',
+                    color: catalogForm.kind === kind ? '#1B4332' : '#6b7280',
+                  }}
+                >
+                  {kind === 'item' ? 'Item' : 'Service'}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={catalogForm.name}
+              onChange={e => setCatalogForm(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="Name"
+              className="w-full px-4 py-3 border-2 rounded-xl text-sm font-semibold focus:outline-none"
+              style={{ borderColor: '#e8e2d8' }}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={catalogForm.default_price}
+                onChange={e => setCatalogForm(prev => ({ ...prev, default_price: e.target.value.replace(/[^\d.,]/g, '') }))}
+                placeholder="Default sale price"
+                className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
+                style={{ borderColor: '#e8e2d8' }}
+              />
+              <input
+                type="text"
+                inputMode="decimal"
+                value={catalogForm.default_cost}
+                onChange={e => setCatalogForm(prev => ({ ...prev, default_cost: e.target.value.replace(/[^\d.,]/g, '') }))}
+                placeholder="Default cost"
+                className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
+                style={{ borderColor: '#e8e2d8' }}
+              />
+            </div>
+            <textarea
+              value={catalogForm.note}
+              onChange={e => setCatalogForm(prev => ({ ...prev, note: e.target.value }))}
+              placeholder="Optional note"
+              rows={2}
+              className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none resize-none"
+              style={{ borderColor: '#e8e2d8' }}
+            />
+            <div className="flex gap-2">
+              {catalogForm.id && (
+                <button
+                  type="button"
+                  onClick={resetCatalogForm}
+                  className="px-4 py-3 rounded-xl text-sm font-bold min-h-[44px]"
+                  style={{ background: '#f5f5f5', color: '#6b7280' }}
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleCatalogSubmit}
+                disabled={!catalogForm.name.trim()}
+                className="flex-1 py-3 rounded-xl text-sm font-bold text-white min-h-[44px] disabled:opacity-40"
+                style={{ background: '#1B4332' }}
+              >
+                {catalogForm.id ? 'Update entry' : 'Save entry'}
+              </button>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              {(catalogEntries || []).length === 0 && (
+                <p className="text-xs text-gray-400">No saved items or services yet.</p>
+              )}
+              {(catalogEntries || []).map(entry => (
+                <div key={entry.id} className="flex items-start gap-3 p-3 rounded-xl" style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-bold text-gray-800 text-sm">{entry.name}</p>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: entry.kind === 'service' ? '#dbeafe' : '#dcfce7', color: entry.kind === 'service' ? '#1d4ed8' : '#166534' }}>
+                        {entry.kind === 'service' ? 'Service' : 'Item'}
+                      </span>
+                      {entry.active === false && (
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#f3f4f6', color: '#6b7280' }}>
+                          Archived
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Sale {entry.default_price != null ? fmt(entry.default_price) : '—'} · Cost {entry.default_cost != null ? fmt(entry.default_cost) : '—'}
+                    </p>
+                    {entry.note && <p className="text-xs text-gray-400 mt-1">{entry.note}</p>}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCatalogForm({
+                        id: entry.id,
+                        name: entry.name || '',
+                        kind: entry.kind || 'item',
+                        default_price: entry.default_price != null ? String(entry.default_price) : '',
+                        default_cost: entry.default_cost != null ? String(entry.default_cost) : '',
+                        note: entry.note || '',
+                      })}
+                      className="px-3 py-2 rounded-lg text-xs font-bold"
+                      style={{ background: '#fff', color: '#1B4332', border: '1px solid #e8e2d8' }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onToggleCatalogEntryActive?.(entry)}
+                      className="px-3 py-2 rounded-lg text-xs font-bold"
+                      style={{ background: entry.active === false ? '#dcfce7' : '#f3f4f6', color: entry.active === false ? '#166534' : '#6b7280' }}
+                    >
+                      {entry.active === false ? 'Restore' : 'Archive'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">Suppliers & Dubie</h2>
+        <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
+          <div className="px-5 pt-5 pb-4 space-y-4">
+            <div className="p-4 rounded-2xl" style={{ background: '#fff7ed', border: '1.5px solid #fed7aa' }}>
+              <p className="text-xs font-bold tracking-wide uppercase" style={{ color: '#9a3412' }}>Total supplier dubie</p>
+              <p className="text-2xl font-black mt-1" style={{ color: '#9a3412' }}>{fmt(totalSupplierDubie)} {t.birr}</p>
+              <p className="text-xs mt-1 text-gray-500">{(supplierSummaries || []).length} suppliers</p>
+            </div>
+
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={supplierForm.display_name}
+                onChange={e => setSupplierForm(prev => ({ ...prev, display_name: e.target.value }))}
+                placeholder="Supplier name"
+                className="w-full px-4 py-3 border-2 rounded-xl text-sm font-semibold focus:outline-none"
+                style={{ borderColor: '#e8e2d8' }}
+              />
+              <input
+                type="text"
+                value={supplierForm.phone_number}
+                onChange={e => setSupplierForm(prev => ({ ...prev, phone_number: e.target.value }))}
+                placeholder="Phone (optional)"
+                className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
+                style={{ borderColor: '#e8e2d8' }}
+              />
+              <textarea
+                value={supplierForm.note}
+                onChange={e => setSupplierForm(prev => ({ ...prev, note: e.target.value }))}
+                placeholder="Note (optional)"
+                rows={2}
+                className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none resize-none"
+                style={{ borderColor: '#e8e2d8' }}
+              />
+              <button
+                type="button"
+                onClick={handleSupplierSubmit}
+                disabled={!supplierForm.display_name.trim()}
+                className="w-full py-3 rounded-xl text-sm font-bold text-white min-h-[44px] disabled:opacity-40"
+                style={{ background: '#C4883A' }}
+              >
+                Save supplier
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {(supplierSummaries || []).map(supplier => (
+                <button
+                  key={supplier.id}
+                  type="button"
+                  onClick={() => setSupplierTxForm(prev => ({ ...prev, supplier_id: String(supplier.id) }))}
+                  className="w-full text-left p-3 rounded-xl border"
+                  style={{
+                    background: String(supplierTxForm.supplier_id) === String(supplier.id) ? 'rgba(196,136,58,0.12)' : '#FAF8F5',
+                    borderColor: String(supplierTxForm.supplier_id) === String(supplier.id) ? '#C4883A' : 'var(--color-border)',
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm text-gray-800">{supplier.display_name}</p>
+                      <p className="text-xs text-gray-500">{supplier.transaction_count || 0} entries</p>
+                    </div>
+                    <p className="text-sm font-black" style={{ color: '#9a3412' }}>{fmt(Math.max(supplier.balance || 0, 0))} {t.birr}</p>
+                  </div>
+                </button>
+              ))}
+              {(supplierSummaries || []).length === 0 && (
+                <p className="text-xs text-gray-400">No suppliers saved yet.</p>
+              )}
+            </div>
+
+            <div className="p-4 rounded-2xl" style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setSupplierTxForm(prev => ({ ...prev, type: SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD }))}
+                  className="py-3 rounded-xl text-sm font-bold"
+                  style={{
+                    background: supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? '#C4883A' : '#fff',
+                    color: supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? '#fff' : '#6b7280',
+                    border: '1px solid #e8e2d8',
+                  }}
+                >
+                  Add purchase dubie
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSupplierTxForm(prev => ({ ...prev, type: SUPPLIER_TRANSACTION_TYPES.PAYMENT }))}
+                  className="py-3 rounded-xl text-sm font-bold"
+                  style={{
+                    background: supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT ? '#2d6a4f' : '#fff',
+                    color: supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT ? '#fff' : '#6b7280',
+                    border: '1px solid #e8e2d8',
+                  }}
+                >
+                  Record payment
+                </button>
+              </div>
+
+              <select
+                value={supplierTxForm.supplier_id}
+                onChange={e => setSupplierTxForm(prev => ({ ...prev, supplier_id: e.target.value }))}
+                className="w-full mb-3 px-4 py-3 border-2 rounded-xl text-sm bg-white focus:outline-none"
+                style={{ borderColor: '#e8e2d8' }}
+              >
+                <option value="">Choose supplier</option>
+                {(supplierSummaries || []).map(supplier => (
+                  <option key={supplier.id} value={supplier.id}>{supplier.display_name}</option>
+                ))}
+              </select>
+
+              {supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD && (
+                <>
+                  {activeCatalogEntries.length > 0 && (
+                    <select
+                      value={supplierTxForm.catalog_entry_id}
+                      onChange={e => {
+                        const value = e.target.value;
+                        const selectedCatalog = activeCatalogEntries.find(entry => String(entry.id) === String(value));
+                        setSupplierTxForm(prev => ({
+                          ...prev,
+                          catalog_entry_id: value,
+                          item_name: prev.item_name || selectedCatalog?.name || '',
+                        }));
+                      }}
+                      className="w-full mb-3 px-4 py-3 border-2 rounded-xl text-sm bg-white focus:outline-none"
+                      style={{ borderColor: '#e8e2d8' }}
+                    >
+                      <option value="">Choose saved item / service</option>
+                      {activeCatalogEntries.map(entry => (
+                        <option key={entry.id} value={entry.id}>
+                          {entry.name} {entry.kind === 'service' ? '• Service' : '• Item'}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <input
+                    type="text"
+                    value={supplierTxForm.item_name}
+                    onChange={e => setSupplierTxForm(prev => ({ ...prev, item_name: e.target.value }))}
+                    placeholder="Item or service bought"
+                    className="w-full mb-3 px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
+                    style={{ borderColor: '#e8e2d8' }}
+                  />
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    value={supplierTxForm.quantity}
+                    onChange={e => setSupplierTxForm(prev => ({ ...prev, quantity: e.target.value }))}
+                    placeholder="Quantity"
+                    className="w-full mb-3 px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
+                    style={{ borderColor: '#e8e2d8' }}
+                  />
+                </>
+              )}
+
+              <input
+                type="text"
+                inputMode="decimal"
+                value={supplierTxForm.amount}
+                onChange={e => setSupplierTxForm(prev => ({ ...prev, amount: e.target.value.replace(/[^\d.,]/g, '') }))}
+                placeholder={supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? 'Total amount owed' : 'Amount paid'}
+                className="w-full mb-3 px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
+                style={{ borderColor: '#e8e2d8' }}
+              />
+              <textarea
+                value={supplierTxForm.note}
+                onChange={e => setSupplierTxForm(prev => ({ ...prev, note: e.target.value }))}
+                placeholder="Note (optional)"
+                rows={2}
+                className="w-full mb-3 px-4 py-3 border-2 rounded-xl text-sm focus:outline-none resize-none"
+                style={{ borderColor: '#e8e2d8' }}
+              />
+              {selectedSupplier && (
+                <p className="text-xs mb-3" style={{ color: '#6b7280' }}>
+                  Remaining dubie for {selectedSupplier.display_name}: {fmt(Math.max(selectedSupplier.balance || 0, 0))} {t.birr}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleSupplierTransactionSubmit}
+                disabled={!supplierTxForm.supplier_id || !parseFloat(parseInput(supplierTxForm.amount || '')) || (supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD && !supplierTxForm.item_name.trim() && !supplierTxForm.catalog_entry_id)}
+                className="w-full py-3 rounded-xl text-sm font-bold text-white min-h-[44px] disabled:opacity-40"
+                style={{ background: supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? '#C4883A' : '#2d6a4f' }}
+              >
+                {supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? 'Save purchase dubie' : 'Save payment'}
+              </button>
+            </div>
+
+            {selectedSupplier?.transactions?.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-bold tracking-wide uppercase text-gray-500">Recent supplier entries</p>
+                {selectedSupplier.transactions.slice(0, 6).map(entry => (
+                  <div key={entry.id} className="p-3 rounded-xl border" style={{ background: '#fff', borderColor: 'var(--color-border)' }}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm text-gray-800">
+                          {entry.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? (entry.item_name || 'Purchase') : 'Payment'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatEthiopian(entry.created_at)}
+                          {entry.quantity ? ` · x${entry.quantity}` : ''}
+                        </p>
+                        {entry.note && <p className="text-xs text-gray-400 mt-1">{entry.note}</p>}
+                      </div>
+                      <p className="text-sm font-black" style={{ color: entry.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? '#9a3412' : '#166534' }}>
+                        {entry.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? '+' : '-'}{fmt(entry.amount || 0)} {t.birr}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>

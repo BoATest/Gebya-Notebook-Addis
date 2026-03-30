@@ -13,7 +13,7 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpenses, onRecurringChange, initialPaymentType, initialPaymentProvider, lastPaymentHistory }) {
+function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntries = [], recurringExpenses, onRecurringChange, initialPaymentType, initialPaymentProvider, lastPaymentHistory }) {
   const { t } = useLang();
 
   const configs = {
@@ -32,6 +32,7 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
   }[config.color];
 
   const [item, setItem] = useState('');
+  const [catalogEntryId, setCatalogEntryId] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [amount, setAmount] = useState('');
   const [costPrice, setCostPrice] = useState('');
@@ -53,6 +54,7 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
   const [addRecurringHint, setAddRecurringHint] = useState(false);
 
   const dueDateOptions = getDueDateOptions();
+  const selectedCatalogEntry = catalogEntries.find(entry => String(entry.id) === String(catalogEntryId)) || null;
   const sellingPrice = parseFloat(parseInput(amount)) || 0;
   const cost = parseFloat(parseInput(costPrice)) || 0;
   const qty = Math.max(1, parseInt(quantity) || 1);
@@ -77,6 +79,8 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
     const data = {
       type,
       item_name: item.trim(),
+      catalog_entry_id: catalogEntryId ? Number(catalogEntryId) : null,
+      item_kind: selectedCatalogEntry?.kind || null,
       quantity: isCredit ? 1 : qty,
       amount: sellingPrice,
       cost_price: isCredit ? 0 : cost,
@@ -99,6 +103,19 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
       }
     } catch (err) {
       // error handled in App.jsx
+    }
+  };
+
+  const handleSelectCatalogEntry = (value) => {
+    setCatalogEntryId(value);
+    const entry = catalogEntries.find(item2 => String(item2.id) === String(value));
+    if (!entry) return;
+    setItem(entry.name || '');
+    if (!amount && entry.default_price != null) {
+      setAmount(String(entry.default_price));
+    }
+    if (!costPrice && entry.default_cost != null) {
+      setCostPrice(String(entry.default_cost));
     }
   };
 
@@ -127,6 +144,7 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
   const handleAddAnother = () => {
     const keptType = paymentType;
     const keptProvider = paymentProvider;
+    const keptCatalog = catalogEntryId;
     setItem('');
     setQuantity('1');
     setAmount('');
@@ -138,6 +156,7 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
     setCustomDue('');
     setPaymentType(keptType);
     setPaymentProvider(keptProvider);
+    setCatalogEntryId(keptCatalog);
     setSaveState('idle');
     setLastSaved(null);
   };
@@ -281,6 +300,24 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, recurringExpe
           )}
 
           <div>
+            {catalogEntries.length > 0 && (
+              <div className="mb-3">
+                <label className="block text-gray-700 font-semibold mb-2 text-sm font-sans">Saved item / service</label>
+                <select
+                  value={catalogEntryId}
+                  onChange={e => handleSelectCatalogEntry(e.target.value)}
+                  className="w-full p-3 border-2 focus:outline-none text-sm font-sans bg-white"
+                  style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+                >
+                  <option value="">Type manually</option>
+                  {catalogEntries.map(entry => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.name} {entry.kind === 'service' ? '• Service' : '• Item'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <label className="block text-gray-700 font-semibold mb-2 font-sans">{config.itemLabel}</label>
             <input
               type="text"

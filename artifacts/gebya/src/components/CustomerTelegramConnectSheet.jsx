@@ -9,6 +9,8 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone })
   const { t } = useLang();
   const [manualTelegram, setManualTelegram] = useState(customer?.telegram_username || '');
   const [saving, setSaving] = useState(false);
+  const normalizedTelegram = normalizeTelegram(manualTelegram);
+  const telegramValid = !manualTelegram.trim() || !!normalizedTelegram;
 
   const inviteLink = useMemo(
     () => buildCustomerConnectLink({
@@ -33,7 +35,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone })
     setSaving(true);
     try {
       await onSave?.({
-        telegram_username: normalizeTelegram(manualTelegram) || null,
+        telegram_username: normalizedTelegram || null,
       });
       onDone?.();
     } finally {
@@ -105,13 +107,18 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone })
               onChange={(e) => setManualTelegram(e.target.value)}
               placeholder={t.customerTelegramPlaceholder}
               className="w-full p-3 border-2 focus:outline-none text-sm"
-              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+              style={{ borderRadius: 'var(--radius-md)', borderColor: telegramValid ? '#e8e2d8' : '#dc2626' }}
             />
+            {!telegramValid && (
+              <p className="text-xs font-medium text-red-600">
+                {t.telegramFormatHint}
+              </p>
+            )}
           </div>
         </div>
 
         <div className="px-6 pb-8 pt-2 space-y-2">
-          <button onClick={handleConfirm} disabled={saving} className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 min-h-[56px] press-scale" style={{ background: '#1B4332', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 #0f2b20, var(--shadow-sm)' }}>
+          <button onClick={handleConfirm} disabled={saving || !telegramValid} className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 min-h-[56px] press-scale" style={{ background: '#1B4332', borderRadius: 'var(--radius-md)', boxShadow: saving || !telegramValid ? 'none' : '0 4px 0 #0f2b20, var(--shadow-sm)', opacity: telegramValid ? 1 : 0.45 }}>
             <CheckCircle2 className="w-5 h-5" />
             {saving ? t.saving : t.confirmConnection}
           </button>

@@ -13,19 +13,21 @@ function CustomerForm({ onSave, onDone }) {
   const [showMore, setShowMore] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const canSave = displayName.trim().length > 0;
+  const normalizedTelegram = normalizeTelegram(telegramUsername);
+  const telegramValid = !telegramUsername.trim() || !!normalizedTelegram;
+  const canSave = displayName.trim().length > 0 && telegramValid;
 
   const handleSave = async () => {
     if (!canSave || saving) return;
     setSaving(true);
     try {
-      await onSave?.({
-        display_name: displayName.trim(),
-        note: note.trim() || null,
-        phone_number: phoneNumber.trim() || null,
-        telegram_username: normalizeTelegram(telegramUsername) || null,
-        telegram_notify_enabled: notifyOnTelegram,
-      });
+        await onSave?.({
+          display_name: displayName.trim(),
+          note: note.trim() || null,
+          phone_number: phoneNumber.trim() || null,
+          telegram_username: normalizedTelegram || null,
+          telegram_notify_enabled: notifyOnTelegram,
+        });
       onDone?.();
     } finally {
       setSaving(false);
@@ -81,7 +83,12 @@ function CustomerForm({ onSave, onDone }) {
                 </div>
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2 text-sm">{t.customerTelegramOptional}</label>
-                  <input type="text" value={telegramUsername} onChange={(e) => setTelegramUsername(e.target.value)} placeholder={t.customerTelegramPlaceholder} className="w-full p-3 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
+                  <input type="text" value={telegramUsername} onChange={(e) => setTelegramUsername(e.target.value)} placeholder={t.customerTelegramPlaceholder} className="w-full p-3 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: telegramValid ? '#e8e2d8' : '#dc2626' }} />
+                  {!telegramValid && (
+                    <p className="text-xs font-medium mt-2 text-red-600">
+                      {t.telegramFormatHint}
+                    </p>
+                  )}
                 </div>
                 <button
                   type="button"

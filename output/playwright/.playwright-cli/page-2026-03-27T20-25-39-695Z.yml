@@ -1,0 +1,8 @@
+- generic [ref=e8]:
+  - generic [ref=e9]:
+    - generic [ref=e10]: 📒
+    - heading "Your Business Notebook" [level=1] [ref=e11]
+    - paragraph [ref=e12]: Track sales, expenses, and credit — all on your phone. No account needed.
+  - generic [ref=e13]:
+    - button "Next →" [ref=e18]
+    - button "Skip intro" [ref=e19]

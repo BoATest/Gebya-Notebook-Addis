@@ -5,26 +5,26 @@ import { CUSTOMER_TRANSACTION_TYPES } from './customerTransactionTypes';
 export function normalizeTelegram(value) {
   const trimmed = String(value || '').trim();
   if (!trimmed) return '';
-  if (trimmed.startsWith('@')) return trimmed;
-  if (/^https?:\/\/t\.me\//i.test(trimmed)) return trimmed;
-  if (/^t\.me\//i.test(trimmed)) return `https://${trimmed}`;
-  return `@${trimmed.replace(/^@+/, '')}`;
+  if (/^@[A-Za-z0-9_]+$/.test(trimmed)) return trimmed;
+  if (/^https?:\/\/t\.me\/\S+$/i.test(trimmed)) return trimmed;
+  if (/^t\.me\/\S+$/i.test(trimmed)) return `https://${trimmed}`;
+  return '';
 }
 
 export function buildTelegramMessageUrl(value, message) {
-  const trimmed = String(value || '').trim();
-  if (!trimmed) return null;
+  const normalized = normalizeTelegram(value);
+  if (!normalized) return null;
 
-  if (/^https?:\/\/t\.me\//i.test(trimmed)) {
-    const separator = trimmed.includes('?') ? '&' : '?';
-    return `${trimmed}${separator}text=${encodeURIComponent(message)}`;
+  if (/^https?:\/\/t\.me\//i.test(normalized)) {
+    const separator = normalized.includes('?') ? '&' : '?';
+    return `${normalized}${separator}text=${encodeURIComponent(message)}`;
   }
 
-  if (/^t\.me\//i.test(trimmed)) {
-    return `https://${trimmed}?text=${encodeURIComponent(message)}`;
+  if (/^t\.me\//i.test(normalized)) {
+    return `https://${normalized}?text=${encodeURIComponent(message)}`;
   }
 
-  const handle = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
+  const handle = normalized.startsWith('@') ? normalized.slice(1) : normalized;
   if (!handle) return null;
   return `https://t.me/${handle}?text=${encodeURIComponent(message)}`;
 }
@@ -53,7 +53,8 @@ export function buildCustomerConnectMessage({ shopName, customerName, token }) {
 export function buildCustomerConnectLink({ shopTelegram, shopName, customerName, token }) {
   const connectMessage = buildCustomerConnectMessage({ shopName, customerName, token });
   if (shopTelegram) {
-    return buildTelegramMessageUrl(shopTelegram, connectMessage);
+    const directTelegramUrl = buildTelegramMessageUrl(shopTelegram, connectMessage);
+    if (directTelegramUrl) return directTelegramUrl;
   }
 
   return `https://t.me/share/url?url=${encodeURIComponent('https://gebya.app')}&text=${encodeURIComponent(connectMessage)}`;

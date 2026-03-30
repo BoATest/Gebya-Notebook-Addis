@@ -13,6 +13,7 @@ import CustomerTransactionSheet from './components/CustomerTransactionSheet';
 import CustomerTelegramConnectSheet from './components/CustomerTelegramConnectSheet';
 import HistoryView from './components/HistoryView';
 import SettingsPage from './components/SettingsPage';
+import PwaInstallPanel from './components/PwaInstallPanel.jsx';
 import OnboardingScreen from './components/OnboardingScreen';
 import IntroSlides from './components/IntroSlides';
 import DailySuggestions from './components/DailySuggestions';
@@ -27,6 +28,8 @@ import { checkAndAwardBadges } from './utils/badges';
 import { buildCustomerSummaries, getCustomerBalance } from './utils/customerLedger';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from './utils/customerTransactionTypes';
 import { buildCustomerLedgerTelegramMessage, buildTelegramMessageUrl, createCustomerTelegramLinkToken } from './utils/customerTelegram';
+import { buildSupplierSummaries, getSupplierBalance, isValidSupplierTransactionType, SUPPLIER_TRANSACTION_TYPES } from './utils/supplierLedger';
+import { usePwaInstall } from './hooks/usePwaInstall.js';
 
 const P = {
   bg: '#FAF8F5',
@@ -152,9 +155,13 @@ function ShareModal({ summary, telegram, onClose, t }) {
 function AppInner() {
   const { hidden } = usePrivacy();
   const { lang, toggleLang, t } = useLang();
+  const pwa = usePwaInstall();
   const [transactions, setTransactions] = useState([]);
   const [ledgerCustomers, setLedgerCustomers] = useState([]);
   const [ledgerTransactions, setLedgerTransactions] = useState([]);
+  const [catalogEntries, setCatalogEntries] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [supplierTransactions, setSupplierTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('today');
   const [showForm, setShowForm] = useState(null);
@@ -187,10 +194,13 @@ function AppInner() {
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, customerRows, customerTxRows, nameRow, phoneRow, epRow, reRow, telegramRow, introRow] = await Promise.all([
+      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, nameRow, phoneRow, epRow, reRow, telegramRow, introRow] = await Promise.all([
         db.transactions.toArray(),
         db.customers.toArray(),
         db.customer_transactions.toArray(),
+        db.catalog_entries?.toArray?.() || [],
+        db.suppliers?.toArray?.() || [],
+        db.supplier_transactions?.toArray?.() || [],
         db.settings.get('shop_name'),
         db.settings.get('shop_phone'),
         db.settings.get('enabled_payment_methods'),
@@ -202,6 +212,9 @@ function AppInner() {
       setTransactions(txns);
       setLedgerCustomers(customerRows);
       setLedgerTransactions(customerTxRows);
+      setCatalogEntries(catalogRows || []);
+      setSuppliers(supplierRows || []);
+      setSupplierTransactions(supplierTxRows || []);
       const hasName = !!nameRow?.value;
       setShopProfile({
         name: nameRow?.value || null,
@@ -464,6 +477,16 @@ function AppInner() {
     [customerSummaries, selectedCustomerId]
   );
 
+  const activeCatalogEntries = useMemo(
+    () => catalogEntries.filter(entry => entry.active !== false).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
+    [catalogEntries]
+  );
+
+  const supplierSummaries = useMemo(
+    () => buildSupplierSummaries(suppliers, supplierTransactions),
+    [suppliers, supplierTransactions]
+  );
+
   const telegramConnectCustomer = useMemo(
     () => customerSummaries.find(c => c.id === telegramConnectCustomerId) || null,
     [customerSummaries, telegramConnectCustomerId]
@@ -508,9 +531,147 @@ function AppInner() {
 
   const handleToggleCustomerTelegramNotify = async (customer) => {
     if (!customer) return;
+    if (!customer.telegram_username) {
+      await handleUpdateCustomerRecord(customer.id, {
+        telegram_notify_enabled: false,
+      });
+      setTelegramConnectCustomerId(customer.id);
+      fireToast(t.telegramConnectFirstToast, 2200);
+      return;
+    }
     await handleUpdateCustomerRecord(customer.id, {
       telegram_notify_enabled: !customer.telegram_notify_enabled,
     });
+  };
+
+  const handleSaveCatalogEntry = async (payload) => {
+    const now = Date.now();
+    const entry = {
+      name: String(payload.name || '').trim(),
+      kind: payload.kind === 'service' ? 'service' : 'item',
+      default_price: payload.default_price != null && payload.default_price !== '' ? Number(payload.default_price) : null,
+      default_cost: payload.default_cost != null && payload.default_cost !== '' ? Number(payload.default_cost) : null,
+      note: payload.note ? String(payload.note).trim() : null,
+      active: payload.active !== false,
+      created_at: payload.created_at || now,
+      updated_at: now,
+    };
+
+    if (!entry.name) return null;
+
+    if (payload.id) {
+      await db.catalog_entries.update(payload.id, entry);
+      const saved = await db.catalog_entries.get(payload.id);
+      setCatalogEntries(prev => prev.map(item => item.id === payload.id ? saved : item));
+      return saved;
+    }
+
+    const id = await db.catalog_entries.add(entry);
+    const saved = await db.catalog_entries.get(id);
+    setCatalogEntries(prev => [...prev, saved]);
+    return saved;
+  };
+
+  const handleToggleCatalogEntryActive = async (entry) => {
+    if (!entry?.id) return;
+    const updatedAt = Date.now();
+    await db.catalog_entries.update(entry.id, { active: entry.active === false, updated_at: updatedAt });
+    setCatalogEntries(prev => prev.map(item => (
+      item.id === entry.id ? { ...item, active: item.active === false, updated_at: updatedAt } : item
+    )));
+  };
+
+  const handleSaveSupplier = async (payload) => {
+    const now = Date.now();
+    const entry = {
+      display_name: String(payload.display_name || '').trim(),
+      phone_number: payload.phone_number ? String(payload.phone_number).trim() : null,
+      note: payload.note ? String(payload.note).trim() : null,
+      active: payload.active !== false,
+      created_at: payload.created_at || now,
+      updated_at: now,
+    };
+
+    if (!entry.display_name) return null;
+
+    if (payload.id) {
+      await db.suppliers.update(payload.id, entry);
+      const saved = await db.suppliers.get(payload.id);
+      setSuppliers(prev => prev.map(item => item.id === payload.id ? saved : item));
+      return saved;
+    }
+
+    const id = await db.suppliers.add(entry);
+    const saved = await db.suppliers.get(id);
+    setSuppliers(prev => [...prev, saved]);
+    return saved;
+  };
+
+  const handleSaveSupplierTransaction = async (payload) => {
+    if (!isValidSupplierTransactionType(payload.type)) return false;
+    const supplier = supplierSummaries.find(item => item.id === payload.supplier_id);
+    if (!supplier) {
+      fireToast('Supplier not found', 2200);
+      return false;
+    }
+
+    const amount = Number(payload.amount) || 0;
+    if (amount <= 0) {
+      fireToast('Enter a valid amount', 2200);
+      return false;
+    }
+
+    const now = Date.now();
+    let supplierMissing = false;
+    let staleOverPayment = false;
+    let saved = null;
+
+    await db.transaction('rw', db.supplier_transactions, db.suppliers, async () => {
+      const supplierRecord = await db.suppliers.get(payload.supplier_id);
+      if (!supplierRecord) {
+        supplierMissing = true;
+        return;
+      }
+
+      const existingTx = await db.supplier_transactions.where('supplier_id').equals(payload.supplier_id).toArray();
+      const previousBalance = Math.max(getSupplierBalance(existingTx), 0);
+
+      if (payload.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT && amount > previousBalance) {
+        staleOverPayment = true;
+        return;
+      }
+
+      const entry = {
+        supplier_id: payload.supplier_id,
+        type: payload.type,
+        catalog_entry_id: payload.catalog_entry_id || null,
+        item_name: payload.item_name || null,
+        item_kind: payload.item_kind || null,
+        quantity: payload.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? (Number(payload.quantity) || 1) : null,
+        amount,
+        note: payload.note || null,
+        created_at: now,
+        updated_at: now,
+      };
+
+      const id = await db.supplier_transactions.add(entry);
+      saved = await db.supplier_transactions.get(id);
+      await db.suppliers.update(payload.supplier_id, { updated_at: now });
+    });
+
+    if (supplierMissing) {
+      fireToast('Supplier not found', 2200);
+      return false;
+    }
+
+    if (staleOverPayment || !saved) {
+      fireToast('Payment is more than remaining dubie', 2600);
+      return false;
+    }
+
+    setSupplierTransactions(prev => [saved, ...prev]);
+    setSuppliers(prev => prev.map(item => item.id === payload.supplier_id ? { ...item, updated_at: now } : item));
+    return true;
   };
 
   const handleConfirmCustomerTelegramConnection = async (customer, payload) => {
@@ -897,6 +1058,7 @@ function AppInner() {
       )}
 
       <main className="flex-1 overflow-y-auto px-4 py-3 pb-28">
+        {activeTab !== 'settings' && <PwaInstallPanel pwa={pwa} />}
 
         {activeTab === 'today' && (
           <div className="space-y-3">
@@ -1022,6 +1184,8 @@ function AppInner() {
             transactions={transactions}
             todayTransactions={todayTransactions}
             customerSummaries={customerSummaries}
+            catalogEntries={catalogEntries}
+            supplierSummaries={supplierSummaries}
             shopProfile={shopProfile}
             onProfileSave={handleProfileSave}
             enabledProviders={enabledProviders}
@@ -1031,6 +1195,11 @@ function AppInner() {
             usageStats={usageStats}
             earnedBadges={earnedBadges}
             onShareToday={handleShareReport}
+            onSaveCatalogEntry={handleSaveCatalogEntry}
+            onToggleCatalogEntryActive={handleToggleCatalogEntryActive}
+            onSaveSupplier={handleSaveSupplier}
+            onSaveSupplierTransaction={handleSaveSupplierTransaction}
+            pwa={pwa}
           />
         )}
       </main>
@@ -1070,6 +1239,7 @@ function AppInner() {
           onSave={handleAddTransaction}
           onDone={() => setShowForm(null)}
           enabledProviders={enabledProviders}
+          catalogEntries={activeCatalogEntries}
           recurringExpenses={recurringExpenses}
           onRecurringChange={setRecurringExpenses}
           initialPaymentType={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.type : undefined}
@@ -1093,6 +1263,7 @@ function AppInner() {
           customer={customerTransactionModal.customer}
           mode={customerTransactionModal.mode}
           onSave={handleSaveCustomerTransaction}
+          catalogEntries={activeCatalogEntries}
           onDone={() => setCustomerTransactionModal(null)}
         />
       )}

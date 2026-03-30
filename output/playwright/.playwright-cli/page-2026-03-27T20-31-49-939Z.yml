@@ -1,0 +1,158 @@
+- generic [ref=e41]:
+  - banner [ref=e42]:
+    - generic [ref=e43]:
+      - button "Open profile & settings" [ref=e44]: T
+      - generic [ref=e45]:
+        - heading "Test Shop" [level=1] [ref=e46]
+        - paragraph [ref=e47]: ገበያ · 18 መጋቢት 2018 · Mar 27
+      - generic [ref=e48]: 🔥 1
+      - button "Switch to Amharic" [ref=e49]:
+        - generic [ref=e50]: EN
+        - generic [ref=e51]: አማ
+  - main [ref=e79]:
+    - generic [ref=e644]:
+      - generic [ref=e645]:
+        - heading "Achievement Badges" [level=2] [ref=e646]
+        - paragraph [ref=e649]: Complete milestones to earn badges!
+      - generic [ref=e650]:
+        - heading "Usage Insights" [level=2] [ref=e651]
+        - generic [ref=e653]:
+          - generic [ref=e654]:
+            - generic [ref=e655]:
+              - generic [ref=e656]: 🔥 1
+              - generic [ref=e657]: day streak
+              - generic [ref=e658]: "best: 1"
+            - generic [ref=e659]:
+              - generic [ref=e660]: 📅 1
+              - generic [ref=e661]: days active
+              - generic [ref=e662]: since 18 መጋቢት 2018
+          - generic [ref=e663]:
+            - generic [ref=e664]: 📊 entries
+            - generic [ref=e665]:
+              - generic [ref=e666]:
+                - generic [ref=e667]: "0"
+                - generic [ref=e668]: Sales
+              - generic [ref=e669]:
+                - generic [ref=e670]: "0"
+                - generic [ref=e671]: Expenses
+              - generic [ref=e672]:
+                - generic [ref=e673]: "3"
+                - generic [ref=e674]: Credit
+              - generic [ref=e675]:
+                - generic [ref=e676]: "1"
+                - generic [ref=e677]: sessions opened
+          - button "Share Today" [ref=e678]:
+            - img [ref=e679]
+            - text: Share Today
+          - button "Share My Stats 📤" [ref=e685]
+      - generic [ref=e686]:
+        - heading "Profile" [level=2] [ref=e687]
+        - generic [ref=e689]:
+          - generic [ref=e690]:
+            - generic [ref=e691]:
+              - img [ref=e692]
+              - text: Name
+              - generic [ref=e696]: "*"
+            - textbox "e.g. Tigist" [ref=e697]: Test Shop
+          - generic [ref=e698]:
+            - generic [ref=e699]:
+              - img [ref=e700]
+              - text: Phone Number
+              - generic [ref=e702]: "*"
+            - generic [ref=e703]:
+              - generic [ref=e704]: "+251"
+              - textbox "9XXXXXXXX" [ref=e705]: "911111111"
+          - generic [ref=e706]:
+            - generic [ref=e707]:
+              - img [ref=e708]
+              - text: Telegram / Contact
+            - textbox "@username or phone (for Telegram share)" [ref=e710]
+          - button "Save Changes" [disabled] [ref=e711]
+      - generic [ref=e712]:
+        - heading "Privacy" [level=2] [ref=e713]
+        - button "Hide amounts Totals are hidden — tap to show" [ref=e715]:
+          - img [ref=e717]
+          - generic [ref=e722]:
+            - generic [ref=e723]: Hide amounts
+            - generic [ref=e724]: Totals are hidden — tap to show
+      - generic [ref=e727]:
+        - heading "Payment Methods" [level=2] [ref=e728]
+        - generic [ref=e729]:
+          - generic [ref=e730]:
+            - generic [ref=e731]:
+              - paragraph [ref=e732]:
+                - img [ref=e733]
+                - text: Banks
+              - button "Add bank…" [ref=e735]:
+                - img [ref=e736]
+                - text: Add bank…
+            - generic [ref=e737]:
+              - button "✓ CBE" [ref=e738]
+              - button "✓ Dashen" [ref=e739]
+              - button "✓ Awash" [ref=e740]
+              - button "✓ Abyssinia" [ref=e741]
+          - generic [ref=e742]:
+            - generic [ref=e743]:
+              - paragraph [ref=e744]: 📱 Mobile Wallets
+              - button "Add wallet…" [ref=e745]:
+                - img [ref=e746]
+                - text: Add wallet…
+            - generic [ref=e747]:
+              - button "✓ telebirr" [ref=e748]
+              - button "✓ CBE Birr" [ref=e749]
+          - paragraph [ref=e751]: Only enabled methods appear as options in the form
+      - generic [ref=e752]:
+        - heading "Recurring Expenses" [level=2] [ref=e753]
+        - generic [ref=e755]:
+          - paragraph [ref=e756]: Quick-fill shortcuts for expenses you enter often
+          - button "Add recurring expense" [ref=e757]:
+            - img [ref=e758]
+            - text: Add recurring expense
+      - generic [ref=e760]:
+        - heading "Your Data" [level=2] [ref=e761]
+        - generic [ref=e762]:
+          - generic [ref=e763]:
+            - img [ref=e765]
+            - generic [ref=e767]:
+              - generic [ref=e768]: Stored on this device
+              - generic [ref=e769]: 0 entries · 2 customers in credit ledger
+          - button "Export to CSV Download a spreadsheet backup" [disabled] [ref=e770]:
+            - img [ref=e772]
+            - generic [ref=e775]:
+              - generic [ref=e776]: Export to CSV
+              - generic [ref=e777]: Download a spreadsheet backup
+            - img [ref=e778]
+          - button "Clear all data Permanently deletes everything — export first!" [ref=e780]:
+            - img [ref=e782]
+            - generic [ref=e785]:
+              - generic [ref=e786]: Clear all data
+              - generic [ref=e787]: Permanently deletes everything — export first!
+            - img [ref=e788]
+      - generic [ref=e790]:
+        - heading "About" [level=2] [ref=e791]
+        - generic [ref=e792]:
+          - generic [ref=e793]:
+            - generic [ref=e794]: 📒
+            - generic [ref=e795]:
+              - generic [ref=e796]: ገበያ — Gebya
+              - generic [ref=e797]: Business Notebook for Ethiopian shopkeepers
+              - generic [ref=e798]: Works offline · Data stays on your phone · Free
+          - generic [ref=e799]:
+            - img [ref=e800]
+            - paragraph [ref=e802]: Your data never leaves this device. No account needed.
+  - navigation [ref=e103]:
+    - generic [ref=e104]:
+      - button "ዛሬ Today" [ref=e105]:
+        - img [ref=e106]
+        - generic [ref=e108]: ዛሬ
+        - generic [ref=e109]: Today
+      - button "ብድር Credit" [ref=e110]:
+        - img [ref=e111]
+        - generic [ref=e116]: ብድር
+        - generic [ref=e117]: Credit
+      - button "Report" [ref=e118]:
+        - img [ref=e119]
+        - generic [ref=e121]: Report
+      - button "Settings" [active] [ref=e122]:
+        - img [ref=e123]
+        - generic [ref=e126]: Settings

@@ -12,10 +12,11 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD, onSave, onDone }) {
+function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD, onSave, onDone, catalogEntries = [] }) {
   const { t } = useLang();
   const [amount, setAmount] = useState('');
   const [itemNote, setItemNote] = useState('');
+  const [catalogEntryId, setCatalogEntryId] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -25,6 +26,7 @@ function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.
   }, [mode]);
 
   const isPayment = transactionType === CUSTOMER_TRANSACTION_TYPES.PAYMENT;
+  const selectedCatalogEntry = catalogEntries.find(entry => String(entry.id) === String(catalogEntryId)) || null;
   const parsedAmount = parseFloat(parseInput(amount)) || 0;
   const currentBalance = Math.max(Number(customer?.balance) || 0, 0);
   const updatedBalance = isPayment
@@ -40,14 +42,16 @@ function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.
 
     setSaving(true);
     try {
-      await onSave?.({
+      const didSave = await onSave?.({
         customer_id: customer?.id,
         type: transactionType,
         amount: parsedAmount,
-        item_note: itemNote.trim() || null,
+        catalog_entry_id: catalogEntryId ? Number(catalogEntryId) : null,
+        item_kind: selectedCatalogEntry?.kind || null,
+        item_note: itemNote.trim() || selectedCatalogEntry?.name || null,
         due_date: !isPayment && dueDate ? new Date(dueDate).getTime() : null,
       });
-      onDone?.();
+      if (didSave) onDone?.();
     } finally {
       setSaving(false);
     }
@@ -113,6 +117,33 @@ function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.
               </p>
             )}
           </div>
+
+          {!isPayment && catalogEntries.length > 0 && (
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2 text-sm">
+                Saved item / service
+              </label>
+              <select
+                value={catalogEntryId}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setCatalogEntryId(value);
+                  const entry = catalogEntries.find(item => String(item.id) === String(value));
+                  if (!entry) return;
+                  if (!itemNote.trim()) setItemNote(entry.name || '');
+                }}
+                className="w-full p-3 border-2 focus:outline-none text-sm bg-white"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+              >
+                <option value="">Type note manually</option>
+                {catalogEntries.map(entry => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.name} {entry.kind === 'service' ? '• Service' : '• Item'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-gray-700 font-semibold mb-2 text-sm">

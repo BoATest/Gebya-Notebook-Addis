@@ -76,8 +76,10 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@sentry/react": "^10.46.0",
     "dexie": "^4.3.0",
     "ethiopian-date": "^0.0.6",
-    "qrcode.react": "^4.2.0"
+    "qrcode.react": "^4.2.0",
+    "workbox-window": "^7.4.0"
   }
 }

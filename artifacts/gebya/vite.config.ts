@@ -5,27 +5,17 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { VitePWA } from "vite-plugin-pwa";
 
-const rawPort = process.env.PORT;
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
+const rawPort = process.env.PORT ?? "4173";
 const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const basePath = process.env.BASE_PATH;
+const basePath = process.env.BASE_PATH ?? "/";
+const sentrySourceMaps = process.env.SENTRY_SOURCE_MAPS === "true";
 
-if (!basePath) {
-  throw new Error(
-    "BASE_PATH environment variable is required but was not provided.",
-  );
-}
+const normalizedBasePath = basePath.endsWith("/") ? basePath : `${basePath}/`;
 
 function securityHeadersPlugin(): Plugin {
   const setSecurityHeaders = (res: { setHeader: (k: string, v: string) => void }, isDev: boolean) => {
@@ -76,7 +66,7 @@ function securityHeadersPlugin(): Plugin {
 }
 
 export default defineConfig({
-  base: basePath,
+  base: normalizedBasePath,
   plugins: [
     react(),
     tailwindcss(),
@@ -86,24 +76,30 @@ export default defineConfig({
       registerType: "autoUpdate",
       injectRegister: "auto",
       devOptions: { enabled: false },
+      includeAssets: ["favicon.svg", "icon-192.png", "icon-512.png", "opengraph.jpg"],
       manifest: {
         name: "Gebya - Business Notebook",
         short_name: "Gebya",
         description: "Track your business sales, expenses, and credit offline",
-        theme_color: "#2c3e50",
-        background_color: "#f9fafb",
+        id: normalizedBasePath,
+        theme_color: "#1B4332",
+        background_color: "#FAF8F5",
         display: "standalone",
+        display_override: ["standalone", "minimal-ui", "browser"],
         orientation: "portrait",
-        start_url: "/",
+        scope: normalizedBasePath,
+        start_url: normalizedBasePath,
+        categories: ["business", "finance", "productivity"],
+        prefer_related_applications: false,
         icons: [
           {
-            src: "/icon-192.png",
+            src: "icon-192.png",
             sizes: "192x192",
             type: "image/png",
             purpose: "any maskable",
           },
           {
-            src: "/icon-512.png",
+            src: "icon-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "any maskable",
@@ -111,6 +107,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
@@ -118,6 +115,14 @@ export default defineConfig({
             handler: "CacheFirst",
             options: {
               cacheName: "google-fonts-cache",
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "google-fonts-static-cache",
               expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
             },
           },
@@ -149,6 +154,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    sourcemap: sentrySourceMaps,
   },
   server: {
     port,

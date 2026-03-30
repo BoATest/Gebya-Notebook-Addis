@@ -14,6 +14,8 @@ function CustomerDetail({
 }) {
   const { t } = useLang();
   if (!customer) return null;
+  const hasTelegramConnection = !!customer.telegram_username;
+  const isTelegramNotifyEnabled = hasTelegramConnection && customer.telegram_notify_enabled;
 
   return (
     <div className="space-y-4">
@@ -99,29 +101,31 @@ function CustomerDetail({
 
         <div
           className="flex items-center justify-between gap-3 p-3 border"
-          style={{ background: customer.telegram_notify_enabled ? '#f0fdf4' : '#fafafa', borderColor: customer.telegram_notify_enabled ? '#bbf7d0' : '#e5e7eb', borderRadius: 'var(--radius-md)' }}
+          style={{ background: isTelegramNotifyEnabled ? '#f0fdf4' : '#fafafa', borderColor: isTelegramNotifyEnabled ? '#bbf7d0' : '#e5e7eb', borderRadius: 'var(--radius-md)' }}
         >
           <div className="min-w-0">
             <p className="text-sm font-bold text-gray-900">{t.notifyOnTelegram}</p>
             <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
-              {customer.telegram_notify_enabled ? t.telegramNotifyEnabledState : t.telegramNotifyDisabledState}
+              {hasTelegramConnection
+                ? (isTelegramNotifyEnabled ? t.telegramNotifyEnabledState : t.telegramNotifyDisabledState)
+                : t.telegramNotifyConnectFirst}
             </p>
           </div>
           <button
             type="button"
             onClick={onToggleTelegramNotify}
-            className={`w-11 h-6 rounded-full transition-colors ${customer.telegram_notify_enabled ? 'bg-green-900' : 'bg-gray-300'}`}
+            className={`w-11 h-6 rounded-full transition-colors ${isTelegramNotifyEnabled ? 'bg-green-900' : 'bg-gray-300'}`}
             style={{ padding: '2px', flexShrink: 0 }}
             aria-label={t.notifyOnTelegram}
           >
-            <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${customer.telegram_notify_enabled ? 'translate-x-5' : 'translate-x-0'}`} />
+            <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${isTelegramNotifyEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
           </button>
         </div>
 
-        {!customer.telegram_username && customer.telegram_notify_enabled && (
+        {!hasTelegramConnection && (
           <div className="flex items-center gap-2 text-xs font-medium" style={{ color: '#b45309' }}>
             <Bell className="w-4 h-4" />
-            <span>{t.telegramNeedContactHint}</span>
+            <span>{t.telegramNotifyConnectFirst}</span>
           </div>
         )}
       </div>
