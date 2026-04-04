@@ -67,6 +67,7 @@ function securityHeadersPlugin(): Plugin {
 
 export default defineConfig({
   base: normalizedBasePath,
+  envDir: path.resolve(import.meta.dirname, "..", ".."),
   plugins: [
     react(),
     tailwindcss(),
