@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ArrowLeft, Bell, Link2, MessageCircle, Phone, Plus, RefreshCcw, Wallet } from 'lucide-react';
+import { ArrowLeft, Bell, Link2, MessageCircle, Pencil, Phone, Plus, RefreshCcw, Wallet } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
@@ -13,6 +13,7 @@ function CustomerDetail({
   onToggleTelegramNotify,
   onOpenTelegramConnect,
   onResendTelegramUpdate,
+  onEditTransaction,
 }) {
   const { t } = useLang();
   if (!customer) return null;
@@ -244,11 +245,22 @@ function CustomerDetail({
                       <span>{t.balanceAfterEntry}: {fmt(item.balance_after || 0)} {t.birr}</span>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-black text-sm" style={{ color: isPayment ? '#166534' : '#92400e' }}>
-                      {isPayment ? '-' : '+'}
-                      {fmt(item.amount || 0)} {t.birr}
-                    </p>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="text-right">
+                      <p className="font-black text-sm" style={{ color: isPayment ? '#166534' : '#92400e' }}>
+                        {isPayment ? '-' : '+'}
+                        {fmt(item.amount || 0)} {t.birr}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onEditTransaction?.(item)}
+                      className="p-2 flex items-center justify-center border press-scale"
+                      style={{ minWidth: '40px', minHeight: '40px', borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }}
+                      aria-label={t.editEntry}
+                    >
+                      <Pencil className="w-4 h-4" style={{ color: '#C4883A' }} />
+                    </button>
                   </div>
                 </div>
               );

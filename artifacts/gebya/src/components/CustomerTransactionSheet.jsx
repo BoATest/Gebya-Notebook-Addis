@@ -12,18 +12,32 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD, onSave, onDone, catalogEntries = [] }) {
+function CustomerTransactionSheet({
+  customer,
+  mode = CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+  existingTransaction = null,
+  onSave,
+  onUpdate,
+  onDone,
+  catalogEntries = [],
+}) {
   const { t } = useLang();
-  const [amount, setAmount] = useState('');
-  const [itemNote, setItemNote] = useState('');
-  const [catalogEntryId, setCatalogEntryId] = useState('');
-  const [dueDate, setDueDate] = useState('');
+  const isEditing = !!existingTransaction;
+  const [amount, setAmount] = useState(existingTransaction?.amount ? String(existingTransaction.amount) : '');
+  const [itemNote, setItemNote] = useState(existingTransaction?.item_note || '');
+  const [catalogEntryId, setCatalogEntryId] = useState(existingTransaction?.catalog_entry_id ? String(existingTransaction.catalog_entry_id) : '');
+  const [dueDate, setDueDate] = useState(
+    existingTransaction?.due_date ? new Date(existingTransaction.due_date).toISOString().slice(0, 10) : '',
+  );
   const [saving, setSaving] = useState(false);
 
   const transactionType = useMemo(() => {
+    if (existingTransaction?.type && isValidCustomerTransactionType(existingTransaction.type)) {
+      return existingTransaction.type;
+    }
     if (mode === CUSTOMER_TRANSACTION_TYPES.PAYMENT) return CUSTOMER_TRANSACTION_TYPES.PAYMENT;
     return CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD;
-  }, [mode]);
+  }, [existingTransaction?.type, mode]);
 
   const isPayment = transactionType === CUSTOMER_TRANSACTION_TYPES.PAYMENT;
   const selectedCatalogEntry = catalogEntries.find(entry => String(entry.id) === String(catalogEntryId)) || null;
@@ -43,7 +57,7 @@ function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.
 
     setSaving(true);
     try {
-      const didSave = await onSave?.({
+      const payload = {
         customer_id: customer?.id,
         type: transactionType,
         amount: parsedAmount,
@@ -51,7 +65,10 @@ function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.
         item_kind: selectedCatalogEntry?.kind || null,
         item_note: itemNote.trim() || selectedCatalogEntry?.name || null,
         due_date: !isPayment && dueDate ? new Date(dueDate).getTime() : null,
-      });
+      };
+      const didSave = isEditing
+        ? await onUpdate?.(existingTransaction.id, payload)
+        : await onSave?.(payload);
       if (didSave) onDone?.();
     } finally {
       setSaving(false);
@@ -64,7 +81,11 @@ function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.
         <div className="sticky top-0 bg-white z-10 px-6 pt-5 pb-4 border-b" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', borderColor: 'var(--color-border-light)' }}>
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-black text-gray-900">{isPayment ? t.recordPayment : t.addCredit}</h2>
+              <h2 className="text-xl font-black text-gray-900">
+                {isEditing
+                  ? (isPayment ? (t.editPayment || t.recordPayment) : (t.editCredit || t.addCredit))
+                  : (isPayment ? t.recordPayment : t.addCredit)}
+              </h2>
               <p className="text-sm mt-1" style={{ color: '#6b7280' }}>{customer?.display_name || ''}</p>
               <p className="text-xs mt-1 font-semibold" style={{ color: '#92400e' }}>
                 {t.today}: {formatEthiopian(Date.now())}
@@ -199,7 +220,7 @@ function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.
         <div className="px-6 pb-8 pt-2">
           <button onClick={handleSave} disabled={!canSave || saving} className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 min-h-[56px] press-scale" style={{ background: isPayment ? '#2d6a4f' : '#C4883A', opacity: canSave ? 1 : 0.45, borderRadius: 'var(--radius-md)', boxShadow: canSave ? (isPayment ? '0 4px 0 #1B4332, var(--shadow-sm)' : '0 4px 0 #96662b, var(--shadow-sm)') : 'none' }}>
             <Save className="w-5 h-5" />
-            {saving ? t.saving : isPayment ? t.savePayment : t.saveCredit}
+            {saving ? t.saving : (isEditing ? t.saveChanges : (isPayment ? t.savePayment : t.saveCredit))}
           </button>
         </div>
       </div>

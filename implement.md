@@ -3,11 +3,16 @@
 ## Operating Mode
 Read the existing codebase first and do not code immediately.
 
+Use `AGENTS.md` as the standing engineering constitution. It defines the mission, scope guardrails, challenge rules, quality gates, and the required pre-coding task brief.
+Use `TASK_BRIEF_TEMPLATE.md` when you need a clean standalone format for the pre-coding brief.
+Use `PROJECT_TEMPLATE.md` when creating the same operating system in another repository.
+
 Start by:
 1. identifying the files/components/routes/services related to customer records, transactions, and messaging
-2. proposing the smallest safe implementation plan for this feature
-3. listing assumptions and risks
-4. then proceeding with implementation without asking unnecessary clarification questions
+2. filling the pre-coding task brief from `AGENTS.md`
+3. proposing the smallest safe implementation plan for this feature
+4. listing assumptions and risks
+5. then proceeding with implementation without asking unnecessary clarification questions
 
 ## Build Rules
 - make scoped changes only for this feature

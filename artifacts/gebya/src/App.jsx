@@ -13,7 +13,6 @@ import CustomerTransactionSheet from './components/CustomerTransactionSheet';
 import CustomerTelegramConnectSheet from './components/CustomerTelegramConnectSheet';
 import HistoryView from './components/HistoryView';
 import SettingsPage from './components/SettingsPage';
-import PwaInstallPanel from './components/PwaInstallPanel.jsx';
 import OnboardingScreen from './components/OnboardingScreen';
 import DailySuggestions from './components/DailySuggestions';
 import { ToastContainer, fireToast } from './components/Toast';
@@ -153,79 +152,6 @@ function ShareModal({ summary, telegram, onClose, t }) {
   );
 }
 
-function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t }) {
-  const savedLabel = lastSavedSnapshot?.label || '';
-  const savedAt = lastSavedSnapshot?.created_at
-    ? new Date(lastSavedSnapshot.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-    : null;
-
-  return (
-    <div
-      className="overflow-hidden animate-elastic"
-      style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
-    >
-      <div className="px-4 py-4">
-        <div className="flex items-start gap-3">
-          <div
-            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl"
-            style={{ background: 'rgba(27,67,50,0.08)' }}
-          >
-            💾
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-black text-gray-900 text-sm font-sans">
-              {t.trustCardTitle || 'Your notebook stays on this phone'}
-            </p>
-            <p className="text-sm mt-1 font-sans" style={{ color: '#4b5563' }}>
-              {t.trustCardBody || 'Save your sales, close the app, and open again later. Your records stay here on this phone.'}
-            </p>
-            {totalEntries > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                <span
-                  className="px-2.5 py-1 text-xs font-black"
-                  style={{ background: 'rgba(27,67,50,0.08)', color: '#1B4332', borderRadius: '999px' }}
-                >
-                  {todayCount} {t.trustTodayCount || 'saved today'}
-                </span>
-                {savedAt && (
-                  <span
-                    className="px-2.5 py-1 text-xs font-bold"
-                    style={{ background: '#f5f5f5', color: '#4b5563', borderRadius: '999px' }}
-                  >
-                    {t.trustLastSaved || 'Last saved'} {savedAt}
-                  </span>
-                )}
-              </div>
-            )}
-            {savedLabel && (
-              <p className="text-xs mt-2 font-semibold truncate font-sans" style={{ color: '#C4883A' }}>
-                {savedLabel}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-      <div
-        className="px-4 py-3 flex items-center justify-between gap-3"
-        style={{ background: '#FAF8F5', borderTop: '1px solid var(--color-border-light)' }}
-      >
-        <p className="text-xs font-medium font-sans" style={{ color: '#6b7280' }}>
-          {t.trustReopenHint || 'Close and reopen anytime — your records stay here.'}
-        </p>
-        {totalEntries === 0 && (
-          <button
-            onClick={onStartSale}
-            className="flex-shrink-0 px-3 py-2 text-xs font-black text-white min-h-[40px] press-scale"
-            style={{ background: '#1B4332', borderRadius: 'var(--radius-sm)' }}
-          >
-            {t.trustCardAction || 'Record your first sale'}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function AppInner() {
   const { hidden } = usePrivacy();
   const { lang, toggleLang, t } = useLang();
@@ -243,6 +169,7 @@ function AppInner() {
   const [telegramConnectCustomerId, setTelegramConnectCustomerId] = useState(null);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [customerTransactionModal, setCustomerTransactionModal] = useState(null);
+  const [customerTransactionEditTarget, setCustomerTransactionEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const [shopProfile, setShopProfile] = useState(null);
@@ -264,26 +191,10 @@ function AppInner() {
   const [voiceItems, setVoiceItems] = useState([]);
   const [voiceConfidence, setVoiceConfidence] = useState(null);
   const [voiceDraft, setVoiceDraft] = useState(null);
-  const [lastSavedSnapshot, setLastSavedSnapshot] = useState(null);
-
-  const rememberLastSave = useCallback(async (snapshot) => {
-    if (!snapshot) return;
-    setLastSavedSnapshot(snapshot);
-    try {
-      await db.settings.put({ key: 'last_saved_snapshot', value: JSON.stringify(snapshot) });
-    } catch { /* non-critical */ }
-  }, []);
-
-  const clearLastSavedSnapshot = useCallback(async () => {
-    setLastSavedSnapshot(null);
-    try {
-      await db.settings.delete('last_saved_snapshot');
-    } catch { /* non-critical */ }
-  }, []);
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, nameRow, phoneRow, epRow, reRow, telegramRow, snapshotRow] = await Promise.all([
+      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, nameRow, phoneRow, epRow, reRow, telegramRow] = await Promise.all([
         db.transactions.toArray(),
         db.customers.toArray(),
         db.customer_transactions.toArray(),
@@ -295,7 +206,6 @@ function AppInner() {
         db.settings.get('enabled_payment_methods'),
         db.settings.get('recurring_expenses'),
         db.settings.get('shop_telegram'),
-        db.settings.get('last_saved_snapshot'),
       ]);
       txns.sort((a, b) => b.created_at - a.created_at);
       setTransactions(txns);
@@ -312,10 +222,6 @@ function AppInner() {
       });
       try { setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS); } catch { setEnabledProviders(DEFAULT_PROVIDERS); }
       try { setRecurringExpenses(reRow ? JSON.parse(reRow.value) : []); } catch { setRecurringExpenses([]); }
-      const hasSavedRecords = txns.length > 0 || customerTxRows.length > 0;
-      if (!hasSavedRecords) {
-        setLastSavedSnapshot(null);
-        try { await db.settings.delete('last_saved_snapshot'); } catch { /* non-critical */ }
       } else {
         try { setLastSavedSnapshot(snapshotRow?.value ? JSON.parse(snapshotRow.value) : null); } catch { setLastSavedSnapshot(null); }
       }
@@ -425,12 +331,6 @@ function AppInner() {
 
       const id = await db.transactions.add(newTxn);
       const saved = await db.transactions.get(id);
-      await rememberLastSave({
-        type: transaction.type,
-        label: saved?.item_name || transaction.item_name || null,
-        amount: saved?.amount || transaction.amount || 0,
-        created_at: saved?.created_at || transaction.created_at,
-      });
 
       setTransactions(prev => {
         const updated = [saved, ...prev];
@@ -557,11 +457,7 @@ function AppInner() {
   const handleDeleteTransaction = async (id) => {
     try {
       await db.transactions.delete(id);
-      const remainingTransactions = transactions.filter(t2 => t2.id !== id);
-      setTransactions(remainingTransactions);
-      if (remainingTransactions.length === 0 && ledgerTransactions.length === 0) {
-        await clearLastSavedSnapshot();
-      }
+      setTransactions(transactions.filter(t2 => t2.id !== id));
       setDeleteTarget(null);
     } catch (err) {
       if (import.meta.env.DEV) console.error('Failed to delete:', err);
@@ -1087,14 +983,6 @@ function AppInner() {
     setLedgerTransactions(prev => insertCustomerTransaction(prev, saved));
     setLedgerCustomers(prev => prev.map(c => c.id === draft.customer_id ? { ...c, updated_at: now } : c));
     setCustomerTransactionModal(null);
-    await rememberLastSave({
-      type: draft.type,
-      label: draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT
-        ? `${customer.display_name} ${t.paymentRecordedLabel || 'Payment'}`
-        : (draft.item_note || customer.display_name),
-      amount,
-      created_at: now,
-    });
     fireToast(draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? (t.paymentSaved || 'Payment recorded ✓') : t.creditSaved, 2200);
 
     if (draft.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD) {
@@ -1185,6 +1073,90 @@ function AppInner() {
     return true;
   };
 
+  const handleUpdateCustomerTransaction = async (transactionId, payload) => {
+    const draft = normalizeCustomerTransactionDraft(payload);
+    if (!draft) {
+      fireToast(t.validAmountRequired, 2200);
+      return false;
+    }
+
+    const currentTx = ledgerTransactions.find(entry => entry.id === transactionId);
+    if (!currentTx) {
+      fireToast(t.noTransactionsYet || 'Transaction not found', 2200);
+      return false;
+    }
+
+    const customer = customerSummaries.find(c => c.id === draft.customer_id);
+    if (!customer) {
+      fireToast(t.customerNotFound, 2200);
+      return false;
+    }
+
+    let missingTransaction = false;
+    let customerMissing = false;
+    let invalidPayment = false;
+    let updated = null;
+    const now = Date.now();
+
+    await db.transaction('rw', db.customer_transactions, db.customers, async () => {
+      const existingRecord = await db.customer_transactions.get(transactionId);
+      if (!existingRecord) {
+        missingTransaction = true;
+        return;
+      }
+
+      const customerRecord = await db.customers.get(draft.customer_id);
+      if (!customerRecord) {
+        customerMissing = true;
+        return;
+      }
+
+      const siblingTransactions = await db.customer_transactions.where('customer_id').equals(draft.customer_id).toArray();
+      const balanceWithoutCurrent = getCustomerBalance(siblingTransactions.filter(entry => entry.id !== transactionId));
+
+      if (draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT && draft.amount > Math.max(balanceWithoutCurrent, 0)) {
+        invalidPayment = true;
+        return;
+      }
+
+      const updates = {
+        amount: draft.amount,
+        item_note: draft.item_note,
+        due_date: draft.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD ? draft.due_date : null,
+        updated_at: now,
+      };
+
+      await db.customer_transactions.update(transactionId, updates);
+      await db.customers.update(draft.customer_id, { updated_at: now });
+      updated = await db.customer_transactions.get(transactionId);
+    });
+
+    if (missingTransaction) {
+      fireToast(t.noTransactionsYet || 'Transaction not found', 2200);
+      return false;
+    }
+
+    if (customerMissing) {
+      fireToast(t.customerNotFound, 2200);
+      return false;
+    }
+
+    if (invalidPayment || !updated) {
+      fireToast(t.paymentMoreThanBalance, 2600);
+      return false;
+    }
+
+    setLedgerTransactions(prev => sortCustomerTransactions(prev.map(entry => (
+      entry.id === transactionId ? updated : entry
+    ))));
+    setLedgerCustomers(prev => prev.map(entry => (
+      entry.id === draft.customer_id ? { ...entry, updated_at: now } : entry
+    )));
+    setCustomerTransactionEditTarget(null);
+    fireToast(t.saved || 'Saved!', 2200);
+    return true;
+  };
+
   const todayDateStr = new Date().toDateString();
 
   useEffect(() => {
@@ -1208,9 +1180,6 @@ function AppInner() {
     () => ledgerTransactions.filter(entry => new Date(entry.created_at).toDateString() === todayDateStr),
     [ledgerTransactions, todayDateStr]
   );
-
-  const persistedEntryCount = transactions.length + ledgerTransactions.length;
-  const persistedTodayCount = todayTransactions.length + todayLedgerTransactions.length;
 
   const todaySales = useMemo(
     () => todayTransactions.filter(t2 => t2.type === 'sale'),
@@ -1471,17 +1440,9 @@ function AppInner() {
       )}
 
       <main className="flex-1 overflow-y-auto px-4 py-3 pb-28">
-        {activeTab !== 'settings' && <PwaInstallPanel pwa={pwa} />}
 
         {activeTab === 'today' && (
           <div className="space-y-3">
-            <TrustCard
-              totalEntries={persistedEntryCount}
-              todayCount={persistedTodayCount}
-              lastSavedSnapshot={lastSavedSnapshot}
-              onStartSale={() => setShowForm('sale')}
-              t={t}
-            />
 
             <ProfitCard transactions={todayTransactions} />
 
@@ -1584,6 +1545,7 @@ function AppInner() {
               onToggleTelegramNotify={() => handleToggleCustomerTelegramNotify(selectedCustomer)}
               onOpenTelegramConnect={() => setTelegramConnectCustomerId(selectedCustomer.id)}
               onResendTelegramUpdate={() => handleResendCustomerTelegramUpdate(selectedCustomer)}
+              onEditTransaction={setCustomerTransactionEditTarget}
             />
           ) : (
             <CustomerList
@@ -1689,6 +1651,16 @@ function AppInner() {
           onSave={handleSaveCustomerTransaction}
           catalogEntries={activeCatalogEntries}
           onDone={() => setCustomerTransactionModal(null)}
+        />
+      )}
+
+      {customerTransactionEditTarget && selectedCustomer && (
+        <CustomerTransactionSheet
+          customer={selectedCustomer}
+          existingTransaction={customerTransactionEditTarget}
+          onUpdate={handleUpdateCustomerTransaction}
+          catalogEntries={activeCatalogEntries}
+          onDone={() => setCustomerTransactionEditTarget(null)}
         />
       )}
 
@@ -1802,3 +1774,4 @@ function App() {
 }
 
 export default App;
+
