@@ -9,7 +9,6 @@ function CustomerForm({ onSave, onDone }) {
   const [note, setNote] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [telegramUsername, setTelegramUsername] = useState('');
-  const [notifyOnTelegram, setNotifyOnTelegram] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -21,14 +20,14 @@ function CustomerForm({ onSave, onDone }) {
     if (!canSave || saving) return;
     setSaving(true);
     try {
-        await onSave?.({
-          display_name: displayName.trim(),
-          note: note.trim() || null,
-          phone_number: phoneNumber.trim() || null,
-          telegram_username: normalizedTelegram || null,
-          telegram_notify_enabled: notifyOnTelegram,
-        });
-      onDone?.();
+      const didSave = await onSave?.({
+        display_name: displayName.trim(),
+        note: note.trim() || null,
+        phone_number: phoneNumber.trim() || null,
+        telegram_username: normalizedTelegram || null,
+        telegram_notify_enabled: false,
+      });
+      if (didSave) onDone?.();
     } finally {
       setSaving(false);
     }
@@ -89,26 +88,10 @@ function CustomerForm({ onSave, onDone }) {
                       {t.telegramFormatHint}
                     </p>
                   )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setNotifyOnTelegram((value) => !value)}
-                  className="w-full flex items-center justify-between gap-3 p-3 border min-h-[52px]"
-                  style={{ background: '#fff', borderColor: notifyOnTelegram ? '#1B4332' : '#e8e2d8', borderRadius: 'var(--radius-md)' }}
-                >
-                  <div className="text-left">
-                    <p className="text-sm font-bold text-gray-900">{t.notifyOnTelegram}</p>
-                    <p className="text-xs mt-0.5" style={{ color: '#6b7280' }}>{t.notifyOnTelegramHint}</p>
-                  </div>
-                  <div className={`w-11 h-6 rounded-full transition-colors ${notifyOnTelegram ? 'bg-green-900' : 'bg-gray-300'}`} style={{ padding: '2px' }}>
-                    <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${notifyOnTelegram ? 'translate-x-5' : 'translate-x-0'}`} />
-                  </div>
-                </button>
-                {notifyOnTelegram && !telegramUsername.trim() && (
-                  <p className="text-xs font-medium" style={{ color: '#b45309' }}>
-                    {t.telegramNeedContactHint}
+                  <p className="text-xs mt-2" style={{ color: '#6b7280' }}>
+                    Link the borrower from the customer page to enable bot updates later.
                   </p>
-                )}
+                </div>
               </div>
             )}
           </div>

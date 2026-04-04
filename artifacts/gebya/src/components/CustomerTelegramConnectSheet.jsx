@@ -1,26 +1,88 @@
-import { useMemo, useState } from 'react';
-import { CheckCircle2, Copy, MessageCircle, QrCode, SkipForward, X } from 'lucide-react';
+﻿import { useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, Copy, MessageCircle, QrCode, RefreshCcw, Send, SkipForward, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { fireToast } from './Toast';
 import { useLang } from '../context/LangContext';
 import { buildCustomerConnectLink, normalizeTelegram } from '../utils/customerTelegram';
+import {
+  createTelegramLinkSession,
+  fetchTelegramBotStatus,
+  fetchTelegramLinkSession,
+} from '../utils/telegramBotClient';
 
-function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone }) {
+function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, onResendUpdate }) {
   const { t } = useLang();
   const [manualTelegram, setManualTelegram] = useState(customer?.telegram_username || '');
   const [saving, setSaving] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [botStatus, setBotStatus] = useState({ configured: false, bot_username: null });
+  const [linkSession, setLinkSession] = useState(null);
+  const [loadingSession, setLoadingSession] = useState(true);
   const normalizedTelegram = normalizeTelegram(manualTelegram);
   const telegramValid = !manualTelegram.trim() || !!normalizedTelegram;
+  const hasLinkedBorrower = Boolean(customer?.telegram_chat_id || linkSession?.chat_id);
+  const hasPendingLink = !hasLinkedBorrower && Boolean(customer?.telegram_link_requested_at || linkSession?.requested_at);
 
   const inviteLink = useMemo(
     () => buildCustomerConnectLink({
+      botUsername: botStatus?.bot_username,
       shopTelegram: shopProfile?.telegram,
       shopName: shopProfile?.name,
       customerName: customer?.display_name,
       token: customer?.telegram_link_token,
     }),
-    [customer?.display_name, customer?.telegram_link_token, shopProfile?.name, shopProfile?.telegram]
+    [botStatus?.bot_username, customer?.display_name, customer?.telegram_link_token, shopProfile?.name, shopProfile?.telegram]
   );
+
+  useEffect(() => {
+    let active = true;
+
+    async function bootstrap() {
+      try {
+        const status = await fetchTelegramBotStatus().catch(() => ({ configured: false, bot_username: null }));
+        if (!active) return;
+        setBotStatus(status);
+
+        if (!customer?.telegram_link_token) {
+          setLoadingSession(false);
+          return;
+        }
+
+        const session = await createTelegramLinkSession({
+          token: customer.telegram_link_token,
+          customerId: customer.id,
+          customerName: customer.display_name,
+          shopName: shopProfile?.name || 'Gebya',
+          currentBalance: Number(customer?.balance || 0),
+          updatesEnabled: !!customer?.telegram_notify_enabled,
+        }).catch(() => null);
+
+        if (!active) return;
+        setLinkSession(session);
+        if (session?.requested_at && !customer?.telegram_link_requested_at) {
+          await onSave?.({
+            telegram_link_requested_at: session.requested_at,
+            showSavedToast: false,
+            closeSheet: false,
+          });
+        }
+      } finally {
+        if (active) setLoadingSession(false);
+      }
+    }
+
+    bootstrap();
+    return () => { active = false; };
+  }, [customer?.id, customer?.display_name, customer?.telegram_link_token, customer?.telegram_link_requested_at, customer?.balance, customer?.telegram_notify_enabled, shopProfile?.name]);
+
+  useEffect(() => {
+    if (!customer?.telegram_link_token || hasLinkedBorrower) return undefined;
+    const interval = setInterval(async () => {
+      const next = await fetchTelegramLinkSession(customer.telegram_link_token).catch(() => null);
+      if (next) setLinkSession(next);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [customer?.telegram_link_token, hasLinkedBorrower]);
 
   const handleCopy = async () => {
     try {
@@ -31,17 +93,45 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone })
     }
   };
 
+  const handleRefresh = async () => {
+    if (!customer?.telegram_link_token) return;
+    const next = await fetchTelegramLinkSession(customer.telegram_link_token).catch(() => null);
+    if (next) {
+      setLinkSession(next);
+      fireToast(next.chat_id ? 'Borrower is linked on Telegram.' : 'Waiting for borrower to start the bot.', 2200);
+    }
+  };
+
   const handleConfirm = async () => {
     setSaving(true);
     try {
       await onSave?.({
-        telegram_username: normalizedTelegram || null,
+        telegram_username: normalizedTelegram || linkSession?.telegram_username || customer?.telegram_username || null,
+        telegram_chat_id: linkSession?.chat_id || customer?.telegram_chat_id || null,
+        telegram_linked_at: linkSession?.linked_at || customer?.telegram_linked_at || null,
+        telegram_link_requested_at: linkSession?.requested_at || customer?.telegram_link_requested_at || Date.now(),
       });
       onDone?.();
     } finally {
       setSaving(false);
     }
   };
+
+  const handleResend = async () => {
+    if (!onResendUpdate || resending) return;
+    setResending(true);
+    try {
+      await onResendUpdate();
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const connectionLabel = hasLinkedBorrower
+    ? 'Linked borrower updates are ready.'
+    : hasPendingLink
+      ? 'Waiting for the borrower to start the Gebya bot.'
+      : 'Generate the borrower link, then let them scan or open it in Telegram.';
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 animate-fade">
@@ -59,44 +149,70 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone })
         </div>
 
         <div className="px-6 py-4 space-y-4">
-          <div className="p-4 border" style={{ background: '#f0f9ff', borderColor: '#bfdbfe', borderRadius: 'var(--radius-md)' }}>
+          <div className="p-4 border" style={{ background: hasLinkedBorrower ? '#f0fdf4' : '#f0f9ff', borderColor: hasLinkedBorrower ? '#bbf7d0' : '#bfdbfe', borderRadius: 'var(--radius-md)' }}>
             <div className="flex items-start gap-3">
-              <MessageCircle className="w-5 h-5 mt-0.5" style={{ color: '#2563eb' }} />
+              <MessageCircle className="w-5 h-5 mt-0.5" style={{ color: hasLinkedBorrower ? '#166534' : '#2563eb' }} />
               <div>
                 <p className="font-bold text-gray-900">{t.telegramAutoUpdatesTitle}</p>
-                <p className="text-sm mt-1" style={{ color: '#4b5563' }}>{t.telegramAutoUpdatesBody}</p>
+                <p className="text-sm mt-1" style={{ color: '#4b5563' }}>{connectionLabel}</p>
               </div>
             </div>
           </div>
 
-          <div className="p-4 border text-center" style={{ background: '#fffdf7', borderColor: '#f6d79d', borderRadius: 'var(--radius-md)' }}>
-            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide mb-3" style={{ color: '#9a6700' }}>
-              <QrCode className="w-4 h-4" />
-              {t.qrPrimaryMethod}
-            </div>
-            <div className="inline-flex p-3 bg-white border" style={{ borderRadius: '20px', borderColor: '#f0e1bc' }}>
-              <QRCodeSVG value={inviteLink} size={176} bgColor="#ffffff" fgColor="#1B4332" />
-            </div>
-            <p className="text-sm mt-3" style={{ color: '#4b5563' }}>{t.telegramQrHint}</p>
-          </div>
-
-          <div className="p-4 border space-y-3" style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)' }}>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="font-bold text-gray-900">{t.shareInviteLink}</p>
-                <p className="text-xs mt-1" style={{ color: '#6b7280' }}>{t.shareInviteLinkHint}</p>
+          {botStatus.configured ? (
+            <>
+              <div className="p-4 border text-center" style={{ background: '#fffdf7', borderColor: '#f6d79d', borderRadius: 'var(--radius-md)' }}>
+                <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide mb-3" style={{ color: '#9a6700' }}>
+                  <QrCode className="w-4 h-4" />
+                  {t.qrPrimaryMethod}
+                </div>
+                <div className="inline-flex p-3 bg-white border" style={{ borderRadius: '20px', borderColor: '#f0e1bc' }}>
+                  <QRCodeSVG value={inviteLink} size={176} bgColor="#ffffff" fgColor="#1B4332" />
+                </div>
+                <p className="text-sm mt-3" style={{ color: '#4b5563' }}>{t.telegramQrHint}</p>
               </div>
-              <button type="button" onClick={handleCopy} className="px-3 py-2 text-sm font-black min-h-[44px] border press-scale" style={{ background: '#f8fafc', color: '#1f2937', borderColor: '#e5e7eb', borderRadius: 'var(--radius-sm)' }}>
-                <span className="inline-flex items-center gap-1">
-                  <Copy className="w-4 h-4" />
-                  {t.copyLink}
-                </span>
-              </button>
+
+              <div className="p-4 border space-y-3" style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-gray-900">{t.shareInviteLink}</p>
+                    <p className="text-xs mt-1" style={{ color: '#6b7280' }}>{t.shareInviteLinkHint}</p>
+                  </div>
+                  <button type="button" onClick={handleCopy} className="px-3 py-2 text-sm font-black min-h-[44px] border press-scale" style={{ background: '#f8fafc', color: '#1f2937', borderColor: '#e5e7eb', borderRadius: 'var(--radius-sm)' }}>
+                    <span className="inline-flex items-center gap-1">
+                      <Copy className="w-4 h-4" />
+                      {t.copyLink}
+                    </span>
+                  </button>
+                </div>
+                <div className="p-3 text-xs break-all" style={{ background: '#f8fafc', borderRadius: 'var(--radius-sm)', color: '#475569' }}>
+                  {inviteLink}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => window.open(inviteLink, '_blank', 'noopener,noreferrer')} className="w-full p-3 font-black text-sm flex items-center justify-center gap-2 min-h-[48px] border press-scale" style={{ background: '#1B4332', color: '#fff', borderColor: '#1B4332', borderRadius: 'var(--radius-md)' }}>
+                    <Send className="w-4 h-4" />
+                    Open Bot
+                  </button>
+                  <button type="button" onClick={handleRefresh} disabled={loadingSession} className="w-full p-3 font-black text-sm flex items-center justify-center gap-2 min-h-[48px] border press-scale" style={{ background: '#fff', color: '#374151', borderColor: '#e5e7eb', borderRadius: 'var(--radius-md)' }}>
+                    <RefreshCcw className="w-4 h-4" />
+                    Refresh status
+                  </button>
+                </div>
+                {linkSession?.telegram_username && (
+                  <p className="text-xs" style={{ color: '#166534' }}>
+                    Borrower started the bot as {linkSession.telegram_username}
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="p-4 border" style={{ background: '#fff7ed', borderColor: '#fed7aa', borderRadius: 'var(--radius-md)' }}>
+              <p className="font-bold text-gray-900">Telegram bot is not configured yet.</p>
+              <p className="text-sm mt-1" style={{ color: '#6b7280' }}>
+                You can still save a manual Telegram contact below and enable real borrower bot updates later.
+              </p>
             </div>
-            <div className="p-3 text-xs break-all" style={{ background: '#f8fafc', borderRadius: 'var(--radius-sm)', color: '#475569' }}>
-              {inviteLink}
-            </div>
-          </div>
+          )}
 
           <div className="p-4 border space-y-2" style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)' }}>
             <p className="font-bold text-gray-900">{t.manualTelegramFallback}</p>
@@ -118,10 +234,16 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone })
         </div>
 
         <div className="px-6 pb-8 pt-2 space-y-2">
-          <button onClick={handleConfirm} disabled={saving || !telegramValid} className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 min-h-[56px] press-scale" style={{ background: '#1B4332', borderRadius: 'var(--radius-md)', boxShadow: saving || !telegramValid ? 'none' : '0 4px 0 #0f2b20, var(--shadow-sm)', opacity: telegramValid ? 1 : 0.45 }}>
+          <button onClick={handleConfirm} disabled={saving || !telegramValid || (!hasLinkedBorrower && !normalizedTelegram)} className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 min-h-[56px] press-scale" style={{ background: '#1B4332', borderRadius: 'var(--radius-md)', boxShadow: saving || (!hasLinkedBorrower && !normalizedTelegram) || !telegramValid ? 'none' : '0 4px 0 #0f2b20, var(--shadow-sm)', opacity: telegramValid && (hasLinkedBorrower || normalizedTelegram) ? 1 : 0.45 }}>
             <CheckCircle2 className="w-5 h-5" />
-            {saving ? t.saving : t.confirmConnection}
+            {saving ? t.saving : (hasLinkedBorrower ? t.confirmConnection : 'Save fallback contact')}
           </button>
+          {hasLinkedBorrower && (
+            <button onClick={handleResend} type="button" disabled={resending} className="w-full p-4 font-black text-sm flex items-center justify-center gap-2 min-h-[52px] border press-scale" style={{ background: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0', borderRadius: 'var(--radius-md)' }}>
+              <RefreshCcw className="w-4 h-4" />
+              {resending ? 'Resending…' : 'Resend latest update'}
+            </button>
+          )}
           <button onClick={onDone} type="button" className="w-full p-4 font-black text-sm flex items-center justify-center gap-2 min-h-[52px] border press-scale" style={{ background: '#fff', color: '#4b5563', borderColor: '#e5e7eb', borderRadius: 'var(--radius-md)' }}>
             <SkipForward className="w-4 h-4" />
             {t.skipForNow}

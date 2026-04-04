@@ -34,6 +34,8 @@ function SettingsPage({
   onToggleCatalogEntryActive,
   onSaveSupplier,
   onSaveSupplierTransaction,
+  onUpdateSupplierTransaction,
+  onDeleteSupplierTransaction,
   pwa,
 }) {
   const { hidden, toggle } = usePrivacy();
@@ -56,6 +58,7 @@ function SettingsPage({
     note: '',
   });
   const [supplierTxForm, setSupplierTxForm] = useState({
+    id: null,
     supplier_id: '',
     type: SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD,
     catalog_entry_id: '',
@@ -64,6 +67,7 @@ function SettingsPage({
     amount: '',
     note: '',
   });
+  const [supplierDeleteTarget, setSupplierDeleteTarget] = useState(null);
 
   const [editName, setEditName] = useState(shopProfile?.name || '');
   const [editPhoneDigits, setEditPhoneDigits] = useState(() => {
@@ -74,7 +78,7 @@ function SettingsPage({
   const [profileSaved, setProfileSaved] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
 
-  const phoneValid = /^[79]\d{8}$/.test(editPhoneDigits);
+  const phoneValid = !editPhoneDigits || /^[79]\d{8}$/.test(editPhoneDigits);
   const normalizedTelegram = normalizeTelegram(editTelegram);
   const telegramValid = !editTelegram.trim() || !!normalizedTelegram;
   const handlePhoneChange = (e) => {
@@ -117,32 +121,123 @@ function SettingsPage({
 
   const handleProfileSave = async () => {
     if (!editName.trim() || !phoneValid || !telegramValid) return;
-    const fullPhone = '+251' + editPhoneDigits;
+    const fullPhone = editPhoneDigits ? '+251' + editPhoneDigits : '';
     await onProfileSave(editName.trim(), fullPhone, normalizedTelegram || '');
     setEditTelegram(normalizedTelegram || '');
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2000);
   };
 
-  const exportToCSV = () => {
-    const headers = ['Date (Ethiopian)', 'Type', 'Item', 'Quantity', 'Amount (birr)', 'Cost (birr)', 'Profit (birr)', 'Payment', 'Customer'];
-    const rows = transactions.map(tx => [
-      formatEthiopian(tx.created_at),
-      tx.type,
-      `"${tx.item_name || ''}"`,
-      tx.quantity || 1,
-      tx.amount || 0,
-      tx.cost_price || '',
-      tx.profit !== null && tx.profit !== undefined ? tx.profit : '',
-      [tx.payment_type, tx.payment_provider].filter(Boolean).join(' ') || '',
-      `"${tx.customer_name || ''}"`,
+  const csvCell = (value) => {
+    const stringValue = value == null ? '' : String(value);
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  };
+
+  const buildCsvSection = (title, headers, rows) => {
+    return [
+      [csvCell(title)],
+      headers.map(csvCell),
+      ...rows.map(row => row.map(csvCell)),
+      [],
+    ].map(row => row.join(',')).join('\n');
+  };
+
+  const exportToCSV = async () => {
+    const [customerRows, customerTransactionRows, supplierRows, supplierTransactionRows] = await Promise.all([
+      db.customers.toArray(),
+      db.customer_transactions.toArray(),
+      db.suppliers?.toArray?.() || [],
+      db.supplier_transactions?.toArray?.() || [],
     ]);
-    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+
+    const transactionSection = buildCsvSection(
+      'Transactions',
+      ['Date (Ethiopian)', 'Type', 'Item', 'Quantity', 'Amount (birr)', 'Cost (birr)', 'Profit (birr)', 'Payment', 'Customer'],
+      transactions.map(tx => [
+        formatEthiopian(tx.created_at),
+        tx.type,
+        tx.item_name || '',
+        tx.quantity || 1,
+        tx.amount || 0,
+        tx.cost_price || '',
+        tx.profit !== null && tx.profit !== undefined ? tx.profit : '',
+        [tx.payment_type, tx.payment_provider].filter(Boolean).join(' ') || '',
+        tx.customer_name || '',
+      ])
+    );
+
+    const customerSection = buildCsvSection(
+      'Customers',
+      ['ID', 'Name', 'Phone', 'Note', 'Telegram', 'Telegram notify enabled', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
+      customerRows.map(customer => [
+        customer.id,
+        customer.display_name || '',
+        customer.phone_number || '',
+        customer.note || '',
+        customer.telegram_username || '',
+        customer.telegram_notify_enabled ? 'yes' : 'no',
+        customer.created_at ? formatEthiopian(customer.created_at) : '',
+        customer.updated_at ? formatEthiopian(customer.updated_at) : '',
+      ])
+    );
+
+    const customerTransactionSection = buildCsvSection(
+      'Customer Ledger Transactions',
+      ['ID', 'Customer ID', 'Type', 'Amount (birr)', 'Item note', 'Due date (Ethiopian)', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
+      customerTransactionRows.map(entry => [
+        entry.id,
+        entry.customer_id,
+        entry.type,
+        entry.amount || 0,
+        entry.item_note || '',
+        entry.due_date ? formatEthiopian(entry.due_date) : '',
+        entry.created_at ? formatEthiopian(entry.created_at) : '',
+        entry.updated_at ? formatEthiopian(entry.updated_at) : '',
+      ])
+    );
+
+    const supplierSection = buildCsvSection(
+      'Suppliers',
+      ['ID', 'Name', 'Phone', 'Note', 'Active', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
+      supplierRows.map(supplier => [
+        supplier.id,
+        supplier.display_name || '',
+        supplier.phone_number || '',
+        supplier.note || '',
+        supplier.active === false ? 'no' : 'yes',
+        supplier.created_at ? formatEthiopian(supplier.created_at) : '',
+        supplier.updated_at ? formatEthiopian(supplier.updated_at) : '',
+      ])
+    );
+
+    const supplierTransactionSection = buildCsvSection(
+      'Supplier Ledger Transactions',
+      ['ID', 'Supplier ID', 'Type', 'Item', 'Quantity', 'Amount (birr)', 'Note', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
+      supplierTransactionRows.map(entry => [
+        entry.id,
+        entry.supplier_id,
+        entry.type,
+        entry.item_name || '',
+        entry.quantity != null ? entry.quantity : '',
+        entry.amount || 0,
+        entry.note || '',
+        entry.created_at ? formatEthiopian(entry.created_at) : '',
+        entry.updated_at ? formatEthiopian(entry.updated_at) : '',
+      ])
+    );
+
+    const csv = [
+      transactionSection,
+      customerSection,
+      customerTransactionSection,
+      supplierSection,
+      supplierTransactionSection,
+    ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gebya-backup-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `gebya-backup-full-${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -157,6 +252,9 @@ function SettingsPage({
       db.catalog_entries.clear(),
       db.suppliers.clear(),
       db.supplier_transactions.clear(),
+      db.credit_records?.clear?.() || Promise.resolve(),
+      db.credit_payment_logs?.clear?.() || Promise.resolve(),
+      db.settings.delete('last_saved_snapshot'),
     ]);
     setCleared(true);
     setShowClearConfirm(false);
@@ -267,7 +365,7 @@ function SettingsPage({
   const totalEntries = transactions.length;
   const totalCustomersWithLedger = customerSummaries.length;
   const totalSupplierDubie = (supplierSummaries || []).reduce((sum, supplier) => sum + Math.max(supplier.balance || 0, 0), 0);
-  const currentFullPhone = '+251' + editPhoneDigits;
+  const currentFullPhone = editPhoneDigits ? '+251' + editPhoneDigits : '';
   const profileChanged = (
     editName.trim() !== (shopProfile?.name || '') ||
     currentFullPhone !== (shopProfile?.phone || '') ||
@@ -305,6 +403,7 @@ function SettingsPage({
 
   const resetSupplierTxForm = () => {
     setSupplierTxForm(prev => ({
+      id: null,
       supplier_id: prev.supplier_id,
       type: SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD,
       catalog_entry_id: '',
@@ -341,7 +440,8 @@ function SettingsPage({
   const handleSupplierTransactionSubmit = async () => {
     const quantity = Math.max(parseInt(supplierTxForm.quantity || '1', 10) || 1, 1);
     const selectedCatalog = activeCatalogEntries.find(entry => String(entry.id) === String(supplierTxForm.catalog_entry_id));
-    const didSave = await onSaveSupplierTransaction?.({
+    const payload = {
+      id: supplierTxForm.id,
       supplier_id: Number(supplierTxForm.supplier_id),
       type: supplierTxForm.type,
       catalog_entry_id: supplierTxForm.catalog_entry_id ? Number(supplierTxForm.catalog_entry_id) : null,
@@ -352,13 +452,42 @@ function SettingsPage({
       quantity,
       amount: parseInput(supplierTxForm.amount),
       note: supplierTxForm.note.trim() || null,
-    });
+    };
+    const didSave = supplierTxForm.id
+      ? await onUpdateSupplierTransaction?.(supplierTxForm.id, payload)
+      : await onSaveSupplierTransaction?.(payload);
     if (!didSave) return;
     fireToast(
-      supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? 'Supplier dubie saved' : 'Supplier payment saved',
+      supplierTxForm.id
+        ? 'Supplier transaction updated'
+        : (supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? 'Supplier dubie saved' : 'Supplier payment saved'),
       1800
     );
     resetSupplierTxForm();
+  };
+
+  const handleEditSupplierTransaction = (entry) => {
+    setSupplierTxForm({
+      id: entry.id,
+      supplier_id: String(entry.supplier_id || ''),
+      type: entry.type || SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD,
+      catalog_entry_id: entry.catalog_entry_id ? String(entry.catalog_entry_id) : '',
+      item_name: entry.item_name || '',
+      quantity: entry.quantity != null ? String(entry.quantity) : '1',
+      amount: entry.amount != null ? String(entry.amount) : '',
+      note: entry.note || '',
+    });
+  };
+
+  const handleConfirmDeleteSupplierTransaction = async () => {
+    if (!supplierDeleteTarget?.id) return;
+    const deleted = await onDeleteSupplierTransaction?.(supplierDeleteTarget.id);
+    if (!deleted) return;
+    fireToast('Supplier transaction deleted', 1800);
+    if (supplierTxForm.id === supplierDeleteTarget.id) {
+      resetSupplierTxForm();
+    }
+    setSupplierDeleteTarget(null);
   };
 
   return (
@@ -907,8 +1036,20 @@ function SettingsPage({
                 className="w-full py-3 rounded-xl text-sm font-bold text-white min-h-[44px] disabled:opacity-40"
                 style={{ background: supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? '#C4883A' : '#2d6a4f' }}
               >
-                {supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? 'Save purchase dubie' : 'Save payment'}
+                {supplierTxForm.id
+                  ? 'Update supplier transaction'
+                  : (supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? 'Save purchase dubie' : 'Save payment')}
               </button>
+              {supplierTxForm.id && (
+                <button
+                  type="button"
+                  onClick={resetSupplierTxForm}
+                  className="w-full mt-2 py-3 rounded-xl text-sm font-bold min-h-[44px]"
+                  style={{ background: '#f5f5f5', color: '#6b7280' }}
+                >
+                  Cancel edit
+                </button>
+              )}
             </div>
 
             {selectedSupplier?.transactions?.length > 0 && (
@@ -930,6 +1071,24 @@ function SettingsPage({
                       <p className="text-sm font-black" style={{ color: entry.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? '#9a3412' : '#166534' }}>
                         {entry.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? '+' : '-'}{fmt(entry.amount || 0)} {t.birr}
                       </p>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        type="button"
+                        onClick={() => handleEditSupplierTransaction(entry)}
+                        className="flex-1 py-2 rounded-lg text-xs font-bold"
+                        style={{ background: 'rgba(27,67,50,0.08)', color: '#1B4332' }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSupplierDeleteTarget(entry)}
+                        className="flex-1 py-2 rounded-lg text-xs font-bold"
+                        style={{ background: '#fff1f2', color: '#dc2626' }}
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1258,6 +1417,36 @@ function SettingsPage({
               </button>
               <button onClick={() => setShowClearConfirm(false)} className="w-full p-4 rounded-2xl font-bold min-h-[52px]"
                 style={{ background: '#f5f5f5', color: '#374151' }}>
+                {t.cancel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {supplierDeleteTarget && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="text-4xl text-center mb-3">🧾</div>
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">Delete supplier transaction?</h3>
+            <p className="text-sm text-gray-500 text-center mb-2">
+              You are deleting this {supplierDeleteTarget.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? 'purchase dubie' : 'payment'} transaction.
+            </p>
+            <p className="text-sm text-gray-700 text-center mb-6">
+              "{supplierDeleteTarget.item_name || 'Payment'}" · {fmt(supplierDeleteTarget.amount || 0)} {t.birr}
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={handleConfirmDeleteSupplierTransaction}
+                className="w-full p-4 bg-red-500 text-white rounded-2xl font-bold min-h-[52px]"
+              >
+                Delete transaction
+              </button>
+              <button
+                onClick={() => setSupplierDeleteTarget(null)}
+                className="w-full p-4 rounded-2xl font-bold min-h-[52px]"
+                style={{ background: '#f5f5f5', color: '#374151' }}
+              >
                 {t.cancel}
               </button>
             </div>
