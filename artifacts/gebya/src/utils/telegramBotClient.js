@@ -9,10 +9,17 @@ async function request(path, options = {}) {
     ...options,
   });
 
-  const data = await response.json().catch(() => null);
+  const contentType = response.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+  const data = isJson ? await response.json().catch(() => null) : null;
   if (!response.ok) {
     const error = new Error(data?.error || 'Request failed');
     error.payload = data;
+    throw error;
+  }
+  if (!isJson) {
+    const error = new Error('Telegram service is unavailable.');
+    error.payload = { path, status: response.status };
     throw error;
   }
   return data;
@@ -53,4 +60,3 @@ export function resendLatestTelegramUpdate(payload) {
     body: JSON.stringify(payload),
   });
 }
-
