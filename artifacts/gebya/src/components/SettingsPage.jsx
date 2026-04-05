@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown, Share2 } from 'lucide-react';
+import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown, Share2, Sun, Moon } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
+import { useTheme } from '../context/ThemeContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt, parseInput } from '../utils/numformat';
 import db from '../db';
@@ -14,6 +15,34 @@ import { SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger';
 
 const FREQ_LABELS_EN = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
 const FREQ_LABELS_AM = { daily: 'ዕለታዊ', weekly: 'ሳምንታዊ', monthly: 'ወርሃዊ' };
+
+function SettingsSection({ id, title, openSection, setOpenSection, children, defaultOpen = false }) {
+  const open = openSection === id || (defaultOpen && !openSection);
+
+  return (
+    <section>
+      <button
+        type="button"
+        onClick={() => setOpenSection(open ? null : id)}
+        className="w-full bg-white rounded-2xl border border-green-100/50 overflow-hidden text-left"
+      >
+        <div className="px-4 py-4 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-sm font-black text-gray-900 truncate">{title}</h2>
+            <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
+              {open ? 'Tap to close' : 'Tap to open'}
+            </p>
+          </div>
+          <ChevronRight
+            className="w-4 h-4 flex-shrink-0 transition-transform"
+            style={{ color: '#6b7280', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}
+          />
+        </div>
+      </button>
+      {open && <div className="mt-2">{children}</div>}
+    </section>
+  );
+}
 
 function SettingsPage({
   transactions,
@@ -40,7 +69,9 @@ function SettingsPage({
 }) {
   const { hidden, toggle } = usePrivacy();
   const { lang, t } = useLang();
+  const { theme, setTheme } = useTheme();
   const FREQ_LABELS = lang === 'am' ? FREQ_LABELS_AM : FREQ_LABELS_EN;
+  const [openSection, setOpenSection] = useState('profile');
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [cleared, setCleared] = useState(false);
@@ -496,8 +527,7 @@ function SettingsPage({
       <PwaInstallPanel pwa={pwa} variant="settings" />
 
       {(todayTransactions && todayTransactions.length > 0) && (
-        <section>
-          <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.todaysBreakdown}</h2>
+        <SettingsSection id="todayBreakdown" title={t.todaysBreakdown} openSection={openSection} setOpenSection={setOpenSection}>
           <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
             <div className="px-4 py-4 space-y-2">
               <div className="flex justify-between text-sm">
@@ -536,11 +566,10 @@ function SettingsPage({
               )}
             </div>
           </div>
-        </section>
+        </SettingsSection>
       )}
 
-      <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.achievementBadges}</h2>
+      <SettingsSection id="badges" title={t.achievementBadges} openSection={openSection} setOpenSection={setOpenSection}>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-4 pt-4 pb-3">
             {badgeList.length === 0 ? (
@@ -573,11 +602,10 @@ function SettingsPage({
             )}
           </div>
         </div>
-      </section>
+      </SettingsSection>
 
       {usageStats && (
-        <section>
-          <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.usageInsights}</h2>
+        <SettingsSection id="usage" title={t.usageInsights} openSection={openSection} setOpenSection={setOpenSection}>
           <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
             <div className="px-4 pt-4 pb-3 space-y-3">
               <div className="flex gap-3">
@@ -634,11 +662,10 @@ function SettingsPage({
               </button>
             </div>
           </div>
-        </section>
+        </SettingsSection>
       )}
 
-      <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.shopProfile}</h2>
+      <SettingsSection id="profile" title={t.shopProfile} openSection={openSection} setOpenSection={setOpenSection} defaultOpen>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 pt-5 pb-4 space-y-3">
             <div>
@@ -713,10 +740,9 @@ function SettingsPage({
             </button>
           </div>
         </div>
-      </section>
+      </SettingsSection>
 
-      <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">Items & Services</h2>
+      <SettingsSection id="catalog" title="Items & Services" openSection={openSection} setOpenSection={setOpenSection}>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 pt-5 pb-4 space-y-3">
             <div className="grid grid-cols-2 gap-2">
@@ -847,10 +873,9 @@ function SettingsPage({
             </div>
           </div>
         </div>
-      </section>
+      </SettingsSection>
 
-      <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">Suppliers & Dubie</h2>
+      <SettingsSection id="suppliers" title="Suppliers & Dubie" openSection={openSection} setOpenSection={setOpenSection}>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 pt-5 pb-4 space-y-4">
             <div className="p-4 rounded-2xl" style={{ background: '#fff7ed', border: '1.5px solid #fed7aa' }}>
@@ -1096,10 +1121,39 @@ function SettingsPage({
             )}
           </div>
         </div>
-      </section>
+      </SettingsSection>
 
-      <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.privacy}</h2>
+      <SettingsSection id="appearance" title={t.appearance} openSection={openSection} setOpenSection={setOpenSection}>
+        <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden p-3">
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: 'light', label: t.lightMode, icon: Sun },
+              { id: 'dark', label: t.darkMode, icon: Moon },
+            ].map((option) => {
+              const active = theme === option.id;
+              const Icon = option.icon;
+              return (
+                <button
+                  key={option.id}
+                  onClick={() => setTheme(option.id)}
+                  className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold min-h-[48px] transition-all"
+                  style={{
+                    background: active ? '#1B4332' : '#f5f5f5',
+                    color: active ? '#fff' : '#374151',
+                    border: active ? '1px solid #1B4332' : '1px solid #e8e2d8',
+                  }}
+                >
+                  <Icon className="w-4 h-4" />
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-gray-500 mt-3 px-1">{t.appearanceHint}</p>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection id="privacy" title={t.privacy} openSection={openSection} setOpenSection={setOpenSection}>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <button
             onClick={toggle}
@@ -1120,10 +1174,9 @@ function SettingsPage({
             </div>
           </button>
         </div>
-      </section>
+      </SettingsSection>
 
-      <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.paymentMethods}</h2>
+      <SettingsSection id="payments" title={t.paymentMethods} openSection={openSection} setOpenSection={setOpenSection}>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden divide-y divide-green-100/30">
 
           <div className="px-5 py-3">
@@ -1240,10 +1293,9 @@ function SettingsPage({
             <p className="text-xs text-gray-400">{t.onlyEnabled}</p>
           </div>
         </div>
-      </section>
+      </SettingsSection>
 
-      <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.recurringExpenses}</h2>
+      <SettingsSection id="recurring" title={t.recurringExpenses} openSection={openSection} setOpenSection={setOpenSection}>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 pt-4 pb-2">
             <p className="text-xs text-gray-500 mb-3">{t.recurringHint}</p>
@@ -1337,10 +1389,9 @@ function SettingsPage({
           </div>
           <div className="h-2" />
         </div>
-      </section>
+      </SettingsSection>
 
-      <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.yourData}</h2>
+      <SettingsSection id="data" title={t.yourData} openSection={openSection} setOpenSection={setOpenSection}>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden divide-y divide-green-100/30">
           <div className="px-5 py-4 flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#f0fdf4' }}>
@@ -1381,10 +1432,9 @@ function SettingsPage({
             <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
           </button>
         </div>
-      </section>
+      </SettingsSection>
 
-      <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.about}</h2>
+      <SettingsSection id="about" title={t.about} openSection={openSection} setOpenSection={setOpenSection}>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 py-4 flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: 'rgba(196,136,58,0.12)' }}>
@@ -1401,7 +1451,7 @@ function SettingsPage({
             <p className="text-xs text-gray-500">{t.privacyNote}</p>
           </div>
         </div>
-      </section>
+      </SettingsSection>
 
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6">

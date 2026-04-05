@@ -3,6 +3,7 @@ import { BookOpen, Users, Calendar, Settings, Trash2, Pencil, Share2, X } from '
 import db from './db';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { LangProvider, useLang } from './context/LangContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ProfitCard from './components/ProfitCard';
 import TransactionForm from './components/TransactionForm';
 import EditTransactionSheet from './components/EditTransactionSheet';
@@ -1784,9 +1785,11 @@ function AppInner() {
 function App() {
   return (
     <LangProvider>
-      <PrivacyProvider>
-        <AppInner />
-      </PrivacyProvider>
+      <ThemeProvider>
+        <PrivacyProvider>
+          <AppInner />
+        </PrivacyProvider>
+      </ThemeProvider>
     </LangProvider>
   );
 }

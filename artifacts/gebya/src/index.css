@@ -7,8 +7,12 @@
   --color-accent-coral: #D4654A;
   --color-accent-amber: #C4883A;
   --color-bg: #FAF8F5;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f5f5f5;
   --color-border: #e8e2d8;
   --color-border-light: #f0ede8;
+  --color-text: #111827;
+  --color-text-muted: #6b7280;
 
   --radius-sm: 12px;
   --radius-md: 18px;
@@ -19,6 +23,20 @@
   --shadow-sm: 0 2px 8px rgba(27,67,50,0.08), 0 1px 2px rgba(27,67,50,0.04);
   --shadow-md: 0 4px 16px rgba(27,67,50,0.10), 0 2px 4px rgba(27,67,50,0.06);
   --shadow-lg: 0 8px 32px rgba(27,67,50,0.14), 0 4px 8px rgba(27,67,50,0.08);
+}
+
+:root[data-theme='dark'] {
+  --color-bg: #0f1720;
+  --color-surface: #17212b;
+  --color-surface-muted: #22303d;
+  --color-border: #2b3946;
+  --color-border-light: #334454;
+  --color-text: #f3f4f6;
+  --color-text-muted: #9ca3af;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.28);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.34);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.48);
 }
 
 @layer base {
@@ -35,7 +53,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--color-bg);
-    color: #111827;
+    color: var(--color-text);
     min-height: 100dvh;
     font-size: 16px;
   }
@@ -60,6 +78,43 @@
 
   input[type="number"] {
     -moz-appearance: textfield;
+  }
+
+  html[data-theme='dark'] body,
+  html[data-theme='dark'] #root {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  html[data-theme='dark'] .bg-white {
+    background-color: var(--color-surface) !important;
+  }
+
+  html[data-theme='dark'] .text-gray-900,
+  html[data-theme='dark'] .text-gray-800,
+  html[data-theme='dark'] .text-gray-700 {
+    color: var(--color-text) !important;
+  }
+
+  html[data-theme='dark'] .text-gray-600,
+  html[data-theme='dark'] .text-gray-500,
+  html[data-theme='dark'] .text-gray-400 {
+    color: var(--color-text-muted) !important;
+  }
+
+  html[data-theme='dark'] .border,
+  html[data-theme='dark'] .border-b,
+  html[data-theme='dark'] .border-t,
+  html[data-theme='dark'] .border-l-4,
+  html[data-theme='dark'] .divide-y > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--color-border-light) !important;
+  }
+
+  html[data-theme='dark'] input,
+  html[data-theme='dark'] textarea,
+  html[data-theme='dark'] select {
+    background-color: var(--color-surface) !important;
+    color: var(--color-text) !important;
   }
 }
 

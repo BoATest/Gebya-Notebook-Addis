@@ -912,6 +912,10 @@ const AM = {
 
 const EN_OVERRIDES = {
   appName: 'Gebya',
+  appearance: 'Appearance',
+  appearanceHint: 'Choose the look that feels easiest on your eyes.',
+  lightMode: 'Light',
+  darkMode: 'Dark',
   today: 'Today',
   todayLabel: 'Today',
   credit: 'Dubie',
@@ -947,6 +951,10 @@ const EN_OVERRIDES = {
 
 const AM_OVERRIDES = {
   appName: 'ገበያ',
+  appearance: 'መልክ',
+  appearanceHint: 'ለዓይንዎ ቀላል የሚሆነውን መልክ ይምረጡ።',
+  lightMode: 'ብርሃን',
+  darkMode: 'ጨለማ',
   loading: 'ማስታወሻዎን በመጫን ላይ…',
   today: 'ዛሬ',
   todayLabel: 'ዛሬ',
