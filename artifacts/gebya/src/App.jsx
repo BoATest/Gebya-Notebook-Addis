@@ -214,7 +214,6 @@ function AppInner() {
       setCatalogEntries(catalogRows || []);
       setSuppliers(supplierRows || []);
       setSupplierTransactions(supplierTxRows || []);
-      const hasName = !!nameRow?.value;
       setShopProfile({
         name: nameRow?.value || null,
         phone: phoneRow?.value || '',
@@ -222,9 +221,6 @@ function AppInner() {
       });
       try { setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS); } catch { setEnabledProviders(DEFAULT_PROVIDERS); }
       try { setRecurringExpenses(reRow ? JSON.parse(reRow.value) : []); } catch { setRecurringExpenses([]); }
-      } else {
-        try { setLastSavedSnapshot(snapshotRow?.value ? JSON.parse(snapshotRow.value) : null); } catch { setLastSavedSnapshot(null); }
-      }
     } catch (err) {
       if (import.meta.env.DEV) console.error('Failed to load data:', err);
     } finally {
@@ -585,7 +581,7 @@ function AppInner() {
         telegram_notify_enabled: nextEnabled,
       });
     } else if (nextEnabled) {
-      fireToast('Manual Telegram updates will open a drafted message after each save.', 2600);
+      fireToast(t.telegramManualDraftHint, 2600);
     }
   };
 
@@ -886,20 +882,20 @@ function AppInner() {
 
   const handleResendCustomerTelegramUpdate = async (customer) => {
     if (!customer?.telegram_link_token) {
-      fireToast('Generate a Telegram borrower link first.', 2200);
+      fireToast(t.telegramGenerateBorrowerLinkFirst, 2200);
       return false;
     }
     try {
       await syncLinkedCustomerTelegramState(customer);
       const result = await resendLatestTelegramUpdate({ token: customer.telegram_link_token });
       if (result?.delivered) {
-        fireToast('Latest borrower update sent again.', 2200);
+        fireToast(t.telegramLatestUpdateSentAgain, 2200);
         return true;
       }
-      fireToast('No borrower update is ready to resend yet.', 2200);
+      fireToast(t.telegramNoUpdateReady, 2200);
       return false;
     } catch (error) {
-      fireToast(error?.message || 'Could not resend the borrower update.', 2600);
+      fireToast(error?.message || t.telegramResendUpdateFailed, 2600);
       return false;
     }
   };
@@ -1039,7 +1035,7 @@ function AppInner() {
         telegramDeliveryState = result?.delivered ? 'bot_sent' : 'bot_pending';
       } catch (error) {
         telegramDeliveryState = 'bot_failed';
-        telegramDeliveryError = error?.message || 'Telegram send failed';
+        telegramDeliveryError = error?.message || t.telegramSendFailed;
       }
     } else if (customer?.telegram_notify_enabled && customer?.telegram_username) {
       const telegramUrl = buildTelegramMessageUrl(customer.telegram_username, message);
@@ -1048,7 +1044,7 @@ function AppInner() {
         telegramDeliveryState = 'manual_opened';
       } else {
         telegramDeliveryState = 'manual_unavailable';
-        telegramDeliveryError = 'Manual Telegram contact is invalid.';
+        telegramDeliveryError = t.telegramManualInvalid;
       }
     } else {
       telegramDeliveryState = customer?.telegram_chat_id ? 'bot_linked_updates_off' : 'not_linked';
@@ -1067,7 +1063,7 @@ function AppInner() {
     }
 
     if (telegramDeliveryState === 'bot_failed') {
-      fireToast(`Dubie saved. ${telegramDeliveryError || 'Telegram send failed.'}`, 2600);
+      fireToast(`${t.telegramDubieSavedButFailed} ${telegramDeliveryError || t.telegramSendFailed}`, 2600);
     }
 
     return true;

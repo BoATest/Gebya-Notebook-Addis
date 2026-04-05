@@ -93,9 +93,9 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
         {!isSaleIntent && (
           <div className="p-4 border" style={{ background: '#fff7ed', borderColor: '#fed7aa', borderRadius: 'var(--radius-md)' }}>
-            <p className="font-bold text-gray-900">Voice is sales-only right now.</p>
+            <p className="font-bold text-gray-900">{t.voiceSalesOnlyTitle}</p>
             <p className="text-sm mt-1" style={{ color: '#6b7280' }}>
-              This draft sounded like Dubie or payment. Review it carefully before saving it as a sale.
+              {t.voiceSalesOnlyBody}
             </p>
           </div>
         )}

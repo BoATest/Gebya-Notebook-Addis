@@ -106,11 +106,11 @@ function CustomerDetail({
             <p className="text-sm font-black text-gray-900">{t.telegramConnection}</p>
             <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
               {hasLinkedBorrower
-                ? ' Borrower updates are linked to the Gebya bot.'
+                ? t.telegramBorrowerUpdatesLinked
                 : hasPendingLink
-                  ? ' Borrower link is waiting for the bot start.'
+                  ? t.telegramBorrowerLinkWaiting
                   : hasManualTelegram
-                    ? ' Manual Telegram contact is saved, but bot updates are not linked yet.'
+                    ? t.telegramManualSavedNotLinked
                     : t.telegramConnectHint}
             </p>
           </div>
@@ -137,10 +137,10 @@ function CustomerDetail({
               {hasLinkedBorrower
                 ? (isTelegramNotifyEnabled ? t.telegramNotifyEnabledState : t.telegramNotifyDisabledState)
                 : hasPendingLink
-                  ? 'Borrower still needs to start the Gebya bot before updates can send.'
+                  ? t.telegramBorrowerNeedsBotStart
                   : hasManualTelegram
-                    ? 'Updates can open as a drafted Telegram message until the borrower links the Gebya bot.'
-                    : 'Link the borrower to the Gebya bot before turning updates on.'}
+                    ? t.telegramDraftUntilLinked
+                    : t.telegramLinkBeforeUpdates}
             </p>
           </div>
           <button
@@ -157,7 +157,7 @@ function CustomerDetail({
         {!hasLinkedBorrower && (
           <div className="flex items-center gap-2 text-xs font-medium" style={{ color: '#b45309' }}>
             <Bell className="w-4 h-4" />
-            <span>{hasPendingLink ? 'Borrower has not started the bot yet.' : t.telegramNotifyConnectFirst}</span>
+            <span>{hasPendingLink ? t.telegramBorrowerNotStarted : t.telegramNotifyConnectFirst}</span>
           </div>
         )}
 
@@ -169,7 +169,7 @@ function CustomerDetail({
             style={{ background: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0', borderRadius: 'var(--radius-md)' }}
           >
             <RefreshCcw className="w-4 h-4" />
-            Resend latest update
+            {t.telegramResendLatestUpdate}
           </button>
         )}
       </div>

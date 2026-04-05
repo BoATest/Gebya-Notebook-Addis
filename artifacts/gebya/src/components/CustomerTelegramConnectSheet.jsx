@@ -15,13 +15,19 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
   const [manualTelegram, setManualTelegram] = useState(customer?.telegram_username || '');
   const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState(false);
-  const [botStatus, setBotStatus] = useState({ configured: false, bot_username: null });
+  const [botStatus, setBotStatus] = useState({
+    configured: false,
+    bot_username: null,
+    linking_available: false,
+    updates_available: false,
+    warning: null,
+  });
   const [linkSession, setLinkSession] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [telegramServiceAvailable, setTelegramServiceAvailable] = useState(true);
   const safeBotStatus = botStatus && typeof botStatus === 'object'
     ? botStatus
-    : { configured: false, bot_username: null };
+    : { configured: false, bot_username: null, linking_available: false, updates_available: false, warning: null };
   const normalizedTelegram = normalizeTelegram(manualTelegram);
   const telegramValid = !manualTelegram.trim() || !!normalizedTelegram;
   const hasLinkedBorrower = Boolean(customer?.telegram_chat_id || linkSession?.chat_id);
@@ -47,13 +53,13 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
         if (!active) return;
         if (status && typeof status === 'object') {
           setBotStatus(status);
-          setTelegramServiceAvailable(true);
+          setTelegramServiceAvailable(Boolean(status.updates_available || status.configured));
         } else {
-          setBotStatus({ configured: false, bot_username: null });
+          setBotStatus({ configured: false, bot_username: null, linking_available: false, updates_available: false, warning: null });
           setTelegramServiceAvailable(false);
         }
 
-        if (!customer?.telegram_link_token) {
+        if (!customer?.telegram_link_token || !status?.linking_available) {
           setLoadingSession(false);
           return;
         }
@@ -86,16 +92,16 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
 
     bootstrap();
     return () => { active = false; };
-  }, [customer?.id, customer?.display_name, customer?.telegram_link_token, customer?.telegram_link_requested_at, customer?.balance, customer?.telegram_notify_enabled, shopProfile?.name]);
+  }, [customer?.id, customer?.display_name, customer?.telegram_link_token, customer?.telegram_link_requested_at, customer?.balance, customer?.telegram_notify_enabled, shopProfile?.name, onSave]);
 
   useEffect(() => {
-    if (!customer?.telegram_link_token || hasLinkedBorrower) return undefined;
+    if (!customer?.telegram_link_token || hasLinkedBorrower || !safeBotStatus.linking_available) return undefined;
     const interval = setInterval(async () => {
       const next = await fetchTelegramLinkSession(customer.telegram_link_token).catch(() => null);
       if (next) setLinkSession(next);
     }, 4000);
     return () => clearInterval(interval);
-  }, [customer?.telegram_link_token, hasLinkedBorrower]);
+  }, [customer?.telegram_link_token, hasLinkedBorrower, safeBotStatus.linking_available]);
 
   const handleCopy = async () => {
     try {
@@ -107,15 +113,15 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
   };
 
   const handleRefresh = async () => {
-    if (!customer?.telegram_link_token) return;
+    if (!customer?.telegram_link_token || !safeBotStatus.linking_available) return;
     const next = await fetchTelegramLinkSession(customer.telegram_link_token).catch(() => null);
     if (next) {
       setLinkSession(next);
       setTelegramServiceAvailable(true);
-      fireToast(next.chat_id ? 'Borrower is linked on Telegram.' : 'Waiting for borrower to start the bot.', 2200);
+      fireToast(next.chat_id ? t.telegramLinkedOnTelegram : t.telegramWaitingForBorrower, 2200);
     } else {
       setTelegramServiceAvailable(false);
-      fireToast('Telegram service is unavailable right now. Manual contact still works.', 2400);
+      fireToast(t.telegramManualStillWorks, 2400);
     }
   };
 
@@ -145,10 +151,10 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
   };
 
   const connectionLabel = hasLinkedBorrower
-    ? 'Linked borrower updates are ready.'
+    ? t.telegramLinkedUpdatesReady
     : hasPendingLink
-      ? 'Waiting for the borrower to start the Gebya bot.'
-      : 'Generate the borrower link, then let them scan or open it in Telegram.';
+      ? t.telegramWaitingForBorrower
+      : t.telegramGenerateLinkHint;
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 animate-fade">
@@ -176,7 +182,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
             </div>
           </div>
 
-          {telegramServiceAvailable && safeBotStatus.configured ? (
+          {telegramServiceAvailable && safeBotStatus.configured && safeBotStatus.linking_available ? (
             <>
               <div className="p-4 border text-center" style={{ background: '#fffdf7', borderColor: '#f6d79d', borderRadius: 'var(--radius-md)' }}>
                 <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide mb-3" style={{ color: '#9a6700' }}>
@@ -208,16 +214,16 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
                 <div className="grid grid-cols-2 gap-2">
                   <button type="button" onClick={() => window.open(inviteLink, '_blank', 'noopener,noreferrer')} className="w-full p-3 font-black text-sm flex items-center justify-center gap-2 min-h-[48px] border press-scale" style={{ background: '#1B4332', color: '#fff', borderColor: '#1B4332', borderRadius: 'var(--radius-md)' }}>
                     <Send className="w-4 h-4" />
-                    Open Bot
+                    {t.telegramOpenBot}
                   </button>
                   <button type="button" onClick={handleRefresh} disabled={loadingSession} className="w-full p-3 font-black text-sm flex items-center justify-center gap-2 min-h-[48px] border press-scale" style={{ background: '#fff', color: '#374151', borderColor: '#e5e7eb', borderRadius: 'var(--radius-md)' }}>
                     <RefreshCcw className="w-4 h-4" />
-                    Refresh status
+                    {t.telegramRefreshStatus}
                   </button>
                 </div>
                 {linkSession?.telegram_username && (
                   <p className="text-xs" style={{ color: '#166534' }}>
-                    Borrower started the bot as {linkSession.telegram_username}
+                    {t.telegramBorrowerStartedAs.replace('{username}', linkSession.telegram_username)}
                   </p>
                 )}
               </div>
@@ -225,12 +231,14 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
           ) : (
             <div className="p-4 border" style={{ background: '#fff7ed', borderColor: '#fed7aa', borderRadius: 'var(--radius-md)' }}>
               <p className="font-bold text-gray-900">
-                {telegramServiceAvailable ? 'Telegram bot is not configured yet.' : 'Telegram service is unavailable right now.'}
+                {telegramServiceAvailable ? t.telegramLinkingUnavailable : t.telegramServiceUnavailableNow}
               </p>
               <p className="text-sm mt-1" style={{ color: '#6b7280' }}>
-                {telegramServiceAvailable
-                  ? 'You can still save a manual Telegram contact below and enable real borrower bot updates later.'
-                  : 'You can still save a manual Telegram contact below. Bot linking and automatic updates need the API server to be available.'}
+                {safeBotStatus.warning
+                  ? safeBotStatus.warning
+                  : telegramServiceAvailable
+                    ? t.telegramManualCanEnableLater
+                    : t.telegramApiServerNeeded}
               </p>
             </div>
           )}
@@ -257,12 +265,12 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
         <div className="px-6 pb-8 pt-2 space-y-2">
           <button onClick={handleConfirm} disabled={saving || !telegramValid || (!hasLinkedBorrower && !normalizedTelegram)} className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 min-h-[56px] press-scale" style={{ background: '#1B4332', borderRadius: 'var(--radius-md)', boxShadow: saving || (!hasLinkedBorrower && !normalizedTelegram) || !telegramValid ? 'none' : '0 4px 0 #0f2b20, var(--shadow-sm)', opacity: telegramValid && (hasLinkedBorrower || normalizedTelegram) ? 1 : 0.45 }}>
             <CheckCircle2 className="w-5 h-5" />
-            {saving ? t.saving : (hasLinkedBorrower ? t.confirmConnection : 'Save fallback contact')}
+            {saving ? t.saving : (hasLinkedBorrower ? t.confirmConnection : t.telegramSaveFallbackContact)}
           </button>
           {hasLinkedBorrower && (
             <button onClick={handleResend} type="button" disabled={resending} className="w-full p-4 font-black text-sm flex items-center justify-center gap-2 min-h-[52px] border press-scale" style={{ background: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0', borderRadius: 'var(--radius-md)' }}>
               <RefreshCcw className="w-4 h-4" />
-              {resending ? 'Resending…' : 'Resend latest update'}
+              {resending ? t.telegramResending : t.telegramResendLatestUpdate}
             </button>
           )}
           <button onClick={onDone} type="button" className="w-full p-4 font-black text-sm flex items-center justify-center gap-2 min-h-[52px] border press-scale" style={{ background: '#fff', color: '#4b5563', borderColor: '#e5e7eb', borderRadius: 'var(--radius-md)' }}>

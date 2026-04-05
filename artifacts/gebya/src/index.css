@@ -19,6 +19,10 @@
   --shadow-sm: 0 2px 8px rgba(27,67,50,0.08), 0 1px 2px rgba(27,67,50,0.04);
   --shadow-md: 0 4px 16px rgba(27,67,50,0.10), 0 2px 4px rgba(27,67,50,0.06);
   --shadow-lg: 0 8px 32px rgba(27,67,50,0.14), 0 4px 8px rgba(27,67,50,0.08);
+
+  --font-sans-base: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif-base: 'Instrument Serif', Georgia, serif;
+  --font-ethiopic: 'Noto Sans Ethiopic', 'Abyssinica SIL', 'Noto Sans', sans-serif;
 }
 
 @layer base {
@@ -31,7 +35,7 @@
   }
 
   body {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--font-sans-base);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--color-bg);
@@ -45,11 +49,11 @@
   }
 
   h1, h2, h3, .heading-serif {
-    font-family: 'Instrument Serif', Georgia, serif;
+    font-family: var(--font-serif-base);
   }
 
   input, button, textarea {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-sans-base);
   }
 
   input[type="number"]::-webkit-inner-spin-button,
@@ -60,6 +64,29 @@
 
   input[type="number"] {
     -moz-appearance: textfield;
+  }
+  html[lang='am'] body,
+  body[data-lang='am'] {
+    font-family: var(--font-ethiopic);
+    line-height: 1.55;
+  }
+
+  html[lang='am'] h1,
+  html[lang='am'] h2,
+  html[lang='am'] h3,
+  html[lang='am'] .heading-serif,
+  html[lang='am'] input,
+  html[lang='am'] button,
+  html[lang='am'] textarea,
+  body[data-lang='am'] h1,
+  body[data-lang='am'] h2,
+  body[data-lang='am'] h3,
+  body[data-lang='am'] .heading-serif,
+  body[data-lang='am'] input,
+  body[data-lang='am'] button,
+  body[data-lang='am'] textarea {
+    font-family: var(--font-ethiopic);
+    letter-spacing: normal;
   }
 }
 
@@ -73,8 +100,8 @@
   .shadow-md-green { box-shadow: var(--shadow-md); }
   .shadow-lg-green { box-shadow: var(--shadow-lg); }
 
-  .font-serif { font-family: 'Instrument Serif', Georgia, serif; }
-  .font-sans { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; }
+  .font-serif { font-family: var(--font-serif-base); }
+  .font-sans { font-family: var(--font-sans-base); }
 }
 
 @keyframes elasticIn {
