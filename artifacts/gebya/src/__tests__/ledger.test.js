@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 
-import { buildCustomerSummaries, getCustomerBalance } from '../utils/customerLedger.js';
+import { buildCustomerSummaries, getCustomerBalance, sortCustomerTransactions } from '../utils/customerLedger.js';
+import { normalizeCustomerDraft, normalizeCustomerTransactionDraft } from '../utils/customerLedgerMutations.js';
 import { buildSupplierSummaries, getSupplierBalance, SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger.js';
+import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes.js';
 
 function runTest(name, fn) {
   try {
@@ -57,6 +59,66 @@ runTest('unknown customer transaction types do not change balance', () => {
   ]);
 
   assert.equal(balance, 100);
+});
+
+runTest('customer transactions sort deterministically when timestamps match', () => {
+  const sorted = sortCustomerTransactions([
+    { id: 1, created_at: 1000, updated_at: 1000 },
+    { id: 3, created_at: 1000, updated_at: 1000 },
+    { id: 2, created_at: 1000, updated_at: 1200 },
+  ]);
+
+  assert.deepEqual(sorted.map((entry) => entry.id), [2, 3, 1]);
+});
+
+runTest('customer draft keeps only required identifier and trims optional fields', () => {
+  const customer = normalizeCustomerDraft({
+    display_name: '  Almaz  ',
+    note: '  regular  ',
+    phone_number: ' 0911 ',
+    telegram_username: '',
+    telegram_notify_enabled: true,
+  });
+
+  assert.deepEqual(customer, {
+    display_name: 'Almaz',
+    note: 'regular',
+    phone_number: '0911',
+    telegram_username: null,
+    telegram_notify_enabled: false,
+  });
+});
+
+runTest('customer transaction draft accepts valid credit payload and trims note', () => {
+  const transaction = normalizeCustomerTransactionDraft({
+    customer_id: 5,
+    type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+    amount: '250',
+    item_note: '  Sugar  ',
+    due_date: 1700000000000,
+  });
+
+  assert.deepEqual(transaction, {
+    customer_id: 5,
+    type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+    amount: 250,
+    item_note: 'Sugar',
+    due_date: 1700000000000,
+  });
+});
+
+runTest('customer transaction draft rejects invalid payloads safely', () => {
+  assert.equal(normalizeCustomerTransactionDraft({
+    customer_id: 0,
+    type: CUSTOMER_TRANSACTION_TYPES.PAYMENT,
+    amount: 100,
+  }), null);
+
+  assert.equal(normalizeCustomerTransactionDraft({
+    customer_id: 1,
+    type: CUSTOMER_TRANSACTION_TYPES.PAYMENT,
+    amount: 0,
+  }), null);
 });
 
 runTest('supplier purchase increases balance owed', () => {

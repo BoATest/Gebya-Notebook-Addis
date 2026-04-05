@@ -8,6 +8,11 @@ import rateLimit from "express-rate-limit";
 import router from "./routes/index.js";
 
 const app: Express = express();
+const isProduction = process.env.NODE_ENV === "production";
+
+function createRequestId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 // ---- CORS CONFIG ----
 const configuredOrigins = (process.env.CORS_ORIGIN ?? "")
@@ -19,8 +24,21 @@ const allowedOrigins = [
   process.env.REPLIT_DEV_DOMAIN
     ? `https://${process.env.REPLIT_DEV_DOMAIN}`
     : null,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
   ...configuredOrigins,
 ].filter(Boolean) as string[];
+
+function isAllowedOrigin(origin?: string | null) {
+  if (!origin) {
+    return true;
+  }
+
+  if (!isProduction && allowedOrigins.length === 0) {
+    return true;
+  }
+
+  return allowedOrigins.includes(origin);
+}
 
 // ---- SAFE HELMET ----
 try {
@@ -35,16 +53,13 @@ try {
 // ---- CORS ----
 app.use(
   cors({
-    origin:
-      allowedOrigins.length > 0
-        ? (origin, callback) => {
-            if (!origin || allowedOrigins.includes(origin)) {
-              callback(null, true);
-            } else {
-              callback(new Error("Not allowed by CORS"));
-            }
-          }
-        : false,
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
@@ -70,7 +85,50 @@ try {
 app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: true, limit: "100kb" }));
 
+// ---- REQUEST CONTEXT ----
+app.use((req, res, next) => {
+  const requestId = createRequestId();
+  const startedAt = Date.now();
+
+  res.locals.requestId = requestId;
+  res.setHeader("X-Request-Id", requestId);
+
+  res.on("finish", () => {
+    console.info("[api]", JSON.stringify({
+      requestId,
+      method: req.method,
+      path: req.originalUrl || req.url,
+      statusCode: res.statusCode,
+      durationMs: Date.now() - startedAt,
+    }));
+  });
+
+  next();
+});
+
 // ---- ROUTES ----
+app.use("/", router);
 app.use("/api", router);
+
+// ---- ERROR HANDLER ----
+app.use((err, req, res, _next) => {
+  const requestId = res.locals.requestId || createRequestId();
+
+  console.error("[api:error]", JSON.stringify({
+    requestId,
+    method: req.method,
+    path: req.originalUrl || req.url,
+    message: err instanceof Error ? err.message : "Unhandled error",
+  }));
+
+  if (res.headersSent) {
+    return;
+  }
+
+  res.status(500).json({
+    error: "Internal server error",
+    request_id: requestId,
+  });
+});
 
 export default app;

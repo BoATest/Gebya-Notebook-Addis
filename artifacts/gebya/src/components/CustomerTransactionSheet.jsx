@@ -29,12 +29,13 @@ function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.
   const selectedCatalogEntry = catalogEntries.find(entry => String(entry.id) === String(catalogEntryId)) || null;
   const parsedAmount = parseFloat(parseInput(amount)) || 0;
   const currentBalance = Math.max(Number(customer?.balance) || 0, 0);
+  const hasCollectableBalance = !isPayment || currentBalance > 0;
   const updatedBalance = isPayment
     ? Math.max(currentBalance - parsedAmount, 0)
     : currentBalance + parsedAmount;
   const dueDateOptions = useMemo(() => getDueDateOptions(), []);
   const overPayment = isPayment && parsedAmount > currentBalance;
-  const canSave = parsedAmount > 0 && !overPayment;
+  const canSave = parsedAmount > 0 && !overPayment && hasCollectableBalance;
 
   const handleSave = async () => {
     if (!canSave || saving) return;
@@ -106,11 +107,17 @@ function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.
                 value={fmtInput(amount)}
                 onChange={(e) => handleNumericInput(e, setAmount)}
                 placeholder="0"
+                autoFocus
                 className="w-full p-4 pr-16 border-2 focus:outline-none text-base min-h-[52px]"
                 style={{ borderRadius: 'var(--radius-md)', borderColor: parsedAmount > 0 && !overPayment ? '#1B4332' : '#e8e2d8' }}
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">{t.birr}</span>
             </div>
+            {isPayment && !hasCollectableBalance && (
+              <p className="text-xs font-medium mt-2" style={{ color: '#b45309' }}>
+                {t.noBalanceToRecordPayment}
+              </p>
+            )}
             {overPayment && (
               <p className="text-xs font-medium mt-2 text-red-600">
                 {t.paymentExceedsOwed}

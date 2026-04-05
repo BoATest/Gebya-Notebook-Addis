@@ -19,6 +19,8 @@ function matchesCustomer(customer, query) {
 function CustomerList({ customers = [], onSelectCustomer, onAddCustomer }) {
   const [query, setQuery] = useState('');
   const { t } = useLang();
+  const trimmedQuery = query.trim();
+  const hasQuery = trimmedQuery.length > 0;
 
   const filteredCustomers = useMemo(
     () => customers.filter((customer) => matchesCustomer(customer, query)),
@@ -29,6 +31,15 @@ function CustomerList({ customers = [], onSelectCustomer, onAddCustomer }) {
     () => filteredCustomers.reduce((sum, customer) => sum + (customer.balance || 0), 0),
     [filteredCustomers]
   );
+
+  const customersWithBalance = useMemo(
+    () => filteredCustomers.filter((customer) => Number(customer.balance || 0) > 0).length,
+    [filteredCustomers]
+  );
+
+  const searchSummary = t.customerSearchResults
+    .replace('{shown}', String(filteredCustomers.length))
+    .replace('{total}', String(customers.length));
 
   return (
     <div className="space-y-4">
@@ -43,6 +54,9 @@ function CustomerList({ customers = [], onSelectCustomer, onAddCustomer }) {
             </p>
             <p className="text-xl font-black" style={{ color: '#92400e' }}>
               {fmt(outstanding)} birr
+            </p>
+            <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
+              {customersWithBalance} {t.customerBalance.toLowerCase()}
             </p>
           </div>
           <button
@@ -65,9 +79,26 @@ function CustomerList({ customers = [], onSelectCustomer, onAddCustomer }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t.searchCustomerPlaceholder}
+          autoCapitalize="words"
           className="w-full pl-9 pr-4 py-3 text-sm bg-white border outline-none"
           style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
         />
+      </div>
+
+      <div className="flex items-center justify-between gap-3 px-1">
+        <p className="text-xs" style={{ color: '#6b7280' }}>
+          {hasQuery ? searchSummary : t.customerSearchHint}
+        </p>
+        {hasQuery && (
+          <button
+            type="button"
+            onClick={() => setQuery('')}
+            className="text-xs font-bold min-h-[32px] px-2"
+            style={{ color: '#1B4332' }}
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -87,9 +118,11 @@ function CustomerList({ customers = [], onSelectCustomer, onAddCustomer }) {
                     {customer.note}
                   </p>
                 )}
-                <p className="text-xs mt-2" style={{ color: '#9ca3af' }}>
-                  {(customer.transaction_count || 0)} {t.entries}
-                </p>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs" style={{ color: '#9ca3af' }}>
+                  <span>{(customer.transaction_count || 0)} {t.entries}</span>
+                  {customer.phone_number && <span>{customer.phone_number}</span>}
+                  {customer.telegram_username && <span>{customer.telegram_username}</span>}
+                </div>
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#9ca3af' }}>
@@ -110,7 +143,10 @@ function CustomerList({ customers = [], onSelectCustomer, onAddCustomer }) {
           >
             <Users className="w-8 h-8 mb-2" style={{ color: '#d1d5db' }} />
             <p className="text-sm" style={{ color: '#9ca3af' }}>
-              {t.noCustomersFound}
+              {customers.length === 0 ? t.noCustomersYet : (hasQuery ? t.noCustomerSearchResults : t.noCustomersFound)}
+            </p>
+            <p className="text-xs mt-2 max-w-xs" style={{ color: '#6b7280' }}>
+              {customers.length === 0 ? t.customerHelperText : t.customerSearchHint}
             </p>
           </div>
         )}

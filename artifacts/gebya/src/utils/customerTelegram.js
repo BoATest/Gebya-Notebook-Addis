@@ -1,4 +1,4 @@
-import { formatEthiopian } from './ethiopianCalendar';
+﻿import { formatEthiopian } from './ethiopianCalendar';
 import { fmt } from './numformat';
 import { CUSTOMER_TRANSACTION_TYPES } from './customerTransactionTypes';
 
@@ -38,19 +38,22 @@ export function createCustomerTelegramLinkToken(customerId) {
 
 export function buildCustomerConnectMessage({ shopName, customerName, token }) {
   const safeToken = token || `pending-${Date.now().toString(36)}`;
-  const lines = [
-    shopName || 'Gebya',
-    'Telegram connection request',
+  return [
+    `🏪 ${shopName || 'Gebya'}`,
+    'Borrower Telegram link',
     '',
-    `Customer: ${customerName || 'Customer'}`,
-    `Connection code: ${safeToken}`,
+    `👤 ${customerName || 'Customer'}`,
+    `🔢 ${safeToken}`,
     '',
-    'Open this chat and send this code to connect your ledger updates.',
-  ];
-  return lines.join('\n');
+    'Open the Gebya bot and start it to receive Dubie updates.',
+  ].join('\n');
 }
 
-export function buildCustomerConnectLink({ shopTelegram, shopName, customerName, token }) {
+export function buildCustomerConnectLink({ botUsername, shopTelegram, shopName, customerName, token }) {
+  if (botUsername) {
+    return `https://t.me/${botUsername}?start=${encodeURIComponent(token)}`;
+  }
+
   const connectMessage = buildCustomerConnectMessage({ shopName, customerName, token });
   if (shopTelegram) {
     const directTelegramUrl = buildTelegramMessageUrl(shopTelegram, connectMessage);
@@ -62,31 +65,40 @@ export function buildCustomerConnectLink({ shopTelegram, shopName, customerName,
 
 export function buildCustomerLedgerTelegramMessage({
   shopName,
+  customerName,
   type,
   amount,
+  itemNote,
   previousBalance,
   updatedBalance,
   createdAt,
+  referenceCode,
 }) {
   const isPayment = type === CUSTOMER_TRANSACTION_TYPES.PAYMENT;
-  const title = isPayment ? '✅ Payment Recorded' : '🛒 New Dubie Recorded';
-  const actionLine = isPayment
-    ? `You paid today: ${fmt(amount)} birr`
-    : `You took today: ${fmt(amount)} birr`;
-  const balanceLine = isPayment
-    ? `💰 Your remaining balance: ${fmt(updatedBalance)} birr`
-    : `💰 Your current balance: ${fmt(updatedBalance)} birr`;
-  const footer = isPayment ? 'Thank you 🙏' : 'Please pay on time. Thank you 🙏';
+  const title = isPayment ? '💰 Payment Received' : '🧾 Credit Added';
+  const signedAmount = `${isPayment ? '-' : '+'}${fmt(amount)} ETB`;
 
   return [
-    shopName || 'Gebya',
+    `🏪 ${shopName || 'Gebya'}`,
+    '',
     title,
-    formatEthiopian(createdAt || Date.now()),
+    signedAmount,
     '',
-    actionLine,
-    `Previous balance: ${fmt(previousBalance)} birr`,
-    balanceLine,
+    `👤 ${customerName || 'Customer'}`,
+    !isPayment && itemNote ? `📦 ${itemNote}` : null,
     '',
-    footer,
-  ].join('\n');
+    `Previous: ${fmt(previousBalance)} ETB`,
+    `${isPayment ? 'Remaining' : 'New'}: ${fmt(updatedBalance)} ETB`,
+    '',
+    `📅 ${formatEthiopian(createdAt || Date.now())}`,
+    referenceCode ? `🔢 Ref: ${referenceCode}` : null,
+  ].filter(Boolean).join('\n');
+}
+
+export function createCustomerTransactionReference(id, createdAt = Date.now()) {
+  const numericId = Number(id);
+  if (Number.isFinite(numericId) && numericId > 0) {
+    return `TX${String(numericId).padStart(4, '0')}`;
+  }
+  return `TX${String(createdAt).slice(-6)}`;
 }

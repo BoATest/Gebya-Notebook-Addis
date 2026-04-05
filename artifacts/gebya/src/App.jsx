@@ -15,7 +15,6 @@ import HistoryView from './components/HistoryView';
 import SettingsPage from './components/SettingsPage';
 import PwaInstallPanel from './components/PwaInstallPanel.jsx';
 import OnboardingScreen from './components/OnboardingScreen';
-import IntroSlides from './components/IntroSlides';
 import DailySuggestions from './components/DailySuggestions';
 import { ToastContainer, fireToast } from './components/Toast';
 import { DEFAULT_PROVIDERS } from './components/PaymentTypeChips';
@@ -25,11 +24,13 @@ import VoiceFixScreen from './components/VoiceFixScreen';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
 import { fmt } from './utils/numformat';
 import { checkAndAwardBadges } from './utils/badges';
-import { buildCustomerSummaries, getCustomerBalance } from './utils/customerLedger';
+import { buildCustomerSummaries, getCustomerBalance, insertCustomerTransaction, sortCustomerTransactions } from './utils/customerLedger';
+import { normalizeCustomerDraft, normalizeCustomerTransactionDraft } from './utils/customerLedgerMutations';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from './utils/customerTransactionTypes';
-import { buildCustomerLedgerTelegramMessage, buildTelegramMessageUrl, createCustomerTelegramLinkToken } from './utils/customerTelegram';
+import { buildCustomerLedgerTelegramMessage, buildTelegramMessageUrl, createCustomerTelegramLinkToken, createCustomerTransactionReference } from './utils/customerTelegram';
 import { buildSupplierSummaries, getSupplierBalance, isValidSupplierTransactionType, SUPPLIER_TRANSACTION_TYPES } from './utils/supplierLedger';
 import { usePwaInstall } from './hooks/usePwaInstall.js';
+import { resendLatestTelegramUpdate, sendTelegramLedgerUpdate, syncTelegramCustomerState } from './utils/telegramBotClient';
 
 const P = {
   bg: '#FAF8F5',
@@ -152,6 +153,79 @@ function ShareModal({ summary, telegram, onClose, t }) {
   );
 }
 
+function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t }) {
+  const savedLabel = lastSavedSnapshot?.label || '';
+  const savedAt = lastSavedSnapshot?.created_at
+    ? new Date(lastSavedSnapshot.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : null;
+
+  return (
+    <div
+      className="overflow-hidden animate-elastic"
+      style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
+    >
+      <div className="px-4 py-4">
+        <div className="flex items-start gap-3">
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl"
+            style={{ background: 'rgba(27,67,50,0.08)' }}
+          >
+            💾
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-gray-900 text-sm font-sans">
+              {t.trustCardTitle || 'Your notebook stays on this phone'}
+            </p>
+            <p className="text-sm mt-1 font-sans" style={{ color: '#4b5563' }}>
+              {t.trustCardBody || 'Save your sales, close the app, and open again later. Your records stay here on this phone.'}
+            </p>
+            {totalEntries > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                <span
+                  className="px-2.5 py-1 text-xs font-black"
+                  style={{ background: 'rgba(27,67,50,0.08)', color: '#1B4332', borderRadius: '999px' }}
+                >
+                  {todayCount} {t.trustTodayCount || 'saved today'}
+                </span>
+                {savedAt && (
+                  <span
+                    className="px-2.5 py-1 text-xs font-bold"
+                    style={{ background: '#f5f5f5', color: '#4b5563', borderRadius: '999px' }}
+                  >
+                    {t.trustLastSaved || 'Last saved'} {savedAt}
+                  </span>
+                )}
+              </div>
+            )}
+            {savedLabel && (
+              <p className="text-xs mt-2 font-semibold truncate font-sans" style={{ color: '#C4883A' }}>
+                {savedLabel}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+      <div
+        className="px-4 py-3 flex items-center justify-between gap-3"
+        style={{ background: '#FAF8F5', borderTop: '1px solid var(--color-border-light)' }}
+      >
+        <p className="text-xs font-medium font-sans" style={{ color: '#6b7280' }}>
+          {t.trustReopenHint || 'Close and reopen anytime — your records stay here.'}
+        </p>
+        {totalEntries === 0 && (
+          <button
+            onClick={onStartSale}
+            className="flex-shrink-0 px-3 py-2 text-xs font-black text-white min-h-[40px] press-scale"
+            style={{ background: '#1B4332', borderRadius: 'var(--radius-sm)' }}
+          >
+            {t.trustCardAction || 'Record your first sale'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AppInner() {
   const { hidden } = usePrivacy();
   const { lang, toggleLang, t } = useLang();
@@ -183,7 +257,6 @@ function AppInner() {
   const [shareText, setShareText] = useState('');
   const [earnedBadges, setEarnedBadges] = useState([]);
   const [bestDayTotal, setBestDayTotal] = useState(0);
-  const [showIntro, setShowIntro] = useState(false);
   const [pressedBtn, setPressedBtn] = useState(null);
   const [voiceStep, setVoiceStep] = useState(null);
   const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -191,10 +264,26 @@ function AppInner() {
   const [voiceItems, setVoiceItems] = useState([]);
   const [voiceConfidence, setVoiceConfidence] = useState(null);
   const [voiceDraft, setVoiceDraft] = useState(null);
+  const [lastSavedSnapshot, setLastSavedSnapshot] = useState(null);
+
+  const rememberLastSave = useCallback(async (snapshot) => {
+    if (!snapshot) return;
+    setLastSavedSnapshot(snapshot);
+    try {
+      await db.settings.put({ key: 'last_saved_snapshot', value: JSON.stringify(snapshot) });
+    } catch { /* non-critical */ }
+  }, []);
+
+  const clearLastSavedSnapshot = useCallback(async () => {
+    setLastSavedSnapshot(null);
+    try {
+      await db.settings.delete('last_saved_snapshot');
+    } catch { /* non-critical */ }
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, nameRow, phoneRow, epRow, reRow, telegramRow, introRow] = await Promise.all([
+      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, nameRow, phoneRow, epRow, reRow, telegramRow, snapshotRow] = await Promise.all([
         db.transactions.toArray(),
         db.customers.toArray(),
         db.customer_transactions.toArray(),
@@ -206,12 +295,12 @@ function AppInner() {
         db.settings.get('enabled_payment_methods'),
         db.settings.get('recurring_expenses'),
         db.settings.get('shop_telegram'),
-        db.settings.get('intro_seen'),
+        db.settings.get('last_saved_snapshot'),
       ]);
       txns.sort((a, b) => b.created_at - a.created_at);
       setTransactions(txns);
       setLedgerCustomers(customerRows);
-      setLedgerTransactions(customerTxRows);
+      setLedgerTransactions(sortCustomerTransactions(customerTxRows));
       setCatalogEntries(catalogRows || []);
       setSuppliers(supplierRows || []);
       setSupplierTransactions(supplierTxRows || []);
@@ -221,11 +310,15 @@ function AppInner() {
         phone: phoneRow?.value || '',
         telegram: telegramRow?.value || '',
       });
-      if (!hasName && !introRow?.value) {
-        setShowIntro(true);
-      }
       try { setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS); } catch { setEnabledProviders(DEFAULT_PROVIDERS); }
       try { setRecurringExpenses(reRow ? JSON.parse(reRow.value) : []); } catch { setRecurringExpenses([]); }
+      const hasSavedRecords = txns.length > 0 || customerTxRows.length > 0;
+      if (!hasSavedRecords) {
+        setLastSavedSnapshot(null);
+        try { await db.settings.delete('last_saved_snapshot'); } catch { /* non-critical */ }
+      } else {
+        try { setLastSavedSnapshot(snapshotRow?.value ? JSON.parse(snapshotRow.value) : null); } catch { setLastSavedSnapshot(null); }
+      }
     } catch (err) {
       if (import.meta.env.DEV) console.error('Failed to load data:', err);
     } finally {
@@ -332,6 +425,12 @@ function AppInner() {
 
       const id = await db.transactions.add(newTxn);
       const saved = await db.transactions.get(id);
+      await rememberLastSave({
+        type: transaction.type,
+        label: saved?.item_name || transaction.item_name || null,
+        amount: saved?.amount || transaction.amount || 0,
+        created_at: saved?.created_at || transaction.created_at,
+      });
 
       setTransactions(prev => {
         const updated = [saved, ...prev];
@@ -396,6 +495,11 @@ function AppInner() {
     const now = Date.now();
     const hasMultiple = voiceItems.length > 1;
     const mergedDraft = hasMultiple ? mergeVoiceDrafts(voiceItems, draft || voiceDraft) : (draft || voiceDraft);
+    if (mergedDraft?.intent && mergedDraft.intent !== 'sale' && !wasEdited) {
+      fireToast('Voice only saves sales right now. Review the draft before saving.', 2800);
+      setVoiceStep('fix');
+      return;
+    }
     const combinedTranscript = hasMultiple
       ? voiceItems.map(it => it.transcript).join(' | ')
       : (voiceTranscript || null);
@@ -453,7 +557,11 @@ function AppInner() {
   const handleDeleteTransaction = async (id) => {
     try {
       await db.transactions.delete(id);
-      setTransactions(prev => prev.filter(t2 => t2.id !== id));
+      const remainingTransactions = transactions.filter(t2 => t2.id !== id);
+      setTransactions(remainingTransactions);
+      if (remainingTransactions.length === 0 && ledgerTransactions.length === 0) {
+        await clearLastSavedSnapshot();
+      }
       setDeleteTarget(null);
     } catch (err) {
       if (import.meta.env.DEV) console.error('Failed to delete:', err);
@@ -462,9 +570,9 @@ function AppInner() {
 
   const handleProfileSave = async (name, phone, telegram) => {
     await db.settings.put({ key: 'shop_name', value: name });
-    await db.settings.put({ key: 'shop_phone', value: phone });
+    await db.settings.put({ key: 'shop_phone', value: phone || '' });
     await db.settings.put({ key: 'shop_telegram', value: telegram || '' });
-    setShopProfile({ name, phone, telegram: telegram || '' });
+    setShopProfile({ name, phone: phone || '', telegram: telegram || '' });
   };
 
   const customerSummaries = useMemo(
@@ -476,6 +584,11 @@ function AppInner() {
     () => customerSummaries.find(c => c.id === selectedCustomerId) || null,
     [customerSummaries, selectedCustomerId]
   );
+
+  const activeCustomerTransactionModal = useMemo(() => {
+    if (!customerTransactionModal?.customerId) return null;
+    return customerSummaries.find(c => c.id === customerTransactionModal.customerId) || null;
+  }, [customerSummaries, customerTransactionModal]);
 
   const activeCatalogEntries = useMemo(
     () => catalogEntries.filter(entry => entry.active !== false).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
@@ -497,27 +610,51 @@ function AppInner() {
     [voiceDraft, voiceItems]
   );
 
+  const syncLinkedCustomerTelegramState = useCallback(async (customer, currentBalanceOverride = null) => {
+    if (!customer?.telegram_link_token || !customer?.telegram_chat_id) return null;
+    try {
+      return await syncTelegramCustomerState({
+        token: customer.telegram_link_token,
+        customerName: customer.display_name,
+        shopName: shopProfile?.name || 'Gebya',
+        currentBalance: currentBalanceOverride != null ? currentBalanceOverride : Number(customer.balance || 0),
+        updatesEnabled: !!customer.telegram_notify_enabled,
+        telegramUsername: customer.telegram_username || null,
+        chatId: customer.telegram_chat_id || null,
+      });
+    } catch {
+      return null;
+    }
+  }, [shopProfile?.name]);
+
   const handleAddCustomer = async (payload) => {
-    const now = Date.now();
-    const linkToken = createCustomerTelegramLinkToken();
-    const id = await db.customers.add({
-      display_name: payload.display_name,
-      note: payload.note || null,
-      phone_number: payload.phone_number || null,
-      telegram_username: payload.telegram_username || null,
-      telegram_chat_id: null,
-      telegram_notify_enabled: !!payload.telegram_notify_enabled,
-      telegram_link_token: linkToken,
-      telegram_linked_at: payload.telegram_username ? now : null,
-      created_at: now,
-      updated_at: now,
-    });
-    const saved = await db.customers.get(id);
-    setLedgerCustomers(prev => [...prev, saved]);
-    setShowCustomerForm(false);
-    setSelectedCustomerId(id);
-    setActiveTab('merro');
-    fireToast(t.customerSaved, 1800);
+    const draft = normalizeCustomerDraft(payload);
+    if (!draft) return false;
+
+    try {
+      const now = Date.now();
+      const linkToken = createCustomerTelegramLinkToken();
+      const id = await db.customers.add({
+        ...draft,
+        telegram_chat_id: null,
+        telegram_link_token: linkToken,
+        telegram_linked_at: null,
+        telegram_link_requested_at: null,
+        created_at: now,
+        updated_at: now,
+      });
+      const saved = await db.customers.get(id);
+      setLedgerCustomers(prev => [...prev, saved]);
+      setShowCustomerForm(false);
+      setSelectedCustomerId(id);
+      setActiveTab('merro');
+      fireToast(t.customerSaved, 1800);
+      return true;
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Failed to save customer:', err);
+      fireToast(t.customerSaveFailed || 'Could not save customer. Please try again.', 2400);
+      return false;
+    }
   };
 
   const handleUpdateCustomerRecord = async (customerId, updates) => {
@@ -531,7 +668,10 @@ function AppInner() {
 
   const handleToggleCustomerTelegramNotify = async (customer) => {
     if (!customer) return;
-    if (!customer.telegram_username) {
+    const hasLinkedBorrower = !!customer.telegram_chat_id;
+    const hasManualTelegram = !!customer.telegram_username;
+
+    if (!hasLinkedBorrower && !hasManualTelegram) {
       await handleUpdateCustomerRecord(customer.id, {
         telegram_notify_enabled: false,
       });
@@ -539,9 +679,18 @@ function AppInner() {
       fireToast(t.telegramConnectFirstToast, 2200);
       return;
     }
+    const nextEnabled = !customer.telegram_notify_enabled;
     await handleUpdateCustomerRecord(customer.id, {
-      telegram_notify_enabled: !customer.telegram_notify_enabled,
+      telegram_notify_enabled: nextEnabled,
     });
+    if (hasLinkedBorrower) {
+      await syncLinkedCustomerTelegramState({
+        ...customer,
+        telegram_notify_enabled: nextEnabled,
+      });
+    } else if (nextEnabled) {
+      fireToast('Manual Telegram updates will open a drafted message after each save.', 2600);
+    }
   };
 
   const handleSaveCatalogEntry = async (payload) => {
@@ -674,33 +823,207 @@ function AppInner() {
     return true;
   };
 
+  const handleUpdateSupplierTransaction = async (transactionId, updates) => {
+    if (!isValidSupplierTransactionType(updates.type)) return false;
+    const amount = Number(updates.amount) || 0;
+    if (amount <= 0) {
+      fireToast('Enter a valid amount', 2200);
+      return false;
+    }
+
+    const now = Date.now();
+    let supplierMissing = false;
+    let transactionMissing = false;
+    let staleOverPayment = false;
+    let saved = null;
+    let previousSupplierId = null;
+    let nextSupplierId = Number(updates.supplier_id) || null;
+
+    await db.transaction('rw', db.supplier_transactions, db.suppliers, async () => {
+      const existing = await db.supplier_transactions.get(transactionId);
+      if (!existing) {
+        transactionMissing = true;
+        return;
+      }
+
+      previousSupplierId = existing.supplier_id;
+      nextSupplierId = nextSupplierId || existing.supplier_id;
+
+      const supplierRecord = await db.suppliers.get(nextSupplierId);
+      if (!supplierRecord) {
+        supplierMissing = true;
+        return;
+      }
+
+      const nextEntry = {
+        supplier_id: nextSupplierId,
+        type: updates.type,
+        catalog_entry_id: updates.catalog_entry_id || null,
+        item_name: updates.item_name || null,
+        item_kind: updates.item_kind || null,
+        quantity: updates.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? (Number(updates.quantity) || 1) : null,
+        amount,
+        note: updates.note || null,
+        updated_at: now,
+      };
+
+      const existingSupplierTx = await db.supplier_transactions.where('supplier_id').equals(previousSupplierId).toArray();
+      const previousSupplierNextTx = existingSupplierTx
+        .filter(item => item.id !== transactionId)
+        .concat(previousSupplierId === nextSupplierId ? [{ ...existing, ...nextEntry, id: transactionId }] : []);
+
+      if (getSupplierBalance(previousSupplierNextTx) < 0) {
+        staleOverPayment = true;
+        return;
+      }
+
+      if (previousSupplierId !== nextSupplierId) {
+        const nextSupplierTx = await db.supplier_transactions.where('supplier_id').equals(nextSupplierId).toArray();
+        const nextSupplierNextTx = nextSupplierTx.concat({ ...existing, ...nextEntry, id: transactionId });
+        if (getSupplierBalance(nextSupplierNextTx) < 0) {
+          staleOverPayment = true;
+          return;
+        }
+      }
+
+      await db.supplier_transactions.update(transactionId, nextEntry);
+      saved = await db.supplier_transactions.get(transactionId);
+      await db.suppliers.update(nextSupplierId, { updated_at: now });
+      if (previousSupplierId && previousSupplierId !== nextSupplierId) {
+        await db.suppliers.update(previousSupplierId, { updated_at: now });
+      }
+    });
+
+    if (transactionMissing) {
+      fireToast('Supplier transaction not found', 2200);
+      return false;
+    }
+
+    if (supplierMissing) {
+      fireToast('Supplier not found', 2200);
+      return false;
+    }
+
+    if (staleOverPayment || !saved) {
+      fireToast('Payment is more than remaining dubie', 2600);
+      return false;
+    }
+
+    setSupplierTransactions(prev => prev.map(item => item.id === transactionId ? saved : item));
+    const touchedSupplierIds = new Set([previousSupplierId, saved?.supplier_id].filter(Boolean));
+    setSuppliers(prev => prev.map(item => touchedSupplierIds.has(item.id) ? { ...item, updated_at: now } : item));
+    return saved;
+  };
+
+  const handleDeleteSupplierTransaction = async (transactionId) => {
+    const now = Date.now();
+    let existing = null;
+    let transactionMissing = false;
+    let staleOverPayment = false;
+
+    await db.transaction('rw', db.supplier_transactions, db.suppliers, async () => {
+      existing = await db.supplier_transactions.get(transactionId);
+      if (!existing) {
+        transactionMissing = true;
+        return;
+      }
+
+      const supplierTx = await db.supplier_transactions.where('supplier_id').equals(existing.supplier_id).toArray();
+      const remainingTx = supplierTx.filter(item => item.id !== transactionId);
+      if (getSupplierBalance(remainingTx) < 0) {
+        staleOverPayment = true;
+        return;
+      }
+
+      await db.supplier_transactions.delete(transactionId);
+      await db.suppliers.update(existing.supplier_id, { updated_at: now });
+    });
+
+    if (transactionMissing) {
+      fireToast('Supplier transaction not found', 2200);
+      return false;
+    }
+
+    if (staleOverPayment) {
+      fireToast('Payment is more than remaining dubie', 2600);
+      return false;
+    }
+
+    setSupplierTransactions(prev => prev.filter(item => item.id !== transactionId));
+    if (existing?.supplier_id) {
+      setSuppliers(prev => prev.map(item => item.id === existing.supplier_id ? { ...item, updated_at: now } : item));
+    }
+    return true;
+  };
+
   const handleConfirmCustomerTelegramConnection = async (customer, payload) => {
     if (!customer) return;
     const now = Date.now();
+    const nextChatId = payload.telegram_chat_id || customer.telegram_chat_id || null;
+    const nextUsername = payload.telegram_username || customer.telegram_username || null;
     await handleUpdateCustomerRecord(customer.id, {
-      telegram_username: payload.telegram_username || customer.telegram_username || null,
+      telegram_username: nextUsername,
+      telegram_chat_id: nextChatId,
       telegram_link_token: customer.telegram_link_token || createCustomerTelegramLinkToken(customer.id),
-      telegram_linked_at: payload.telegram_username || customer.telegram_username ? now : customer.telegram_linked_at || null,
+      telegram_linked_at: nextChatId ? (payload.telegram_linked_at || customer.telegram_linked_at || now) : customer.telegram_linked_at || null,
+      telegram_link_requested_at: payload.telegram_link_requested_at || customer.telegram_link_requested_at || now,
+      telegram_notify_enabled: nextChatId
+        ? customer.telegram_notify_enabled
+        : Boolean(nextUsername && customer.telegram_notify_enabled),
     });
-    fireToast(t.saved, 1800);
-    setTelegramConnectCustomerId(null);
+    if (nextChatId) {
+      await syncLinkedCustomerTelegramState({
+        ...customer,
+        telegram_chat_id: nextChatId,
+        telegram_username: nextUsername,
+        telegram_linked_at: payload.telegram_linked_at || customer.telegram_linked_at || now,
+        telegram_link_requested_at: payload.telegram_link_requested_at || customer.telegram_link_requested_at || now,
+      });
+    }
+    if (payload.showSavedToast !== false) {
+      fireToast(t.saved, 1800);
+    }
+    if (payload.closeSheet !== false) {
+      setTelegramConnectCustomerId(null);
+    }
+  };
+
+  const handleResendCustomerTelegramUpdate = async (customer) => {
+    if (!customer?.telegram_link_token) {
+      fireToast('Generate a Telegram borrower link first.', 2200);
+      return false;
+    }
+    try {
+      await syncLinkedCustomerTelegramState(customer);
+      const result = await resendLatestTelegramUpdate({ token: customer.telegram_link_token });
+      if (result?.delivered) {
+        fireToast('Latest borrower update sent again.', 2200);
+        return true;
+      }
+      fireToast('No borrower update is ready to resend yet.', 2200);
+      return false;
+    } catch (error) {
+      fireToast(error?.message || 'Could not resend the borrower update.', 2600);
+      return false;
+    }
   };
 
   const handleSaveCustomerTransaction = async (payload) => {
-    if (!isValidCustomerTransactionType(payload.type)) return false;
-    const customer = customerSummaries.find(c => c.id === payload.customer_id);
+    const draft = normalizeCustomerTransactionDraft(payload);
+    if (!draft) {
+      fireToast(t.validAmountRequired, 2200);
+      return false;
+    }
+
+    const customer = customerSummaries.find(c => c.id === draft.customer_id);
     if (!customer) {
       fireToast(t.customerNotFound, 2200);
       return false;
     }
 
-    const amount = Number(payload.amount) || 0;
-    if (amount <= 0) {
-      fireToast(t.validAmountRequired, 2200);
-      return false;
-    }
+    const { amount } = draft;
 
-    if (payload.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT && amount > Math.max(customer.balance || 0, 0)) {
+    if (draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT && amount > Math.max(customer.balance || 0, 0)) {
       fireToast(t.paymentMoreThanBalance, 2600);
       return false;
     }
@@ -711,6 +1034,7 @@ function AppInner() {
     let saved = null;
     let nextBalance = 0;
     let previousBalance = Math.max(customer.balance || 0, 0);
+    let referenceCode = null;
 
     await db.transaction('rw', db.customer_transactions, db.customers, async () => {
       const customerRecord = await db.customers.get(payload.customer_id);
@@ -722,25 +1046,26 @@ function AppInner() {
       const existingTx = await db.customer_transactions.where('customer_id').equals(payload.customer_id).toArray();
       previousBalance = Math.max(getCustomerBalance(existingTx), 0);
 
-      if (payload.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT && amount > previousBalance) {
+      if (draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT && amount > previousBalance) {
         staleOverPayment = true;
         return;
       }
 
       const entry = {
-        customer_id: payload.customer_id,
-        type: payload.type,
-        amount,
-        item_note: payload.item_note || null,
-        due_date: payload.due_date || null,
+        ...draft,
+        reference_code: null,
+        telegram_delivery_state: null,
+        telegram_delivery_attempted_at: null,
         created_at: now,
         updated_at: now,
       };
 
       const id = await db.customer_transactions.add(entry);
+      referenceCode = createCustomerTransactionReference(id, now);
+      await db.customer_transactions.update(id, { reference_code: referenceCode });
       saved = await db.customer_transactions.get(id);
       nextBalance = getCustomerBalance([saved, ...existingTx]);
-      await db.customers.update(payload.customer_id, { updated_at: now });
+      await db.customers.update(draft.customer_id, { updated_at: now });
     });
 
     if (customerMissing) {
@@ -753,11 +1078,26 @@ function AppInner() {
       return false;
     }
 
-    setLedgerTransactions(prev => [saved, ...prev]);
-    setLedgerCustomers(prev => prev.map(c => c.id === payload.customer_id ? { ...c, updated_at: now } : c));
-    setCustomerTransactionModal(null);
+    const settledFullBalance = (
+      draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT &&
+      previousBalance > 0 &&
+      nextBalance <= 0
+    );
 
-    if (payload.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD) {
+    setLedgerTransactions(prev => insertCustomerTransaction(prev, saved));
+    setLedgerCustomers(prev => prev.map(c => c.id === draft.customer_id ? { ...c, updated_at: now } : c));
+    setCustomerTransactionModal(null);
+    await rememberLastSave({
+      type: draft.type,
+      label: draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT
+        ? `${customer.display_name} ${t.paymentRecordedLabel || 'Payment'}`
+        : (draft.item_note || customer.display_name),
+      amount,
+      created_at: now,
+    });
+    fireToast(draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? (t.paymentSaved || 'Payment recorded ✓') : t.creditSaved, 2200);
+
+    if (draft.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD) {
       try {
         const fcRow = await db.analytics.get('feature_counts');
         let fc = { sales: 0, expenses: 0, credits: 0 };
@@ -768,19 +1108,78 @@ function AppInner() {
       } catch { /* non-critical */ }
     }
 
-    if (customer?.telegram_notify_enabled && customer?.telegram_username) {
-      const message = buildCustomerLedgerTelegramMessage({
-        shopName: shopProfile?.name,
-        type: payload.type,
-        amount,
-        previousBalance,
-        updatedBalance: nextBalance,
-        createdAt: now,
-      });
+    if (settledFullBalance) {
+      try {
+        const crRow = await db.analytics.get('credits_repaid');
+        const repaidCount = (crRow?.value || 0) + 1;
+        await db.analytics.put({ key: 'credits_repaid', value: repaidCount });
+        setUsageStats(prev => {
+          if (!prev) return prev;
+          const updated = { ...prev, creditsRepaid: repaidCount };
+          checkAndAwardBadges(updated, lang).then(setEarnedBadges);
+          return updated;
+        });
+      } catch { /* non-critical */ }
+    }
+
+    let telegramDeliveryState = 'not_configured';
+    let telegramDeliveryError = null;
+    const message = buildCustomerLedgerTelegramMessage({
+      shopName: shopProfile?.name,
+      customerName: customer.display_name,
+      type: draft.type,
+      amount,
+      itemNote: draft.item_note,
+      previousBalance,
+      updatedBalance: nextBalance,
+      createdAt: now,
+      referenceCode,
+    });
+
+    if (customer?.telegram_chat_id) {
+      await syncLinkedCustomerTelegramState(customer, nextBalance);
+    }
+
+    if (customer?.telegram_notify_enabled && customer?.telegram_chat_id && customer?.telegram_link_token) {
+      try {
+        const result = await sendTelegramLedgerUpdate({
+          token: customer.telegram_link_token,
+          currentBalance: nextBalance,
+          message,
+          reference: referenceCode,
+        });
+        telegramDeliveryState = result?.delivered ? 'bot_sent' : 'bot_pending';
+      } catch (error) {
+        telegramDeliveryState = 'bot_failed';
+        telegramDeliveryError = error?.message || 'Telegram send failed';
+      }
+    } else if (customer?.telegram_notify_enabled && customer?.telegram_username) {
       const telegramUrl = buildTelegramMessageUrl(customer.telegram_username, message);
       if (telegramUrl) {
         window.open(telegramUrl, '_blank', 'noopener,noreferrer');
+        telegramDeliveryState = 'manual_opened';
+      } else {
+        telegramDeliveryState = 'manual_unavailable';
+        telegramDeliveryError = 'Manual Telegram contact is invalid.';
       }
+    } else {
+      telegramDeliveryState = customer?.telegram_chat_id ? 'bot_linked_updates_off' : 'not_linked';
+    }
+
+    if (saved?.id) {
+      const deliveryUpdates = {
+        reference_code: referenceCode,
+        telegram_delivery_state: telegramDeliveryState,
+        telegram_delivery_error: telegramDeliveryError,
+        telegram_delivery_attempted_at: Date.now(),
+      };
+      await db.customer_transactions.update(saved.id, deliveryUpdates);
+      saved = { ...saved, ...deliveryUpdates };
+      setLedgerTransactions(prev => prev.map(entry => entry.id === saved.id ? saved : entry));
+    }
+
+    if (telegramDeliveryState === 'bot_failed') {
+      fireToast(`Dubie saved. ${telegramDeliveryError || 'Telegram send failed.'}`, 2600);
     }
 
     return true;
@@ -788,10 +1187,30 @@ function AppInner() {
 
   const todayDateStr = new Date().toDateString();
 
+  useEffect(() => {
+    if (selectedCustomerId && !selectedCustomer) {
+      setSelectedCustomerId(null);
+    }
+  }, [selectedCustomer, selectedCustomerId]);
+
+  useEffect(() => {
+    if (customerTransactionModal && !activeCustomerTransactionModal) {
+      setCustomerTransactionModal(null);
+    }
+  }, [activeCustomerTransactionModal, customerTransactionModal]);
+
   const todayTransactions = useMemo(
     () => transactions.filter(t2 => new Date(t2.created_at).toDateString() === todayDateStr),
     [transactions, todayDateStr]
   );
+
+  const todayLedgerTransactions = useMemo(
+    () => ledgerTransactions.filter(entry => new Date(entry.created_at).toDateString() === todayDateStr),
+    [ledgerTransactions, todayDateStr]
+  );
+
+  const persistedEntryCount = transactions.length + ledgerTransactions.length;
+  const persistedTodayCount = todayTransactions.length + todayLedgerTransactions.length;
 
   const todaySales = useMemo(
     () => todayTransactions.filter(t2 => t2.type === 'sale'),
@@ -870,12 +1289,6 @@ function AppInner() {
           <p className="text-sm mt-2" style={{ color: '#9ca3af' }}>{t.loading}</p>
         </div>
       </div>
-    );
-  }
-
-  if (showIntro) {
-    return (
-      <IntroSlides onDone={() => setShowIntro(false)} />
     );
   }
 
@@ -1062,6 +1475,14 @@ function AppInner() {
 
         {activeTab === 'today' && (
           <div className="space-y-3">
+            <TrustCard
+              totalEntries={persistedEntryCount}
+              todayCount={persistedTodayCount}
+              lastSavedSnapshot={lastSavedSnapshot}
+              onStartSale={() => setShowForm('sale')}
+              t={t}
+            />
+
             <ProfitCard transactions={todayTransactions} />
 
             <DailySuggestions
@@ -1154,14 +1575,15 @@ function AppInner() {
               onBack={() => setSelectedCustomerId(null)}
               onAddCredit={() => setCustomerTransactionModal({
                 mode: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
-                customer: selectedCustomer,
+                customerId: selectedCustomer.id,
               })}
               onRecordPayment={() => setCustomerTransactionModal({
                 mode: CUSTOMER_TRANSACTION_TYPES.PAYMENT,
-                customer: selectedCustomer,
+                customerId: selectedCustomer.id,
               })}
               onToggleTelegramNotify={() => handleToggleCustomerTelegramNotify(selectedCustomer)}
               onOpenTelegramConnect={() => setTelegramConnectCustomerId(selectedCustomer.id)}
+              onResendTelegramUpdate={() => handleResendCustomerTelegramUpdate(selectedCustomer)}
             />
           ) : (
             <CustomerList
@@ -1199,6 +1621,8 @@ function AppInner() {
             onToggleCatalogEntryActive={handleToggleCatalogEntryActive}
             onSaveSupplier={handleSaveSupplier}
             onSaveSupplierTransaction={handleSaveSupplierTransaction}
+            onUpdateSupplierTransaction={handleUpdateSupplierTransaction}
+            onDeleteSupplierTransaction={handleDeleteSupplierTransaction}
             pwa={pwa}
           />
         )}
@@ -1258,9 +1682,9 @@ function AppInner() {
         />
       )}
 
-      {customerTransactionModal && (
+      {customerTransactionModal && activeCustomerTransactionModal && (
         <CustomerTransactionSheet
-          customer={customerTransactionModal.customer}
+          customer={activeCustomerTransactionModal}
           mode={customerTransactionModal.mode}
           onSave={handleSaveCustomerTransaction}
           catalogEntries={activeCatalogEntries}
@@ -1273,6 +1697,7 @@ function AppInner() {
           customer={telegramConnectCustomer}
           shopProfile={shopProfile}
           onSave={(payload) => handleConfirmCustomerTelegramConnection(telegramConnectCustomer, payload)}
+          onResendUpdate={() => handleResendCustomerTelegramUpdate(telegramConnectCustomer)}
           onDone={() => setTelegramConnectCustomerId(null)}
         />
       )}

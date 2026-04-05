@@ -169,6 +169,9 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
             <CheckCircle2 className="w-14 h-14 mx-auto mb-3 text-green-500" />
             <p className="font-black text-gray-900 text-xl font-sans">{lastSaved?.item}</p>
             <p className="text-gray-500 mt-1 text-base font-sans">{fmt(lastSaved?.amount)} {t.birrSaved}</p>
+            <p className="text-sm mt-3 font-medium font-sans" style={{ color: '#6b7280' }}>
+              {t.trustReopenHint || 'Close and reopen anytime — your records stay here.'}
+            </p>
           </div>
           <div className="space-y-3">
             <button

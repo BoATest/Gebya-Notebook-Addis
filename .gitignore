@@ -20,6 +20,7 @@ yarn-error.log*
 # Testing
 coverage/
 .playwright/
+artifacts/gebya/test-results/
 
 # Vercel
 .vercel/
@@ -62,3 +63,6 @@ Thumbs.db
 .github/instructions/
 .cache/
 .local/
+.vercel
+.env*.local
+tmp-onboarding-lang-fix.cjs

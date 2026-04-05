@@ -1,4 +1,5 @@
-import { ArrowLeft, Bell, Link2, MessageCircle, Phone, Plus, Wallet } from 'lucide-react';
+import { useMemo } from 'react';
+import { ArrowLeft, Bell, Link2, MessageCircle, Phone, Plus, RefreshCcw, Wallet } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
@@ -11,11 +12,31 @@ function CustomerDetail({
   onRecordPayment,
   onToggleTelegramNotify,
   onOpenTelegramConnect,
+  onResendTelegramUpdate,
 }) {
   const { t } = useLang();
   if (!customer) return null;
-  const hasTelegramConnection = !!customer.telegram_username;
-  const isTelegramNotifyEnabled = hasTelegramConnection && customer.telegram_notify_enabled;
+
+  const hasLinkedBorrower = !!customer.telegram_chat_id;
+  const hasManualTelegram = !!customer.telegram_username;
+  const hasPendingLink = !hasLinkedBorrower && !!customer.telegram_link_requested_at;
+  const isTelegramNotifyEnabled = hasLinkedBorrower && customer.telegram_notify_enabled;
+  const hasCollectableBalance = Number(customer.balance || 0) > 0;
+  const historyRows = useMemo(() => {
+    let runningBalance = Number(customer.balance || 0);
+
+    return (customer.transactions || []).map((item) => {
+      const balanceAfter = runningBalance;
+      runningBalance = item.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT
+        ? runningBalance + Number(item.amount || 0)
+        : runningBalance - Number(item.amount || 0);
+
+      return {
+        ...item,
+        balance_after: balanceAfter,
+      };
+    });
+  }, [customer]);
 
   return (
     <div className="space-y-4">
@@ -83,7 +104,13 @@ function CustomerDetail({
           <div>
             <p className="text-sm font-black text-gray-900">{t.telegramConnection}</p>
             <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
-              {customer.telegram_username ? t.telegramConnectedHint : t.telegramConnectHint}
+              {hasLinkedBorrower
+                ? ' Borrower updates are linked to the Gebya bot.'
+                : hasPendingLink
+                  ? ' Borrower link is waiting for the bot start.'
+                  : hasManualTelegram
+                    ? ' Manual Telegram contact is saved, but bot updates are not linked yet.'
+                    : t.telegramConnectHint}
             </p>
           </div>
           <button
@@ -94,7 +121,7 @@ function CustomerDetail({
           >
             <span className="inline-flex items-center gap-1">
               <Link2 className="w-4 h-4" />
-              {customer.telegram_username ? t.manageTelegram : t.connectTelegram}
+              {hasLinkedBorrower || hasPendingLink || hasManualTelegram ? t.manageTelegram : t.connectTelegram}
             </span>
           </button>
         </div>
@@ -106,9 +133,13 @@ function CustomerDetail({
           <div className="min-w-0">
             <p className="text-sm font-bold text-gray-900">{t.notifyOnTelegram}</p>
             <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
-              {hasTelegramConnection
+              {hasLinkedBorrower
                 ? (isTelegramNotifyEnabled ? t.telegramNotifyEnabledState : t.telegramNotifyDisabledState)
-                : t.telegramNotifyConnectFirst}
+                : hasPendingLink
+                  ? 'Borrower still needs to start the Gebya bot before updates can send.'
+                  : hasManualTelegram
+                    ? 'Updates can open as a drafted Telegram message until the borrower links the Gebya bot.'
+                    : 'Link the borrower to the Gebya bot before turning updates on.'}
             </p>
           </div>
           <button
@@ -122,11 +153,23 @@ function CustomerDetail({
           </button>
         </div>
 
-        {!hasTelegramConnection && (
+        {!hasLinkedBorrower && (
           <div className="flex items-center gap-2 text-xs font-medium" style={{ color: '#b45309' }}>
             <Bell className="w-4 h-4" />
-            <span>{t.telegramNotifyConnectFirst}</span>
+            <span>{hasPendingLink ? 'Borrower has not started the bot yet.' : t.telegramNotifyConnectFirst}</span>
           </div>
+        )}
+
+        {hasLinkedBorrower && (
+          <button
+            type="button"
+            onClick={onResendTelegramUpdate}
+            className="w-full p-3 text-sm font-black flex items-center justify-center gap-2 border press-scale"
+            style={{ background: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0', borderRadius: 'var(--radius-md)' }}
+          >
+            <RefreshCcw className="w-4 h-4" />
+            Resend latest update
+          </button>
         )}
       </div>
 
@@ -143,13 +186,20 @@ function CustomerDetail({
         <button
           type="button"
           onClick={onRecordPayment}
-          className="p-4 font-black text-white min-h-[56px] flex items-center justify-center gap-2 press-scale"
-          style={{ background: '#2d6a4f', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 #1B4332' }}
+          disabled={!hasCollectableBalance}
+          className="p-4 font-black text-white min-h-[56px] flex items-center justify-center gap-2 press-scale disabled:opacity-45 disabled:cursor-not-allowed"
+          style={{ background: '#2d6a4f', borderRadius: 'var(--radius-md)', boxShadow: hasCollectableBalance ? '0 4px 0 #1B4332' : 'none' }}
         >
           <Wallet className="w-5 h-5" />
           {t.recordPayment}
         </button>
       </div>
+
+      {!hasCollectableBalance && (
+        <p className="text-xs font-medium -mt-1" style={{ color: '#6b7280' }}>
+          {t.noBalanceToRecordPayment}
+        </p>
+      )}
 
       <div
         className="p-4 border"
@@ -164,9 +214,9 @@ function CustomerDetail({
           </span>
         </div>
 
-        {customer.transactions?.length ? (
+        {historyRows.length ? (
           <div className="space-y-2">
-            {customer.transactions.map((item) => {
+            {historyRows.map((item) => {
               const isPayment = item.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT;
               return (
                 <div
@@ -187,9 +237,11 @@ function CustomerDetail({
                         {item.item_note}
                       </p>
                     )}
-                    <div className="text-xs mt-1" style={{ color: '#9ca3af' }}>
-                      {formatEthiopian(item.created_at)}
-                      {!isPayment && item.due_date ? ` · ${t.due} ${formatEthiopian(item.due_date)}` : ''}
+                    <div className="text-xs mt-1 flex flex-wrap gap-x-2 gap-y-1" style={{ color: '#9ca3af' }}>
+                      <span>{formatEthiopian(item.created_at)}</span>
+                      {!isPayment && item.due_date ? <span>{t.dueLabelShort}: {formatEthiopian(item.due_date)}</span> : null}
+                      {item.reference_code ? <span>{item.reference_code}</span> : null}
+                      <span>{t.balanceAfterEntry}: {fmt(item.balance_after || 0)} {t.birr}</span>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
@@ -203,9 +255,14 @@ function CustomerDetail({
             })}
           </div>
         ) : (
-          <p className="text-sm" style={{ color: '#9ca3af' }}>
-            {t.noTransactionsYet}
-          </p>
+          <div className="text-center py-6">
+            <p className="text-sm" style={{ color: '#9ca3af' }}>
+              {t.noTransactionsYet}
+            </p>
+            <p className="text-xs mt-2" style={{ color: '#6b7280' }}>
+              {t.noTransactionsHint}
+            </p>
+          </div>
         )}
       </div>
     </div>

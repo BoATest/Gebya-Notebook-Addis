@@ -16,6 +16,7 @@ function VoiceResultScreen({ transcript, detectedTotal, items = [], draft, onSav
   const effectiveTotal = hasMultiple ? runningTotal : (draft?.total_amount ?? detectedTotal);
   const canAddMore = items.length < MAX_ITEMS;
   const parsedItems = draft?.items || [];
+  const isSaleIntent = !draft?.intent || draft.intent === 'sale';
   const summaryNote = parsedItems.length
     ? parsedItems.map((item) => `${item.quantity && item.quantity !== 1 ? `${item.quantity}x ` : ''}${item.name}`).join(', ')
     : transcript;
@@ -88,6 +89,12 @@ function VoiceResultScreen({ transcript, detectedTotal, items = [], draft, onSav
                 {t.voiceNeedsReview}
               </p>
             )}
+
+            {!isSaleIntent && (
+              <p className="text-sm font-semibold" style={{ color: '#92400e' }}>
+                Voice only saves sales right now. Review this draft before saving.
+              </p>
+            )}
           </div>
         )}
 
@@ -109,7 +116,7 @@ function VoiceResultScreen({ transcript, detectedTotal, items = [], draft, onSav
       </div>
 
       <div className="px-6 pb-8 pt-2 space-y-3 flex-shrink-0">
-        {effectiveTotal != null && effectiveTotal > 0 && (
+        {effectiveTotal != null && effectiveTotal > 0 && isSaleIntent && (
           <button
             onClick={() => onSave({ amount: effectiveTotal, note: summaryNote, draft })}
             className="w-full py-4 font-black text-white text-base font-sans"

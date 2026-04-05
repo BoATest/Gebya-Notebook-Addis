@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useLang } from '../context/LangContext';
 import db from '../db';
 
@@ -8,13 +8,21 @@ function isValidPhone(digits) {
 
 function OnboardingScreen({ onComplete }) {
   const { t } = useLang();
+  const phoneOptionalLabel = t.onboardPhoneOptional || '(optional)';
+  const phoneHelper = t.onboardPhoneHelper || 'You can add your phone later in Settings.';
+  const onboardingPromises = [
+    t.onboardPromiseSimple || 'Simple notebook for sales, spending, and Dubie',
+    t.onboardPromiseFast || 'Start with your name only',
+    t.onboardPromisePrivate || 'Your records stay on this phone',
+  ];
   const [name, setName] = useState('');
   const [phoneDigits, setPhoneDigits] = useState('');
   const [saving, setSaving] = useState(false);
   const [touched, setTouched] = useState({ name: false, phone: false });
 
   const nameValid = name.trim().length > 0;
-  const phoneValid = isValidPhone(phoneDigits);
+  const phoneEntered = phoneDigits.length > 0;
+  const phoneValid = !phoneEntered || isValidPhone(phoneDigits);
   const canProceed = nameValid && phoneValid;
 
   const handlePhoneChange = (e) => {
@@ -25,33 +33,53 @@ function OnboardingScreen({ onComplete }) {
   const handleStart = async () => {
     if (!canProceed || saving) return;
     setSaving(true);
-    const fullPhone = '+251' + phoneDigits;
+    const fullPhone = phoneEntered ? `+251${phoneDigits}` : '';
+    await db.settings.put({ key: 'intro_seen', value: 'yes' });
     await db.settings.put({ key: 'shop_name', value: name.trim() });
     await db.settings.put({ key: 'shop_phone', value: fullPhone });
     onComplete({ name: name.trim(), phone: fullPhone });
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 pb-12 texture-noise"
-      style={{ background: '#1B4332' }}>
-
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-6 py-8 texture-noise"
+      style={{ background: '#1B4332' }}
+    >
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8 animate-elastic">
-          <div className="text-7xl mb-4">📒</div>
-          <h1 className="text-4xl font-black text-white tracking-tight mb-1 font-serif">ገበያ</h1>
-          <p className="text-base font-medium font-sans" style={{ color: 'rgba(255,255,255,0.65)' }}>
+        <div className="text-center mb-6 animate-elastic">
+          <div className="text-4xl mb-3 font-black text-white" aria-hidden="true">GB</div>
+          <h1 className="text-4xl font-black text-white tracking-tight mb-1 font-serif">Gebya</h1>
+          <p className="text-base font-semibold font-sans" style={{ color: 'rgba(255,255,255,0.72)' }}>
             {t.onboardTagline}
-          </p>
-          <p className="text-sm mt-1 font-sans" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            {t.onboardSubtitle}
           </p>
         </div>
 
-        <div className="bg-white p-6 animate-slide-up" style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)' }}>
-          <h2 className="text-xl font-black text-gray-900 mb-1 font-sans">{t.onboardWelcome}</h2>
-          <p className="text-sm text-gray-500 mb-5 font-sans">
+        <div
+          className="bg-white p-6 animate-slide-up"
+          style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)' }}
+        >
+          <h2 className="text-2xl font-black text-gray-900 mb-2 font-sans">{t.onboardWelcome}</h2>
+          <p className="text-sm leading-6 text-gray-500 mb-5 font-sans">
             {t.onboardDesc}
           </p>
+
+          <div className="space-y-2 mb-5">
+            {onboardingPromises.map((promise) => (
+              <div
+                key={promise}
+                className="flex items-start gap-3 p-3 border text-sm font-medium font-sans"
+                style={{
+                  background: '#FAF8F5',
+                  borderColor: '#e8e2d8',
+                  borderRadius: 'var(--radius-md)',
+                  color: '#4b5563',
+                }}
+              >
+                <span className="mt-0.5 text-base" style={{ color: '#1B4332' }} aria-hidden="true">•</span>
+                <p>{promise}</p>
+              </div>
+            ))}
+          </div>
 
           <div className="space-y-4">
             <div>
@@ -61,24 +89,33 @@ function OnboardingScreen({ onComplete }) {
               <input
                 type="text"
                 value={name}
-                onChange={e => setName(e.target.value)}
-                onBlur={() => setTouched(p => ({ ...p, name: true }))}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
                 placeholder={t.onboardNamePlaceholder}
                 autoFocus
                 className="w-full p-4 border-2 text-base focus:outline-none font-sans"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: (touched.name && !nameValid) ? '#dc2626' : (nameValid ? '#1B4332' : '#e8e2d8') }}
-                onKeyDown={e => { if (e.key === 'Enter' && canProceed) handleStart(); }}
+                style={{
+                  borderRadius: 'var(--radius-md)',
+                  borderColor: touched.name && !nameValid ? '#dc2626' : (nameValid ? '#1B4332' : '#e8e2d8'),
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && canProceed) handleStart(); }}
               />
             </div>
 
             <div>
               <label className="block font-semibold text-gray-700 mb-1.5 text-sm font-sans">
-                {t.phoneNumber} <span className="text-red-500">*</span>
+                {t.phoneNumber} <span className="text-gray-400 font-normal">{phoneOptionalLabel}</span>
               </label>
               <div className="flex gap-0">
                 <div
                   className="flex items-center justify-center px-3 py-4 border-2 border-r-0 text-base font-bold font-sans"
-                  style={{ background: 'rgba(27,67,50,0.06)', borderColor: (touched.phone && !phoneValid) ? '#dc2626' : '#e8e2d8', color: '#1B4332', minWidth: '72px', borderRadius: 'var(--radius-md) 0 0 var(--radius-md)' }}
+                  style={{
+                    background: 'rgba(27,67,50,0.06)',
+                    borderColor: touched.phone && !phoneValid ? '#dc2626' : '#e8e2d8',
+                    color: '#1B4332',
+                    minWidth: '72px',
+                    borderRadius: 'var(--radius-md) 0 0 var(--radius-md)',
+                  }}
                 >
                   +251
                 </div>
@@ -87,19 +124,22 @@ function OnboardingScreen({ onComplete }) {
                   inputMode="numeric"
                   value={phoneDigits}
                   onChange={handlePhoneChange}
-                  onBlur={() => setTouched(p => ({ ...p, phone: true }))}
+                  onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
                   placeholder="9XXXXXXXX"
                   maxLength={9}
                   className="flex-1 p-4 border-2 text-base focus:outline-none font-sans"
-                  style={{ borderRadius: '0 var(--radius-md) var(--radius-md) 0', borderColor: (touched.phone && !phoneValid) ? '#dc2626' : (phoneValid ? '#1B4332' : '#e8e2d8') }}
-                  onKeyDown={e => { if (e.key === 'Enter' && canProceed) handleStart(); }}
+                  style={{
+                    borderRadius: '0 var(--radius-md) var(--radius-md) 0',
+                    borderColor: touched.phone && !phoneValid ? '#dc2626' : (phoneValid ? '#1B4332' : '#e8e2d8'),
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && canProceed) handleStart(); }}
                 />
               </div>
-              {touched.phone && phoneDigits.length > 0 && !phoneValid && (
+              {touched.phone && phoneEntered && !phoneValid && (
                 <p className="text-xs text-red-500 mt-1 font-medium font-sans">{t.phoneInvalid}</p>
               )}
-              {touched.phone && phoneDigits.length === 0 && (
-                <p className="text-xs text-red-500 mt-1 font-medium font-sans">{t.phoneRequired}</p>
+              {!phoneEntered && (
+                <p className="text-xs mt-1 font-medium font-sans" style={{ color: '#9ca3af' }}>{phoneHelper}</p>
               )}
             </div>
           </div>
@@ -119,7 +159,7 @@ function OnboardingScreen({ onComplete }) {
           </button>
         </div>
 
-        <p className="text-center text-xs mt-5 font-sans" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <p className="text-center text-xs mt-4 leading-5 font-sans" style={{ color: 'rgba(255,255,255,0.45)' }}>
           {t.onboardFooter}
         </p>
       </div>
@@ -128,3 +168,4 @@ function OnboardingScreen({ onComplete }) {
 }
 
 export default OnboardingScreen;
+

@@ -1,5 +1,19 @@
+function compareNumericDesc(left, right) {
+  return (Number(right) || 0) - (Number(left) || 0);
+}
+
+export function compareCustomerTransactions(a = {}, b = {}) {
+  return compareNumericDesc(a.created_at, b.created_at)
+    || compareNumericDesc(a.updated_at, b.updated_at)
+    || compareNumericDesc(a.id, b.id);
+}
+
 export function sortCustomerTransactions(items = []) {
-  return [...items].sort((a, b) => b.created_at - a.created_at);
+  return [...items].sort(compareCustomerTransactions);
+}
+
+export function insertCustomerTransaction(items = [], nextItem) {
+  return sortCustomerTransactions(nextItem ? [nextItem, ...items] : items);
 }
 
 export function getCustomerBalance(items = []) {
@@ -41,6 +55,8 @@ export function buildCustomerSummaries(customers = [], customerTransactions = []
     })
     .sort((a, b) => {
       if ((b.balance || 0) !== (a.balance || 0)) return (b.balance || 0) - (a.balance || 0);
-      return (b.last_activity_at || 0) - (a.last_activity_at || 0);
+      if ((b.last_activity_at || 0) !== (a.last_activity_at || 0)) return (b.last_activity_at || 0) - (a.last_activity_at || 0);
+      return String(a.display_name || '').localeCompare(String(b.display_name || ''))
+        || compareNumericDesc(a.id, b.id);
     });
 }
