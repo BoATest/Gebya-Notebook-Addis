@@ -1471,18 +1471,8 @@ function AppInner() {
       )}
 
       <main className="flex-1 overflow-y-auto px-4 py-3 pb-28">
-        {activeTab !== 'settings' && <PwaInstallPanel pwa={pwa} />}
-
         {activeTab === 'today' && (
           <div className="space-y-3">
-            <TrustCard
-              totalEntries={persistedEntryCount}
-              todayCount={persistedTodayCount}
-              lastSavedSnapshot={lastSavedSnapshot}
-              onStartSale={() => setShowForm('sale')}
-              t={t}
-            />
-
             <ProfitCard transactions={todayTransactions} />
 
             <DailySuggestions

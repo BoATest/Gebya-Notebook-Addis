@@ -911,6 +911,19 @@ const AM = {
 };
 
 const EN_OVERRIDES = {
+  appName: 'Gebya',
+  today: 'Today',
+  todayLabel: 'Today',
+  credit: 'Dubie',
+  creditLabel: 'Dubie',
+  iSold: 'Type Sale',
+  iSoldLabel: 'Type Sale',
+  iSpent: 'I Spent',
+  iSpentLabel: 'I Spent',
+  creditBtn: 'Dubie',
+  creditBtnLabel: 'Dubie',
+  todaysEntries: "Today's Entries",
+  onboardTagline: 'Your shop notebook',
   onboardWelcome: 'Start your notebook',
   onboardSubtitle: 'Your business notebook',
   onboardDesc: 'Enter your name and start using Gebya right away.',
