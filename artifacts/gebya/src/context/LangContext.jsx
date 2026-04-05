@@ -910,6 +910,85 @@ const AM = {
   voiceItemsRecorded: 'á‹•á‰ƒá‹Žá‰½ á‰°á‰€áˆ­áŒ¿áˆ',
 };
 
+const EN_OVERRIDES = {
+  onboardWelcome: 'Start your notebook',
+  onboardSubtitle: 'Your business notebook',
+  onboardDesc: 'Enter your name and start using Gebya right away.',
+  onboardPromiseSimple: 'Simple notebook for sales, spending, and Dubie',
+  onboardPromiseFast: 'Start with your name only',
+  onboardPromisePrivate: 'Your records stay on this phone',
+  onboardGetStarted: 'Start using Gebya',
+  trustCardTitle: 'Your notebook stays on this phone',
+  trustCardBody: 'Save your sales, close the app, and open again later. Your records stay here on this phone.',
+  trustCardAction: 'Record your first sale',
+  trustLastSaved: 'Last saved',
+  trustTodayCount: 'saved today',
+  trustReopenHint: 'Close and reopen anytime. Your records stay here.',
+  offlineReadyTitle: 'Offline mode is ready',
+  offlineReadyBody: 'Gebya can reopen even with weak connection, and your saved notebook stays on this phone.',
+  recordByVoice: 'Speak to Record Sale',
+  recordByVoiceSubLabel: 'Fastest way to save a sale',
+  typeSale: 'Type Sale',
+  typeSaleLabel: 'Type Sale',
+};
+
+const AM_OVERRIDES = {
+  appName: 'ገበያ',
+  loading: 'ማስታወሻዎን በመጫን ላይ…',
+  today: 'ዛሬ',
+  todayLabel: 'ዛሬ',
+  credit: 'ዱቤ',
+  creditLabel: 'ዱቤ',
+  report: 'ሪፖርት',
+  settings: 'ቅንብሮች',
+  sales: 'ሽያጭ',
+  spent: 'ወጪ',
+  iSold: 'ሸጥ',
+  iSoldLabel: 'ሸጥ',
+  iSpent: 'ወጪ',
+  iSpentLabel: 'ወጪ',
+  creditBtn: 'ዱቤ',
+  creditBtnLabel: 'ዱቤ',
+  todaysEntries: 'የዛሬ ግቤቶች',
+  onboardWelcome: 'ማስታወሻዎን ጀምር',
+  onboardSubtitle: 'የሱቅ ማስታወሻ',
+  onboardTagline: 'የሱቅ ማስታወሻ ደብተር',
+  onboardDesc: 'ስምዎን ያስገቡና ገበያን ወዲያው ይጀምሩ።',
+  onboardNamePlaceholder: 'ለምሳሌ ትግስት',
+  onboardPhoneOptional: '(አማራጭ)',
+  onboardPhoneHelper: 'ስልክዎን በቅንብሮች ውስጥ በኋላ ማከል ይችላሉ።',
+  onboardPromiseSimple: 'ለሽያጭ፣ ወጪ እና ዱቤ ቀላል ማስታወሻ',
+  onboardPromiseFast: 'በስምዎ ብቻ ይጀምሩ',
+  onboardPromisePrivate: 'መዝገቦችዎ በዚህ ስልክ ላይ ይቆያሉ',
+  onboardGetStarted: 'ገበያን ጀምር',
+  onboardSettingUp: 'በማዘጋጀት ላይ…',
+  onboardFooter: 'ውሂቡ በስልክዎ ላይ ይቆያል · ምዝገባ አያስፈልግም · ነፃ',
+  trustCardTitle: 'ማስታወሻዎ በዚህ ስልክ ላይ ይቆያል',
+  trustCardBody: 'ሽያጮችዎን ያስቀምጡ፣ መተግበሪያውን ዝጉ፣ በኋላም እንደገና ይክፈቱ። መዝገቦችዎ በዚህ ስልክ ላይ ይቆያሉ።',
+  trustCardAction: 'የመጀመሪያ ሽያጭዎን ያስቀምጡ',
+  trustLastSaved: 'የመጨረሻ ጊዜ የተቀመጠ',
+  trustTodayCount: 'ዛሬ የተቀመጠ',
+  trustReopenHint: 'በማንኛውም ጊዜ ዝጉና እንደገና ይክፈቱ፤ መዝገቦችዎ አይጠፉም።',
+  offlineReadyTitle: 'የኦፍላይን አጠቃቀም ዝግጁ ነው',
+  offlineReadyBody: 'ግንኙነት ቢደክምም ገበያን እንደገና መክፈት ይችላሉ፣ መዝገቦችዎም በዚህ ስልክ ላይ ይቆያሉ።',
+  offlineNowTitle: 'አሁን ከኢንተርኔት ውጪ ነዎት',
+  offlineNowBody: 'በዚህ ስልክ ላይ የተቀመጠው ማስታወሻ እንደተለመደው ይሰራል።',
+  recordByVoice: 'ሽያጭ ለመመዝገብ ይናገሩ',
+  recordByVoiceSubLabel: 'ሽያጭ ለማስቀመጥ ፈጣኑ መንገድ',
+  typeSale: 'በጽሑፍ ሽያጭ',
+  typeSaleLabel: 'በጽሑፍ ሽያጭ',
+  noEntriesPrompt: 'የመጀመሪያ ሽያጭዎን ለማስቀመጥ ከላይ ያለውን ቁልፍ ይጫኑ',
+  introSlide1Title: 'የሱቅ ማስታወሻ',
+  introSlide1Body: 'ሽያጭ፣ ወጪ እና ዱቤን በስልክዎ ላይ ቀላል ማስታወሻ ያድርጉ።',
+  introSlide2Title: 'ገንዘብዎን ፈጣን ይመልከቱ',
+  introSlide2Body: 'የዛሬ ሁኔታዎን በጥቂት ሰከንዶች ይረዱ።',
+  introSlide3Title: 'ሶስት ቁልፎች ብቻ',
+  introSlide3Body: 'ሸጥ፣ ወጪ እና ዱቤ በፍጥነት ለመመዝገብ ይጠቀሙ።',
+  introLetsStart: 'እንጀምር',
+  introNext: 'ቀጣይ',
+  introSkip: 'ዝለል',
+};
+
 const LangContext = createContext(null);
 
 export function LangProvider({ children }) {
@@ -923,7 +1002,7 @@ export function LangProvider({ children }) {
     });
   };
 
-  const t = lang === 'am' ? AM : EN;
+  const t = lang === 'am' ? { ...AM, ...AM_OVERRIDES } : { ...EN, ...EN_OVERRIDES };
 
   return (
     <LangContext.Provider value={{ lang, toggleLang, t }}>

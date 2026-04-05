@@ -1346,7 +1346,7 @@ function AppInner() {
               {shopProfile.name}
             </h1>
             <p className="text-xs font-semibold mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.6)' }}>
-              ገበያ · {getCurrentEthiopianDate()} · {new Date().toLocaleDateString('en', { day: 'numeric', month: 'short' })}
+              {t.appName} · {getCurrentEthiopianDate()} · {new Date().toLocaleDateString('en', { day: 'numeric', month: 'short' })}
             </p>
           </div>
 
@@ -1428,7 +1428,7 @@ function AppInner() {
             <span className="text-xs opacity-70">{t.recordByVoiceSubLabel}</span>
           </button>
           <p className="text-center text-xs mb-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            {lang === 'am' ? 'ይናገሩ — ቆይቶ ማስተካከል ይቻላል' : 'Speak your sale — you can fix it after'}
+            {lang === 'am' ? 'ይናገሩ፣ በኋላም ማስተካከል ይችላሉ።' : 'Speak your sale. You can fix it after.'}
           </p>
           <div className="flex gap-2 pb-2">
           {[
@@ -1505,9 +1505,9 @@ function AppInner() {
               {todayTransactions.length === 0 ? (
                 <div className="px-4 py-10 text-center">
                   <p className="text-4xl mb-3">🎤</p>
-                  <p className="font-bold text-base mb-1" style={{ color: '#374151' }}>No sales recorded yet</p>
+                  <p className="font-bold text-base mb-1" style={{ color: '#374151' }}>{lang === 'am' ? 'ገና ምንም ሽያጭ አልተመዘገበም' : 'No sales recorded yet'}</p>
                   <p className="text-sm font-semibold" style={{ color: P.amber }}>
-                    ↑ Tap above to record your first sale
+                    {lang === 'am' ? 'የመጀመሪያ ሽያጭዎን ለመመዝገብ ከላይ ይጫኑ' : 'Tap above to record your first sale'}
                   </p>
                 </div>
               ) : (

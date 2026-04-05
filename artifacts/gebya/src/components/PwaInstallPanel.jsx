@@ -214,25 +214,7 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
   }
 
   if (pwa.offlineReady) {
-    return (
-      <>
-        <div className="mb-3">
-          <BannerCard tone="warning">
-            <div className="px-4 py-4 flex items-start gap-3">
-              <SignalHigh className="w-5 h-5 mt-0.5 text-amber-600 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="font-bold text-gray-900">{t.offlineReadyTitle}</p>
-                <p className="text-sm mt-1" style={{ color: '#4b5563' }}>{t.offlineReadyBody}</p>
-              </div>
-              <button onClick={() => pwa.setOfflineReady(false)} className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full press-scale" style={{ background: 'rgba(255,255,255,0.7)' }} aria-label={t.close}>
-                <X className="w-4 h-4 text-gray-500" />
-              </button>
-            </div>
-          </BannerCard>
-        </div>
-        <InstallGuideModal pwa={pwa} />
-      </>
-    );
+    return <InstallGuideModal pwa={pwa} />;
   }
 
   if (!pwa.shouldShowInstallPrompt) {
