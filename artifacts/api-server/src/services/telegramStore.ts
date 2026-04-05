@@ -19,10 +19,28 @@ type TelegramLinkSession = {
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const sessions = new Map<string, TelegramLinkSession>();
 const chatToToken = new Map<string, string>();
+const sessionStoreMode = process.env.TELEGRAM_SESSION_STORE?.trim() || "memory";
+const isServerlessEnvironment = process.env.VERCEL === "1";
 
 function normalizeAmount(value: unknown): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.max(parsed, 0) : 0;
+}
+
+export function getTelegramSessionStoreStatus() {
+  const persistent = sessionStoreMode !== "memory";
+  const linkingAvailable =
+    persistent || !isServerlessEnvironment || process.env.ALLOW_EPHEMERAL_TELEGRAM_LINKING === "true";
+
+  return {
+    mode: sessionStoreMode,
+    persistent,
+    linkingAvailable,
+    reason:
+      linkingAvailable
+        ? null
+        : "Telegram QR linking is disabled on stateless deployments without persistent session storage.",
+  };
 }
 
 export function upsertTelegramLinkSession(payload: {
@@ -96,15 +114,27 @@ export function syncTelegramCustomerState(payload: {
   chatId?: string | null;
 }) {
   const session = getTelegramLinkSession(payload.token);
-  if (!session) return null;
+  if (!session && !payload.chatId) return null;
+  const fallback = !session && payload.chatId
+    ? upsertTelegramLinkSession({
+        token: payload.token,
+        customerId: "unknown",
+        customerName: payload.customerName || "Customer",
+        shopName: payload.shopName || "Gebya",
+        currentBalance: payload.currentBalance,
+        updatesEnabled: payload.updatesEnabled,
+      })
+    : null;
+  const baseSession = session || fallback;
+  if (!baseSession) return null;
   const next = {
-    ...session,
-    customerName: payload.customerName || session.customerName,
-    shopName: payload.shopName || session.shopName,
-    currentBalance: payload.currentBalance != null ? normalizeAmount(payload.currentBalance) : session.currentBalance,
-    updatesEnabled: payload.updatesEnabled ?? session.updatesEnabled,
-    telegramUsername: payload.telegramUsername ?? session.telegramUsername,
-    chatId: payload.chatId ?? session.chatId,
+    ...baseSession,
+    customerName: payload.customerName || baseSession.customerName,
+    shopName: payload.shopName || baseSession.shopName,
+    currentBalance: payload.currentBalance != null ? normalizeAmount(payload.currentBalance) : baseSession.currentBalance,
+    updatesEnabled: payload.updatesEnabled ?? baseSession.updatesEnabled,
+    telegramUsername: payload.telegramUsername ?? baseSession.telegramUsername,
+    chatId: payload.chatId ?? baseSession.chatId,
     lastUpdatedAt: Date.now(),
   };
   sessions.set(payload.token, next);

@@ -1,20 +1,28 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+      ...options,
+    });
+  } catch (cause) {
+    const error = new Error('Telegram service is unavailable.');
+    error.cause = cause;
+    throw error;
+  }
 
   const contentType = response.headers.get('content-type') || '';
   const isJson = contentType.includes('application/json');
   const data = isJson ? await response.json().catch(() => null) : null;
   if (!response.ok) {
-    const error = new Error(data?.error || 'Request failed');
-    error.payload = data;
+    const error = new Error(data?.error || `Request failed (${response.status})`);
+    error.payload = { ...(data || {}), path, status: response.status };
     throw error;
   }
   if (!isJson) {

@@ -1,5 +1,11 @@
 const TELEGRAM_API_BASE = "https://api.telegram.org";
 
+type TelegramSendMessageResponse = {
+  ok?: boolean;
+  description?: string;
+  result?: unknown;
+};
+
 function getRequiredEnv(name: string) {
   const value = process.env[name]?.trim();
   return value || "";
@@ -29,7 +35,7 @@ export async function sendTelegramTextMessage(chatId: string, text: string) {
     }),
   });
 
-  const data = await response.json().catch(() => null);
+  const data = await response.json().catch(() => null) as TelegramSendMessageResponse | null;
   if (!response.ok || !data?.ok) {
     const description = data?.description || `Telegram send failed (${response.status})`;
     throw new Error(description);

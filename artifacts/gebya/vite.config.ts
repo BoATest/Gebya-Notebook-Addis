@@ -25,16 +25,14 @@ function securityHeadersPlugin(): Plugin {
       "Content-Security-Policy",
       [
         "default-src 'self'",
-        isDev
-          ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-          : "script-src 'self' 'unsafe-inline'",
+        isDev ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'" : "script-src 'self' 'unsafe-inline'",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob:",
         "connect-src 'self' https:",
         "worker-src 'self' blob:",
         "manifest-src 'self'",
-      ].join("; "),
+      ].join("; ")
     );
   };
 
@@ -67,7 +65,7 @@ function securityHeadersPlugin(): Plugin {
 
 export default defineConfig({
   base: normalizedBasePath,
-  envDir: path.resolve(import.meta.dirname, "..", ".."),
+  envDir: "../../", // 👈 FIXED: load .env.local from repo root
   plugins: [
     react(),
     tailwindcss(),
@@ -93,18 +91,8 @@ export default defineConfig({
         categories: ["business", "finance", "productivity"],
         prefer_related_applications: false,
         icons: [
-          {
-            src: "icon-192.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-          {
-            src: "icon-512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
-          },
+          { src: "icon-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
+          { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
         ],
       },
       workbox: {
@@ -130,17 +118,12 @@ export default defineConfig({
         ],
       },
     }),
-    ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
+    ...(process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined
       ? [
           await import("@replit/vite-plugin-cartographer").then((m) =>
-            m.cartographer({
-              root: path.resolve(import.meta.dirname, ".."),
-            }),
+            m.cartographer({ root: path.resolve(import.meta.dirname, "..") })
           ),
-          await import("@replit/vite-plugin-dev-banner").then((m) =>
-            m.devBanner(),
-          ),
+          await import("@replit/vite-plugin-dev-banner").then((m) => m.devBanner()),
         ]
       : []),
   ],
@@ -161,10 +144,7 @@ export default defineConfig({
     port,
     host: "0.0.0.0",
     allowedHosts: true,
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
-    },
+    fs: { strict: true, deny: ["**/.*"] },
   },
   preview: {
     port,

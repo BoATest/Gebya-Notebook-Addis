@@ -91,7 +91,7 @@ router.post(
           console.error("SERVICE INIT ERROR:", e);
           return res.status(500).json({
             error: "Service init failed",
-            debug: String(e),
+            request_id: res.locals.requestId,
             ...NULL_RESPONSE,
           });
         }
@@ -108,7 +108,7 @@ router.post(
           console.error("TRANSCRIBE ERROR:", e);
           return res.status(500).json({
             error: "Transcription failed",
-            debug: String(e),
+            request_id: res.locals.requestId,
             ...NULL_RESPONSE,
           });
         }
@@ -146,7 +146,7 @@ router.post(
       console.error("FATAL ERROR:", e);
       return res.status(500).json({
         error: "Internal server error",
-        debug: String(e),
+        request_id: res.locals.requestId,
         ...NULL_RESPONSE,
       });
     }

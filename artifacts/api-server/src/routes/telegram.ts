@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   formatTelegramSessionState,
   getSessionByChatId,
+  getTelegramSessionStoreStatus,
   getTelegramLinkSession,
   linkTelegramChatToSession,
   storeTelegramDelivery,
@@ -99,13 +100,28 @@ function buildBalanceReply(session: ReturnType<typeof getTelegramLinkSession>) {
 }
 
 router.get("/status", (_req: Request, res: Response) => {
+  const store = getTelegramSessionStoreStatus();
+
   res.json({
     configured: isTelegramBotConfigured(),
     bot_username: getTelegramBotUsername() || null,
+    linking_available: store.linkingAvailable,
+    updates_available: isTelegramBotConfigured(),
+    session_store: store.mode,
+    session_persistent: store.persistent,
+    warning: store.reason,
   });
 });
 
 router.post("/link-sessions", (req: Request, res: Response) => {
+  const store = getTelegramSessionStoreStatus();
+  if (!store.linkingAvailable) {
+    return res.status(503).json({
+      error: store.reason || "Telegram linking is unavailable",
+      session_store: store.mode,
+    });
+  }
+
   const parsed = linkSessionSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid link session payload" });
@@ -213,6 +229,12 @@ router.post("/send-ledger-update", async (req: Request, res: Response) => {
       state: formatTelegramSessionState(getTelegramLinkSession(input.token)),
     });
   } catch (error) {
+    console.error("[telegram:send-ledger-update]", {
+      token: input.token,
+      requestId: res.locals.requestId,
+      message: error instanceof Error ? error.message : "Telegram send failed",
+    });
+
     return res.status(502).json({
       delivered: false,
       delivery: "bot",
@@ -240,6 +262,12 @@ router.post("/resend-latest", async (req: Request, res: Response) => {
       state: formatTelegramSessionState(session),
     });
   } catch (error) {
+    console.error("[telegram:resend-latest]", {
+      token,
+      requestId: res.locals.requestId,
+      message: error instanceof Error ? error.message : "Telegram resend failed",
+    });
+
     return res.status(502).json({
       delivered: false,
       delivery: "bot",
@@ -270,8 +298,13 @@ router.post("/webhook", async (req: Request, res: Response) => {
 
     try {
       await sendTelegramTextMessage(chatId, buildStartReply(session));
-    } catch {
-      /* ignore webhook send failures */
+    } catch (error) {
+      console.error("[telegram:webhook:start]", {
+        token,
+        chatId,
+        requestId: res.locals.requestId,
+        message: error instanceof Error ? error.message : "Telegram webhook reply failed",
+      });
     }
 
     return res.json({
@@ -284,8 +317,12 @@ router.post("/webhook", async (req: Request, res: Response) => {
     const session = getSessionByChatId(chatId);
     try {
       await sendTelegramTextMessage(chatId, buildBalanceReply(session));
-    } catch {
-      /* ignore webhook send failures */
+    } catch (error) {
+      console.error("[telegram:webhook:balance]", {
+        chatId,
+        requestId: res.locals.requestId,
+        message: error instanceof Error ? error.message : "Telegram balance reply failed",
+      });
     }
     return res.json({ ok: true });
   }

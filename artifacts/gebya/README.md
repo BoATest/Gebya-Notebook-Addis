@@ -54,6 +54,13 @@ artifacts/gebya/dist/public
 
 Use the build generated from the exact commit you intend to share with testers.
 
+For the current release path:
+
+- deploy the safer API changes from this branch
+- keep Telegram available as a manual contact fallback
+- do not rely on QR bot linking in stateless Vercel deployments unless persistent Telegram session storage is added
+- if `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` are configured, linked customers can still receive bot updates after sync, but new QR link sessions should be treated as unavailable unless storage is durable
+
 Do one final smoke pass on the shipped build for:
 
 - onboarding
@@ -64,7 +71,17 @@ Do one final smoke pass on the shipped build for:
 - partial payment
 - overpayment blocked
 - Telegram connect sheet
+- Telegram manual fallback save
 - Settings opens
+
+## Telegram deployment note
+
+The current branch intentionally favors trust over feature breadth.
+
+- Automatic Telegram QR linking is gated by backend session storage safety.
+- On stateless deployments such as Vercel serverless without durable Telegram session storage, the UI should fall back to manual Telegram contact instead of presenting QR linking as reliable.
+- This is the expected behavior for the current release.
+- Persistent storage can be added in a later pass if QR linking becomes a must-have.
 
 ## Sentry verification on the shipped build
 
