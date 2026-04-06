@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, useCallback, useMemo } from 'react';
+﻿import { lazy, Suspense, useState, useEffect, useCallback, useMemo } from 'react';
 import { BookOpen, Users, Calendar, Settings, Trash2, Pencil, Share2, X } from 'lucide-react';
 import db from './db';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
@@ -46,6 +46,17 @@ const P = {
   borderLight: 'var(--color-border-light)',
 };
 
+const BUSINESS_TYPE_PROMPT_LABELS = {
+  'retail-shop': 'Retail shop',
+  'shoe-market': 'Shoe market',
+  'flower-shop': 'Flower shop',
+  'women-dress-shop': 'Women dress shop',
+  grocery: 'Grocery / minimarket',
+  electronics: 'Electronics / accessories',
+  pharmacy: 'Pharmacy / cosmetics',
+  other: 'Other',
+};
+
 function buildVoiceSummaryFromDraft(draft) {
   if (!draft?.items?.length) return '';
   return draft.items
@@ -55,6 +66,25 @@ function buildVoiceSummaryFromDraft(draft) {
       return `${qty}${item.name}${price}`.trim();
     })
     .join(', ');
+}
+function buildVoiceDraftFromTransaction(tx) {
+  const quantity = Number(tx?.quantity || 1) || 1;
+  const amount = tx?.amount != null ? Number(tx.amount) : null;
+  const singleLineTotal = amount != null && Number.isFinite(amount) ? amount : null;
+  const unitPrice = singleLineTotal != null && quantity > 0 ? Math.round((singleLineTotal / quantity) * 100) / 100 : null;
+
+  return {
+    customer_name: tx?.customer_name || null,
+    items: tx?.item_name ? [{
+      name: tx.item_name,
+      quantity,
+      unit_price: unitPrice,
+      line_total: singleLineTotal,
+    }] : [],
+    total_amount: singleLineTotal,
+    intent: 'sale',
+    needs_review: false,
+  };
 }
 
 function mergeVoiceDrafts(utterances = [], fallbackDraft = null) {
@@ -126,7 +156,7 @@ function ShareModal({ summary, telegram, onClose, t }) {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(summary);
-      fireToast('📋 ' + t.copiedToClipboard, 2500);
+      fireToast('ðŸ“‹ ' + t.copiedToClipboard, 2500);
       onClose();
     } catch { /* ignore */ }
   };
@@ -138,7 +168,7 @@ function ShareModal({ summary, telegram, onClose, t }) {
     >
       <div className="bg-white w-full max-w-md pb-safe animate-slide-up" style={{ background: 'var(--color-surface)', borderRadius: '24px 24px 0 0', boxShadow: 'var(--shadow-lg)' }}>
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: 'var(--color-border-light)' }}>
-          <h2 className="text-base font-black text-gray-800 font-sans">📤 {t.shareTitle}</h2>
+          <h2 className="text-base font-black text-gray-800 font-sans">ðŸ“¤ {t.shareTitle}</h2>
           <button
             onClick={onClose}
             className="w-10 h-10 rounded-full flex items-center justify-center min-w-[44px] min-h-[44px] press-scale"
@@ -170,7 +200,7 @@ function ShareModal({ summary, telegram, onClose, t }) {
               className="w-full py-3 font-bold text-sm flex items-center justify-center gap-2 min-h-[48px] hover-lift press-scale"
               style={{ background: '#2481cc', color: '#fff', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
             >
-              ✈️ {t.openTelegram}
+              âœˆï¸ {t.openTelegram}
             </button>
           )}
           <button
@@ -178,7 +208,7 @@ function ShareModal({ summary, telegram, onClose, t }) {
             className="w-full py-3 font-bold text-sm flex items-center justify-center gap-2 min-h-[48px] press-scale"
             style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text)', borderRadius: 'var(--radius-md)' }}
           >
-            📋 {t.copyText}
+            ðŸ“‹ {t.copyText}
           </button>
         </div>
       </div>
@@ -203,7 +233,7 @@ function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t
             className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl"
             style={{ background: 'rgba(27,67,50,0.08)' }}
           >
-            💾
+            ðŸ’¾
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-black text-gray-900 text-sm font-sans">
@@ -243,7 +273,7 @@ function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t
         style={{ background: 'var(--color-surface-soft)', borderTop: '1px solid var(--color-border-light)' }}
       >
         <p className="text-xs font-medium font-sans" style={{ color: 'var(--color-text-muted)' }}>
-          {t.trustReopenHint || 'Close and reopen anytime — your records stay here.'}
+          {t.trustReopenHint || 'Close and reopen anytime â€” your records stay here.'}
         </p>
         {totalEntries === 0 && (
           <button
@@ -415,7 +445,7 @@ function AppInner() {
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, staffRows, nameRow, phoneRow, epRow, reRow, telegramRow, snapshotRow, activeStaffRow] = await Promise.all([
+      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, staffRows, nameRow, phoneRow, businessTypeRow, epRow, reRow, telegramRow, snapshotRow, activeStaffRow] = await Promise.all([
         db.transactions.toArray(),
         db.customers.toArray(),
         db.customer_transactions.toArray(),
@@ -425,6 +455,7 @@ function AppInner() {
         db.staff_members?.toArray?.() || [],
         db.settings.get('shop_name'),
         db.settings.get('shop_phone'),
+        db.settings.get('shop_business_type'),
         db.settings.get('enabled_payment_methods'),
         db.settings.get('recurring_expenses'),
         db.settings.get('shop_telegram'),
@@ -447,6 +478,7 @@ function AppInner() {
         name: nameRow?.value || null,
         phone: phoneRow?.value || '',
         telegram: telegramRow?.value || '',
+        businessType: businessTypeRow?.value || 'retail-shop',
       });
       try { setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS); } catch { setEnabledProviders(DEFAULT_PROVIDERS); }
       try { setRecurringExpenses(reRow ? JSON.parse(reRow.value) : []); } catch { setRecurringExpenses([]); }
@@ -732,11 +764,12 @@ function AppInner() {
     }
   };
 
-  const handleProfileSave = async (name, phone, telegram) => {
+  const handleProfileSave = async (name, phone, telegram, businessType = 'retail-shop') => {
     await db.settings.put({ key: 'shop_name', value: name });
     await db.settings.put({ key: 'shop_phone', value: phone || '' });
     await db.settings.put({ key: 'shop_telegram', value: telegram || '' });
-    setShopProfile({ name, phone: phone || '', telegram: telegram || '' });
+    await db.settings.put({ key: 'shop_business_type', value: businessType || 'retail-shop' });
+    setShopProfile({ name, phone: phone || '', telegram: telegram || '', businessType: businessType || 'retail-shop' });
   };
 
   const handleSaveStaffMember = async (payload) => {
@@ -841,6 +874,180 @@ function AppInner() {
     () => mergeVoiceDrafts(voiceItems, voiceDraft),
     [voiceDraft, voiceItems]
   );
+
+  const voiceWorkspace = useMemo(() => {
+    const saleTransactions = transactions.filter((tx) => tx.type === 'sale');
+    const recentSales = saleTransactions.slice(0, 5).map((tx) => ({
+      id: tx.id,
+      label: tx.voice_note || tx.item_name || 'Voice sale',
+      amount: Number(tx.amount || 0),
+      customerName: tx.customer_name || '',
+      paymentType: tx.payment_type || 'cash',
+      paymentProvider: tx.payment_provider || '',
+      createdAt: tx.created_at,
+      draft: buildVoiceDraftFromTransaction(tx),
+      transcript: tx.raw_transcript || tx.voice_note || tx.item_name || '',
+    }));
+
+    const itemCounts = new Map();
+    const customerMap = new Map();
+    const customerPatternCounts = new Map();
+
+    saleTransactions.forEach((tx) => {
+      const itemName = String(tx.item_name || '').trim();
+      const amount = tx.amount != null ? Number(tx.amount) : null;
+      if (itemName) {
+        const existing = itemCounts.get(itemName) || { name: itemName, uses: 0, defaultPrice: null, prices: [] };
+        existing.uses += 1;
+        if (existing.defaultPrice == null && amount != null && amount > 0) {
+          existing.defaultPrice = amount;
+        }
+        if (amount != null && amount > 0) {
+          existing.prices.push(amount);
+        }
+        itemCounts.set(itemName, existing);
+      }
+
+      const customerName = String(tx.customer_name || '').trim();
+      if (customerName) {
+        if (!customerMap.has(customerName)) {
+          customerMap.set(customerName, {
+            name: customerName,
+            lastAmount: amount,
+            lastItemName: itemName,
+            lastSeenAt: tx.created_at,
+          });
+        }
+
+        if (itemName) {
+          const customerPatterns = customerPatternCounts.get(customerName) || new Map();
+          customerPatterns.set(itemName, (customerPatterns.get(itemName) || 0) + 1);
+          customerPatternCounts.set(customerName, customerPatterns);
+        }
+      }
+    });
+
+    const commonItems = [...itemCounts.values()]
+      .map((item) => ({
+        ...item,
+        typicalPrice: item.prices.length
+          ? Math.round((item.prices.reduce((sum, price) => sum + price, 0) / item.prices.length) * 100) / 100
+          : item.defaultPrice,
+      }))
+      .sort((a, b) => (b.uses - a.uses) || String(a.name).localeCompare(String(b.name)))
+      .slice(0, 8);
+
+    const recentCustomers = [...customerMap.values()].slice(0, 6);
+
+    const itemPriceMemory = {};
+    for (const item of itemCounts.values()) {
+      const prices = item.prices.slice(-6);
+      const typicalPrice = prices.length
+        ? Math.round((prices.reduce((sum, price) => sum + price, 0) / prices.length) * 100) / 100
+        : item.defaultPrice;
+      itemPriceMemory[item.name] = {
+        typical_price: typicalPrice,
+        recent_prices: prices,
+        min_price: prices.length ? Math.min(...prices) : typicalPrice,
+        max_price: prices.length ? Math.max(...prices) : typicalPrice,
+      };
+    }
+
+    const customerItemPatterns = {};
+    for (const [customerName, itemMap] of customerPatternCounts.entries()) {
+      customerItemPatterns[customerName] = [...itemMap.entries()]
+        .sort((a, b) => (b[1] - a[1]) || String(a[0]).localeCompare(String(b[0])))
+        .slice(0, 3)
+        .map(([itemName]) => itemName);
+    }
+
+    return {
+      recentSales,
+      commonItems,
+      recentCustomers,
+      itemPriceMemory,
+      customerItemPatterns,
+      lastSavedSnapshot,
+    };
+  }, [lastSavedSnapshot, transactions]);
+
+  const voiceContext = useMemo(() => ({
+    business_type: BUSINESS_TYPE_PROMPT_LABELS[shopProfile?.businessType] || BUSINESS_TYPE_PROMPT_LABELS['retail-shop'],
+    common_items: voiceWorkspace.commonItems.map((item) => item.name),
+    recent_customers: voiceWorkspace.recentCustomers.map((customer) => customer.name),
+    payment_providers: [...new Set([
+      ...(enabledProviders?.banks || []),
+      ...(enabledProviders?.wallets || []),
+      'cash',
+    ])],
+    item_price_memory: voiceWorkspace.itemPriceMemory,
+    customer_item_patterns: voiceWorkspace.customerItemPatterns,
+  }), [enabledProviders, shopProfile?.businessType, voiceWorkspace]);
+  const openVoiceShortcutDraft = useCallback(({ transcript = '', detectedTotal = null, draft = null, provider = 'shop-memory', step = 'result' }) => {
+    setVoiceItems([]);
+    setVoiceTranscript(transcript);
+    setVoiceDetectedTotal(detectedTotal);
+    setVoiceConfidence(null);
+    setVoiceProvider(provider);
+    setVoiceDraft(draft);
+    setVoiceStep(step);
+  }, []);
+
+  const handleVoiceRepeatSale = useCallback((sale) => {
+    if (!sale) return;
+    openVoiceShortcutDraft({
+      transcript: sale.transcript || sale.label || '',
+      detectedTotal: sale.amount ?? sale.draft?.total_amount ?? null,
+      draft: sale.draft || null,
+      provider: 'shop-memory',
+      step: 'result',
+    });
+  }, [openVoiceShortcutDraft]);
+
+  const handleVoiceUseItemShortcut = useCallback((item) => {
+    if (!item?.name) return;
+    const amount = item.defaultPrice != null ? Number(item.defaultPrice) : null;
+    openVoiceShortcutDraft({
+      transcript: item.name,
+      detectedTotal: amount,
+      draft: {
+        customer_name: null,
+        items: [{
+          name: item.name,
+          quantity: 1,
+          unit_price: amount,
+          line_total: amount,
+        }],
+        total_amount: amount,
+        intent: 'sale',
+        needs_review: amount == null,
+      },
+      provider: 'shop-memory',
+      step: amount != null ? 'result' : 'fix',
+    });
+  }, [openVoiceShortcutDraft]);
+
+  const handleVoiceUseCustomerShortcut = useCallback((customer) => {
+    if (!customer?.name) return;
+    openVoiceShortcutDraft({
+      transcript: customer.name,
+      detectedTotal: customer.lastAmount ?? null,
+      draft: {
+        customer_name: customer.name,
+        items: customer.lastItemName ? [{
+          name: customer.lastItemName,
+          quantity: 1,
+          unit_price: customer.lastAmount ?? null,
+          line_total: customer.lastAmount ?? null,
+        }] : [],
+        total_amount: customer.lastAmount ?? null,
+        intent: 'sale',
+        needs_review: true,
+      },
+      provider: 'shop-memory',
+      step: 'fix',
+    });
+  }, [openVoiceShortcutDraft]);
 
   const syncLinkedCustomerTelegramState = useCallback(async (customer, currentBalanceOverride = null) => {
     if (!customer?.telegram_link_token || !customer?.telegram_chat_id) return null;
@@ -1334,7 +1541,7 @@ function AppInner() {
       amount,
       created_at: now,
     });
-    fireToast(draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? (t.paymentSaved || 'Payment recorded ✓') : t.creditSaved, 2200);
+    fireToast(draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? (t.paymentSaved || 'Payment recorded âœ“') : t.creditSaved, 2200);
 
     if (draft.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD) {
       try {
@@ -1498,16 +1705,16 @@ function AppInner() {
     const profit = todaySalesTotal - todayExpensesTotal;
     const topStr = topProducts.length > 0
       ? topProducts.map((p, i) => `  ${i + 1}. ${p.name} (x${p.qty})`).join('\n')
-      : '  —';
+      : '  â€”';
     return [
-      `📊 ${shopProfile?.name || 'Shop'} — ${t.shareDailyReport}`,
-      `📅 ${new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
+      `ðŸ“Š ${shopProfile?.name || 'Shop'} â€” ${t.shareDailyReport}`,
+      `ðŸ“… ${new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
       ``,
-      `💰 ${t.sales}:    ${fmt(todaySalesTotal)} ${t.birr}`,
-      `🛒 ${t.spent}: ${fmt(todayExpensesTotal)} ${t.birr}`,
-      `📈 ${t.calcProfit}:   ${fmt(profit)} ${t.birr}`,
+      `ðŸ’° ${t.sales}:    ${fmt(todaySalesTotal)} ${t.birr}`,
+      `ðŸ›’ ${t.spent}: ${fmt(todayExpensesTotal)} ${t.birr}`,
+      `ðŸ“ˆ ${t.calcProfit}:   ${fmt(profit)} ${t.birr}`,
       ``,
-      `🏆 ${t.shareTopItems}:`,
+      `ðŸ† ${t.shareTopItems}:`,
       topStr,
       ``,
       t.shareSentVia,
@@ -1519,26 +1726,26 @@ function AppInner() {
     setShowShareModal(true);
   };
 
-  const hid = (n) => hidden ? '••••' : fmt(n);
+  const hid = (n) => hidden ? 'â€¢â€¢â€¢â€¢' : fmt(n);
 
   const getTimeGreeting = () => {
     const h = new Date().getHours();
     if (lang === 'am') {
-      if (h < 12) return '👋 እንኳን ደህና መጡ — ዛሬን ሽያጥ ይቁጠሩ';
-      if (h < 17) return '📌 ሲሸጡ ይቅዱ — ዝርዝር ቆይቶ ማስተካከል ይቻላል';
-      return '🌙 ዛሬን ሽያጥ አይርሱ — ሁሉ ይቅዱ';
+      if (h < 12) return 'ðŸ‘‹ áŠ¥áŠ•áŠ³áŠ• á‹°áˆ…áŠ“ áˆ˜áŒ¡ â€” á‹›áˆ¬áŠ• áˆ½á‹«áŒ¥ á‹­á‰áŒ áˆ©';
+      if (h < 17) return 'ðŸ“Œ áˆ²áˆ¸áŒ¡ á‹­á‰…á‹± â€” á‹áˆ­á‹áˆ­ á‰†á‹­á‰¶ áˆ›áˆµá‰°áŠ«áŠ¨áˆ á‹­á‰»áˆ‹áˆ';
+      return 'ðŸŒ™ á‹›áˆ¬áŠ• áˆ½á‹«áŒ¥ áŠ á‹­áˆ­áˆ± â€” áˆáˆ‰ á‹­á‰…á‹±';
     }
-    if (h < 12) return '👋 Good morning — start tracking today\'s sales';
-    if (h < 17) return '📌 Keep going — record your sales as you sell';
-    return '🌙 Don\'t forget today\'s last sales';
+    if (h < 12) return 'ðŸ‘‹ Good morning â€” start tracking today\'s sales';
+    if (h < 17) return 'ðŸ“Œ Keep going â€” record your sales as you sell';
+    return 'ðŸŒ™ Don\'t forget today\'s last sales';
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: P.bg }}>
         <div className="text-center animate-elastic">
-          <div className="text-5xl mb-3">📒</div>
-          <h1 className="text-2xl font-black font-serif" style={{ color: P.header }}>ገበያ</h1>
+          <div className="text-5xl mb-3">ðŸ“’</div>
+          <h1 className="text-2xl font-black font-serif" style={{ color: P.header }}>áŒˆá‰ á‹«</h1>
           <p className="text-sm mt-2" style={{ color: 'var(--color-text-soft)' }}>{t.loading}</p>
         </div>
       </div>
@@ -1548,7 +1755,7 @@ function AppInner() {
   if (!shopProfile || !shopProfile.name) {
     return (
       <OnboardingScreen
-        onComplete={(profile) => setShopProfile(profile)}
+        onComplete={(profile) => setShopProfile({ ...profile, telegram: '', businessType: profile.businessType || 'retail-shop' })}
       />
     );
   }
@@ -1560,7 +1767,7 @@ function AppInner() {
     { id: 'settings', label: t.settings,                     icon: Settings },
   ];
 
-  const typeEmoji = { sale: '💰', expense: '🛒', credit: '👥' };
+  const typeEmoji = { sale: 'ðŸ’°', expense: 'ðŸ›’', credit: 'ðŸ‘¥' };
   const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#C4883A' };
   const typeBorderColor = { sale: '#86efac', expense: '#fca5a5', credit: '#fcd34d' };
 
@@ -1569,7 +1776,7 @@ function AppInner() {
 
       <header className="flex-shrink-0 px-4 pt-9 pb-3 texture-noise" style={{ background: P.header }}>
         <div className="flex items-center gap-3 mb-3">
-          {/* Avatar — taps to settings */}
+          {/* Avatar â€” taps to settings */}
           <button
             onClick={() => setActiveTab('settings')}
             className="flex-shrink-0 press-scale"
@@ -1599,7 +1806,7 @@ function AppInner() {
               {shopProfile.name}
             </h1>
             <p className="text-xs font-semibold mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.6)' }}>
-              {t.appName} � {getCurrentEthiopianDate()} � {new Date().toLocaleDateString('en', { day: 'numeric', month: 'short' })}
+              {t.appName} · {getCurrentEthiopianDate()} · {new Date().toLocaleDateString('en', { day: 'numeric', month: 'short' })}
             </p>
           </div>
 
@@ -1611,7 +1818,7 @@ function AppInner() {
               borderRadius: '8px',
               whiteSpace: 'nowrap',
             }}>
-              🔥 {usageStats.streak}
+              ðŸ”¥ {usageStats.streak}
             </span>
           )}
 
@@ -1644,7 +1851,7 @@ function AppInner() {
               borderRadius: '8px',
               transition: 'all 0.18s',
               display: 'block',
-            }}>አማ</span>
+            }}>áŠ áˆ›</span>
           </button>
         </div>
 
@@ -1670,18 +1877,18 @@ function AppInner() {
           <p className="text-center text-xs font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
             {getTimeGreeting()}
           </p>
-          {/* Voice — primary action */}
+          {/* Voice â€” primary action */}
           <button
             onClick={() => setVoiceStep('record')}
             className="w-full mb-1 py-4 flex flex-col items-center justify-center font-black text-white text-base transition-all active:scale-95 press-scale"
             style={{ background: '#1a5c3a', border: '2px solid rgba(255,255,255,0.25)', borderRadius: 'var(--radius-lg)', boxShadow: '0 5px 0 #0f3d25' }}
           >
-            <span className="text-2xl leading-none mb-0.5">🎤</span>
+            <span className="text-2xl leading-none mb-0.5">ðŸŽ¤</span>
             <span className="text-base font-black leading-snug">{t.recordByVoice}</span>
             <span className="text-xs opacity-70">{t.recordByVoiceSubLabel}</span>
           </button>
           <p className="text-center text-xs mb-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            {lang === 'am' ? 'ይናገሩ፣ በኋላም ማስተካከል ይችላሉ።' : 'Speak your sale. You can fix it after.'}
+            {lang === 'am' ? 'á‹­áŠ“áŒˆáˆ©á£ á‰ áŠ‹áˆ‹áˆ áˆ›áˆµá‰°áŠ«áŠ¨áˆ á‹­á‰½áˆ‹áˆ‰á¢' : 'Speak your sale. You can fix it after.'}
           </p>
           <div className="flex gap-2 pb-2">
           {[
@@ -1749,10 +1956,10 @@ function AppInner() {
 
               {todayTransactions.length === 0 ? (
                 <div className="px-4 py-10 text-center">
-                  <p className="text-4xl mb-3">🎤</p>
-                  <p className="font-bold text-base mb-1" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ገና ምንም ሽያጭ አልተመዘገበም' : 'No sales recorded yet'}</p>
+                  <p className="text-4xl mb-3">ðŸŽ¤</p>
+                  <p className="font-bold text-base mb-1" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'áŒˆáŠ“ áˆáŠ•áˆ áˆ½á‹«áŒ­ áŠ áˆá‰°áˆ˜á‹˜áŒˆá‰ áˆ' : 'No sales recorded yet'}</p>
                   <p className="text-sm font-semibold" style={{ color: P.amber }}>
-                    {lang === 'am' ? 'የመጀመሪያ ሽያጭዎን ለመመዝገብ ከላይ ይጫኑ' : 'Tap above to record your first sale'}
+                    {lang === 'am' ? 'á‹¨áˆ˜áŒ€áˆ˜áˆªá‹« áˆ½á‹«áŒ­á‹ŽáŠ• áˆˆáˆ˜áˆ˜á‹áŒˆá‰¥ áŠ¨áˆ‹á‹­ á‹­áŒ«áŠ‘' : 'Tap above to record your first sale'}
                   </p>
                 </div>
               ) : (
@@ -1977,6 +2184,11 @@ function AppInner() {
       {voiceStep === 'record' && (
         <Suspense fallback={<ModalFallback label={t.loading} />}>
           <VoiceRecordScreen
+            workspace={voiceWorkspace}
+            voiceContext={voiceContext}
+            onRepeatSale={handleVoiceRepeatSale}
+            onUseItem={handleVoiceUseItemShortcut}
+            onUseCustomer={handleVoiceUseCustomerShortcut}
             onTranscript={(transcript, detectedTotal, confidence, draft, provider) => {
               const newItem = { transcript, detectedTotal, draft };
               const updatedItems = [...voiceItems, newItem];
@@ -2014,6 +2226,10 @@ function AppInner() {
             detectedTotal={voiceDetectedTotal}
             items={voiceItems}
             draft={mergedVoiceDraft}
+            workspace={voiceWorkspace}
+            onRepeatSale={handleVoiceRepeatSale}
+            onUseItem={handleVoiceUseItemShortcut}
+            onUseCustomer={handleVoiceUseCustomerShortcut}
             onSave={handleVoiceSave}
             onFix={() => {
               recordVoiceTelemetry({ action: 'fix_opened', transcript: voiceTranscript, provider: voiceProvider, draft: mergedVoiceDraft });
@@ -2053,6 +2269,10 @@ function AppInner() {
             onSave={(data) => handleVoiceSave({ ...data, wasEdited: true })}
             onCancel={() => setVoiceStep('result')}
             enabledProviders={enabledProviders}
+            lastProviderByType={{
+              bank: lastPayment.sale?.bankProvider || '',
+              wallet: lastPayment.sale?.walletProvider || '',
+            }}
           />
         </Suspense>
       )}
@@ -2083,7 +2303,7 @@ function AppInner() {
             <div className="text-3xl text-center mb-3">{typeEmoji[deleteTarget.type]}</div>
             <h3 className="text-lg font-black text-gray-900 text-center mb-1 font-sans">{t.deleteEntry}</h3>
             <p className="text-sm text-gray-500 text-center mb-5" style={{ color: 'var(--color-text-muted)' }}>
-              "{deleteTarget.item_name}" · {fmt(deleteTarget.amount || 0)} {t.birr}
+              "{deleteTarget.item_name}" Â· {fmt(deleteTarget.amount || 0)} {t.birr}
             </p>
             <div className="space-y-2">
               <button onClick={() => handleDeleteTransaction(deleteTarget.id)}
@@ -2119,6 +2339,10 @@ function App() {
 }
 
 export default App;
+
+
+
+
 
 
 

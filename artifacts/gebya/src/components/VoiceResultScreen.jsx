@@ -1,4 +1,4 @@
-import { Check, Keyboard, Pencil, Plus, RotateCcw } from 'lucide-react';
+﻿import { Check, Keyboard, Pencil, Plus, RotateCcw } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { fmt } from '../utils/numformat';
 
@@ -9,7 +9,21 @@ const INTENT_LABELS = {
   payment: 'voiceIntentPayment',
 };
 
-function VoiceResultScreen({ transcript, detectedTotal, items = [], draft, onSave, onFix, onAddAnother, onReRecord, onTypeInstead }) {
+function VoiceResultScreen({
+  transcript,
+  detectedTotal,
+  items = [],
+  draft,
+  workspace,
+  onRepeatSale,
+  onUseItem,
+  onUseCustomer,
+  onSave,
+  onFix,
+  onAddAnother,
+  onReRecord,
+  onTypeInstead,
+}) {
   const { t } = useLang();
 
   const hasMultiple = items.length > 1;
@@ -21,6 +35,9 @@ function VoiceResultScreen({ transcript, detectedTotal, items = [], draft, onSav
   const summaryNote = parsedItems.length
     ? parsedItems.map((item) => `${item.quantity && item.quantity !== 1 ? `${item.quantity}x ` : ''}${item.name}`).join(', ')
     : transcript;
+  const recentSales = workspace?.recentSales || [];
+  const commonItems = workspace?.commonItems || [];
+  const recentCustomers = workspace?.recentCustomers || [];
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white" style={{ fontFamily: 'var(--font-sans)' }}>
@@ -74,7 +91,7 @@ function VoiceResultScreen({ transcript, detectedTotal, items = [], draft, onSav
                       <p className="text-sm font-bold text-gray-800 truncate">{item.name}</p>
                       <p className="text-xs text-gray-500">
                         {t.voiceQuantity}: {item.quantity || 1}
-                        {item.unit_price != null ? ` � ${t.voiceUnitPrice}: ${fmt(item.unit_price)}` : ''}
+                        {item.unit_price != null ? ` · ${t.voiceUnitPrice}: ${fmt(item.unit_price)}` : ''}
                       </p>
                     </div>
                     <span className="text-sm font-black flex-shrink-0" style={{ color: '#1B4332' }}>
@@ -113,6 +130,46 @@ function VoiceResultScreen({ transcript, detectedTotal, items = [], draft, onSav
           {hasMultiple && (
             <p className="text-xs text-gray-400 mt-1 font-sans">{items.length} {t.voiceItemsRecorded || 'items'}</p>
           )}
+        </div>
+
+        <div className="p-4 rounded-xl" style={{ background: '#fff', border: '1px solid #e8e2d8' }}>
+          <p className="text-[11px] uppercase tracking-wide font-bold text-gray-400">Keep the rush moving</p>
+          <h3 className="text-base font-black text-gray-900 mt-1">Reuse what this shop already knows</h3>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {recentSales.slice(0, 3).map((sale) => (
+              <button
+                key={sale.id}
+                onClick={() => onRepeatSale?.(sale)}
+                className="rounded-full px-3 py-2 text-sm font-bold"
+                style={{ background: '#eef6f1', color: '#1B4332', border: '1px solid #cfe1d7' }}
+              >
+                Repeat {sale.label}
+              </button>
+            ))}
+            {commonItems.slice(0, 3).map((item) => (
+              <button
+                key={item.name}
+                onClick={() => onUseItem?.(item)}
+                className="rounded-full px-3 py-2 text-sm font-bold"
+                style={{ background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa' }}
+              >
+                {item.name}
+              </button>
+            ))}
+            {recentCustomers.slice(0, 2).map((customer) => (
+              <button
+                key={customer.name}
+                onClick={() => onUseCustomer?.(customer)}
+                className="rounded-full px-3 py-2 text-sm font-bold"
+                style={{ background: '#f5f3ff', color: '#5b21b6', border: '1px solid #ddd6fe' }}
+              >
+                {customer.name}
+              </button>
+            ))}
+            {recentSales.length === 0 && commonItems.length === 0 && recentCustomers.length === 0 && (
+              <p className="text-sm text-gray-400">Shortcuts will appear here as this phone learns your repeated sales.</p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -172,4 +229,3 @@ function VoiceResultScreen({ transcript, detectedTotal, items = [], draft, onSav
 }
 
 export default VoiceResultScreen;
-

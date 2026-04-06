@@ -26,6 +26,13 @@ export type VoiceContext = {
   common_items?: string[];
   recent_customers?: string[];
   payment_providers?: string[];
+  item_price_memory?: Record<string, {
+    typical_price?: number | null;
+    recent_prices?: number[];
+    min_price?: number | null;
+    max_price?: number | null;
+  }>;
+  customer_item_patterns?: Record<string, string[]>;
 };
 
 export function extractLikelyTotal(transcript: string): number | null {
@@ -54,6 +61,50 @@ function normalizeTranscript(value: string): string {
       .replace(/[“”"]/g, " ")
       .replace(/\s*-\s*/g, " "),
   );
+}
+
+function getKnownItems(context?: VoiceContext): string[] {
+  const directItems = context?.common_items || [];
+  const pricedItems = Object.keys(context?.item_price_memory || {});
+  return [...new Set([...directItems, ...pricedItems].filter(Boolean))];
+}
+
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+
+  const matrix = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i += 1) matrix[i][0] = i;
+  for (let j = 0; j <= b.length; j += 1) matrix[0][j] = j;
+
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost,
+      );
+    }
+  }
+
+  return matrix[a.length][b.length];
+}
+
+function similarityScore(a: string, b: string): number {
+  const left = normalizeLookup(a);
+  const right = normalizeLookup(b);
+  if (!left || !right) return 0;
+  if (left === right) return 1;
+  if (left.includes(right) || right.includes(left)) return 0.94;
+
+  const leftTokens = new Set(left.split(/\s+/).filter(Boolean));
+  const rightTokens = new Set(right.split(/\s+/).filter(Boolean));
+  const overlap = [...leftTokens].filter((token) => rightTokens.has(token)).length;
+  const tokenScore = overlap / Math.max(leftTokens.size, rightTokens.size, 1);
+  const editScore = 1 - (levenshteinDistance(left, right) / Math.max(left.length, right.length, 1));
+  return Math.max(tokenScore, editScore);
 }
 
 function parseNumber(value: string): number | null {
@@ -97,6 +148,17 @@ function extractCustomerName(text: string, context?: VoiceContext): string | nul
 
   if (contextMatch) return normalizeWhitespace(contextMatch);
 
+  const fuzzyCustomer = (context?.recent_customers || [])
+    .map((candidate) => ({
+      candidate,
+      score: similarityScore(text, candidate),
+    }))
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (fuzzyCustomer && fuzzyCustomer.score >= 0.8) {
+    return normalizeWhitespace(fuzzyCustomer.candidate);
+  }
+
   return null;
 }
 
@@ -128,18 +190,77 @@ function splitSegments(text: string): string[] {
 
 function resolveKnownItemName(segment: string, fallbackName: string, context?: VoiceContext): string {
   const normalizedSegment = normalizeLookup(segment);
-  const contextMatch = (context?.common_items || []).find((candidate) => {
+  const knownItems = getKnownItems(context);
+  const contextMatch = knownItems.find((candidate) => {
     const normalizedCandidate = normalizeLookup(candidate);
     return normalizedCandidate && normalizedSegment.includes(normalizedCandidate);
   });
 
-  return contextMatch ? normalizeWhitespace(contextMatch) : fallbackName;
+  if (contextMatch) return normalizeWhitespace(contextMatch);
+
+  const fuzzyItem = knownItems
+    .map((candidate) => ({
+      candidate,
+      score: similarityScore(fallbackName, candidate),
+    }))
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (fuzzyItem && fuzzyItem.score >= 0.78) {
+    return normalizeWhitespace(fuzzyItem.candidate);
+  }
+
+  return fallbackName;
+}
+
+function getItemPriceMemory(itemName: string, context?: VoiceContext) {
+  const knownEntries = Object.entries(context?.item_price_memory || {});
+  const directMatch = knownEntries.find(([candidate]) => normalizeLookup(candidate) === normalizeLookup(itemName));
+  if (directMatch) return directMatch[1];
+
+  const fuzzyMatch = knownEntries
+    .map(([candidate, memory]) => ({
+      memory,
+      score: similarityScore(itemName, candidate),
+    }))
+    .sort((a, b) => b.score - a.score)[0];
+
+  return fuzzyMatch && fuzzyMatch.score >= 0.78 ? fuzzyMatch.memory : null;
+}
+
+function inferItemFromCustomerPattern(customerName: string | null, totalAmount: number | null, context?: VoiceContext): ParsedItem | null {
+  if (!customerName) return null;
+
+  const patternEntries = Object.entries(context?.customer_item_patterns || {});
+  const customerMatch = patternEntries
+    .map(([candidate, items]) => ({
+      items,
+      score: similarityScore(customerName, candidate),
+    }))
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (!customerMatch || customerMatch.score < 0.8 || !customerMatch.items?.length) {
+    return null;
+  }
+
+  const name = customerMatch.items[0];
+  const priceMemory = getItemPriceMemory(name, context);
+  const typicalPrice = priceMemory?.typical_price != null ? roundMoney(priceMemory.typical_price) : null;
+  const lineTotal = totalAmount ?? typicalPrice ?? null;
+
+  return {
+    name,
+    quantity: 1,
+    unit_price: lineTotal,
+    line_total: lineTotal,
+  };
 }
 
 function parseSegment(segment: string, context?: VoiceContext): { item: ParsedItem | null; uncertain: boolean } {
   const normalized = normalizeWhitespace(segment);
   const baseName = cleanItemName(normalized);
   const name = baseName ? resolveKnownItemName(normalized, baseName, context) : baseName;
+  const priceMemory = name ? getItemPriceMemory(name, context) : null;
+  const typicalPrice = priceMemory?.typical_price != null ? roundMoney(priceMemory.typical_price) : null;
   const numberMatches = [...normalized.matchAll(/\d[\d,]*(?:\.\d+)?/g)];
   const numbers = numberMatches
     .map((match) => ({
@@ -165,8 +286,13 @@ function parseSegment(segment: string, context?: VoiceContext): { item: ParsedIt
   if (numbers.length === 1) {
     const [first] = numbers;
     const startsWithNumber = first.index <= 1;
-    const quantity = startsWithNumber && !hasPriceCue ? first.value : (hasQuantityCue && !hasPriceCue ? first.value : 1);
-    const unitPrice = quantity === first.value ? null : first.value;
+    const looksLikeQuantity = first.value <= 10 && typicalPrice != null && first.value < typicalPrice && !hasPriceCue;
+    const quantity = looksLikeQuantity
+      ? first.value
+      : (startsWithNumber && !hasPriceCue ? first.value : (hasQuantityCue && !hasPriceCue ? first.value : 1));
+    const unitPrice = looksLikeQuantity
+      ? typicalPrice
+      : (quantity === first.value ? typicalPrice : first.value);
 
     return {
       item: {
@@ -175,7 +301,7 @@ function parseSegment(segment: string, context?: VoiceContext): { item: ParsedIt
         unit_price: unitPrice,
         line_total: unitPrice != null ? roundMoney((quantity || 1) * unitPrice) : null,
       },
-      uncertain: unitPrice == null,
+      uncertain: unitPrice == null || looksLikeQuantity,
     };
   }
 
@@ -224,6 +350,14 @@ export function buildTranscriptionPrompt(context?: VoiceContext): string {
   if (context?.payment_providers?.length) {
     parts.push(`Common payment providers: ${context.payment_providers.slice(0, 8).join(", ")}.`);
   }
+  if (context?.customer_item_patterns && Object.keys(context.customer_item_patterns).length > 0) {
+    const summaries = Object.entries(context.customer_item_patterns)
+      .slice(0, 5)
+      .map(([customer, items]) => `${customer}: ${items.slice(0, 2).join(", ")}`);
+    if (summaries.length) {
+      parts.push(`Frequent customer-item patterns: ${summaries.join(" | ")}.`);
+    }
+  }
 
   return parts.join(" ");
 }
@@ -243,17 +377,21 @@ export function parseDraft(transcript: string, context?: VoiceContext): ParsedDr
     ? roundMoney(items.reduce((sum, item) => sum + (item.line_total || 0), 0))
     : null;
   const totalAmount = explicitTotal ?? calculableTotal ?? extractLikelyTotal(normalized);
+  const recoveredItems = items.length === 0
+    ? (inferItemFromCustomerPattern(customerName, totalAmount, context) ? [inferItemFromCustomerPattern(customerName, totalAmount, context)!] : [])
+    : items;
   const uncertainItems = parsedSegments.some((entry) => entry.uncertain);
   const providerHintSeen = detectProviderHints(normalized, context);
   const needsReview = intent !== "sale"
-    || items.length === 0
+    || recoveredItems.length === 0
     || uncertainItems
+    || recoveredItems !== items
     || (explicitTotal != null && calculableTotal != null && Math.abs(explicitTotal - calculableTotal) > 0.01)
     || (providerHintSeen && totalAmount == null);
 
   return {
     customer_name: customerName,
-    items,
+    items: recoveredItems,
     total_amount: totalAmount,
     intent,
     needs_review: needsReview,

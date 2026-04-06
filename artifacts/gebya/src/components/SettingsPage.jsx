@@ -15,6 +15,7 @@ const PwaInstallPanel = lazy(() => import('./PwaInstallPanel.jsx'));
 const SettingsBadgesPanel = lazy(() => import('./SettingsBadgesPanel.jsx'));
 
 const FREQ_LABELS_EN = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
+const FREQ_LABELS_AM = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
 const BUSINESS_TYPE_OPTIONS = [
   { value: 'retail-shop', label: 'Retail shop' },
   { value: 'shoe-market', label: 'Shoe market' },
