@@ -46,6 +46,7 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
   const [creditDirection, setCreditDirection] = useState('owes_me');
   const [saveState, setSaveState] = useState('idle');
   const [lastSaved, setLastSaved] = useState(null);
+  const [savedOffline, setSavedOffline] = useState(false);
 
   const [showAddRecurring, setShowAddRecurring] = useState(false);
   const [popupName, setPopupName] = useState('');
@@ -75,6 +76,7 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
 
   const handleSave = async () => {
     if (!canSave) return;
+    const isOnlineNow = typeof navigator === 'undefined' ? true : navigator.onLine;
     const fullPhone = phoneEntered && phoneValid ? '+251' + phoneDigits : null;
     const data = {
       type,
@@ -99,6 +101,7 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
         onDone();
       } else {
         setLastSaved({ item: data.item_name, amount: data.amount, type });
+        setSavedOffline(!isOnlineNow);
         setSaveState('success');
       }
     } catch (err) {
@@ -159,6 +162,7 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
     setCatalogEntryId(keptCatalog);
     setSaveState('idle');
     setLastSaved(null);
+    setSavedOffline(false);
   };
 
   if (saveState === 'success') {
@@ -169,6 +173,11 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
             <CheckCircle2 className="w-14 h-14 mx-auto mb-3 text-green-500" />
             <p className="font-black text-gray-900 text-xl font-sans">{lastSaved?.item}</p>
             <p className="text-gray-500 mt-1 text-base font-sans">{fmt(lastSaved?.amount)} {t.birrSaved}</p>
+            {savedOffline && (
+              <p className="text-sm mt-3 font-black font-sans" style={{ color: '#1B4332' }}>
+                Saved on this phone
+              </p>
+            )}
             <p className="text-sm mt-3 font-medium font-sans" style={{ color: '#6b7280' }}>
               {t.trustReopenHint || 'Close and reopen anytime — your records stay here.'}
             </p>

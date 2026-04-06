@@ -1,6 +1,9 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+const REQUEST_TIMEOUT_MS = 8000;
 
 async function request(path, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? REQUEST_TIMEOUT_MS);
   let response;
 
   try {
@@ -9,12 +12,15 @@ async function request(path, options = {}) {
         'Content-Type': 'application/json',
         ...(options.headers || {}),
       },
+      signal: controller.signal,
       ...options,
     });
   } catch (cause) {
-    const error = new Error('Telegram service is unavailable.');
+    const error = new Error(cause?.name === 'AbortError' ? 'Telegram service timed out.' : 'Telegram service is unavailable.');
     error.cause = cause;
     throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   const contentType = response.headers.get('content-type') || '';

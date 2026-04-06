@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const INSTALL_DISMISS_KEY = 'gebya_install_prompt_dismissed_v1';
 
+if (typeof window !== 'undefined' && !window.__gebyaTestConnection) {
+  window.__gebyaTestConnection = null;
+}
+
 function getNavigatorStandalone() {
   if (typeof navigator === 'undefined') return false;
   return Boolean(navigator.standalone);
@@ -21,6 +25,42 @@ function getUserAgent() {
   return navigator.userAgent || '';
 }
 
+function getConnectionDetails() {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = window.localStorage.getItem('gebya_test_connection');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            effectiveType: parsed.effectiveType || 'unknown',
+            saveData: Boolean(parsed.saveData),
+          };
+        }
+      }
+    } catch {
+      /* ignore test override parse issues */
+    }
+  }
+
+  if (typeof window !== 'undefined' && window.__gebyaTestConnection) {
+    return {
+      effectiveType: window.__gebyaTestConnection.effectiveType || 'unknown',
+      saveData: Boolean(window.__gebyaTestConnection.saveData),
+    };
+  }
+
+  if (typeof navigator === 'undefined') {
+    return { effectiveType: 'unknown', saveData: false };
+  }
+
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  return {
+    effectiveType: connection?.effectiveType || 'unknown',
+    saveData: Boolean(connection?.saveData),
+  };
+}
+
 export function usePwaInstall() {
   const userAgent = getUserAgent();
   const isIOS = /iphone|ipad|ipod/i.test(userAgent);
@@ -34,6 +74,7 @@ export function usePwaInstall() {
   const [offlineReady, setOfflineReady] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
   const [showManualGuide, setShowManualGuide] = useState(false);
+  const [connectionDetails, setConnectionDetails] = useState(() => getConnectionDetails());
   const [installDismissed, setInstallDismissed] = useState(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(INSTALL_DISMISS_KEY) === '1';
@@ -58,8 +99,11 @@ export function usePwaInstall() {
     const handleOffline = () => setIsOnline(false);
     const handleOfflineReady = () => setOfflineReady(true);
     const handleUpdateReady = () => setUpdateReady(true);
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const handleConnectionChange = () => setConnectionDetails(getConnectionDetails());
 
     syncStandalone();
+    handleConnectionChange();
 
     if (typeof standaloneQuery.addEventListener === 'function') {
       standaloneQuery.addEventListener('change', syncStandalone);
@@ -72,6 +116,11 @@ export function usePwaInstall() {
     window.addEventListener('offline', handleOffline);
     window.addEventListener('gebya:pwa-offline-ready', handleOfflineReady);
     window.addEventListener('gebya:pwa-update-ready', handleUpdateReady);
+    if (typeof connection?.addEventListener === 'function') {
+      connection.addEventListener('change', handleConnectionChange);
+    } else if (typeof connection?.addListener === 'function') {
+      connection.addListener(handleConnectionChange);
+    }
 
     return () => {
       if (typeof standaloneQuery.removeEventListener === 'function') {
@@ -85,6 +134,11 @@ export function usePwaInstall() {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('gebya:pwa-offline-ready', handleOfflineReady);
       window.removeEventListener('gebya:pwa-update-ready', handleUpdateReady);
+      if (typeof connection?.removeEventListener === 'function') {
+        connection.removeEventListener('change', handleConnectionChange);
+      } else if (typeof connection?.removeListener === 'function') {
+        connection.removeListener(handleConnectionChange);
+      }
     };
   }, []);
 
@@ -146,6 +200,11 @@ export function usePwaInstall() {
     return 'browser';
   }, [canPromptInstall, isAndroid, isIOS, isSafari, isStandalone, needsManualInstall]);
 
+  const isSlowConnection = useMemo(
+    () => connectionDetails.saveData || ['slow-2g', '2g', '3g'].includes(connectionDetails.effectiveType),
+    [connectionDetails]
+  );
+
   return {
     applyUpdate,
     canPromptInstall,
@@ -157,7 +216,10 @@ export function usePwaInstall() {
     isMobile,
     isOnline,
     isSafari,
+    isSlowConnection,
     isStandalone,
+    networkEffectiveType: connectionDetails.effectiveType,
+    saveDataEnabled: connectionDetails.saveData,
     needsManualInstall,
     offlineReady,
     openInstallGuide,
