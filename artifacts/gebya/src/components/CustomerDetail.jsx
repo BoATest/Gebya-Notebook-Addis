@@ -13,6 +13,8 @@ function CustomerDetail({
   onToggleTelegramNotify,
   onOpenTelegramConnect,
   onResendTelegramUpdate,
+  isOnline = true,
+  isSlowConnection = false,
 }) {
   const { t } = useLang();
   if (!customer) return null;
@@ -22,6 +24,11 @@ function CustomerDetail({
   const hasPendingLink = !hasLinkedBorrower && !!customer.telegram_link_requested_at;
   const isTelegramNotifyEnabled = hasLinkedBorrower && customer.telegram_notify_enabled;
   const hasCollectableBalance = Number(customer.balance || 0) > 0;
+  const telegramConnectionHint = !isOnline
+    ? 'You are offline right now. Manual Telegram contact still shows, but bot linking needs internet.'
+    : isSlowConnection
+      ? 'Slow connection detected. Use refresh after the borrower opens Telegram instead of expecting instant updates.'
+      : null;
   const historyRows = useMemo(() => {
     let runningBalance = Number(customer.balance || 0);
 
@@ -44,7 +51,7 @@ function CustomerDetail({
         type="button"
         onClick={onBack}
         className="flex items-center gap-2 min-h-[44px] -ml-1 press-scale"
-        style={{ color: '#1B4332' }}
+        style={{ color: 'var(--color-primary)' }}
       >
         <ArrowLeft className="w-5 h-5" />
         <span className="font-semibold">{t.backToCustomers}</span>
@@ -52,13 +59,13 @@ function CustomerDetail({
 
       <div
         className="p-5 border"
-        style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-xs)' }}
+        style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-xs)' }}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-2xl font-black text-gray-900 leading-tight">{customer.display_name}</h2>
             {customer.note && (
-              <p className="text-sm mt-2" style={{ color: '#6b7280' }}>
+              <p className="text-sm mt-2" style={{ color: 'var(--color-text-muted)' }}>
                 {customer.note}
               </p>
             )}
@@ -78,7 +85,7 @@ function CustomerDetail({
             <a
               href={`tel:${customer.phone_number}`}
               className="flex items-center gap-2 p-3 min-h-[48px] border"
-              style={{ background: '#fafafa', borderColor: '#e5e7eb', borderRadius: 'var(--radius-md)', color: '#374151' }}
+              style={{ background: 'var(--color-surface-muted)', borderColor: 'var(--color-border-light)', borderRadius: 'var(--radius-md)', color: 'var(--color-text)' }}
             >
               <Phone className="w-4 h-4" />
               {customer.phone_number}
@@ -98,12 +105,12 @@ function CustomerDetail({
 
       <div
         className="p-4 border space-y-3"
-        style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
+        style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-black text-gray-900">{t.telegramConnection}</p>
-            <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
               {hasLinkedBorrower
                 ? ' Borrower updates are linked to the Gebya bot.'
                 : hasPendingLink
@@ -128,11 +135,11 @@ function CustomerDetail({
 
         <div
           className="flex items-center justify-between gap-3 p-3 border"
-          style={{ background: isTelegramNotifyEnabled ? '#f0fdf4' : '#fafafa', borderColor: isTelegramNotifyEnabled ? '#bbf7d0' : '#e5e7eb', borderRadius: 'var(--radius-md)' }}
+          style={{ background: isTelegramNotifyEnabled ? '#f0fdf4' : 'var(--color-surface-muted)', borderColor: isTelegramNotifyEnabled ? '#bbf7d0' : 'var(--color-border-light)', borderRadius: 'var(--radius-md)' }}
         >
           <div className="min-w-0">
             <p className="text-sm font-bold text-gray-900">{t.notifyOnTelegram}</p>
-            <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
               {hasLinkedBorrower
                 ? (isTelegramNotifyEnabled ? t.telegramNotifyEnabledState : t.telegramNotifyDisabledState)
                 : hasPendingLink
@@ -157,6 +164,13 @@ function CustomerDetail({
           <div className="flex items-center gap-2 text-xs font-medium" style={{ color: '#b45309' }}>
             <Bell className="w-4 h-4" />
             <span>{hasPendingLink ? 'Borrower has not started the bot yet.' : t.telegramNotifyConnectFirst}</span>
+          </div>
+        )}
+
+        {telegramConnectionHint && (
+          <div className="flex items-center gap-2 text-xs font-medium" style={{ color: isOnline ? '#b45309' : '#b91c1c' }}>
+            <MessageCircle className="w-4 h-4" />
+            <span>{telegramConnectionHint}</span>
           </div>
         )}
 
@@ -196,17 +210,17 @@ function CustomerDetail({
       </div>
 
       {!hasCollectableBalance && (
-        <p className="text-xs font-medium -mt-1" style={{ color: '#6b7280' }}>
+        <p className="text-xs font-medium -mt-1" style={{ color: 'var(--color-text-muted)' }}>
           {t.noBalanceToRecordPayment}
         </p>
       )}
 
       <div
         className="p-4 border"
-        style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
+        style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
       >
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-sm" style={{ color: '#1B4332' }}>
+          <h3 className="font-bold text-sm" style={{ color: 'var(--color-primary)' }}>
             {t.customerTransactionHistory}
           </h3>
           <span className="text-xs" style={{ color: '#9ca3af' }}>
@@ -259,7 +273,7 @@ function CustomerDetail({
             <p className="text-sm" style={{ color: '#9ca3af' }}>
               {t.noTransactionsYet}
             </p>
-            <p className="text-xs mt-2" style={{ color: '#6b7280' }}>
+            <p className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
               {t.noTransactionsHint}
             </p>
           </div>

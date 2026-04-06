@@ -19,23 +19,23 @@ function InstallGuideModal({ pwa }) {
         if (event.target === event.currentTarget) pwa.closeInstallGuide();
       }}
     >
-      <div className="bg-white w-full max-w-md pb-safe animate-slide-up" style={{ borderRadius: '24px 24px 0 0', boxShadow: 'var(--shadow-lg)' }}>
+      <div className="bg-white w-full max-w-md pb-safe animate-slide-up" style={{ background: 'var(--color-surface)', borderRadius: '24px 24px 0 0', boxShadow: 'var(--shadow-lg)' }}>
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: 'var(--color-border-light)' }}>
           <div>
             <h2 className="text-base font-black text-gray-900">{t.installGuideTitle}</h2>
-            <p className="text-xs mt-1" style={{ color: '#6b7280' }}>{t.installGuideHint}</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>{t.installGuideHint}</p>
           </div>
           <button
             onClick={pwa.closeInstallGuide}
             className="w-10 h-10 rounded-full flex items-center justify-center min-w-[44px] min-h-[44px] press-scale"
-            style={{ background: '#f5f5f5' }}
+            style={{ background: 'var(--color-surface-muted)' }}
             aria-label={t.close}
           >
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
         <div className="px-5 py-4 space-y-3">
-          <div className="p-4 border" style={{ background: '#FAF8F5', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)' }}>
+          <div className="p-4 border" style={{ background: 'var(--color-surface-soft)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)' }}>
             <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide mb-3" style={{ color: '#1B4332' }}>
               <Smartphone className="w-4 h-4" />
               {pwa.isStandalone ? t.installAlreadyInstalled : t.installGuideDeviceTitle}
@@ -54,7 +54,7 @@ function InstallGuideModal({ pwa }) {
           <button
             onClick={pwa.closeInstallGuide}
             className="w-full py-3 font-bold text-sm min-h-[48px] press-scale"
-            style={{ background: '#f5f5f5', color: '#374151', borderRadius: 'var(--radius-md)' }}
+            style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text)', borderRadius: 'var(--radius-md)' }}
           >
             {t.done}
           </button>
@@ -66,7 +66,7 @@ function InstallGuideModal({ pwa }) {
 
 function BannerCard({ children, tone = 'default' }) {
   const styles = {
-    default: { background: '#fff', borderColor: 'var(--color-border)' },
+    default: { background: 'var(--color-surface)', borderColor: 'var(--color-border)' },
     success: { background: '#f0fdf4', borderColor: '#bbf7d0' },
     warning: { background: '#fff7ed', borderColor: '#fed7aa' },
     offline: { background: '#fef2f2', borderColor: '#fecaca' },
@@ -84,6 +84,16 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
 
   if (!pwa) return null;
 
+  const connectionTone = pwa.isSlowConnection ? 'warning' : 'success';
+  const connectionIcon = pwa.isSlowConnection ? Signal : SignalHigh;
+  const connectionTitle = pwa.isSlowConnection
+    ? (t.networkSlowTitle || 'Slow connection detected')
+    : (t.networkStrongTitle || 'Connection looks stable');
+  const connectionBody = pwa.isSlowConnection
+    ? (t.networkSlowBody || 'Use typed entry first and open Telegram tools only when you need them. Your saved notebook still stays on this phone.')
+    : (t.networkStrongBody || 'Core notebook actions should work normally, and your saved notebook stays on this phone.');
+  const ConnectionIcon = connectionIcon;
+
   const installActions = (
     <div className="flex gap-2">
       <button
@@ -97,7 +107,7 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
       <button
         onClick={pwa.openInstallGuide}
         className="px-4 py-2.5 rounded-xl text-sm font-bold min-h-[44px] press-scale"
-        style={{ background: '#f5f5f5', color: '#374151' }}
+        style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text)' }}
       >
         {t.installGuideButton}
       </button>
@@ -109,7 +119,7 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
       <>
         <section>
           <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.installSectionTitle}</h2>
-          <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
+          <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden" style={{ background: 'var(--color-surface)' }}>
             <div className="px-5 py-4 space-y-3">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(27,67,50,0.08)' }}>
@@ -119,13 +129,13 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
                   <div className="font-bold text-gray-800">
                     {pwa.isStandalone ? t.installStatusInstalled : t.installStatusBrowser}
                   </div>
-                  <div className="text-xs text-gray-500 mt-0.5">
+                  <div className="text-xs text-gray-500 mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
                     {pwa.isOnline ? t.installStatusOnline : t.installStatusOffline}
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-xl p-3 space-y-2" style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
+              <div className="rounded-xl p-3 space-y-2" style={{ background: 'var(--color-surface-soft)', border: '1.5px solid var(--color-border)' }}>
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-semibold text-gray-600">{t.installChecklistOffline}</span>
                   <span className="font-black" style={{ color: '#1B4332' }}>{t.installChecklistReady}</span>
@@ -142,13 +152,25 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
                 </div>
               </div>
 
+              <BannerCard tone={connectionTone}>
+                <div className="px-4 py-3 flex items-start gap-3">
+                  <ConnectionIcon className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: pwa.isSlowConnection ? '#b45309' : '#15803d' }} />
+                  <div className="flex-1">
+                    <p className="font-bold text-gray-900">{connectionTitle}</p>
+                    <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                      {connectionBody}
+                    </p>
+                  </div>
+                </div>
+              </BannerCard>
+
               {!pwa.isStandalone && installActions}
 
               {pwa.isStandalone && (
                 <button
                   onClick={pwa.openInstallGuide}
                   className="w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 min-h-[44px] press-scale"
-                  style={{ background: '#f5f5f5', color: '#374151' }}
+                  style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text)' }}
                 >
                   <CheckCircle2 className="w-4 h-4 text-green-700" />
                   {t.installAlreadyInstalled}
@@ -172,9 +194,9 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
                 <RefreshCw className="w-5 h-5 mt-0.5 text-green-700 flex-shrink-0" />
                 <div className="flex-1">
                   <p className="font-bold text-gray-900">{t.updateReadyTitle}</p>
-                  <p className="text-sm mt-1" style={{ color: '#4b5563' }}>{t.updateReadyBody}</p>
+                  <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>{t.updateReadyBody}</p>
                 </div>
-                <button onClick={() => pwa.setUpdateReady(false)} className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full press-scale" style={{ background: 'rgba(255,255,255,0.7)' }} aria-label={t.close}>
+                <button onClick={() => pwa.setUpdateReady(false)} className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full press-scale" style={{ background: 'var(--color-surface)' }} aria-label={t.close}>
                   <X className="w-4 h-4 text-gray-500" />
                 </button>
               </div>
@@ -203,7 +225,26 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
               <WifiOff className="w-5 h-5 mt-0.5 text-red-500 flex-shrink-0" />
               <div className="flex-1">
                 <p className="font-bold text-gray-900">{t.offlineNowTitle}</p>
-                <p className="text-sm mt-1" style={{ color: '#4b5563' }}>{t.offlineNowBody}</p>
+                <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>{t.offlineNowBody}</p>
+              </div>
+            </div>
+          </BannerCard>
+        </div>
+        <InstallGuideModal pwa={pwa} />
+      </>
+    );
+  }
+
+  if (pwa.isSlowConnection) {
+    return (
+      <>
+        <div className="mb-3">
+          <BannerCard tone="warning">
+            <div className="px-4 py-4 flex items-start gap-3">
+              <Signal className="w-5 h-5 mt-0.5 text-amber-700 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-bold text-gray-900">{connectionTitle}</p>
+                <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>{connectionBody}</p>
               </div>
             </div>
           </BannerCard>
@@ -234,12 +275,12 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
               )}
               <div className="flex-1">
                 <p className="font-bold text-gray-900">{t.installBannerTitle}</p>
-                <p className="text-sm mt-1" style={{ color: '#4b5563' }}>{t.installBannerBody}</p>
+                <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>{t.installBannerBody}</p>
               </div>
               <button
                 onClick={pwa.dismissInstallPrompt}
                 className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-full press-scale"
-                style={{ background: '#f5f5f5' }}
+                style={{ background: 'var(--color-surface-muted)' }}
                 aria-label={t.notNow}
               >
                 <X className="w-4 h-4 text-gray-500" />

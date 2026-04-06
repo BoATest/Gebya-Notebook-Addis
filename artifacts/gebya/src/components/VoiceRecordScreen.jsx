@@ -4,6 +4,7 @@ import { useLang } from '../context/LangContext';
 const TOTAL_DURATION = 30;
 const NUDGE_AT = 15;
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
+const TRANSCRIBE_TIMEOUT_MS = 10000;
 
 function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
   const { t } = useLang();
@@ -52,22 +53,29 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
     setIsProcessing(true);
     try {
       const apiUrl = `${API_BASE_URL}/api/transcribe`;
-      const resp = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transcript }),
-      });
-      if (!resp.ok) throw new Error('Server error');
-      const data = await resp.json();
-      onTranscript(data.transcript, data.detected_total, data.confidence ?? null, data.draft ?? null);
-    } catch {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TRANSCRIBE_TIMEOUT_MS);
+      try {
+        const resp = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({ transcript }),
+        });
+        if (!resp.ok) throw new Error('Server error');
+        const data = await resp.json();
+        onTranscript(data.transcript, data.detected_total, data.confidence ?? null, data.draft ?? null);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    } catch (error) {
       if (!navigator.onLine) {
         onNoInternet();
       } else {
         stoppedRef.current = false;
         processedRef.current = false;
         setIsProcessing(false);
-        setError(t.tryAgain);
+        setError(error?.name === 'AbortError' ? (t.voiceSlowNetwork || t.tryAgain) : t.tryAgain);
       }
     }
   }, [cleanupRecording, onTranscript, onNoInternet, t]);
@@ -237,10 +245,10 @@ function VoiceRecordScreen({ onTranscript, onTypeInstead }) {
   if (noInternet) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6"
-        style={{ background: '#FAF8F5' }}>
+        style={{ background: 'var(--color-bg)' }}>
         <div className="text-5xl mb-4">📡</div>
         <h2 className="text-xl font-black text-gray-900 text-center mb-2 font-sans">{t.voiceNoInternet}</h2>
-        <p className="text-sm text-gray-500 text-center mb-8 font-sans">{t.voiceNoInternetHint}</p>
+        <p className="text-sm text-gray-500 text-center mb-8 font-sans" style={{ color: 'var(--color-text-muted)' }}>{t.voiceNoInternetHint}</p>
         <button
           onClick={onTypeInstead}
           className="w-full max-w-xs py-4 font-black text-white text-base mb-3 font-sans"
@@ -251,7 +259,7 @@ function VoiceRecordScreen({ onTranscript, onTypeInstead }) {
         <button
           onClick={handleRetry}
           className="w-full max-w-xs py-4 font-bold text-gray-700 text-base font-sans"
-          style={{ background: '#f5f5f5', borderRadius: 'var(--radius-md)' }}
+          style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text)', borderRadius: 'var(--radius-md)' }}
         >
           {t.voiceRetry}
         </button>

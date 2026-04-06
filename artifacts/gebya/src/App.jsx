@@ -34,14 +34,14 @@ import { usePwaInstall } from './hooks/usePwaInstall.js';
 import { resendLatestTelegramUpdate, sendTelegramLedgerUpdate, syncTelegramCustomerState } from './utils/telegramBotClient';
 
 const P = {
-  bg: '#FAF8F5',
-  header: '#1B4332',
-  actionBar: '#163a2a',
+  bg: 'var(--color-bg)',
+  header: 'var(--color-primary)',
+  actionBar: 'var(--color-primary-dark)',
   amber: '#C4883A',
   amberLight: 'rgba(196,136,58,0.12)',
   coral: '#D4654A',
-  border: '#e8e2d8',
-  borderLight: '#f0ede8',
+  border: 'var(--color-border)',
+  borderLight: 'var(--color-border-light)',
 };
 
 function buildVoiceSummaryFromDraft(draft) {
@@ -104,13 +104,13 @@ function ShareModal({ summary, telegram, onClose, t }) {
       className="fixed inset-0 bg-black/60 flex items-end justify-center z-50 animate-fade"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white w-full max-w-md pb-safe animate-slide-up" style={{ borderRadius: '24px 24px 0 0', boxShadow: 'var(--shadow-lg)' }}>
+      <div className="bg-white w-full max-w-md pb-safe animate-slide-up" style={{ background: 'var(--color-surface)', borderRadius: '24px 24px 0 0', boxShadow: 'var(--shadow-lg)' }}>
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: 'var(--color-border-light)' }}>
           <h2 className="text-base font-black text-gray-800 font-sans">📤 {t.shareTitle}</h2>
           <button
             onClick={onClose}
             className="w-10 h-10 rounded-full flex items-center justify-center min-w-[44px] min-h-[44px] press-scale"
-            style={{ background: '#f5f5f5' }}
+            style={{ background: 'var(--color-surface-muted)' }}
             aria-label={t.cancel}
           >
             <X className="w-5 h-5 text-gray-500" />
@@ -119,7 +119,7 @@ function ShareModal({ summary, telegram, onClose, t }) {
         <div className="px-5 py-4 space-y-2">
           <div
             className="px-4 py-3 text-xs text-gray-500 font-mono whitespace-pre-wrap"
-            style={{ background: '#FAF8F5', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', maxHeight: '140px', overflowY: 'auto', fontSize: '0.7rem', lineHeight: 1.5 }}
+            style={{ background: 'var(--color-surface-soft)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', maxHeight: '140px', overflowY: 'auto', fontSize: '0.7rem', lineHeight: 1.5, color: 'var(--color-text-muted)' }}
           >
             {summary}
           </div>
@@ -144,7 +144,7 @@ function ShareModal({ summary, telegram, onClose, t }) {
           <button
             onClick={handleCopy}
             className="w-full py-3 font-bold text-sm flex items-center justify-center gap-2 min-h-[48px] press-scale"
-            style={{ background: '#f5f5f5', color: '#374151', borderRadius: 'var(--radius-md)' }}
+            style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text)', borderRadius: 'var(--radius-md)' }}
           >
             📋 {t.copyText}
           </button>
@@ -163,7 +163,7 @@ function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t
   return (
     <div
       className="overflow-hidden animate-elastic"
-      style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
+      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
     >
       <div className="px-4 py-4">
         <div className="flex items-start gap-3">
@@ -177,7 +177,7 @@ function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t
             <p className="font-black text-gray-900 text-sm font-sans">
               {t.trustCardTitle || 'Your notebook stays on this phone'}
             </p>
-            <p className="text-sm mt-1 font-sans" style={{ color: '#4b5563' }}>
+            <p className="text-sm mt-1 font-sans" style={{ color: 'var(--color-text-muted)' }}>
               {t.trustCardBody || 'Save your sales, close the app, and open again later. Your records stay here on this phone.'}
             </p>
             {totalEntries > 0 && (
@@ -191,7 +191,7 @@ function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t
                 {savedAt && (
                   <span
                     className="px-2.5 py-1 text-xs font-bold"
-                    style={{ background: '#f5f5f5', color: '#4b5563', borderRadius: '999px' }}
+                    style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)', borderRadius: '999px' }}
                   >
                     {t.trustLastSaved || 'Last saved'} {savedAt}
                   </span>
@@ -208,9 +208,9 @@ function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t
       </div>
       <div
         className="px-4 py-3 flex items-center justify-between gap-3"
-        style={{ background: '#FAF8F5', borderTop: '1px solid var(--color-border-light)' }}
+        style={{ background: 'var(--color-surface-soft)', borderTop: '1px solid var(--color-border-light)' }}
       >
-        <p className="text-xs font-medium font-sans" style={{ color: '#6b7280' }}>
+        <p className="text-xs font-medium font-sans" style={{ color: 'var(--color-text-muted)' }}>
           {t.trustReopenHint || 'Close and reopen anytime — your records stay here.'}
         </p>
         {totalEntries === 0 && (
@@ -417,6 +417,7 @@ function AppInner() {
 
   const handleAddTransaction = async (transaction) => {
     try {
+      const isOnlineNow = isBrowserOnline();
       const now = new Date(transaction.created_at);
       const newTxn = {
         ...transaction,
@@ -478,7 +479,8 @@ function AppInner() {
       }
 
       const toastMsg = { sale: t.saleSaved, expense: t.expenseSaved }[transaction.type] || '✓';
-      fireToast(toastMsg, 4000, async () => {
+      const safeToastMsg = buildSavedOnDeviceMessage(toastMsg === 'âœ“' ? 'Saved' : toastMsg, isOnlineNow);
+      fireToast(safeToastMsg, isOnlineNow ? 4000 : 4500, async () => {
         try {
           await db.transactions.delete(id);
           setTransactions(prev => prev.filter(t2 => t2.id !== id));
@@ -1036,6 +1038,7 @@ function AppInner() {
     let nextBalance = 0;
     let previousBalance = Math.max(customer.balance || 0, 0);
     let referenceCode = null;
+    let latestCustomerRecord = null;
 
     await db.transaction('rw', db.customer_transactions, db.customers, async () => {
       const customerRecord = await db.customers.get(payload.customer_id);
@@ -1067,6 +1070,7 @@ function AppInner() {
       saved = await db.customer_transactions.get(id);
       nextBalance = getCustomerBalance([saved, ...existingTx]);
       await db.customers.update(draft.customer_id, { updated_at: now });
+      latestCustomerRecord = await db.customers.get(draft.customer_id);
     });
 
     if (customerMissing) {
@@ -1084,6 +1088,9 @@ function AppInner() {
       previousBalance > 0 &&
       nextBalance <= 0
     );
+    const deliveryCustomer = latestCustomerRecord
+      ? { ...customer, ...latestCustomerRecord, balance: nextBalance }
+      : customer;
 
     setLedgerTransactions(prev => insertCustomerTransaction(prev, saved));
     setLedgerCustomers(prev => prev.map(c => c.id === draft.customer_id ? { ...c, updated_at: now } : c));
@@ -1127,7 +1134,7 @@ function AppInner() {
     let telegramDeliveryError = null;
     const message = buildCustomerLedgerTelegramMessage({
       shopName: shopProfile?.name,
-      customerName: customer.display_name,
+      customerName: deliveryCustomer.display_name,
       type: draft.type,
       amount,
       itemNote: draft.item_note,
@@ -1137,34 +1144,44 @@ function AppInner() {
       referenceCode,
     });
 
-    if (customer?.telegram_chat_id) {
-      await syncLinkedCustomerTelegramState(customer, nextBalance);
+    if (deliveryCustomer?.telegram_chat_id && isOnlineNow) {
+      await syncLinkedCustomerTelegramState(deliveryCustomer, nextBalance);
     }
 
-    if (customer?.telegram_notify_enabled && customer?.telegram_chat_id && customer?.telegram_link_token) {
-      try {
-        const result = await sendTelegramLedgerUpdate({
-          token: customer.telegram_link_token,
-          currentBalance: nextBalance,
-          message,
-          reference: referenceCode,
-        });
-        telegramDeliveryState = result?.delivered ? 'bot_sent' : 'bot_pending';
-      } catch (error) {
-        telegramDeliveryState = 'bot_failed';
-        telegramDeliveryError = error?.message || 'Telegram send failed';
-      }
-    } else if (customer?.telegram_notify_enabled && customer?.telegram_username) {
-      const telegramUrl = buildTelegramMessageUrl(customer.telegram_username, message);
-      if (telegramUrl) {
-        window.open(telegramUrl, '_blank', 'noopener,noreferrer');
-        telegramDeliveryState = 'manual_opened';
+    if (deliveryCustomer?.telegram_notify_enabled && deliveryCustomer?.telegram_chat_id && deliveryCustomer?.telegram_link_token) {
+      if (!isOnlineNow) {
+        telegramDeliveryState = 'bot_waiting_for_connection';
+        telegramDeliveryError = 'Telegram update needs internet.';
       } else {
-        telegramDeliveryState = 'manual_unavailable';
-        telegramDeliveryError = 'Manual Telegram contact is invalid.';
+        try {
+          const result = await sendTelegramLedgerUpdate({
+            token: deliveryCustomer.telegram_link_token,
+            currentBalance: nextBalance,
+            message,
+            reference: referenceCode,
+          });
+          telegramDeliveryState = result?.delivered ? 'bot_sent' : 'bot_pending';
+        } catch (error) {
+          telegramDeliveryState = 'bot_failed';
+          telegramDeliveryError = error?.message || 'Telegram send failed';
+        }
+      }
+    } else if (deliveryCustomer?.telegram_notify_enabled && deliveryCustomer?.telegram_username) {
+      if (!isOnlineNow) {
+        telegramDeliveryState = 'manual_waiting_for_connection';
+        telegramDeliveryError = 'Open Telegram when internet returns to send this update.';
+      } else {
+        const telegramUrl = buildTelegramMessageUrl(deliveryCustomer.telegram_username, message);
+        if (telegramUrl) {
+          window.open(telegramUrl, '_blank', 'noopener,noreferrer');
+          telegramDeliveryState = 'manual_opened';
+        } else {
+          telegramDeliveryState = 'manual_unavailable';
+          telegramDeliveryError = 'Manual Telegram contact is invalid.';
+        }
       }
     } else {
-      telegramDeliveryState = customer?.telegram_chat_id ? 'bot_linked_updates_off' : 'not_linked';
+      telegramDeliveryState = deliveryCustomer?.telegram_chat_id ? 'bot_linked_updates_off' : 'not_linked';
     }
 
     if (saved?.id) {
@@ -1181,6 +1198,10 @@ function AppInner() {
 
     if (telegramDeliveryState === 'bot_failed') {
       fireToast(`Dubie saved. ${telegramDeliveryError || 'Telegram send failed.'}`, 2600);
+    } else if (telegramDeliveryState === 'bot_waiting_for_connection') {
+      fireToast('Dubie saved on this phone. Telegram will send after you reconnect and resend.', 3200);
+    } else if (telegramDeliveryState === 'manual_waiting_for_connection') {
+      fireToast('Dubie saved on this phone. Open Telegram after internet returns to send the drafted update.', 3200);
     }
 
     return true;
@@ -1287,7 +1308,7 @@ function AppInner() {
         <div className="text-center animate-elastic">
           <div className="text-5xl mb-3">📒</div>
           <h1 className="text-2xl font-black font-serif" style={{ color: P.header }}>ገበያ</h1>
-          <p className="text-sm mt-2" style={{ color: '#9ca3af' }}>{t.loading}</p>
+          <p className="text-sm mt-2" style={{ color: 'var(--color-text-soft)' }}>{t.loading}</p>
         </div>
       </div>
     );
@@ -1483,7 +1504,7 @@ function AppInner() {
             />
 
 
-            <div className="overflow-hidden animate-elastic stagger-3" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
+            <div className="overflow-hidden animate-elastic stagger-3" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
               <div className="px-4 py-3 border-b" style={{ borderColor: P.borderLight }}>
                 <h3 className="font-bold text-gray-700 text-sm font-sans">
                   {t.todaysEntries}
@@ -1496,7 +1517,7 @@ function AppInner() {
               {todayTransactions.length === 0 ? (
                 <div className="px-4 py-10 text-center">
                   <p className="text-4xl mb-3">🎤</p>
-                  <p className="font-bold text-base mb-1" style={{ color: '#374151' }}>{lang === 'am' ? 'ገና ምንም ሽያጭ አልተመዘገበም' : 'No sales recorded yet'}</p>
+                  <p className="font-bold text-base mb-1" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ገና ምንም ሽያጭ አልተመዘገበም' : 'No sales recorded yet'}</p>
                   <p className="text-sm font-semibold" style={{ color: P.amber }}>
                     {lang === 'am' ? 'የመጀመሪያ ሽያጭዎን ለመመዝገብ ከላይ ይጫኑ' : 'Tap above to record your first sale'}
                   </p>
@@ -1620,7 +1641,7 @@ function AppInner() {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-40 border-t"
-        style={{ background: '#fff', borderColor: P.border }}>
+        style={{ background: 'var(--color-surface)', borderColor: P.border }}>
         <div className="flex">
           {tabs.map(tab => {
             const Icon = tab.icon;
@@ -1755,10 +1776,10 @@ function AppInner() {
 
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6 animate-fade">
-          <div className="bg-white p-6 w-full max-w-sm animate-elastic" style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)' }}>
+          <div className="bg-white p-6 w-full max-w-sm animate-elastic" style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)' }}>
             <div className="text-3xl text-center mb-3">{typeEmoji[deleteTarget.type]}</div>
             <h3 className="text-lg font-black text-gray-900 text-center mb-1 font-sans">{t.deleteEntry}</h3>
-            <p className="text-sm text-gray-500 text-center mb-5">
+            <p className="text-sm text-gray-500 text-center mb-5" style={{ color: 'var(--color-text-muted)' }}>
               "{deleteTarget.item_name}" · {fmt(deleteTarget.amount || 0)} {t.birr}
             </p>
             <div className="space-y-2">
@@ -1769,7 +1790,7 @@ function AppInner() {
               </button>
               <button onClick={() => setDeleteTarget(null)}
                 className="w-full p-4 font-bold min-h-[52px] press-scale"
-                style={{ background: '#f5f5f5', color: '#374151', borderRadius: 'var(--radius-md)' }}>
+                style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text)', borderRadius: 'var(--radius-md)' }}>
                 {t.cancel}
               </button>
             </div>
