@@ -1,5 +1,7 @@
 ﻿import { createContext, useContext, useState } from 'react';
 
+import { useEffect } from 'react';
+
 // WARNING: NATIVE-SPEAKER VERIFICATION REQUIRED
 // All Amharic (AM) strings below were machine-translated and have NOT been
 // reviewed by a native Amharic speaker. Before public launch, every string in
@@ -972,6 +974,11 @@ const AM_OVERRIDES = {
   creditBtn: 'ዱቤ',
   creditBtnLabel: 'ዱቤ',
   todaysEntries: 'የዛሬ ግቤቶች',
+  shareMyStats: 'ስታቲስቲክስን አጋራ',
+  copiedToClipboard: 'ወደ ቅጂ ተገልብጧል',
+  worksOffline: 'ከኢንተርኔት ውጪም ይሰራል · ውሂቡ በስልክዎ ላይ ይቆያል · ነፃ',
+  reloading: 'እንደገና በመጫን ላይ…',
+  newBestDay: 'አዲስ ምርጥ ቀን',
   onboardWelcome: 'ማስታወሻዎን ጀምር',
   onboardSubtitle: 'የሱቅ ማስታወሻ',
   onboardTagline: 'የሱቅ ማስታወሻ ደብተር',
@@ -995,11 +1002,25 @@ const AM_OVERRIDES = {
   offlineReadyBody: 'ግንኙነት ቢደክምም ገበያን እንደገና መክፈት ይችላሉ፣ መዝገቦችዎም በዚህ ስልክ ላይ ይቆያሉ።',
   offlineNowTitle: 'አሁን ከኢንተርኔት ውጪ ነዎት',
   offlineNowBody: 'በዚህ ስልክ ላይ የተቀመጠው ማስታወሻ እንደተለመደው ይሰራል።',
+  noEntries: 'ገና ምንም ግቤት የለም። ለመጀመር ከላይ ያሉትን ቁልፎች ይጫኑ።',
   recordByVoice: 'ሽያጭ ለመመዝገብ ይናገሩ',
   recordByVoiceSubLabel: 'ሽያጭ ለማስቀመጥ ፈጣኑ መንገድ',
   typeSale: 'በጽሑፍ ሽያጭ',
   typeSaleLabel: 'በጽሑፍ ሽያጭ',
   noEntriesPrompt: 'የመጀመሪያ ሽያጭዎን ለማስቀመጥ ከላይ ያለውን ቁልፍ ይጫኑ',
+  whatDidYouSell: 'ምን ሸጡ?',
+  whatDidYouSpendOn: 'ወጪው ምን ላይ ነበር?',
+  howMuchTotal: 'ጠቅላላ ስንት ነው?',
+  howMany: 'ስንት?',
+  whenDue: 'መቼ ነው የሚከፈለው?',
+  whatDidYouPay: 'ለዚህ ምን ከፈሉ?',
+  saleSaved: 'ሽያጩ ተቀምጧል',
+  expenseSaved: 'ወጪው ተቀምጧል',
+  creditSaved: 'ዱቤው ተቀምጧል',
+  paymentSaved: 'ክፍያው ተቀምጧል',
+  undone: 'ተመልሷል',
+  voiceTryFinishSoon: 'እባክዎ ቶሎ ያጠናቁ',
+  voiceSaleSaved: 'የድምጽ ሽያጩ ተቀምጧል',
   introSlide1Title: 'የሱቅ ማስታወሻ',
   introSlide1Body: 'ሽያጭ፣ ወጪ እና ዱቤን በስልክዎ ላይ ቀላል ማስታወሻ ያድርጉ።',
   introSlide2Title: 'ገንዘብዎን ፈጣን ይመልከቱ',
@@ -1016,10 +1037,15 @@ const LangContext = createContext(null);
 export function LangProvider({ children }) {
   const [lang, setLang] = useState(() => localStorage.getItem('gebya_lang') || 'en');
 
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.body.dataset.lang = lang;
+    localStorage.setItem('gebya_lang', lang);
+  }, [lang]);
+
   const toggleLang = () => {
     setLang(prev => {
       const next = prev === 'en' ? 'am' : 'en';
-      localStorage.setItem('gebya_lang', next);
       return next;
     });
   };

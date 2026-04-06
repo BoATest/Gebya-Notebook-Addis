@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 :root {
+  --font-sans-default: "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-sans-amharic: "Noto Sans Ethiopic", "Noto Sans", "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-serif-default: Georgia, Cambria, "Times New Roman", serif;
   --color-primary: #1B4332;
   --color-primary-dark: #0f2b20;
   --color-primary-light: #2d6a4f;
@@ -53,7 +56,7 @@
   }
 
   body {
-    font-family: "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-sans-default);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--color-bg);
@@ -67,11 +70,28 @@
   }
 
   h1, h2, h3, .heading-serif {
-    font-family: Georgia, Cambria, "Times New Roman", serif;
+    font-family: var(--font-serif-default);
   }
 
   input, button, textarea {
-    font-family: "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-sans-default);
+  }
+
+  html[lang='am'] body,
+  html[lang='am'] input,
+  html[lang='am'] button,
+  html[lang='am'] textarea,
+  html[lang='am'] select,
+  body[data-lang='am'] {
+    font-family: var(--font-sans-amharic);
+  }
+
+  html[lang='am'] h1,
+  html[lang='am'] h2,
+  html[lang='am'] h3,
+  html[lang='am'] .heading-serif,
+  html[lang='am'] .font-serif {
+    font-family: var(--font-sans-amharic);
   }
 
   input[type="number"]::-webkit-inner-spin-button,
@@ -137,8 +157,8 @@
   .shadow-md-green { box-shadow: var(--shadow-md); }
   .shadow-lg-green { box-shadow: var(--shadow-lg); }
 
-  .font-serif { font-family: Georgia, Cambria, "Times New Roman", serif; }
-  .font-sans { font-family: "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+  .font-serif { font-family: var(--font-serif-default); }
+  .font-sans { font-family: var(--font-sans-default); }
 }
 
 @keyframes elasticIn {
