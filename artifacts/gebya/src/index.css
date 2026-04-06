@@ -1,14 +1,23 @@
 @import "tailwindcss";
 
 :root {
+  --font-sans-default: "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-sans-amharic: "Noto Sans Ethiopic", "Noto Sans", "Aptos", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-serif-default: Georgia, Cambria, "Times New Roman", serif;
   --color-primary: #1B4332;
   --color-primary-dark: #0f2b20;
   --color-primary-light: #2d6a4f;
   --color-accent-coral: #D4654A;
   --color-accent-amber: #C4883A;
   --color-bg: #FAF8F5;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f5f5f5;
+  --color-surface-soft: #faf8f5;
   --color-border: #e8e2d8;
   --color-border-light: #f0ede8;
+  --color-text: #111827;
+  --color-text-muted: #6b7280;
+  --color-text-soft: #9ca3af;
 
   --radius-sm: 12px;
   --radius-md: 18px;
@@ -19,10 +28,22 @@
   --shadow-sm: 0 2px 8px rgba(27,67,50,0.08), 0 1px 2px rgba(27,67,50,0.04);
   --shadow-md: 0 4px 16px rgba(27,67,50,0.10), 0 2px 4px rgba(27,67,50,0.06);
   --shadow-lg: 0 8px 32px rgba(27,67,50,0.14), 0 4px 8px rgba(27,67,50,0.08);
+}
 
-  --font-sans-base: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-serif-base: 'Instrument Serif', Georgia, serif;
-  --font-ethiopic: 'Noto Sans Ethiopic', 'Abyssinica SIL', 'Noto Sans', sans-serif;
+:root[data-theme='dark'] {
+  --color-bg: #0f1720;
+  --color-surface: #17212b;
+  --color-surface-muted: #22303d;
+  --color-surface-soft: #1c2833;
+  --color-border: #2b3946;
+  --color-border-light: #334454;
+  --color-text: #f3f4f6;
+  --color-text-muted: #9ca3af;
+  --color-text-soft: #7f8b97;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.28);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.34);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.48);
 }
 
 @layer base {
@@ -35,11 +56,11 @@
   }
 
   body {
-    font-family: var(--font-sans-base);
+    font-family: var(--font-sans-default);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--color-bg);
-    color: #111827;
+    color: var(--color-text);
     min-height: 100dvh;
     font-size: 16px;
   }
@@ -49,11 +70,28 @@
   }
 
   h1, h2, h3, .heading-serif {
-    font-family: var(--font-serif-base);
+    font-family: var(--font-serif-default);
   }
 
   input, button, textarea {
-    font-family: var(--font-sans-base);
+    font-family: var(--font-sans-default);
+  }
+
+  html[lang='am'] body,
+  html[lang='am'] input,
+  html[lang='am'] button,
+  html[lang='am'] textarea,
+  html[lang='am'] select,
+  body[data-lang='am'] {
+    font-family: var(--font-sans-amharic);
+  }
+
+  html[lang='am'] h1,
+  html[lang='am'] h2,
+  html[lang='am'] h3,
+  html[lang='am'] .heading-serif,
+  html[lang='am'] .font-serif {
+    font-family: var(--font-sans-amharic);
   }
 
   input[type="number"]::-webkit-inner-spin-button,
@@ -65,28 +103,47 @@
   input[type="number"] {
     -moz-appearance: textfield;
   }
-  html[lang='am'] body,
-  body[data-lang='am'] {
-    font-family: var(--font-ethiopic);
-    line-height: 1.55;
+
+  html[data-theme='dark'] body,
+  html[data-theme='dark'] #root {
+    background-color: var(--color-bg);
+    color: var(--color-text);
   }
 
-  html[lang='am'] h1,
-  html[lang='am'] h2,
-  html[lang='am'] h3,
-  html[lang='am'] .heading-serif,
-  html[lang='am'] input,
-  html[lang='am'] button,
-  html[lang='am'] textarea,
-  body[data-lang='am'] h1,
-  body[data-lang='am'] h2,
-  body[data-lang='am'] h3,
-  body[data-lang='am'] .heading-serif,
-  body[data-lang='am'] input,
-  body[data-lang='am'] button,
-  body[data-lang='am'] textarea {
-    font-family: var(--font-ethiopic);
-    letter-spacing: normal;
+  html[data-theme='dark'] .bg-white {
+    background-color: var(--color-surface) !important;
+  }
+
+  html[data-theme='dark'] .text-gray-900,
+  html[data-theme='dark'] .text-gray-800,
+  html[data-theme='dark'] .text-gray-700 {
+    color: var(--color-text) !important;
+  }
+
+  html[data-theme='dark'] .text-gray-600,
+  html[data-theme='dark'] .text-gray-500,
+  html[data-theme='dark'] .text-gray-400 {
+    color: var(--color-text-muted) !important;
+  }
+
+  html[data-theme='dark'] .border,
+  html[data-theme='dark'] .border-b,
+  html[data-theme='dark'] .border-t,
+  html[data-theme='dark'] .border-l-4,
+  html[data-theme='dark'] .divide-y > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--color-border-light) !important;
+  }
+
+  html[data-theme='dark'] input,
+  html[data-theme='dark'] textarea,
+  html[data-theme='dark'] select {
+    background-color: var(--color-surface) !important;
+    color: var(--color-text) !important;
+  }
+
+  html[data-theme='dark'] input::placeholder,
+  html[data-theme='dark'] textarea::placeholder {
+    color: var(--color-text-soft) !important;
   }
 }
 
@@ -100,8 +157,8 @@
   .shadow-md-green { box-shadow: var(--shadow-md); }
   .shadow-lg-green { box-shadow: var(--shadow-lg); }
 
-  .font-serif { font-family: var(--font-serif-base); }
-  .font-sans { font-family: var(--font-sans-base); }
+  .font-serif { font-family: var(--font-serif-default); }
+  .font-sans { font-family: var(--font-sans-default); }
 }
 
 @keyframes elasticIn {
