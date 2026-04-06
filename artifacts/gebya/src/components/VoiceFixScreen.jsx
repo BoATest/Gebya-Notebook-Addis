@@ -11,7 +11,7 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, onCancel, enabledProviders }) {
+function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, onCancel, enabledProviders, lastProviderByType }) {
   const { t } = useLang();
   const hasMultiple = items.length > 1;
   const isSaleIntent = !draft?.intent || draft.intent === 'sale';
@@ -138,7 +138,7 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, 
           onTypeChange={setPaymentType}
           onProviderChange={setPaymentProvider}
           enabledProviders={enabledProviders}
-          lastProviderByType={{}}
+          lastProviderByType={lastProviderByType || {}}
         />
 
         {draftItems.length > 0 && (

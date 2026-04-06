@@ -21,9 +21,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev',
+    command: 'pnpm serve',
     url: 'http://127.0.0.1:4173',
-    reuseExistingServer: false,
+    reuseExistingServer: true,
     timeout: 120000,
     cwd: configDir,
   },

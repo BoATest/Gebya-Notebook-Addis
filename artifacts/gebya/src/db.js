@@ -375,6 +375,23 @@ db.version(13).stores({
   analytics: 'key, value',
 });
 
+// Staff members are meant to be deactivated rather than hard-deleted once they
+// have historical records. Transactions keep a name snapshot so shop history
+// stays trustworthy even after staff changes.
+db.version(14).stores({
+  transactions: '++id, type, amount, item_name, cost_price, quantity, profit, is_credit, customer_id, customer_name, created_at, ethiopian_date, payment_type, payment_provider, updated_at, source, raw_transcript, detected_total, was_edited, transcription_provider, parsing_confidence, voice_note, raw_audio_ref, actor_role, actor_staff_member_id, actor_name_snapshot',
+  customers: '++id, display_name, note, phone_number, telegram_username, telegram_chat_id, telegram_notify_enabled, telegram_link_token, telegram_linked_at, telegram_link_requested_at, created_at, updated_at',
+  customer_transactions: '++id, customer_id, type, amount, due_date, reference_code, telegram_delivery_state, telegram_delivery_error, telegram_delivery_attempted_at, created_at, updated_at, actor_role, actor_staff_member_id, actor_name_snapshot',
+  catalog_entries: '++id, name, kind, active, created_at, updated_at',
+  suppliers: '++id, display_name, phone_number, note, active, created_at, updated_at',
+  supplier_transactions: '++id, supplier_id, type, catalog_entry_id, created_at, updated_at, actor_role, actor_staff_member_id, actor_name_snapshot',
+  staff_members: '++id, display_name, role, active, created_at, updated_at, deactivated_at',
+  credit_records: '++id, customer_id, customer_name, original_amount, paid_amount, remaining_amount, due_date, status, created_at, direction',
+  credit_payment_logs: '++id, credit_record_id, amount, payment_method, paid_at',
+  settings: 'key, value',
+  analytics: 'key, value',
+});
+
 db.on('ready', async () => {
   const privacySetting = await db.settings.get('privacy_mode');
   if (!privacySetting) {

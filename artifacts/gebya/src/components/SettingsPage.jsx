@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown, Share2, Sun, Moon } from 'lucide-react';
+import { lazy, Suspense, useState, useEffect } from 'react';
+import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown, Share2, Sun, Moon, Users } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
 import { useTheme } from '../context/ThemeContext';
@@ -7,11 +7,12 @@ import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt, parseInput } from '../utils/numformat';
 import db from '../db';
 import { ALL_BANKS, ALL_WALLETS } from './PaymentTypeChips';
-import { BADGE_DEFINITIONS } from '../utils/badges';
 import { fireToast } from './Toast';
 import { normalizeTelegram } from '../utils/customerTelegram';
-import PwaInstallPanel from './PwaInstallPanel.jsx';
 import { SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger';
+
+const PwaInstallPanel = lazy(() => import('./PwaInstallPanel.jsx'));
+const SettingsBadgesPanel = lazy(() => import('./SettingsBadgesPanel.jsx'));
 
 const FREQ_LABELS_EN = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
 const FREQ_LABELS_AM = { daily: 'ዕለታዊ', weekly: 'ሳምንታዊ', monthly: 'ወርሃዊ' };
@@ -44,6 +45,14 @@ function SettingsSection({ id, title, openSection, setOpenSection, children, def
   );
 }
 
+function SettingsPanelFallback({ label }) {
+  return (
+    <div className="bg-white rounded-2xl border border-green-100/50 px-5 py-4 text-sm font-semibold text-gray-500">
+      {label}
+    </div>
+  );
+}
+
 function SettingsPage({
   transactions,
   todayTransactions,
@@ -51,7 +60,15 @@ function SettingsPage({
   catalogEntries,
   supplierSummaries,
   shopProfile,
+  staffMembers,
+  activeStaffMemberId,
+  currentActorLabel,
   onProfileSave,
+  onSaveStaffMember,
+  onUpdateStaffMember,
+  onDeactivateStaffMember,
+  onReactivateStaffMember,
+  onSetActiveStaffMember,
   enabledProviders,
   onProvidersChange,
   recurringExpenses,
@@ -99,6 +116,10 @@ function SettingsPage({
     note: '',
   });
   const [supplierDeleteTarget, setSupplierDeleteTarget] = useState(null);
+  const [staffName, setStaffName] = useState('');
+  const [staffDeactivateTarget, setStaffDeactivateTarget] = useState(null);
+  const [editingStaffId, setEditingStaffId] = useState(null);
+  const [editingStaffName, setEditingStaffName] = useState('');
 
   const [editName, setEditName] = useState(shopProfile?.name || '');
   const [editPhoneDigits, setEditPhoneDigits] = useState(() => {
@@ -140,6 +161,32 @@ function SettingsPage({
     load();
   }, []);
 
+  useEffect(() => {
+    const loadVoiceQuality = async () => {
+      try {
+        const [statsRow, eventsRow] = await Promise.all([
+          db.analytics.get('voice_quality_stats'),
+          db.analytics.get('voice_quality_events'),
+        ]);
+
+        let stats = null;
+        let events = [];
+
+        try { stats = statsRow?.value ? JSON.parse(statsRow.value) : null; } catch { stats = null; }
+        try { events = eventsRow?.value ? JSON.parse(eventsRow.value) : []; } catch { events = []; }
+
+        setVoiceQuality({
+          stats,
+          events: Array.isArray(events) ? events.slice().reverse().slice(0, 8) : [],
+        });
+      } catch {
+        setVoiceQuality({ stats: null, events: [] });
+      }
+    };
+
+    loadVoiceQuality();
+  }, []);
+
   const [recurring, setRecurring] = useState(recurringExpenses || []);
   const [reName, setReName] = useState('');
   const [reAmount, setReAmount] = useState('');
@@ -147,6 +194,7 @@ function SettingsPage({
   const [showReForm, setShowReForm] = useState(false);
 
   const [shareCopied, setShareCopied] = useState(false);
+  const [voiceQuality, setVoiceQuality] = useState({ stats: null, events: [] });
   const activeCatalogEntries = (catalogEntries || []).filter(entry => entry.active !== false);
   const selectedSupplier = (supplierSummaries || []).find(item => String(item.id) === String(supplierTxForm.supplier_id)) || null;
 
@@ -157,6 +205,36 @@ function SettingsPage({
     setEditTelegram(normalizedTelegram || '');
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2000);
+  };
+
+  const handleAddStaffMember = async () => {
+    const saved = await onSaveStaffMember?.({ display_name: staffName, role: 'staff', active: true });
+    if (!saved) return;
+    setStaffName('');
+  };
+
+  const handleConfirmDeactivateStaff = async () => {
+    if (!staffDeactivateTarget?.id) return;
+    const ok = await onDeactivateStaffMember?.(staffDeactivateTarget.id);
+    if (!ok) return;
+    setStaffDeactivateTarget(null);
+  };
+
+  const startEditingStaffMember = (member) => {
+    setEditingStaffId(member.id);
+    setEditingStaffName(member.display_name || '');
+  };
+
+  const cancelEditingStaffMember = () => {
+    setEditingStaffId(null);
+    setEditingStaffName('');
+  };
+
+  const handleSaveEditedStaffMember = async () => {
+    if (!editingStaffId) return;
+    const saved = await onUpdateStaffMember?.(editingStaffId, { display_name: editingStaffName });
+    if (!saved) return;
+    cancelEditingStaffMember();
   };
 
   const csvCell = (value) => {
@@ -283,9 +361,11 @@ function SettingsPage({
       db.catalog_entries.clear(),
       db.suppliers.clear(),
       db.supplier_transactions.clear(),
+      db.staff_members?.clear?.() || Promise.resolve(),
       db.credit_records?.clear?.() || Promise.resolve(),
       db.credit_payment_logs?.clear?.() || Promise.resolve(),
-      db.settings.delete('last_saved_snapshot'),
+      db.settings.clear(),
+      db.analytics.clear(),
     ]);
     setCleared(true);
     setShowClearConfirm(false);
@@ -303,7 +383,7 @@ function SettingsPage({
     setProviders(updated);
     await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(updated) });
     onProvidersChange?.(updated);
-    fireToast(nowEnabled ? `✓ ${bank} ${t.providerEnabled}` : `${bank} ${t.providerDisabled}`, 1800);
+    fireToast(nowEnabled ? `${bank} ${t.providerEnabled}` : `${bank} ${t.providerDisabled}`, 1800);
   };
 
   const toggleWallet = async (wallet) => {
@@ -314,7 +394,7 @@ function SettingsPage({
     setProviders(updated);
     await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(updated) });
     onProvidersChange?.(updated);
-    fireToast(nowEnabled ? `✓ ${wallet} ${t.providerEnabled}` : `${wallet} ${t.providerDisabled}`, 1800);
+    fireToast(nowEnabled ? `${wallet} ${t.providerEnabled}` : `${wallet} ${t.providerDisabled}`, 1800);
   };
 
   const addCustomBank = async () => {
@@ -329,7 +409,7 @@ function SettingsPage({
     onProvidersChange?.(updatedProviders);
     setAddBankInput('');
     setShowAddBank(false);
-    fireToast(`✓ ${name} ${t.providerEnabled}`, 1800);
+    fireToast(`${name} ${t.providerEnabled}`, 1800);
   };
 
   const addCustomWallet = async () => {
@@ -344,7 +424,7 @@ function SettingsPage({
     onProvidersChange?.(updatedProviders);
     setAddWalletInput('');
     setShowAddWallet(false);
-    fireToast(`✓ ${name} ${t.providerEnabled}`, 1800);
+    fireToast(`${name} ${t.providerEnabled}`, 1800);
   };
 
   const addRecurring = async () => {
@@ -375,14 +455,13 @@ function SettingsPage({
     let firstUsedDisplay = firstUsed;
     try { firstUsedDisplay = firstUsed ? formatEthiopian(new Date(firstUsed)) : firstUsed; } catch { /* keep ISO fallback */ }
     const text = [
-      `📊 Gebya usage stats for ${shopProfile?.name || 'my shop'}:`,
-      `🔥 Current streak: ${streak} day${streak !== 1 ? 's' : ''} (longest: ${longestStreak})`,
-      `📅 Using since: ${firstUsedDisplay}`,
-      `📈 Total days active: ${daysActive?.length || 1}`,
-      `🛒 Entries: ${fc.sales || 0} sales · ${fc.expenses || 0} expenses · ${fc.credits || 0} Dubie`,
-      `📱 Sessions opened: ${sessionCount}`,
+      'Gebya usage stats for ' + (shopProfile?.name || 'my shop') + ':' ,
+      'Current streak: ' + streak + ' day' + (streak !== 1 ? 's' : '') + ' (longest: ' + longestStreak + ')' ,
+      'Using since: ' + firstUsedDisplay,
+      'Total days active: ' + (daysActive?.length || 1),
+      'Entries: ' + (fc.sales || 0) + ' sales - ' + (fc.expenses || 0) + ' expenses - ' + (fc.credits || 0) + ' Dubie',
+      'Sessions opened: ' + sessionCount,
     ].join('\n');
-
     if (navigator.share) {
       try { await navigator.share({ title: 'Gebya Stats', text }); return; } catch { /* fall through to clipboard */ }
     }
@@ -403,7 +482,16 @@ function SettingsPage({
     editTelegram.trim() !== (shopProfile?.telegram || '')
   );
 
-  const badgeList = (earnedBadges || []);
+  const badgeList = earnedBadges || [];
+  const voiceStats = voiceQuality.stats;
+  const capturedVoices = voiceStats?.captured || 0;
+  const savedVoices = voiceStats?.saved || 0;
+  const editedVoices = voiceStats?.saved_with_edit || 0;
+  const untouchedVoices = voiceStats?.saved_without_edit || 0;
+  const correctionRate = savedVoices > 0 ? Math.round((editedVoices / savedVoices) * 100) : null;
+  const saveWithoutEditRate = savedVoices > 0 ? Math.round((untouchedVoices / savedVoices) * 100) : null;
+  const fixOpenRate = capturedVoices > 0 ? Math.round(((voiceStats?.fix_opened || 0) / capturedVoices) * 100) : null;
+  const rerecordRate = capturedVoices > 0 ? Math.round(((voiceStats?.re_recorded || 0) / capturedVoices) * 100) : null;
 
   const todaySales = (todayTransactions || []).filter(tx => tx.type === 'sale');
   const todayExpenses = (todayTransactions || []).filter(tx => tx.type === 'expense');
@@ -524,7 +612,9 @@ function SettingsPage({
   return (
     <div className="space-y-5 pb-4">
 
-      <PwaInstallPanel pwa={pwa} variant="settings" />
+      <Suspense fallback={<SettingsPanelFallback label={t.loading} />}>
+        <PwaInstallPanel pwa={pwa} variant="settings" />
+      </Suspense>
 
       {(todayTransactions && todayTransactions.length > 0) && (
         <SettingsSection id="todayBreakdown" title={t.todaysBreakdown} openSection={openSection} setOpenSection={setOpenSection}>
@@ -570,38 +660,9 @@ function SettingsPage({
       )}
 
       <SettingsSection id="badges" title={t.achievementBadges} openSection={openSection} setOpenSection={setOpenSection}>
-        <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
-          <div className="px-4 pt-4 pb-3">
-            {badgeList.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-2">{t.noBadges}</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {BADGE_DEFINITIONS.filter(b => badgeList.includes(b.id)).map(badge => (
-                  <div
-                    key={badge.id}
-                    className="flex items-center gap-2 px-3 py-2 rounded-2xl"
-                    style={{ background: 'rgba(196,136,58,0.12)', border: '1.5px solid #C4883A' }}
-                  >
-                    <span className="text-xl">{badge.emoji}</span>
-                    <div>
-                      <div className="text-xs font-bold text-green-900">
-                        {lang === 'am' ? badge.titleAm : badge.title}
-                      </div>
-                      <div className="text-xs text-green-700">
-                        {lang === 'am' ? badge.descriptionAm : badge.description}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {badgeList.length > 0 && badgeList.length < BADGE_DEFINITIONS.length && (
-              <p className="text-xs text-gray-400 text-center mt-2">
-                {badgeList.length} / {BADGE_DEFINITIONS.length} {t.badgesEarned}
-              </p>
-            )}
-          </div>
-        </div>
+        <Suspense fallback={<SettingsPanelFallback label={t.loading} />}>
+          <SettingsBadgesPanel earnedBadges={badgeList} />
+        </Suspense>
       </SettingsSection>
 
       {usageStats && (
@@ -610,20 +671,20 @@ function SettingsPage({
             <div className="px-4 pt-4 pb-3 space-y-3">
               <div className="flex gap-3">
                 <div className="flex-1 rounded-xl p-3 text-center" style={{ background: '#fff7ed', border: '1.5px solid #fed7aa' }}>
-                  <div className="text-2xl font-black" style={{ color: '#c2410c' }}>🔥 {usageStats.streak}</div>
+                  <div className="text-2xl font-black" style={{ color: '#c2410c' }}>{usageStats.streak}</div>
                   <div className="text-xs font-semibold text-gray-600 mt-0.5">{t.dayStreak}</div>
                   <div className="text-xs text-gray-400">{t.best}: {usageStats.longestStreak}</div>
                 </div>
                 <div className="flex-1 rounded-xl p-3 text-center" style={{ background: '#f0fdf4', border: '1.5px solid #bbf7d0' }}>
-                  <div className="text-2xl font-black text-green-700">📅 {usageStats.daysActive?.length || 1}</div>
+                  <div className="text-2xl font-black text-green-700">{usageStats.daysActive?.length || 1}</div>
                   <div className="text-xs font-semibold text-gray-600 mt-0.5">{t.daysActive}</div>
                   <div className="text-xs text-gray-400">
-                    {t.since} {usageStats.firstUsed ? (() => { try { return formatEthiopian(new Date(usageStats.firstUsed)); } catch { return usageStats.firstUsed; } })() : '—'}
+                    {t.since} {usageStats.firstUsed ? (() => { try { return formatEthiopian(new Date(usageStats.firstUsed)); } catch { return usageStats.firstUsed; } })() : '-'}
                   </div>
                 </div>
               </div>
               <div className="rounded-xl p-3" style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
-                <div className="text-xs font-bold text-gray-500 mb-1.5">📊 {t.totalEntries}</div>
+                <div className="text-xs font-bold text-gray-500 mb-1.5">{t.totalEntries}</div>
                 <div className="flex justify-around text-center">
                   <div>
                     <div className="text-base font-black text-green-700">{usageStats.featureCounts?.sales || 0}</div>
@@ -658,8 +719,93 @@ function SettingsPage({
                 className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all min-h-[44px]"
                 style={{ background: shareCopied ? '#15803d' : '#C4883A' }}
               >
-                {shareCopied ? `✓ ${t.copiedToClipboard}` : t.shareMyStats}
+                {shareCopied ? t.copiedToClipboard : t.shareMyStats}
               </button>
+            </div>
+          </div>
+        </SettingsSection>
+      )}
+
+      {(voiceStats || voiceQuality.events.length > 0) && (
+        <SettingsSection id="voice-quality" title="Voice Quality" openSection={openSection} setOpenSection={setOpenSection}>
+          <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
+            <div className="px-4 pt-4 pb-3 space-y-3">
+              <div className="rounded-xl p-3" style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
+                <p className="text-sm font-bold text-gray-900">This helps us see whether voice is reducing work or creating more cleanup.</p>
+                <p className="text-xs text-gray-500 mt-1">One utterance means one real voice recording. The useful number is how often people save without editing.</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl p-3" style={{ background: '#f0fdf4', border: '1.5px solid #bbf7d0' }}>
+                  <div className="text-2xl font-black text-green-700">{capturedVoices}</div>
+                  <div className="text-xs font-semibold text-gray-600 mt-0.5">Voice captures</div>
+                </div>
+                <div className="rounded-xl p-3" style={{ background: '#eff6ff', border: '1.5px solid #bfdbfe' }}>
+                  <div className="text-2xl font-black text-blue-700">{savedVoices}</div>
+                  <div className="text-xs font-semibold text-gray-600 mt-0.5">Voice saves</div>
+                </div>
+                <div className="rounded-xl p-3" style={{ background: '#ecfdf5', border: '1.5px solid #a7f3d0' }}>
+                  <div className="text-2xl font-black text-green-700">{saveWithoutEditRate != null ? `${saveWithoutEditRate}%` : '-'}</div>
+                  <div className="text-xs font-semibold text-gray-600 mt-0.5">Saved without edit</div>
+                </div>
+                <div className="rounded-xl p-3" style={{ background: '#fff7ed', border: '1.5px solid #fed7aa' }}>
+                  <div className="text-2xl font-black" style={{ color: '#c2410c' }}>{correctionRate != null ? `${correctionRate}%` : '-'}</div>
+                  <div className="text-xs font-semibold text-gray-600 mt-0.5">Correction rate</div>
+                </div>
+              </div>
+
+              <div className="rounded-xl p-3" style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
+                <div className="grid grid-cols-2 gap-3 text-center">
+                  <div>
+                    <div className="text-base font-black text-gray-800">{voiceStats?.fix_opened || 0}</div>
+                    <div className="text-xs text-gray-500">Fix opened{fixOpenRate != null ? ` (${fixOpenRate}%)` : ''}</div>
+                  </div>
+                  <div>
+                    <div className="text-base font-black text-gray-800">{voiceStats?.re_recorded || 0}</div>
+                    <div className="text-xs text-gray-500">Re-recorded{rerecordRate != null ? ` (${rerecordRate}%)` : ''}</div>
+                  </div>
+                  <div>
+                    <div className="text-base font-black text-gray-800">{voiceStats?.amount_changed || 0}</div>
+                    <div className="text-xs text-gray-500">Amount changed</div>
+                  </div>
+                  <div>
+                    <div className="text-base font-black text-gray-800">{voiceStats?.items_changed || 0}</div>
+                    <div className="text-xs text-gray-500">Items changed</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl p-3" style={{ background: '#fff', border: '1.5px solid var(--color-border)' }}>
+                <p className="text-xs font-bold text-gray-500 mb-2">Recent voice events</p>
+                <div className="space-y-2">
+                  {voiceQuality.events.length === 0 && (
+                    <p className="text-xs text-gray-400">No voice quality events yet.</p>
+                  )}
+                  {voiceQuality.events.map((event, index) => (
+                    <div key={`${event.timestamp || 0}-${index}`} className="flex items-start justify-between gap-3 p-2 rounded-lg" style={{ background: '#FAF8F5' }}>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-800">
+                          {String(event.action || 'unknown').replace(/_/g, ' ')}
+                          {event.wasEdited ? ' - edited' : ''}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {event.provider || 'unknown provider'}
+                          {event.detected_items ? ` - ${event.detected_items} items` : ''}
+                          {event.needs_review ? ' - review needed' : ''}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-xs font-semibold text-gray-600">
+                          {event.timestamp ? new Date(event.timestamp).toLocaleDateString() : '-'}
+                        </p>
+                        <p className="text-[11px] text-gray-400">
+                          {event.transcript_length || 0} chars
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </SettingsSection>
@@ -668,6 +814,9 @@ function SettingsPage({
       <SettingsSection id="profile" title={t.shopProfile} openSection={openSection} setOpenSection={setOpenSection} defaultOpen>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 pt-5 pb-4 space-y-3">
+            <div className="rounded-xl px-4 py-3 text-xs font-medium" style={{ background: '#FAF8F5', color: '#5b6470', border: '1px solid #e8e2d8' }}>
+              This profile is the main owner identity for this phone's notebook. Changes here affect the whole shop notebook.
+            </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
                 <Store className="w-3.5 h-3.5" /> {t.userName} <span className="text-red-500">*</span>
@@ -683,7 +832,7 @@ function SettingsPage({
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5" /> {t.phoneNumber} <span className="text-red-500">*</span>
+                <Phone className="w-3.5 h-3.5" /> {t.phoneNumber} <span className="text-gray-400 font-normal">{t.onboardPhoneOptional || '(optional)'}</span>
               </label>
               <div className="flex gap-0">
                 <div
@@ -707,8 +856,8 @@ function SettingsPage({
               {phoneTouched && !phoneValid && editPhoneDigits.length > 0 && (
                 <p className="text-xs text-red-500 mt-1 font-medium">{t.phoneInvalid}</p>
               )}
-              {phoneTouched && editPhoneDigits.length === 0 && (
-                <p className="text-xs text-red-500 mt-1 font-medium">{t.phoneRequired}</p>
+              {editPhoneDigits.length === 0 && (
+                <p className="text-xs mt-1 font-medium text-gray-400">{t.onboardPhoneHelper || 'You can add your phone later in Settings.'}</p>
               )}
             </div>
             <div>
@@ -738,6 +887,157 @@ function SettingsPage({
             >
               {profileSaved ? <><Check className="w-4 h-4" /> {t.saved}</> : t.saveChanges}
             </button>
+          </div>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection id="team" title="Team" openSection={openSection} setOpenSection={setOpenSection}>
+        <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
+          <div className="px-5 py-4 space-y-4">
+            <div className="rounded-xl px-4 py-3 text-xs font-medium" style={{ background: '#FAF8F5', color: '#5b6470', border: '1px solid #e8e2d8' }}>
+              Owner-only area. Add staff for future attribution, choose who is currently entering records on this phone, and deactivate staff without deleting shop history.
+            </div>
+
+            <div className="rounded-xl border px-4 py-3" style={{ borderColor: '#e8e2d8', background: '#fcfbf8' }}>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Current record actor</div>
+              <div className="mt-1 text-sm font-black text-gray-900">{currentActorLabel || 'Owner'}</div>
+              <div className="mt-3">
+                <label className="block text-xs font-bold text-gray-500 mb-1.5">Save new records as</label>
+                <select
+                  value={activeStaffMemberId || ''}
+                  onChange={(e) => onSetActiveStaffMember?.(e.target.value || null)}
+                  className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none bg-white"
+                  style={{ borderColor: '#e8e2d8' }}
+                >
+                  <option value="">Owner ({shopProfile?.name || 'Owner'})</option>
+                  {(staffMembers || []).filter(member => member.active !== false).map(member => (
+                    <option key={member.id} value={member.id}>
+                      {member.display_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
+                <Users className="w-3.5 h-3.5" /> Add staff member
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={staffName}
+                  onChange={e => setStaffName(e.target.value)}
+                  placeholder="Staff name"
+                  className="flex-1 px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
+                  style={{ borderColor: staffName.trim() ? '#C4883A' : '#e8e2d8' }}
+                />
+                <button
+                  onClick={handleAddStaffMember}
+                  disabled={!staffName.trim()}
+                  className="px-4 py-3 rounded-xl font-bold text-sm min-h-[48px]"
+                  style={{ background: staffName.trim() ? '#1B4332' : '#e5e7eb', color: staffName.trim() ? '#fff' : '#9ca3af' }}
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Staff list</div>
+              {(staffMembers || []).length === 0 ? (
+                <div className="rounded-xl border px-4 py-3 text-sm text-gray-500" style={{ borderColor: '#e8e2d8', background: '#fcfbf8' }}>
+                  No staff added yet. Owner remains the default actor for every record.
+                </div>
+              ) : (
+                (staffMembers || []).map(member => (
+                  <div key={member.id} className="rounded-xl border px-4 py-3 flex items-center justify-between gap-3" style={{ borderColor: '#e8e2d8', background: member.active === false ? '#f9fafb' : '#fff' }}>
+                    <div className="min-w-0 flex-1">
+                      {String(editingStaffId) === String(member.id) ? (
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={editingStaffName}
+                            onChange={e => setEditingStaffName(e.target.value)}
+                            placeholder="Staff name"
+                            className="w-full px-3 py-2 border-2 rounded-xl text-sm focus:outline-none"
+                            style={{ borderColor: editingStaffName.trim() ? '#C4883A' : '#e8e2d8', background: '#fff' }}
+                          />
+                          <div className="text-xs text-gray-500">
+                            Update the display name for future attribution. Past saved records keep the original name snapshot.
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="font-bold text-sm text-gray-900">{member.display_name}</div>
+                          <div className="text-xs text-gray-500">
+                            {member.active === false ? 'Inactive - past records stay attributed to this staff member.' : 'Active staff member'}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      {String(editingStaffId) === String(member.id) ? (
+                        <>
+                          <button
+                            onClick={handleSaveEditedStaffMember}
+                            disabled={!editingStaffName.trim()}
+                            className="px-3 py-2 rounded-xl text-xs font-bold min-h-[40px]"
+                            style={{ background: editingStaffName.trim() ? '#1B4332' : '#e5e7eb', color: editingStaffName.trim() ? '#fff' : '#9ca3af' }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditingStaffMember}
+                            className="px-3 py-2 rounded-xl text-xs font-bold min-h-[40px]"
+                            style={{ background: '#f5f5f5', color: '#374151' }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => startEditingStaffMember(member)}
+                          className="px-3 py-2 rounded-xl text-xs font-bold min-h-[40px]"
+                          style={{ background: '#f5f5f5', color: '#374151' }}
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {member.active !== false && (
+                        <button
+                          onClick={() => onSetActiveStaffMember?.(member.id)}
+                          className="px-3 py-2 rounded-xl text-xs font-bold min-h-[40px]"
+                          style={{ background: String(activeStaffMemberId) === String(member.id) ? '#1B4332' : '#f5f5f5', color: String(activeStaffMemberId) === String(member.id) ? '#fff' : '#374151' }}
+                        >
+                          {String(activeStaffMemberId) === String(member.id) ? 'Current' : 'Use'}
+                        </button>
+                      )}
+                      {member.active !== false && (
+                        <button
+                          onClick={() => setStaffDeactivateTarget(member)}
+                          disabled={String(editingStaffId) === String(member.id)}
+                          className="px-3 py-2 rounded-xl text-xs font-bold min-h-[40px]"
+                          style={{ background: String(editingStaffId) === String(member.id) ? '#f3f4f6' : '#fff1f2', color: String(editingStaffId) === String(member.id) ? '#9ca3af' : '#b91c1c' }}
+                        >
+                          Inactivate
+                        </button>
+                      )}
+                      {member.active === false && (
+                        <button
+                          onClick={() => onReactivateStaffMember?.(member.id)}
+                          disabled={String(editingStaffId) === String(member.id)}
+                          className="px-3 py-2 rounded-xl text-xs font-bold min-h-[40px]"
+                          style={{ background: String(editingStaffId) === String(member.id) ? '#f3f4f6' : '#ecfdf5', color: String(editingStaffId) === String(member.id) ? '#9ca3af' : '#166534' }}
+                        >
+                          Reactivate
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </SettingsSection>
@@ -839,7 +1139,7 @@ function SettingsPage({
                       )}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Sale {entry.default_price != null ? fmt(entry.default_price) : '—'} · Cost {entry.default_cost != null ? fmt(entry.default_cost) : '—'}
+                      Sale {entry.default_price != null ? fmt(entry.default_price) : '-'} - Cost {entry.default_cost != null ? fmt(entry.default_cost) : '-'}
                     </p>
                     {entry.note && <p className="text-xs text-gray-400 mt-1">{entry.note}</p>}
                   </div>
@@ -1006,7 +1306,7 @@ function SettingsPage({
                       <option value="">Choose saved item / service</option>
                       {activeCatalogEntries.map(entry => (
                         <option key={entry.id} value={entry.id}>
-                          {entry.name} {entry.kind === 'service' ? '• Service' : '• Item'}
+                          {entry.name} {entry.kind === 'service' ? '- Service' : '- Item'}
                         </option>
                       ))}
                     </select>
@@ -1089,7 +1389,7 @@ function SettingsPage({
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                           {formatEthiopian(entry.created_at)}
-                          {entry.quantity ? ` · x${entry.quantity}` : ''}
+                          {entry.quantity ? ` - x${entry.quantity}` : ''}
                         </p>
                         {entry.note && <p className="text-xs text-gray-400 mt-1">{entry.note}</p>}
                       </div>
@@ -1228,7 +1528,7 @@ function SettingsPage({
                       color: enabled ? '#1B4332' : '#9ca3af',
                     }}
                   >
-                    {enabled ? '✓ ' : ''}{bank}
+                    {enabled ? 'On ' : ''}{bank}
                   </button>
                 );
               })}
@@ -1237,7 +1537,9 @@ function SettingsPage({
 
           <div className="px-5 py-3">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-500 font-medium">📱 {t.mobileWallets}</p>
+              <p className="text-xs text-gray-500 font-medium flex items-center gap-1">
+                <Phone className="w-3.5 h-3.5" /> {t.mobileWallets}
+              </p>
               <button
                 onClick={() => { setShowAddWallet(v => !v); setAddWalletInput(''); }}
                 className="flex items-center gap-1 text-xs font-bold min-h-[36px] px-2 rounded-lg transition-colors"
@@ -1282,7 +1584,7 @@ function SettingsPage({
                       color: enabled ? '#1B4332' : '#9ca3af',
                     }}
                   >
-                    {enabled ? '✓ ' : ''}{wallet}
+                    {enabled ? 'On ' : ''}{wallet}
                   </button>
                 );
               })}
@@ -1308,7 +1610,7 @@ function SettingsPage({
                     <RefreshCw className="w-4 h-4 flex-shrink-0" style={{ color: '#C4883A' }} />
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-gray-800 text-sm truncate">{re.name}</p>
-                      <p className="text-xs text-gray-500">{fmt(re.amount)} {t.birr} · {FREQ_LABELS[re.freq] || re.freq}</p>
+                      <p className="text-xs text-gray-500">{fmt(re.amount)} {t.birr} - {FREQ_LABELS[re.freq] || re.freq}</p>
                     </div>
                     <button
                       onClick={() => removeRecurring(re.id)}
@@ -1399,8 +1701,12 @@ function SettingsPage({
             </div>
             <div className="flex-1">
               <div className="font-bold text-gray-800">{t.storedOnDevice}</div>
-              <div className="text-xs text-gray-500 mt-0.5">{totalEntries} entries · {totalCustomersWithLedger} customers in Dubie ledger</div>
+              <div className="text-xs text-gray-500 mt-0.5">{totalEntries} entries - {totalCustomersWithLedger} customers in Dubie ledger</div>
             </div>
+          </div>
+
+          <div className="px-5 py-3 text-xs text-gray-500" style={{ background: '#fcfbf8' }}>
+            Owner controls on this phone: export, profile changes, payment setup, and reset actions.
           </div>
 
           <button
@@ -1412,8 +1718,8 @@ function SettingsPage({
               <Download className="w-5 h-5 text-blue-700" />
             </div>
             <div className="flex-1 text-left">
-              <div className="font-bold text-gray-800">{t.exportCSV}</div>
-              <div className="text-xs text-gray-500 mt-0.5">{t.exportHint}</div>
+              <div className="font-bold text-gray-800">Owner backup export</div>
+              <div className="text-xs text-gray-500 mt-0.5">Download this phone's notebook as a backup file for the shop owner.</div>
             </div>
             <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
           </button>
@@ -1426,8 +1732,8 @@ function SettingsPage({
               <Trash2 className="w-5 h-5 text-red-600" />
             </div>
             <div className="flex-1 text-left">
-              <div className="font-bold text-red-600">{t.clearAll}</div>
-              <div className="text-xs text-gray-500 mt-0.5">{t.clearHint}</div>
+              <div className="font-bold text-red-600">Start over on this phone</div>
+              <div className="text-xs text-gray-500 mt-0.5">Deletes your notebook records, owner profile, and saved setup on this phone.</div>
             </div>
             <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
           </button>
@@ -1437,11 +1743,11 @@ function SettingsPage({
       <SettingsSection id="about" title={t.about} openSection={openSection} setOpenSection={setOpenSection}>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 py-4 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: 'rgba(196,136,58,0.12)' }}>
-              📒
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-black" style={{ background: 'rgba(196,136,58,0.12)', color: '#8b5e20' }}>
+              GB
             </div>
             <div className="flex-1">
-              <div className="font-bold text-gray-800">ገበያ — Gebya</div>
+              <div className="font-bold text-gray-800">Gebya</div>
               <div className="text-xs text-gray-500 mt-0.5">Business Notebook for Ethiopian shopkeepers</div>
               <div className="text-xs text-gray-400 mt-1">{t.worksOffline}</div>
             </div>
@@ -1456,14 +1762,14 @@ function SettingsPage({
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
-            <div className="text-4xl text-center mb-3">⚠️</div>
-            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">{t.clearConfirm}</h3>
+            <div className="text-4xl text-center mb-3">!</div>
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">Start over on this phone?</h3>
             <p className="text-sm text-gray-500 text-center mb-6">
-              {t.clearConfirmMsg.replace('{count}', totalEntries).replace('{credits}', totalCustomersWithLedger)}
+              This deletes {totalEntries} entries, {totalCustomersWithLedger} customer ledgers, your owner profile, and saved app setup on this phone. This cannot be undone.
             </p>
             <div className="space-y-2">
               <button onClick={clearAllData} className="w-full p-4 bg-red-500 text-white rounded-2xl font-bold min-h-[52px]">
-                {t.yesDelete}
+                Start over now
               </button>
               <button onClick={() => setShowClearConfirm(false)} className="w-full p-4 rounded-2xl font-bold min-h-[52px]"
                 style={{ background: '#f5f5f5', color: '#374151' }}>
@@ -1477,13 +1783,13 @@ function SettingsPage({
       {supplierDeleteTarget && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
-            <div className="text-4xl text-center mb-3">🧾</div>
+            <div className="text-4xl text-center mb-3">!</div>
             <h3 className="text-xl font-bold text-gray-900 text-center mb-2">Delete supplier transaction?</h3>
             <p className="text-sm text-gray-500 text-center mb-2">
               You are deleting this {supplierDeleteTarget.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? 'purchase dubie' : 'payment'} transaction.
             </p>
             <p className="text-sm text-gray-700 text-center mb-6">
-              "{supplierDeleteTarget.item_name || 'Payment'}" · {fmt(supplierDeleteTarget.amount || 0)} {t.birr}
+              "{supplierDeleteTarget.item_name || 'Payment'}" - {fmt(supplierDeleteTarget.amount || 0)} {t.birr}
             </p>
             <div className="space-y-2">
               <button
@@ -1504,10 +1810,44 @@ function SettingsPage({
         </div>
       )}
 
+      {staffDeactivateTarget && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="text-4xl text-center mb-3">!</div>
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">Inactivate staff member?</h3>
+            <p className="text-sm text-gray-500 text-center mb-2">
+              {String(activeStaffMemberId) === String(staffDeactivateTarget.id)
+                ? `${staffDeactivateTarget.display_name} is currently selected for new records on this phone.`
+                : `${staffDeactivateTarget.display_name} will stop appearing for new record entry on this phone.`}
+            </p>
+            <p className="text-sm text-gray-700 text-center mb-6">
+              Past records stay attributed to this staff member. New records will use the owner unless you choose another active staff member.
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={handleConfirmDeactivateStaff}
+                className="w-full p-4 bg-red-500 text-white rounded-2xl font-bold min-h-[52px]"
+              >
+                Inactivate now
+              </button>
+              <button
+                onClick={() => setStaffDeactivateTarget(null)}
+                className="w-full p-4 rounded-2xl font-bold min-h-[52px]"
+                style={{ background: '#f5f5f5', color: '#374151' }}
+              >
+                {t.cancel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {cleared && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-white rounded-3xl p-8 text-center shadow-2xl">
-            <div className="text-4xl mb-3">🗑️</div>
+            <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: '#fff1f2' }}>
+              <Trash2 className="w-6 h-6 text-red-600" />
+            </div>
             <p className="font-bold text-gray-800">{t.dataCleared}</p>
             <p className="text-sm text-gray-500 mt-1">{t.reloading}</p>
           </div>
@@ -1518,3 +1858,5 @@ function SettingsPage({
 }
 
 export default SettingsPage;
+
+

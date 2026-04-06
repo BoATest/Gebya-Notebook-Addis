@@ -12,7 +12,7 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD, onSave, onDone, catalogEntries = [] }) {
+function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD, onSave, onDone, actorLabel, catalogEntries = [] }) {
   const { t } = useLang();
   const [amount, setAmount] = useState('');
   const [itemNote, setItemNote] = useState('');
@@ -77,6 +77,10 @@ function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.
         </div>
 
         <div className="px-6 py-4 space-y-4">
+          <div className="rounded-xl px-4 py-3 text-xs font-medium" style={{ background: '#FAF8F5', color: '#5b6470', border: '1px solid #e8e2d8' }}>
+            This record will be saved as: <span className="font-black text-gray-900">{actorLabel || 'Owner'}</span>
+          </div>
+
           <div
             className="p-4 border"
             style={{ background: isPayment ? '#f0fdf4' : '#fffbeb', borderColor: isPayment ? '#bbf7d0' : '#fde68a', borderRadius: 'var(--radius-md)' }}

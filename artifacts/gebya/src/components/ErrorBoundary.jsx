@@ -35,7 +35,7 @@ class ErrorBoundary extends Component {
             fontFamily: 'system-ui, sans-serif',
           }}
         >
-          <div style={{ fontSize: '3rem', marginBottom: '12px' }}>😕</div>
+          <div style={{ fontSize: '3rem', marginBottom: '12px' }}>!</div>
           <h1
             style={{
               fontSize: '1.25rem',
@@ -55,7 +55,7 @@ class ErrorBoundary extends Component {
               textAlign: 'center',
             }}
           >
-            ችግር ተፈጥሯል — tap to reload
+            A problem occurred. Tap reload to continue.
           </p>
           <button
             onClick={this.handleReload}
@@ -71,7 +71,7 @@ class ErrorBoundary extends Component {
               minHeight: '52px',
             }}
           >
-            Reload App
+            Reload
           </button>
         </div>
       );

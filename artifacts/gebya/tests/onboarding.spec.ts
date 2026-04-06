@@ -24,7 +24,7 @@ test('first-run onboarding is lean and deterministic', async ({ page }) => {
   await page.getByRole('button', { name: /start using gebya/i }).click();
 
   await expect(page.getByText(/tigist shop/i)).toBeVisible();
-  await expect(page.locator('nav').getByRole('button', { name: 'á‹›áˆ¬ Today' })).toBeVisible();
+  await expect(page.locator('nav').getByRole('button', { name: /today/i })).toBeVisible();
   await expect(page.getByText(/start your notebook/i)).toHaveCount(0);
 
   await page.reload({ waitUntil: 'domcontentloaded' });

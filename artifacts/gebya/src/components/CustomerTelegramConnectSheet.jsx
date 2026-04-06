@@ -33,6 +33,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
   const hasLinkedBorrower = Boolean(customer?.telegram_chat_id || linkSession?.chat_id);
   const hasPendingLink = !hasLinkedBorrower && Boolean(customer?.telegram_link_requested_at || linkSession?.requested_at);
   const slowConnection = isSlowConnection();
+  const canShowInviteTools = Boolean(customer?.telegram_link_token);
 
   const inviteLink = useMemo(
     () => buildCustomerConnectLink({
@@ -51,6 +52,11 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
     async function bootstrap() {
       if (!navigator.onLine) {
         setTelegramServiceAvailable(false);
+        setLoadingSession(false);
+        return;
+      }
+
+      if (slowConnection) {
         setLoadingSession(false);
         return;
       }
@@ -99,7 +105,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
 
     bootstrap();
     return () => { active = false; };
-  }, [customer?.id, customer?.display_name, customer?.telegram_link_token, customer?.telegram_link_requested_at, customer?.balance, customer?.telegram_notify_enabled, shopProfile?.name]);
+  }, [customer?.id, customer?.display_name, customer?.telegram_link_token, customer?.telegram_link_requested_at, customer?.balance, customer?.telegram_notify_enabled, shopProfile?.name, slowConnection]);
 
   useEffect(() => {
     if (!customer?.telegram_link_token || hasLinkedBorrower || slowConnection) return undefined;
@@ -202,7 +208,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
             </div>
           </div>
 
-          {telegramServiceAvailable && safeBotStatus.configured ? (
+          {(telegramServiceAvailable && safeBotStatus.configured) || (slowConnection && canShowInviteTools) ? (
             <>
               <div className="p-4 border text-center" style={{ background: 'color-mix(in srgb, var(--color-surface) 88%, #f6d79d)', borderColor: '#f6d79d', borderRadius: 'var(--radius-md)' }}>
                 <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide mb-3" style={{ color: '#9a6700' }}>
@@ -234,7 +240,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
                 <div className="grid grid-cols-2 gap-2">
                   <button type="button" onClick={() => window.open(inviteLink, '_blank', 'noopener,noreferrer')} className="w-full p-3 font-black text-sm flex items-center justify-center gap-2 min-h-[48px] border press-scale" style={{ background: '#1B4332', color: '#fff', borderColor: '#1B4332', borderRadius: 'var(--radius-md)' }}>
                     <Send className="w-4 h-4" />
-                    Open Bot
+                    {slowConnection ? 'Open Link' : 'Open Bot'}
                   </button>
                   <button type="button" onClick={handleRefresh} disabled={loadingSession} className="w-full p-3 font-black text-sm flex items-center justify-center gap-2 min-h-[48px] border press-scale" style={{ background: 'var(--color-surface)', color: 'var(--color-text)', borderColor: 'var(--color-border-light)', borderRadius: 'var(--radius-md)' }}>
                     <RefreshCcw className="w-4 h-4" />

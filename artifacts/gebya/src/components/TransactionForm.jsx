@@ -13,7 +13,7 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntries = [], recurringExpenses, onRecurringChange, initialPaymentType, initialPaymentProvider, lastPaymentHistory }) {
+function TransactionForm({ type, onSave, onDone, actorLabel, enabledProviders, catalogEntries = [], recurringExpenses, onRecurringChange, initialPaymentType, initialPaymentProvider, lastPaymentHistory }) {
   const { t } = useLang();
 
   const configs = {
@@ -219,6 +219,9 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
         </div>
 
         <div className="px-6 py-4 space-y-4">
+          <div className="rounded-xl px-4 py-3 text-xs font-medium" style={{ background: '#FAF8F5', color: '#5b6470', border: '1px solid #e8e2d8' }}>
+            This record will be saved as: <span className="font-black text-gray-900">{actorLabel || 'Owner'}</span>
+          </div>
 
           {isCredit && (
             <div>
