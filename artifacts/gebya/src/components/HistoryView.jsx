@@ -106,6 +106,65 @@ function matchesSearch(tx, query) {
   );
 }
 
+function matchesActor(tx, actorFilter) {
+  if (!actorFilter) return true;
+  if (actorFilter === '__owner__') return !tx.actor_staff_member_id;
+  return String(tx.actor_staff_member_id || '') === String(actorFilter);
+}
+
+function buildActorOptions(transactions) {
+  const byActor = new Map();
+  transactions.forEach((tx) => {
+    const key = tx.actor_staff_member_id ? String(tx.actor_staff_member_id) : '__owner__';
+    if (!byActor.has(key)) {
+      byActor.set(key, {
+        id: key,
+        label: tx.actor_name_snapshot || (key === '__owner__' ? 'Owner' : 'Unknown'),
+      });
+    }
+  });
+
+  return Array.from(byActor.values()).sort((a, b) => {
+    if (a.id === '__owner__') return -1;
+    if (b.id === '__owner__') return 1;
+    return String(a.label || '').localeCompare(String(b.label || ''));
+  });
+}
+
+function buildActorAuditSummary(transactions) {
+  const summaryByActor = new Map();
+
+  transactions.forEach((tx) => {
+    const key = tx.actor_staff_member_id ? String(tx.actor_staff_member_id) : '__owner__';
+    const existing = summaryByActor.get(key) || {
+      id: key,
+      label: tx.actor_name_snapshot || (key === '__owner__' ? 'Owner' : 'Unknown'),
+      salesAmount: 0,
+      salesCount: 0,
+      itemsSold: 0,
+      expensesAmount: 0,
+      transactionCount: 0,
+    };
+
+    existing.transactionCount += 1;
+    if (tx.type === 'sale') {
+      existing.salesAmount += Number(tx.amount || 0);
+      existing.salesCount += 1;
+      existing.itemsSold += Number(tx.quantity || 1);
+    }
+    if (tx.type === 'expense') {
+      existing.expensesAmount += Number(tx.amount || 0);
+    }
+
+    summaryByActor.set(key, existing);
+  });
+
+  return Array.from(summaryByActor.values()).sort((a, b) => {
+    if (b.salesAmount !== a.salesAmount) return b.salesAmount - a.salesAmount;
+    return b.transactionCount - a.transactionCount;
+  });
+}
+
 const typeIcon  = { sale: '💰', expense: '🛒', credit: '👥' };
 const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#C4883A' };
 const medals    = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
@@ -352,16 +411,60 @@ function EmptyState({ hasSearch, searchQuery, t }) {
   );
 }
 
+function ActorAuditSummary({ rows, t }) {
+  if (!rows.length) return null;
+
+  return (
+    <div className="space-y-2">
+      <div className="px-1">
+        <h3 className="text-sm font-black text-gray-800">Staff sales audit</h3>
+        <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>
+          Review sales, transaction count, and item volume by the person who entered each record.
+        </p>
+      </div>
+      <div className="space-y-2">
+        {rows.map((row) => (
+          <div
+            key={row.id}
+            className="px-4 py-3 border"
+            style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-black text-gray-900">{row.label}</p>
+                <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>
+                  {row.transactionCount} {t.entries} · {row.salesCount} sales · {row.itemsSold} items sold
+                </p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-sm font-black text-green-700">{fmt(row.salesAmount)} {t.birr}</p>
+                {row.expensesAmount > 0 && (
+                  <p className="text-xs text-red-500">Spent {fmt(row.expensesAmount)} {t.birr}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function HistoryView({ transactions, onEdit }) {
   const { t } = useLang();
   const [period, setPeriod] = useState('day');
   const [grouping, setGrouping] = useState('day');
   const [expandedGroups, setExpandedGroups] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [actorFilter, setActorFilter] = useState('');
 
   const toggleGroup = (key) => setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const filteredTransactions = transactions.filter(tx => matchesSearch(tx, searchQuery));
+  const actorOptions = buildActorOptions(transactions);
+  const filteredTransactions = transactions.filter(tx => (
+    matchesSearch(tx, searchQuery) && matchesActor(tx, actorFilter)
+  ));
+  const actorAuditRows = buildActorAuditSummary(filteredTransactions);
 
   const dayGroups = groupByDay(filteredTransactions);
   const weekGroups = groupByWeek(filteredTransactions);
@@ -426,6 +529,32 @@ function HistoryView({ transactions, onEdit }) {
           </button>
         )}
       </div>
+
+      {actorOptions.length > 0 && (
+        <div>
+          <label className="block text-xs font-bold text-gray-500 mb-1.5">Filter by seller</label>
+          <select
+            value={actorFilter}
+            onChange={e => setActorFilter(e.target.value)}
+            className="w-full px-3 py-2.5 text-sm bg-white border outline-none"
+            style={{
+              borderColor: actorFilter ? '#1B4332' : 'var(--color-border)',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: 'var(--shadow-xs)',
+              color: '#374151',
+            }}
+          >
+            <option value="">All sellers</option>
+            {actorOptions.map((actor) => (
+              <option key={actor.id} value={actor.id}>
+                {actor.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <ActorAuditSummary rows={actorAuditRows} t={t} />
 
       {period === 'day' && (
         <>

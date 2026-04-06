@@ -255,6 +255,7 @@ function CustomerDetail({
                       <span>{formatEthiopian(item.created_at)}</span>
                       {!isPayment && item.due_date ? <span>{t.dueLabelShort}: {formatEthiopian(item.due_date)}</span> : null}
                       {item.reference_code ? <span>{item.reference_code}</span> : null}
+                      {item.actor_name_snapshot ? <span>Entered by {item.actor_name_snapshot}</span> : null}
                       <span>{t.balanceAfterEntry}: {fmt(item.balance_after || 0)} {t.birr}</span>
                     </div>
                   </div>

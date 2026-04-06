@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect } from 'react';
+﻿import { lazy, Suspense, useState, useEffect } from 'react';
 import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown, Share2, Sun, Moon, Users } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
@@ -15,7 +15,16 @@ const PwaInstallPanel = lazy(() => import('./PwaInstallPanel.jsx'));
 const SettingsBadgesPanel = lazy(() => import('./SettingsBadgesPanel.jsx'));
 
 const FREQ_LABELS_EN = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
-const FREQ_LABELS_AM = { daily: 'ዕለታዊ', weekly: 'ሳምንታዊ', monthly: 'ወርሃዊ' };
+const BUSINESS_TYPE_OPTIONS = [
+  { value: 'retail-shop', label: 'Retail shop' },
+  { value: 'shoe-market', label: 'Shoe market' },
+  { value: 'flower-shop', label: 'Flower shop' },
+  { value: 'women-dress-shop', label: 'Women dress shop' },
+  { value: 'grocery', label: 'Grocery / minimarket' },
+  { value: 'electronics', label: 'Electronics / accessories' },
+  { value: 'pharmacy', label: 'Pharmacy / cosmetics' },
+  { value: 'other', label: 'Other' },
+];
 
 function SettingsSection({ id, title, openSection, setOpenSection, children, defaultOpen = false }) {
   const open = openSection === id || (defaultOpen && !openSection);
@@ -127,6 +136,7 @@ function SettingsPage({
     return raw.startsWith('+251') ? raw.slice(4) : raw.replace(/\D/g, '').slice(-9);
   });
   const [editTelegram, setEditTelegram] = useState(shopProfile?.telegram || '');
+  const [editBusinessType, setEditBusinessType] = useState(shopProfile?.businessType || 'retail-shop');
   const [profileSaved, setProfileSaved] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
 
@@ -137,6 +147,14 @@ function SettingsPage({
     const raw = e.target.value.replace(/\D/g, '');
     if (raw.length <= 9) setEditPhoneDigits(raw);
   };
+
+  useEffect(() => {
+    const rawPhone = shopProfile?.phone || '';
+    setEditName(shopProfile?.name || '');
+    setEditPhoneDigits(rawPhone.startsWith('+251') ? rawPhone.slice(4) : rawPhone.replace(/\D/g, '').slice(-9));
+    setEditTelegram(shopProfile?.telegram || '');
+    setEditBusinessType(shopProfile?.businessType || 'retail-shop');
+  }, [shopProfile]);
 
   const [providers, setProviders] = useState(enabledProviders || { banks: [...ALL_BANKS], wallets: [...ALL_WALLETS] });
 
@@ -201,7 +219,7 @@ function SettingsPage({
   const handleProfileSave = async () => {
     if (!editName.trim() || !phoneValid || !telegramValid) return;
     const fullPhone = editPhoneDigits ? '+251' + editPhoneDigits : '';
-    await onProfileSave(editName.trim(), fullPhone, normalizedTelegram || '');
+    await onProfileSave(editName.trim(), fullPhone, normalizedTelegram || '', editBusinessType);
     setEditTelegram(normalizedTelegram || '');
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2000);
@@ -261,7 +279,7 @@ function SettingsPage({
 
     const transactionSection = buildCsvSection(
       'Transactions',
-      ['Date (Ethiopian)', 'Type', 'Item', 'Quantity', 'Amount (birr)', 'Cost (birr)', 'Profit (birr)', 'Payment', 'Customer'],
+      ['Date (Ethiopian)', 'Type', 'Item', 'Quantity', 'Amount (birr)', 'Cost (birr)', 'Profit (birr)', 'Payment', 'Customer', 'Entered by', 'Actor role', 'Actor staff ID'],
       transactions.map(tx => [
         formatEthiopian(tx.created_at),
         tx.type,
@@ -272,6 +290,9 @@ function SettingsPage({
         tx.profit !== null && tx.profit !== undefined ? tx.profit : '',
         [tx.payment_type, tx.payment_provider].filter(Boolean).join(' ') || '',
         tx.customer_name || '',
+        tx.actor_name_snapshot || '',
+        tx.actor_role || '',
+        tx.actor_staff_member_id ?? '',
       ])
     );
 
@@ -292,7 +313,7 @@ function SettingsPage({
 
     const customerTransactionSection = buildCsvSection(
       'Customer Ledger Transactions',
-      ['ID', 'Customer ID', 'Type', 'Amount (birr)', 'Item note', 'Due date (Ethiopian)', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
+      ['ID', 'Customer ID', 'Type', 'Amount (birr)', 'Item note', 'Due date (Ethiopian)', 'Created at (Ethiopian)', 'Updated at (Ethiopian)', 'Entered by', 'Actor role', 'Actor staff ID'],
       customerTransactionRows.map(entry => [
         entry.id,
         entry.customer_id,
@@ -302,6 +323,9 @@ function SettingsPage({
         entry.due_date ? formatEthiopian(entry.due_date) : '',
         entry.created_at ? formatEthiopian(entry.created_at) : '',
         entry.updated_at ? formatEthiopian(entry.updated_at) : '',
+        entry.actor_name_snapshot || '',
+        entry.actor_role || '',
+        entry.actor_staff_member_id ?? '',
       ])
     );
 
@@ -321,7 +345,7 @@ function SettingsPage({
 
     const supplierTransactionSection = buildCsvSection(
       'Supplier Ledger Transactions',
-      ['ID', 'Supplier ID', 'Type', 'Item', 'Quantity', 'Amount (birr)', 'Note', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
+      ['ID', 'Supplier ID', 'Type', 'Item', 'Quantity', 'Amount (birr)', 'Note', 'Created at (Ethiopian)', 'Updated at (Ethiopian)', 'Entered by', 'Actor role', 'Actor staff ID'],
       supplierTransactionRows.map(entry => [
         entry.id,
         entry.supplier_id,
@@ -332,6 +356,9 @@ function SettingsPage({
         entry.note || '',
         entry.created_at ? formatEthiopian(entry.created_at) : '',
         entry.updated_at ? formatEthiopian(entry.updated_at) : '',
+        entry.actor_name_snapshot || '',
+        entry.actor_role || '',
+        entry.actor_staff_member_id ?? '',
       ])
     );
 
@@ -479,7 +506,8 @@ function SettingsPage({
   const profileChanged = (
     editName.trim() !== (shopProfile?.name || '') ||
     currentFullPhone !== (shopProfile?.phone || '') ||
-    editTelegram.trim() !== (shopProfile?.telegram || '')
+    editTelegram.trim() !== (shopProfile?.telegram || '') ||
+    editBusinessType !== (shopProfile?.businessType || 'retail-shop')
   );
 
   const badgeList = earnedBadges || [];
@@ -875,6 +903,24 @@ function SettingsPage({
               {!telegramValid && (
                 <p className="text-xs text-red-500 mt-1 font-medium">{t.telegramFormatHint}</p>
               )}
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
+                <Store className="w-3.5 h-3.5" /> Business type
+              </label>
+              <select
+                value={editBusinessType}
+                onChange={e => setEditBusinessType(e.target.value)}
+                className="w-full px-4 py-3 border-2 rounded-xl text-sm font-semibold focus:outline-none bg-white"
+                style={{ borderColor: '#e8e2d8' }}
+              >
+                {BUSINESS_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <p className="text-xs mt-1 font-medium text-gray-400">
+                This helps voice recognize the items, pricing patterns, and customer language common in your trade.
+              </p>
             </div>
             <button
               onClick={handleProfileSave}
@@ -1858,5 +1904,6 @@ function SettingsPage({
 }
 
 export default SettingsPage;
+
 
 

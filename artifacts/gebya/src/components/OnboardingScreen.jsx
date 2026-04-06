@@ -6,6 +6,17 @@ function isValidPhone(digits) {
   return /^[79]\d{8}$/.test(digits);
 }
 
+const BUSINESS_TYPE_OPTIONS = [
+  { value: 'retail-shop', label: 'Retail shop' },
+  { value: 'shoe-market', label: 'Shoe market' },
+  { value: 'flower-shop', label: 'Flower shop' },
+  { value: 'women-dress-shop', label: 'Women dress shop' },
+  { value: 'grocery', label: 'Grocery / minimarket' },
+  { value: 'electronics', label: 'Electronics / accessories' },
+  { value: 'pharmacy', label: 'Pharmacy / cosmetics' },
+  { value: 'other', label: 'Other' },
+];
+
 function OnboardingScreen({ onComplete }) {
   const { t } = useLang();
   const phoneOptionalLabel = t.onboardPhoneOptional || '(optional)';
@@ -17,6 +28,7 @@ function OnboardingScreen({ onComplete }) {
   ];
   const [name, setName] = useState('');
   const [phoneDigits, setPhoneDigits] = useState('');
+  const [businessType, setBusinessType] = useState('retail-shop');
   const [saving, setSaving] = useState(false);
   const [touched, setTouched] = useState({ name: false, phone: false });
 
@@ -37,7 +49,8 @@ function OnboardingScreen({ onComplete }) {
     await db.settings.put({ key: 'intro_seen', value: 'yes' });
     await db.settings.put({ key: 'shop_name', value: name.trim() });
     await db.settings.put({ key: 'shop_phone', value: fullPhone });
-    onComplete({ name: name.trim(), phone: fullPhone });
+    await db.settings.put({ key: 'shop_business_type', value: businessType });
+    onComplete({ name: name.trim(), phone: fullPhone, businessType });
   };
 
   return (
@@ -141,6 +154,28 @@ function OnboardingScreen({ onComplete }) {
               {!phoneEntered && (
                 <p className="text-xs mt-1 font-medium font-sans" style={{ color: '#9ca3af' }}>{phoneHelper}</p>
               )}
+            </div>
+
+            <div>
+              <label className="block font-semibold text-gray-700 mb-1.5 text-sm font-sans">
+                What type of business do you run?
+              </label>
+              <select
+                value={businessType}
+                onChange={(e) => setBusinessType(e.target.value)}
+                className="w-full p-4 border-2 text-base focus:outline-none font-sans bg-white"
+                style={{
+                  borderRadius: 'var(--radius-md)',
+                  borderColor: '#e8e2d8',
+                }}
+              >
+                {BUSINESS_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <p className="text-xs mt-1 font-medium font-sans" style={{ color: '#9ca3af' }}>
+                This helps voice understand the kinds of items and customers your shop sees most.
+              </p>
             </div>
           </div>
 
