@@ -190,7 +190,7 @@ function VoiceWorkspace({
   );
 }
 
-function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
+function RecordingSession({ onTranscript, onTypeInstead, onNoInternet, voiceContext }) {
   const { t, lang } = useLang();
   const [elapsed, setElapsed] = useState(0);
   const [showNudge, setShowNudge] = useState(false);
@@ -249,7 +249,7 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal,
-      body: JSON.stringify({ transcript }),
+      body: JSON.stringify({ transcript, voice_context: voiceContext || undefined }),
     });
 
     if (!resp.ok) {
@@ -257,13 +257,16 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
     }
 
     return resp.json();
-  }, []);
+  }, [voiceContext]);
 
   const sendAudioRequest = useCallback(async (audioBlob, transcript, signal) => {
     const formData = new FormData();
     formData.append('audio', buildAudioFile(audioBlob, audioMimeTypeRef.current));
     if (transcript) {
       formData.append('transcript', transcript);
+    }
+    if (voiceContext) {
+      formData.append('voice_context', JSON.stringify(voiceContext));
     }
 
     const resp = await fetch(`${API_BASE_URL}/api/transcribe`, {
@@ -277,7 +280,7 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
     }
 
     return resp.json();
-  }, []);
+  }, [voiceContext]);
 
   const {
     supported: supportsSpeechRecognition,
@@ -543,7 +546,7 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
   );
 }
 
-function VoiceRecordScreen({ onTranscript, onTypeInstead, workspace, onRepeatSale, onUseItem, onUseCustomer }) {
+function VoiceRecordScreen({ onTranscript, onTypeInstead, workspace, voiceContext, onRepeatSale, onUseItem, onUseCustomer }) {
   const { t } = useLang();
   const [sessionKey, setSessionKey] = useState(0);
   const [noInternet, setNoInternet] = useState(() => !navigator.onLine);
@@ -614,6 +617,7 @@ function VoiceRecordScreen({ onTranscript, onTypeInstead, workspace, onRepeatSal
       onTranscript={onTranscript}
       onTypeInstead={onTypeInstead}
       onNoInternet={handleNoInternet}
+      voiceContext={voiceContext}
     />
   );
 }
