@@ -92,7 +92,7 @@ function ShareModal({ summary, telegram, onClose, t }) {
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(summary);
-      fireToast('ðŸ“‹ ' + t.copiedToClipboard, 2500);
+      fireToast('📋 ' + t.copiedToClipboard, 2500);
       onClose();
     } catch { /* ignore */ }
   };
@@ -104,7 +104,7 @@ function ShareModal({ summary, telegram, onClose, t }) {
     >
       <div className="bg-white w-full max-w-md pb-safe animate-slide-up" style={{ borderRadius: '24px 24px 0 0', boxShadow: 'var(--shadow-lg)' }}>
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b" style={{ borderColor: 'var(--color-border-light)' }}>
-          <h2 className="text-base font-black text-gray-800 font-sans">ðŸ“¤ {t.shareTitle}</h2>
+          <h2 className="text-base font-black text-gray-800 font-sans">📤 {t.shareTitle}</h2>
           <button
             onClick={onClose}
             className="w-10 h-10 rounded-full flex items-center justify-center min-w-[44px] min-h-[44px] press-scale"
@@ -136,7 +136,7 @@ function ShareModal({ summary, telegram, onClose, t }) {
               className="w-full py-3 font-bold text-sm flex items-center justify-center gap-2 min-h-[48px] hover-lift press-scale"
               style={{ background: '#2481cc', color: '#fff', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
             >
-              âœˆï¸ {t.openTelegram}
+              ✈️ {t.openTelegram}
             </button>
           )}
           <button
@@ -144,7 +144,7 @@ function ShareModal({ summary, telegram, onClose, t }) {
             className="w-full py-3 font-bold text-sm flex items-center justify-center gap-2 min-h-[48px] press-scale"
             style={{ background: '#f5f5f5', color: '#374151', borderRadius: 'var(--radius-md)' }}
           >
-            ðŸ“‹ {t.copyText}
+            📋 {t.copyText}
           </button>
         </div>
       </div>
@@ -194,7 +194,7 @@ function AppInner() {
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, nameRow, phoneRow, businessTypeRow, epRow, reRow, telegramRow] = await Promise.all([
+      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, nameRow, phoneRow, epRow, reRow, telegramRow] = await Promise.all([
         db.transactions.toArray(),
         db.customers.toArray(),
         db.customer_transactions.toArray(),
@@ -203,7 +203,6 @@ function AppInner() {
         db.supplier_transactions?.toArray?.() || [],
         db.settings.get('shop_name'),
         db.settings.get('shop_phone'),
-        db.settings.get('shop_business_type'),
         db.settings.get('enabled_payment_methods'),
         db.settings.get('recurring_expenses'),
         db.settings.get('shop_telegram'),
@@ -218,7 +217,6 @@ function AppInner() {
       setShopProfile({
         name: nameRow?.value || null,
         phone: phoneRow?.value || '',
-        businessType: businessTypeRow?.value || '',
         telegram: telegramRow?.value || '',
       });
       try { setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS); } catch { setEnabledProviders(DEFAULT_PROVIDERS); }
@@ -374,7 +372,7 @@ function AppInner() {
         } catch { /* non-critical */ }
       }
 
-      const toastMsg = { sale: t.saleSaved, expense: t.expenseSaved }[transaction.type] || 'âœ“';
+      const toastMsg = { sale: t.saleSaved, expense: t.expenseSaved }[transaction.type] || '✓';
       fireToast(toastMsg, 4000, async () => {
         try {
           await db.transactions.delete(id);
@@ -462,12 +460,11 @@ function AppInner() {
     }
   };
 
-  const handleProfileSave = async (name, phone, telegram, businessType = '') => {
+  const handleProfileSave = async (name, phone, telegram) => {
     await db.settings.put({ key: 'shop_name', value: name });
     await db.settings.put({ key: 'shop_phone', value: phone || '' });
     await db.settings.put({ key: 'shop_telegram', value: telegram || '' });
-    await db.settings.put({ key: 'shop_business_type', value: businessType || '' });
-    setShopProfile({ name, phone: phone || '', businessType: businessType || '', telegram: telegram || '' });
+    setShopProfile({ name, phone: phone || '', telegram: telegram || '' });
   };
 
   const customerSummaries = useMemo(
@@ -982,7 +979,7 @@ function AppInner() {
     setLedgerTransactions(prev => insertCustomerTransaction(prev, saved));
     setLedgerCustomers(prev => prev.map(c => c.id === draft.customer_id ? { ...c, updated_at: now } : c));
     setCustomerTransactionModal(null);
-    fireToast(draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? (t.paymentSaved || 'Payment recorded âœ“') : t.creditSaved, 2200);
+    fireToast(draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? (t.paymentSaved || 'Payment recorded ✓') : t.creditSaved, 2200);
 
     if (draft.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD) {
       try {
@@ -1213,16 +1210,16 @@ function AppInner() {
     const profit = todaySalesTotal - todayExpensesTotal;
     const topStr = topProducts.length > 0
       ? topProducts.map((p, i) => `  ${i + 1}. ${p.name} (x${p.qty})`).join('\n')
-      : '  â€”';
+      : '  —';
     return [
-      `ðŸ“Š ${shopProfile?.name || 'Shop'} â€” ${t.shareDailyReport}`,
-      `ðŸ“… ${new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
+      `📊 ${shopProfile?.name || 'Shop'} — ${t.shareDailyReport}`,
+      `📅 ${new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
       ``,
-      `ðŸ’° ${t.sales}:    ${fmt(todaySalesTotal)} ${t.birr}`,
-      `ðŸ›’ ${t.spent}: ${fmt(todayExpensesTotal)} ${t.birr}`,
-      `ðŸ“ˆ ${t.calcProfit}:   ${fmt(profit)} ${t.birr}`,
+      `💰 ${t.sales}:    ${fmt(todaySalesTotal)} ${t.birr}`,
+      `🛒 ${t.spent}: ${fmt(todayExpensesTotal)} ${t.birr}`,
+      `📈 ${t.calcProfit}:   ${fmt(profit)} ${t.birr}`,
       ``,
-      `ðŸ† ${t.shareTopItems}:`,
+      `🏆 ${t.shareTopItems}:`,
       topStr,
       ``,
       t.shareSentVia,
@@ -1234,26 +1231,26 @@ function AppInner() {
     setShowShareModal(true);
   };
 
-  const hid = (n) => hidden ? 'â€¢â€¢â€¢â€¢' : fmt(n);
+  const hid = (n) => hidden ? '••••' : fmt(n);
 
   const getTimeGreeting = () => {
     const h = new Date().getHours();
     if (lang === 'am') {
-      if (h < 12) return 'ðŸ‘‹ áŠ¥áŠ•áŠ³áŠ• á‹°áˆ…áŠ“ áˆ˜áŒ¡ â€” á‹›áˆ¬áŠ• áˆ½á‹«áŒ¥ á‹­á‰áŒ áˆ©';
-      if (h < 17) return 'ðŸ“Œ áˆ²áˆ¸áŒ¡ á‹­á‰…á‹± â€” á‹áˆ­á‹áˆ­ á‰†á‹­á‰¶ áˆ›áˆµá‰°áŠ«áŠ¨áˆ á‹­á‰»áˆ‹áˆ';
-      return 'ðŸŒ™ á‹›áˆ¬áŠ• áˆ½á‹«áŒ¥ áŠ á‹­áˆ­áˆ± â€” áˆáˆ‰ á‹­á‰…á‹±';
+      if (h < 12) return '👋 እንኳን ደህና መጡ — ዛሬን ሽያጥ ይቁጠሩ';
+      if (h < 17) return '📌 ሲሸጡ ይቅዱ — ዝርዝር ቆይቶ ማስተካከል ይቻላል';
+      return '🌙 ዛሬን ሽያጥ አይርሱ — ሁሉ ይቅዱ';
     }
-    if (h < 12) return 'ðŸ‘‹ Good morning â€” start tracking today\'s sales';
-    if (h < 17) return 'ðŸ“Œ Keep going â€” record your sales as you sell';
-    return 'ðŸŒ™ Don\'t forget today\'s last sales';
+    if (h < 12) return '👋 Good morning — start tracking today\'s sales';
+    if (h < 17) return '📌 Keep going — record your sales as you sell';
+    return '🌙 Don\'t forget today\'s last sales';
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: P.bg }}>
         <div className="text-center animate-elastic">
-          <div className="text-5xl mb-3">ðŸ“’</div>
-          <h1 className="text-2xl font-black font-serif" style={{ color: P.header }}>áŒˆá‰ á‹«</h1>
+          <div className="text-5xl mb-3">📒</div>
+          <h1 className="text-2xl font-black font-serif" style={{ color: P.header }}>ገበያ</h1>
           <p className="text-sm mt-2" style={{ color: '#9ca3af' }}>{t.loading}</p>
         </div>
       </div>
@@ -1275,16 +1272,16 @@ function AppInner() {
     { id: 'settings', label: t.settings,                     icon: Settings },
   ];
 
-  const typeEmoji = { sale: 'ðŸ’°', expense: 'ðŸ›’', credit: 'ðŸ‘¥' };
+  const typeEmoji = { sale: '💰', expense: '🛒', credit: '👥' };
   const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#C4883A' };
   const typeBorderColor = { sale: '#86efac', expense: '#fca5a5', credit: '#fcd34d' };
 
   return (
-    <div className="min-h-[100dvh] flex flex-col max-w-md mx-auto relative overflow-x-hidden" style={{ background: P.bg }}>
+    <div className="min-h-screen flex flex-col max-w-md mx-auto relative" style={{ background: P.bg }}>
 
-      <header className="flex-shrink-0 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-3 texture-noise" style={{ background: P.header }}>
-        <div className="flex flex-wrap items-center gap-3 mb-3">
-          {/* Avatar â€” taps to settings */}
+      <header className="flex-shrink-0 px-4 pt-9 pb-3 texture-noise" style={{ background: P.header }}>
+        <div className="flex items-center gap-3 mb-3">
+          {/* Avatar — taps to settings */}
           <button
             onClick={() => setActiveTab('settings')}
             className="flex-shrink-0 press-scale"
@@ -1314,7 +1311,7 @@ function AppInner() {
               {shopProfile.name}
             </h1>
             <p className="text-xs font-semibold mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.6)' }}>
-              áŒˆá‰ á‹« Â· {getCurrentEthiopianDate()} Â· {new Date().toLocaleDateString('en', { day: 'numeric', month: 'short' })}
+              ገበያ · {getCurrentEthiopianDate()} · {new Date().toLocaleDateString('en', { day: 'numeric', month: 'short' })}
             </p>
           </div>
 
@@ -1326,7 +1323,7 @@ function AppInner() {
               borderRadius: '8px',
               whiteSpace: 'nowrap',
             }}>
-              ðŸ”¥ {usageStats.streak}
+              🔥 {usageStats.streak}
             </span>
           )}
 
@@ -1359,7 +1356,7 @@ function AppInner() {
               borderRadius: '8px',
               transition: 'all 0.18s',
               display: 'block',
-            }}>áŠ áˆ›</span>
+            }}>አማ</span>
           </button>
         </div>
 
@@ -1385,20 +1382,20 @@ function AppInner() {
           <p className="text-center text-xs font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
             {getTimeGreeting()}
           </p>
-          {/* Voice â€” primary action */}
+          {/* Voice — primary action */}
           <button
             onClick={() => setVoiceStep('record')}
-            className="w-full mb-1 py-3.5 sm:py-4 flex flex-col items-center justify-center font-black text-white text-base transition-all active:scale-95 press-scale"
+            className="w-full mb-1 py-4 flex flex-col items-center justify-center font-black text-white text-base transition-all active:scale-95 press-scale"
             style={{ background: '#1a5c3a', border: '2px solid rgba(255,255,255,0.25)', borderRadius: 'var(--radius-lg)', boxShadow: '0 5px 0 #0f3d25' }}
           >
-            <span className="text-2xl leading-none mb-0.5">ðŸŽ¤</span>
-            <span className="text-[15px] sm:text-base font-black leading-snug text-center">{t.recordByVoice}</span>
+            <span className="text-2xl leading-none mb-0.5">🎤</span>
+            <span className="text-base font-black leading-snug">{t.recordByVoice}</span>
             <span className="text-xs opacity-70">{t.recordByVoiceSubLabel}</span>
           </button>
           <p className="text-center text-xs mb-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            {lang === 'am' ? 'á‹­áŠ“áŒˆáˆ© â€” á‰†á‹­á‰¶ áˆ›áˆµá‰°áŠ«áŠ¨áˆ á‹­á‰»áˆ‹áˆ' : 'Speak your sale â€” you can fix it after'}
+            {lang === 'am' ? 'ይናገሩ — ቆይቶ ማስተካከል ይቻላል' : 'Speak your sale — you can fix it after'}
           </p>
-          <div className="grid grid-cols-3 gap-2 pb-2">
+          <div className="flex gap-2 pb-2">
           {[
             { type: 'sale',    label: t.typeSaleLabel, sub: t.typeSale,  bg: '#2d6a4f', shadow: '#1B4332' },
             { type: 'expense', label: t.iSpentLabel, sub: t.iSpent, bg: '#D4654A', shadow: '#a84c37' },
@@ -1420,7 +1417,7 @@ function AppInner() {
                 onPointerUp={() => setPressedBtn(null)}
                 onPointerLeave={() => setPressedBtn(null)}
                 onPointerCancel={() => setPressedBtn(null)}
-                className="min-w-0 py-3 px-2 text-center transition-all min-h-[72px]"
+                className="flex-1 py-3 text-center transition-all min-h-[72px]"
                 style={{
                   background: b.bg,
                   borderRadius: 'var(--radius-lg)',
@@ -1464,10 +1461,10 @@ function AppInner() {
 
               {todayTransactions.length === 0 ? (
                 <div className="px-4 py-10 text-center">
-                  <p className="text-4xl mb-3">ðŸŽ¤</p>
+                  <p className="text-4xl mb-3">🎤</p>
                   <p className="font-bold text-base mb-1" style={{ color: '#374151' }}>No sales recorded yet</p>
                   <p className="text-sm font-semibold" style={{ color: P.amber }}>
-                    â†‘ Tap above to record your first sale
+                    ↑ Tap above to record your first sale
                   </p>
                 </div>
               ) : (
@@ -1485,10 +1482,10 @@ function AppInner() {
                           <span className="font-semibold text-gray-800 text-sm truncate">{tx.item_name}</span>
                           {tx.updated_at && <span className="text-xs" style={{ color: P.amber }}>{t.edited}</span>}
                         </div>
-                        {tx.quantity > 1 && <span className="text-xs text-gray-400">Ã—{tx.quantity}</span>}
+                        {tx.quantity > 1 && <span className="text-xs text-gray-400">×{tx.quantity}</span>}
                         {tx.payment_type && tx.payment_type !== 'cash' && (
                           <span className="text-xs text-gray-400 block">
-                            {[tx.payment_type, tx.payment_provider].filter(Boolean).join(' Â· ')}
+                            {[tx.payment_type, tx.payment_provider].filter(Boolean).join(' · ')}
                           </span>
                         )}
                       </button>
@@ -1739,7 +1736,7 @@ function AppInner() {
             <div className="text-3xl text-center mb-3">{typeEmoji[deleteTarget.type]}</div>
             <h3 className="text-lg font-black text-gray-900 text-center mb-1 font-sans">{t.deleteEntry}</h3>
             <p className="text-sm text-gray-500 text-center mb-5">
-              "{deleteTarget.item_name}" Â· {fmt(deleteTarget.amount || 0)} {t.birr}
+              "{deleteTarget.item_name}" · {fmt(deleteTarget.amount || 0)} {t.birr}
             </p>
             <div className="space-y-2">
               <button onClick={() => handleDeleteTransaction(deleteTarget.id)}
@@ -1773,6 +1770,4 @@ function App() {
 }
 
 export default App;
-
-
 

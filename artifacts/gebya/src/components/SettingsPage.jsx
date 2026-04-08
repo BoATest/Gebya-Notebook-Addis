@@ -13,7 +13,7 @@ import PwaInstallPanel from './PwaInstallPanel.jsx';
 import { SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger';
 
 const FREQ_LABELS_EN = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
-const FREQ_LABELS_AM = { daily: 'á‹•áˆˆá‰³á‹Š', weekly: 'áˆ³áˆáŠ•á‰³á‹Š', monthly: 'á‹ˆáˆ­áˆƒá‹Š' };
+const FREQ_LABELS_AM = { daily: 'ዕለታዊ', weekly: 'ሳምንታዊ', monthly: 'ወርሃዊ' };
 
 function SettingsPage({
   transactions,
@@ -75,7 +75,6 @@ function SettingsPage({
     return raw.startsWith('+251') ? raw.slice(4) : raw.replace(/\D/g, '').slice(-9);
   });
   const [editTelegram, setEditTelegram] = useState(shopProfile?.telegram || '');
-  const [editBusinessType, setEditBusinessType] = useState(shopProfile?.businessType || '');
   const [profileSaved, setProfileSaved] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
 
@@ -123,9 +122,8 @@ function SettingsPage({
   const handleProfileSave = async () => {
     if (!editName.trim() || !phoneValid || !telegramValid) return;
     const fullPhone = editPhoneDigits ? '+251' + editPhoneDigits : '';
-    await onProfileSave(editName.trim(), fullPhone, normalizedTelegram || '', editBusinessType.trim());
+    await onProfileSave(editName.trim(), fullPhone, normalizedTelegram || '');
     setEditTelegram(normalizedTelegram || '');
-    setEditBusinessType((prev) => prev.trim());
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2000);
   };
@@ -274,7 +272,7 @@ function SettingsPage({
     setProviders(updated);
     await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(updated) });
     onProvidersChange?.(updated);
-    fireToast(nowEnabled ? `âœ“ ${bank} ${t.providerEnabled}` : `${bank} ${t.providerDisabled}`, 1800);
+    fireToast(nowEnabled ? `✓ ${bank} ${t.providerEnabled}` : `${bank} ${t.providerDisabled}`, 1800);
   };
 
   const toggleWallet = async (wallet) => {
@@ -285,7 +283,7 @@ function SettingsPage({
     setProviders(updated);
     await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(updated) });
     onProvidersChange?.(updated);
-    fireToast(nowEnabled ? `âœ“ ${wallet} ${t.providerEnabled}` : `${wallet} ${t.providerDisabled}`, 1800);
+    fireToast(nowEnabled ? `✓ ${wallet} ${t.providerEnabled}` : `${wallet} ${t.providerDisabled}`, 1800);
   };
 
   const addCustomBank = async () => {
@@ -300,7 +298,7 @@ function SettingsPage({
     onProvidersChange?.(updatedProviders);
     setAddBankInput('');
     setShowAddBank(false);
-    fireToast(`âœ“ ${name} ${t.providerEnabled}`, 1800);
+    fireToast(`✓ ${name} ${t.providerEnabled}`, 1800);
   };
 
   const addCustomWallet = async () => {
@@ -315,7 +313,7 @@ function SettingsPage({
     onProvidersChange?.(updatedProviders);
     setAddWalletInput('');
     setShowAddWallet(false);
-    fireToast(`âœ“ ${name} ${t.providerEnabled}`, 1800);
+    fireToast(`✓ ${name} ${t.providerEnabled}`, 1800);
   };
 
   const addRecurring = async () => {
@@ -346,12 +344,12 @@ function SettingsPage({
     let firstUsedDisplay = firstUsed;
     try { firstUsedDisplay = firstUsed ? formatEthiopian(new Date(firstUsed)) : firstUsed; } catch { /* keep ISO fallback */ }
     const text = [
-      `ðŸ“Š Gebya usage stats for ${shopProfile?.name || 'my shop'}:`,
-      `ðŸ”¥ Current streak: ${streak} day${streak !== 1 ? 's' : ''} (longest: ${longestStreak})`,
-      `ðŸ“… Using since: ${firstUsedDisplay}`,
-      `ðŸ“ˆ Total days active: ${daysActive?.length || 1}`,
-      `ðŸ›’ Entries: ${fc.sales || 0} sales Â· ${fc.expenses || 0} expenses Â· ${fc.credits || 0} Dubie`,
-      `ðŸ“± Sessions opened: ${sessionCount}`,
+      `📊 Gebya usage stats for ${shopProfile?.name || 'my shop'}:`,
+      `🔥 Current streak: ${streak} day${streak !== 1 ? 's' : ''} (longest: ${longestStreak})`,
+      `📅 Using since: ${firstUsedDisplay}`,
+      `📈 Total days active: ${daysActive?.length || 1}`,
+      `🛒 Entries: ${fc.sales || 0} sales · ${fc.expenses || 0} expenses · ${fc.credits || 0} Dubie`,
+      `📱 Sessions opened: ${sessionCount}`,
     ].join('\n');
 
     if (navigator.share) {
@@ -371,8 +369,7 @@ function SettingsPage({
   const profileChanged = (
     editName.trim() !== (shopProfile?.name || '') ||
     currentFullPhone !== (shopProfile?.phone || '') ||
-    editTelegram.trim() !== (shopProfile?.telegram || '') ||
-    editBusinessType.trim() !== (shopProfile?.businessType || '')
+    editTelegram.trim() !== (shopProfile?.telegram || '')
   );
 
   const badgeList = (earnedBadges || []);
@@ -585,20 +582,20 @@ function SettingsPage({
             <div className="px-4 pt-4 pb-3 space-y-3">
               <div className="flex gap-3">
                 <div className="flex-1 rounded-xl p-3 text-center" style={{ background: '#fff7ed', border: '1.5px solid #fed7aa' }}>
-                  <div className="text-2xl font-black" style={{ color: '#c2410c' }}>ðŸ”¥ {usageStats.streak}</div>
+                  <div className="text-2xl font-black" style={{ color: '#c2410c' }}>🔥 {usageStats.streak}</div>
                   <div className="text-xs font-semibold text-gray-600 mt-0.5">{t.dayStreak}</div>
                   <div className="text-xs text-gray-400">{t.best}: {usageStats.longestStreak}</div>
                 </div>
                 <div className="flex-1 rounded-xl p-3 text-center" style={{ background: '#f0fdf4', border: '1.5px solid #bbf7d0' }}>
-                  <div className="text-2xl font-black text-green-700">ðŸ“… {usageStats.daysActive?.length || 1}</div>
+                  <div className="text-2xl font-black text-green-700">📅 {usageStats.daysActive?.length || 1}</div>
                   <div className="text-xs font-semibold text-gray-600 mt-0.5">{t.daysActive}</div>
                   <div className="text-xs text-gray-400">
-                    {t.since} {usageStats.firstUsed ? (() => { try { return formatEthiopian(new Date(usageStats.firstUsed)); } catch { return usageStats.firstUsed; } })() : 'â€”'}
+                    {t.since} {usageStats.firstUsed ? (() => { try { return formatEthiopian(new Date(usageStats.firstUsed)); } catch { return usageStats.firstUsed; } })() : '—'}
                   </div>
                 </div>
               </div>
               <div className="rounded-xl p-3" style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
-                <div className="text-xs font-bold text-gray-500 mb-1.5">ðŸ“Š {t.totalEntries}</div>
+                <div className="text-xs font-bold text-gray-500 mb-1.5">📊 {t.totalEntries}</div>
                 <div className="flex justify-around text-center">
                   <div>
                     <div className="text-base font-black text-green-700">{usageStats.featureCounts?.sales || 0}</div>
@@ -633,7 +630,7 @@ function SettingsPage({
                 className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all min-h-[44px]"
                 style={{ background: shareCopied ? '#15803d' : '#C4883A' }}
               >
-                {shareCopied ? `âœ“ ${t.copiedToClipboard}` : t.shareMyStats}
+                {shareCopied ? `✓ ${t.copiedToClipboard}` : t.shareMyStats}
               </button>
             </div>
           </div>
@@ -686,19 +683,6 @@ function SettingsPage({
               {phoneTouched && editPhoneDigits.length === 0 && (
                 <p className="text-xs text-red-500 mt-1 font-medium">{t.phoneRequired}</p>
               )}
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
-                <Store className="w-3.5 h-3.5" /> {t.onboardBusinessTypeLabel}
-              </label>
-              <input
-                type="text"
-                value={editBusinessType}
-                onChange={e => setEditBusinessType(e.target.value)}
-                placeholder={t.onboardBusinessTypePlaceholder}
-                className="w-full px-4 py-3 border-2 rounded-xl text-sm font-semibold focus:outline-none"
-                style={{ borderColor: editBusinessType.trim() ? '#C4883A' : '#e8e2d8' }}
-              />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
@@ -829,7 +813,7 @@ function SettingsPage({
                       )}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Sale {entry.default_price != null ? fmt(entry.default_price) : 'â€”'} Â· Cost {entry.default_cost != null ? fmt(entry.default_cost) : 'â€”'}
+                      Sale {entry.default_price != null ? fmt(entry.default_price) : '—'} · Cost {entry.default_cost != null ? fmt(entry.default_cost) : '—'}
                     </p>
                     {entry.note && <p className="text-xs text-gray-400 mt-1">{entry.note}</p>}
                   </div>
@@ -997,7 +981,7 @@ function SettingsPage({
                       <option value="">Choose saved item / service</option>
                       {activeCatalogEntries.map(entry => (
                         <option key={entry.id} value={entry.id}>
-                          {entry.name} {entry.kind === 'service' ? 'â€¢ Service' : 'â€¢ Item'}
+                          {entry.name} {entry.kind === 'service' ? '• Service' : '• Item'}
                         </option>
                       ))}
                     </select>
@@ -1080,7 +1064,7 @@ function SettingsPage({
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                           {formatEthiopian(entry.created_at)}
-                          {entry.quantity ? ` Â· x${entry.quantity}` : ''}
+                          {entry.quantity ? ` · x${entry.quantity}` : ''}
                         </p>
                         {entry.note && <p className="text-xs text-gray-400 mt-1">{entry.note}</p>}
                       </div>
@@ -1191,7 +1175,7 @@ function SettingsPage({
                       color: enabled ? '#1B4332' : '#9ca3af',
                     }}
                   >
-                    {enabled ? 'âœ“ ' : ''}{bank}
+                    {enabled ? '✓ ' : ''}{bank}
                   </button>
                 );
               })}
@@ -1200,7 +1184,7 @@ function SettingsPage({
 
           <div className="px-5 py-3">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-500 font-medium">ðŸ“± {t.mobileWallets}</p>
+              <p className="text-xs text-gray-500 font-medium">📱 {t.mobileWallets}</p>
               <button
                 onClick={() => { setShowAddWallet(v => !v); setAddWalletInput(''); }}
                 className="flex items-center gap-1 text-xs font-bold min-h-[36px] px-2 rounded-lg transition-colors"
@@ -1245,7 +1229,7 @@ function SettingsPage({
                       color: enabled ? '#1B4332' : '#9ca3af',
                     }}
                   >
-                    {enabled ? 'âœ“ ' : ''}{wallet}
+                    {enabled ? '✓ ' : ''}{wallet}
                   </button>
                 );
               })}
@@ -1272,7 +1256,7 @@ function SettingsPage({
                     <RefreshCw className="w-4 h-4 flex-shrink-0" style={{ color: '#C4883A' }} />
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-gray-800 text-sm truncate">{re.name}</p>
-                      <p className="text-xs text-gray-500">{fmt(re.amount)} {t.birr} Â· {FREQ_LABELS[re.freq] || re.freq}</p>
+                      <p className="text-xs text-gray-500">{fmt(re.amount)} {t.birr} · {FREQ_LABELS[re.freq] || re.freq}</p>
                     </div>
                     <button
                       onClick={() => removeRecurring(re.id)}
@@ -1364,7 +1348,7 @@ function SettingsPage({
             </div>
             <div className="flex-1">
               <div className="font-bold text-gray-800">{t.storedOnDevice}</div>
-              <div className="text-xs text-gray-500 mt-0.5">{totalEntries} entries Â· {totalCustomersWithLedger} customers in Dubie ledger</div>
+              <div className="text-xs text-gray-500 mt-0.5">{totalEntries} entries · {totalCustomersWithLedger} customers in Dubie ledger</div>
             </div>
           </div>
 
@@ -1404,10 +1388,10 @@ function SettingsPage({
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 py-4 flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: 'rgba(196,136,58,0.12)' }}>
-              ðŸ“’
+              📒
             </div>
             <div className="flex-1">
-              <div className="font-bold text-gray-800">áŒˆá‰ á‹« â€” Gebya</div>
+              <div className="font-bold text-gray-800">ገበያ — Gebya</div>
               <div className="text-xs text-gray-500 mt-0.5">Business Notebook for Ethiopian shopkeepers</div>
               <div className="text-xs text-gray-400 mt-1">{t.worksOffline}</div>
             </div>
@@ -1422,7 +1406,7 @@ function SettingsPage({
       {showClearConfirm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
-            <div className="text-4xl text-center mb-3">âš ï¸</div>
+            <div className="text-4xl text-center mb-3">⚠️</div>
             <h3 className="text-xl font-bold text-gray-900 text-center mb-2">{t.clearConfirm}</h3>
             <p className="text-sm text-gray-500 text-center mb-6">
               {t.clearConfirmMsg.replace('{count}', totalEntries).replace('{credits}', totalCustomersWithLedger)}
@@ -1443,13 +1427,13 @@ function SettingsPage({
       {supplierDeleteTarget && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
-            <div className="text-4xl text-center mb-3">ðŸ§¾</div>
+            <div className="text-4xl text-center mb-3">🧾</div>
             <h3 className="text-xl font-bold text-gray-900 text-center mb-2">Delete supplier transaction?</h3>
             <p className="text-sm text-gray-500 text-center mb-2">
               You are deleting this {supplierDeleteTarget.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? 'purchase dubie' : 'payment'} transaction.
             </p>
             <p className="text-sm text-gray-700 text-center mb-6">
-              "{supplierDeleteTarget.item_name || 'Payment'}" Â· {fmt(supplierDeleteTarget.amount || 0)} {t.birr}
+              "{supplierDeleteTarget.item_name || 'Payment'}" · {fmt(supplierDeleteTarget.amount || 0)} {t.birr}
             </p>
             <div className="space-y-2">
               <button
@@ -1473,7 +1457,7 @@ function SettingsPage({
       {cleared && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-white rounded-3xl p-8 text-center shadow-2xl">
-            <div className="text-4xl mb-3">ðŸ—‘ï¸</div>
+            <div className="text-4xl mb-3">🗑️</div>
             <p className="font-bold text-gray-800">{t.dataCleared}</p>
             <p className="text-sm text-gray-500 mt-1">{t.reloading}</p>
           </div>
@@ -1484,6 +1468,3 @@ function SettingsPage({
 }
 
 export default SettingsPage;
-
-
-

@@ -12,7 +12,7 @@ function handleNumericInput(e, setter) {
 }
 
 function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, onCancel, enabledProviders }) {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const hasMultiple = items.length > 1;
   const isSaleIntent = !draft?.intent || draft.intent === 'sale';
   const parsedItems = draft?.items?.length
@@ -73,40 +73,34 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--color-bg)]">
+    <div className="fixed inset-0 z-50 flex flex-col bg-white">
       <div
-        className="sticky top-0 z-10 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-4 border-b flex-shrink-0 sm:px-6"
-        style={{ background: '#fff', borderColor: 'var(--color-border-light)' }}
+        className="sticky top-0 z-10 px-6 pt-5 pb-4 border-b flex-shrink-0"
+        style={{ background: '#fff', borderColor: 'var(--color-border-light)', borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0' }}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-gray-400 font-sans">Gebya Voice</p>
-            <h2 className="mt-2 text-2xl font-black text-gray-900 font-sans">{t.voiceFixTitle}</h2>
-            <p className="mt-1 text-sm text-gray-500 font-sans">
-              {lang === 'am' ? 'ወደ ደብተርዎ ከመግባቱ በፊት ያስተካክሉት።' : 'Make any quick fixes before this goes into your notebook.'}
-            </p>
-          </div>
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-black text-gray-900 font-sans">{t.voiceFixTitle}</h2>
           <button
             onClick={onCancel}
-            className="min-h-[44px] rounded-xl px-4 py-2 text-sm font-semibold text-gray-500 font-sans"
-            style={{ background: '#f5f5f5' }}
+            className="py-2 px-4 text-sm font-semibold text-gray-500 min-h-[44px] font-sans"
+            style={{ background: '#f5f5f5', borderRadius: 'var(--radius-sm)' }}
           >
             {t.cancel}
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-5 sm:px-6">
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
         {!isSaleIntent && (
-          <div className="rounded-2xl border p-4" style={{ background: '#fff7ed', borderColor: '#fed7aa' }}>
+          <div className="p-4 border" style={{ background: '#fff7ed', borderColor: '#fed7aa', borderRadius: 'var(--radius-md)' }}>
             <p className="font-bold text-gray-900">{t.voiceSalesOnlyTitle}</p>
-            <p className="text-sm mt-1 leading-6" style={{ color: '#6b7280' }}>
+            <p className="text-sm mt-1" style={{ color: '#6b7280' }}>
               {t.voiceSalesOnlyBody}
             </p>
           </div>
         )}
 
-        <div className="rounded-2xl border bg-white p-4 shadow-xs" style={{ borderColor: 'var(--color-border)' }}>
+        <div>
           <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.voiceTotalLabel}</label>
           <div className="relative">
             <input
@@ -126,7 +120,7 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, 
           )}
         </div>
 
-        <div className="rounded-2xl border bg-white p-4 shadow-xs" style={{ borderColor: 'var(--color-border)' }}>
+        <div>
           <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.voiceCustomerName}</label>
           <input
             type="text"
@@ -138,23 +132,21 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, 
           />
         </div>
 
-        <div className="rounded-2xl border bg-white p-4 shadow-xs" style={{ borderColor: 'var(--color-border)' }}>
-          <PaymentTypeChips
-            paymentType={paymentType}
-            provider={paymentProvider}
-            onTypeChange={setPaymentType}
-            onProviderChange={setPaymentProvider}
-            enabledProviders={enabledProviders}
-            lastProviderByType={{}}
-          />
-        </div>
+        <PaymentTypeChips
+          paymentType={paymentType}
+          provider={paymentProvider}
+          onTypeChange={setPaymentType}
+          onProviderChange={setPaymentProvider}
+          enabledProviders={enabledProviders}
+          lastProviderByType={{}}
+        />
 
         {draftItems.length > 0 && (
-          <div className="rounded-2xl border bg-white p-4 shadow-xs" style={{ borderColor: 'var(--color-border)' }}>
-            <label className="block text-gray-700 font-semibold mb-3 font-sans">{t.voiceParsedItems}</label>
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.voiceParsedItems}</label>
             <div className="space-y-3">
               {draftItems.map((item, index) => (
-                <div key={index} className="rounded-xl border p-3" style={{ background: '#FAF8F5', borderColor: '#e8e2d8' }}>
+                <div key={index} className="p-3 rounded-xl" style={{ background: '#FAF8F5', border: '1px solid #e8e2d8' }}>
                   <input
                     type="text"
                     value={item.name}
@@ -163,7 +155,7 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, 
                     className="w-full p-3 border-2 focus:outline-none text-base min-h-[48px] font-sans mb-3"
                     style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8', background: '#fff' }}
                   />
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <input
                       type="text"
                       inputMode="decimal"
@@ -189,7 +181,7 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, 
           </div>
         )}
 
-        <div className="rounded-2xl border bg-white p-4 shadow-xs" style={{ borderColor: 'var(--color-border)' }}>
+        <div>
           <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.voiceNoteLabel}</label>
           <input
             type="text"
@@ -202,7 +194,7 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, 
         </div>
       </div>
 
-      <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 flex-shrink-0 sm:px-6">
+      <div className="px-6 pb-8 pt-2 flex-shrink-0">
         <button
           onClick={handleSave}
           disabled={!canSave}
