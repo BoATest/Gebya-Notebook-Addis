@@ -5,6 +5,14 @@ import transcribeRouter from "./transcribe.js";
 
 const router: IRouter = Router();
 
+router.get("/", (_req, res) => {
+  res.json({
+    name: "Gebya API",
+    status: "ok",
+    routes: ["/healthz", "/health", "/telegram", "/transcribe"],
+  });
+});
+
 router.use("/healthz", healthRouter);
 router.use("/health", healthRouter);
 router.use("/telegram", telegramRouter);

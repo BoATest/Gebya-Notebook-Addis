@@ -5,9 +5,44 @@
     },
     "api/transcribe.ts": {
       "maxDuration": 60
-    },
-    "api/[...route].ts": {
-      "maxDuration": 60
     }
-  }
+  },
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/api/root.ts"
+    },
+    {
+      "src": "/healthz",
+      "dest": "/api/root.ts"
+    },
+    {
+      "src": "/health",
+      "dest": "/api/root.ts"
+    },
+    {
+      "src": "/api",
+      "dest": "/api/root.ts"
+    },
+    {
+      "src": "/api/health",
+      "dest": "/api/root.ts"
+    },
+    {
+      "src": "/api/healthz",
+      "dest": "/api/healthz.ts"
+    },
+    {
+      "src": "/api/transcribe",
+      "dest": "/api/transcribe.ts"
+    },
+    {
+      "src": "/api/telegram/(.*)",
+      "dest": "/api/telegram/[...route].ts"
+    },
+    {
+      "src": "/api/telegram",
+      "dest": "/api/telegram/[...route].ts"
+    }
+  ]
 }

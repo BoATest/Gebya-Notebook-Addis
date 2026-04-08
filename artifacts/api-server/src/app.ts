@@ -10,6 +10,9 @@ import router from "./routes/index.js";
 const app: Express = express();
 const isProduction = process.env.NODE_ENV === "production";
 
+// Vercel runs Express behind a proxy, so trust forwarded client IP headers.
+app.set("trust proxy", 1);
+
 function createRequestId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
