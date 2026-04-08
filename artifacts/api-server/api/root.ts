@@ -34,12 +34,17 @@ export default function handler(req: any, res: any) {
 
   const pathname = new URL(req.url || "/", "http://localhost").pathname;
 
+  if (pathname === "/favicon.ico" || pathname === "/favicon.png") {
+    return res.status(204).end();
+  }
+
   if (pathname === "/" || pathname === "/api") {
     return res.status(200).json({
       name: "Gebya API",
       status: "ok",
       routes: [
         "/",
+        "/favicon.ico",
         "/healthz",
         "/health",
         "/api/healthz",

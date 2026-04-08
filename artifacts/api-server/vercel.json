@@ -9,6 +9,14 @@
   },
   "routes": [
     {
+      "src": "/favicon.ico",
+      "dest": "/api/root.ts"
+    },
+    {
+      "src": "/favicon.png",
+      "dest": "/api/root.ts"
+    },
+    {
       "src": "/",
       "dest": "/api/root.ts"
     },
