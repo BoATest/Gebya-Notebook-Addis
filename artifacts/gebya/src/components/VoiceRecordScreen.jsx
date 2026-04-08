@@ -14,9 +14,11 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
   const transcriptRef = useRef('');
-  const finalTranscriptRef = useRef('');
+  const finalChunksRef = useRef([]);
+  const elapsedRef = useRef(0);
   const stoppedRef = useRef(false);
   const processedRef = useRef(false);
+  const stopRequestedRef = useRef(false);
 
   const cleanupRecording = useCallback(() => {
     if (timerRef.current) {
@@ -29,17 +31,23 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
     }
   }, []);
 
-  const handleStop = useCallback(async () => {
+  const handleStop = useCallback(async ({ forceProcess = true } = {}) => {
     if (stoppedRef.current || processedRef.current) return;
     stoppedRef.current = true;
-    processedRef.current = true;
+    stopRequestedRef.current = true;
+    processedRef.current = forceProcess;
     cleanupRecording();
+
+    if (!forceProcess) {
+      return;
+    }
 
     const transcript = transcriptRef.current.trim();
 
     if (!transcript) {
       stoppedRef.current = false;
       processedRef.current = false;
+      stopRequestedRef.current = false;
       setError(t.tryAgain);
       return;
     }
@@ -66,6 +74,7 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
       } else {
         stoppedRef.current = false;
         processedRef.current = false;
+        stopRequestedRef.current = false;
         setIsProcessing(false);
         setError(t.tryAgain);
       }
@@ -75,8 +84,10 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
   useEffect(() => {
     stoppedRef.current = false;
     processedRef.current = false;
+    stopRequestedRef.current = false;
     transcriptRef.current = '';
-    finalTranscriptRef.current = '';
+    finalChunksRef.current = [];
+    elapsedRef.current = 0;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -91,22 +102,22 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
     recognition.continuous = true;
 
     recognition.onresult = (event) => {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      const finalChunks = [...finalChunksRef.current];
+      const interimChunks = [];
+
+      for (let i = 0; i < event.results.length; i++) {
         const nextChunk = event.results[i][0]?.transcript?.trim();
         if (!nextChunk) continue;
 
         if (event.results[i].isFinal) {
-          const existingFinal = finalTranscriptRef.current.trim();
-          if (!existingFinal.endsWith(nextChunk)) {
-            finalTranscriptRef.current = `${existingFinal} ${nextChunk}`.trim();
-          }
+          finalChunks[i] = nextChunk;
         } else {
-          interim = `${interim} ${nextChunk}`.trim();
+          interimChunks.push(nextChunk);
         }
       }
 
-      transcriptRef.current = `${finalTranscriptRef.current} ${interim}`.trim();
+      finalChunksRef.current = finalChunks;
+      transcriptRef.current = [...finalChunks.filter(Boolean), ...interimChunks].join(' ').trim();
     };
 
     recognition.onerror = (e) => {
@@ -125,6 +136,19 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
     };
 
     recognition.onend = () => {
+      if (stopRequestedRef.current || processedRef.current) {
+        return;
+      }
+
+      if (elapsedRef.current < TOTAL_DURATION) {
+        try {
+          recognition.start();
+          return;
+        } catch {
+          // Fall through and process the captured transcript.
+        }
+      }
+
       if (!stoppedRef.current) {
         handleStop();
       }
@@ -136,10 +160,11 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
     timerRef.current = setInterval(() => {
       setElapsed(prev => {
         const next = prev + 1;
+        elapsedRef.current = next;
         if (next >= NUDGE_AT) setShowNudge(true);
         if (next >= TOTAL_DURATION) {
           handleStop();
-          return prev;
+          return TOTAL_DURATION;
         }
         return next;
       });
@@ -147,6 +172,7 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
 
     return () => {
       stoppedRef.current = true;
+      stopRequestedRef.current = true;
       cleanupRecording();
     };
   }, [cleanupRecording, handleStop, onNoInternet, t]);
@@ -199,7 +225,7 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
         </div>
       ) : (
         <button
-          onClick={handleStop}
+          onClick={() => handleStop()}
           className="w-full max-w-xs py-4 font-black text-base font-sans"
           style={{ background: '#fff', color: '#1B4332', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 rgba(0,0,0,0.2)' }}
         >
@@ -208,7 +234,7 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
       )}
 
       <button
-        onClick={() => { cleanupRecording(); onTypeInstead(); }}
+        onClick={() => { stopRequestedRef.current = true; cleanupRecording(); onTypeInstead(); }}
         className="mt-5 text-white opacity-60 text-sm underline font-sans min-h-[44px] flex items-center"
       >
         {t.voiceTypeInstead}
