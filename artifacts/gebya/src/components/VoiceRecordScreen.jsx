@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLang } from '../context/LangContext';
 
 const TOTAL_DURATION = 30;
@@ -6,7 +6,7 @@ const NUDGE_AT = 15;
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [elapsed, setElapsed] = useState(0);
   const [showNudge, setShowNudge] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -19,6 +19,10 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
   const stoppedRef = useRef(false);
   const processedRef = useRef(false);
   const stopRequestedRef = useRef(false);
+
+  const recordingExamples = lang === 'am'
+    ? ['ሁለት ዳቦ በ60', 'አንድ ኮካ በ35', 'ሶስት ወተት በ150']
+    : ['two bread for 60', 'one Coca-Cola for 35', 'three milk for 150'];
 
   const cleanupRecording = useCallback(() => {
     if (timerRef.current) {
@@ -183,68 +187,86 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
   const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6"
-      style={{ background: '#1B4332' }}>
-      <h2 className="text-white text-xl font-black mb-2 font-sans">{t.voiceRecordingTitle}</h2>
-      <p className="text-white opacity-70 text-sm mb-8 font-sans">{t.voiceRecordingHint}</p>
+    <div className="fixed inset-0 z-50 overflow-y-auto px-4 py-4 sm:px-6" style={{ background: '#1B4332' }}>
+      <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col justify-center py-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="rounded-[28px] border border-white/15 bg-white/8 p-5 text-center shadow-lg backdrop-blur-sm sm:p-6">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/60 font-sans">Gebya Voice</p>
+          <h2 className="mt-2 text-2xl font-black text-white font-sans">{t.voiceRecordingTitle}</h2>
+          <p className="mt-2 text-sm leading-6 text-white/75 font-sans">
+            {lang === 'am' ? 'የሸጡትን እቃ እና ጠቅላላ ዋጋ በቀላሉ ይናገሩ።' : 'Say what you sold and the total price in one short note.'}
+          </p>
 
-      <div className="relative w-40 h-40 flex items-center justify-center mb-8">
-        <div className="absolute inset-0 rounded-full bg-white opacity-10 animate-ping" style={{ animationDuration: '1.5s' }} />
-        <div className="absolute inset-0 rounded-full bg-white opacity-5" />
-        <div
-          className="w-32 h-32 rounded-full flex items-center justify-center"
-          style={{ background: 'rgba(255,255,255,0.15)', border: '3px solid rgba(255,255,255,0.4)' }}
-        >
-          <span className="text-5xl">🎤</span>
+          <div className="mt-5 rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-left">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-white/55 font-sans">
+              {lang === 'am' ? 'ምሳሌ' : 'Example'}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {recordingExamples.map((example) => (
+                <span key={example} className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80 font-sans">
+                  {example}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative mx-auto mt-7 flex h-40 w-40 items-center justify-center sm:h-44 sm:w-44">
+            <div className="absolute inset-0 rounded-full bg-white opacity-10 animate-ping" style={{ animationDuration: '1.5s' }} />
+            <div className="absolute inset-2 rounded-full border border-white/15" />
+            <div
+              className="relative flex h-28 w-28 items-center justify-center rounded-full sm:h-32 sm:w-32"
+              style={{ background: 'rgba(255,255,255,0.15)', border: '3px solid rgba(255,255,255,0.4)' }}
+            >
+              <span className="text-5xl">🎤</span>
+            </div>
+          </div>
+
+          <div className="mt-6 text-white text-3xl font-black font-mono">{timeStr}</div>
+
+          <div className="mx-auto mt-4 w-full max-w-xs">
+            <div className="h-2 w-full rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>
+              <div
+                className="h-2 rounded-full transition-all"
+                style={{ width: `${progress}%`, background: progress > 80 ? '#D4654A' : '#C4883A' }}
+              />
+            </div>
+          </div>
+
+          {showNudge && (
+            <p className="mt-4 text-sm font-semibold font-sans text-white/90">{t.voiceTryFinishSoon}</p>
+          )}
+
+          {error && (
+            <p className="mt-4 text-sm font-semibold font-sans text-red-200">{error}</p>
+          )}
+
+          {isProcessing ? (
+            <div className="mt-5 w-full rounded-2xl px-4 py-4 text-center text-base font-black text-white font-sans" style={{ background: 'rgba(255,255,255,0.15)' }}>
+              {lang === 'am' ? 'የናገሩትን በማዘጋጀት ላይ…' : 'Preparing your note…'}
+            </div>
+          ) : (
+            <button
+              onClick={() => handleStop()}
+              className="mt-5 w-full py-4 font-black text-base font-sans"
+              style={{ background: '#fff', color: '#1B4332', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 rgba(0,0,0,0.2)' }}
+            >
+              ⏹ {t.voiceStop}
+            </button>
+          )}
+
+          <button
+            onClick={() => { stopRequestedRef.current = true; cleanupRecording(); onTypeInstead(); }}
+            className="mt-4 min-h-[44px] text-sm font-semibold text-white/70 underline font-sans"
+          >
+            {t.voiceTypeInstead}
+          </button>
         </div>
       </div>
-
-      <div className="text-white text-3xl font-black font-mono mb-6">{timeStr}</div>
-
-      <div className="w-full max-w-xs mb-4">
-        <div className="w-full h-2 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>
-          <div
-            className="h-2 rounded-full transition-all"
-            style={{ width: `${progress}%`, background: progress > 80 ? '#D4654A' : '#C4883A' }}
-          />
-        </div>
-      </div>
-
-      {showNudge && (
-        <p className="text-white text-sm font-semibold mb-4 font-sans opacity-90">{t.voiceTryFinishSoon}</p>
-      )}
-
-      {error && (
-        <p className="text-red-300 text-sm mb-4 font-sans">{error}</p>
-      )}
-
-      {isProcessing ? (
-        <div className="w-full max-w-xs py-4 font-black text-white text-base text-center font-sans"
-          style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 'var(--radius-md)' }}>
-          {t.saving}
-        </div>
-      ) : (
-        <button
-          onClick={() => handleStop()}
-          className="w-full max-w-xs py-4 font-black text-base font-sans"
-          style={{ background: '#fff', color: '#1B4332', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 rgba(0,0,0,0.2)' }}
-        >
-          ⏹ {t.voiceStop}
-        </button>
-      )}
-
-      <button
-        onClick={() => { stopRequestedRef.current = true; cleanupRecording(); onTypeInstead(); }}
-        className="mt-5 text-white opacity-60 text-sm underline font-sans min-h-[44px] flex items-center"
-      >
-        {t.voiceTypeInstead}
-      </button>
     </div>
   );
 }
 
 function VoiceRecordScreen({ onTranscript, onTypeInstead }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [sessionKey, setSessionKey] = useState(0);
   const [noInternet, setNoInternet] = useState(() => !navigator.onLine);
 
@@ -262,25 +284,30 @@ function VoiceRecordScreen({ onTranscript, onTypeInstead }) {
 
   if (noInternet) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6"
-        style={{ background: '#FAF8F5' }}>
-        <div className="text-5xl mb-4">📡</div>
-        <h2 className="text-xl font-black text-gray-900 text-center mb-2 font-sans">{t.voiceNoInternet}</h2>
-        <p className="text-sm text-gray-500 text-center mb-8 font-sans">{t.voiceNoInternetHint}</p>
-        <button
-          onClick={onTypeInstead}
-          className="w-full max-w-xs py-4 font-black text-white text-base mb-3 font-sans"
-          style={{ background: '#2d6a4f', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 #1B4332' }}
-        >
-          {t.voiceTypeSaleInstead}
-        </button>
-        <button
-          onClick={handleRetry}
-          className="w-full max-w-xs py-4 font-bold text-gray-700 text-base font-sans"
-          style={{ background: '#f5f5f5', borderRadius: 'var(--radius-md)' }}
-        >
-          {t.voiceRetry}
-        </button>
+      <div className="fixed inset-0 z-50 overflow-y-auto px-4 py-4 sm:px-6" style={{ background: '#FAF8F5' }}>
+        <div className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col justify-center py-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="rounded-[28px] border border-[var(--color-border)] bg-white p-6 text-center shadow-sm">
+            <div className="text-5xl mb-4">📡</div>
+            <h2 className="text-xl font-black text-gray-900 text-center mb-2 font-sans">{t.voiceNoInternet}</h2>
+            <p className="text-sm leading-6 text-gray-500 text-center mb-6 font-sans">
+              {lang === 'am' ? 'ድምጽ ለመተርጎም ኢንተርኔት ያስፈልጋል፤ ሽያጩን ግን አሁንም በእጅ መጻፍ ይችላሉ።' : 'Voice needs internet to understand your note, but you can still write the sale now.'}
+            </p>
+            <button
+              onClick={onTypeInstead}
+              className="w-full py-4 font-black text-white text-base mb-3 font-sans"
+              style={{ background: '#2d6a4f', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 #1B4332' }}
+            >
+              {t.voiceTypeSaleInstead}
+            </button>
+            <button
+              onClick={handleRetry}
+              className="w-full py-4 font-bold text-gray-700 text-base font-sans"
+              style={{ background: '#f5f5f5', borderRadius: 'var(--radius-md)' }}
+            >
+              {t.voiceRetry}
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
