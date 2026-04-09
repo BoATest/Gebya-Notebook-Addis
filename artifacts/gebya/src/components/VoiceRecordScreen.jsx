@@ -183,62 +183,83 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
   const timeStr = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6"
+    <div className="fixed inset-0 z-50 flex flex-col px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6"
       style={{ background: '#1B4332' }}>
-      <h2 className="text-white text-xl font-black mb-2 font-sans">{t.voiceRecordingTitle}</h2>
-      <p className="text-white opacity-70 text-sm mb-8 font-sans">{t.voiceRecordingHint}</p>
+      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-between">
+        <div className="w-full pt-6 text-center sm:pt-8">
+          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full"
+            style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)' }}>
+            <span className="text-xl">🎤</span>
+          </div>
+          <h2 className="mb-2 text-xl font-black text-white font-sans sm:text-2xl">{t.voiceRecordingTitle}</h2>
+          <p className="mx-auto max-w-xs text-sm font-sans leading-6 text-white/70">{t.voiceRecordingHint}</p>
+        </div>
 
-      <div className="relative w-40 h-40 flex items-center justify-center mb-8">
-        <div className="absolute inset-0 rounded-full bg-white opacity-10 animate-ping" style={{ animationDuration: '1.5s' }} />
-        <div className="absolute inset-0 rounded-full bg-white opacity-5" />
-        <div
-          className="w-32 h-32 rounded-full flex items-center justify-center"
-          style={{ background: 'rgba(255,255,255,0.15)', border: '3px solid rgba(255,255,255,0.4)' }}
-        >
-          <span className="text-5xl">🎤</span>
+        <div className="flex w-full flex-1 flex-col items-center justify-center py-6">
+          <div className="relative mb-6 flex h-44 w-44 items-center justify-center sm:h-48 sm:w-48">
+            <div className="absolute inset-0 rounded-full bg-white opacity-10 animate-ping" style={{ animationDuration: '1.5s' }} />
+            <div className="absolute inset-3 rounded-full border border-white/10" />
+            <div className="absolute inset-0 rounded-full bg-white opacity-5" />
+            <div
+              className="flex h-32 w-32 items-center justify-center rounded-full sm:h-36 sm:w-36"
+              style={{ background: 'rgba(255,255,255,0.15)', border: '3px solid rgba(255,255,255,0.4)' }}
+            >
+              <span className="text-5xl sm:text-6xl">🎤</span>
+            </div>
+          </div>
+
+          <div className="mb-5 text-center text-4xl font-black text-white font-mono sm:text-[2.5rem]">{timeStr}</div>
+
+          <div className="w-full max-w-xs mb-4">
+            <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.2em] text-white/55">
+              <span>Live</span>
+              <span>{Math.max(TOTAL_DURATION - elapsed, 0)}s</span>
+            </div>
+            <div className="h-2.5 w-full rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>
+              <div
+                className="h-2.5 rounded-full transition-all"
+                style={{ width: `${progress}%`, background: progress > 80 ? '#D4654A' : '#C4883A' }}
+              />
+            </div>
+          </div>
+
+          <div className="min-h-[24px]">
+            {showNudge && (
+              <p className="text-center text-sm font-semibold font-sans text-white/90">{t.voiceTryFinishSoon}</p>
+            )}
+          </div>
+
+          <div className="mt-2 min-h-[24px]">
+            {error && (
+              <p className="text-center text-sm font-sans text-red-300">{error}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="w-full pb-1">
+          {isProcessing ? (
+            <div className="w-full py-4 text-center text-base font-black text-white font-sans"
+              style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 'var(--radius-md)' }}>
+              {t.saving}
+            </div>
+          ) : (
+            <button
+              onClick={() => handleStop()}
+              className="w-full py-4 text-base font-black font-sans"
+              style={{ background: '#fff', color: '#1B4332', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 rgba(0,0,0,0.2)' }}
+            >
+              ⏹ {t.voiceStop}
+            </button>
+          )}
+
+          <button
+            onClick={() => { stopRequestedRef.current = true; cleanupRecording(); onTypeInstead(); }}
+            className="mt-4 flex min-h-[44px] w-full items-center justify-center text-sm font-sans text-white/70 underline"
+          >
+            {t.voiceTypeInstead}
+          </button>
         </div>
       </div>
-
-      <div className="text-white text-3xl font-black font-mono mb-6">{timeStr}</div>
-
-      <div className="w-full max-w-xs mb-4">
-        <div className="w-full h-2 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>
-          <div
-            className="h-2 rounded-full transition-all"
-            style={{ width: `${progress}%`, background: progress > 80 ? '#D4654A' : '#C4883A' }}
-          />
-        </div>
-      </div>
-
-      {showNudge && (
-        <p className="text-white text-sm font-semibold mb-4 font-sans opacity-90">{t.voiceTryFinishSoon}</p>
-      )}
-
-      {error && (
-        <p className="text-red-300 text-sm mb-4 font-sans">{error}</p>
-      )}
-
-      {isProcessing ? (
-        <div className="w-full max-w-xs py-4 font-black text-white text-base text-center font-sans"
-          style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 'var(--radius-md)' }}>
-          {t.saving}
-        </div>
-      ) : (
-        <button
-          onClick={() => handleStop()}
-          className="w-full max-w-xs py-4 font-black text-base font-sans"
-          style={{ background: '#fff', color: '#1B4332', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 rgba(0,0,0,0.2)' }}
-        >
-          ⏹ {t.voiceStop}
-        </button>
-      )}
-
-      <button
-        onClick={() => { stopRequestedRef.current = true; cleanupRecording(); onTypeInstead(); }}
-        className="mt-5 text-white opacity-60 text-sm underline font-sans min-h-[44px] flex items-center"
-      >
-        {t.voiceTypeInstead}
-      </button>
     </div>
   );
 }
@@ -262,25 +283,31 @@ function VoiceRecordScreen({ onTranscript, onTypeInstead }) {
 
   if (noInternet) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center px-6"
+      <div className="fixed inset-0 z-50 flex flex-col px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6"
         style={{ background: '#FAF8F5' }}>
-        <div className="text-5xl mb-4">📡</div>
-        <h2 className="text-xl font-black text-gray-900 text-center mb-2 font-sans">{t.voiceNoInternet}</h2>
-        <p className="text-sm text-gray-500 text-center mb-8 font-sans">{t.voiceNoInternetHint}</p>
-        <button
-          onClick={onTypeInstead}
-          className="w-full max-w-xs py-4 font-black text-white text-base mb-3 font-sans"
-          style={{ background: '#2d6a4f', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 #1B4332' }}
-        >
-          {t.voiceTypeSaleInstead}
-        </button>
-        <button
-          onClick={handleRetry}
-          className="w-full max-w-xs py-4 font-bold text-gray-700 text-base font-sans"
-          style={{ background: '#f5f5f5', borderRadius: 'var(--radius-md)' }}
-        >
-          {t.voiceRetry}
-        </button>
+        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-between">
+          <div className="flex flex-1 flex-col items-center justify-center text-center">
+            <div className="mb-4 text-5xl">📡</div>
+            <h2 className="mb-2 text-xl font-black text-gray-900 font-sans sm:text-2xl">{t.voiceNoInternet}</h2>
+            <p className="max-w-xs text-sm leading-6 text-gray-500 font-sans">{t.voiceNoInternetHint}</p>
+          </div>
+          <div className="w-full pb-1">
+            <button
+              onClick={onTypeInstead}
+              className="mb-3 w-full py-4 text-base font-black text-white font-sans"
+              style={{ background: '#2d6a4f', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 #1B4332' }}
+            >
+              {t.voiceTypeSaleInstead}
+            </button>
+            <button
+              onClick={handleRetry}
+              className="w-full py-4 text-base font-bold text-gray-700 font-sans"
+              style={{ background: '#f5f5f5', borderRadius: 'var(--radius-md)' }}
+            >
+              {t.voiceRetry}
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
