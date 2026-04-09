@@ -69,18 +69,22 @@ export default function DailySuggestions({ todayTransactions, streak = 1, onActi
 
   return (
     <div
-      className="px-4 py-3 flex items-center gap-3 animate-elastic"
+      className="animate-elastic px-4 py-3"
       style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
     >
-      <span className="text-2xl flex-shrink-0">{suggestion.icon}</span>
-      <p className="flex-1 text-sm text-gray-600 font-medium leading-snug font-sans">{message}</p>
-      <button
-        onClick={() => onAction(suggestion.action)}
-        className="flex-shrink-0 px-3 py-2 text-xs font-bold text-white transition-all press-scale font-sans"
-        style={{ background: '#1B4332', borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-xs)' }}
-      >
-        {suggestion.actionLabel}
-      </button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex-shrink-0 text-2xl">{suggestion.icon}</span>
+          <p className="flex-1 text-sm font-medium leading-snug text-gray-600 font-sans">{message}</p>
+        </div>
+        <button
+          onClick={() => onAction(suggestion.action)}
+          className="w-full flex-shrink-0 px-3 py-2.5 text-xs font-bold text-white transition-all press-scale font-sans sm:w-auto"
+          style={{ background: '#1B4332', borderRadius: 'var(--radius-sm)', boxShadow: 'var(--shadow-xs)' }}
+        >
+          {suggestion.actionLabel}
+        </button>
+      </div>
     </div>
   );
 }
