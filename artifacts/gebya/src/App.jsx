@@ -1281,8 +1281,8 @@ function AppInner() {
   return (
     <div className="min-h-screen flex flex-col max-w-md mx-auto relative" style={{ background: P.bg }}>
 
-      <header className="flex-shrink-0 px-4 pt-9 pb-3 texture-noise" style={{ background: P.header }}>
-        <div className="flex items-center gap-3 mb-3">
+      <header className="flex-shrink-0 px-3.5 pt-8 pb-3 texture-noise sm:px-4 sm:pt-9" style={{ background: P.header }}>
+        <div className="mb-3 flex flex-wrap items-center gap-2.5 sm:gap-3">
           {/* Avatar — taps to settings */}
           <button
             onClick={() => setActiveTab('settings')}
@@ -1308,58 +1308,59 @@ function AppInner() {
           </button>
 
           {/* Shop name + date */}
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1 pr-1">
             <h1 className="text-xl font-black text-white tracking-tight font-serif leading-tight truncate">
               {shopProfile.name}
             </h1>
-            <p className="text-xs font-semibold mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.6)' }}>
+            <p className="mt-0.5 truncate text-[11px] font-semibold sm:text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
               ገበያ · {getCurrentEthiopianDate()} · {new Date().toLocaleDateString('en', { day: 'numeric', month: 'short' })}
             </p>
           </div>
 
-          {/* Streak pill */}
-          {(usageStats?.streak || 0) > 0 && (
-            <span className="flex-shrink-0 text-xs font-black px-2 py-1" style={{
-              background: 'rgba(255,255,255,0.15)',
-              color: 'rgba(255,255,255,0.9)',
-              borderRadius: '8px',
-              whiteSpace: 'nowrap',
-            }}>
-              🔥 {usageStats.streak}
-            </span>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {/* Streak pill */}
+            {(usageStats?.streak || 0) > 0 && (
+              <span className="flex-shrink-0 whitespace-nowrap px-2 py-1 text-[11px] font-black sm:text-xs" style={{
+                background: 'rgba(255,255,255,0.15)',
+                color: 'rgba(255,255,255,0.9)',
+                borderRadius: '8px',
+              }}>
+                🔥 {usageStats.streak}
+              </span>
+            )}
 
-          {/* Language toggle */}
-          <button
-            onClick={toggleLang}
-            className="text-xs font-bold transition-all flex items-center flex-shrink-0 press-scale"
-            style={{
-              background: 'rgba(255,255,255,0.15)',
-              borderRadius: '10px',
-              padding: '3px',
-              gap: '2px',
-            }}
-            aria-label={lang === 'en' ? 'Switch to Amharic' : 'Switch to English'}
-          >
-            <span style={{
-              background: lang === 'en' ? 'rgba(255,255,255,0.95)' : 'transparent',
-              color: lang === 'en' ? '#1B4332' : 'rgba(255,255,255,0.6)',
-              fontWeight: lang === 'en' ? 800 : 600,
-              padding: '4px 10px',
-              borderRadius: '8px',
-              transition: 'all 0.18s',
-              display: 'block',
-            }}>EN</span>
-            <span style={{
-              background: lang === 'am' ? 'rgba(255,255,255,0.95)' : 'transparent',
-              color: lang === 'am' ? '#1B4332' : 'rgba(255,255,255,0.6)',
-              fontWeight: lang === 'am' ? 800 : 600,
-              padding: '4px 9px',
-              borderRadius: '8px',
-              transition: 'all 0.18s',
-              display: 'block',
-            }}>አማ</span>
-          </button>
+            {/* Language toggle */}
+            <button
+              onClick={toggleLang}
+              className="flex flex-shrink-0 items-center text-xs font-bold transition-all press-scale"
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                borderRadius: '10px',
+                padding: '3px',
+                gap: '2px',
+              }}
+              aria-label={lang === 'en' ? 'Switch to Amharic' : 'Switch to English'}
+            >
+              <span style={{
+                background: lang === 'en' ? 'rgba(255,255,255,0.95)' : 'transparent',
+                color: lang === 'en' ? '#1B4332' : 'rgba(255,255,255,0.6)',
+                fontWeight: lang === 'en' ? 800 : 600,
+                padding: '4px 10px',
+                borderRadius: '8px',
+                transition: 'all 0.18s',
+                display: 'block',
+              }}>EN</span>
+              <span style={{
+                background: lang === 'am' ? 'rgba(255,255,255,0.95)' : 'transparent',
+                color: lang === 'am' ? '#1B4332' : 'rgba(255,255,255,0.6)',
+                fontWeight: lang === 'am' ? 800 : 600,
+                padding: '4px 9px',
+                borderRadius: '8px',
+                transition: 'all 0.18s',
+                display: 'block',
+              }}>አማ</span>
+            </button>
+          </div>
         </div>
 
         {activeTab === 'today' && (
@@ -1368,9 +1369,9 @@ function AppInner() {
               { label: t.sales, val: todaySalesTotal, color: 'rgba(255,255,255,0.15)', text: '#fff' },
               { label: t.spent, val: todayExpensesTotal, color: 'rgba(212,101,74,0.35)', text: '#fff' },
             ].map(s => (
-              <div key={s.label} className="flex-1 px-3 py-2 text-center animate-elastic" style={{ background: s.color, borderRadius: 'var(--radius-sm)' }}>
-                <div className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>{s.label}</div>
-                <div className="font-black text-sm text-white">{hid(s.val)} {t.birr}</div>
+              <div key={s.label} className="min-w-0 flex-1 px-2.5 py-2 text-center animate-elastic sm:px-3" style={{ background: s.color, borderRadius: 'var(--radius-sm)' }}>
+                <div className="truncate text-[11px] font-semibold sm:text-xs" style={{ color: 'rgba(255,255,255,0.75)' }}>{s.label}</div>
+                <div className="truncate text-sm font-black text-white">{hid(s.val)} {t.birr}</div>
               </div>
             ))}
           </div>
@@ -1379,7 +1380,7 @@ function AppInner() {
 
 
       {activeTab === 'today' && (
-        <div className="px-3 pt-2 pb-1 flex-shrink-0" style={{ background: P.actionBar }}>
+        <div className="flex-shrink-0 px-3 pt-2 pb-1" style={{ background: P.actionBar }}>
           {/* Time-based greeting */}
           <p className="text-center text-xs font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
             {getTimeGreeting()}
@@ -1387,17 +1388,17 @@ function AppInner() {
           {/* Voice — primary action */}
           <button
             onClick={() => setVoiceStep('record')}
-            className="w-full mb-1 py-4 flex flex-col items-center justify-center font-black text-white text-base transition-all active:scale-95 press-scale"
+            className="mb-1 flex w-full flex-col items-center justify-center py-3.5 text-base font-black text-white transition-all active:scale-95 press-scale sm:py-4"
             style={{ background: '#1a5c3a', border: '2px solid rgba(255,255,255,0.25)', borderRadius: 'var(--radius-lg)', boxShadow: '0 5px 0 #0f3d25' }}
           >
             <span className="text-2xl leading-none mb-0.5">🎤</span>
-            <span className="text-base font-black leading-snug">{t.recordByVoice}</span>
-            <span className="text-xs opacity-70">{t.recordByVoiceSubLabel}</span>
+            <span className="px-2 text-center text-[15px] font-black leading-snug sm:text-base">{t.recordByVoice}</span>
+            <span className="px-3 text-center text-[11px] opacity-70 sm:text-xs">{t.recordByVoiceSubLabel}</span>
           </button>
-          <p className="text-center text-xs mb-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
+          <p className="mb-2 px-2 text-center text-[11px] sm:text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
             {lang === 'am' ? 'ይናገሩ — ቆይቶ ማስተካከል ይቻላል' : 'Speak your sale — you can fix it after'}
           </p>
-          <div className="flex gap-2 pb-2">
+          <div className="grid grid-cols-3 gap-2 pb-2">
           {[
             { type: 'sale',    label: t.typeSaleLabel, sub: t.typeSale,  bg: '#2d6a4f', shadow: '#1B4332' },
             { type: 'expense', label: t.iSpentLabel, sub: t.iSpent, bg: '#D4654A', shadow: '#a84c37' },
@@ -1419,7 +1420,7 @@ function AppInner() {
                 onPointerUp={() => setPressedBtn(null)}
                 onPointerLeave={() => setPressedBtn(null)}
                 onPointerCancel={() => setPressedBtn(null)}
-                className="flex-1 py-3 text-center transition-all min-h-[72px]"
+                className="min-w-0 py-3 text-center transition-all min-h-[72px]"
                 style={{
                   background: b.bg,
                   borderRadius: 'var(--radius-lg)',
@@ -1427,9 +1428,9 @@ function AppInner() {
                   transform: pressed ? 'translateY(5px)' : 'none',
                 }}
               >
-                <div className="font-black text-white text-lg leading-none">+</div>
-                <div className="font-black text-white text-base leading-snug font-sans">{b.label}</div>
-                <div className="text-white text-xs opacity-70">{b.sub}</div>
+                <div className="text-lg font-black leading-none text-white">+</div>
+                <div className="px-1 text-sm font-black leading-snug text-white font-sans sm:text-base">{b.label}</div>
+                <div className="px-1 text-[11px] text-white opacity-70 sm:text-xs">{b.sub}</div>
               </button>
             );
           })}
@@ -1772,4 +1773,3 @@ function App() {
 }
 
 export default App;
-
