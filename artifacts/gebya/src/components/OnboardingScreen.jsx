@@ -12,7 +12,6 @@ function OnboardingScreen({ onComplete }) {
   const phoneHelper = t.onboardPhoneHelper || 'You can add your phone later in Settings.';
   const onboardingPromises = [
     t.onboardPromiseSimple || 'Simple notebook for sales, spending, and Dubie',
-    t.onboardPromiseFast || 'Start with your name only',
     t.onboardPromisePrivate || 'Your records stay on this phone',
   ];
   const [name, setName] = useState('');
@@ -144,19 +143,21 @@ function OnboardingScreen({ onComplete }) {
             </div>
           </div>
 
-          <button
-            onClick={handleStart}
-            disabled={!canProceed || saving}
-            className="w-full mt-5 p-4 font-black text-white text-base min-h-[56px] transition-all active:scale-95 font-sans press-scale"
-            style={{
-              background: canProceed ? '#1B4332' : '#e5e7eb',
-              color: canProceed ? '#fff' : '#9ca3af',
-              boxShadow: canProceed ? '0 4px 0 #0f2b20, var(--shadow-sm)' : 'none',
-              borderRadius: 'var(--radius-md)',
-            }}
-          >
-            {saving ? t.onboardSettingUp : t.onboardGetStarted}
-          </button>
+          <div className="sticky bottom-0 -mx-5 mt-5 bg-white px-5 pb-1 pt-4 sm:static sm:mx-0 sm:mt-5 sm:p-0">
+            <button
+              onClick={handleStart}
+              disabled={!canProceed || saving}
+              className="w-full p-4 font-black text-white text-base min-h-[56px] transition-all active:scale-95 font-sans press-scale"
+              style={{
+                background: canProceed ? '#1B4332' : '#e5e7eb',
+                color: canProceed ? '#fff' : '#9ca3af',
+                boxShadow: canProceed ? '0 4px 0 #0f2b20, var(--shadow-sm)' : 'none',
+                borderRadius: 'var(--radius-md)',
+              }}
+            >
+              {saving ? t.onboardSettingUp : t.onboardGetStarted}
+            </button>
+          </div>
         </div>
 
         <p className="text-center text-xs mt-4 px-2 leading-5 font-sans" style={{ color: 'rgba(255,255,255,0.45)' }}>
