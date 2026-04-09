@@ -42,11 +42,11 @@ function OnboardingScreen({ onComplete }) {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-6 py-8 texture-noise"
+      className="min-h-[100dvh] overflow-y-auto px-4 py-4 texture-noise sm:px-6 sm:py-8"
       style={{ background: '#1B4332' }}
     >
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-6 animate-elastic">
+      <div className="mx-auto flex min-h-[100dvh] w-full max-w-sm flex-col justify-start py-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:justify-center">
+        <div className="text-center mb-4 animate-elastic sm:mb-6">
           <div className="text-4xl mb-3 font-black text-white" aria-hidden="true">GB</div>
           <h1 className="text-4xl font-black text-white tracking-tight mb-1 font-serif">Gebya</h1>
           <p className="text-base font-semibold font-sans" style={{ color: 'rgba(255,255,255,0.72)' }}>
@@ -55,7 +55,7 @@ function OnboardingScreen({ onComplete }) {
         </div>
 
         <div
-          className="bg-white p-6 animate-slide-up"
+          className="bg-white p-5 animate-slide-up sm:p-6"
           style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)' }}
         >
           <h2 className="text-2xl font-black text-gray-900 mb-2 font-sans">{t.onboardWelcome}</h2>
@@ -159,7 +159,7 @@ function OnboardingScreen({ onComplete }) {
           </button>
         </div>
 
-        <p className="text-center text-xs mt-4 leading-5 font-sans" style={{ color: 'rgba(255,255,255,0.45)' }}>
+        <p className="text-center text-xs mt-4 px-2 leading-5 font-sans" style={{ color: 'rgba(255,255,255,0.45)' }}>
           {t.onboardFooter}
         </p>
       </div>
