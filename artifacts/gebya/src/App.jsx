@@ -194,7 +194,7 @@ function AppInner() {
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, nameRow, phoneRow, epRow, reRow, telegramRow] = await Promise.all([
+      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, nameRow, phoneRow, businessTypeRow, epRow, reRow, telegramRow] = await Promise.all([
         db.transactions.toArray(),
         db.customers.toArray(),
         db.customer_transactions.toArray(),
@@ -203,6 +203,7 @@ function AppInner() {
         db.supplier_transactions?.toArray?.() || [],
         db.settings.get('shop_name'),
         db.settings.get('shop_phone'),
+        db.settings.get('shop_business_type'),
         db.settings.get('enabled_payment_methods'),
         db.settings.get('recurring_expenses'),
         db.settings.get('shop_telegram'),
@@ -217,6 +218,7 @@ function AppInner() {
       setShopProfile({
         name: nameRow?.value || null,
         phone: phoneRow?.value || '',
+        businessType: businessTypeRow?.value || '',
         telegram: telegramRow?.value || '',
       });
       try { setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS); } catch { setEnabledProviders(DEFAULT_PROVIDERS); }
