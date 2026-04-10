@@ -17,7 +17,7 @@ import OnboardingScreen from './components/OnboardingScreen';
 import DailySuggestions from './components/DailySuggestions';
 import { ToastContainer, fireToast } from './components/Toast';
 import { DEFAULT_PROVIDERS } from './components/PaymentTypeChips';
-import VoiceRecordScreen from './components/VoiceRecordScreen';
+import VoiceRecordScreen from './components/VoiceRecordScreenAudio';
 import VoiceResultScreen from './components/VoiceResultScreen';
 import VoiceFixScreen from './components/VoiceFixScreen';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
@@ -191,6 +191,7 @@ function AppInner() {
   const [voiceItems, setVoiceItems] = useState([]);
   const [voiceConfidence, setVoiceConfidence] = useState(null);
   const [voiceDraft, setVoiceDraft] = useState(null);
+  const [voiceProvider, setVoiceProvider] = useState(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -425,7 +426,7 @@ function AppInner() {
       raw_transcript: combinedTranscript,
       detected_total: savedDetectedTotal,
       was_edited: wasEdited || false,
-      transcription_provider: null,
+      transcription_provider: voiceProvider || null,
       parsing_confidence: hasMultiple ? null : (voiceConfidence ?? null),
       voice_note: summaryNote || null,
       raw_audio_ref: null,
@@ -438,6 +439,7 @@ function AppInner() {
     setVoiceItems([]);
     setVoiceConfidence(null);
     setVoiceDraft(null);
+    setVoiceProvider(null);
   };
 
   const handleUpdateTransaction = async (id, updates) => {
@@ -1675,7 +1677,7 @@ function AppInner() {
 
       {voiceStep === 'record' && (
         <VoiceRecordScreen
-          onTranscript={(transcript, detectedTotal, confidence, draft) => {
+          onTranscript={(transcript, detectedTotal, confidence, draft, provider) => {
             const newItem = { transcript, detectedTotal, draft };
             const updatedItems = [...voiceItems, newItem];
             setVoiceItems(updatedItems);
@@ -1683,9 +1685,10 @@ function AppInner() {
             setVoiceDetectedTotal(detectedTotal);
             setVoiceConfidence(confidence ?? null);
             setVoiceDraft(draft ?? null);
+            setVoiceProvider(provider ?? null);
             setVoiceStep('result');
           }}
-          onTypeInstead={() => { setVoiceStep(null); setVoiceItems([]); setVoiceConfidence(null); setVoiceDraft(null); setShowForm('sale'); }}
+          onTypeInstead={() => { setVoiceStep(null); setVoiceItems([]); setVoiceConfidence(null); setVoiceDraft(null); setVoiceProvider(null); setShowForm('sale'); }}
         />
       )}
 
@@ -1698,8 +1701,8 @@ function AppInner() {
           onSave={handleVoiceSave}
           onFix={() => setVoiceStep('fix')}
           onAddAnother={() => setVoiceStep('record')}
-          onReRecord={() => { setVoiceTranscript(''); setVoiceDetectedTotal(null); setVoiceItems([]); setVoiceConfidence(null); setVoiceDraft(null); setVoiceStep('record'); }}
-          onTypeInstead={() => { setVoiceStep(null); setVoiceItems([]); setVoiceConfidence(null); setVoiceDraft(null); setShowForm('sale'); }}
+          onReRecord={() => { setVoiceTranscript(''); setVoiceDetectedTotal(null); setVoiceItems([]); setVoiceConfidence(null); setVoiceDraft(null); setVoiceProvider(null); setVoiceStep('record'); }}
+          onTypeInstead={() => { setVoiceStep(null); setVoiceItems([]); setVoiceConfidence(null); setVoiceDraft(null); setVoiceProvider(null); setShowForm('sale'); }}
         />
       )}
 
