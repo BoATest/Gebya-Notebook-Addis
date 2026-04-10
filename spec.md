@@ -1,9 +1,9 @@
-# Retail Credit Tracker with Optional Telegram Alerts
+# Mobile Sales Notebook with Optional Telegram Alerts
 
 ## Product Context
 This is one module inside the GBA platform. It is not the whole platform.
 
-The module is for small retailers who give goods on credit and record repayments. Many users may be elders, low-literacy users, or people who fear complex technology. The UI must feel like a simple digital notebook, not accounting software.
+The module is for small retailers, wholesalers, and sales teams who currently record daily transactions with a notebook. Credit tracking matters, but it is only one part of the job. Many users may be elders, low-literacy users, or people who fear complex technology. The UI must feel like a simple digital notebook, not accounting software.
 
 ## Real User Behavior
 Retailers do not always know formal customer details. They identify customers using any recognizable label, such as:
@@ -14,60 +14,69 @@ Retailers do not always know formal customer details. They identify customers us
 - house/location clue
 - car type or plate number
 
-When a customer takes goods on credit, the retailer records:
-- customer identifier
-- amount (mandatory)
-- optional item note or item list
+When a retailer records a transaction, they may capture:
+- customer identifier if needed
+- item note or item list
+- total amount
+- payment method
+- whether it was paid now, partly paid, or should remain open as credit
 - optional promised repayment date
 
-Later, if the customer takes more goods, the retailer adds more credit to the same customer.
+Later, if the same customer takes more goods, the retailer adds another transaction.
 If the customer pays partially, the retailer records a payment and the system reduces the balance.
 
 The goal is to track:
-- who the person is
-- how much they owe now
+- what was sold today
+- how it was paid
+- who still owes money now
 - what they took before
 - what they have already paid
 
 ## Core MVP Workflow
-1. Add customer with only one required field:
+1. Record a transaction quickly using notebook-style input:
+   - customer name or identifier when needed
+   - item note or item list
+   - amount
+   - payment method or open balance state
+
+2. Add customer with only one required field when a named ledger is needed:
    - customer name or identifier (free text)
 
-2. Optional extra fields hidden under "More":
+3. Optional extra fields hidden under "More":
    - note
    - phone
    - Telegram username or Telegram link if available
 
-3. Record transaction with only two primary actions:
+4. Record ledger transaction with only two primary actions:
    - Add Credit
    - Record Payment
 
-4. For Add Credit:
+5. For Add Credit:
    - amount required
    - item note optional
    - due date optional
 
-5. For Record Payment:
+6. For Record Payment:
    - amount required
    - note optional
 
-6. Customer detail page must show:
+7. Customer detail page must show:
    - customer identifier
    - notes
    - current balance
    - transaction history in time order
 
-7. Balance must be auto-calculated from transactions, not manually edited.
+8. Balance must be auto-calculated from transactions, not manually edited.
 
-8. After saving a transaction, show optional action:
+9. After saving a transaction, show optional action:
    - "Notify customer on Telegram?"
 
-9. If Telegram is connected, send a simple Telegram message with:
+10. If Telegram is connected, send a simple Telegram message with:
    - transaction type
    - amount
    - current balance
 
-10. If Telegram is not connected, save transaction normally and do not block the user.
+11. If Telegram is not connected, save transaction normally and do not block the user.
 
 ## Customer Telegram Flow
 We are focusing on Telegram first, not WhatsApp.
@@ -89,6 +98,7 @@ If reminder support is added, keep it disabled by default.
 ## UX Principles
 - must be mobile-first
 - must be extremely fast to use
+- must support notebook-style daily sales entry
 - must avoid accounting jargon
 - must avoid tax-like language
 - must feel private and safe
@@ -101,6 +111,7 @@ If reminder support is added, keep it disabled by default.
 - required fields should be minimal
 - advanced fields should be progressively disclosed
 - Telegram is optional, never mandatory
+- sale capture must stay simpler than formal POS flow
 - do not overbuild dashboards
 - do not build full inventory or full POS in this task
 - do not build tax/reporting complexity
@@ -135,15 +146,17 @@ If reminder support is added, keep it disabled by default.
 - support search by display_name and note
 
 ## Screens To Build or Improve
-1. Customer list
-2. Add customer form
-3. Customer detail
-4. Add credit modal/form
-5. Record payment modal/form
-6. Optional Telegram connect flow
-7. Telegram message templates
+1. Fast transaction entry
+2. Customer list
+3. Add customer form
+4. Customer detail
+5. Add credit modal/form
+6. Record payment modal/form
+7. Optional Telegram connect flow
+8. Telegram message templates
 
 ## Acceptance Criteria
+- retailer can record a daily transaction in under 10 seconds
 - retailer can create a customer in under 10 seconds
 - retailer can record credit in under 10 seconds
 - retailer can record payment in under 10 seconds

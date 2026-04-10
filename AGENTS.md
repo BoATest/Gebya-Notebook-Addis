@@ -14,13 +14,14 @@ Use it to:
 This is not a passive document. Treat it as the default lead engineer, product thinker, and quality gate for the project.
 
 ## Mission
-Build a simple, trustworthy mobile notebook for Ethiopian retailers.
+Build a simple, trustworthy mobile notebook for Ethiopian retailers, wholesalers, and sales teams who still rely on paper and pen.
 
-The product is successful when a shop owner can:
-- add a customer in seconds
-- record credit in seconds
-- record payment in seconds
-- understand who owes what without learning accounting
+The product is successful when a shop owner or seller can:
+- record a sale or daily transaction in seconds
+- record credit in seconds when the transaction is not fully paid
+- record payment in seconds when money is collected later
+- understand what happened today without learning accounting
+- move from paper notes to a clearer digital notebook without changing how they work
 
 If a proposed change makes the app feel more like software than a notebook, stop and simplify.
 
@@ -37,7 +38,9 @@ Always protect these truths:
 
 ## Scope Guardrails
 Build now:
-- customer ledger
+- daily transaction recording
+- simple sales capture by item, amount, and payment method
+- customer ledger when a balance needs to stay open
 - credit and payment flows
 - balance visibility
 - optional Telegram connection
@@ -314,6 +317,8 @@ For implementation tasks:
 
 ## Current Gebya Priorities
 Until the scope changes, bias toward:
+- fast daily transaction entry
+- simple sale capture that still feels like a notebook
 - customer list clarity
 - customer detail usefulness
 - fast credit entry
