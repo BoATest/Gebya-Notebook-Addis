@@ -455,6 +455,11 @@ const EN = {
   voiceTypeSaleInstead: 'Type Sale Instead',
   voiceRetry: 'Retry',
   voiceTryFinishSoon: '?? Try to finish soon',
+  voiceListeningState: 'Listening',
+  voiceStoppedState: 'Stopped',
+  voiceProcessingState: 'Processing',
+  voiceLivePreview: 'What we hear',
+  voiceLivePreviewHint: 'Your words should show here before saving.',
   voiceResultTitle: 'Voice Result',
   voiceTranscript: 'What you said',
   voiceDetectedTotal: 'Detected total',
@@ -951,6 +956,11 @@ const AM = {
   voiceTypeSaleInstead: 'በጽሑፍ ሸጥ',
   voiceRetry: 'እንደገና ሞክር',
   voiceTryFinishSoon: '⚠️ ለመጨረስ ቶሎ ይሞክሩ',
+  voiceListeningState: 'እየሰማ',
+  voiceStoppedState: 'ቆሟል',
+  voiceProcessingState: 'በማቀናበር ላይ',
+  voiceLivePreview: 'የሰማው',
+  voiceLivePreviewHint: 'ከማስቀመጥ በፊት የተሰሙ ቃላት እዚህ ይታያሉ።',
   voiceResultTitle: 'የድምጽ ውጤት',
   voiceTranscript: 'የተናገሩት',
   voiceDetectedTotal: 'የተገኘ ጠቅላላ',
@@ -1027,6 +1037,5 @@ export function LangProvider({ children }) {
 export function useLang() {
   return useContext(LangContext);
 }
-
 
 
