@@ -43,6 +43,10 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
   const [customDue, setCustomDue] = useState('');
   const [paymentType, setPaymentType] = useState(initialPaymentType || 'cash');
   const [paymentProvider, setPaymentProvider] = useState(initialPaymentProvider || '');
+  const [saleSettlementMode, setSaleSettlementMode] = useState('paid_now');
+  const [saleCustomerName, setSaleCustomerName] = useState('');
+  const [paidAmount, setPaidAmount] = useState('');
+  const [saleDueDate, setSaleDueDate] = useState('');
   const [creditDirection, setCreditDirection] = useState('owes_me');
   const [saveState, setSaveState] = useState('idle');
   const [lastSaved, setLastSaved] = useState(null);
@@ -59,6 +63,23 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
   const cost = parseFloat(parseInput(costPrice)) || 0;
   const qty = Math.max(1, parseInt(quantity) || 1);
   const belowCost = !isCredit && cost > 0 && sellingPrice < cost * qty;
+  const isSale = type === 'sale';
+  const parsedPaidAmount = parseFloat(parseInput(paidAmount)) || 0;
+  const requiresCustomerBalance = isSale && saleSettlementMode !== 'paid_now';
+  const remainingAmount = !isSale
+    ? 0
+    : saleSettlementMode === 'paid_now'
+      ? 0
+      : saleSettlementMode === 'pay_later'
+        ? sellingPrice
+        : Math.max(sellingPrice - parsedPaidAmount, 0);
+  const settledAmount = !isSale
+    ? 0
+    : saleSettlementMode === 'paid_now'
+      ? sellingPrice
+      : saleSettlementMode === 'pay_later'
+        ? 0
+        : parsedPaidAmount;
 
   const phoneValid = !phoneDigits || /^[79]\d{8}$/.test(phoneDigits);
   const phoneEntered = phoneDigits.length > 0;
@@ -66,7 +87,14 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
   const hasDueDate = isCredit
     ? (selectedDue !== null && selectedDue !== undefined && selectedDue !== 'custom') || (selectedDue === 'custom' && customDue)
     : true;
-  const canSave = item.trim() && sellingPrice > 0 && hasDueDate && (!phoneEntered || phoneValid);
+  const saleCustomerValid = !requiresCustomerBalance || saleCustomerName.trim().length > 0;
+  const partialAmountValid = !isSale || saleSettlementMode !== 'paid_partly' || (parsedPaidAmount > 0 && parsedPaidAmount < sellingPrice);
+  const canSave = item.trim()
+    && sellingPrice > 0
+    && hasDueDate
+    && (!phoneEntered || phoneValid)
+    && saleCustomerValid
+    && partialAmountValid;
 
   const getEffectiveDueDate = () => {
     if (selectedDue === 'custom' && customDue) return new Date(customDue).getTime();
@@ -85,12 +113,17 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
       amount: sellingPrice,
       cost_price: isCredit ? 0 : cost,
       profit: (!isCredit && cost > 0) ? (sellingPrice - cost * qty) : null,
-      is_credit: isCredit,
+      is_credit: isCredit || remainingAmount > 0,
       customer_phone: isCredit ? fullPhone : null,
+      customer_name: isSale ? (saleCustomerName.trim() || null) : null,
       due_date: isCredit ? getEffectiveDueDate() : null,
-      payment_type: isCredit ? null : paymentType,
-      payment_provider: (!isCredit && paymentType !== 'cash') ? paymentProvider || null : null,
+      payment_type: isCredit || (isSale && saleSettlementMode === 'pay_later') ? null : paymentType,
+      payment_provider: (!isCredit && paymentType !== 'cash' && (!isSale || saleSettlementMode !== 'pay_later')) ? paymentProvider || null : null,
       direction: isCredit ? creditDirection : null,
+      sale_settlement_mode: isSale ? saleSettlementMode : null,
+      paid_amount: isSale ? settledAmount : null,
+      remaining_amount: isSale ? remainingAmount : null,
+      settlement_due_date: isSale && remainingAmount > 0 && saleDueDate ? new Date(saleDueDate).getTime() : null,
       created_at: Date.now(),
     };
     try {
@@ -156,6 +189,10 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
     setCustomDue('');
     setPaymentType(keptType);
     setPaymentProvider(keptProvider);
+    setSaleSettlementMode('paid_now');
+    setSaleCustomerName('');
+    setPaidAmount('');
+    setSaleDueDate('');
     setCatalogEntryId(keptCatalog);
     setSaveState('idle');
     setLastSaved(null);
@@ -372,6 +409,98 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
             </div>
           </div>
 
+          {isSale && (
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2 text-sm font-sans">{t.saleSettlementLabel}</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'paid_now', label: t.saleSettlementPaidNow, sub: t.saleSettlementPaidNowHint },
+                  { id: 'paid_partly', label: t.saleSettlementPaidPartly, sub: t.saleSettlementPaidPartlyHint },
+                  { id: 'pay_later', label: t.saleSettlementPayLater, sub: t.saleSettlementPayLaterHint },
+                ].map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setSaleSettlementMode(option.id)}
+                    className="p-3 border-2 text-center transition-all min-h-[68px] press-scale"
+                    style={{
+                      borderRadius: 'var(--radius-sm)',
+                      borderColor: saleSettlementMode === option.id ? '#1B4332' : '#e8e2d8',
+                      background: saleSettlementMode === option.id ? 'rgba(27,67,50,0.07)' : '#fff',
+                      color: saleSettlementMode === option.id ? '#1B4332' : '#4b5563',
+                    }}
+                  >
+                    <div className="font-bold text-sm font-sans">{option.label}</div>
+                    <div className="text-[11px] opacity-70 mt-1 font-sans">{option.sub}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isSale && saleSettlementMode === 'paid_partly' && (
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.salePaidAmountLabel}</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={fmtInput(paidAmount)}
+                  onChange={e => handleNumericInput(e, setPaidAmount)}
+                  placeholder="0"
+                  className="w-full p-4 pr-16 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+                  style={{ borderRadius: 'var(--radius-md)', borderColor: partialAmountValid || !paidAmount ? '#e8e2d8' : '#dc2626' }}
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
+              </div>
+              {!partialAmountValid && (
+                <p className="text-xs mt-2 font-medium text-red-600 font-sans">{t.salePaidAmountHint}</p>
+              )}
+            </div>
+          )}
+
+          {isSale && requiresCustomerBalance && (
+            <>
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2 font-sans">
+                  {t.customerIdentifier} <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={saleCustomerName}
+                  onChange={e => setSaleCustomerName(e.target.value)}
+                  placeholder={t.customerIdentifierPlaceholder}
+                  className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+                  style={{ borderRadius: 'var(--radius-md)', borderColor: saleCustomerValid ? '#e8e2d8' : '#dc2626' }}
+                />
+                {!saleCustomerValid && (
+                  <p className="text-xs mt-2 font-medium text-red-600 font-sans">{t.saleCustomerRequiredHint}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2 text-sm font-sans">{t.dueDateOptional}</label>
+                <input
+                  type="date"
+                  value={saleDueDate}
+                  onChange={e => setSaleDueDate(e.target.value)}
+                  className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+                  style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+                />
+              </div>
+
+              <div className="p-4 border" style={{ background: '#fffbeb', borderColor: '#fde68a', borderRadius: 'var(--radius-md)' }}>
+                <div className="flex items-center justify-between gap-3 text-sm font-sans">
+                  <span className="font-semibold text-gray-700">{t.saleRemainingBalanceLabel}</span>
+                  <span className="font-black" style={{ color: '#92400e' }}>{fmt(remainingAmount)} {t.birr}</span>
+                </div>
+                <p className="text-xs mt-2 font-medium font-sans" style={{ color: '#6b7280' }}>
+                  {t.saleRemainingBalanceHint}
+                </p>
+              </div>
+            </>
+          )}
+
           {isCredit && (
             <div>
               <label className="block text-gray-700 font-semibold mb-2 font-sans">
@@ -447,7 +576,7 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
             </div>
           )}
 
-          {!isCredit && (
+          {!isCredit && (!isSale || saleSettlementMode !== 'pay_later') && (
             <PaymentTypeChips
               paymentType={paymentType}
               provider={paymentProvider}

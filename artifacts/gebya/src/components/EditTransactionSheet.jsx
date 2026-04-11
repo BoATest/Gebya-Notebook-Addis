@@ -117,6 +117,16 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
         </div>
 
         <div className="px-6 py-4 space-y-4">
+          {type === 'sale' && Number(transaction.remaining_amount || 0) > 0 && (
+            <div className="p-4 border" style={{ background: '#fffbeb', borderColor: '#fde68a', borderRadius: 'var(--radius-md)' }}>
+              <p className="text-sm font-bold" style={{ color: '#92400e' }}>
+                {t.saleLinkedBalanceTitle}
+              </p>
+              <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
+                {t.saleLinkedBalanceBody}
+              </p>
+            </div>
+          )}
 
           {isCredit && (
             <div>

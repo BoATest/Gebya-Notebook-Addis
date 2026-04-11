@@ -74,6 +74,18 @@ function mergeVoiceDrafts(utterances = [], fallbackDraft = null) {
   };
 }
 
+function normalizeDisplayName(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function buildLinkedSaleItemNote(itemName, settledAmount, t) {
+  const baseLabel = String(itemName || '').trim() || (t.saleLabelShort || 'Sale');
+  if (!Number.isFinite(settledAmount) || settledAmount <= 0) {
+    return baseLabel;
+  }
+  return `${baseLabel} (${t.salePaidShort || 'paid'} ${fmt(settledAmount)})`;
+}
+
 function ShareModal({ summary, telegram, onClose, t }) {
   const isUsername = telegram?.startsWith('@') && telegram.length > 1;
   const handle = isUsername ? telegram.slice(1) : null;
@@ -325,11 +337,70 @@ function AppInner() {
       const newTxn = {
         ...transaction,
         ethiopian_date: formatEthiopian(now),
-        customer_name: null,
+        customer_name: transaction.customer_name || null,
       };
+      const remainingAmount = transaction.type === 'sale' ? Math.max(Number(transaction.remaining_amount) || 0, 0) : 0;
+      const settledAmount = transaction.type === 'sale' ? Math.max(Number(transaction.paid_amount) || 0, 0) : 0;
+      const needsLinkedCustomerBalance = transaction.type === 'sale'
+        && remainingAmount > 0
+        && normalizeDisplayName(transaction.customer_name);
 
-      const id = await db.transactions.add(newTxn);
-      const saved = await db.transactions.get(id);
+      let saved = null;
+      let linkedCustomer = null;
+      let linkedCustomerTransaction = null;
+
+      await db.transaction('rw', db.transactions, db.customers, db.customer_transactions, async () => {
+        if (needsLinkedCustomerBalance) {
+          const customerName = String(transaction.customer_name || '').trim();
+          const existingCustomers = await db.customers.toArray();
+          linkedCustomer = existingCustomers.find((entry) => normalizeDisplayName(entry.display_name) === normalizeDisplayName(customerName)) || null;
+
+          if (!linkedCustomer) {
+            const createdAt = transaction.created_at || Date.now();
+            const customerId = await db.customers.add({
+              display_name: customerName,
+              note: null,
+              phone_number: null,
+              telegram_username: null,
+              telegram_chat_id: null,
+              telegram_notify_enabled: false,
+              telegram_link_token: createCustomerTelegramLinkToken(),
+              telegram_linked_at: null,
+              telegram_link_requested_at: null,
+              created_at: createdAt,
+              updated_at: createdAt,
+            });
+            linkedCustomer = await db.customers.get(customerId);
+          } else {
+            await db.customers.update(linkedCustomer.id, { updated_at: transaction.created_at || Date.now() });
+            linkedCustomer = { ...linkedCustomer, updated_at: transaction.created_at || Date.now() };
+          }
+
+          const linkedEntry = {
+            customer_id: linkedCustomer.id,
+            type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+            amount: remainingAmount,
+            item_note: buildLinkedSaleItemNote(transaction.item_name, settledAmount, t),
+            due_date: transaction.settlement_due_date || null,
+            reference_code: null,
+            telegram_delivery_state: null,
+            telegram_delivery_error: null,
+            telegram_delivery_attempted_at: null,
+            created_at: transaction.created_at || Date.now(),
+            updated_at: transaction.created_at || Date.now(),
+          };
+          const linkedCustomerTransactionId = await db.customer_transactions.add(linkedEntry);
+          const referenceCode = createCustomerTransactionReference(linkedCustomerTransactionId, linkedEntry.created_at);
+          await db.customer_transactions.update(linkedCustomerTransactionId, { reference_code: referenceCode });
+          linkedCustomerTransaction = await db.customer_transactions.get(linkedCustomerTransactionId);
+
+          newTxn.linked_customer_id = linkedCustomer.id;
+          newTxn.linked_customer_transaction_id = linkedCustomerTransactionId;
+        }
+
+        const id = await db.transactions.add(newTxn);
+        saved = await db.transactions.get(id);
+      });
 
       setTransactions(prev => {
         const updated = [saved, ...prev];
@@ -340,6 +411,18 @@ function AppInner() {
         checkBestDay(todayTotal);
         return updated;
       });
+
+      if (linkedCustomer) {
+        setLedgerCustomers(prev => {
+          const exists = prev.some(entry => entry.id === linkedCustomer.id);
+          if (!exists) return [...prev, linkedCustomer];
+          return prev.map(entry => entry.id === linkedCustomer.id ? { ...entry, updated_at: linkedCustomer.updated_at } : entry);
+        });
+      }
+
+      if (linkedCustomerTransaction) {
+        setLedgerTransactions(prev => insertCustomerTransaction(prev, linkedCustomerTransaction));
+      }
 
       if (transaction.type === 'sale' || transaction.type === 'expense') {
         const pType = transaction.payment_type || 'cash';
@@ -375,11 +458,13 @@ function AppInner() {
         } catch { /* non-critical */ }
       }
 
-      const toastMsg = { sale: t.saleSaved, expense: t.expenseSaved }[transaction.type] || '✓';
+      const toastMsg = transaction.type === 'sale' && linkedCustomerTransaction
+        ? (t.saleSavedWithBalance || 'Sale saved. Remaining balance added to customer.')
+        : ({ sale: t.saleSaved, expense: t.expenseSaved }[transaction.type] || '✓');
       fireToast(toastMsg, 4000, async () => {
         try {
-          await db.transactions.delete(id);
-          setTransactions(prev => prev.filter(t2 => t2.id !== id));
+          if (!saved?.id) return;
+          await handleDeleteTransaction(saved.id, { silentClose: true });
           fireToast(t.undone, 2000);
         } catch { /* non-critical */ }
       });
@@ -444,9 +529,129 @@ function AppInner() {
 
   const handleUpdateTransaction = async (id, updates) => {
     try {
-      await db.transactions.update(id, { ...updates, updated_at: Date.now() });
-      const updated = await db.transactions.get(id);
+      const now = Date.now();
+      let updated = null;
+      let linkedCustomerTransaction = null;
+      let removedLinkedCustomerTransactionId = null;
+      let touchedCustomerId = null;
+
+      await db.transaction('rw', db.transactions, db.customer_transactions, db.customers, async () => {
+        const existing = await db.transactions.get(id);
+        if (!existing) return;
+
+        const next = { ...existing, ...updates, updated_at: now };
+
+        if (existing.type === 'sale' && existing.linked_customer_transaction_id) {
+          const linkedTransaction = await db.customer_transactions.get(existing.linked_customer_transaction_id);
+          touchedCustomerId = existing.linked_customer_id || linkedTransaction?.customer_id || null;
+
+          if (linkedTransaction) {
+            const settlementMode = existing.sale_settlement_mode || 'pay_later';
+            const nextAmount = Math.max(Number(next.amount) || 0, 0);
+            const nextPaidAmount = settlementMode === 'pay_later'
+              ? 0
+              : settlementMode === 'paid_partly'
+                ? Math.min(Number(existing.paid_amount || 0), nextAmount)
+                : nextAmount;
+            const nextRemainingAmount = settlementMode === 'paid_now'
+              ? 0
+              : Math.max(nextAmount - nextPaidAmount, 0);
+
+            next.paid_amount = nextPaidAmount;
+            next.remaining_amount = nextRemainingAmount;
+            next.is_credit = nextRemainingAmount > 0;
+
+            if (nextRemainingAmount > 0) {
+              await db.customer_transactions.update(existing.linked_customer_transaction_id, {
+                amount: nextRemainingAmount,
+                item_note: buildLinkedSaleItemNote(next.item_name, nextPaidAmount, t),
+                due_date: existing.settlement_due_date || null,
+                updated_at: now,
+              });
+              linkedCustomerTransaction = await db.customer_transactions.get(existing.linked_customer_transaction_id);
+            } else {
+              await db.customer_transactions.delete(existing.linked_customer_transaction_id);
+              removedLinkedCustomerTransactionId = existing.linked_customer_transaction_id;
+              next.linked_customer_transaction_id = null;
+            }
+
+            if (touchedCustomerId) {
+              await db.customers.update(touchedCustomerId, { updated_at: now });
+            }
+          }
+        } else if (existing.type === 'sale' && existing.sale_settlement_mode && existing.sale_settlement_mode !== 'paid_now') {
+          const settlementMode = existing.sale_settlement_mode;
+          const nextAmount = Math.max(Number(next.amount) || 0, 0);
+          const nextPaidAmount = settlementMode === 'pay_later'
+            ? 0
+            : settlementMode === 'paid_partly'
+              ? Math.min(Number(existing.paid_amount || 0), nextAmount)
+              : nextAmount;
+          const nextRemainingAmount = settlementMode === 'paid_now'
+            ? 0
+            : Math.max(nextAmount - nextPaidAmount, 0);
+
+          next.paid_amount = nextPaidAmount;
+          next.remaining_amount = nextRemainingAmount;
+          next.is_credit = nextRemainingAmount > 0;
+
+          if (nextRemainingAmount > 0 && normalizeDisplayName(existing.customer_name)) {
+            let linkedCustomerId = existing.linked_customer_id || null;
+
+            if (!linkedCustomerId) {
+              const existingCustomers = await db.customers.toArray();
+              const linkedCustomer = existingCustomers.find((entry) => normalizeDisplayName(entry.display_name) === normalizeDisplayName(existing.customer_name)) || null;
+              linkedCustomerId = linkedCustomer?.id || null;
+            }
+
+            if (linkedCustomerId) {
+              const linkedEntry = {
+                customer_id: linkedCustomerId,
+                type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+                amount: nextRemainingAmount,
+                item_note: buildLinkedSaleItemNote(next.item_name, nextPaidAmount, t),
+                due_date: existing.settlement_due_date || null,
+                reference_code: null,
+                telegram_delivery_state: null,
+                telegram_delivery_error: null,
+                telegram_delivery_attempted_at: null,
+                created_at: existing.created_at || now,
+                updated_at: now,
+              };
+              const newLinkedId = await db.customer_transactions.add(linkedEntry);
+              const referenceCode = createCustomerTransactionReference(newLinkedId, linkedEntry.created_at);
+              await db.customer_transactions.update(newLinkedId, { reference_code: referenceCode });
+              linkedCustomerTransaction = await db.customer_transactions.get(newLinkedId);
+              next.linked_customer_id = linkedCustomerId;
+              next.linked_customer_transaction_id = newLinkedId;
+              touchedCustomerId = linkedCustomerId;
+              await db.customers.update(linkedCustomerId, { updated_at: now });
+            }
+          }
+        }
+
+        await db.transactions.update(id, next);
+        updated = await db.transactions.get(id);
+      });
+
+      if (!updated) return;
       setTransactions(prev => prev.map(t2 => t2.id === id ? updated : t2));
+      if (linkedCustomerTransaction) {
+        setLedgerTransactions(prev => {
+          const exists = prev.some(entry => entry.id === linkedCustomerTransaction.id);
+          if (!exists) return insertCustomerTransaction(prev, linkedCustomerTransaction);
+          return sortCustomerTransactions(prev.map(entry => (
+            entry.id === linkedCustomerTransaction.id ? linkedCustomerTransaction : entry
+          )));
+        });
+      } else if (removedLinkedCustomerTransactionId) {
+        setLedgerTransactions(prev => prev.filter(entry => entry.id !== removedLinkedCustomerTransactionId));
+      }
+      if (touchedCustomerId) {
+        setLedgerCustomers(prev => prev.map(entry => (
+          entry.id === touchedCustomerId ? { ...entry, updated_at: now } : entry
+        )));
+      }
     } catch (err) {
       if (import.meta.env.DEV) console.error('Failed to update:', err);
       alert('Could not update. Please try again.');
@@ -454,11 +659,40 @@ function AppInner() {
     }
   };
 
-  const handleDeleteTransaction = async (id) => {
+  const handleDeleteTransaction = async (id, options = {}) => {
     try {
-      await db.transactions.delete(id);
-      setTransactions(transactions.filter(t2 => t2.id !== id));
-      setDeleteTarget(null);
+      let linkedCustomerTransactionId = null;
+      let touchedCustomerId = null;
+      const now = Date.now();
+
+      await db.transaction('rw', db.transactions, db.customer_transactions, db.customers, async () => {
+        const existing = await db.transactions.get(id);
+        if (!existing) return;
+
+        linkedCustomerTransactionId = existing.linked_customer_transaction_id || null;
+        touchedCustomerId = existing.linked_customer_id || null;
+
+        if (linkedCustomerTransactionId) {
+          await db.customer_transactions.delete(linkedCustomerTransactionId);
+        }
+        if (touchedCustomerId) {
+          await db.customers.update(touchedCustomerId, { updated_at: now });
+        }
+        await db.transactions.delete(id);
+      });
+
+      setTransactions(prev => prev.filter(t2 => t2.id !== id));
+      if (linkedCustomerTransactionId) {
+        setLedgerTransactions(prev => prev.filter(entry => entry.id !== linkedCustomerTransactionId));
+      }
+      if (touchedCustomerId) {
+        setLedgerCustomers(prev => prev.map(entry => (
+          entry.id === touchedCustomerId ? { ...entry, updated_at: now } : entry
+        )));
+      }
+      if (!options.silentClose) {
+        setDeleteTarget(null);
+      }
     } catch (err) {
       if (import.meta.env.DEV) console.error('Failed to delete:', err);
     }

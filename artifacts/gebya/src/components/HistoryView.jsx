@@ -206,6 +206,11 @@ function TxRow({ tx, onEdit, t }) {
           <span className="font-medium text-gray-800 text-sm truncate block">{tx.item_name}</span>
           {tx.quantity > 1 && <span className="text-xs text-gray-400">×{tx.quantity}</span>}
           {tx.customer_name && <p className="text-xs text-gray-400">{tx.customer_name}</p>}
+          {Number(tx.remaining_amount || 0) > 0 && (
+            <p className="text-xs" style={{ color: '#92400e' }}>
+              {t.saleRemainingHistory}: {fmt(tx.remaining_amount || 0)} {t.birr}
+            </p>
+          )}
           {tx.updated_at && <p className="text-xs" style={{ color: '#C4883A' }}>{t.edited}</p>}
         </div>
       </div>

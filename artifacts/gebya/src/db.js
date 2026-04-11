@@ -375,6 +375,19 @@ db.version(13).stores({
   analytics: 'key, value',
 });
 
+db.version(14).stores({
+  transactions: '++id, type, amount, item_name, cost_price, quantity, profit, is_credit, customer_id, customer_name, created_at, ethiopian_date, payment_type, payment_provider, updated_at, source, raw_transcript, detected_total, was_edited, transcription_provider, parsing_confidence, voice_note, raw_audio_ref, sale_settlement_mode, paid_amount, remaining_amount, linked_customer_id, linked_customer_transaction_id, settlement_due_date',
+  customers: '++id, display_name, note, phone_number, telegram_username, telegram_chat_id, telegram_notify_enabled, telegram_link_token, telegram_linked_at, telegram_link_requested_at, created_at, updated_at',
+  customer_transactions: '++id, customer_id, type, amount, due_date, reference_code, telegram_delivery_state, telegram_delivery_error, telegram_delivery_attempted_at, created_at, updated_at',
+  catalog_entries: '++id, name, kind, active, created_at, updated_at',
+  suppliers: '++id, display_name, phone_number, note, active, created_at, updated_at',
+  supplier_transactions: '++id, supplier_id, type, catalog_entry_id, created_at, updated_at',
+  credit_records: '++id, customer_id, customer_name, original_amount, paid_amount, remaining_amount, due_date, status, created_at, direction',
+  credit_payment_logs: '++id, credit_record_id, amount, payment_method, paid_at',
+  settings: 'key, value',
+  analytics: 'key, value',
+});
+
 db.on('ready', async () => {
   const privacySetting = await db.settings.get('privacy_mode');
   if (!privacySetting) {
