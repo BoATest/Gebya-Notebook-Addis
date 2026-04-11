@@ -13,7 +13,7 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntries = [], recurringExpenses, onRecurringChange, initialPaymentType, initialPaymentProvider, lastPaymentHistory }) {
+function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntries = [], recurringExpenses, onRecurringChange, initialPaymentType, initialPaymentProvider, lastPaymentHistory, customerSuggestions = [] }) {
   const { t } = useLang();
 
   const configs = {
@@ -80,6 +80,21 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
       : saleSettlementMode === 'pay_later'
         ? 0
         : parsedPaidAmount;
+  const normalizedCustomerQuery = saleCustomerName.trim().toLowerCase();
+  const matchedCustomers = requiresCustomerBalance && normalizedCustomerQuery
+    ? customerSuggestions
+      .filter((customer) => {
+        const name = String(customer.display_name || '').toLowerCase();
+        const note = String(customer.note || '').toLowerCase();
+        return name.includes(normalizedCustomerQuery) || note.includes(normalizedCustomerQuery);
+      })
+      .slice(0, 5)
+    : [];
+  const selectedExistingCustomer = requiresCustomerBalance
+    ? customerSuggestions.find((customer) => String(customer.display_name || '').trim().toLowerCase() === normalizedCustomerQuery) || null
+    : null;
+  const currentCustomerBalance = Math.max(Number(selectedExistingCustomer?.balance || 0), 0);
+  const nextCustomerBalance = currentCustomerBalance + remainingAmount;
 
   const phoneValid = !phoneDigits || /^[79]\d{8}$/.test(phoneDigits);
   const phoneEntered = phoneDigits.length > 0;
@@ -476,6 +491,32 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
                 {!saleCustomerValid && (
                   <p className="text-xs mt-2 font-medium text-red-600 font-sans">{t.saleCustomerRequiredHint}</p>
                 )}
+                {matchedCustomers.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {matchedCustomers.map((customer) => (
+                      <button
+                        key={customer.id}
+                        type="button"
+                        onClick={() => setSaleCustomerName(customer.display_name || '')}
+                        className="w-full p-3 border text-left press-scale"
+                        style={{ background: '#fff', borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)' }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-bold text-sm text-gray-900 truncate font-sans">{customer.display_name}</p>
+                            {customer.note && (
+                              <p className="text-xs mt-1 truncate font-sans" style={{ color: '#6b7280' }}>{customer.note}</p>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-[11px] font-bold uppercase tracking-wide font-sans" style={{ color: '#9ca3af' }}>{t.currentBalance}</p>
+                            <p className="text-sm font-black font-sans" style={{ color: '#92400e' }}>{fmt(customer.balance || 0)} {t.birr}</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -490,9 +531,23 @@ function TransactionForm({ type, onSave, onDone, enabledProviders, catalogEntrie
               </div>
 
               <div className="p-4 border" style={{ background: '#fffbeb', borderColor: '#fde68a', borderRadius: 'var(--radius-md)' }}>
-                <div className="flex items-center justify-between gap-3 text-sm font-sans">
-                  <span className="font-semibold text-gray-700">{t.saleRemainingBalanceLabel}</span>
-                  <span className="font-black" style={{ color: '#92400e' }}>{fmt(remainingAmount)} {t.birr}</span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3 text-sm font-sans">
+                    <span className="font-semibold text-gray-700">{t.saleRemainingBalanceLabel}</span>
+                    <span className="font-black" style={{ color: '#92400e' }}>{fmt(remainingAmount)} {t.birr}</span>
+                  </div>
+                  {selectedExistingCustomer && (
+                    <>
+                      <div className="flex items-center justify-between gap-3 text-sm font-sans">
+                        <span className="font-semibold text-gray-700">{t.currentBalance}</span>
+                        <span className="font-black text-gray-900">{fmt(currentCustomerBalance)} {t.birr}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-sm font-sans">
+                        <span className="font-semibold text-gray-700">{t.updatedBalance}</span>
+                        <span className="font-black" style={{ color: '#92400e' }}>{fmt(nextCustomerBalance)} {t.birr}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <p className="text-xs mt-2 font-medium font-sans" style={{ color: '#6b7280' }}>
                   {t.saleRemainingBalanceHint}

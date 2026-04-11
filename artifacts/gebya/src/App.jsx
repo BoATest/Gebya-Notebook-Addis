@@ -475,7 +475,18 @@ function AppInner() {
     }
   };
 
-  const handleVoiceSave = async ({ amount, note, paymentType = 'cash', paymentProvider = '', wasEdited = false, draft = null }) => {
+  const handleVoiceSave = async ({
+    amount,
+    note,
+    paymentType = 'cash',
+    paymentProvider = '',
+    wasEdited = false,
+    draft = null,
+    saleSettlementMode = 'paid_now',
+    paidAmount = null,
+    remainingAmount = null,
+    settlementDueDate = null,
+  }) => {
     const now = Date.now();
     const hasMultiple = voiceItems.length > 1;
     const mergedDraft = hasMultiple ? mergeVoiceDrafts(voiceItems, draft || voiceDraft) : (draft || voiceDraft);
@@ -500,13 +511,17 @@ function AppInner() {
       amount,
       cost_price: 0,
       profit: null,
-      is_credit: false,
+      is_credit: (remainingAmount ?? 0) > 0,
       customer_phone: null,
       customer_name: mergedDraft?.customer_name || null,
       due_date: null,
-      payment_type: paymentType,
-      payment_provider: paymentType !== 'cash' ? paymentProvider || null : null,
+      payment_type: saleSettlementMode === 'pay_later' ? null : paymentType,
+      payment_provider: saleSettlementMode === 'pay_later' || paymentType === 'cash' ? null : paymentProvider || null,
       direction: null,
+      sale_settlement_mode: saleSettlementMode,
+      paid_amount: paidAmount ?? amount,
+      remaining_amount: remainingAmount ?? 0,
+      settlement_due_date: settlementDueDate,
       source: 'voice',
       raw_transcript: combinedTranscript,
       detected_total: savedDetectedTotal,
@@ -1869,6 +1884,7 @@ function AppInner() {
             bank:   lastPayment[showForm]?.bankProvider   || '',
             wallet: lastPayment[showForm]?.walletProvider || '',
           } : undefined}
+          customerSuggestions={showForm === 'sale' ? customerSummaries : []}
         />
       )}
 
@@ -1949,6 +1965,7 @@ function AppInner() {
           onSave={(data) => handleVoiceSave({ ...data, wasEdited: true })}
           onCancel={() => setVoiceStep('result')}
           enabledProviders={enabledProviders}
+          customerSuggestions={customerSummaries}
         />
       )}
 

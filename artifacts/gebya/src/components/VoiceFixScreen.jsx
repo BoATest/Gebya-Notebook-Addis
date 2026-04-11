@@ -2,7 +2,7 @@
 import { Save } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import PaymentTypeChips from './PaymentTypeChips';
-import { fmtInput, parseInput } from '../utils/numformat';
+import { fmt, fmtInput, parseInput } from '../utils/numformat';
 
 function handleNumericInput(e, setter) {
   let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
@@ -11,7 +11,7 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, onCancel, enabledProviders }) {
+function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, onCancel, enabledProviders, customerSuggestions = [] }) {
   const { t } = useLang();
   const hasMultiple = items.length > 1;
   const isSaleIntent = !draft?.intent || draft.intent === 'sale';
@@ -31,6 +31,9 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, 
   const [draftItems, setDraftItems] = useState(parsedItems);
   const [paymentType, setPaymentType] = useState('cash');
   const [paymentProvider, setPaymentProvider] = useState('');
+  const [saleSettlementMode, setSaleSettlementMode] = useState('paid_now');
+  const [paidAmount, setPaidAmount] = useState('');
+  const [saleDueDate, setSaleDueDate] = useState('');
 
   const normalizedItems = draftItems.map((item) => {
     const quantity = Math.max(1, parseFloat(parseInput(item.quantity || '1')) || 1);
@@ -47,7 +50,36 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, 
     ? normalizedItems.reduce((sum, item) => sum + (item.line_total || 0), 0)
     : null;
   const parsedAmount = computedAmount ?? (parseFloat(parseInput(amount)) || 0);
-  const canSave = parsedAmount > 0;
+  const parsedPaidAmount = parseFloat(parseInput(paidAmount)) || 0;
+  const requiresCustomerBalance = saleSettlementMode !== 'paid_now';
+  const remainingAmount = saleSettlementMode === 'paid_now'
+    ? 0
+    : saleSettlementMode === 'pay_later'
+      ? parsedAmount
+      : Math.max(parsedAmount - parsedPaidAmount, 0);
+  const settledAmount = saleSettlementMode === 'paid_now'
+    ? parsedAmount
+    : saleSettlementMode === 'pay_later'
+      ? 0
+      : parsedPaidAmount;
+  const normalizedCustomerQuery = customerName.trim().toLowerCase();
+  const matchedCustomers = requiresCustomerBalance && normalizedCustomerQuery
+    ? customerSuggestions
+      .filter((customer) => {
+        const name = String(customer.display_name || '').toLowerCase();
+        const noteText = String(customer.note || '').toLowerCase();
+        return name.includes(normalizedCustomerQuery) || noteText.includes(normalizedCustomerQuery);
+      })
+      .slice(0, 5)
+    : [];
+  const selectedExistingCustomer = requiresCustomerBalance
+    ? customerSuggestions.find((customer) => String(customer.display_name || '').trim().toLowerCase() === normalizedCustomerQuery) || null
+    : null;
+  const currentCustomerBalance = Math.max(Number(selectedExistingCustomer?.balance || 0), 0);
+  const nextCustomerBalance = currentCustomerBalance + remainingAmount;
+  const partialAmountValid = saleSettlementMode !== 'paid_partly' || (parsedPaidAmount > 0 && parsedPaidAmount < parsedAmount);
+  const customerValid = !requiresCustomerBalance || customerName.trim().length > 0;
+  const canSave = parsedAmount > 0 && partialAmountValid && customerValid;
 
   const updateDraftItem = (index, field, value) => {
     setDraftItems((current) => current.map((item, itemIndex) => (
@@ -67,8 +99,12 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, 
         intent: draft?.intent || 'sale',
         needs_review: false,
       },
-      paymentType,
-      paymentProvider: paymentType !== 'cash' ? paymentProvider : '',
+      paymentType: saleSettlementMode === 'pay_later' ? null : paymentType,
+      paymentProvider: saleSettlementMode === 'pay_later' || paymentType === 'cash' ? '' : paymentProvider,
+      saleSettlementMode,
+      paidAmount: settledAmount,
+      remainingAmount,
+      settlementDueDate: remainingAmount > 0 && saleDueDate ? new Date(saleDueDate).getTime() : null,
     });
   };
 
@@ -121,25 +157,145 @@ function VoiceFixScreen({ transcript, detectedTotal, items = [], draft, onSave, 
         </div>
 
         <div>
-          <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.voiceCustomerName}</label>
-          <input
-            type="text"
-            value={customerName}
-            onChange={e => setCustomerName(e.target.value)}
-            placeholder={t.voiceCustomerPlaceholder}
-            className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
-            style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-          />
+          <label className="block text-gray-700 font-semibold mb-2 text-sm font-sans">{t.saleSettlementLabel}</label>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { id: 'paid_now', label: t.saleSettlementPaidNow, sub: t.saleSettlementPaidNowHint },
+              { id: 'paid_partly', label: t.saleSettlementPaidPartly, sub: t.saleSettlementPaidPartlyHint },
+              { id: 'pay_later', label: t.saleSettlementPayLater, sub: t.saleSettlementPayLaterHint },
+            ].map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setSaleSettlementMode(option.id)}
+                className="p-3 border-2 text-center transition-all min-h-[68px] press-scale"
+                style={{
+                  borderRadius: 'var(--radius-sm)',
+                  borderColor: saleSettlementMode === option.id ? '#1B4332' : '#e8e2d8',
+                  background: saleSettlementMode === option.id ? 'rgba(27,67,50,0.07)' : '#fff',
+                  color: saleSettlementMode === option.id ? '#1B4332' : '#4b5563',
+                }}
+              >
+                <div className="font-bold text-sm font-sans">{option.label}</div>
+                <div className="text-[11px] opacity-70 mt-1 font-sans">{option.sub}</div>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <PaymentTypeChips
-          paymentType={paymentType}
-          provider={paymentProvider}
-          onTypeChange={setPaymentType}
-          onProviderChange={setPaymentProvider}
-          enabledProviders={enabledProviders}
-          lastProviderByType={{}}
-        />
+        {saleSettlementMode === 'paid_partly' && (
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.salePaidAmountLabel}</label>
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={fmtInput(paidAmount)}
+                onChange={e => handleNumericInput(e, setPaidAmount)}
+                placeholder="0"
+                className="w-full p-4 pr-16 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: partialAmountValid || !paidAmount ? '#e8e2d8' : '#dc2626' }}
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
+            </div>
+            {!partialAmountValid && (
+              <p className="text-xs mt-2 font-medium text-red-600 font-sans">{t.salePaidAmountHint}</p>
+            )}
+          </div>
+        )}
+
+        {requiresCustomerBalance && (
+          <>
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2 font-sans">
+                {t.customerIdentifier} <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={customerName}
+                onChange={e => setCustomerName(e.target.value)}
+                placeholder={t.customerIdentifierPlaceholder}
+                className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: customerValid ? '#e8e2d8' : '#dc2626' }}
+              />
+              {!customerValid && (
+                <p className="text-xs mt-2 font-medium text-red-600 font-sans">{t.saleCustomerRequiredHint}</p>
+              )}
+              {matchedCustomers.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  {matchedCustomers.map((customer) => (
+                    <button
+                      key={customer.id}
+                      type="button"
+                      onClick={() => setCustomerName(customer.display_name || '')}
+                      className="w-full p-3 border text-left press-scale"
+                      style={{ background: '#fff', borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)' }}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm text-gray-900 truncate font-sans">{customer.display_name}</p>
+                          {customer.note && (
+                            <p className="text-xs mt-1 truncate font-sans" style={{ color: '#6b7280' }}>{customer.note}</p>
+                          )}
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-[11px] font-bold uppercase tracking-wide font-sans" style={{ color: '#9ca3af' }}>{t.currentBalance}</p>
+                          <p className="text-sm font-black font-sans" style={{ color: '#92400e' }}>{fmt(customer.balance || 0)} {t.birr}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2 text-sm font-sans">{t.dueDateOptional}</label>
+              <input
+                type="date"
+                value={saleDueDate}
+                onChange={e => setSaleDueDate(e.target.value)}
+                className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+              />
+            </div>
+
+            <div className="p-4 border" style={{ background: '#fffbeb', borderColor: '#fde68a', borderRadius: 'var(--radius-md)' }}>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3 text-sm font-sans">
+                  <span className="font-semibold text-gray-700">{t.saleRemainingBalanceLabel}</span>
+                  <span className="font-black" style={{ color: '#92400e' }}>{fmt(remainingAmount)} {t.birr}</span>
+                </div>
+                {selectedExistingCustomer && (
+                  <>
+                    <div className="flex items-center justify-between gap-3 text-sm font-sans">
+                      <span className="font-semibold text-gray-700">{t.currentBalance}</span>
+                      <span className="font-black text-gray-900">{fmt(currentCustomerBalance)} {t.birr}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 text-sm font-sans">
+                      <span className="font-semibold text-gray-700">{t.updatedBalance}</span>
+                      <span className="font-black" style={{ color: '#92400e' }}>{fmt(nextCustomerBalance)} {t.birr}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+              <p className="text-xs mt-2 font-medium font-sans" style={{ color: '#6b7280' }}>
+                {t.saleRemainingBalanceHint}
+              </p>
+            </div>
+          </>
+        )}
+
+        {saleSettlementMode !== 'pay_later' && (
+          <PaymentTypeChips
+            paymentType={paymentType}
+            provider={paymentProvider}
+            onTypeChange={setPaymentType}
+            onProviderChange={setPaymentProvider}
+            enabledProviders={enabledProviders}
+            lastProviderByType={{}}
+          />
+        )}
 
         {draftItems.length > 0 && (
           <div>

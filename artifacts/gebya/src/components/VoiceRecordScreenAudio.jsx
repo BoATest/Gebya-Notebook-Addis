@@ -342,10 +342,10 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
   const transcriptPreview = liveTranscript.trim();
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6"
+    <div className="fixed inset-0 z-50 overflow-y-auto px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6"
       style={{ background: '#1B4332' }}>
-      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-between">
-        <div className="w-full pt-6 text-center sm:pt-8">
+      <div className="mx-auto flex min-h-full w-full max-w-sm flex-col items-center justify-between gap-3">
+        <div className="w-full pt-4 text-center sm:pt-8">
           <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full"
             style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)' }}>
             <span className="text-xl">🎤</span>
@@ -354,16 +354,16 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
           <p className="mx-auto max-w-xs text-sm font-sans leading-6 text-white/70">{t.voiceRecordingHint}</p>
         </div>
 
-        <div className="flex w-full flex-1 flex-col items-center justify-center py-6">
-          <div className="relative mb-6 flex h-44 w-44 items-center justify-center sm:h-48 sm:w-48">
+        <div className="flex w-full flex-1 flex-col items-center justify-center py-3 sm:py-6">
+          <div className="relative mb-4 flex h-36 w-36 items-center justify-center sm:mb-6 sm:h-48 sm:w-48">
             <div className="absolute inset-0 rounded-full bg-white opacity-10 animate-ping" style={{ animationDuration: '1.5s' }} />
             <div className="absolute inset-3 rounded-full border border-white/10" />
             <div className="absolute inset-0 rounded-full bg-white opacity-5" />
             <div
-              className="flex h-32 w-32 items-center justify-center rounded-full sm:h-36 sm:w-36"
+              className="flex h-24 w-24 items-center justify-center rounded-full sm:h-36 sm:w-36"
               style={{ background: 'rgba(255,255,255,0.15)', border: '3px solid rgba(255,255,255,0.4)' }}
             >
-              <span className="text-5xl sm:text-6xl">🎤</span>
+              <span className="text-4xl sm:text-6xl">🎤</span>
             </div>
           </div>
 
@@ -372,9 +372,9 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
             {statusLabel}
           </div>
 
-          <div className="mb-5 text-center text-4xl font-black text-white font-mono sm:text-[2.5rem]">{timeStr}</div>
+          <div className="mb-4 text-center text-4xl font-black text-white font-mono sm:text-[2.5rem]">{timeStr}</div>
 
-          <div className="w-full max-w-xs mb-4">
+          <div className="mb-3 w-full max-w-xs">
             <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.2em] text-white/55">
               <span>{isProcessing ? 'Check' : 'Live'}</span>
               <span>{Math.max(TOTAL_DURATION - shownElapsed, 0)}s</span>
@@ -387,7 +387,7 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
             </div>
           </div>
 
-          <div className="w-full max-w-sm rounded-2xl p-4"
+          <div className="w-full max-w-sm rounded-2xl p-3 sm:p-4"
             style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.14)' }}>
             <div className="mb-2 flex items-center justify-between gap-3">
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-white/70">{liveTranscriptLabel}</p>
@@ -396,7 +396,7 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
                 {transcriptPreview ? 'Live' : 'Waiting'}
               </span>
             </div>
-            <div className="min-h-[72px] rounded-xl px-3 py-3"
+            <div className="min-h-[64px] rounded-xl px-3 py-3"
               style={{ background: 'rgba(8,28,21,0.28)' }}>
               {transcriptPreview ? (
                 <p className="text-sm leading-6 text-white font-sans">{transcriptPreview}</p>
@@ -412,14 +412,14 @@ function RecordingSession({ onTranscript, onTypeInstead, onNoInternet }) {
             )}
           </div>
 
-          <div className="mt-2 min-h-[24px]">
+          <div className="mt-1 min-h-[24px]">
             {error && (
               <p className="text-center text-sm font-sans text-red-300">{error}</p>
             )}
           </div>
         </div>
 
-        <div className="w-full pb-1">
+        <div className="w-full pb-1 pt-1">
           {isProcessing ? (
             <div className="w-full py-4 text-center text-base font-black text-white font-sans"
               style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 'var(--radius-md)' }}>
