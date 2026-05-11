@@ -1,7 +1,19 @@
-import { useState } from 'react';
-import { ChevronDown, ChevronUp, Save, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Save, X } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { normalizeTelegram } from '../utils/customerTelegram';
+
+function readContactName(contact) {
+  if (Array.isArray(contact?.name) && contact.name[0]) return contact.name[0];
+  if (contact?.name) return String(contact.name);
+  return '';
+}
+
+function readContactPhone(contact) {
+  if (Array.isArray(contact?.tel) && contact.tel[0]) return contact.tel[0];
+  if (contact?.tel) return String(contact.tel);
+  return '';
+}
 
 function CustomerForm({ onSave, onDone }) {
   const { t } = useLang();
@@ -9,12 +21,36 @@ function CustomerForm({ onSave, onDone }) {
   const [note, setNote] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [telegramUsername, setTelegramUsername] = useState('');
-  const [showMore, setShowMore] = useState(false);
+  const [contactsSupported, setContactsSupported] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const canPickContacts = typeof navigator !== 'undefined'
+      && Boolean(navigator.contacts?.select)
+      && Boolean(navigator.ContactsManager);
+    setContactsSupported(canPickContacts);
+  }, []);
 
   const normalizedTelegram = normalizeTelegram(telegramUsername);
   const telegramValid = !telegramUsername.trim() || !!normalizedTelegram;
   const canSave = displayName.trim().length > 0 && telegramValid;
+  const showPhoneReminderHint = !phoneNumber.trim();
+
+  const handlePickContact = useCallback(async () => {
+    if (!contactsSupported || !navigator.contacts?.select) return;
+
+    try {
+      const [contact] = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+      if (!contact) return;
+
+      const pickedName = readContactName(contact).trim();
+      const pickedPhone = readContactPhone(contact).trim();
+
+      if (pickedName && !displayName.trim()) setDisplayName(pickedName);
+      if (pickedPhone) setPhoneNumber(pickedPhone);
+    } catch {
+    }
+  }, [contactsSupported, displayName]);
 
   const handleSave = async () => {
     if (!canSave || saving) return;
@@ -37,10 +73,10 @@ function CustomerForm({ onSave, onDone }) {
     <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 animate-fade">
       <div className="bg-white w-full max-w-md max-h-[92vh] overflow-y-auto animate-slide-up" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', boxShadow: 'var(--shadow-lg)' }}>
         <div className="sticky top-0 bg-white z-10 px-6 pt-5 pb-4 border-b" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', borderColor: 'var(--color-border-light)' }}>
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center gap-3">
             <div>
-              <h2 className="text-xl font-black text-gray-900">{t.addCustomer}</h2>
-              <p className="text-sm mt-1" style={{ color: '#6b7280' }}>{t.customerHelperText}</p>
+              <h2 className="text-xl font-black text-gray-900">New customer</h2>
+              <p className="text-sm mt-1" style={{ color: '#6b7280' }}>Reminders need contact info.</p>
             </div>
             <button onClick={onDone} aria-label={t.close} className="p-2 rounded-full hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center press-scale">
               <X className="w-5 h-5 text-gray-500" />
@@ -51,13 +87,13 @@ function CustomerForm({ onSave, onDone }) {
         <div className="px-6 py-4 space-y-4">
           <div>
             <label className="block text-gray-700 font-semibold mb-2">
-              {t.customerIdentifier} <span className="text-red-500">*</span>
+              Customer name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder={t.customerIdentifierPlaceholder}
+              placeholder="Customer name"
               autoFocus
               className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px]"
               style={{ borderRadius: 'var(--radius-md)', borderColor: displayName.trim() ? '#1B4332' : '#e8e2d8' }}
@@ -65,42 +101,77 @@ function CustomerForm({ onSave, onDone }) {
           </div>
 
           <div>
-            <button type="button" onClick={() => setShowMore((v) => !v)} className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[44px]" style={{ color: '#C4883A' }}>
-              {showMore ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              {t.moreOptional}
-            </button>
-
-            {showMore && (
-              <div className="mt-2 p-4 border animate-slide-up space-y-3" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)' }}>
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2 text-sm">{t.noteLabel}</label>
-                  <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t.customerNotePlaceholder} rows={3} className="w-full p-3 border-2 focus:outline-none text-sm resize-none" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2 text-sm">{t.customerPhoneOptional}</label>
-                  <input type="text" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder={t.customerPhonePlaceholder} className="w-full p-3 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
-                </div>
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2 text-sm">{t.customerTelegramOptional}</label>
-                  <input type="text" value={telegramUsername} onChange={(e) => setTelegramUsername(e.target.value)} placeholder={t.customerTelegramPlaceholder} className="w-full p-3 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: telegramValid ? '#e8e2d8' : '#dc2626' }} />
-                  {!telegramValid && (
-                    <p className="text-xs font-medium mt-2 text-red-600">
-                      {t.telegramFormatHint}
-                    </p>
-                  )}
-                  <p className="text-xs mt-2" style={{ color: '#6b7280' }}>
-                    Link the borrower from the customer page to enable bot updates later.
-                  </p>
-                </div>
-              </div>
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <label className="block text-gray-700 font-semibold">
+                Mobile number
+              </label>
+              <button
+                type="button"
+                onClick={handlePickContact}
+                disabled={!contactsSupported}
+                className="px-3 py-2 text-xs font-black border min-h-[40px] press-scale disabled:opacity-45 disabled:cursor-not-allowed"
+                style={{ background: contactsSupported ? '#eff6ff' : '#f9fafb', color: contactsSupported ? '#1d4ed8' : '#9ca3af', borderColor: contactsSupported ? '#bfdbfe' : '#e5e7eb', borderRadius: 'var(--radius-sm)' }}
+              >
+                Pick from contacts
+              </button>
+            </div>
+            <input
+              type="tel"
+              inputMode="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              placeholder="Mobile number"
+              className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px]"
+              style={{ borderRadius: 'var(--radius-md)', borderColor: phoneNumber.trim() ? '#1B4332' : '#e8e2d8' }}
+            />
+            {showPhoneReminderHint && (
+              <p className="text-xs mt-2 font-medium" style={{ color: '#b45309' }}>
+                You can save now, but SMS reminders need a phone number.
+              </p>
             )}
+          </div>
+
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">
+              Telegram
+            </label>
+            <input
+              type="text"
+              value={telegramUsername}
+              onChange={(e) => setTelegramUsername(e.target.value)}
+              placeholder="@username or t.me/name"
+              className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px]"
+              style={{ borderRadius: 'var(--radius-md)', borderColor: telegramValid ? '#e8e2d8' : '#dc2626' }}
+            />
+            {!telegramValid && (
+              <p className="text-xs font-medium mt-2 text-red-600">
+                {t.telegramFormatHint}
+              </p>
+            )}
+            <p className="text-xs mt-2" style={{ color: '#6b7280' }}>
+              Bot connection can be added later.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">
+              Note
+            </label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Note"
+              rows={3}
+              className="w-full p-3 border-2 focus:outline-none text-sm resize-none"
+              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+            />
           </div>
         </div>
 
         <div className="px-6 pb-8 pt-2">
           <button onClick={handleSave} disabled={!canSave || saving} className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 min-h-[56px] press-scale" style={{ background: canSave ? '#1B4332' : '#e5e7eb', color: canSave ? '#fff' : '#9ca3af', borderRadius: 'var(--radius-md)', boxShadow: canSave ? '0 4px 0 #0f2b20, var(--shadow-sm)' : 'none' }}>
             <Save className="w-5 h-5" />
-            {saving ? t.saving : t.saveCustomer}
+            {saving ? t.saving : 'Save customer'}
           </button>
         </div>
       </div>

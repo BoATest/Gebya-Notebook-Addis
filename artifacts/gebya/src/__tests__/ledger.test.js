@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 
-import { buildCustomerSummaries, getCustomerBalance, sortCustomerTransactions } from '../utils/customerLedger.js';
+import {
+  buildCustomerSummaries,
+  getCustomerBalance,
+  getCustomerCollectionStatus,
+  sortCustomerTransactions,
+} from '../utils/customerLedger.js';
+import { buildCustomerReminderMessage } from '../utils/customerReminder.js';
 import { normalizeCustomerDraft, normalizeCustomerTransactionDraft } from '../utils/customerLedgerMutations.js';
 import { buildSupplierSummaries, getSupplierBalance, SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger.js';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes.js';
@@ -69,6 +75,175 @@ runTest('customer transactions sort deterministically when timestamps match', ()
   ]);
 
   assert.deepEqual(sorted.map((entry) => entry.id), [2, 3, 1]);
+});
+
+runTest('paid-off customer is not collectable', () => {
+  const status = getCustomerCollectionStatus({
+    balance: 0,
+    transactions: [
+      { type: 'credit_add', amount: 100, due_date: Date.UTC(2026, 4, 1) },
+      { type: 'payment', amount: 100 },
+    ],
+  }, Date.UTC(2026, 4, 8));
+
+  assert.equal(status.hasBalance, false);
+  assert.equal(status.isDueNow, false);
+  assert.equal(status.key, 'paid');
+});
+
+runTest('missing due date is collectable but not due now', () => {
+  const status = getCustomerCollectionStatus({
+    balance: 100,
+    transactions: [
+      { type: 'credit_add', amount: 100, due_date: null },
+    ],
+  }, Date.UTC(2026, 4, 8));
+
+  assert.equal(status.hasBalance, true);
+  assert.equal(status.isDueNow, false);
+  assert.equal(status.key, 'no_due_date');
+});
+
+runTest('due today is due now', () => {
+  const status = getCustomerCollectionStatus({
+    balance: 100,
+    transactions: [
+      { type: 'credit_add', amount: 100, due_date: Date.UTC(2026, 4, 8, 16) },
+    ],
+  }, Date.UTC(2026, 4, 8, 9));
+
+  assert.equal(status.isDueNow, true);
+  assert.equal(status.key, 'due_today');
+  assert.equal(status.days, 0);
+});
+
+runTest('overdue status counts days late', () => {
+  const status = getCustomerCollectionStatus({
+    balance: 100,
+    transactions: [
+      { type: 'credit_add', amount: 100, due_date: Date.UTC(2026, 4, 5) },
+    ],
+  }, Date.UTC(2026, 4, 8));
+
+  assert.equal(status.isDueNow, true);
+  assert.equal(status.key, 'overdue');
+  assert.equal(status.days, 3);
+});
+
+runTest('future due date is not due now', () => {
+  const status = getCustomerCollectionStatus({
+    balance: 100,
+    transactions: [
+      { type: 'credit_add', amount: 100, due_date: Date.UTC(2026, 4, 10) },
+    ],
+  }, Date.UTC(2026, 4, 8));
+
+  assert.equal(status.isDueNow, false);
+  assert.equal(status.key, 'due_in');
+  assert.equal(status.days, 2);
+});
+
+runTest('customer summary includes collection status from earliest due debt', () => {
+  const [summary] = buildCustomerSummaries(
+    [{ id: 1, display_name: 'Almaz', created_at: 1000, updated_at: 1000 }],
+    [
+      { customer_id: 1, type: 'credit_add', amount: 100, due_date: Date.UTC(2026, 4, 12), created_at: 1000 },
+      { customer_id: 1, type: 'credit_add', amount: 50, due_date: Date.UTC(2026, 4, 6), created_at: 2000 },
+      { customer_id: 1, type: 'payment', amount: 25, due_date: null, created_at: 3000 },
+    ]
+  );
+
+  const status = getCustomerCollectionStatus(summary, Date.UTC(2026, 4, 8));
+
+  assert.equal(summary.balance, 125);
+  assert.equal(summary.collection_due_date, Date.UTC(2026, 4, 6));
+  assert.equal(status.key, 'overdue');
+  assert.equal(status.days, 2);
+});
+
+runTest('reminder includes customer name shop name and balance', () => {
+  const message = buildCustomerReminderMessage({
+    customer: {
+      display_name: 'Almaz',
+      balance: 250,
+      collection_status: { key: 'no_due_date', hasBalance: true },
+    },
+    shopName: 'Tigist Shop',
+  });
+
+  assert.equal(message, [
+    'Selam Almaz, this is a reminder from Tigist Shop.',
+    'Your remaining balance is 250 birr.',
+    'No due date was set.',
+    'Thank you.',
+  ].join('\n'));
+});
+
+runTest('reminder falls back to your shop when shop name is missing', () => {
+  const message = buildCustomerReminderMessage({
+    customer: {
+      display_name: 'Almaz',
+      balance: 250,
+      collection_status: { key: 'no_due_date', hasBalance: true },
+    },
+  });
+
+  assert.ok(message.includes('from your shop.'));
+});
+
+runTest('reminder includes due today sentence', () => {
+  const message = buildCustomerReminderMessage({
+    customer: {
+      display_name: 'Almaz',
+      balance: 250,
+      collection_status: { key: 'due_today', hasBalance: true, isDueNow: true, days: 0 },
+    },
+    shopName: 'Tigist Shop',
+  });
+
+  assert.ok(message.includes('This amount is due today.'));
+});
+
+runTest('reminder includes overdue sentence', () => {
+  const message = buildCustomerReminderMessage({
+    customer: {
+      display_name: 'Almaz',
+      balance: 250,
+      collection_status: { key: 'overdue', hasBalance: true, isDueNow: true, days: 3 },
+    },
+    shopName: 'Tigist Shop',
+  });
+
+  assert.ok(message.includes('This amount is overdue by 3 days.'));
+});
+
+runTest('reminder includes future due sentence', () => {
+  const message = buildCustomerReminderMessage({
+    customer: {
+      display_name: 'Almaz',
+      balance: 250,
+      collection_status: { key: 'due_in', hasBalance: true, isDueNow: false, days: 2 },
+    },
+    shopName: 'Tigist Shop',
+  });
+
+  assert.ok(message.includes('This amount is due in 2 days.'));
+});
+
+runTest('reminder works without phone or Telegram contact', () => {
+  const message = buildCustomerReminderMessage({
+    customer: {
+      display_name: 'Almaz',
+      phone_number: null,
+      telegram_username: null,
+      balance: 250,
+      collection_status: { key: 'no_due_date', hasBalance: true },
+    },
+    shopName: 'Tigist Shop',
+  });
+
+  assert.ok(message.includes('Selam Almaz'));
+  assert.ok(message.includes('250 birr'));
 });
 
 runTest('customer draft keeps only required identifier and trims optional fields', () => {

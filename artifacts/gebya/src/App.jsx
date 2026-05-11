@@ -10,6 +10,8 @@ import CustomerList from './components/CustomerList';
 import CustomerDetail from './components/CustomerDetail';
 import CustomerForm from './components/CustomerForm';
 import CustomerTransactionSheet from './components/CustomerTransactionSheet';
+import CustomerMessageReady from './components/CustomerMessageReady';
+import FastDubieCustomerPicker from './components/FastDubieCustomerPicker';
 import CustomerTelegramConnectSheet from './components/CustomerTelegramConnectSheet';
 import HistoryView from './components/HistoryView';
 import SettingsPage from './components/SettingsPage';
@@ -180,8 +182,10 @@ function AppInner() {
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [telegramConnectCustomerId, setTelegramConnectCustomerId] = useState(null);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [showFastDubiePicker, setShowFastDubiePicker] = useState(false);
   const [customerTransactionModal, setCustomerTransactionModal] = useState(null);
   const [customerTransactionEditTarget, setCustomerTransactionEditTarget] = useState(null);
+  const [messageReadyModal, setMessageReadyModal] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const [shopProfile, setShopProfile] = useState(null);
@@ -735,6 +739,29 @@ function AppInner() {
     return customerSummaries.find(c => c.id === customerTransactionModal.customerId) || null;
   }, [customerSummaries, customerTransactionModal]);
 
+  const openNewDubieCustomerFlow = useCallback(() => {
+    setShowFastDubiePicker(false);
+    setActiveTab('merro');
+    setShowCustomerForm(true);
+  }, []);
+
+  const openFastDubiePicker = useCallback(() => {
+    if (customerSummaries.length === 0) {
+      openNewDubieCustomerFlow();
+      return;
+    }
+    setShowFastDubiePicker(true);
+  }, [customerSummaries.length, openNewDubieCustomerFlow]);
+
+  const handleSelectFastDubieCustomer = useCallback((customer) => {
+    if (!customer?.id) return;
+    setShowFastDubiePicker(false);
+    setCustomerTransactionModal({
+      mode: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+      customerId: customer.id,
+    });
+  }, []);
+
   const activeCatalogEntries = useMemo(
     () => catalogEntries.filter(entry => entry.active !== false).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
     [catalogEntries]
@@ -1232,6 +1259,13 @@ function AppInner() {
     setLedgerTransactions(prev => insertCustomerTransaction(prev, saved));
     setLedgerCustomers(prev => prev.map(c => c.id === draft.customer_id ? { ...c, updated_at: now } : c));
     setCustomerTransactionModal(null);
+    setMessageReadyModal({
+      type: draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? 'payment' : 'credit',
+      customerId: draft.customer_id,
+      amount: draft.amount,
+      itemNote: draft.item_note,
+      dueDate: draft.due_date,
+    });
     fireToast(draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? (t.paymentSaved || 'Payment recorded ✓') : t.creditSaved, 2200);
 
     if (draft.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD) {
@@ -1661,8 +1695,7 @@ function AppInner() {
                 key={b.type}
                 onClick={() => {
                   if (b.type === 'credit') {
-                    setActiveTab('merro');
-                    setShowCustomerForm(true);
+                    openFastDubiePicker();
                     return;
                   }
                   setShowForm(b.type);
@@ -1716,9 +1749,9 @@ function AppInner() {
               {todayTransactions.length === 0 ? (
                 <div className="px-4 py-10 text-center">
                   <p className="text-4xl mb-3">🎤</p>
-                  <p className="font-bold text-base mb-1" style={{ color: '#374151' }}>No sales recorded yet</p>
+                  <p className="font-bold text-base mb-1" style={{ color: '#374151' }}>{t.noSalesRecordedYet}</p>
                   <p className="text-sm font-semibold" style={{ color: P.amber }}>
-                    ↑ Tap above to record your first sale
+                    {t.recordFirstSalePrompt}
                   </p>
                 </div>
               ) : (
@@ -1796,12 +1829,14 @@ function AppInner() {
               onOpenTelegramConnect={() => setTelegramConnectCustomerId(selectedCustomer.id)}
               onResendTelegramUpdate={() => handleResendCustomerTelegramUpdate(selectedCustomer)}
               onEditTransaction={setCustomerTransactionEditTarget}
+              shopName={shopProfile?.name}
             />
           ) : (
             <CustomerList
               customers={customerSummaries}
               onSelectCustomer={(customer) => setSelectedCustomerId(customer.id)}
-              onAddCustomer={() => setShowCustomerForm(true)}
+              onAddCustomer={handleAddCustomer}
+              shopName={shopProfile?.name}
             />
           )
         )}
@@ -1892,6 +1927,31 @@ function AppInner() {
         <CustomerForm
           onSave={handleAddCustomer}
           onDone={() => setShowCustomerForm(false)}
+        />
+      )}
+
+      {showFastDubiePicker && (
+        <FastDubieCustomerPicker
+          customers={customerSummaries}
+          onSelectCustomer={handleSelectFastDubieCustomer}
+          onNewCustomer={openNewDubieCustomerFlow}
+          onDone={() => setShowFastDubiePicker(false)}
+        />
+      )}
+
+      {messageReadyModal && (
+        <CustomerMessageReady
+          customer={customerSummaries.find(c => c.id === messageReadyModal.customerId)}
+          shopName={shopProfile?.name}
+          type={messageReadyModal.type}
+          amount={messageReadyModal.amount}
+          itemNote={messageReadyModal.itemNote}
+          dueDate={messageReadyModal.dueDate}
+          balance={(() => {
+            const c = customerSummaries.find(c => c.id === messageReadyModal.customerId);
+            return c?.balance || 0;
+          })()}
+          onDone={() => setMessageReadyModal(null)}
         />
       )}
 

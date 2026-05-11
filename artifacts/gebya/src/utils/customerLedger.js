@@ -2,6 +2,14 @@ function compareNumericDesc(left, right) {
   return (Number(right) || 0) - (Number(left) || 0);
 }
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function startOfLocalDay(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
 export function compareCustomerTransactions(a = {}, b = {}) {
   return compareNumericDesc(a.created_at, b.created_at)
     || compareNumericDesc(a.updated_at, b.updated_at)
@@ -31,6 +39,84 @@ export function getCustomerLatestDueDate(items = []) {
     .sort((a, b) => b - a)[0] || null;
 }
 
+export function getCustomerCollectionDueDate(items = []) {
+  return items
+    .filter(item => item.type === 'credit_add' && item.due_date)
+    .map(item => Number(item.due_date))
+    .filter(value => Number.isFinite(value) && value > 0)
+    .sort((a, b) => a - b)[0] || null;
+}
+
+export function getCustomerCollectionStatus(customer = {}, now = Date.now()) {
+  const balance = Number(customer.balance ?? customer.currentBalance ?? 0);
+  const hasBalance = balance > 0;
+  const dueDate = hasBalance
+    ? (customer.collection_due_date || getCustomerCollectionDueDate(customer.transactions || []))
+    : null;
+
+  if (!hasBalance) {
+    return {
+      key: 'paid',
+      hasBalance: false,
+      isDueNow: false,
+      dueDate: null,
+      days: 0,
+    };
+  }
+
+  if (!dueDate) {
+    return {
+      key: 'no_due_date',
+      hasBalance: true,
+      isDueNow: false,
+      dueDate: null,
+      days: null,
+    };
+  }
+
+  const todayStart = startOfLocalDay(now);
+  const dueStart = startOfLocalDay(dueDate);
+  if (todayStart == null || dueStart == null) {
+    return {
+      key: 'no_due_date',
+      hasBalance: true,
+      isDueNow: false,
+      dueDate: null,
+      days: null,
+    };
+  }
+
+  const dayDiff = Math.round((dueStart - todayStart) / MS_PER_DAY);
+
+  if (dayDiff === 0) {
+    return {
+      key: 'due_today',
+      hasBalance: true,
+      isDueNow: true,
+      dueDate,
+      days: 0,
+    };
+  }
+
+  if (dayDiff < 0) {
+    return {
+      key: 'overdue',
+      hasBalance: true,
+      isDueNow: true,
+      dueDate,
+      days: Math.abs(dayDiff),
+    };
+  }
+
+  return {
+    key: 'due_in',
+    hasBalance: true,
+    isDueNow: false,
+    dueDate,
+    days: dayDiff,
+  };
+}
+
 export function buildCustomerSummaries(customers = [], customerTransactions = []) {
   const txByCustomer = customerTransactions.reduce((acc, item) => {
     if (!acc[item.customer_id]) acc[item.customer_id] = [];
@@ -43,14 +129,20 @@ export function buildCustomerSummaries(customers = [], customerTransactions = []
       const items = sortCustomerTransactions(txByCustomer[customer.id] || []);
       const balance = getCustomerBalance(items);
       const lastActivityAt = items[0]?.created_at || customer.updated_at || customer.created_at || 0;
-
-      return {
+      const collectionDueDate = getCustomerCollectionDueDate(items);
+      const summary = {
         ...customer,
         transactions: items,
         balance,
         transaction_count: items.length,
         last_activity_at: lastActivityAt,
         latest_due_date: getCustomerLatestDueDate(items),
+        collection_due_date: collectionDueDate,
+      };
+
+      return {
+        ...summary,
+        collection_status: getCustomerCollectionStatus(summary),
       };
     })
     .sort((a, b) => {

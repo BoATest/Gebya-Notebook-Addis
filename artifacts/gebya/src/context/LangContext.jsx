@@ -157,6 +157,8 @@ const EN = {
   recurringHint: 'Quick-fill shortcuts for expenses you enter often',
   addRecurring: 'Add recurring expense',
   demoCardSectionLabel: 'Quick-fill (examples)',
+  recurringExampleRent: 'Rent',
+  recurringExampleEqub: 'Equb',
   addRecurringPopupGuide: 'Save this as a recurring expense to reuse it anytime',
   addAndUse: 'Add & Use',
   addRecurringHint: 'You can add more recurring expenses in Settings',
@@ -255,6 +257,11 @@ const EN = {
   itemNoteOptional: 'Item note (optional)',
   paymentNotePlaceholder: 'Any note about this payment',
   creditItemPlaceholder: 'What they took',
+  savedCatalogLabel: 'Saved item / service',
+  typeManually: 'Type manually',
+  typeNoteManually: 'Type note manually',
+  serviceLabel: 'Service',
+  itemLabel: 'Item',
   dueDateOptional: 'Due date (optional)',
   ethiopianDisplay: 'Ethiopian display',
   pickDateWithEthiopianHint: 'Choose any date below and we will also show it in Ethiopian calendar.',
@@ -427,6 +434,8 @@ const EN = {
   introSkip: 'Skip intro',
 
   noEntriesPrompt: 'Tap ሸጠሁ above to record your first sale',
+  noSalesRecordedYet: 'No sales recorded yet',
+  recordFirstSalePrompt: 'Tap above to record your first sale',
 
   saleSaved: '? Sale saved ? ?? Keep going',
   expenseSaved: 'Expense recorded ?',
@@ -684,6 +693,8 @@ const AM = {
   recurringHint: 'ብዙ ጊዜ ለሚያስገቡዋቸው ወጪዎች ፈጣን ቅጽ',
   addRecurring: 'ተደጋጋሚ ወጪ አክል',
   demoCardSectionLabel: 'ፈጣን ሙላ (ምሳሌዎች)',
+  recurringExampleRent: 'ኪራይ',
+  recurringExampleEqub: 'እቁብ',
   addRecurringPopupGuide: 'ይህን ወጪ ለሚቀጥሉ ጊዜያት አስቀምጥ',
   addAndUse: 'አስቀምጥ & ተጠቀም',
   addRecurringHint: 'ሌሎች ተደጋጋሚ ወጪዎችን በቅንብሮች ውስጥ ማከል ይችላሉ',
@@ -782,6 +793,11 @@ const AM = {
   itemNoteOptional: 'የተወሰደው ማስታወሻ (አማራጭ)',
   paymentNotePlaceholder: 'ስለዚህ ክፍያ ማንኛውም ማስታወሻ',
   creditItemPlaceholder: 'የወሰዱት ምንድን ነው',
+  savedCatalogLabel: 'የተቀመጠ ዕቃ / አገልግሎት',
+  typeManually: 'በእጅ ይጻፉ',
+  typeNoteManually: 'ማስታወሻ በእጅ ይጻፉ',
+  serviceLabel: 'አገልግሎት',
+  itemLabel: 'ዕቃ',
   dueDateOptional: 'የመክፈያ ቀን (አማራጭ)',
   ethiopianDisplay: 'በኢትዮጵያ ቀን መቁጠሪያ',
   pickDateWithEthiopianHint: 'ቀን ይምረጡ፣ እኛም በኢትዮጵያ ቀን መቁጠሪያ እናሳያለን።',
@@ -953,6 +969,8 @@ const AM = {
   introSkip: 'ዝለል',
 
   noEntriesPrompt: 'ለማስቀመጥ ከላይ "ሸጠሁ" ይጫኑ',
+  noSalesRecordedYet: 'ገና ሽያጭ አልተመዘገበም',
+  recordFirstSalePrompt: 'የመጀመሪያ ሽያጭዎን ለመመዝገብ ከላይ ይጫኑ',
 
   saleSaved: '✅ ሽያጭ ተቀምጧል · 🔥 ቀጥሉ',
   expenseSaved: 'ወጪ ተቀምጧል ✓',
@@ -1073,4 +1091,3 @@ export function LangProvider({ children }) {
 export function useLang() {
   return useContext(LangContext);
 }
-
