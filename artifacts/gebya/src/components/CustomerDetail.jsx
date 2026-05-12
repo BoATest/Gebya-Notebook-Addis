@@ -97,7 +97,7 @@ function CustomerDetail({
       </button>
 
       <div
-        className="p-5 border"
+        className="p-4 border"
         style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-xs)' }}
       >
         <div className="flex items-start justify-between gap-3">
@@ -144,87 +144,6 @@ function CustomerDetail({
         </div>
       </div>
 
-      <div
-        className="p-4 border space-y-3"
-        style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-black text-gray-900">{t.telegramConnection || 'Telegram Connection'}</p>
-            <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
-              {hasLinkedBorrower
-                ? (t.telegramBorrowerUpdatesLinked || 'Receive updates via Telegram')
-                : hasPendingLink
-                  ? (t.telegramBorrowerLinkWaiting || 'Waiting for customer to connect')
-                  : hasManualTelegram
-                    ? (t.telegramManualSavedNotLinked || 'Telegram saved but not linked')
-                    : (t.telegramConnectHint || 'Connect Telegram for updates')}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenTelegramConnect}
-            className="px-3 py-2 text-sm font-black min-h-[44px] border press-scale"
-            style={{ background: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe', borderRadius: 'var(--radius-sm)' }}
-          >
-            <span className="inline-flex items-center gap-1">
-              <Link2 className="w-4 h-4" />
-              {hasLinkedBorrower || hasPendingLink || hasManualTelegram
-                ? (t.manageTelegram || 'Manage')
-                : (t.connectTelegram || 'Connect')}
-            </span>
-          </button>
-        </div>
-
-        <div
-          className="flex items-center justify-between gap-3 p-3 border"
-          style={{ background: isTelegramNotifyEnabled ? '#f0fdf4' : '#fafafa', borderColor: isTelegramNotifyEnabled ? '#bbf7d0' : '#e5e7eb', borderRadius: 'var(--radius-md)' }}
-        >
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-gray-900">{t.notifyOnTelegram || 'Notify on Telegram'}</p>
-            <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
-              {hasLinkedBorrower
-                ? (isTelegramNotifyEnabled
-                    ? (t.telegramNotifyEnabledState || 'Notifications enabled')
-                    : (t.telegramNotifyDisabledState || 'Notifications disabled'))
-                : hasPendingLink
-                  ? (t.telegramBorrowerNeedsBotStart || 'Customer needs to start the bot')
-                  : hasManualTelegram
-                    ? (t.telegramDraftUntilLinked || 'Draft until linked')
-                    : (t.telegramLinkBeforeUpdates || 'Link Telegram first')}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onToggleTelegramNotify}
-            className={`w-11 h-6 rounded-full transition-colors ${isTelegramNotifyEnabled ? 'bg-green-900' : 'bg-gray-300'}`}
-            style={{ padding: '2px', flexShrink: 0 }}
-            aria-label={t.notifyOnTelegram || 'Toggle Telegram notifications'}
-          >
-            <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${isTelegramNotifyEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
-          </button>
-        </div>
-
-        {!hasLinkedBorrower && (
-          <div className="flex items-center gap-2 text-xs font-medium" style={{ color: '#b45309' }}>
-            <Bell className="w-4 h-4" />
-            <span>{hasPendingLink ? (t.telegramBorrowerNotStarted || 'Customer has not started the bot') : (t.telegramNotifyConnectFirst || 'Connect Telegram first')}</span>
-          </div>
-        )}
-
-        {hasLinkedBorrower && (
-          <button
-            type="button"
-            onClick={onResendTelegramUpdate}
-            className="w-full p-3 text-sm font-black flex items-center justify-center gap-2 border press-scale"
-            style={{ background: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0', borderRadius: 'var(--radius-md)' }}
-          >
-            <RefreshCcw className="w-4 h-4" />
-            {t.telegramResendLatestUpdate || 'Resend latest update'}
-          </button>
-        )}
-      </div>
-
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
@@ -257,95 +176,116 @@ function CustomerDetail({
         <button
           type="button"
           onClick={handleShareReminder}
-          className="w-full p-3 text-sm font-black flex items-center justify-center gap-2 border press-scale"
+          className="w-full p-2.5 text-xs font-black flex items-center justify-center gap-1.5 border press-scale"
           style={{ background: '#fff7ed', color: '#9a3412', borderColor: '#fed7aa', borderRadius: 'var(--radius-md)' }}
         >
-          <Send className="w-4 h-4" />
+          <Send className="w-3.5 h-3.5" />
           {t.shareReminder || 'Share reminder'}
         </button>
       )}
 
+      <div className="flex items-center justify-between p-2 text-xs border" style={{ background: '#f0f9ff', borderColor: '#bae6fd', borderRadius: 'var(--radius-sm)' }}>
+        <div className="flex items-center gap-1.5 min-w-0">
+          {hasLinkedBorrower ? (
+            isTelegramNotifyEnabled ? (
+              <span style={{ color: '#0369a1' }}>🔔 {t.telegramNotifyEnabledState || 'Updates on'}</span>
+            ) : (
+              <span style={{ color: '#6b7280' }}>🤖 {t.telegramNotifyDisabledState || 'Updates off'}</span>
+            )
+          ) : hasPendingLink ? (
+            <span style={{ color: '#d97706' }}>⏳ {t.telegramLinkPendingState || 'Link pending'}</span>
+          ) : hasManualTelegram ? (
+            <span style={{ color: '#0369a1' }}>✈️ {t.telegramManualSavedState || 'Telegram saved'}</span>
+          ) : (
+            <span style={{ color: '#9ca3af' }}>📱 {t.telegramNotConnectedState || 'Not connected'}</span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onOpenTelegramConnect}
+          className="font-bold flex-shrink-0 press-scale"
+          style={{ color: '#1d4ed8' }}
+        >
+          {hasLinkedBorrower || hasPendingLink || hasManualTelegram
+            ? (t.manageTelegram || 'Manage')
+            : (t.connectTelegram || 'Connect')}
+        </button>
+      </div>
+
       <div
-        className="p-4 border"
+        className="p-3 border"
         style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
       >
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2">
           <h3 className="font-bold text-sm" style={{ color: '#1B4332' }}>
             Notebook history
           </h3>
-          <span className="text-xs" style={{ color: '#9ca3af' }}>
+          <span className="text-[10px]" style={{ color: '#9ca3af' }}>
             {transactions.length} {(t.entries || 'entries')}
           </span>
         </div>
 
         {historyRows.length ? (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {historyRows.map((item) => {
               const isPayment = item.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT || item.type === 'payment';
               const entryColor = isPayment ? '#166534' : '#92400e';
               const entryBorder = isPayment ? '#bbf7d0' : '#fde68a';
               const entryBackground = isPayment ? '#f0fdf4' : '#fffbeb';
-              const entryLabel = isPayment ? (t.paymentRecordedLabel || 'Payment recorded') : (t.creditAddedLabel || 'Credit added');
-              const signedAmount = `${isPayment ? '-' : '+'}${fmt(item.amount || 0)} ${t.birr || 'birr'}`;
+              const signedAmount = `${isPayment ? '-' : '+'}${fmt(item.amount || 0)} birr`;
+              const itemNote = item.itemNote || item.item_note || null;
               return (
                 <div
                   key={item.id}
-                  className="p-3 border"
+                  className="p-2 border"
                   style={{
                     background: entryBackground,
                     borderColor: entryBorder,
-                    borderLeft: `4px solid ${entryColor}`,
+                    borderLeft: `3px solid ${entryColor}`,
                     borderRadius: 'var(--radius-sm)',
                   }}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="font-black text-sm leading-tight" style={{ color: entryColor }}>
-                      {entryLabel}
-                    </p>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <p className="font-black text-sm leading-tight text-right" style={{ color: entryColor }}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-black text-sm leading-tight" style={{ color: entryColor }}>
                         {signedAmount}
                       </p>
+                      {itemNote && (
+                        <p className="text-[11px] leading-snug truncate mt-0.5" style={{ color: '#6b7280' }}>
+                          {itemNote}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
                       <button
                         type="button"
                         onClick={() => onEditTransaction?.(item)}
-                        className="p-1.5 flex items-center justify-center border press-scale"
-                        style={{ minWidth: '36px', minHeight: '36px', borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }}
+                        className="p-1 flex items-center justify-center border press-scale"
+                        style={{ minWidth: '28px', minHeight: '28px', borderRadius: '6px', borderColor: '#e8e2d8', background: '#fff' }}
                         aria-label={t.editEntry || 'Edit'}
                       >
-                        <Pencil className="w-3.5 h-3.5" style={{ color: '#C4883A' }} />
+                        <Pencil className="w-3 h-3" style={{ color: '#C4883A' }} />
                       </button>
                     </div>
                   </div>
-                  <div className="mt-1 flex items-start justify-between gap-3 text-xs" style={{ color: '#4b5563' }}>
-                    <p className="font-semibold leading-snug min-w-0 truncate">
-                      {item.itemNote || item.item_note || (isPayment ? 'Payment received' : 'No item note')}
-                    </p>
-                    <p className="leading-snug flex-shrink-0 text-right" style={{ color: '#6b7280' }}>
-                      {formatEthiopian(item.createdAt || item.created_at)}
-                    </p>
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]" style={{ color: '#6b7280' }}>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px]" style={{ color: '#6b7280' }}>
                     {!isPayment && (item.dueDate || item.due_date) ? (
-                      <span>Return date: {formatEthiopian(item.dueDate || item.due_date)}</span>
+                      <span>Return: {formatEthiopian(item.dueDate || item.due_date)}</span>
                     ) : null}
-                    {(item.reference || item.reference_code) ? <span style={{ color: '#9ca3af' }}>Ref {item.reference || item.reference_code}</span> : null}
-                    {(item.actor_name_snapshot) ? <span style={{ color: '#9ca3af' }}>By {item.actor_name_snapshot}</span> : null}
+                    <span>{formatEthiopian(item.createdAt || item.created_at)}</span>
+                    {(item.reference || item.reference_code) ? (
+                      <span style={{ color: '#9ca3af' }}>Ref {item.reference || item.reference_code}</span>
+                    ) : null}
+                    <span>Bal: {fmt(item.balance_after || 0)} birr</span>
                   </div>
-                  <p className="mt-1 text-[11px] font-bold" style={{ color: '#6b7280' }}>
-                    Balance after: {fmt(item.balance_after || 0)} {t.birr || 'birr'}
-                  </p>
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="text-center py-6">
-            <p className="text-sm" style={{ color: '#9ca3af' }}>
+          <div className="text-center py-4">
+            <p className="text-xs" style={{ color: '#9ca3af' }}>
               {t.noTransactionsYet || 'No transactions yet'}
-            </p>
-            <p className="text-xs mt-2" style={{ color: '#6b7280' }}>
-              {t.noTransactionsHint || 'Add credit or record payments to see history'}
             </p>
           </div>
         )}

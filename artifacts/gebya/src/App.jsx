@@ -3,7 +3,7 @@ import { BookOpen, Users, Calendar, Settings, Trash2, Pencil, Share2, X } from '
 import db from './db';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { LangProvider, useLang } from './context/LangContext';
-import ProfitCard from './components/ProfitCard';
+import { ToastContainer, fireToast } from './components/Toast';
 import TransactionForm from './components/TransactionForm';
 import EditTransactionSheet from './components/EditTransactionSheet';
 import CustomerList from './components/CustomerList';
@@ -16,8 +16,6 @@ import CustomerTelegramConnectSheet from './components/CustomerTelegramConnectSh
 import HistoryView from './components/HistoryView';
 import SettingsPage from './components/SettingsPage';
 import OnboardingScreen from './components/OnboardingScreen';
-import DailySuggestions from './components/DailySuggestions';
-import { ToastContainer, fireToast } from './components/Toast';
 import { DEFAULT_PROVIDERS } from './components/PaymentTypeChips';
 import VoiceRecordScreen from './components/VoiceRecordScreenAudio';
 import VoiceResultScreen from './components/VoiceResultScreen';
@@ -1481,6 +1479,19 @@ function AppInner() {
     [todayExpenses]
   );
 
+  const estimatedProfit = useMemo(() => {
+    const sales = todayTransactions.filter(t2 => t2.type === 'sale');
+    const expenses = todayTransactions.filter(t2 => t2.type === 'expense');
+    const revenue = sales.reduce((s, t2) => s + (t2.amount || 0), 0);
+    const costOfGoods = sales.reduce((s, t2) => s + ((t2.cost_price || 0) * (t2.quantity || 1)), 0);
+    const expensesTotal = expenses.reduce((s, t2) => s + (t2.amount || 0), 0);
+    const salesWithCost = sales.filter(t2 => t2.cost_price > 0).length;
+    const totalSales = sales.length;
+    const hasPartialCostData = totalSales > 0 && salesWithCost > 0 && salesWithCost < totalSales;
+    if (!hasPartialCostData) return null;
+    return revenue - costOfGoods - expensesTotal;
+  }, [todayTransactions]);
+
   const topProducts = useMemo(() => {
     const counts = {};
     todaySales.forEach(t2 => {
@@ -1566,23 +1577,23 @@ function AppInner() {
   return (
     <div className="min-h-screen flex flex-col max-w-md mx-auto relative" style={{ background: P.bg }}>
 
-      <header className="flex-shrink-0 px-3.5 pt-8 pb-3 texture-noise sm:px-4 sm:pt-9" style={{ background: P.header }}>
-        <div className="mb-3 flex flex-wrap items-center gap-2.5 sm:gap-3">
+      <header className="flex-shrink-0 px-3.5 pt-5 pb-2 texture-noise sm:px-4 sm:pt-6" style={{ background: P.header }}>
+        <div className="mb-2 flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Avatar — taps to settings */}
           <button
             onClick={() => setActiveTab('settings')}
             className="flex-shrink-0 press-scale"
             aria-label="Open profile & settings"
             style={{
-              width: '46px',
-              height: '46px',
+              width: '40px',
+              height: '40px',
               borderRadius: '50%',
               background: 'rgba(255,255,255,0.2)',
               border: '2px solid rgba(255,255,255,0.4)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '1.25rem',
+              fontSize: '1rem',
               fontWeight: 900,
               color: '#fff',
               fontFamily: 'var(--font-serif)',
@@ -1594,10 +1605,10 @@ function AppInner() {
 
           {/* Shop name + date */}
           <div className="min-w-0 flex-1 pr-1">
-            <h1 className="text-xl font-black text-white tracking-tight font-serif leading-tight truncate">
+            <h1 className="text-lg font-black text-white tracking-tight font-serif leading-tight truncate">
               {shopProfile.name}
             </h1>
-            <p className="mt-0.5 truncate text-[11px] font-semibold sm:text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
+            <p className="truncate text-[10px] font-semibold sm:text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
               ገበያ · {getCurrentEthiopianDate()} · {new Date().toLocaleDateString('en', { day: 'numeric', month: 'short' })}
             </p>
           </div>
@@ -1605,7 +1616,7 @@ function AppInner() {
           <div className="ml-auto flex items-center gap-2">
             {/* Streak pill */}
             {(usageStats?.streak || 0) > 0 && (
-              <span className="flex-shrink-0 whitespace-nowrap px-2 py-1 text-[11px] font-black sm:text-xs" style={{
+              <span className="flex-shrink-0 whitespace-nowrap px-2 py-1 text-[10px] font-black" style={{
                 background: 'rgba(255,255,255,0.15)',
                 color: 'rgba(255,255,255,0.9)',
                 borderRadius: '8px',
@@ -1617,12 +1628,12 @@ function AppInner() {
             {/* Language toggle */}
             <button
               onClick={toggleLang}
-              className="flex flex-shrink-0 items-center text-xs font-bold transition-all press-scale"
+              className="flex flex-shrink-0 items-center text-[10px] font-bold transition-all press-scale"
               style={{
                 background: 'rgba(255,255,255,0.15)',
                 borderRadius: '10px',
-                padding: '3px',
-                gap: '2px',
+                padding: '2px',
+                gap: '1px',
               }}
               aria-label={lang === 'en' ? 'Switch to Amharic' : 'Switch to English'}
             >
@@ -1630,8 +1641,8 @@ function AppInner() {
                 background: lang === 'en' ? 'rgba(255,255,255,0.95)' : 'transparent',
                 color: lang === 'en' ? '#1B4332' : 'rgba(255,255,255,0.6)',
                 fontWeight: lang === 'en' ? 800 : 600,
-                padding: '4px 10px',
-                borderRadius: '8px',
+                padding: '3px 8px',
+                borderRadius: '7px',
                 transition: 'all 0.18s',
                 display: 'block',
               }}>EN</span>
@@ -1639,8 +1650,8 @@ function AppInner() {
                 background: lang === 'am' ? 'rgba(255,255,255,0.95)' : 'transparent',
                 color: lang === 'am' ? '#1B4332' : 'rgba(255,255,255,0.6)',
                 fontWeight: lang === 'am' ? 800 : 600,
-                padding: '4px 9px',
-                borderRadius: '8px',
+                padding: '3px 8px',
+                borderRadius: '7px',
                 transition: 'all 0.18s',
                 display: 'block',
               }}>አማ</span>
@@ -1654,36 +1665,28 @@ function AppInner() {
               { label: t.sales, val: todaySalesTotal, color: 'rgba(255,255,255,0.15)', text: '#fff' },
               { label: t.spent, val: todayExpensesTotal, color: 'rgba(212,101,74,0.35)', text: '#fff' },
             ].map(s => (
-              <div key={s.label} className="min-w-0 flex-1 px-2.5 py-2 text-center animate-elastic sm:px-3" style={{ background: s.color, borderRadius: 'var(--radius-sm)' }}>
-                <div className="truncate text-[11px] font-semibold sm:text-xs" style={{ color: 'rgba(255,255,255,0.75)' }}>{s.label}</div>
+              <div key={s.label} className="min-w-0 flex-1 px-2 py-1.5 text-center animate-elastic sm:px-2" style={{ background: s.color, borderRadius: 'var(--radius-sm)' }}>
+                <div className="truncate text-[10px] font-semibold sm:text-xs" style={{ color: 'rgba(255,255,255,0.75)' }}>{s.label}</div>
                 <div className="truncate text-sm font-black text-white">{hid(s.val)} {t.birr}</div>
               </div>
             ))}
+            {estimatedProfit !== null && (
+              <div key="profit" className="min-w-0 flex-1 px-2 py-1.5 text-center animate-elastic sm:px-2" style={{ background: 'rgba(196,136,58,0.3)', borderRadius: 'var(--radius-sm)' }}>
+                <div className="truncate text-[10px] font-semibold sm:text-xs" style={{ color: 'rgba(255,255,255,0.75)' }}>{t.estimatedProfit || 'Est. profit'}</div>
+                <div className="truncate text-sm font-black text-white">{hid(estimatedProfit)} {t.birr}</div>
+              </div>
+            )}
           </div>
         )}
       </header>
 
 
       {activeTab === 'today' && (
-        <div className="flex-shrink-0 px-3 pt-2 pb-1" style={{ background: P.actionBar }}>
-          {/* Time-based greeting */}
-          <p className="text-center text-xs font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
+        <div className="flex-shrink-0 px-3 py-1.5" style={{ background: P.actionBar }}>
+          <p className="text-center text-[11px] font-semibold mb-1.5" style={{ color: 'rgba(255,255,255,0.65)' }}>
             {getTimeGreeting()}
           </p>
-          {/* Voice — primary action */}
-          <button
-            onClick={() => setVoiceStep('record')}
-            className="mb-1 flex w-full flex-col items-center justify-center py-3.5 text-base font-black text-white transition-all active:scale-95 press-scale sm:py-4"
-            style={{ background: '#1a5c3a', border: '2px solid rgba(255,255,255,0.25)', borderRadius: 'var(--radius-lg)', boxShadow: '0 5px 0 #0f3d25' }}
-          >
-            <span className="text-2xl leading-none mb-0.5">🎤</span>
-            <span className="px-2 text-center text-[15px] font-black leading-snug sm:text-base">{t.recordByVoice}</span>
-            <span className="px-3 text-center text-[11px] opacity-70 sm:text-xs">{t.recordByVoiceSubLabel}</span>
-          </button>
-          <p className="mb-2 px-2 text-center text-[11px] sm:text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            {lang === 'am' ? 'ይናገሩ — ቆይቶ ማስተካከል ይቻላል' : 'Speak your sale — you can fix it after'}
-          </p>
-          <div className="grid grid-cols-3 gap-2 pb-2">
+          <div className="grid grid-cols-3 gap-2">
           {[
             { type: 'sale',    label: t.typeSaleLabel, sub: t.typeSale,  bg: '#2d6a4f', shadow: '#1B4332' },
             { type: 'expense', label: t.iSpentLabel, sub: t.iSpent, bg: '#D4654A', shadow: '#a84c37' },
@@ -1704,17 +1707,17 @@ function AppInner() {
                 onPointerUp={() => setPressedBtn(null)}
                 onPointerLeave={() => setPressedBtn(null)}
                 onPointerCancel={() => setPressedBtn(null)}
-                className="min-w-0 py-3 text-center transition-all min-h-[72px]"
+                className="min-w-0 py-2 text-center transition-all min-h-[52px]"
                 style={{
                   background: b.bg,
-                  borderRadius: 'var(--radius-lg)',
-                  boxShadow: pressed ? 'none' : `0 5px 0 ${b.shadow}`,
-                  transform: pressed ? 'translateY(5px)' : 'none',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: pressed ? 'none' : `0 3px 0 ${b.shadow}`,
+                  transform: pressed ? 'translateY(3px)' : 'none',
                 }}
               >
-                <div className="text-lg font-black leading-none text-white">+</div>
-                <div className="px-1 text-sm font-black leading-snug text-white font-sans sm:text-base">{b.label}</div>
-                <div className="px-1 text-[11px] text-white opacity-70 sm:text-xs">{b.sub}</div>
+                <div className="text-base font-black leading-none text-white">+</div>
+                <div className="px-1 text-sm font-black leading-snug text-white font-sans">{b.label}</div>
+                <div className="px-1 text-[10px] text-white opacity-70">{b.sub}</div>
               </button>
             );
           })}
@@ -1725,32 +1728,23 @@ function AppInner() {
       <main className="flex-1 overflow-y-auto px-4 py-3 pb-28">
 
         {activeTab === 'today' && (
-          <div className="space-y-3">
+          <div>
 
-            <ProfitCard transactions={todayTransactions} />
-
-            <DailySuggestions
-              todayTransactions={todayTransactions}
-              streak={usageStats?.streak || 1}
-              onAction={(type) => setShowForm(type)}
-            />
-
-
-            <div className="overflow-hidden animate-elastic stagger-3" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
-              <div className="px-4 py-3 border-b" style={{ borderColor: P.borderLight }}>
+            <div className="mt-2 overflow-hidden animate-elastic stagger-3" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
+              <div className="px-3 py-2 border-b" style={{ borderColor: P.borderLight }}>
                 <h3 className="font-bold text-gray-700 text-sm font-sans">
                   {t.todaysEntries}
-                  <span className="ml-2 text-xs px-2 py-0.5" style={{ background: 'rgba(27,67,50,0.08)', color: P.header, borderRadius: 'var(--radius-sm)' }}>
+                  <span className="ml-1.5 text-[10px] px-1.5 py-0.5" style={{ background: 'rgba(27,67,50,0.08)', color: P.header, borderRadius: '6px' }}>
                     {todayTransactions.length}
                   </span>
                 </h3>
               </div>
 
               {todayTransactions.length === 0 ? (
-                <div className="px-4 py-10 text-center">
-                  <p className="text-4xl mb-3">🎤</p>
-                  <p className="font-bold text-base mb-1" style={{ color: '#374151' }}>{t.noSalesRecordedYet}</p>
-                  <p className="text-sm font-semibold" style={{ color: P.amber }}>
+                <div className="px-4 py-6 text-center">
+                  <p className="text-2xl mb-2">🎤</p>
+                  <p className="font-bold text-sm mb-0.5" style={{ color: '#374151' }}>{t.noSalesRecordedYet}</p>
+                  <p className="text-xs" style={{ color: P.amber }}>
                     {t.recordFirstSalePrompt}
                   </p>
                 </div>
@@ -1758,50 +1752,50 @@ function AppInner() {
                 <div className="divide-y" style={{ borderColor: P.borderLight }}>
                   {todayTransactions.map(tx => (
                     <div key={tx.id}
-                      className="px-3 py-3 flex items-center border-l-4"
+                      className="px-3 py-2 flex items-center border-l-3"
                       style={{ borderLeftColor: typeBorderColor[tx.type] }}>
-                      <span className="text-xl mr-2 flex-shrink-0">{typeEmoji[tx.type]}</span>
+                      <span className="text-lg mr-2 flex-shrink-0">{typeEmoji[tx.type]}</span>
                       <button
                         className="flex-1 min-w-0 text-left"
                         onClick={() => setEditTarget(tx)}
                       >
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
                           <span className="font-semibold text-gray-800 text-sm truncate">{tx.item_name}</span>
-                          {tx.updated_at && <span className="text-xs" style={{ color: P.amber }}>{t.edited}</span>}
+                          {tx.updated_at && <span className="text-[10px]" style={{ color: P.amber }}>{t.edited}</span>}
                         </div>
-                        {tx.quantity > 1 && <span className="text-xs text-gray-400">×{tx.quantity}</span>}
-                        {tx.payment_type && tx.payment_type !== 'cash' && (
-                          <span className="text-xs text-gray-400 block">
-                            {[tx.payment_type, tx.payment_provider].filter(Boolean).join(' · ')}
+                        {(tx.quantity > 1 || (tx.payment_type && tx.payment_type !== 'cash')) && (
+                          <span className="text-[10px] text-gray-400">
+                            {tx.quantity > 1 ? `×${tx.quantity}` : ''}
+                            {tx.payment_type && tx.payment_type !== 'cash' ? ` · ${[tx.payment_type, tx.payment_provider].filter(Boolean).join(' · ')}` : ''}
                           </span>
                         )}
                       </button>
-                      <div className="text-right mr-2 flex-shrink-0">
+                      <div className="text-right mr-1.5 flex-shrink-0">
                         <div className="font-bold text-sm" style={{ color: typeColor[tx.type] }}>
-                          {tx.type === 'expense' ? '-' : ''}{fmt(tx.amount || 0)} {t.birr}
+                          {tx.type === 'expense' ? '-' : (tx.type === 'sale' ? '+' : '')}{fmt(tx.amount || 0)}
                         </div>
                         {tx.profit !== null && tx.profit !== undefined && (
-                          <div className={`text-xs ${tx.profit >= 0 ? 'text-green-600' : 'text-red-400'}`}>
-                            {tx.profit >= 0 ? '+' : ''}{fmt(tx.profit)} {t.profit}
+                          <div className={`text-[10px] ${tx.profit >= 0 ? 'text-green-600' : 'text-red-400'}`}>
+                            {tx.profit >= 0 ? '+' : ''}{fmt(tx.profit)}
                           </div>
                         )}
                       </div>
-                      <div className="flex gap-1 flex-shrink-0">
+                      <div className="flex gap-0.5 flex-shrink-0">
                         <button
                           onClick={() => setEditTarget(tx)}
-                          className="p-2 flex items-center justify-center press-scale"
-                          style={{ background: 'rgba(196,136,58,0.1)', minWidth: '44px', minHeight: '44px', borderRadius: 'var(--radius-sm)' }}
+                          className="p-1.5 flex items-center justify-center press-scale"
+                          style={{ background: 'rgba(196,136,58,0.1)', minWidth: '32px', minHeight: '32px', borderRadius: '8px' }}
                           aria-label={t.editEntry}
                         >
-                          <Pencil className="w-3.5 h-3.5" style={{ color: P.amber }} />
+                          <Pencil className="w-3 h-3" style={{ color: P.amber }} />
                         </button>
                         <button
                           onClick={() => setDeleteTarget(tx)}
-                          className="p-2 flex items-center justify-center press-scale"
-                          style={{ background: '#fff1f2', minWidth: '44px', minHeight: '44px', borderRadius: 'var(--radius-sm)' }}
+                          className="p-1.5 flex items-center justify-center press-scale"
+                          style={{ background: '#fff1f2', minWidth: '32px', minHeight: '32px', borderRadius: '8px' }}
                           aria-label={t.deleteEntryLabel}
                         >
-                          <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                          <Trash2 className="w-3 h-3 text-red-400" />
                         </button>
                       </div>
                     </div>
