@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Calendar, ChevronDown, ChevronUp, Pencil, Search, X } from 'lucide-react';
+import { Calendar, ChevronDown, ChevronUp, Pencil, Search, Share2, X } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/numformat';
+import { buildReportSummary } from '../utils/reportBuilder';
 
 function groupByDay(transactions) {
   const groups = {};
@@ -108,6 +109,7 @@ function matchesSearch(tx, query) {
 
 const typeIcon  = { sale: '💰', expense: '🛒', credit: '👥' };
 const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#C4883A' };
+const typeSign  = { sale: '+', expense: '-', credit: '+' };
 const medals    = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
 
 function TopProductsList({ transactions, title }) {
@@ -217,7 +219,7 @@ function TxRow({ tx, onEdit, t }) {
       <div className="flex items-center gap-1 flex-shrink-0 ml-2">
         <div className="text-right">
           <span className="font-semibold text-sm" style={{ color: typeColor[tx.type] }}>
-            {tx.type === 'expense' ? '-' : ''}{fmt(tx.amount || 0)}
+            {typeSign[tx.type] || ''}{fmt(tx.amount || 0)}
           </span>
           {tx.profit !== null && tx.profit !== undefined && (
             <p className={`text-xs ${tx.profit >= 0 ? 'text-green-600' : 'text-red-400'}`}>
@@ -231,7 +233,24 @@ function TxRow({ tx, onEdit, t }) {
   );
 }
 
-function DayGroupList({ groups, onEdit, expandedGroups, toggleGroup, t }) {
+function ShareButton({ onClick, label, icon }) {
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className="inline-flex items-center gap-1 text-xs font-bold transition-all press-scale px-2 py-1"
+      style={{
+        color: '#1B4332',
+        background: 'rgba(27,67,50,0.08)',
+        borderRadius: '6px',
+      }}
+    >
+      {icon || <Share2 className="w-3 h-3" />}
+      {label}
+    </button>
+  );
+}
+
+function DayGroupList({ groups, onEdit, expandedGroups, toggleGroup, t, onShareDay, shopName, customerTransactions }) {
   return (
     <div className="space-y-3">
       {groups.map(group => {
@@ -239,6 +258,12 @@ function DayGroupList({ groups, onEdit, expandedGroups, toggleGroup, t }) {
         const isToday = new Date(group.date).toDateString() === new Date().toDateString();
         const key = group.date.toString();
         const expanded = expandedGroups[key] ?? isToday;
+
+        const dateStr = new Date(group.date).toDateString();
+        const dayCustomerTxns = (customerTransactions || []).filter(
+          ct => new Date(ct.created_at).toDateString() === dateStr
+        );
+
         return (
           <div
             key={group.date}
@@ -250,32 +275,42 @@ function DayGroupList({ groups, onEdit, expandedGroups, toggleGroup, t }) {
               borderRadius: 'var(--radius-md)',
             }}
           >
-            <button className="w-full px-4 py-3 flex justify-between items-center"
-              style={{ background: isToday ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
-              onClick={() => toggleGroup(key)}>
-              <div>
-                <span className="font-bold text-gray-800 text-sm font-sans">
-                  {isToday ? t.today : formatEthiopian(group.date)}
-                </span>
-                {!isToday && (
-                  <span className="text-xs ml-2" style={{ color: '#9ca3af' }}>
-                    {new Date(group.date).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
+            <div className="flex items-start">
+              <button className="flex-1 px-4 py-3 flex justify-between items-center text-left"
+                style={{ background: isToday ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
+                onClick={() => toggleGroup(key)}>
+                <div>
+                  <span className="font-bold text-gray-800 text-sm font-sans">
+                    {isToday ? t.today : formatEthiopian(group.date)}
                   </span>
-                )}
-                <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
-                  {group.transactions.length} {t.entries}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="text-right">
-                  <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
-                    {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}` : fmt(stats.revenue)} {t.birr}
+                  {!isToday && (
+                    <span className="text-xs ml-2" style={{ color: '#9ca3af' }}>
+                      {new Date(group.date).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
+                    </span>
+                  )}
+                  <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
+                    {group.transactions.length} {t.entries}
                   </div>
-                  <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? t.profit : t.revenue}</div>
                 </div>
-                {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-              </div>
-            </button>
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
+                      {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}` : fmt(stats.revenue)} {t.birr}
+                    </div>
+                    <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? t.profit : t.revenue}</div>
+                  </div>
+                  {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                </div>
+              </button>
+              {onShareDay && (
+                <div className="pt-3 pr-3 flex-shrink-0">
+                  <ShareButton
+                    onClick={() => onShareDay(group, dayCustomerTxns)}
+                    label={t.shareDay}
+                  />
+                </div>
+              )}
+            </div>
 
             {expanded && (
               <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
@@ -291,7 +326,7 @@ function DayGroupList({ groups, onEdit, expandedGroups, toggleGroup, t }) {
   );
 }
 
-function WeekGroupList({ groups, onEdit, expandedGroups, toggleGroup, t }) {
+function WeekGroupList({ groups, onEdit, expandedGroups, toggleGroup, t, onShareWeek, shopName, customerTransactions }) {
   return (
     <div className="space-y-3">
       {groups.map(group => {
@@ -300,30 +335,47 @@ function WeekGroupList({ groups, onEdit, expandedGroups, toggleGroup, t }) {
         const key = group.weekStart.toString();
         const expanded = expandedGroups[key];
         const isCurrentWeek = Date.now() >= group.weekStart && Date.now() <= group.weekStart + 7 * 86400000;
+
+        const ws = group.weekStart;
+        const we = ws + 7 * 86400000;
+        const weekCustomerTxns = (customerTransactions || []).filter(
+          ct => ct.created_at >= ws && ct.created_at < we
+        );
+
         return (
           <div key={group.weekStart} className="border overflow-hidden animate-slide-up"
             style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}>
-            <button className="w-full px-4 py-3 flex justify-between items-center"
-              style={{ background: isCurrentWeek ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
-              onClick={() => toggleGroup(key)}>
-              <div>
-                <span className="font-bold text-gray-800 text-sm font-sans">
-                  {isCurrentWeek ? t.thisWeek : `${formatEthiopian(group.weekStart)} – ${formatEthiopian(weekEnd.getTime())}`}
-                </span>
-                <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
-                  {group.transactions.length} {t.entries}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="text-right">
-                  <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
-                    {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}` : fmt(stats.revenue)} {t.birr}
+            <div className="flex items-start">
+              <button className="flex-1 px-4 py-3 flex justify-between items-center text-left"
+                style={{ background: isCurrentWeek ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
+                onClick={() => toggleGroup(key)}>
+                <div>
+                  <span className="font-bold text-gray-800 text-sm font-sans">
+                    {isCurrentWeek ? t.thisWeek : `${formatEthiopian(group.weekStart)} – ${formatEthiopian(weekEnd.getTime())}`}
+                  </span>
+                  <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
+                    {group.transactions.length} {t.entries}
                   </div>
-                  <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? t.profit : t.revenue}</div>
                 </div>
-                {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-              </div>
-            </button>
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
+                      {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}` : fmt(stats.revenue)} {t.birr}
+                    </div>
+                    <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? t.profit : t.revenue}</div>
+                  </div>
+                  {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                </div>
+              </button>
+              {onShareWeek && (
+                <div className="pt-3 pr-3 flex-shrink-0">
+                  <ShareButton
+                    onClick={() => onShareWeek(group, weekCustomerTxns)}
+                    label={t.shareWeek}
+                  />
+                </div>
+              )}
+            </div>
 
             {expanded && (
               <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
@@ -356,7 +408,7 @@ function EmptyState({ hasSearch, searchQuery, t }) {
   );
 }
 
-function HistoryView({ transactions, onEdit }) {
+function HistoryView({ transactions, ledgerTransactions, onEdit, onShareReport, shopName }) {
   const { t } = useLang();
   const [period, setPeriod] = useState('day');
   const [grouping, setGrouping] = useState('day');
@@ -373,6 +425,9 @@ function HistoryView({ transactions, onEdit }) {
   const weekTransactions = filterCurrentWeek(filteredTransactions);
   const monthTransactions = filterCurrentMonth(filteredTransactions);
 
+  const weekCustomerTransactions = ledgerTransactions ? filterCurrentWeek(ledgerTransactions) : [];
+  const monthCustomerTransactions = ledgerTransactions ? filterCurrentMonth(ledgerTransactions) : [];
+
   const weekDayGroups = groupByDay(weekTransactions);
   const monthDayGroups = groupByDay(monthTransactions);
 
@@ -383,6 +438,55 @@ function HistoryView({ transactions, onEdit }) {
   ];
 
   const hasSearch = searchQuery.trim().length > 0;
+
+  const handleShareWeek = () => {
+    onShareReport(buildReportSummary({
+      shopName: shopName || 'Shop',
+      cashTransactions: weekTransactions,
+      customerTransactions: weekCustomerTransactions,
+      periodLabel: t.thisWeek,
+      t,
+    }));
+  };
+
+  const handleShareMonth = () => {
+    onShareReport(buildReportSummary({
+      shopName: shopName || 'Shop',
+      cashTransactions: monthTransactions,
+      customerTransactions: monthCustomerTransactions,
+      periodLabel: t.thisMonth,
+      t,
+    }));
+  };
+
+  const handleShareDayGroup = (group, dayCustomerTxns) => {
+    const isToday = new Date(group.date).toDateString() === new Date().toDateString();
+    const label = isToday
+      ? `${t.today}`
+      : `Day: ${new Date(group.date).toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+    onShareReport(buildReportSummary({
+      shopName: shopName || 'Shop',
+      cashTransactions: group.transactions,
+      customerTransactions: dayCustomerTxns,
+      periodLabel: label,
+      t,
+    }));
+  };
+
+  const handleShareWeekGroup = (group, weekCustomerTxns) => {
+    const weekEnd = new Date(group.weekStart + 6 * 86400000);
+    const isCurrentWeek = Date.now() >= group.weekStart && Date.now() <= group.weekStart + 7 * 86400000;
+    const label = isCurrentWeek
+      ? t.thisWeek
+      : `Week: ${new Date(group.weekStart).toLocaleDateString('en', { month: 'short', day: 'numeric' })} – ${new Date(weekEnd).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    onShareReport(buildReportSummary({
+      shopName: shopName || 'Shop',
+      cashTransactions: group.transactions,
+      customerTransactions: weekCustomerTxns,
+      periodLabel: label,
+      t,
+    }));
+  };
 
   return (
     <div className="space-y-4 pb-4">
@@ -470,6 +574,9 @@ function HistoryView({ transactions, onEdit }) {
               expandedGroups={expandedGroups}
               toggleGroup={toggleGroup}
               t={t}
+              onShareDay={hasSearch ? null : handleShareDayGroup}
+              shopName={shopName}
+              customerTransactions={ledgerTransactions}
             />
           ) : (
             <WeekGroupList
@@ -478,6 +585,9 @@ function HistoryView({ transactions, onEdit }) {
               expandedGroups={expandedGroups}
               toggleGroup={toggleGroup}
               t={t}
+              onShareWeek={hasSearch ? null : handleShareWeekGroup}
+              shopName={shopName}
+              customerTransactions={ledgerTransactions}
             />
           )}
         </>
@@ -490,12 +600,30 @@ function HistoryView({ transactions, onEdit }) {
           ) : (
             <>
               <StatsSummary transactions={weekTransactions} />
+              {!hasSearch && (
+                <button
+                  onClick={handleShareWeek}
+                  className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-bold transition-all press-scale"
+                  style={{
+                    background: '#1B4332',
+                    color: '#fff',
+                    borderRadius: 'var(--radius-md)',
+                    boxShadow: 'var(--shadow-sm)',
+                  }}
+                >
+                  <Share2 className="w-4 h-4" />
+                  {t.shareThisWeek}
+                </button>
+              )}
               <DayGroupList
                 groups={weekDayGroups}
                 onEdit={onEdit}
                 expandedGroups={expandedGroups}
                 toggleGroup={toggleGroup}
                 t={t}
+                onShareDay={hasSearch ? null : handleShareDayGroup}
+                shopName={shopName}
+                customerTransactions={ledgerTransactions}
               />
               <TopProductsList transactions={weekTransactions} title={t.topProductsWeek} />
             </>
@@ -510,12 +638,30 @@ function HistoryView({ transactions, onEdit }) {
           ) : (
             <>
               <StatsSummary transactions={monthTransactions} />
+              {!hasSearch && (
+                <button
+                  onClick={handleShareMonth}
+                  className="w-full py-2.5 flex items-center justify-center gap-2 text-sm font-bold transition-all press-scale"
+                  style={{
+                    background: '#1B4332',
+                    color: '#fff',
+                    borderRadius: 'var(--radius-md)',
+                    boxShadow: 'var(--shadow-sm)',
+                  }}
+                >
+                  <Share2 className="w-4 h-4" />
+                  {t.shareThisMonth}
+                </button>
+              )}
               <DayGroupList
                 groups={monthDayGroups}
                 onEdit={onEdit}
                 expandedGroups={expandedGroups}
                 toggleGroup={toggleGroup}
                 t={t}
+                onShareDay={hasSearch ? null : handleShareDayGroup}
+                shopName={shopName}
+                customerTransactions={ledgerTransactions}
               />
               <TopProductsList transactions={monthTransactions} title={t.topProductsMonth} />
             </>

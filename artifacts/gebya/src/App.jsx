@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BookOpen, Users, Calendar, Settings, Trash2, Pencil, Share2, X } from 'lucide-react';
+import { BookOpen, Users, Calendar, Store, Trash2, Pencil, Share2, X } from 'lucide-react';
 import db from './db';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { LangProvider, useLang } from './context/LangContext';
@@ -22,6 +22,7 @@ import VoiceResultScreen from './components/VoiceResultScreen';
 import VoiceFixScreen from './components/VoiceFixScreen';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
 import { fmt } from './utils/numformat';
+import { buildReportSummary } from './utils/reportBuilder';
 import { checkAndAwardBadges } from './utils/badges';
 import { buildCustomerSummaries, getCustomerBalance, insertCustomerTransaction, sortCustomerTransactions } from './utils/customerLedger';
 import { normalizeCustomerDraft, normalizeCustomerTransactionDraft } from './utils/customerLedgerMutations';
@@ -1504,28 +1505,21 @@ function AppInner() {
       .map(([name, qty]) => ({ name, qty }));
   }, [todaySales]);
 
-  const buildShareSummary = () => {
-    const profit = todaySalesTotal - todayExpensesTotal;
-    const topStr = topProducts.length > 0
-      ? topProducts.map((p, i) => `  ${i + 1}. ${p.name} (x${p.qty})`).join('\n')
-      : '  —';
-    return [
-      `📊 ${shopProfile?.name || 'Shop'} — ${t.shareDailyReport}`,
-      `📅 ${new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
-      ``,
-      `💰 ${t.sales}:    ${fmt(todaySalesTotal)} ${t.birr}`,
-      `🛒 ${t.spent}: ${fmt(todayExpensesTotal)} ${t.birr}`,
-      `📈 ${t.calcProfit}:   ${fmt(profit)} ${t.birr}`,
-      ``,
-      `🏆 ${t.shareTopItems}:`,
-      topStr,
-      ``,
-      t.shareSentVia,
-    ].join('\n');
-  };
+  const buildShareSummary = () => buildReportSummary({
+    shopName: shopProfile?.name,
+    cashTransactions: todayTransactions,
+    customerTransactions: todayLedgerTransactions,
+    periodLabel: t.shareDailyReport,
+    t,
+  });
 
   const handleShareReport = () => {
     setShareText(buildShareSummary());
+    setShowShareModal(true);
+  };
+
+  const handleHistoryShareReport = (text) => {
+    setShareText(text);
     setShowShareModal(true);
   };
 
@@ -1567,7 +1561,7 @@ function AppInner() {
     { id: 'today',    label: t.todayLabel, sub: t.today,   icon: BookOpen },
     { id: 'merro',    label: t.creditLabel, sub: t.credit,  icon: Users },
     { id: 'history',  label: t.report,                       icon: Calendar },
-    { id: 'settings', label: t.settings,                     icon: Settings },
+    { id: 'settings', label: t.myShop,                     icon: Store },
   ];
 
   const typeEmoji = { sale: '💰', expense: '🛒', credit: '👥' };
@@ -1730,7 +1724,23 @@ function AppInner() {
         {activeTab === 'today' && (
           <div>
 
-            <div className="mt-2 overflow-hidden animate-elastic stagger-3" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
+            {(todayTransactions.length > 0 || todayLedgerTransactions.length > 0) && (
+              <button
+                onClick={handleShareReport}
+                className="w-full mb-2 py-2.5 flex items-center justify-center gap-2 text-sm font-bold transition-all press-scale"
+                style={{
+                  background: '#1B4332',
+                  color: '#fff',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
+                <Share2 className="w-4 h-4" />
+                {t.shareReport}
+              </button>
+            )}
+
+            <div className="overflow-hidden animate-elastic stagger-3" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
               <div className="px-3 py-2 border-b" style={{ borderColor: P.borderLight }}>
                 <h3 className="font-bold text-gray-700 text-sm font-sans">
                   {t.todaysEntries}
@@ -1838,7 +1848,10 @@ function AppInner() {
         {activeTab === 'history' && (
           <HistoryView
             transactions={transactions}
+            ledgerTransactions={ledgerTransactions}
             onEdit={setEditTarget}
+            onShareReport={handleHistoryShareReport}
+            shopName={shopProfile?.name}
           />
         )}
 
@@ -1857,7 +1870,6 @@ function AppInner() {
             onRecurringChange={setRecurringExpenses}
             usageStats={usageStats}
             earnedBadges={earnedBadges}
-            onShareToday={handleShareReport}
             onSaveCatalogEntry={handleSaveCatalogEntry}
             onToggleCatalogEntryActive={handleToggleCatalogEntryActive}
             onSaveSupplier={handleSaveSupplier}
