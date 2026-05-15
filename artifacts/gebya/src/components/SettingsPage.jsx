@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
-import { Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, Share2 } from 'lucide-react';
+import { Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, Lock } from 'lucide-react';
 import { useLang } from '../context/LangContext';
+import { useAuth } from '../context/AuthContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt, parseInput } from '../utils/numformat';
 import db from '../db';
@@ -27,7 +28,6 @@ function SettingsPage({
   onRecurringChange,
   usageStats,
   earnedBadges,
-  onShareToday,
   onSaveCatalogEntry,
   onToggleCatalogEntryActive,
   onSaveSupplier,
@@ -37,10 +37,15 @@ function SettingsPage({
   pwa,
 }) {
   const { lang, t } = useLang();
+  const { isAuthenticated, encryptionKey } = useAuth();
+  const isAuthEnabled = !!encryptionKey;
   const FREQ_LABELS = lang === 'am' ? FREQ_LABELS_AM : FREQ_LABELS_EN;
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [cleared, setCleared] = useState(false);
+  const [clearConfirmText, setClearConfirmText] = useState('');
+  const [exportPin, setExportPin] = useState('');
+  const [exportError, setExportError] = useState('');
   const [catalogForm, setCatalogForm] = useState({
     id: null,
     name: '',
@@ -140,124 +145,188 @@ function SettingsPage({
     ].map(row => row.join(',')).join('\n');
   };
 
-  const exportToCSV = async () => {
-    const [customerRows, customerTransactionRows, supplierRows, supplierTransactionRows] = await Promise.all([
-      db.customers.toArray(),
-      db.customer_transactions.toArray(),
-      db.suppliers?.toArray?.() || [],
-      db.supplier_transactions?.toArray?.() || [],
-    ]);
+const handleExportAuth = async () => {
+     if (!isAuthenticated) {
+       fireToast(t.exportAuthRequired || 'Authentication required', 2200);
+       return;
+     }
+     // If auth is enabled, require PIN
+     const authState = await import('../lib/auth').then(m => m.getAuthState());
+     if (authState.enabled) {
+       if (!exportPin) {
+         setExportError(t.enterPinToExport || 'Enter your PIN to export');
+         return;
+       }
+       try {
+         const key = await import('../lib/auth').then(m => m.verifyAndGetKey(exportPin));
+         setExportPin('');
+         setExportError('');
+         await exportToCSV(key);
+       } catch (err) {
+         setExportError(err.message || 'Incorrect PIN');
+         setExportPin('');
+       }
+       return;
+     }
+     await exportToCSV(null);
+   };
 
-    const transactionSection = buildCsvSection(
-      'Transactions',
-      ['Date (Ethiopian)', 'Type', 'Item', 'Quantity', 'Amount (birr)', 'Cost (birr)', 'Profit (birr)', 'Payment', 'Customer'],
-      transactions.map(tx => [
-        formatEthiopian(tx.created_at),
-        tx.type,
-        tx.item_name || '',
-        tx.quantity || 1,
-        tx.amount || 0,
-        tx.cost_price || '',
-        tx.profit !== null && tx.profit !== undefined ? tx.profit : '',
-        [tx.payment_type, tx.payment_provider].filter(Boolean).join(' ') || '',
-        tx.customer_name || '',
-      ])
-    );
+   const exportToCSV = async (encKey) => {
+     const [customerRows, customerTransactionRows, supplierRows, supplierTransactionRows] = await Promise.all([
+       db.customers.toArray(),
+       db.customer_transactions.toArray(),
+       db.suppliers?.toArray?.() || [],
+       db.supplier_transactions?.toArray?.() || [],
+     ]);
 
-    const customerSection = buildCsvSection(
-      'Customers',
-      ['ID', 'Name', 'Phone', 'Note', 'Telegram', 'Telegram notify enabled', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
-      customerRows.map(customer => [
-        customer.id,
-        customer.display_name || '',
-        customer.phone_number || '',
-        customer.note || '',
-        customer.telegram_username || '',
-        customer.telegram_notify_enabled ? 'yes' : 'no',
-        customer.created_at ? formatEthiopian(customer.created_at) : '',
-        customer.updated_at ? formatEthiopian(customer.updated_at) : '',
-      ])
-    );
+     const decrypt = encKey
+       ? (await import('../lib/crypto')).decrypt
+       : null;
 
-    const customerTransactionSection = buildCsvSection(
-      'Customer Ledger Transactions',
-      ['ID', 'Customer ID', 'Type', 'Amount (birr)', 'Item note', 'Due date (Ethiopian)', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
-      customerTransactionRows.map(entry => [
-        entry.id,
-        entry.customer_id,
-        entry.type,
-        entry.amount || 0,
-        entry.item_note || '',
-        entry.due_date ? formatEthiopian(entry.due_date) : '',
-        entry.created_at ? formatEthiopian(entry.created_at) : '',
-        entry.updated_at ? formatEthiopian(entry.updated_at) : '',
-      ])
-    );
+     const maybeDecrypt = async (val) => {
+       if (!decrypt || !val) return val;
+       const result = await decrypt(val, encKey);
+       return result || val;
+     };
 
-    const supplierSection = buildCsvSection(
-      'Suppliers',
-      ['ID', 'Name', 'Phone', 'Note', 'Active', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
-      supplierRows.map(supplier => [
-        supplier.id,
-        supplier.display_name || '',
-        supplier.phone_number || '',
-        supplier.note || '',
-        supplier.active === false ? 'no' : 'yes',
-        supplier.created_at ? formatEthiopian(supplier.created_at) : '',
-        supplier.updated_at ? formatEthiopian(supplier.updated_at) : '',
-      ])
-    );
+     const transactionSection = buildCsvSection(
+       'Transactions',
+       ['Date (Ethiopian)', 'Type', 'Item', 'Quantity', 'Amount (birr)', 'Cost (birr)', 'Profit (birr)', 'Payment', 'Customer'],
+       await Promise.all(transactions.map(async tx => [
+         formatEthiopian(tx.created_at),
+         tx.type,
+         await maybeDecrypt(tx.item_name) || '',
+         tx.quantity || 1,
+         tx.amount || 0,
+         tx.cost_price || '',
+         tx.profit !== null && tx.profit !== undefined ? tx.profit : '',
+         [tx.payment_type, tx.payment_provider].filter(Boolean).join(' ') || '',
+         await maybeDecrypt(tx.customer_name) || '',
+       ]))
+     );
 
-    const supplierTransactionSection = buildCsvSection(
-      'Supplier Ledger Transactions',
-      ['ID', 'Supplier ID', 'Type', 'Item', 'Quantity', 'Amount (birr)', 'Note', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
-      supplierTransactionRows.map(entry => [
-        entry.id,
-        entry.supplier_id,
-        entry.type,
-        entry.item_name || '',
-        entry.quantity != null ? entry.quantity : '',
-        entry.amount || 0,
-        entry.note || '',
-        entry.created_at ? formatEthiopian(entry.created_at) : '',
-        entry.updated_at ? formatEthiopian(entry.updated_at) : '',
-      ])
-    );
+     const customerSection = buildCsvSection(
+       'Customers',
+       ['ID', 'Name', 'Phone', 'Note', 'Telegram', 'Telegram notify enabled', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
+       await Promise.all(customerRows.map(async customer => [
+         customer.id,
+         await maybeDecrypt(customer.display_name) || '',
+         await maybeDecrypt(customer.phone_number) || '',
+         customer.note || '',
+         customer.telegram_username || '',
+         customer.telegram_notify_enabled ? 'yes' : 'no',
+         customer.created_at ? formatEthiopian(customer.created_at) : '',
+         customer.updated_at ? formatEthiopian(customer.updated_at) : '',
+       ]))
+     );
 
-    const csv = [
-      transactionSection,
-      customerSection,
-      customerTransactionSection,
-      supplierSection,
-      supplierTransactionSection,
-    ].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `gebya-backup-full-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
+     const customerTransactionSection = buildCsvSection(
+       'Customer Ledger Transactions',
+       ['ID', 'Customer ID', 'Type', 'Amount (birr)', 'Item note', 'Due date (Ethiopian)', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
+       customerTransactionRows.map(entry => [
+         entry.id,
+         entry.customer_id,
+         entry.type,
+         entry.amount || 0,
+         entry.item_note || '',
+         entry.due_date ? formatEthiopian(entry.due_date) : '',
+         entry.created_at ? formatEthiopian(entry.created_at) : '',
+         entry.updated_at ? formatEthiopian(entry.updated_at) : '',
+       ])
+     );
 
-  const clearAllData = async () => {
-    await Promise.all([
-      db.transactions.clear(),
-      db.customers.clear(),
-      db.customer_transactions.clear(),
-      db.catalog_entries.clear(),
-      db.suppliers.clear(),
-      db.supplier_transactions.clear(),
-      db.credit_records?.clear?.() || Promise.resolve(),
-      db.credit_payment_logs?.clear?.() || Promise.resolve(),
-      db.settings.delete('last_saved_snapshot'),
-    ]);
-    setCleared(true);
-    setShowClearConfirm(false);
-    setTimeout(() => window.location.reload(), 800);
-  };
+     const supplierSection = buildCsvSection(
+       'Suppliers',
+       ['ID', 'Name', 'Phone', 'Note', 'Active', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
+       await Promise.all(supplierRows.map(async supplier => [
+         supplier.id,
+         await maybeDecrypt(supplier.display_name) || '',
+         await maybeDecrypt(supplier.phone_number) || '',
+         supplier.note || '',
+         supplier.active === false ? 'no' : 'yes',
+         supplier.created_at ? formatEthiopian(supplier.created_at) : '',
+         supplier.updated_at ? formatEthiopian(supplier.updated_at) : '',
+       ]))
+     );
+
+     const supplierTransactionSection = buildCsvSection(
+       'Supplier Ledger Transactions',
+       ['ID', 'Supplier ID', 'Type', 'Item', 'Quantity', 'Amount (birr)', 'Note', 'Created at (Ethiopian)', 'Updated at (Ethiopian)'],
+       supplierTransactionRows.map(entry => [
+         entry.id,
+         entry.supplier_id,
+         entry.type,
+         entry.item_name || '',
+         entry.quantity != null ? entry.quantity : '',
+         entry.amount || 0,
+         entry.note || '',
+         entry.created_at ? formatEthiopian(entry.created_at) : '',
+         entry.updated_at ? formatEthiopian(entry.updated_at) : '',
+       ])
+     );
+
+     const csv = [
+       transactionSection,
+       customerSection,
+       customerTransactionSection,
+       supplierSection,
+       supplierTransactionSection,
+     ].join('\n');
+     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+     const url = URL.createObjectURL(blob);
+     const a = document.createElement('a');
+     a.href = url;
+     a.download = `gebya-backup-full-${new Date().toISOString().split('T')[0]}.csv`;
+     document.body.appendChild(a);
+     a.click();
+     document.body.removeChild(a);
+     URL.revokeObjectURL(url);
+   };
+
+const clearAllData = async () => {
+     // Require authentication before destructive action
+     const { verifyAndGetKey } = await import('../lib/auth');
+     if (!exportPin && !cleared) {
+       setShowClearConfirm(false);
+       fireToast(t.exportAuthRequired || 'PIN required to wipe data', 2200);
+       return;
+     }
+     // Require typed confirmation
+     if (clearConfirmText !== 'DELETE') {
+       fireToast(t.typeDeleteConfirm || 'Type DELETE to confirm', 2200);
+       return;
+     }
+     // Verify PIN first
+     if (isAuthenticated) {
+       try {
+         const authState = await import('../lib/auth').then(m => m.getAuthState());
+         if (authState.enabled) {
+           await verifyAndGetKey(exportPin);
+         }
+       } catch (err) {
+         fireToast(t.incorrectPin || 'Incorrect PIN', 2200);
+         return;
+       }
+     }
+     await Promise.all([
+       db.transactions.clear(),
+       db.customers.clear(),
+       db.customer_transactions.clear(),
+       db.catalog_entries.clear(),
+       db.suppliers.clear(),
+       db.supplier_transactions.clear(),
+       db.credit_records?.clear?.() || Promise.resolve(),
+       db.credit_payment_logs?.clear?.() || Promise.resolve(),
+       db.analytics?.clear?.() || Promise.resolve(),
+       db.settings.delete('last_saved_snapshot'),
+     ]);
+     // Also clear localStorage drafts
+     try { localStorage.removeItem('gebya_sale_draft'); } catch {}
+     setCleared(true);
+     setShowClearConfirm(false);
+     setClearConfirmText('');
+     setTimeout(() => window.location.reload(), 800);
+   };
 
   const allBanks = [...ALL_BANKS, ...customBanks.filter(b => !ALL_BANKS.includes(b))];
   const allWallets = [...ALL_WALLETS, ...customWallets.filter(w => !ALL_WALLETS.includes(w))];
@@ -563,25 +632,6 @@ function SettingsPage({
         </div>
       </section>
 
-      {onShareToday && (
-        <section>
-          <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.shareTodayTitle}</h2>
-          <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
-            <div className="px-5 py-4">
-              <p className="text-xs text-gray-500 mb-3">{t.shareTodayHint}</p>
-              <button
-                onClick={onShareToday}
-                className="w-full py-3 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 min-h-[48px] transition-all"
-                style={{ background: '#1B4332' }}
-              >
-                <Share2 className="w-4 h-4" />
-                {t.shareReport}
-              </button>
-            </div>
-          </div>
-        </section>
-      )}
-
       <section>
         <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.frequentExpenses}</h2>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
@@ -812,33 +862,108 @@ function SettingsPage({
             </div>
           </div>
 
-          <button
-            onClick={exportToCSV}
-            disabled={totalEntries === 0}
-            className="w-full flex items-center gap-4 px-5 py-4 active:bg-green-50 transition-colors min-h-[64px] disabled:opacity-40"
-          >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#eff6ff' }}>
-              <Download className="w-5 h-5 text-blue-700" />
-            </div>
-            <div className="flex-1 text-left">
-              <div className="font-bold text-gray-800">{t.exportCSV}</div>
-              <div className="text-xs text-gray-500 mt-0.5">{t.exportHint}</div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-          </button>
+<button
+             onClick={handleExportAuth}
+             disabled={totalEntries === 0 || (isAuthEnabled && !exportPin && !isAuthenticated)}
+             className="w-full flex items-center gap-4 px-5 py-4 active:bg-green-50 transition-colors min-h-[64px] disabled:opacity-40"
+           >
+             <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#eff6ff' }}>
+               <Download className="w-5 h-5 text-blue-700" />
+             </div>
+             <div className="flex-1 text-left">
+               <div className="font-bold text-gray-800">{t.exportCSV}</div>
+               <div className="text-xs text-gray-500 mt-0.5">{t.exportHint}</div>
+             </div>
+             {isAuthEnabled && <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+             <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+           </button>
 
-          <button
-            onClick={() => setShowClearConfirm(true)}
-            className="w-full flex items-center gap-3 px-5 py-3 transition-colors min-h-[52px]"
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#f5f5f5' }}>
-              <Trash2 className="w-4 h-4 text-gray-400" />
+           {isAuthEnabled && (
+             <div className="px-5 py-2">
+               <input
+                 type="password"
+                 value={exportPin}
+                 onChange={e => { setExportPin(e.target.value); setExportError(''); }}
+                 placeholder={t.enterPinPlaceholder || 'Enter PIN to export'}
+                 className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none"
+                 style={{ borderColor: exportError ? '#dc2626' : '#e8e2d8' }}
+               />
+               {exportError && <p className="text-xs text-red-500 mt-1">{exportError}</p>}
+             </div>
+           )}
+
+<button
+             onClick={() => { setShowClearConfirm(true); setClearConfirmText(''); }}
+             className="w-full flex items-center gap-3 px-5 py-3 transition-colors min-h-[52px]"
+           >
+             <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#f5f5f5' }}>
+               <Trash2 className="w-4 h-4 text-gray-400" />
+             </div>
+             <div className="flex-1 text-left">
+               <div className="text-sm text-gray-500">{t.clearAll}</div>
+             </div>
+             {isAuthEnabled && <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+</button>
+          </div>
+
+          {showClearConfirm && (
+            <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade">
+              <div className="bg-white w-full max-w-md p-6 pb-8 animate-elastic" style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)' }}>
+                <h2 className="text-lg font-black text-gray-900 mb-2">{t.clearConfirm || 'Clear all data?'}</h2>
+                <p className="text-sm text-gray-500 mb-4">
+                  {t.clearConfirmMsg || 'This will permanently delete all your data. This cannot be undone.'}
+                </p>
+
+                {isAuthEnabled && (
+                  <div className="mb-3">
+                    <label className="block text-xs font-bold text-gray-600 mb-1">{t.enterPinPlaceholder || 'Enter PIN'}</label>
+                    <input
+                      type="password"
+                      value={exportPin}
+                      onChange={e => setExportPin(e.target.value)}
+                      placeholder="0000"
+                      className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none"
+                      style={{ borderColor: '#e8e2d8' }}
+                      maxLength={6}
+                    />
+                  </div>
+                )}
+
+                <div className="mb-3">
+                  <label className="block text-xs font-bold text-gray-600 mb-1">{t.typeDeleteConfirm || 'Type DELETE to confirm'}</label>
+                  <input
+                    type="text"
+                    value={clearConfirmText}
+                    onChange={e => setClearConfirmText(e.target.value.trim())}
+                    placeholder="DELETE"
+                    className="w-full px-3 py-2 border rounded-lg text-sm font-bold text-red-600 focus:outline-none"
+                    style={{ borderColor: clearConfirmText === 'DELETE' ? '#15803d' : '#e8e2d8' }}
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setShowClearConfirm(false); setClearConfirmText(''); setExportPin(''); }}
+                    className="flex-1 py-2.5 rounded-xl text-sm font-bold min-h-[44px]"
+                    style={{ background: '#f5f5f5', color: '#6b7280' }}
+                  >
+                    {t.cancel || 'Cancel'}
+                  </button>
+                  <button
+                    onClick={clearAllData}
+                    disabled={isAuthEnabled && !exportPin}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold text-white min-h-[44px] ${
+                      clearConfirmText === 'DELETE' && (!isAuthEnabled || exportPin)
+                        ? 'bg-red-600' : 'bg-gray-400'
+                    }`}
+                    style={{ cursor: (clearConfirmText === 'DELETE' && (!isAuthEnabled || exportPin)) ? 'pointer' : 'not-allowed' }}
+                  >
+                    {t.yesDelete || 'Delete Everything'}
+                  </button>
+                </div>
+              </div>
             </div>
-            <div className="flex-1 text-left">
-              <div className="text-sm text-gray-500">{t.clearAll}</div>
-            </div>
-          </button>
-        </div>
+          )}
       </section>
 
       <section>

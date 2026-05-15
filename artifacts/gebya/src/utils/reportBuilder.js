@@ -6,7 +6,6 @@ export function buildReportSummary({
   customerTransactions,
   periodLabel,
   dateLabel,
-  sellerLabel,
   t,
   topItemsLimit = 3,
 }) {
@@ -40,10 +39,6 @@ export function buildReportSummary({
     `📊 ${shopName || 'Shop'} — ${periodLabel || t?.shareDailyReport || 'Report'}`,
     `📅 ${dateLabel || new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
   ];
-
-  if (sellerLabel) {
-    lines.push(`👤 ${sellerLabel}`);
-  }
 
   lines.push(
     ``,
