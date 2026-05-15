@@ -1,0 +1,5 @@
+{
+  "buildCommand": "pnpm --filter @workspace/gebya run build",
+  "outputDirectory": "artifacts/gebya/dist/public",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
