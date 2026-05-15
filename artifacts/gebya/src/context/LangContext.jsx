@@ -416,13 +416,12 @@ const EN = {
   voiceMicBlocked: 'Microphone is blocked. Check browser settings.',
 
   exportAuthRequired: 'Authentication required',
-   incorrectPin: 'Incorrect PIN',
-   enterPinPlaceholder: 'Enter PIN',
-   enterPinToExport: 'Enter your PIN to export',
-   typeDeleteConfirm: 'Type DELETE to confirm',
-   yesDelete: 'Yes, delete everything',
+  incorrectPin: 'Incorrect PIN',
+  enterPinPlaceholder: 'Enter PIN',
+  enterPinToExport: 'Enter your PIN to export',
+  typeDeleteConfirm: 'Type DELETE to confirm',
 
-   close: 'Close',
+  close: 'Close',
 
   todaysBreakdown: "Today's Breakdown",
   payingVia: 'Paying via',
