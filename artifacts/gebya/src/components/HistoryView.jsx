@@ -164,10 +164,16 @@ function TopProductsList({ transactions, title }) {
   );
 }
 
-function StatsSummary({ transactions }) {
+function StatsSummary({ transactions, customerTransactions }) {
   const { t } = useLang();
-  const { revenue, profit, expenseTotal, hasCost } = calcStats(transactions);
-  const netProfit = hasCost ? profit : revenue - expenseTotal;
+  const { revenue, expenseTotal } = calcStats(transactions);
+
+  const dubieGiven = (customerTransactions || []).filter(tx => tx.type === 'credit_add');
+  const payments = (customerTransactions || []).filter(tx => tx.type === 'payment');
+  const dubieGivenTotal = dubieGiven.reduce((s, tx) => s + (tx.amount || 0), 0);
+  const paymentsTotal = payments.reduce((s, tx) => s + (tx.amount || 0), 0);
+
+  const netReceived = revenue + paymentsTotal - expenseTotal;
 
   return (
     <div className="px-4 py-3 space-y-2" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}>
@@ -183,11 +189,27 @@ function StatsSummary({ transactions }) {
           {`${fmt(expenseTotal)} ${t.birr}`}
         </span>
       </div>
+      {dubieGivenTotal > 0 && (
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-gray-500">{t.dubieGiven || 'Dubie Given'}</span>
+          <span className="text-sm font-bold" style={{ color: '#C4883A' }}>
+            {`${fmt(dubieGivenTotal)} ${t.birr}`}
+          </span>
+        </div>
+      )}
+      {paymentsTotal > 0 && (
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-gray-500">{t.paymentsCollected || 'Payments Collected'}</span>
+          <span className="text-sm font-bold text-green-700">
+            {`${fmt(paymentsTotal)} ${t.birr}`}
+          </span>
+        </div>
+      )}
       <div className="border-t pt-2" style={{ borderColor: 'var(--color-border)' }}>
         <div className="flex justify-between items-center">
-          <span className="text-xs font-bold text-gray-600">{t.netProfit}</span>
-          <span className={`text-sm font-black ${netProfit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
-            {`${netProfit >= 0 ? '+' : ''}${fmt(netProfit)} ${t.birr}`}
+          <span className="text-xs font-bold text-gray-600">{t.netReceived || 'Net Received'}</span>
+          <span className={`text-sm font-black ${netReceived >= 0 ? 'text-green-700' : 'text-red-500'}`}>
+            {`${netReceived >= 0 ? '+' : ''}${fmt(netReceived)} ${t.birr}`}
           </span>
         </div>
       </div>
@@ -599,7 +621,7 @@ function HistoryView({ transactions, ledgerTransactions, onEdit, onShareReport, 
             <EmptyState hasSearch={hasSearch} searchQuery={searchQuery} t={t} />
           ) : (
             <>
-              <StatsSummary transactions={weekTransactions} />
+              <StatsSummary transactions={weekTransactions} customerTransactions={weekCustomerTransactions} />
               {!hasSearch && (
                 <button
                   onClick={handleShareWeek}
@@ -637,7 +659,7 @@ function HistoryView({ transactions, ledgerTransactions, onEdit, onShareReport, 
             <EmptyState hasSearch={hasSearch} searchQuery={searchQuery} t={t} />
           ) : (
             <>
-              <StatsSummary transactions={monthTransactions} />
+              <StatsSummary transactions={monthTransactions} customerTransactions={monthCustomerTransactions} />
               {!hasSearch && (
                 <button
                   onClick={handleShareMonth}
