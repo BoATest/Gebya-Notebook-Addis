@@ -571,6 +571,16 @@ function AppInner() {
                 ? Math.max(Number(next.paid_amount ?? existing.paid_amount) || 0, 0)
                 : nextAmount;
             
+            // Slice C: Defensive guard — reject invalid paid_partly edits
+            if (settlementMode === 'paid_partly') {
+              if (nextPaidAmount <= 0) {
+                throw new Error('Paid amount must be greater than zero for paid partly sales.');
+              }
+              if (nextPaidAmount >= nextAmount) {
+                throw new Error('Paid amount must be less than total for paid partly sales.');
+              }
+            }
+            
             const nextRemainingAmount = settlementMode === 'paid_now'
               ? 0
               : Math.max(nextAmount - nextPaidAmount, 0);
@@ -609,6 +619,16 @@ function AppInner() {
             : settlementMode === 'paid_partly'
               ? Math.max(Number(next.paid_amount ?? existing.paid_amount) || 0, 0)
               : nextAmount;
+          
+          // Slice C: Defensive guard — reject invalid paid_partly edits
+          if (settlementMode === 'paid_partly') {
+            if (nextPaidAmount <= 0) {
+              throw new Error('Paid amount must be greater than zero for paid partly sales.');
+            }
+            if (nextPaidAmount >= nextAmount) {
+              throw new Error('Paid amount must be less than total for paid partly sales.');
+            }
+          }
           
           const nextRemainingAmount = settlementMode === 'paid_now'
             ? 0
@@ -1814,6 +1834,23 @@ const safeErr = err instanceof Error ? err.message : String(err);
                       );
                     })}
                   </div>
+
+                  <div className="px-4 py-3 border-t" style={{ borderColor: P.borderLight }}>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">{t.totalSales}</span>
+                      <span className="text-sm font-medium text-gray-800">{fmt(todaySalesTotal)} {t.birr}</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs text-gray-500">{t.totalExpenses}</span>
+                      <span className="text-sm font-medium text-red-500">-{fmt(todayExpensesTotal)} {t.birr}</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-2 pt-2 border-t" style={{ borderColor: P.borderLight }}>
+                      <span className="text-xs font-bold text-gray-600">{t.netReceived || 'Net Received'}</span>
+                      <span className={`text-lg font-black ${(todaySalesTotal + (todayLedgerTransactions || []).filter(x => x.type === 'payment').reduce((s, x) => s + (x.amount || 0), 0) - todayExpensesTotal) >= 0 ? 'text-green-700' : 'text-red-500'}`}>
+                        {fmt(todaySalesTotal + (todayLedgerTransactions || []).filter(x => x.type === 'payment').reduce((s, x) => s + (x.amount || 0), 0) - todayExpensesTotal)} {t.birr}
+                      </span>
+                    </div>
+                  </div>
                 </>
               )}
             </div>
@@ -1891,15 +1928,15 @@ const safeErr = err instanceof Error ? err.message : String(err);
           <div className="flex items-center justify-between px-4 py-1.5 border-b" style={{ borderColor: P.border, background: 'rgba(27,67,50,0.03)' }}>
             <div className="text-center flex-1">
               <div className="text-[10px] font-semibold" style={{ color: '#6b7280' }}>{t.sales}</div>
-              <div className="font-black text-sm" style={{ color: '#2d6a4f' }}>{fmt(todaySalesTotal)}</div>
+              <div className="font-black text-sm" style={{ color: '#2d6a4f' }}>{fmt(todaySalesTotal)} {t.birr}</div>
             </div>
             <div className="text-center flex-1 border-x mx-2" style={{ borderColor: P.border }}>
               <div className="text-[10px] font-semibold" style={{ color: '#6b7280' }}>{t.spent}</div>
-              <div className="font-black text-sm" style={{ color: '#D4654A' }}>{fmt(todayExpensesTotal)}</div>
+              <div className="font-black text-sm" style={{ color: '#D4654A' }}>{fmt(todayExpensesTotal)} {t.birr}</div>
             </div>
             <div className="text-center flex-1">
               <div className="text-[10px] font-semibold" style={{ color: '#6b7280' }}>{t.netReceived || 'Net'}</div>
-              <div className="font-black text-sm" style={{ color: todaySalesTotal - todayExpensesTotal >= 0 ? '#2d6a4f' : '#D4654A' }}>{fmt(todaySalesTotal - todayExpensesTotal)}</div>
+              <div className="font-black text-sm" style={{ color: todaySalesTotal - todayExpensesTotal >= 0 ? '#2d6a4f' : '#D4654A' }}>{fmt(todaySalesTotal - todayExpensesTotal)} {t.birr}</div>
             </div>
           </div>
         )}

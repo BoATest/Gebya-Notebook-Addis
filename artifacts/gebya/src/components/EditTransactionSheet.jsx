@@ -36,10 +36,6 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
   const initPProvider = transaction.payment_provider || '';
   const [paymentType, setPaymentType] = useState(initPType);
   const [paymentProvider, setPaymentProvider] = useState(initPProvider);
-  const lastProviderByType = {
-    bank:   initPType === 'bank'   ? initPProvider : '',
-    wallet: initPType === 'wallet' ? initPProvider : '',
-  };
   const [phoneDigits, setPhoneDigits] = useState(() => {
     const raw = transaction.customer_phone || '';
     return raw.startsWith('+251') ? raw.slice(4) : raw.replace(/\D/g, '').slice(-9);
@@ -50,6 +46,16 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
   const [customDue, setCustomDue] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Slice C: Sale-specific edit state
+  const settlementMode = transaction.sale_settlement_mode || 'paid_now';
+  const [paidAmount, setPaidAmount] = useState(String(transaction.paid_amount || ''));
+  const [settlementDueDate, setSettlementDueDate] = useState(() => {
+    const raw = transaction.settlement_due_date;
+    if (!raw) return '';
+    if (typeof raw === 'string' && raw.includes('-')) return raw;
+    try { return new Date(raw).toISOString().split('T')[0]; } catch { return ''; }
+  });
+
   const dueDateOptions = getDueDateOptions();
   const phoneValid = !phoneDigits || /^[79]\d{8}$/.test(phoneDigits);
   const phoneEntered = phoneDigits.length > 0;
@@ -58,7 +64,13 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
   const cost = parseFloat(costPrice) || 0;
   const qty = Math.max(1, parseInt(quantity) || 1);
   const belowCost = !isCredit && cost > 0 && sellingPrice < cost * qty;
-  const canSave = item.trim() && sellingPrice > 0;
+  
+  // Slice C: Validation for paid amount
+  const parsedPaidAmount = parseFloat(paidAmount) || 0;
+  // For Paid Partly, paid amount must be strictly less than total amount and greater than 0
+  const isPaidPartly = type === 'sale' && settlementMode === 'paid_partly';
+  const paidAmountValid = !isPaidPartly || (parsedPaidAmount > 0 && parsedPaidAmount < sellingPrice);
+  const canSave = item.trim() && sellingPrice > 0 && paidAmountValid;
 
   const getEffectiveDueDate = () => {
     if (selectedDue === 'custom' && customDue) return new Date(customDue).getTime();
@@ -80,11 +92,16 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
         customer_phone: isCredit ? (phoneEntered && phoneValid ? '+251' + phoneDigits : null) : null,
         direction: isCredit ? direction : null,
         due_date: isCredit ? getEffectiveDueDate() : null,
+        // Slice C: Sale-specific updates
+        ...(type === 'sale' && {
+          paid_amount: settlementMode === 'paid_partly' ? parsedPaidAmount : null,
+          settlement_due_date: settlementMode !== 'paid_now' ? (settlementDueDate ? new Date(settlementDueDate).getTime() : null) : null,
+        }),
       };
       await onUpdate(transaction.id, updates);
       onClose();
     } catch (err) {
-      if (import.meta.env.DEV) console.error('Edit failed:', err);
+      if (import.meta.env.DEV) console.error('Edit failed');
     } finally {
       setSaving(false);
     }
@@ -124,6 +141,79 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
               </p>
               <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
                 {t.saleLinkedBalanceBody}
+              </p>
+            </div>
+          )}
+
+          {/* Slice C: Read-only Settlement Mode */}
+          {type === 'sale' && (
+            <div className="p-3 border" style={{ background: '#f9fafb', borderColor: '#e5e7eb', borderRadius: 'var(--radius-md)' }}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-500">{t.saleSettlementLabel || 'Payment Type'}</span>
+                <span className="text-sm font-bold text-gray-900">
+                  {settlementMode === 'paid_now' ? (t.saleSettlementPaidNow || 'Paid Now') :
+                   settlementMode === 'paid_partly' ? (t.saleSettlementPaidPartly || 'Paid Partly') :
+                   (t.saleSettlementPayLater || 'Pay Later')}
+                </span>
+              </div>
+              <p className="text-xs mt-1.5 font-sans" style={{ color: '#6b7280' }}>
+                {t.editSettlementLocked || 'Payment type cannot be changed here. Delete and recreate this sale if it was recorded incorrectly.'}
+              </p>
+            </div>
+          )}
+
+          {/* Slice C: Read-only Customer */}
+          {type === 'sale' && transaction.customer_name && (
+            <div className="p-3 border" style={{ background: '#f9fafb', borderColor: '#e5e7eb', borderRadius: 'var(--radius-md)' }}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-500">{t.customer || 'Customer'}</span>
+                <span className="text-sm font-bold text-gray-900 truncate ml-2">{transaction.customer_name}</span>
+              </div>
+              <p className="text-xs mt-1.5 font-sans" style={{ color: '#6b7280' }}>
+                {t.editCustomerLocked || 'Customer cannot be changed here. Delete and recreate this sale if it was recorded for the wrong customer.'}
+              </p>
+            </div>
+          )}
+
+          {/* Slice C: Paid Amount (Paid Partly only) */}
+          {type === 'sale' && settlementMode === 'paid_partly' && (
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.salePaidAmountLabel || 'Paid Amount'}</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={fmtInput(paidAmount)}
+                  onChange={e => handleNumericInput(e, setPaidAmount)}
+                  placeholder="0"
+                  className="w-full p-4 pr-16 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+                  style={{ borderRadius: 'var(--radius-md)', borderColor: paidAmountValid ? '#e8e2d8' : '#dc2626' }}
+                />
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
+              </div>
+              {!paidAmountValid && (
+                <p className="text-xs mt-1 font-medium text-red-600 font-sans">
+                  {sellingPrice > 0 && parsedPaidAmount >= sellingPrice
+                    ? (t.editPaidAmountMustBeLess || 'Paid amount must be less than total.')
+                    : (t.editPaidAmountRequired || 'Enter paid amount.')}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Slice C: Due Date (Paid Partly / Pay Later) */}
+          {type === 'sale' && settlementMode !== 'paid_now' && (
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.dueDate || 'Return Date'}</label>
+              <input
+                type="date"
+                value={settlementDueDate}
+                onChange={e => setSettlementDueDate(e.target.value)}
+                className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+              />
+              <p className="text-xs mt-1 font-sans" style={{ color: '#6b7280' }}>
+                {t.editDueDateHint || 'Leave empty for no due date.'}
               </p>
             </div>
           )}
@@ -168,7 +258,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
             </div>
           </div>
 
-          {!isCredit && (
+          {type === 'sale' && (
             <div>
               <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.quantity}</label>
               <input
@@ -286,11 +376,10 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
               onTypeChange={setPaymentType}
               onProviderChange={setPaymentProvider}
               enabledProviders={enabledProviders}
-              lastProviderByType={lastProviderByType}
             />
           )}
 
-          {!isCredit && (
+          {type === 'sale' && (
             <div>
               <button type="button" onClick={() => setShowAdvanced(v => !v)}
                 className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[44px] font-sans"
