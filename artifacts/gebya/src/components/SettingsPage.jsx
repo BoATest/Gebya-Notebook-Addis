@@ -6,7 +6,6 @@ import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt, parseInput } from '../utils/numformat';
 import db from '../db';
 import { ALL_BANKS, ALL_WALLETS } from './PaymentTypeChips';
-import { BADGE_DEFINITIONS } from '../utils/badges';
 import { fireToast } from './Toast';
 import { normalizeTelegram } from '../utils/customerTelegram';
 import PwaInstallPanel from './PwaInstallPanel.jsx';
@@ -26,8 +25,6 @@ function SettingsPage({
   onProvidersChange,
   recurringExpenses,
   onRecurringChange,
-  usageStats,
-  earnedBadges,
   onSaveCatalogEntry,
   onToggleCatalogEntryActive,
   onSaveSupplier,
@@ -35,8 +32,9 @@ function SettingsPage({
   onUpdateSupplierTransaction,
   onDeleteSupplierTransaction,
   pwa,
+  earnedBadges,
 }) {
-  const { lang, t } = useLang();
+  const { lang, toggleLang, t } = useLang();
   const { isAuthenticated, encryptionKey } = useAuth();
   const isAuthEnabled = !!encryptionKey;
   const FREQ_LABELS = lang === 'am' ? FREQ_LABELS_AM : FREQ_LABELS_EN;
@@ -46,6 +44,7 @@ function SettingsPage({
   const [clearConfirmText, setClearConfirmText] = useState('');
   const [exportPin, setExportPin] = useState('');
   const [exportError, setExportError] = useState('');
+  const [lastBackupTime, setLastBackupTime] = useState(null);
   const [catalogForm, setCatalogForm] = useState({
     id: null,
     name: '',
@@ -102,11 +101,15 @@ function SettingsPage({
     const load = async () => {
       const cbRow = await db.settings.get('custom_banks');
       const cwRow = await db.settings.get('custom_wallets');
+      const lbRow = await db.settings.get('last_backup_time');
       if (cbRow?.value) {
         try { setCustomBanks(JSON.parse(cbRow.value)); } catch { /* ignore */ }
       }
       if (cwRow?.value) {
         try { setCustomWallets(JSON.parse(cwRow.value)); } catch { /* ignore */ }
+      }
+      if (lbRow?.value) {
+        setLastBackupTime(Number(lbRow.value));
       }
     };
     load();
@@ -118,7 +121,6 @@ function SettingsPage({
   const [reFreq, setReFreq] = useState('monthly');
   const [showReForm, setShowReForm] = useState(false);
 
-  const [shareCopied, setShareCopied] = useState(false);
   const activeCatalogEntries = (catalogEntries || []).filter(entry => entry.active !== false);
   const selectedSupplier = (supplierSummaries || []).find(item => String(item.id) === String(supplierTxForm.supplier_id)) || null;
 
@@ -279,9 +281,12 @@ const handleExportAuth = async () => {
      a.download = `gebya-backup-full-${new Date().toISOString().split('T')[0]}.csv`;
      document.body.appendChild(a);
      a.click();
-     document.body.removeChild(a);
-     URL.revokeObjectURL(url);
-   };
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      const now = Date.now();
+      setLastBackupTime(now);
+      await db.settings.put({ key: 'last_backup_time', value: String(now) });
+    };
 
 const clearAllData = async () => {
      // Require authentication before destructive action
@@ -402,31 +407,6 @@ const clearAllData = async () => {
     setRecurring(updated);
     await db.settings.put({ key: 'recurring_expenses', value: JSON.stringify(updated) });
     onRecurringChange?.(updated);
-  };
-
-  const handleShareStats = async () => {
-    if (!usageStats) return;
-    const { streak, longestStreak, daysActive, featureCounts, sessionCount, firstUsed } = usageStats;
-    const fc = featureCounts || {};
-    let firstUsedDisplay = firstUsed;
-    try { firstUsedDisplay = firstUsed ? formatEthiopian(new Date(firstUsed)) : firstUsed; } catch { /* keep ISO fallback */ }
-    const text = [
-      `📊 Gebya usage stats for ${shopProfile?.name || 'my shop'}:`,
-      `🔥 Current streak: ${streak} day${streak !== 1 ? 's' : ''} (longest: ${longestStreak})`,
-      `📅 Using since: ${firstUsedDisplay}`,
-      `📈 Total days active: ${daysActive?.length || 1}`,
-      `🛒 Entries: ${fc.sales || 0} sales · ${fc.expenses || 0} expenses · ${fc.credits || 0} Dubie`,
-      `📱 Sessions opened: ${sessionCount}`,
-    ].join('\n');
-
-    if (navigator.share) {
-      try { await navigator.share({ title: 'Gebya Stats', text }); return; } catch { /* fall through to clipboard */ }
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      setShareCopied(true);
-      setTimeout(() => setShareCopied(false), 2500);
-    } catch { /* ignore */ }
   };
 
   const totalEntries = transactions.length;
@@ -859,6 +839,16 @@ const clearAllData = async () => {
             <div className="flex-1">
               <div className="font-bold text-gray-800">{t.storedOnDevice}</div>
               <div className="text-xs text-gray-500 mt-0.5">{totalEntries} entries · {totalCustomersWithLedger} customers in Dubie ledger</div>
+              {lastBackupTime && (
+                <div className="text-xs mt-1 font-medium" style={{ color: '#15803d' }}>
+                  {t.lastBackup}: {formatEthiopian(lastBackupTime)}
+                </div>
+              )}
+              {!lastBackupTime && (
+                <div className="text-xs mt-1 font-medium" style={{ color: '#dc2626' }}>
+                  {t.noBackupYet}
+                </div>
+              )}
             </div>
           </div>
 
@@ -983,92 +973,33 @@ const clearAllData = async () => {
             <PwaInstallPanel pwa={pwa} variant="settings" />
 
             <section>
-              <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.achievementBadges}</h2>
+              <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.language}</h2>
               <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
-                <div className="px-4 pt-4 pb-3">
-                  {badgeList.length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-2">{t.noBadges}</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {BADGE_DEFINITIONS.filter(b => badgeList.includes(b.id)).map(badge => (
-                        <div
-                          key={badge.id}
-                          className="flex items-center gap-2 px-3 py-2 rounded-2xl"
-                          style={{ background: 'rgba(196,136,58,0.12)', border: '1.5px solid #C4883A' }}
-                        >
-                          <span className="text-xl">{badge.emoji}</span>
-                          <div>
-                            <div className="text-xs font-bold text-green-900">
-                              {lang === 'am' ? badge.titleAm : badge.title}
-                            </div>
-                            <div className="text-xs text-green-700">
-                              {lang === 'am' ? badge.descriptionAm : badge.description}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {badgeList.length > 0 && badgeList.length < BADGE_DEFINITIONS.length && (
-                    <p className="text-xs text-gray-400 text-center mt-2">
-                      {badgeList.length} / {BADGE_DEFINITIONS.length} {t.badgesEarned}
-                    </p>
-                  )}
+                <div className="px-5 py-3 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-gray-700">{lang === 'am' ? 'አማርኛ' : 'English'}</span>
+                  <button
+                    onClick={toggleLang}
+                    className="px-4 py-2 rounded-xl text-sm font-bold text-white min-h-[40px]"
+                    style={{ background: '#C4883A' }}
+                  >
+                    {lang === 'am' ? 'English' : 'አማርኛ'}
+                  </button>
                 </div>
               </div>
             </section>
 
-            {usageStats && (
-              <section>
-                <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.usageInsights}</h2>
-                <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
-                  <div className="px-4 pt-4 pb-3 space-y-3">
-                    <div className="flex gap-3">
-                      <div className="flex-1 rounded-xl p-3 text-center" style={{ background: '#fff7ed', border: '1.5px solid #fed7aa' }}>
-                        <div className="text-2xl font-black" style={{ color: '#c2410c' }}>🔥 {usageStats.streak}</div>
-                        <div className="text-xs font-semibold text-gray-600 mt-0.5">{t.dayStreak}</div>
-                        <div className="text-xs text-gray-400">{t.best}: {usageStats.longestStreak}</div>
-                      </div>
-                      <div className="flex-1 rounded-xl p-3 text-center" style={{ background: '#f0fdf4', border: '1.5px solid #bbf7d0' }}>
-                        <div className="text-2xl font-black text-green-700">📅 {usageStats.daysActive?.length || 1}</div>
-                        <div className="text-xs font-semibold text-gray-600 mt-0.5">{t.daysActive}</div>
-                        <div className="text-xs text-gray-400">
-                          {t.since} {usageStats.firstUsed ? (() => { try { return formatEthiopian(new Date(usageStats.firstUsed)); } catch { return usageStats.firstUsed; } })() : '—'}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-xl p-3" style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
-                      <div className="text-xs font-bold text-gray-500 mb-1.5">📊 {t.totalEntries}</div>
-                      <div className="flex justify-around text-center">
-                        <div>
-                          <div className="text-base font-black text-green-700">{usageStats.featureCounts?.sales || 0}</div>
-                          <div className="text-xs text-gray-500">{t.salesLabel}</div>
-                        </div>
-                        <div>
-                          <div className="text-base font-black text-red-500">{usageStats.featureCounts?.expenses || 0}</div>
-                          <div className="text-xs text-gray-500">{t.expenses}</div>
-                        </div>
-                        <div>
-                          <div className="text-base font-black" style={{ color: '#C4883A' }}>{usageStats.featureCounts?.credits || 0}</div>
-                          <div className="text-xs text-gray-500">{t.credit}</div>
-                        </div>
-                        <div>
-                          <div className="text-base font-black text-gray-700">{usageStats.sessionCount || 0}</div>
-                          <div className="text-xs text-gray-500">{t.sessions}</div>
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleShareStats}
-                      className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-all min-h-[44px]"
-                      style={{ background: shareCopied ? '#15803d' : '#C4883A' }}
-                    >
-                      {shareCopied ? `✓ ${t.copiedToClipboard}` : t.shareMyStats}
-                    </button>
+            <section>
+              <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">About</h2>
+              <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden px-5 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-gray-800 text-sm">Gebya (ገበያ)</div>
+                    <div className="text-xs text-gray-500 mt-0.5">Version 1.0.0</div>
                   </div>
+                  <div className="text-xs text-gray-400">Offline notebook</div>
                 </div>
-              </section>
-            )}
+              </div>
+            </section>
 
             <section>
               <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">Items & Services</h2>

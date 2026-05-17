@@ -144,18 +144,18 @@ function CustomerList({ customers = [], onSelectCustomer, onAddCustomer, shopNam
       }
     }
 
-    if (hasPhone) {
-      const encodedBody = encodeURIComponent(message);
-      window.open(`sms:?body=${encodedBody}`, '_blank');
-      setReminderTarget(null);
-      return;
-    }
+if (hasPhone) {
+       const encodedBody = encodeURIComponent(message);
+       window.open(`sms:?body=${encodedBody}`, '_blank', 'noopener,noreferrer');
+       setReminderTarget(null);
+       return;
+     }
 
-    if (hasTelegram) {
-      const telegram = getCustomerTelegram(customer);
-      const normalized = telegram.startsWith('@') ? telegram.slice(1) : telegram;
-      const encoded = encodeURIComponent(message);
-      window.open(`https://t.me/${normalized}?text=${encoded}`, '_blank');
+     if (hasTelegram) {
+       const telegram = getCustomerTelegram(customer);
+       const normalized = telegram.startsWith('@') ? telegram.slice(1) : telegram;
+       const encoded = encodeURIComponent(message);
+       window.open(`https://t.me/${normalized}?text=${encoded}`, '_blank', 'noopener,noreferrer');
       setReminderTarget(null);
       return;
     }
@@ -253,12 +253,14 @@ function CustomerList({ customers = [], onSelectCustomer, onAddCustomer, shopNam
 
       <div className="space-y-3">
         {filteredCustomers.map((customer) => (
-          <button
+          <div
             key={customer.id}
-            type="button"
             onClick={() => onSelectCustomer?.(customer)}
-            className="w-full text-left p-4 border press-scale"
+            className="w-full text-left p-4 border press-scale cursor-pointer"
             style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectCustomer?.(customer); } }}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -298,7 +300,7 @@ function CustomerList({ customers = [], onSelectCustomer, onAddCustomer, shopNam
                 )}
               </div>
             </div>
-          </button>
+          </div>
         ))}
 
         {filteredCustomers.length === 0 && (
