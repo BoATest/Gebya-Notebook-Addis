@@ -613,99 +613,18 @@ const clearAllData = async () => {
       </section>
 
       <section>
-        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.frequentExpenses}</h2>
+        <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.language}</h2>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
-          <div className="px-5 pt-4 pb-2">
-            <p className="text-xs text-gray-500 mb-3">{t.recurringHint}</p>
-
-            {recurring.length > 0 && (
-              <div className="space-y-2 mb-3">
-                {recurring.map(re => (
-                  <div key={re.id} className="flex items-center gap-3 p-3 rounded-xl"
-                    style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
-                    <RefreshCw className="w-4 h-4 flex-shrink-0" style={{ color: '#C4883A' }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-gray-800 text-sm truncate">{re.name}</p>
-                      <p className="text-xs text-gray-500">{fmt(re.amount)} {t.birr} · {FREQ_LABELS[re.freq] || re.freq}</p>
-                    </div>
-                    <button
-                      onClick={() => removeRecurring(re.id)}
-                      className="p-1.5 rounded-full hover:bg-red-50 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {!showReForm ? (
-              <button
-                onClick={() => setShowReForm(true)}
-                className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 border-2 border-dashed transition-all min-h-[48px]"
-                style={{ borderColor: '#e8e2d8', color: '#C4883A', background: '#FAF8F5' }}
-              >
-                <Plus className="w-4 h-4" /> {t.addRecurring}
-              </button>
-            ) : (
-              <div className="space-y-2 p-3 rounded-xl border" style={{ background: '#FAF8F5', borderColor: 'var(--color-border)' }}>
-                <input
-                  type="text"
-                  value={reName}
-                  onChange={e => setReName(e.target.value)}
-                  placeholder={t.expenseName}
-                  className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-                  style={{ borderColor: '#e8e2d8' }}
-                />
-                <div className="relative">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={reAmount}
-                    onChange={e => setReAmount(e.target.value)}
-                    placeholder={t.amount}
-                    className="w-full px-3 py-2.5 pr-14 border-2 rounded-xl text-sm focus:outline-none"
-                    style={{ borderColor: '#e8e2d8' }}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium">{t.birr}</span>
-                </div>
-                <div className="flex gap-2">
-                  {['daily', 'weekly', 'monthly'].map(f => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setReFreq(f)}
-                      className="flex-1 py-2 rounded-lg text-xs font-bold border-2 transition-all min-h-[40px]"
-                      style={{
-                        borderColor: reFreq === f ? '#C4883A' : '#e8e2d8',
-                        background: reFreq === f ? 'rgba(196,136,58,0.15)' : '#fff',
-                        color: reFreq === f ? '#1B4332' : '#6b7280',
-                      }}
-                    >
-                      {FREQ_LABELS[f]}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => { setShowReForm(false); setReName(''); setReAmount(''); setReFreq('monthly'); }}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-bold min-h-[44px]" style={{ background: '#f5f5f5', color: '#6b7280' }}
-                  >
-                    {t.cancel}
-                  </button>
-                  <button
-                    onClick={addRecurring}
-                    disabled={!reName.trim() || !parseFloat(reAmount)}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 min-h-[44px]"
-                    style={{ background: '#C4883A' }}
-                  >
-                    {t.add}
-                  </button>
-                </div>
-              </div>
-            )}
+          <div className="px-5 py-3 flex items-center justify-between">
+            <span className="text-sm font-semibold text-gray-700">{lang === 'am' ? 'አማርኛ' : 'English'}</span>
+            <button
+              onClick={toggleLang}
+              className="px-4 py-2 rounded-xl text-sm font-bold text-white min-h-[40px]"
+              style={{ background: '#C4883A' }}
+            >
+              {lang === 'am' ? 'English' : 'አማርኛ'}
+            </button>
           </div>
-          <div className="h-2" />
         </div>
       </section>
 
@@ -970,37 +889,107 @@ const clearAllData = async () => {
         {showMore && (
           <div className="space-y-5">
 
+            {/* Frequent Expenses — moved from main surface; feature and quick-fill data intact */}
+            <section>
+              <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.frequentExpenses}</h2>
+              <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
+                <div className="px-5 pt-4 pb-2">
+                  <p className="text-xs text-gray-500 mb-3">{t.recurringHint}</p>
+
+                  {recurring.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {recurring.map(re => (
+                        <div key={re.id} className="flex items-center gap-3 p-3 rounded-xl"
+                          style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
+                          <RefreshCw className="w-4 h-4 flex-shrink-0" style={{ color: '#C4883A' }} />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-gray-800 text-sm truncate">{re.name}</p>
+                            <p className="text-xs text-gray-500">{fmt(re.amount)} {t.birr} · {FREQ_LABELS[re.freq] || re.freq}</p>
+                          </div>
+                          <button
+                            onClick={() => removeRecurring(re.id)}
+                            className="p-1.5 rounded-full hover:bg-red-50 transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {!showReForm ? (
+                    <button
+                      onClick={() => setShowReForm(true)}
+                      className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 border-2 border-dashed transition-all min-h-[48px]"
+                      style={{ borderColor: '#e8e2d8', color: '#C4883A', background: '#FAF8F5' }}
+                    >
+                      <Plus className="w-4 h-4" /> {t.addRecurring}
+                    </button>
+                  ) : (
+                    <div className="space-y-2 p-3 rounded-xl border" style={{ background: '#FAF8F5', borderColor: 'var(--color-border)' }}>
+                      <input
+                        type="text"
+                        value={reName}
+                        onChange={e => setReName(e.target.value)}
+                        placeholder={t.expenseName}
+                        className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
+                        style={{ borderColor: '#e8e2d8' }}
+                      />
+                      <div className="relative">
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          value={reAmount}
+                          onChange={e => setReAmount(e.target.value)}
+                          placeholder={t.amount}
+                          className="w-full px-3 py-2.5 pr-14 border-2 rounded-xl text-sm focus:outline-none"
+                          style={{ borderColor: '#e8e2d8' }}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium">{t.birr}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        {['daily', 'weekly', 'monthly'].map(f => (
+                          <button
+                            key={f}
+                            type="button"
+                            onClick={() => setReFreq(f)}
+                            className="flex-1 py-2 rounded-lg text-xs font-bold border-2 transition-all min-h-[40px]"
+                            style={{
+                              borderColor: reFreq === f ? '#C4883A' : '#e8e2d8',
+                              background: reFreq === f ? 'rgba(196,136,58,0.15)' : '#fff',
+                              color: reFreq === f ? '#1B4332' : '#6b7280',
+                            }}
+                          >
+                            {FREQ_LABELS[f]}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setShowReForm(false); setReName(''); setReAmount(''); setReFreq('monthly'); }}
+                          className="flex-1 py-2.5 rounded-xl text-sm font-bold min-h-[44px]" style={{ background: '#f5f5f5', color: '#6b7280' }}
+                        >
+                          {t.cancel}
+                        </button>
+                        <button
+                          onClick={addRecurring}
+                          disabled={!reName.trim() || !parseFloat(reAmount)}
+                          className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 min-h-[44px]"
+                          style={{ background: '#C4883A' }}
+                        >
+                          {t.add}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="h-2" />
+              </div>
+            </section>
+
             <PwaInstallPanel pwa={pwa} variant="settings" />
 
-            <section>
-              <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">{t.language}</h2>
-              <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
-                <div className="px-5 py-3 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-700">{lang === 'am' ? 'አማርኛ' : 'English'}</span>
-                  <button
-                    onClick={toggleLang}
-                    className="px-4 py-2 rounded-xl text-sm font-bold text-white min-h-[40px]"
-                    style={{ background: '#C4883A' }}
-                  >
-                    {lang === 'am' ? 'English' : 'አማርኛ'}
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            <section>
-              <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">About</h2>
-              <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden px-5 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-bold text-gray-800 text-sm">Gebya (ገበያ)</div>
-                    <div className="text-xs text-gray-500 mt-0.5">Version 1.0.0</div>
-                  </div>
-                  <div className="text-xs text-gray-400">Offline notebook</div>
-                </div>
-              </div>
-            </section>
-
+            {/* Items & Services — used by sale/expense quick-pick dropdowns; kept in More for pilot */}
             <section>
               <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">Items & Services</h2>
               <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
@@ -1134,247 +1123,11 @@ const clearAllData = async () => {
               </div>
             </section>
 
-            <section>
-              <h2 className="text-xs font-bold tracking-widest uppercase text-green-800 mb-2 px-1">Suppliers & Dubie</h2>
-              <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
-                <div className="px-5 pt-5 pb-4 space-y-4">
-                  <div className="p-4 rounded-2xl" style={{ background: '#fff7ed', border: '1.5px solid #fed7aa' }}>
-                    <p className="text-xs font-bold tracking-wide uppercase" style={{ color: '#9a3412' }}>Total supplier dubie</p>
-                    <p className="text-2xl font-black mt-1" style={{ color: '#9a3412' }}>{fmt(totalSupplierDubie)} {t.birr}</p>
-                    <p className="text-xs mt-1 text-gray-500">{(supplierSummaries || []).length} suppliers</p>
-                  </div>
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      value={supplierForm.display_name}
-                      onChange={e => setSupplierForm(prev => ({ ...prev, display_name: e.target.value }))}
-                      placeholder="Supplier name"
-                      className="w-full px-4 py-3 border-2 rounded-xl text-sm font-semibold focus:outline-none"
-                      style={{ borderColor: '#e8e2d8' }}
-                    />
-                    <input
-                      type="text"
-                      value={supplierForm.phone_number}
-                      onChange={e => setSupplierForm(prev => ({ ...prev, phone_number: e.target.value }))}
-                      placeholder="Phone (optional)"
-                      className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
-                      style={{ borderColor: '#e8e2d8' }}
-                    />
-                    <textarea
-                      value={supplierForm.note}
-                      onChange={e => setSupplierForm(prev => ({ ...prev, note: e.target.value }))}
-                      placeholder="Note (optional)"
-                      rows={2}
-                      className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none resize-none"
-                      style={{ borderColor: '#e8e2d8' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSupplierSubmit}
-                      disabled={!supplierForm.display_name.trim()}
-                      className="w-full py-3 rounded-xl text-sm font-bold text-white min-h-[44px] disabled:opacity-40"
-                      style={{ background: '#C4883A' }}
-                    >
-                      Save supplier
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {(supplierSummaries || []).map(supplier => (
-                      <button
-                        key={supplier.id}
-                        type="button"
-                        onClick={() => setSupplierTxForm(prev => ({ ...prev, supplier_id: String(supplier.id) }))}
-                        className="w-full text-left p-3 rounded-xl border"
-                        style={{
-                          background: String(supplierTxForm.supplier_id) === String(supplier.id) ? 'rgba(196,136,58,0.12)' : '#FAF8F5',
-                          borderColor: String(supplierTxForm.supplier_id) === String(supplier.id) ? '#C4883A' : 'var(--color-border)',
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="font-bold text-sm text-gray-800">{supplier.display_name}</p>
-                            <p className="text-xs text-gray-500">{supplier.transaction_count || 0} entries</p>
-                          </div>
-                          <p className="text-sm font-black" style={{ color: '#9a3412' }}>{fmt(Math.max(supplier.balance || 0, 0))} {t.birr}</p>
-                        </div>
-                      </button>
-                    ))}
-                    {(supplierSummaries || []).length === 0 && (
-                      <p className="text-xs text-gray-400">No suppliers saved yet.</p>
-                    )}
-                  </div>
-                  <div className="p-4 rounded-2xl" style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      <button
-                        type="button"
-                        onClick={() => setSupplierTxForm(prev => ({ ...prev, type: SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD }))}
-                        className="py-3 rounded-xl text-sm font-bold"
-                        style={{
-                          background: supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? '#C4883A' : '#fff',
-                          color: supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? '#fff' : '#6b7280',
-                          border: '1px solid #e8e2d8',
-                        }}
-                      >
-                        Add purchase dubie
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSupplierTxForm(prev => ({ ...prev, type: SUPPLIER_TRANSACTION_TYPES.PAYMENT }))}
-                        className="py-3 rounded-xl text-sm font-bold"
-                        style={{
-                          background: supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT ? '#2d6a4f' : '#fff',
-                          color: supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT ? '#fff' : '#6b7280',
-                          border: '1px solid #e8e2d8',
-                        }}
-                      >
-                        Record payment
-                      </button>
-                    </div>
-                    <select
-                      value={supplierTxForm.supplier_id}
-                      onChange={e => setSupplierTxForm(prev => ({ ...prev, supplier_id: e.target.value }))}
-                      className="w-full mb-3 px-4 py-3 border-2 rounded-xl text-sm bg-white focus:outline-none"
-                      style={{ borderColor: '#e8e2d8' }}
-                    >
-                      <option value="">Choose supplier</option>
-                      {(supplierSummaries || []).map(supplier => (
-                        <option key={supplier.id} value={supplier.id}>{supplier.display_name}</option>
-                      ))}
-                    </select>
-                    {supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD && (
-                      <>
-                        {activeCatalogEntries.length > 0 && (
-                          <select
-                            value={supplierTxForm.catalog_entry_id}
-                            onChange={e => {
-                              const value = e.target.value;
-                              const selectedCatalog = activeCatalogEntries.find(entry => String(entry.id) === String(value));
-                              setSupplierTxForm(prev => ({
-                                ...prev,
-                                catalog_entry_id: value,
-                                item_name: prev.item_name || selectedCatalog?.name || '',
-                              }));
-                            }}
-                            className="w-full mb-3 px-4 py-3 border-2 rounded-xl text-sm bg-white focus:outline-none"
-                            style={{ borderColor: '#e8e2d8' }}
-                          >
-                            <option value="">Choose saved item / service</option>
-                            {activeCatalogEntries.map(entry => (
-                              <option key={entry.id} value={entry.id}>
-                                {entry.name} {entry.kind === 'service' ? '• Service' : '• Item'}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                        <input
-                          type="text"
-                          value={supplierTxForm.item_name}
-                          onChange={e => setSupplierTxForm(prev => ({ ...prev, item_name: e.target.value }))}
-                          placeholder="Item or service bought"
-                          className="w-full mb-3 px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
-                          style={{ borderColor: '#e8e2d8' }}
-                        />
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min="1"
-                          value={supplierTxForm.quantity}
-                          onChange={e => setSupplierTxForm(prev => ({ ...prev, quantity: e.target.value }))}
-                          placeholder="Quantity"
-                          className="w-full mb-3 px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
-                          style={{ borderColor: '#e8e2d8' }}
-                        />
-                      </>
-                    )}
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={supplierTxForm.amount}
-                      onChange={e => setSupplierTxForm(prev => ({ ...prev, amount: e.target.value.replace(/[^\d.,]/g, '') }))}
-                      placeholder={supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? 'Total amount owed' : 'Amount paid'}
-                      className="w-full mb-3 px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
-                      style={{ borderColor: '#e8e2d8' }}
-                    />
-                    <textarea
-                      value={supplierTxForm.note}
-                      onChange={e => setSupplierTxForm(prev => ({ ...prev, note: e.target.value }))}
-                      placeholder="Note (optional)"
-                      rows={2}
-                      className="w-full mb-3 px-4 py-3 border-2 rounded-xl text-sm focus:outline-none resize-none"
-                      style={{ borderColor: '#e8e2d8' }}
-                    />
-                    {selectedSupplier && (
-                      <p className="text-xs mb-3" style={{ color: '#6b7280' }}>
-                        Remaining dubie for {selectedSupplier.display_name}: {fmt(Math.max(selectedSupplier.balance || 0, 0))} {t.birr}
-                      </p>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleSupplierTransactionSubmit}
-                      disabled={!supplierTxForm.supplier_id || !parseFloat(parseInput(supplierTxForm.amount || '')) || (supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD && !supplierTxForm.item_name.trim() && !supplierTxForm.catalog_entry_id)}
-                      className="w-full py-3 rounded-xl text-sm font-bold text-white min-h-[44px] disabled:opacity-40"
-                      style={{ background: supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? '#C4883A' : '#2d6a4f' }}
-                    >
-                      {supplierTxForm.id
-                        ? 'Update supplier transaction'
-                        : (supplierTxForm.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? 'Save purchase dubie' : 'Save payment')}
-                    </button>
-                    {supplierTxForm.id && (
-                      <button
-                        type="button"
-                        onClick={resetSupplierTxForm}
-                        className="w-full mt-2 py-3 rounded-xl text-sm font-bold min-h-[44px]"
-                        style={{ background: '#f5f5f5', color: '#6b7280' }}
-                      >
-                        Cancel edit
-                      </button>
-                    )}
-                  </div>
-                  {selectedSupplier?.transactions?.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold tracking-wide uppercase text-gray-500">Recent supplier entries</p>
-                      {selectedSupplier.transactions.slice(0, 6).map(entry => (
-                        <div key={entry.id} className="p-3 rounded-xl border" style={{ background: '#fff', borderColor: 'var(--color-border)' }}>
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="font-bold text-sm text-gray-800">
-                                {entry.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? (entry.item_name || 'Purchase') : 'Payment'}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {formatEthiopian(entry.created_at)}
-                                {entry.quantity ? ` · x${entry.quantity}` : ''}
-                              </p>
-                              {entry.note && <p className="text-xs text-gray-400 mt-1">{entry.note}</p>}
-                            </div>
-                            <p className="text-sm font-black" style={{ color: entry.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? '#9a3412' : '#166534' }}>
-                              {entry.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? '+' : '-'}{fmt(entry.amount || 0)} {t.birr}
-                            </p>
-                          </div>
-                          <div className="flex gap-2 mt-3">
-                            <button
-                              type="button"
-                              onClick={() => handleEditSupplierTransaction(entry)}
-                              className="flex-1 py-2 rounded-lg text-xs font-bold"
-                              style={{ background: 'rgba(27,67,50,0.08)', color: '#1B4332' }}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSupplierDeleteTarget(entry)}
-                              className="flex-1 py-2 rounded-lg text-xs font-bold"
-                              style={{ background: '#fff1f2', color: '#dc2626' }}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
+            {/*
+              Supplier Dubie is intentionally hidden from My Shop pending relocation
+              into a future two-sided Dubie ledger (To Collect / To Pay).
+              All supplier data, handlers, and DB logic are preserved.
+            */}
 
           </div>
         )}
