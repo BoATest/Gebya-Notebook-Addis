@@ -683,8 +683,19 @@ function TransactionForm({
                     </div>
                   )}
 
-                  {/* Remaining balance */}
-                  {remainingAmount > 0 && (
+                  {/* Dubie summary — pay_later */}
+                  {saleSettlementMode === 'pay_later' && remainingAmount > 0 && (
+                    <div className="p-3 border" style={{ background: settlementStyle.softBg, borderColor: settlementStyle.softBorder, borderRadius: 'var(--radius-md)' }}>
+                      <div className="flex items-center justify-between gap-2 text-xs font-sans">
+                        <span className="font-semibold text-gray-700">{t.toCollectDubie}</span>
+                        <span className="font-black" style={{ color: settlementStyle.text }}>{fmt(sellingPrice)} {t.birr}</span>
+                      </div>
+                      <p className="text-[10px] mt-1 font-medium font-sans" style={{ color: settlementStyle.text }}>{t.dubieSaleSubtext}</p>
+                    </div>
+                  )}
+
+                  {/* Remaining balance — paid_partly only */}
+                  {saleSettlementMode === 'paid_partly' && remainingAmount > 0 && (
                     <div className="p-3 border" style={{ background: settlementStyle.softBg, borderColor: settlementStyle.softBorder, borderRadius: 'var(--radius-md)' }}>
                       <div className="flex items-center justify-between gap-2 text-xs font-sans">
                         <span className="font-semibold text-gray-700">{t.saleRemainingBalanceLabel}</span>
@@ -709,6 +720,7 @@ function TransactionForm({
               {/* Payment provider chips — hidden for pay_later */}
               {saleSettlementMode !== 'pay_later' && (
                 <PaymentTypeChips
+                  variant="direct"
                   paymentType={paymentType}
                   provider={paymentProvider}
                   onTypeChange={setPaymentType}

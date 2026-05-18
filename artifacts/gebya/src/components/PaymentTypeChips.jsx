@@ -4,7 +4,7 @@ export const ALL_BANKS = ['CBE', 'Dashen', 'Awash', 'Abyssinia'];
 export const ALL_WALLETS = ['telebirr', 'CBE Birr'];
 export const DEFAULT_PROVIDERS = { banks: [...ALL_BANKS], wallets: [...ALL_WALLETS] };
 
-function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChange, enabledProviders, lastProviderByType }) {
+function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChange, enabledProviders, lastProviderByType, variant }) {
   const { t } = useLang();
 
   const TYPES = [
@@ -51,6 +51,49 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
       ))}
     </div>
   );
+
+  if (variant === 'direct') {
+    const directMethods = [];
+    directMethods.push({ id: 'cash', label: t.cash, emoji: '💵', type: 'cash', prov: '' });
+    for (const w of enabledWallets) {
+      directMethods.push({ id: `wallet:${w}`, label: w, emoji: '📱', type: 'wallet', prov: w });
+    }
+    for (const b of enabledBanks) {
+      directMethods.push({ id: `bank:${b}`, label: b, emoji: '🏦', type: 'bank', prov: b });
+    }
+
+    const selectedId = paymentType === 'cash' ? 'cash' : `${paymentType}:${provider}`;
+
+    const handleDirectSelect = (method) => {
+      onTypeChange(method.type);
+      onProviderChange(method.prov);
+    };
+
+    return (
+      <div>
+        <label className="block text-gray-700 font-semibold mb-2 text-sm font-sans">{t.paymentMethod}</label>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {directMethods.map(m => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => handleDirectSelect(m)}
+              className="flex-shrink-0 flex flex-col items-center gap-1 py-2.5 px-3 border-2 text-xs font-bold transition-all min-h-[56px] press-scale"
+              style={{
+                borderRadius: 'var(--radius-md)',
+                borderColor: selectedId === m.id ? '#1B4332' : '#e8e2d8',
+                background: selectedId === m.id ? 'rgba(27,67,50,0.07)' : '#fff',
+                color: selectedId === m.id ? '#1B4332' : '#6b7280',
+              }}
+            >
+              <span className="text-base">{m.emoji}</span>
+              {m.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
