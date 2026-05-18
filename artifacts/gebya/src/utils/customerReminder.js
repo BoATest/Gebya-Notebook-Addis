@@ -20,7 +20,7 @@ function formatReminderAmount(amount) {
   return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export function buildReminderDueSentence(status = {}) {
+export function buildReminderDueSentence(status = {}, customer = {}) {
   if (status.key === 'due_today') return 'This amount is due today.';
   if (status.key === 'overdue') {
     const days = Number(status.days) || 0;
@@ -29,6 +29,10 @@ export function buildReminderDueSentence(status = {}) {
   if (status.key === 'due_in') {
     const days = Number(status.days) || 0;
     return `This amount is due in ${days} ${days === 1 ? 'day' : 'days'}.`;
+  }
+  if (status.key === 'no_due_date' && customer.needs_follow_up) {
+    const days = customer.days_since_activity || 0;
+    return `This balance has been open for ${days} ${days === 1 ? 'day' : 'days'}.`;
   }
   return 'No due date was set.';
 }
@@ -41,7 +45,7 @@ export function buildCustomerReminderMessage({ customer, shopName, now = Date.no
   return [
     `Selam ${getCustomerName(customer)}, this is a reminder from ${safeShopName}.`,
     `Your remaining balance is ${formatReminderAmount(balance)} birr.`,
-    buildReminderDueSentence(status),
+    buildReminderDueSentence(status, customer || {}),
     'Thank you.',
   ].join('\n');
 }
