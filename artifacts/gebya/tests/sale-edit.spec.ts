@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/', { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
 
   await page.evaluate(async () => {
     await new Promise<void>((resolve, reject) => {
@@ -11,16 +11,16 @@ test.beforeEach(async ({ page }) => {
       request.onblocked = () => resolve();
     });
   });
-  await page.reload({ waitUntil: 'networkidle' });
+  await page.reload({ waitUntil: 'domcontentloaded' });
 
-  if (await page.getByText(/start your notebook/i).isVisible()) {
-    const input = page.getByPlaceholder(/e\.g\. tigist/i);
-    await input.waitFor({ state: 'visible' });
+  // Always complete onboarding (fresh DB after delete)
+  const input = page.getByPlaceholder(/e\.g\. tigist/i);
+  await input.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+  const nameField = await input.isVisible({ timeout: 1000 }).catch(() => false);
+  if (nameField) {
     await input.fill('Tigist Shop');
     const btn = page.getByRole('button', { name: /start using gebya/i });
-    await btn.waitFor({ state: 'visible' });
     await btn.click();
-    await page.waitForURL(/^[^#]*$/, { waitUntil: 'networkidle' }).catch(() => {});
     await page.waitForTimeout(1000);
   }
 });
