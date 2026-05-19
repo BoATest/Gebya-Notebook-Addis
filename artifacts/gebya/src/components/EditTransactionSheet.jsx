@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { X, Save, ChevronDown, ChevronUp, AlertTriangle, Pencil } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useLang } from '../context/LangContext';
-import VoiceButton from './VoiceButton';
+import { fireToast } from './Toast';
 import PaymentTypeChips from './PaymentTypeChips';
 import { getDueDateOptions } from '../utils/ethiopianCalendar';
 import { fmt, fmtInput } from '../utils/numformat';
@@ -246,16 +246,13 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
             <label className="block text-gray-700 font-semibold mb-2 font-sans">
               {isCredit ? t.creditNameLabel : t.item}
             </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={item}
-                onChange={e => setItem(e.target.value)}
-                className="flex-1 p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-              />
-              <VoiceButton onResult={setItem} />
-            </div>
+            <input
+              type="text"
+              value={item}
+              onChange={e => setItem(e.target.value)}
+              className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+            />
           </div>
 
           {type === 'sale' && (

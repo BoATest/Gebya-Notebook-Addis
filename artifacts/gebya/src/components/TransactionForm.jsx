@@ -84,7 +84,7 @@ const SALE_SETTLEMENT_STYLES = {
 function TransactionForm({
   type, onSave, onDone, enabledProviders, catalogEntries = [], recurringExpenses,
   onRecurringChange, initialPaymentType, initialPaymentProvider, customerSuggestions = [],
-  onVoiceResult, hasUnsavedChanges, onKeepDraft, onDiscardDraft,
+  hasUnsavedChanges, onKeepDraft, onDiscardDraft,
 }) {
   const { t, lang } = useLang();
 
