@@ -3,6 +3,7 @@ import { BookOpen, Users, Calendar, Store, Trash2, Pencil, Share2, X, MoreVertic
 import db from './db';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { LangProvider, useLang } from './context/LangContext';
+import SellerNotificationBanner from './components/SellerNotificationBanner';
 import { ToastContainer, fireToast } from './components/Toast';
 import TransactionForm from './components/TransactionForm';
 import EditTransactionSheet from './components/EditTransactionSheet';
@@ -1779,6 +1780,7 @@ const safeErr = err instanceof Error ? err.message : String(err);
     cashTransactions: todayTransactions,
     customerTransactions: todayLedgerTransactions,
     periodLabel: t.shareDailyReport,
+    dateLabel: formatEthiopian(new Date()),
     t,
   });
 
@@ -1971,6 +1973,13 @@ const safeErr = err instanceof Error ? err.message : String(err);
 
         {activeTab === 'today' && (
           <div>
+
+            <SellerNotificationBanner
+              customerSummaries={customerSummaries}
+              todaySalesCount={todayTransactions.filter(tx => tx.type === 'sale').length}
+              usageStats={usageStats}
+              onNavigateToDubie={() => setActiveTab('merro')}
+            />
 
             <div className="overflow-hidden animate-elastic stagger-3" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}>
               <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: P.borderLight }}>

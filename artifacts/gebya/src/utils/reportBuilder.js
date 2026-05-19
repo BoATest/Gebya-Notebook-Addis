@@ -1,4 +1,5 @@
 import { fmt } from './numformat';
+import { formatEthiopian } from './ethiopianCalendar';
 
 export function buildReportSummary({
   shopName,
@@ -37,7 +38,7 @@ export function buildReportSummary({
 
   const lines = [
     `📊 ${shopName || 'Shop'} — ${periodLabel || t?.shareDailyReport || 'Report'}`,
-    `📅 ${dateLabel || new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
+    `📅 ${dateLabel || formatEthiopian(new Date())}`,
   ];
 
   lines.push(

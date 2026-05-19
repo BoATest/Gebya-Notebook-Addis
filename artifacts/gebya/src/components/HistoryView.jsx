@@ -485,7 +485,7 @@ function HistoryView({ transactions, ledgerTransactions, onEdit, onShareReport, 
     const isToday = new Date(group.date).toDateString() === new Date().toDateString();
     const label = isToday
       ? `${t.today}`
-      : `Day: ${new Date(group.date).toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+      : `ቀን: ${formatEthiopian(group.date)}`;
     onShareReport(buildReportSummary({
       shopName: shopName || 'Shop',
       cashTransactions: group.transactions,
@@ -500,7 +500,7 @@ function HistoryView({ transactions, ledgerTransactions, onEdit, onShareReport, 
     const isCurrentWeek = Date.now() >= group.weekStart && Date.now() <= group.weekStart + 7 * 86400000;
     const label = isCurrentWeek
       ? t.thisWeek
-      : `Week: ${new Date(group.weekStart).toLocaleDateString('en', { month: 'short', day: 'numeric' })} – ${new Date(weekEnd).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      : `ሳምንት: ${formatEthiopian(new Date(group.weekStart))} – ${formatEthiopian(weekEnd)}`;
     onShareReport(buildReportSummary({
       shopName: shopName || 'Shop',
       cashTransactions: group.transactions,
