@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ChevronDown, ChevronUp, Save, AlertTriangle, CheckCircle2, Plus, Camera } from 'lucide-react';
+import { X, ChevronDown, ChevronUp, Save, AlertTriangle, CheckCircle2, Plus, Camera, Banknote, Clock3, PackageCheck, UserRound } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import PaymentTypeChips from './PaymentTypeChips';
 import { fireToast } from './Toast';
@@ -81,6 +81,8 @@ const SALE_SETTLEMENT_STYLES = {
   },
 };
 
+const QUICK_AMOUNT_PRESETS = [10, 20, 50, 100, 200];
+
 function TransactionForm({
   type, onSave, onDone, enabledProviders, catalogEntries = [], recurringExpenses,
   onRecurringChange, initialPaymentType, initialPaymentProvider, customerSuggestions = [],
@@ -130,6 +132,7 @@ function TransactionForm({
   const [popupFreq, setPopupFreq] = useState('monthly');
   const [showCatalogSuggestions, setShowCatalogSuggestions] = useState(false);
   const selectedCatalogEntry = catalogEntries.find(e => String(e.id) === String(catalogEntryId));
+  const quickCatalogEntries = isSale ? catalogEntries.slice(0, 5) : [];
   const catalogMatches = isSale && catalogEntries.length > 0 && item.length > 0
     ? catalogEntries.filter(e => e.name.toLowerCase().includes(item.toLowerCase())).slice(0, 5)
     : [];
@@ -218,6 +221,9 @@ function TransactionForm({
         return name.includes(normalizedCustomerQuery) || note.includes(normalizedCustomerQuery);
       }).slice(0, 5)
     : [];
+  const quickCustomers = requiresCustomerBalance && !normalizedCustomerQuery
+    ? customerSuggestions.slice(0, 4)
+    : [];
   const selectedExistingCustomer = requiresCustomerBalance
     ? customerSuggestions.find(c => String(c.display_name || '').trim().toLowerCase() === normalizedCustomerQuery) || null
     : null;
@@ -256,11 +262,39 @@ function TransactionForm({
     return selectedDue;
   };
 
+  const handleQuickAmount = (value) => {
+    setAmount(String(value));
+    setShowValidation(false);
+  };
+
+  const trustHint = (() => {
+    if (!isSale) return null;
+    if (saleSettlementMode === 'paid_partly') {
+      return {
+        icon: Clock3,
+        text: remainingAmount > 0
+          ? (t.saleWhatIfPartial || 'What if only part is paid? Gebya saves the sale and keeps the remaining money under this customer.')
+          : (t.salePaidAmountHint || 'Paid amount must be more than 0 and less than the total.'),
+      };
+    }
+    if (saleSettlementMode === 'pay_later') {
+      return {
+        icon: UserRound,
+        text: t.saleWhatIfDubie || 'What if no money is collected? Save it as Dubie so it appears in the customer balance.',
+      };
+    }
+    return {
+      icon: Banknote,
+      text: t.saleWhatIfFull || 'What if the customer paid everything? Save full payment. No customer balance is created.',
+    };
+  })();
+  const TrustHintIcon = trustHint?.icon;
+
   const handleSave = async () => {
     if (!canSave) {
       setShowValidation(true);
       if (!sellingPrice || sellingPrice <= 0) fireToast(lang === 'am' ? 'መጠን ያስገቡ' : 'Enter an amount', 2500);
-      else if (!item.trim()) fireToast(lang === 'am' ? 'የዕቃ ስም ያስገቡ' : 'Enter item name', 2500);
+      else if (!isSale && !item.trim()) fireToast(lang === 'am' ? 'የዕቃ ስም ያስገቡ' : 'Enter item name', 2500);
       return;
     }
     setSaveState('saving');
@@ -508,10 +542,63 @@ function TransactionForm({
                 {showValidation && (!sellingPrice || sellingPrice <= 0) && (
                   <p className="text-xs text-red-500 mt-1 font-medium font-sans">{lang === 'am' ? 'መጠን ያስገቡ' : 'Enter an amount'}</p>
                 )}
+                <div className="flex gap-1.5 overflow-x-auto pt-2 pb-1" aria-label={t.quickAmount || 'Quick amount'}>
+                  {QUICK_AMOUNT_PRESETS.map(value => {
+                    const selected = Number(parseInput(amount)) === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => handleQuickAmount(value)}
+                        className="flex-shrink-0 min-h-[40px] min-w-[52px] px-3 border text-sm font-black press-scale font-sans"
+                        style={{
+                          borderRadius: 'var(--radius-sm)',
+                          borderColor: selected ? '#1B4332' : '#e8e2d8',
+                          background: selected ? '#1B4332' : '#fff',
+                          color: selected ? '#fff' : '#374151',
+                          boxShadow: selected ? '0 2px 0 #0f2b20' : 'none',
+                        }}
+                      >
+                        {value}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Item + Photo + Autocomplete */}
               <div>
+                {quickCatalogEntries.length > 0 && (
+                  <div className="mb-2">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <PackageCheck className="w-3.5 h-3.5" style={{ color: '#1B4332' }} />
+                      <span className="text-[11px] font-black uppercase tracking-wide font-sans" style={{ color: '#6b7280' }}>
+                        {t.recentItems || 'Recent items'}
+                      </span>
+                    </div>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1">
+                      {quickCatalogEntries.map(entry => (
+                        <button
+                          key={entry.id}
+                          type="button"
+                          onClick={() => handleSelectCatalogEntry(entry.id)}
+                          className="flex-shrink-0 min-h-[40px] px-3 border text-xs font-black press-scale font-sans"
+                          style={{
+                            borderRadius: 'var(--radius-sm)',
+                            borderColor: String(catalogEntryId) === String(entry.id) ? '#1B4332' : '#e8e2d8',
+                            background: String(catalogEntryId) === String(entry.id) ? 'rgba(27,67,50,0.08)' : '#fff',
+                            color: '#1f2937',
+                          }}
+                        >
+                          {entry.name}
+                          {entry.default_price != null && (
+                            <span className="ml-1 font-semibold" style={{ color: '#9a3412' }}>{fmt(entry.default_price)}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="relative">
                   <div className="flex items-end gap-1.5">
                     <div className="flex-1">
@@ -668,6 +755,27 @@ function TransactionForm({
                         ))}
                       </div>
                     )}
+                    {quickCustomers.length > 0 && (
+                      <div className="mt-2">
+                        <div className="text-[11px] font-black uppercase tracking-wide mb-1 font-sans" style={{ color: '#6b7280' }}>
+                          {t.savedCustomers || 'Saved customers'}
+                        </div>
+                        <div className="flex gap-1.5 overflow-x-auto pb-1">
+                          {quickCustomers.map(c => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => setSaleCustomerName(c.display_name || '')}
+                              className="flex-shrink-0 min-h-[42px] px-3 border text-left press-scale font-sans"
+                              style={{ background: '#fff', borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', minWidth: '120px' }}
+                            >
+                              <span className="block text-xs font-black truncate text-gray-900">{c.display_name}</span>
+                              <span className="block text-[10px] font-semibold" style={{ color: '#92400e' }}>{fmt(c.balance || 0)} {t.birr}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {saleSettlementMode !== 'paid_now' && (
@@ -718,6 +826,13 @@ function TransactionForm({
               )}
 
               {/* Payment provider chips — hidden for pay_later */}
+              {trustHint && (
+                <div className="flex items-start gap-2 p-2.5 border" style={{ background: '#f8fafc', borderColor: '#e2e8f0', borderRadius: 'var(--radius-md)' }}>
+                  <TrustHintIcon className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: settlementStyle.text }} aria-hidden="true" />
+                  <p className="text-xs font-semibold leading-5 font-sans" style={{ color: '#475569' }}>{trustHint.text}</p>
+                </div>
+              )}
+
               {saleSettlementMode !== 'pay_later' && (
                 <PaymentTypeChips
                   variant="direct"
@@ -800,7 +915,6 @@ function TransactionForm({
                   <AlertTriangle className="w-3 h-3 flex-shrink-0" style={{ color: '#d1d5db' }} />
                   {(() => {
                     if (!sellingPrice) return lang === 'am' ? 'መጠን ያስገቡ' : 'Enter an amount';
-                    if (!item.trim()) return lang === 'am' ? 'የዕቃ ስም ያስገቡ' : 'Enter what you sold';
                     if (saleSettlementMode === 'pay_later' && !saleCustomerName.trim()) return lang === 'am' ? 'ደንበኛ ስም ያስገቡ' : 'Enter a customer name';
                     if (saleSettlementMode === 'paid_partly' && !saleCustomerName.trim()) return lang === 'am' ? 'ደንበኛ ስም ያስገቡ' : 'Enter a customer name';
                     if (saleSettlementMode === 'paid_partly' && !(parsedPaidAmount > 0)) return lang === 'am' ? 'የተከፈለ መጠን ያስገቡ' : 'Enter paid amount';

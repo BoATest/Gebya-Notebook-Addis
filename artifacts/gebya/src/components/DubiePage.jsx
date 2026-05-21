@@ -24,6 +24,7 @@ function DubiePage({
   onOpenTelegramConnect,
   onResendTelegramUpdate,
   onEditCustomerTransaction,
+  onEditCustomer,
   supplierSummaries = [],
   onSaveSupplier,
   onSaveSupplierTransaction,
@@ -120,6 +121,7 @@ function DubiePage({
             onOpenTelegramConnect={onOpenTelegramConnect}
             onResendTelegramUpdate={onResendTelegramUpdate}
             onEditTransaction={onEditCustomerTransaction}
+            onEditCustomer={() => onEditCustomer?.(selectedCustomer)}
             shopName={shopName}
           />
         ) : (

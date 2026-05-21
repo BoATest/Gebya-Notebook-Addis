@@ -181,6 +181,7 @@ function AppInner() {
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [telegramConnectCustomerId, setTelegramConnectCustomerId] = useState(null);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [editCustomerId, setEditCustomerId] = useState(null);
   const [showFastDubiePicker, setShowFastDubiePicker] = useState(false);
   const [customerTransactionModal, setCustomerTransactionModal] = useState(null);
   const [customerTransactionEditTarget, setCustomerTransactionEditTarget] = useState(null);
@@ -788,6 +789,11 @@ const safeErr = err instanceof Error ? err.message : String(err);
     [customerSummaries, selectedCustomerId]
   );
 
+  const editCustomer = useMemo(
+    () => customerSummaries.find(c => c.id === editCustomerId) || null,
+    [customerSummaries, editCustomerId]
+  );
+
   const activeCustomerTransactionModal = useMemo(() => {
     if (!customerTransactionModal?.customerId) return null;
     return customerSummaries.find(c => c.id === customerTransactionModal.customerId) || null;
@@ -1194,6 +1200,35 @@ const safeErr = err instanceof Error ? err.message : String(err);
          const safeErr = err instanceof Error ? err.message : String(err);
          console.error('Failed to save customer:', safeErr);
        }
+      fireToast(t.customerSaveFailed || 'Could not save customer. Please try again.', 2400);
+      return false;
+    }
+  };
+
+  const handleEditCustomer = async (payload) => {
+    const draft = normalizeCustomerDraft(payload);
+    const customerId = Number(payload?.id);
+    if (!draft || !customerId) return false;
+
+    try {
+      const now = Date.now();
+      const updates = {
+        ...draft,
+        updated_at: now,
+      };
+      await db.customers.update(customerId, updates);
+      const saved = await db.customers.get(customerId);
+      setLedgerCustomers(prev => prev.map(customer => (
+        customer.id === customerId ? saved : customer
+      )));
+      setEditCustomerId(null);
+      fireToast(t.saved || 'Saved!', 1800);
+      return true;
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        const safeErr = err instanceof Error ? err.message : String(err);
+        console.error('Failed to edit customer:', safeErr);
+      }
       fireToast(t.customerSaveFailed || 'Could not save customer. Please try again.', 2400);
       return false;
     }
@@ -2127,22 +2162,6 @@ const safeErr = err instanceof Error ? err.message : String(err);
                     })}
                   </div>
 
-                  <div className="px-4 py-3 border-t" style={{ borderColor: P.borderLight }}>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-gray-500">{t.totalSales}</span>
-                      <span className="text-sm font-medium text-gray-800">{fmt(todaySalesTotal)} {t.birr}</span>
-                    </div>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-xs text-gray-500">{t.totalExpenses}</span>
-                      <span className="text-sm font-medium text-red-500">-{fmt(todayExpensesTotal)} {t.birr}</span>
-                    </div>
-                    <div className="flex justify-between items-center mt-2 pt-2 border-t" style={{ borderColor: P.borderLight }}>
-                      <span className="text-xs font-bold text-gray-600">{t.netReceived || 'Net Received'}</span>
-                      <span className={`text-lg font-black ${(todaySalesTotal + (todayLedgerTransactions || []).filter(x => x.type === 'payment').reduce((s, x) => s + (x.amount || 0), 0) - todayExpensesTotal) >= 0 ? 'text-green-700' : 'text-red-500'}`}>
-                        {fmt(todaySalesTotal + (todayLedgerTransactions || []).filter(x => x.type === 'payment').reduce((s, x) => s + (x.amount || 0), 0) - todayExpensesTotal)} {t.birr}
-                      </span>
-                    </div>
-                  </div>
                 </>
               )}
             </div>
@@ -2167,6 +2186,7 @@ const safeErr = err instanceof Error ? err.message : String(err);
             onOpenTelegramConnect={() => selectedCustomer && setTelegramConnectCustomerId(selectedCustomer.id)}
             onResendTelegramUpdate={() => selectedCustomer && handleResendCustomerTelegramUpdate(selectedCustomer)}
             onEditCustomerTransaction={setCustomerTransactionEditTarget}
+            onEditCustomer={(customer) => setEditCustomerId(customer?.id || null)}
             supplierSummaries={supplierSummaries}
             onSaveSupplier={handleSaveSupplier}
             onSaveSupplierTransaction={handleSaveSupplierTransaction}
@@ -2174,6 +2194,7 @@ const safeErr = err instanceof Error ? err.message : String(err);
             onDeleteSupplierTransaction={handleDeleteSupplierTransaction}
             shopName={shopProfile?.name}
             catalogEntries={activeCatalogEntries}
+            onAddCustomer={openNewDubieCustomerFlow}
           />
         )}
 
@@ -2285,6 +2306,14 @@ const safeErr = err instanceof Error ? err.message : String(err);
         <CustomerForm
           onSave={handleAddCustomer}
           onDone={() => setShowCustomerForm(false)}
+        />
+      )}
+
+      {editCustomer && (
+        <CustomerForm
+          initialCustomer={editCustomer}
+          onSave={handleEditCustomer}
+          onDone={() => setEditCustomerId(null)}
         />
       )}
 

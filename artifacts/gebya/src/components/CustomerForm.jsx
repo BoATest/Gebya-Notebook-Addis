@@ -15,13 +15,22 @@ function readContactPhone(contact) {
   return '';
 }
 
-function CustomerForm({ onSave, onDone }) {
+function phoneToDigits(phone) {
+  const cleaned = String(phone || '').replace(/\D/g, '');
+  if (cleaned.startsWith('251') && cleaned.length >= 12) return cleaned.slice(3, 12);
+  if (cleaned.length === 10 && cleaned.startsWith('0')) return cleaned.slice(1);
+  if (cleaned.length === 9) return cleaned;
+  return '';
+}
+
+function CustomerForm({ onSave, onDone, initialCustomer = null }) {
   const { t } = useLang();
-  const [displayName, setDisplayName] = useState('');
-  const [note, setNote] = useState('');
-  const [phoneDigits, setPhoneDigits] = useState('');
+  const isEditing = Boolean(initialCustomer?.id);
+  const [displayName, setDisplayName] = useState(initialCustomer?.display_name || initialCustomer?.displayName || '');
+  const [note, setNote] = useState(initialCustomer?.note || '');
+  const [phoneDigits, setPhoneDigits] = useState(phoneToDigits(initialCustomer?.phone_number || initialCustomer?.phoneNumber));
   const [phoneTouched, setPhoneTouched] = useState(false);
-  const [telegramUsername, setTelegramUsername] = useState('');
+  const [telegramUsername, setTelegramUsername] = useState(initialCustomer?.telegram_username || initialCustomer?.telegramUsername || '');
   const [contactsSupported, setContactsSupported] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -35,9 +44,17 @@ function CustomerForm({ onSave, onDone }) {
     setContactsSupported(canPickContacts);
   }, []);
 
+  useEffect(() => {
+    setDisplayName(initialCustomer?.display_name || initialCustomer?.displayName || '');
+    setNote(initialCustomer?.note || '');
+    setPhoneDigits(phoneToDigits(initialCustomer?.phone_number || initialCustomer?.phoneNumber));
+    setTelegramUsername(initialCustomer?.telegram_username || initialCustomer?.telegramUsername || '');
+    setPhoneTouched(false);
+  }, [initialCustomer?.id]);
+
   const normalizedTelegram = normalizeTelegram(telegramUsername);
   const telegramValid = !telegramUsername.trim() || !!normalizedTelegram;
-  const canSave = displayName.trim().length > 0 && telegramValid;
+  const canSave = displayName.trim().length > 0 && telegramValid && phoneValid;
 
   const handlePickContact = useCallback(async () => {
     if (!contactsSupported || !navigator.contacts?.select) return;
@@ -68,6 +85,7 @@ function CustomerForm({ onSave, onDone }) {
     try {
       const fullPhone = phoneEntered && phoneValid ? '+251' + phoneDigits : null;
       const didSave = await onSave?.({
+        id: initialCustomer?.id,
         display_name: displayName.trim(),
         note: note.trim() || null,
         phone_number: fullPhone,
@@ -86,8 +104,10 @@ function CustomerForm({ onSave, onDone }) {
         <div className="sticky top-0 bg-white z-10 px-6 pt-5 pb-4 border-b" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', borderColor: 'var(--color-border-light)' }}>
           <div className="flex justify-between items-center gap-3">
             <div>
-              <h2 className="text-xl font-black text-gray-900">{t.newCustomerTitle}</h2>
-              <p className="text-sm mt-1" style={{ color: '#6b7280' }}>{t.newCustomerHint}</p>
+              <h2 className="text-xl font-black text-gray-900">{isEditing ? (t.editCustomerTitle || 'Edit customer') : t.newCustomerTitle}</h2>
+              <p className="text-sm mt-1" style={{ color: '#6b7280' }}>
+                {isEditing ? (t.editCustomerHint || 'Fix phone or contact details. Old notebook history stays unchanged.') : t.newCustomerHint}
+              </p>
             </div>
             <button onClick={onDone} aria-label={t.close} className="p-2 rounded-full hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center press-scale">
               <X className="w-5 h-5 text-gray-500" />
@@ -156,6 +176,11 @@ function CustomerForm({ onSave, onDone }) {
                 {t.phoneMustStartWith7or9}
               </p>
             )}
+            {isEditing && phoneEntered && phoneValid && (
+              <p className="text-xs mt-1.5 font-medium" style={{ color: '#166534' }}>
+                {t.customerPhoneEditableHint || 'This updates future calls and messages only. History stays safe.'}
+              </p>
+            )}
             {!phoneEntered && (
               <p className="text-xs mt-1.5 font-medium" style={{ color: '#b45309' }}>
                 {t.smsRemindersHint}
@@ -203,7 +228,7 @@ function CustomerForm({ onSave, onDone }) {
         <div className="px-6 pb-8 pt-2">
           <button onClick={handleSave} disabled={!canSave || saving} className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 min-h-[56px] press-scale" style={{ background: canSave ? '#1B4332' : '#e5e7eb', color: canSave ? '#fff' : '#9ca3af', borderRadius: 'var(--radius-md)', boxShadow: canSave ? '0 4px 0 #0f2b20, var(--shadow-sm)' : 'none' }}>
             <Save className="w-5 h-5" />
-            {saving ? t.saving : t.saveCustomer}
+            {saving ? t.saving : (isEditing ? (t.saveChanges || 'Save changes') : t.saveCustomer)}
           </button>
         </div>
       </div>

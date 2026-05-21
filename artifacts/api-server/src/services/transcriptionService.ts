@@ -26,19 +26,25 @@ class WhisperService implements TranscriptionService {
     };
   }
 
-  private async postAudio(file: Express.Multer.File): Promise<TranscriptionResult> {
+  private createAudioBlob(file: Express.Multer.File): Blob {
+    const audioBytes = new Uint8Array(
+      file.buffer.buffer as ArrayBuffer,
+      file.buffer.byteOffset,
+      file.buffer.byteLength,
+    );
+
+    return new Blob([audioBytes], {
+      type: file.mimetype || "application/octet-stream",
+    });
+  }
+
+  private async postAudio(audioBlob: Blob, filename: string): Promise<TranscriptionResult> {
     if (!this.serviceUrl) {
       throw new Error("WHISPER_SERVICE_URL is not configured");
     }
 
-    const audioBuffer = new ArrayBuffer(file.buffer.byteLength);
-    new Uint8Array(audioBuffer).set(file.buffer);
-    const audioBlob = new Blob([audioBuffer], {
-      type: file.mimetype || "application/octet-stream",
-    });
-
     const form = new FormData();
-    form.append("audio", audioBlob, file.originalname || "voice-recording.webm");
+    form.append("audio", audioBlob, filename);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -72,10 +78,12 @@ class WhisperService implements TranscriptionService {
 
   async transcribeAudio(file: Express.Multer.File, browserFallback?: string | null): Promise<TranscriptionResult> {
     let lastError: unknown = null;
+    const audioBlob = this.createAudioBlob(file);
+    const filename = file.originalname || "voice-recording.webm";
 
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
       try {
-        const result = await this.postAudio(file);
+        const result = await this.postAudio(audioBlob, filename);
         if (result.transcript) {
           return result;
         }

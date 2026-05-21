@@ -210,9 +210,12 @@ async function transcribeWithGroq(file: Express.Multer.File): Promise<{
     throw new Error("GROQ_API_KEY is not configured");
   }
 
-  const audioBuffer = new ArrayBuffer(file.buffer.byteLength);
-  new Uint8Array(audioBuffer).set(file.buffer);
-  const audioBlob = new Blob([audioBuffer], {
+  const audioBytes = new Uint8Array(
+    file.buffer.buffer as ArrayBuffer,
+    file.buffer.byteOffset,
+    file.buffer.byteLength,
+  );
+  const audioBlob = new Blob([audioBytes], {
     type: file.mimetype || "application/octet-stream",
   });
 

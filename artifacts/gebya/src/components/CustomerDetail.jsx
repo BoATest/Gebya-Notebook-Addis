@@ -15,6 +15,7 @@ function CustomerDetail({
   onOpenTelegramConnect,
   onResendTelegramUpdate,
   onEditTransaction,
+  onEditCustomer,
   shopName,
 }) {
   const { t, lang } = useLang();
@@ -113,6 +114,15 @@ function CustomerDetail({
             )}
           </div>
           <div className="text-right flex-shrink-0">
+            <button
+              type="button"
+              onClick={onEditCustomer}
+              className="ml-auto mb-2 p-2 border flex items-center justify-center press-scale"
+              style={{ minWidth: '40px', minHeight: '40px', borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }}
+              aria-label={t.editCustomer || 'Edit customer'}
+            >
+              <Pencil className="w-4 h-4" style={{ color: '#C4883A' }} />
+            </button>
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#9ca3af' }}>
               Remaining balance
             </p>

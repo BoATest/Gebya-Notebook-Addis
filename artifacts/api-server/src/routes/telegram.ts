@@ -137,14 +137,16 @@ router.post("/link-sessions", (req: Request, res: Response) => {
     updatesEnabled: input.updatesEnabled ?? false,
   });
   const deepLink = createDeepLink(session.token);
+  const publicApiBase = getPublicApiBase(req);
+  const botUsername = getTelegramBotUsername();
 
   return res.json({
     token: session.token,
     state: formatTelegramSessionState(session),
     deep_link: deepLink,
     qr_value: deepLink,
-    webhook_url: getPublicApiBase(req) ? `${getPublicApiBase(req)}/api/telegram/webhook` : null,
-    bot_username: getTelegramBotUsername() || null,
+    webhook_url: publicApiBase ? `${publicApiBase}/api/telegram/webhook` : null,
+    bot_username: botUsername || null,
     requested_at: session.requestedAt,
     linked_at: session.linkedAt,
     telegram_username: session.telegramUsername,
@@ -159,11 +161,13 @@ router.get("/link-sessions/:token", (req: Request, res: Response) => {
     return res.status(404).json({ error: "Link session not found" });
   }
 
+  const deepLink = createDeepLink(session.token);
+
   return res.json({
     token: session.token,
     state: formatTelegramSessionState(session),
-    deep_link: createDeepLink(session.token),
-    qr_value: createDeepLink(session.token),
+    deep_link: deepLink,
+    qr_value: deepLink,
     requested_at: session.requestedAt,
     linked_at: session.linkedAt,
     telegram_username: session.telegramUsername,
