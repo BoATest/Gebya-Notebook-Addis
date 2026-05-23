@@ -12,7 +12,6 @@ import { ToastContainer, fireToast } from './components/Toast';
 import { DEFAULT_PROVIDERS } from './components/PaymentTypeChips';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
 import { fmt } from './utils/numformat';
-import { checkAndAwardBadges } from './utils/badges';
 import { buildCustomerSummaries, getCustomerBalance, insertCustomerTransaction, sortCustomerTransactions } from './utils/customerLedger';
 import { normalizeCustomerDraft, normalizeCustomerTransactionDraft } from './utils/customerLedgerMutations';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from './utils/customerTransactionTypes';
@@ -31,6 +30,12 @@ const CustomerTelegramConnectSheet = lazy(() => import('./components/CustomerTel
 const HistoryView = lazy(() => import('./components/HistoryView'));
 const SettingsPage = lazy(() => import('./components/SettingsPage'));
 const DailySuggestions = lazy(() => import('./components/DailySuggestions'));
+
+// Voice subsystem hidden per D-027 (Amharic/Oromifa STT quality insufficient today).
+// Files preserved (VoiceButton, VoiceRecordScreen, VoiceResultScreen, VoiceFixScreen,
+// hooks/useSpeechRecognition); flip VOICE_ENABLED to true to re-enable when local-language
+// voice tech improves.
+const VOICE_ENABLED = false;
 const VoiceRecordScreen = lazy(() => import('./components/VoiceRecordScreen'));
 const VoiceResultScreen = lazy(() => import('./components/VoiceResultScreen'));
 const VoiceFixScreen = lazy(() => import('./components/VoiceFixScreen'));
@@ -344,8 +349,6 @@ function AppInner() {
   const [usageStats, setUsageStats] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareText, setShareText] = useState('');
-  const [earnedBadges, setEarnedBadges] = useState([]);
-  const [bestDayTotal, setBestDayTotal] = useState(0);
   const [pressedBtn, setPressedBtn] = useState(null);
   const [voiceStep, setVoiceStep] = useState(null);
   const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -504,7 +507,7 @@ function AppInner() {
   const trackSession = useCallback(async () => {
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const [scRow, ladRow, sdRow, lsdRow, daRow, fcRow, fudRow, bdtRow, crRow] = await Promise.all([
+      const [scRow, ladRow, sdRow, lsdRow, daRow, fcRow, fudRow, crRow] = await Promise.all([
         db.analytics.get('session_count'),
         db.analytics.get('last_active_date'),
         db.analytics.get('streak_days'),
@@ -512,7 +515,6 @@ function AppInner() {
         db.analytics.get('days_active'),
         db.analytics.get('feature_counts'),
         db.analytics.get('first_used_date'),
-        db.analytics.get('best_day_total'),
         db.analytics.get('credits_repaid'),
       ]);
 
@@ -538,10 +540,7 @@ function AppInner() {
       try { featureCounts = fcRow ? JSON.parse(fcRow.value) : featureCounts; } catch { /* keep default */ }
 
       const firstUsed = fudRow?.value || todayStr;
-      const bdt = bdtRow?.value || 0;
       const creditsRepaid = crRow?.value || 0;
-
-      setBestDayTotal(bdt);
 
       await Promise.all([
         db.analytics.put({ key: 'session_count',   value: sessionCount }),
@@ -553,39 +552,14 @@ function AppInner() {
         db.analytics.put({ key: 'first_used_date',  value: firstUsed }),
       ]);
 
-      const stats = { sessionCount, streak, longestStreak, daysActive, featureCounts, firstUsed, bestDayTotal: bdt, creditsRepaid };
+      const stats = { sessionCount, streak, longestStreak, daysActive, featureCounts, firstUsed, creditsRepaid };
       setUsageStats(stats);
-
-      const badges = await checkAndAwardBadges(stats, lang);
-      setEarnedBadges(badges);
     } catch (err) {
       if (import.meta.env.DEV) console.error('Analytics tracking failed:', err);
     }
   }, [lang]);
 
   useEffect(() => { trackSession(); }, [trackSession]);
-
-  const checkBestDay = useCallback(async (todayTotal) => {
-    try {
-      const bdtRow = await db.analytics.get('best_day_total');
-      const prevBest = bdtRow?.value || 0;
-      const bdFiredRow = await db.analytics.get('best_day_fired_date');
-      const todayStr = new Date().toISOString().split('T')[0];
-
-      if (todayTotal > prevBest && bdFiredRow?.value !== todayStr) {
-        await db.analytics.put({ key: 'best_day_total', value: todayTotal });
-        await db.analytics.put({ key: 'best_day_fired_date', value: todayStr });
-        setBestDayTotal(todayTotal);
-        fireToast(`${t.newBestDay} ${fmt(todayTotal)} ${t.birr}`, 3000);
-        setUsageStats(prev => {
-          if (!prev) return prev;
-          const updated = { ...prev, bestDayTotal: todayTotal };
-          checkAndAwardBadges(updated, lang).then(setEarnedBadges);
-          return updated;
-        });
-      }
-    } catch { /* non-critical */ }
-  }, [t, lang]);
 
   const handleAddTransaction = async (transaction) => {
     try {
@@ -609,11 +583,6 @@ function AppInner() {
 
       setTransactions(prev => {
         const updated = [saved, ...prev];
-        const todayStr = new Date().toDateString();
-        const todayTotal = updated
-          .filter(t2 => new Date(t2.created_at).toDateString() === todayStr && t2.type === 'sale')
-          .reduce((s, t2) => s + (t2.amount || 0), 0);
-        checkBestDay(todayTotal);
         return updated;
       });
 
@@ -644,9 +613,7 @@ function AppInner() {
           await db.analytics.put({ key: 'feature_counts', value: JSON.stringify(fc) });
           setUsageStats(prev => {
             if (!prev) return prev;
-            const updated = { ...prev, featureCounts: fc };
-            checkAndAwardBadges(updated, lang).then(setEarnedBadges);
-            return updated;
+            return { ...prev, featureCounts: fc };
           });
         } catch { /* non-critical */ }
       }
@@ -1561,9 +1528,7 @@ function AppInner() {
         await db.analytics.put({ key: 'credits_repaid', value: repaidCount });
         setUsageStats(prev => {
           if (!prev) return prev;
-          const updated = { ...prev, creditsRepaid: repaidCount };
-          checkAndAwardBadges(updated, lang).then(setEarnedBadges);
-          return updated;
+          return { ...prev, creditsRepaid: repaidCount };
         });
       } catch { /* non-critical */ }
     }
@@ -1810,18 +1775,6 @@ function AppInner() {
             </p>
           </div>
 
-          {/* Streak pill */}
-          {(usageStats?.streak || 0) > 0 && (
-            <span className="flex-shrink-0 text-xs font-black px-2 py-1" style={{
-              background: 'rgba(255,255,255,0.15)',
-              color: 'rgba(255,255,255,0.9)',
-              borderRadius: '8px',
-              whiteSpace: 'nowrap',
-            }}>
-              ðŸ”¥ {usageStats.streak}
-            </span>
-          )}
-
           {/* Language toggle */}
           <button
             onClick={toggleLang}
@@ -1877,7 +1830,10 @@ function AppInner() {
           <p className="text-center text-xs font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.65)' }}>
             {getTimeGreeting()}
           </p>
-          {/* Voice â€” primary action */}
+          {/* Voice — primary action — hidden per D-027 (Amharic/Oromifa STT quality insufficient). */}
+          {VOICE_ENABLED && (
+            <>
+{/* Voice â€” primary action */}
           <button
             onClick={() => setVoiceStep('record')}
             className="w-full mb-1 py-4 flex flex-col items-center justify-center font-black text-white text-base transition-all active:scale-95 press-scale"
@@ -1890,6 +1846,8 @@ function AppInner() {
           <p className="text-center text-xs mb-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
             {lang === 'am' ? 'á‹­áŠ“áŒˆáˆ©á£ á‰ áŠ‹áˆ‹áˆ áˆ›áˆµá‰°áŠ«áŠ¨áˆ á‹­á‰½áˆ‹áˆ‰á¢' : 'Speak your sale. You can fix it after.'}
           </p>
+            </>
+          )}
           <div className="flex gap-2 pb-2">
           {[
             { type: 'sale',    label: t.typeSaleLabel, sub: t.typeSale,  bg: '#2d6a4f', shadow: '#1B4332' },
@@ -2083,7 +2041,6 @@ function AppInner() {
               recurringExpenses={recurringExpenses}
               onRecurringChange={setRecurringExpenses}
               usageStats={usageStats}
-              earnedBadges={earnedBadges}
               onShareToday={handleShareReport}
               onSaveCatalogEntry={handleSaveCatalogEntry}
               onToggleCatalogEntryActive={handleToggleCatalogEntryActive}
@@ -2181,7 +2138,7 @@ function AppInner() {
         </Suspense>
       )}
 
-      {voiceStep === 'record' && (
+      {VOICE_ENABLED && voiceStep === 'record' && (
         <Suspense fallback={<ModalFallback label={t.loading} />}>
           <VoiceRecordScreen
             workspace={voiceWorkspace}
@@ -2219,7 +2176,7 @@ function AppInner() {
         </Suspense>
       )}
 
-      {voiceStep === 'result' && (
+      {VOICE_ENABLED && voiceStep === 'result' && (
         <Suspense fallback={<ModalFallback label={t.loading} />}>
           <VoiceResultScreen
             transcript={voiceTranscript}
@@ -2259,7 +2216,7 @@ function AppInner() {
         </Suspense>
       )}
 
-      {voiceStep === 'fix' && (
+      {VOICE_ENABLED && voiceStep === 'fix' && (
         <Suspense fallback={<ModalFallback label={t.loading} />}>
           <VoiceFixScreen
             transcript={voiceTranscript}
