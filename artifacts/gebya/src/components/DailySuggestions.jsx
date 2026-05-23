@@ -2,14 +2,6 @@ import { useLang } from '../context/LangContext';
 
 const SUGGESTIONS_EN = [
   {
-    id: 'great_streak_no_sales',
-    condition: (sales, expenses, streak) => streak >= 3 && sales === 0,
-    icon: '🔥',
-    message: (sales, expenses, streak) => `Great ${streak}-day streak! Keep it going — record today's sales`,
-    action: 'sale',
-    actionLabel: 'Record a Sale',
-  },
-  {
     id: 'no_sales',
     condition: (sales) => sales === 0,
     icon: '💰',
@@ -28,14 +20,6 @@ const SUGGESTIONS_EN = [
 ];
 
 const SUGGESTIONS_AM = [
-  {
-    id: 'great_streak_no_sales',
-    condition: (sales, expenses, streak) => streak >= 3 && sales === 0,
-    icon: '🔥',
-    message: (sales, expenses, streak) => `${streak} ቀን ተከታታይ! ቀጥሉ — የዛሬ ሽያጭ ይምዝግቡ`,
-    action: 'sale',
-    actionLabel: 'ሽያጭ ምዝግብ',
-  },
   {
     id: 'no_sales',
     condition: (sales) => sales === 0,
