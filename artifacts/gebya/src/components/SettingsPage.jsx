@@ -12,7 +12,6 @@ import { normalizeTelegram } from '../utils/customerTelegram';
 import { SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger';
 
 const PwaInstallPanel = lazy(() => import('./PwaInstallPanel.jsx'));
-const SettingsBadgesPanel = lazy(() => import('./SettingsBadgesPanel.jsx'));
 
 const FREQ_LABELS_EN = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
 const FREQ_LABELS_AM = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
@@ -84,7 +83,6 @@ function SettingsPage({
   recurringExpenses,
   onRecurringChange,
   usageStats,
-  earnedBadges,
   onShareToday,
   onSaveCatalogEntry,
   onToggleCatalogEntryActive,
@@ -511,7 +509,6 @@ function SettingsPage({
     editBusinessType !== (shopProfile?.businessType || 'retail-shop')
   );
 
-  const badgeList = earnedBadges || [];
   const voiceStats = voiceQuality.stats;
   const capturedVoices = voiceStats?.captured || 0;
   const savedVoices = voiceStats?.saved || 0;
@@ -687,12 +684,6 @@ function SettingsPage({
           </div>
         </SettingsSection>
       )}
-
-      <SettingsSection id="badges" title={t.achievementBadges} openSection={openSection} setOpenSection={setOpenSection}>
-        <Suspense fallback={<SettingsPanelFallback label={t.loading} />}>
-          <SettingsBadgesPanel earnedBadges={badgeList} />
-        </Suspense>
-      </SettingsSection>
 
       {usageStats && (
         <SettingsSection id="usage" title={t.usageInsights} openSection={openSection} setOpenSection={setOpenSection}>
