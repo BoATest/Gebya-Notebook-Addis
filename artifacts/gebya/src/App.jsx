@@ -283,7 +283,7 @@ function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t
         style={{ background: 'var(--color-surface-soft)', borderTop: '1px solid var(--color-border-light)' }}
       >
         <p className="text-xs font-medium font-sans" style={{ color: 'var(--color-text-muted)' }}>
-          {t.trustReopenHint || 'Close and reopen anytime â€” your records stay here.'}
+          {t.trustReopenHint || 'Close and reopen anytime — your records stay here.'}
         </p>
         {totalEntries === 0 && (
           <button
@@ -359,7 +359,7 @@ function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
         className="flex-1 min-w-0 text-left flex items-baseline gap-2 press-scale"
       >
         <span className="font-bold text-sm flex-shrink-0" style={{ color: amountColor }}>
-          {isCredit && '↻ '}{sign}{fmt(tx.amount || 0)} {t.birr}
+          {isCredit && '↻ '}{sign}{fmt(tx.amount || 0)} {lang === 'am' ? 'ብር' : 'birr'}
         </span>
         <span className="text-sm text-gray-600 truncate min-w-0">
           {tx.item_name || '—'}
@@ -1772,14 +1772,14 @@ function AppInner() {
     const profit = todaySalesTotal - todayExpensesTotal;
     const topStr = topProducts.length > 0
       ? topProducts.map((p, i) => `  ${i + 1}. ${p.name} (x${p.qty})`).join('\n')
-      : '  â€”';
+      : '  —';
     return [
-      `ðŸ“Š ${shopProfile?.name || 'Shop'} â€” ${t.shareDailyReport}`,
-      `ðŸ“… ${new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
+      `📊 ${shopProfile?.name || 'Shop'} — ${t.shareDailyReport}`,
+      `📅 ${new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
       ``,
-      `ðŸ’° ${t.sales}:    ${fmt(todaySalesTotal)} ${t.birr}`,
-      `ðŸ›’ ${t.spent}: ${fmt(todayExpensesTotal)} ${t.birr}`,
-      `ðŸ“ˆ ${t.calcProfit}:   ${fmt(profit)} ${t.birr}`,
+      `💰 ${t.sales}:    ${fmt(todaySalesTotal)} ${lang === 'am' ? 'ብር' : 'birr'}`,
+      `🛒 ${t.spent}: ${fmt(todayExpensesTotal)} ${lang === 'am' ? 'ብር' : 'birr'}`,
+      `ðŸ“ˆ ${t.calcProfit}:   ${fmt(profit)} ${lang === 'am' ? 'ብር' : 'birr'}`,
       ``,
       `ðŸ† ${t.shareTopItems}:`,
       topStr,
@@ -1793,18 +1793,18 @@ function AppInner() {
     setShowShareModal(true);
   };
 
-  const hid = (n) => hidden ? 'â€¢â€¢â€¢â€¢' : fmt(n);
+  const hid = (n) => hidden ? '••••' : fmt(n);
 
   const getTimeGreeting = () => {
     const h = new Date().getHours();
     if (lang === 'am') {
-      if (h < 12) return 'ðŸ‘‹ áŠ¥áŠ•áŠ³áŠ• á‹°áˆ…áŠ“ áˆ˜áŒ¡ â€” á‹›áˆ¬áŠ• áˆ½á‹«áŒ¥ á‹­á‰áŒ áˆ©';
-      if (h < 17) return 'ðŸ“Œ áˆ²áˆ¸áŒ¡ á‹­á‰…á‹± â€” á‹áˆ­á‹áˆ­ á‰†á‹­á‰¶ áˆ›áˆµá‰°áŠ«áŠ¨áˆ á‹­á‰»áˆ‹áˆ';
-      return 'ðŸŒ™ á‹›áˆ¬áŠ• áˆ½á‹«áŒ¥ áŠ á‹­áˆ­áˆ± â€” áˆáˆ‰ á‹­á‰…á‹±';
+      if (h < 12) return '👋 áŠ¥áŠ•áŠ³áŠ• á‹°áˆ…áŠ“ áˆ˜áŒ¡ — á‹›áˆ¬áŠ• áˆ½á‹«áŒ¥ á‹­á‰áŒ áˆ©';
+      if (h < 17) return '📌 áˆ²áˆ¸áŒ¡ á‹­á‰…á‹± — á‹áˆ­á‹áˆ­ á‰†á‹­á‰¶ áˆ›áˆµá‰°áŠ«áŠ¨áˆ á‹­á‰»áˆ‹áˆ';
+      return '🌙 á‹›áˆ¬áŠ• áˆ½á‹«áŒ¥ áŠ á‹­áˆ­áˆ± — áˆáˆ‰ á‹­á‰…á‹±';
     }
-    if (h < 12) return 'ðŸ‘‹ Good morning â€” start tracking today\'s sales';
-    if (h < 17) return 'ðŸ“Œ Keep going â€” record your sales as you sell';
-    return 'ðŸŒ™ Don\'t forget today\'s last sales';
+    if (h < 12) return '👋 Good morning — start tracking today\'s sales';
+    if (h < 17) return '📌 Keep going — record your sales as you sell';
+    return '🌙 Don\'t forget today\'s last sales';
   };
 
   if (loading) {
@@ -1812,7 +1812,7 @@ function AppInner() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: P.bg }}>
         <div className="text-center animate-elastic">
           <div className="text-5xl mb-3">ðŸ“’</div>
-          <h1 className="text-2xl font-black font-serif" style={{ color: P.header }}>áŒˆá‰ á‹«</h1>
+          <h1 className="text-2xl font-black font-serif" style={{ color: P.header }}>áŒˆá‰ á‹«</h1>
           <p className="text-sm mt-2" style={{ color: 'var(--color-text-soft)' }}>{t.loading}</p>
         </div>
       </div>
@@ -1842,7 +1842,7 @@ function AppInner() {
     { id: 'settings', label: TAB_LABELS.settings[lang], icon: MoreHorizontal },
   ];
 
-  const typeEmoji = { sale: 'ðŸ’°', expense: 'ðŸ›’', credit: 'ðŸ‘¥' };
+  const typeEmoji = { sale: '💰', expense: '🛒', credit: '👥' };
   const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#C4883A' };
   const typeBorderColor = { sale: '#86efac', expense: '#fca5a5', credit: '#fcd34d' };
 
@@ -1851,7 +1851,7 @@ function AppInner() {
 
       <header className="flex-shrink-0 px-4 pt-9 pb-3 texture-noise" style={{ background: P.header }}>
         <div className="flex items-center gap-3 mb-3">
-          {/* Avatar â€” taps to settings */}
+          {/* Avatar — taps to settings */}
           <button
             onClick={() => setActiveTab('settings')}
             className="flex-shrink-0 press-scale"
@@ -1914,7 +1914,7 @@ function AppInner() {
               borderRadius: '8px',
               transition: 'all 0.18s',
               display: 'block',
-            }}>áŠ áˆ›</span>
+            }}>አማ</span>
           </button>
         </div>
 
@@ -1926,7 +1926,7 @@ function AppInner() {
             ].map(s => (
               <div key={s.label} className="flex-1 px-3 py-2 text-center animate-elastic" style={{ background: s.color, borderRadius: 'var(--radius-sm)' }}>
                 <div className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>{s.label}</div>
-                <div className="font-black text-sm text-white">{hid(s.val)} {t.birr}</div>
+                <div className="font-black text-sm text-white">{hid(s.val)} {lang === 'am' ? 'ብር' : 'birr'}</div>
               </div>
             ))}
           </div>
@@ -1940,18 +1940,18 @@ function AppInner() {
           {/* Voice — primary action — hidden per D-027 (Amharic/Oromifa STT quality insufficient). */}
           {VOICE_ENABLED && (
             <>
-{/* Voice â€” primary action */}
+{/* Voice — primary action */}
           <button
             onClick={() => setVoiceStep('record')}
             className="w-full mb-1 py-4 flex flex-col items-center justify-center font-black text-white text-base transition-all active:scale-95 press-scale"
             style={{ background: '#1a5c3a', border: '2px solid rgba(255,255,255,0.25)', borderRadius: 'var(--radius-lg)', boxShadow: '0 5px 0 #0f3d25' }}
           >
-            <span className="text-2xl leading-none mb-0.5">ðŸŽ¤</span>
+            <span className="text-2xl leading-none mb-0.5">🎤</span>
             <span className="text-base font-black leading-snug">{t.recordByVoice}</span>
             <span className="text-xs opacity-70">{t.recordByVoiceSubLabel}</span>
           </button>
           <p className="text-center text-xs mb-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            {lang === 'am' ? 'á‹­áŠ“áŒˆáˆ©á£ á‰ áŠ‹áˆ‹áˆ áˆ›áˆµá‰°áŠ«áŠ¨áˆ á‹­á‰½áˆ‹áˆ‰á¢' : 'Speak your sale. You can fix it after.'}
+            {lang === 'am' ? 'á‹­áŠ“áŒˆáˆ©á£ á‰ áŠ‹áˆ‹áˆ áˆ›áˆµá‰°áŠ«áŠ¨áˆ á‹­á‰½áˆ‹áˆ‰á¢' : 'Speak your sale. You can fix it after.'}
           </p>
             </>
           )}
@@ -2330,7 +2330,7 @@ function AppInner() {
             <div className="text-3xl text-center mb-3">{typeEmoji[deleteTarget.type]}</div>
             <h3 className="text-lg font-black text-gray-900 text-center mb-1 font-sans">{t.deleteEntry}</h3>
             <p className="text-sm text-gray-500 text-center mb-5" style={{ color: 'var(--color-text-muted)' }}>
-              "{deleteTarget.item_name}" Â· {fmt(deleteTarget.amount || 0)} {t.birr}
+              "{deleteTarget.item_name}" Â· {fmt(deleteTarget.amount || 0)} {lang === 'am' ? 'ብር' : 'birr'}
             </p>
             <div className="space-y-2">
               <button onClick={() => handleDeleteTransaction(deleteTarget.id)}
@@ -2366,7 +2366,6 @@ function App() {
 }
 
 export default App;
-
 
 
 
