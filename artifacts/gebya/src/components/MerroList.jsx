@@ -139,6 +139,14 @@ function MerroList({ creditRecords, onSelectCredit }) {
 
           const status = getCreditStatus(record.due_date);
           const isIOwe = record.direction === 'i_owe';
+          const isDueToday = (() => {
+            if (!record.due_date) return false;
+            const due = new Date(record.due_date);
+            const today = new Date();
+            return due.getFullYear() === today.getFullYear() &&
+                   due.getMonth() === today.getMonth() &&
+                   due.getDate() === today.getDate();
+          })();
           const display = getStatusDisplay(status);
 
           const cardBg = isIOwe
@@ -197,7 +205,7 @@ function MerroList({ creditRecords, onSelectCredit }) {
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <StatusBadge display={display} />
+                  <StatusBadge display={display} pulse={isDueToday && display.key === 'due_soon'} />
                   <ChevronRight className="w-4 h-4 text-gray-400" />
                 </div>
               </div>
@@ -219,7 +227,7 @@ function MerroList({ creditRecords, onSelectCredit }) {
   );
 }
 
-function StatusBadge({ display }) {
+function StatusBadge({ display, pulse = false }) {
   if (display.key === 'overdue') {
     return (
       <span
@@ -259,7 +267,7 @@ function StatusBadge({ display }) {
 
   return (
     <span
-      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold"
       style={{
         background: 'rgba(196,136,58,0.18)',
         color: '#7c4f0a',
@@ -267,6 +275,12 @@ function StatusBadge({ display }) {
         fontSize: '11px',
       }}
     >
+      {pulse && (
+        <span
+          className="pulsing-dot inline-block w-2 h-2 rounded-full flex-shrink-0"
+          style={{ background: '#c4883a' }}
+        />
+      )}
       {display.text}
     </span>
   );
