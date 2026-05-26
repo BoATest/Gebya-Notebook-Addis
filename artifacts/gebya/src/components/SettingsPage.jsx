@@ -1,4 +1,4 @@
-﻿import { lazy, Suspense, useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown, Share2, Sun, Moon, Users } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
@@ -15,15 +15,27 @@ const PwaInstallPanel = lazy(() => import('./PwaInstallPanel.jsx'));
 
 const FREQ_LABELS_EN = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
 const FREQ_LABELS_AM = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
-const BUSINESS_TYPE_OPTIONS = [
+const BUSINESS_TYPE_OPTIONS_EN = [
   { value: 'retail-shop', label: 'Retail shop' },
   { value: 'shoe-market', label: 'Shoe market' },
   { value: 'flower-shop', label: 'Flower shop' },
-  { value: 'women-dress-shop', label: 'Women dress shop' },
-  { value: 'grocery', label: 'Grocery / minimarket' },
+  { value: 'women-dress-shop', label: "Women's clothing" },
+  { value: 'supermarket', label: 'Supermarket / Minimarket' },
+  { value: 'grocery', label: 'Grocery (liquor)' },
   { value: 'electronics', label: 'Electronics / accessories' },
   { value: 'pharmacy', label: 'Pharmacy / cosmetics' },
   { value: 'other', label: 'Other' },
+];
+const BUSINESS_TYPE_OPTIONS_AM = [
+  { value: 'retail-shop', label: 'የችርቻሮ ሱቅ' },
+  { value: 'shoe-market', label: 'የጫማ መሸጫ' },
+  { value: 'flower-shop', label: 'የአበባ ሱቅ' },
+  { value: 'women-dress-shop', label: 'የሴቶች ልብስ ሱቅ' },
+  { value: 'supermarket', label: 'ሱፐርማርኬት / ሚኒማርኬት' },
+  { value: 'grocery', label: 'ግሮሰሪ' },
+  { value: 'electronics', label: 'ኤሌክትሮኒክስ / መለዋወጫዎች' },
+  { value: 'pharmacy', label: 'ፋርማሲ / መዋቢያ' },
+  { value: 'other', label: 'ሌላ' },
 ];
 
 function SettingsSection({ id, title, openSection, setOpenSection, children, defaultOpen = false }) {
@@ -898,7 +910,7 @@ function SettingsPage({
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
-                <Store className="w-3.5 h-3.5" /> Business type
+                <Store className="w-3.5 h-3.5" /> {lang === 'am' ? 'የንግድ አይነት' : 'Business type'}
               </label>
               <select
                 value={editBusinessType}
@@ -906,12 +918,14 @@ function SettingsPage({
                 className="w-full px-4 py-3 border-2 rounded-xl text-sm font-semibold focus:outline-none bg-white"
                 style={{ borderColor: '#e8e2d8' }}
               >
-                {BUSINESS_TYPE_OPTIONS.map((option) => (
+                {(lang === 'am' ? BUSINESS_TYPE_OPTIONS_AM : BUSINESS_TYPE_OPTIONS_EN).map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
               <p className="text-xs mt-1 font-medium text-gray-400">
-                This helps voice recognize the items, pricing patterns, and customer language common in your trade.
+                {lang === 'am'
+                  ? 'ለሱቅዎ ተስማሚ ሃሳቦችን ለመስጠት እንጠቀምበታለን።'
+                  : 'We use this to tailor suggestions for your shop.'}
               </p>
             </div>
             <button
