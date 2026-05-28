@@ -1,9 +1,45 @@
+// TransactionForm.jsx — single-screen v4 redesign.
+//
+// Renders an inline (not-modal) page covering the screen except the bottom nav.
+// User can navigate away via the bottom nav at any time — no trap.
+//
+// Layout (top to bottom):
+//   - Header: ← back, colored type label
+//   - Scrollable body:
+//       actor chip
+//       credit direction (credit only)
+//       recurring quick-fill (expense only)
+//       saved-item dropdown (catalog)
+//       AMOUNT (large, auto-focused) + quick-pick chips (50/100/200/500/1k)
+//       ITEM/NAME (optional for sale+expense, required name for credit) + photo button
+//       quick saved-item chips (from catalogEntries)
+//       payment chips (sale+expense) OR phone+due+direction (credit)
+//       advanced cost-price (sale+expense)
+//       photo preview if attached
+//   - Sticky bottom: solid colored save button per type
+//
+// Preserves all existing handlers, save data shape, success screen, recurring popup.
+// NEW: photo capture (B-009) — base64 stored on transaction record.
+
 import { useState } from 'react';
-import { X, ChevronDown, ChevronUp, Save, AlertTriangle, CheckCircle2, Plus } from 'lucide-react';
+import {
+  X,
+  ChevronDown,
+  ChevronUp,
+  Save,
+  AlertTriangle,
+  CheckCircle2,
+  Plus,
+  Minus,
+  RotateCw,
+  Camera,
+  ArrowLeft,
+} from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import PaymentTypeChips from './PaymentTypeChips';
 import { getDueDateOptions } from '../utils/ethiopianCalendar';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
+import { compressPhoto, photoSizeBytes } from '../utils/photoCapture';
 import { db } from '../db';
 
 function handleNumericInput(e, setter) {
@@ -13,29 +49,70 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-function TransactionForm({ type, onSave, onDone, actorLabel, enabledProviders, catalogEntries = [], recurringExpenses, onRecurringChange, initialPaymentType, initialPaymentProvider, lastPaymentHistory }) {
-  const { t } = useLang();
+const QUICK_AMOUNTS = [50, 100, 200, 500, 1000];
 
-  const configs = {
-    sale:    { title: t.iSoldSomething,  itemLabel: t.whatDidYouSell,    itemPlaceholder: t.sellPlaceholder,       amountLabel: t.howMuchTotal,  buttonText: t.saveSale,    color: 'green',  addAnother: t.addAnotherSale },
-    expense: { title: t.iSpentSomething, itemLabel: t.whatDidYouSpendOn, itemPlaceholder: t.spendPlaceholder,      amountLabel: t.howMuchTotal,  buttonText: t.saveExpense, color: 'red',    addAnother: t.addAnotherExpense },
-    credit:  { title: t.recordCredit,    itemLabel: t.creditNameLabel,   itemPlaceholder: t.creditNamePlaceholder, amountLabel: t.amount,        buttonText: t.saveCredit,  color: 'amber',  addAnother: '' },
-  };
+function TransactionForm({
+  type,
+  onSave,
+  onDone,
+  actorLabel,
+  enabledProviders,
+  catalogEntries = [],
+  recurringExpenses,
+  onRecurringChange,
+  initialPaymentType,
+  initialPaymentProvider,
+  lastPaymentHistory,
+}) {
+  const { lang, t } = useLang();
 
-  const config = configs[type] || configs.sale;
+  // ─── Type config (color, header label, icon, save button text) ─────────
+  const headerLabel = {
+    sale: lang === 'am' ? '+ ሽያጭ' : '+ Sale',
+    expense: lang === 'am' ? '− ወጪ' : '− Expense',
+    credit: lang === 'am' ? '↻ ዱቤ' : '↻ Credit',
+  }[type] || (lang === 'am' ? '+ ሽያጭ' : '+ Sale');
+
+  const accentColor = {
+    sale: '#16a34a',
+    expense: '#dc2626',
+    credit: '#2563eb',
+  }[type] || '#16a34a';
+
   const isCredit = type === 'credit';
   const isExpense = type === 'expense';
-  const accent = {
-    green: { btn: '#2d6a4f', shadow: '#1B4332' },
-    red:   { btn: '#D4654A', shadow: '#a84c37' },
-    amber: { btn: '#C4883A', shadow: '#96662b' },
-  }[config.color];
 
+  const itemPlaceholder = isCredit
+    ? (lang === 'am' ? 'ለምሳሌ አበበ…' : 'e.g. Abebe...')
+    : isExpense
+      ? (lang === 'am' ? 'ለምሳሌ ትራንስፖርት፣ ኪራይ…' : 'e.g. transport, rent...')
+      : (lang === 'am' ? 'ለምሳሌ ዳቦ፣ ስኳር…' : 'e.g. bread, sugar...');
+
+  const itemLabel = isCredit
+    ? (lang === 'am' ? 'ስም' : 'NAME')
+    : (lang === 'am' ? 'ዕቃ (አማራጭ)' : 'ITEM (OPTIONAL)');
+
+  const saveButtonText = isCredit
+    ? (lang === 'am' ? 'ዱቤ አስቀምጥ' : 'Save Dubie')
+    : isExpense
+      ? (lang === 'am' ? 'ወጪ አስቀምጥ' : 'Save Expense')
+      : (lang === 'am' ? 'ሽያጭ አስቀምጥ' : 'Save Sale');
+
+  const addAnotherText = isCredit
+    ? (lang === 'am' ? 'ሌላ ዱቤ አክል' : 'Add another Dubie')
+    : isExpense
+      ? (lang === 'am' ? 'ሌላ ወጪ አክል' : 'Add another expense')
+      : (lang === 'am' ? 'ሌላ ሽያጭ አክል' : 'Add another sale');
+
+  // ─── State ──────────────────────────────────────────────────────────────
   const [item, setItem] = useState('');
   const [catalogEntryId, setCatalogEntryId] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [amount, setAmount] = useState('');
   const [costPrice, setCostPrice] = useState('');
+  const [photo, setPhoto] = useState(null);          // NEW: base64 data URL
+  const [photoError, setPhotoError] = useState(null); // NEW
+  const [photoLoading, setPhotoLoading] = useState(false); // NEW
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [phoneDigits, setPhoneDigits] = useState('');
   const [phoneTouched, setPhoneTouched] = useState(false);
@@ -47,15 +124,16 @@ function TransactionForm({ type, onSave, onDone, actorLabel, enabledProviders, c
   const [saveState, setSaveState] = useState('idle');
   const [lastSaved, setLastSaved] = useState(null);
   const [savedOffline, setSavedOffline] = useState(false);
-
   const [showAddRecurring, setShowAddRecurring] = useState(false);
   const [popupName, setPopupName] = useState('');
   const [popupAmount, setPopupAmount] = useState('');
   const [popupFreq, setPopupFreq] = useState('monthly');
   const [addRecurringHint, setAddRecurringHint] = useState(false);
 
+  // ─── Derived ────────────────────────────────────────────────────────────
   const dueDateOptions = getDueDateOptions();
-  const selectedCatalogEntry = catalogEntries.find(entry => String(entry.id) === String(catalogEntryId)) || null;
+  const selectedCatalogEntry =
+    catalogEntries.find(entry => String(entry.id) === String(catalogEntryId)) || null;
   const sellingPrice = parseFloat(parseInput(amount)) || 0;
   const cost = parseFloat(parseInput(costPrice)) || 0;
   const qty = Math.max(1, parseInt(quantity) || 1);
@@ -65,13 +143,42 @@ function TransactionForm({ type, onSave, onDone, actorLabel, enabledProviders, c
   const phoneEntered = phoneDigits.length > 0;
 
   const hasDueDate = isCredit
-    ? (selectedDue !== null && selectedDue !== undefined && selectedDue !== 'custom') || (selectedDue === 'custom' && customDue)
+    ? (selectedDue !== null && selectedDue !== undefined && selectedDue !== 'custom')
+        || (selectedDue === 'custom' && customDue)
     : true;
-  const canSave = item.trim() && sellingPrice > 0 && hasDueDate && (!phoneEntered || phoneValid);
 
+  // Item is OPTIONAL for sale/expense; REQUIRED (as customer name) for credit
+  const canSave =
+    sellingPrice > 0
+    && (isCredit ? item.trim() && hasDueDate : true)
+    && (!phoneEntered || phoneValid);
+
+  // Top catalog items (active ones) — shown as chips below item input
+  const topCatalogItems = catalogEntries
+    .filter(e => e && e.is_active !== false && e.name)
+    .slice(0, 5);
+
+  // ─── Handlers ───────────────────────────────────────────────────────────
   const getEffectiveDueDate = () => {
     if (selectedDue === 'custom' && customDue) return new Date(customDue).getTime();
     return selectedDue;
+  };
+
+  const handlePhotoCapture = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoLoading(true);
+    setPhotoError(null);
+    try {
+      const dataUrl = await compressPhoto(file);
+      setPhoto(dataUrl);
+    } catch (err) {
+      setPhotoError(err.message || 'Photo capture failed');
+    } finally {
+      setPhotoLoading(false);
+    }
+    // Reset the input so the same file can be picked again
+    e.target.value = '';
   };
 
   const handleSave = async () => {
@@ -93,6 +200,8 @@ function TransactionForm({ type, onSave, onDone, actorLabel, enabledProviders, c
       payment_type: isCredit ? null : paymentType,
       payment_provider: (!isCredit && paymentType !== 'cash') ? paymentProvider || null : null,
       direction: isCredit ? creditDirection : null,
+      photo: photo || null,                       // NEW
+      photo_taken_at: photo ? Date.now() : null,  // NEW
       created_at: Date.now(),
     };
     try {
@@ -111,15 +220,18 @@ function TransactionForm({ type, onSave, onDone, actorLabel, enabledProviders, c
 
   const handleSelectCatalogEntry = (value) => {
     setCatalogEntryId(value);
-    const entry = catalogEntries.find(item2 => String(item2.id) === String(value));
+    const entry = catalogEntries.find(it => String(it.id) === String(value));
     if (!entry) return;
     setItem(entry.name || '');
-    if (!amount && entry.default_price != null) {
-      setAmount(String(entry.default_price));
-    }
-    if (!costPrice && entry.default_cost != null) {
-      setCostPrice(String(entry.default_cost));
-    }
+    if (!amount && entry.default_price != null) setAmount(String(entry.default_price));
+    if (!costPrice && entry.default_cost != null) setCostPrice(String(entry.default_cost));
+  };
+
+  const handleQuickItem = (entry) => {
+    setCatalogEntryId(String(entry.id));
+    setItem(entry.name || '');
+    if (!amount && entry.default_price != null) setAmount(String(entry.default_price));
+    if (!costPrice && entry.default_cost != null) setCostPrice(String(entry.default_cost));
   };
 
   const openAddRecurring = (demoName = '') => {
@@ -152,6 +264,8 @@ function TransactionForm({ type, onSave, onDone, actorLabel, enabledProviders, c
     setQuantity('1');
     setAmount('');
     setCostPrice('');
+    setPhoto(null);
+    setPhotoError(null);
     setShowAdvanced(false);
     setPhoneDigits('');
     setPhoneTouched(false);
@@ -165,134 +279,172 @@ function TransactionForm({ type, onSave, onDone, actorLabel, enabledProviders, c
     setSavedOffline(false);
   };
 
+  // ─── Success screen ─────────────────────────────────────────────────────
   if (saveState === 'success') {
     return (
-      <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 animate-fade">
-        <div className="bg-white w-full max-w-md p-6 pb-10 animate-elastic" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', boxShadow: 'var(--shadow-lg)' }}>
-          <div className="text-center py-6">
-            <CheckCircle2 className="w-14 h-14 mx-auto mb-3 text-green-500" />
-            <p className="font-black text-gray-900 text-xl font-sans">{lastSaved?.item}</p>
-            <p className="text-gray-500 mt-1 text-base font-sans">{fmt(lastSaved?.amount)} {t.birrSaved}</p>
+      <div className="fixed inset-x-0 top-0 bottom-0 sm:bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col">
+        <div className="flex-1 flex items-center justify-center px-6">
+          <div className="text-center">
+            <CheckCircle2 className="w-16 h-16 mx-auto mb-3" style={{ color: '#16a34a' }} />
+            <p className="font-bold text-xl mb-1" style={{ color: '#1a1a1a' }}>{lastSaved?.item || '—'}</p>
+            <p className="text-base" style={{ color: '#6b7280' }}>
+              {fmt(lastSaved?.amount)} {lang === 'am' ? 'ብር ተቀምጧል' : 'birr saved'}
+            </p>
             {savedOffline && (
-              <p className="text-sm mt-3 font-black font-sans" style={{ color: '#1B4332' }}>
-                Saved on this phone
+              <p className="text-sm mt-3 font-bold" style={{ color: '#1B4332' }}>
+                {lang === 'am' ? 'በዚህ ስልክ ላይ ተቀምጧል' : 'Saved on this phone'}
               </p>
             )}
-            <p className="text-sm mt-3 font-medium font-sans" style={{ color: '#6b7280' }}>
-              {t.trustReopenHint || 'Close and reopen anytime — your records stay here.'}
+            <p className="text-xs mt-4" style={{ color: '#9ca3af' }}>
+              {lang === 'am'
+                ? 'በማንኛውም ጊዜ ዝጉና እንደገና ይክፈቱ — መዝገቦችዎ እዚህ ይቆያሉ።'
+                : 'Close and reopen anytime — your records stay here.'}
             </p>
           </div>
-          <div className="space-y-3">
-            <button
-              onClick={handleAddAnother}
-              className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 min-h-[56px] active:scale-95 transition-all press-scale font-sans"
-              style={{ background: accent.btn, borderRadius: 'var(--radius-md)', boxShadow: `0 4px 0 ${accent.shadow}` }}
-            >
-              <Plus className="w-5 h-5" />
-              {config.addAnother}
-            </button>
-            <button
-              onClick={onDone}
-              className="w-full p-4 font-bold text-gray-700 text-base min-h-[52px] active:scale-95 transition-all press-scale font-sans"
-              style={{ background: '#f5f5f5', borderRadius: 'var(--radius-md)' }}
-            >
-              {t.done}
-            </button>
-          </div>
+        </div>
+        <div className="px-4 pb-4 pt-2 space-y-2 border-t" style={{ borderColor: '#e8e2d8' }}>
+          <button
+            onClick={handleAddAnother}
+            className="w-full p-3 font-bold text-white text-base flex items-center justify-center gap-2 press-scale"
+            style={{ background: accentColor, borderRadius: 'var(--radius-md)' }}
+          >
+            <Plus className="w-5 h-5" />
+            {addAnotherText}
+          </button>
+          <button
+            onClick={onDone}
+            className="w-full p-3 font-bold text-base press-scale"
+            style={{ background: '#f5f5f5', color: '#374151', borderRadius: 'var(--radius-md)' }}
+          >
+            {lang === 'am' ? 'ተጠናቀቀ' : 'Done'}
+          </button>
         </div>
       </div>
     );
   }
 
+  // ─── Main form ──────────────────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 animate-fade">
-      <div className="bg-white w-full max-w-md max-h-[92vh] overflow-y-auto animate-slide-up" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', boxShadow: 'var(--shadow-lg)' }}>
+    <div
+      className="fixed inset-x-0 top-0 bottom-0 sm:bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col"
+      style={{ background: '#ffffff' }}
+    >
+      {/* Header: back arrow + type label */}
+      <div
+        className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between"
+        style={{ borderBottom: '1px solid #e8e2d8' }}
+      >
+        <button
+          onClick={onDone}
+          aria-label={lang === 'am' ? 'ተመለስ' : 'Back'}
+          className="press-scale flex items-center justify-center"
+          style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}
+        >
+          <ArrowLeft className="w-5 h-5" style={{ color: '#6b7280' }} />
+        </button>
+        <h2 className="text-base font-bold" style={{ color: accentColor }}>{headerLabel}</h2>
+        <div style={{ width: '36px' }} />
+      </div>
 
-        <div className="sticky top-0 bg-white z-10 px-6 pt-5 pb-4 border-b" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', borderColor: 'var(--color-border-light)' }}>
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-black text-gray-900 font-sans">{config.title}</h2>
-            <button onClick={onDone} aria-label={t.close}
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center press-scale">
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 pb-2 space-y-4">
+
+        {/* Actor chip */}
+        <div
+          className="px-3 py-2 text-xs font-medium"
+          style={{ background: 'rgba(196,136,58,0.08)', color: '#6b4f1d', borderRadius: 'var(--radius-sm)' }}
+        >
+          {lang === 'am'
+            ? `እንደ ${actorLabel || 'ባለቤት'} ይቀመጣል`
+            : `This record will be saved as: ${actorLabel || 'Owner'}`}
         </div>
 
-        <div className="px-6 py-4 space-y-4">
-          <div className="rounded-xl px-4 py-3 text-xs font-medium" style={{ background: '#FAF8F5', color: '#5b6470', border: '1px solid #e8e2d8' }}>
-            This record will be saved as: <span className="font-black text-gray-900">{actorLabel || 'Owner'}</span>
-          </div>
-
-          {isCredit && (
-            <div>
-              <label className="block text-gray-700 font-semibold mb-2 text-sm font-sans">{t.direction}</label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: 'owes_me', label: t.owesMe, sub: t.theyOweMe },
-                  { id: 'i_owe',   label: t.iOweLabel, sub: t.iOweThem },
-                ].map(d => (
-                  <button key={d.id} type="button" onClick={() => setCreditDirection(d.id)}
-                    className="p-3 border-2 text-center transition-all min-h-[56px] press-scale"
-                    style={{
-                      borderRadius: 'var(--radius-sm)',
-                      borderColor: creditDirection === d.id ? '#1B4332' : '#e8e2d8',
-                      background: creditDirection === d.id ? 'rgba(27,67,50,0.07)' : '#fff',
-                      color: creditDirection === d.id ? '#1B4332' : '#4b5563',
-                    }}>
-                    <div className="font-bold text-sm font-sans">{d.label}</div>
-                    <div className="text-xs opacity-70 mt-0.5 font-sans">{d.sub}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {isExpense && recurringExpenses && recurringExpenses.length > 0 && (
-            <div>
-              <label className="block text-gray-600 text-xs font-bold mb-2 uppercase tracking-wide font-sans">{t.quickFill}</label>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {recurringExpenses.map(re => (
-                  <button
-                    key={re.id}
-                    type="button"
-                    onClick={() => { setItem(re.name); setAmount(String(re.amount)); }}
-                    className="flex-shrink-0 px-3 py-2 border-2 text-xs font-bold transition-all press-scale"
-                    style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: 'var(--color-bg)', color: '#1B4332' }}
-                  >
-                    <div>{re.name}</div>
-                    <div className="font-normal mt-0.5" style={{ color: '#C4883A' }}>{fmt(re.amount)} {t.birr}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {isExpense && (!recurringExpenses || recurringExpenses.length === 0) && (
-            <div>
-              <label className="block text-gray-600 text-xs font-bold mb-2 uppercase tracking-wide font-sans">{t.demoCardSectionLabel}</label>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {['Rent', 'እቁብ'].map(demoName => (
-                  <button
-                    key={demoName}
-                    type="button"
-                    onClick={() => openAddRecurring(demoName)}
-                    className="flex-shrink-0 px-3 py-2 border-2 text-xs font-bold transition-all press-scale"
-                    style={{
-                      borderRadius: 'var(--radius-sm)',
-                      borderColor: '#c9bfa8',
-                      borderStyle: 'dashed',
-                      background: '#faf9f7',
-                      color: '#9ca3af',
-                    }}
-                  >
-                    <div>{demoName}</div>
-                    <div className="font-normal mt-0.5 text-xs" style={{ color: '#c4b89a' }}>— {t.birr}</div>
-                  </button>
-                ))}
+        {/* Credit direction picker */}
+        {isCredit && (
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'አቅጣጫ' : 'DIRECTION'}
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'owes_me', label: lang === 'am' ? 'ያበደርኩት' : 'They owe me' },
+                { id: 'i_owe',   label: lang === 'am' ? 'የተበደርኩት' : 'I owe them' },
+              ].map(d => (
                 <button
+                  key={d.id}
                   type="button"
-                  onClick={() => openAddRecurring('')}
-                  className="flex-shrink-0 px-3 py-2 border-2 text-xs font-bold transition-all press-scale flex flex-col items-center justify-center min-w-[52px]"
+                  onClick={() => setCreditDirection(d.id)}
+                  className="p-3 border-2 text-center transition-all min-h-[48px] press-scale text-sm font-bold"
+                  style={{
+                    borderRadius: 'var(--radius-md)',
+                    borderColor: creditDirection === d.id ? accentColor : '#e8e2d8',
+                    background: creditDirection === d.id ? `${accentColor}10` : '#fff',
+                    color: creditDirection === d.id ? accentColor : '#6b7280',
+                  }}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Recurring quick-fill (expense only) */}
+        {isExpense && recurringExpenses && recurringExpenses.length > 0 && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'ፈጣን ሙላ' : 'QUICK-FILL'}
+            </label>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {recurringExpenses.map(re => (
+                <button
+                  key={re.id}
+                  type="button"
+                  onClick={() => { setItem(re.name); setAmount(String(re.amount)); }}
+                  className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale"
+                  style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff', color: '#1B4332' }}
+                >
+                  <div>{re.name}</div>
+                  <div className="font-normal text-[10px]" style={{ color: '#C4883A' }}>
+                    {fmt(re.amount)} {lang === 'am' ? 'ብር' : 'birr'}
+                  </div>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => openAddRecurring('')}
+                className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale flex items-center justify-center"
+                style={{
+                  borderRadius: 'var(--radius-sm)',
+                  borderColor: '#c9bfa8',
+                  borderStyle: 'dashed',
+                  background: '#faf9f7',
+                  color: '#9ca3af',
+                  minWidth: '40px',
+                }}
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+            {addRecurringHint && (
+              <p className="text-xs mt-1.5 font-medium" style={{ color: '#C4883A' }}>
+                {lang === 'am' ? 'በቅንብሮች ውስጥ ሌሎች ተደጋጋሚ ወጪዎችን ማከል ይችላሉ' : 'You can add more recurring expenses in Settings'}
+              </p>
+            )}
+          </div>
+        )}
+        {isExpense && (!recurringExpenses || recurringExpenses.length === 0) && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'ፈጣን ሙላ' : 'QUICK-FILL (EXAMPLES)'}
+            </label>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {[lang === 'am' ? 'ኪራይ' : 'Rent', lang === 'am' ? 'እቁብ' : 'እቁብ'].map(demoName => (
+                <button
+                  key={demoName}
+                  type="button"
+                  onClick={() => openAddRecurring(demoName)}
+                  className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale"
                   style={{
                     borderRadius: 'var(--radius-sm)',
                     borderColor: '#c9bfa8',
@@ -301,266 +453,467 @@ function TransactionForm({ type, onSave, onDone, actorLabel, enabledProviders, c
                     color: '#9ca3af',
                   }}
                 >
-                  <Plus className="w-4 h-4" />
+                  {demoName}
                 </button>
-              </div>
-              {addRecurringHint && (
-                <p className="text-xs mt-1.5 font-medium font-sans" style={{ color: '#C4883A' }}>{t.addRecurringHint}</p>
-              )}
+              ))}
+              <button
+                type="button"
+                onClick={() => openAddRecurring('')}
+                className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale flex items-center justify-center"
+                style={{
+                  borderRadius: 'var(--radius-sm)',
+                  borderColor: '#c9bfa8',
+                  borderStyle: 'dashed',
+                  background: '#faf9f7',
+                  color: '#9ca3af',
+                  minWidth: '40px',
+                }}
+              >
+                <Plus className="w-4 h-4" />
+              </button>
             </div>
-          )}
+          </div>
+        )}
 
-          {isExpense && recurringExpenses && recurringExpenses.length > 0 && addRecurringHint && (
-            <p className="text-xs font-medium font-sans -mt-2" style={{ color: '#C4883A' }}>{t.addRecurringHint}</p>
-          )}
-
+        {/* Catalog dropdown (compact) */}
+        {catalogEntries.length > 0 && (
           <div>
-            {catalogEntries.length > 0 && (
-              <div className="mb-3">
-                <label className="block text-gray-700 font-semibold mb-2 text-sm font-sans">Saved item / service</label>
-                <select
-                  value={catalogEntryId}
-                  onChange={e => handleSelectCatalogEntry(e.target.value)}
-                  className="w-full p-3 border-2 focus:outline-none text-sm font-sans bg-white"
-                  style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-                >
-                  <option value="">Type manually</option>
-                  {catalogEntries.map(entry => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.name} {entry.kind === 'service' ? '• Service' : '• Item'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <label className="block text-gray-700 font-semibold mb-2 font-sans">{config.itemLabel}</label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'የተቀመጡ ዕቃዎች' : 'SAVED ITEMS'}
+            </label>
+            <select
+              value={catalogEntryId}
+              onChange={e => handleSelectCatalogEntry(e.target.value)}
+              className="w-full px-3 py-2.5 border-2 focus:outline-none text-sm bg-white"
+              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+            >
+              <option value="">{lang === 'am' ? 'በእጅ ይተይቡ' : 'Type manually'}</option>
+              {catalogEntries.map(entry => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.name} {entry.kind === 'service' ? '• Service' : '• Item'}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* AMOUNT — the hero */}
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
+            {lang === 'am' ? 'መጠን' : 'AMOUNT'}
+          </label>
+          <div className="relative">
             <input
               type="text"
-              value={item}
-              onChange={e => setItem(e.target.value)}
-              placeholder={config.itemPlaceholder}
-              className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
-              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+              inputMode="decimal"
+              autoFocus
+              value={fmtInput(amount)}
+              onChange={e => handleNumericInput(e, setAmount)}
+              placeholder="0"
+              className="w-full py-3 pr-20 text-3xl sm:text-4xl font-bold text-center focus:outline-none"
+              style={{
+                borderBottom: `2px solid ${amount ? accentColor : '#e8e2d8'}`,
+                background: 'transparent',
+                color: amount ? accentColor : '#9ca3af',
+              }}
             />
+            <span
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-base sm:text-lg font-semibold"
+              style={{ color: '#9ca3af' }}
+            >
+              {lang === 'am' ? 'ብር' : 'birr'}
+            </span>
           </div>
 
-          {!isCredit && (
-            <div>
-              <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.howMany}</label>
-              <input
-                type="number"
-                inputMode="numeric"
-                value={quantity}
-                onChange={e => {
-                  const raw = e.target.value;
-                  if (raw === '') { setQuantity(''); return; }
-                  const v = parseInt(raw);
-                  if (!isNaN(v) && v >= 1) setQuantity(String(v));
+          {/* Quick-pick amount chips */}
+          <div className="flex gap-1.5 mt-3 overflow-x-auto pb-1">
+            {QUICK_AMOUNTS.map(amt => (
+              <button
+                key={amt}
+                type="button"
+                onClick={() => setAmount(String(amt))}
+                className="flex-shrink-0 px-3 py-1.5 text-xs font-bold border press-scale"
+                style={{
+                  borderColor: '#e8e2d8',
+                  borderRadius: 'var(--radius-sm)',
+                  background: '#fff',
+                  color: '#374151',
+                  minWidth: '52px',
                 }}
-                onBlur={e => {
-                  const v = parseInt(e.target.value);
-                  setQuantity(isNaN(v) || v < 1 ? '1' : String(v));
-                }}
-                min="1"
-                className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2 font-sans">{config.amountLabel}</label>
-            <div className="relative">
-              <input
-                type="text"
-                inputMode="decimal"
-                value={fmtInput(amount)}
-                onChange={e => handleNumericInput(e, setAmount)}
-                placeholder="0"
-                className="w-full p-4 pr-16 border-2 focus:outline-none text-base min-h-[52px] font-sans"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
-            </div>
+              >
+                {amt >= 1000 ? `${amt / 1000}K` : amt}
+              </button>
+            ))}
           </div>
+        </div>
 
-          {isCredit && (
-            <div>
-              <label className="block text-gray-700 font-semibold mb-2 font-sans">
-                {t.phoneOptional} <span className="text-gray-400 font-normal text-sm">{t.phoneOptionalHint}</span>
-              </label>
-              <div className="flex gap-0">
-                <div
-                  className="flex items-center justify-center px-3 py-3 border-2 border-r-0 text-sm font-bold flex-shrink-0 font-sans"
-                  style={{ background: 'rgba(27,67,50,0.06)', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : '#e8e2d8', color: '#1B4332', minWidth: '64px', borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)' }}
-                >
-                  +251
-                </div>
+        {/* ITEM / NAME + photo button (side by side) */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+              {itemLabel}
+            </label>
+
+            {/* Photo button — visible by default. Sale/expense only. */}
+            {!isCredit && (
+              <label
+                className="cursor-pointer press-scale flex items-center justify-center"
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  border: '1.5px solid #e8e2d8',
+                  borderRadius: 'var(--radius-sm)',
+                  background: photo ? '#f0fdf4' : '#fff',
+                }}
+                aria-label={lang === 'am' ? 'ፎቶ ያንሱ' : 'Take photo'}
+              >
                 <input
-                  type="tel"
-                  inputMode="numeric"
-                  value={phoneDigits}
-                  onChange={e => {
-                    const raw = e.target.value.replace(/\D/g, '');
-                    if (raw.length <= 9) setPhoneDigits(raw);
-                  }}
-                  onBlur={() => setPhoneTouched(true)}
-                  placeholder="9XXXXXXXX"
-                  maxLength={9}
-                  className="flex-1 p-4 border-2 text-base focus:outline-none min-h-[52px] font-sans"
-                  style={{ borderRadius: '0 var(--radius-sm) var(--radius-sm) 0', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : (phoneEntered && phoneValid ? '#1B4332' : '#e8e2d8') }}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhotoCapture}
+                  className="hidden"
+                  disabled={photoLoading}
                 />
+                {photoLoading
+                  ? <span className="text-xs">…</span>
+                  : photo
+                    ? <CheckCircle2 className="w-5 h-5" style={{ color: '#16a34a' }} />
+                    : <Camera className="w-5 h-5" style={{ color: '#6b7280' }} />
+                }
+              </label>
+            )}
+          </div>
+
+          <input
+            type="text"
+            value={item}
+            onChange={e => setItem(e.target.value)}
+            placeholder={itemPlaceholder}
+            className="w-full p-3 border-2 focus:outline-none text-base"
+            style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+          />
+
+          {photoError && (
+            <p className="text-xs mt-1 font-medium" style={{ color: '#dc2626' }}>
+              {photoError}
+            </p>
+          )}
+
+          {/* Photo preview */}
+          {photo && (
+            <div className="mt-2 flex items-center gap-2 p-2" style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
+              <img src={photo} alt="" className="w-12 h-12 object-cover" style={{ borderRadius: '6px' }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold" style={{ color: '#1a1a1a' }}>
+                  {lang === 'am' ? 'ፎቶ ተጨምሯል' : 'Photo attached'}
+                </p>
+                <p className="text-[10px]" style={{ color: '#9ca3af' }}>
+                  {Math.round(photoSizeBytes(photo) / 1024)} KB
+                </p>
               </div>
-              {phoneTouched && phoneEntered && !phoneValid && (
-                <p className="text-xs text-red-500 mt-1 font-medium font-sans">{t.creditPhoneHint}</p>
-              )}
-              {!phoneTouched && (
-                <p className="text-xs text-gray-400 mt-1 font-sans">{t.creditPhoneHint}</p>
-              )}
+              <button
+                onClick={() => setPhoto(null)}
+                className="press-scale flex items-center justify-center"
+                style={{ minWidth: '32px', minHeight: '32px' }}
+                aria-label={lang === 'am' ? 'ፎቶ አስወግድ' : 'Remove photo'}
+              >
+                <X className="w-4 h-4" style={{ color: '#6b7280' }} />
+              </button>
             </div>
           )}
 
-          {isCredit && (
-            <div>
-              <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.whenDue} <span className="text-red-500">*</span></label>
-              <div className="grid grid-cols-3 gap-2 mb-2">
-                {dueDateOptions.map(opt => (
-                  <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)}
-                    className="p-3 border-2 text-sm font-medium transition-colors min-h-[52px] press-scale font-sans"
+          {/* Quick item chips from catalog */}
+          {!isCredit && topCatalogItems.length > 0 && (
+            <div className="mt-2">
+              <p className="text-[10px] font-medium mb-1" style={{ color: '#6b7280' }}>
+                {lang === 'am' ? 'ፈጣን ዕቃዎች:' : 'Quick items:'}
+              </p>
+              <div className="flex gap-1.5 overflow-x-auto pb-1">
+                {topCatalogItems.map(entry => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => handleQuickItem(entry)}
+                    className="flex-shrink-0 px-3 py-1.5 text-xs font-bold border press-scale"
                     style={{
+                      borderColor: '#e8e2d8',
                       borderRadius: 'var(--radius-sm)',
-                      borderColor: selectedDue === opt.value ? '#1B4332' : '#e8e2d8',
-                      background: selectedDue === opt.value ? 'rgba(27,67,50,0.07)' : '#fff',
-                      color: selectedDue === opt.value ? '#1B4332' : '#4b5563',
-                    }}>
-                    <div className="font-bold">{opt.label.split(' ')[0]}</div>
-                    <div className="text-xs opacity-70">{opt.display}</div>
+                      background: '#fff',
+                      color: '#374151',
+                    }}
+                  >
+                    {entry.name}
                   </button>
                 ))}
               </div>
-              <button type="button" onClick={() => setSelectedDue('custom')}
-                className="w-full p-3 border-2 text-sm font-semibold transition-colors min-h-[52px] press-scale font-sans"
-                style={{
-                  borderRadius: 'var(--radius-sm)',
-                  borderColor: selectedDue === 'custom' ? '#1B4332' : '#e8e2d8',
-                  background: selectedDue === 'custom' ? 'rgba(27,67,50,0.07)' : '#fff',
-                  color: selectedDue === 'custom' ? '#1B4332' : '#4b5563',
-                }}>
-                {t.pickDate}
-              </button>
-              {!hasDueDate && (
-                <p className="text-xs mt-1.5 font-medium font-sans" style={{ color: '#C4883A' }}>{t.selectDueDate}</p>
-              )}
-              {selectedDue === 'custom' && (
-                <input type="date" value={customDue} onChange={e => setCustomDue(e.target.value)}
-                  className="w-full mt-2 p-4 border-2 focus:outline-none text-base font-sans"
-                  style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
-              )}
             </div>
           )}
+        </div>
 
-          {!isCredit && (
-            <PaymentTypeChips
-              paymentType={paymentType}
-              provider={paymentProvider}
-              onTypeChange={setPaymentType}
-              onProviderChange={setPaymentProvider}
-              enabledProviders={enabledProviders}
-              lastProviderByType={lastPaymentHistory}
+        {/* Quantity (sale/expense, not credit) */}
+        {!isCredit && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'ብዛት' : 'QUANTITY'}
+            </label>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={quantity}
+              onChange={e => {
+                const raw = e.target.value;
+                if (raw === '') { setQuantity(''); return; }
+                const v = parseInt(raw);
+                if (!isNaN(v) && v >= 1) setQuantity(String(v));
+              }}
+              onBlur={e => {
+                const v = parseInt(e.target.value);
+                setQuantity(isNaN(v) || v < 1 ? '1' : String(v));
+              }}
+              min="1"
+              className="w-full p-3 border-2 focus:outline-none text-base"
+              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
             />
-          )}
+          </div>
+        )}
 
-          {!isCredit && (
-            <div>
-              <button type="button" onClick={() => setShowAdvanced(v => !v)}
-                className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[44px] font-sans"
-                style={{ color: '#C4883A' }}>
-                {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                {t.advancedOptional}
-              </button>
-
-              {showAdvanced && (
-                <div className="mt-2 p-4 border animate-slide-up" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)' }}>
-                  <label className="block text-gray-600 text-sm font-semibold mb-2 font-sans">
-                    {t.whatDidYouPay} <span style={{ color: '#9ca3af' }}>{t.perUnit}</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={fmtInput(costPrice)}
-                      onChange={e => handleNumericInput(e, setCostPrice)}
-                      placeholder="0"
-                      className="w-full p-4 pr-16 border-2 focus:outline-none text-base min-h-[52px] font-sans"
-                      style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
-                  </div>
-                  <p className="text-xs mt-2 font-sans" style={{ color: '#9ca3af' }}>{t.helpsSeeProfit}</p>
-
-                  {belowCost && (
-                    <div className="mt-3 flex items-start gap-2 p-3" style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)' }}>
-                      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#d97706' }} />
-                      <p className="text-xs font-sans" style={{ color: '#92400e' }}>{t.sellingBelowCost}</p>
-                    </div>
-                  )}
-                  {cost > 0 && !belowCost && sellingPrice > 0 && (
-                    <div className="mt-3 p-3 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', borderRadius: 'var(--radius-sm)' }}>
-                      <p className="text-xs text-green-700 font-semibold font-sans">
-                        {t.profitOnSale} {fmt(sellingPrice - cost * qty)} {t.birr}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+        {/* Phone (credit) */}
+        {isCredit && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'ስልክ (አማራጭ)' : 'PHONE (OPTIONAL)'}
+            </label>
+            <div className="flex gap-0">
+              <div
+                className="flex items-center justify-center px-3 py-3 border-2 border-r-0 text-sm font-bold flex-shrink-0"
+                style={{
+                  background: 'rgba(27,67,50,0.06)',
+                  borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : '#e8e2d8',
+                  color: '#1B4332',
+                  minWidth: '60px',
+                  borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)',
+                }}
+              >
+                +251
+              </div>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={phoneDigits}
+                onChange={e => {
+                  const raw = e.target.value.replace(/\D/g, '');
+                  if (raw.length <= 9) setPhoneDigits(raw);
+                }}
+                onBlur={() => setPhoneTouched(true)}
+                placeholder="9XXXXXXXX"
+                maxLength={9}
+                className="flex-1 p-3 border-2 text-base focus:outline-none"
+                style={{
+                  borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
+                  borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : (phoneEntered && phoneValid ? '#1B4332' : '#e8e2d8'),
+                }}
+              />
             </div>
-          )}
-        </div>
+            {phoneTouched && phoneEntered && !phoneValid && (
+              <p className="text-xs text-red-500 mt-1 font-medium">
+                {lang === 'am' ? '9 አሃዞች፣ ከ7 ወይም 9 ይጀምሩ' : '9 digits starting with 7 or 9'}
+              </p>
+            )}
+          </div>
+        )}
 
-        <div className="px-6 pb-8 pt-2">
-          <button onClick={handleSave} disabled={!canSave}
-            className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 transition-all min-h-[56px] active:scale-95 press-scale font-sans"
-            style={{
-              background: canSave ? accent.btn : '#e5e7eb',
-              color: canSave ? '#fff' : '#9ca3af',
-              cursor: canSave ? 'pointer' : 'not-allowed',
-              borderRadius: 'var(--radius-md)',
-              boxShadow: canSave ? `0 4px 0 ${accent.shadow}, var(--shadow-sm)` : 'none',
-            }}>
-            <Save className="w-5 h-5" />
-            {config.buttonText}
-          </button>
-        </div>
+        {/* Due date (credit) */}
+        {isCredit && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'መቼ ይከፍላል?' : 'WHEN IS IT DUE?'} <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {dueDateOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setSelectedDue(opt.value)}
+                  className="p-2.5 border-2 text-xs font-bold transition-all min-h-[48px] press-scale"
+                  style={{
+                    borderRadius: 'var(--radius-sm)',
+                    borderColor: selectedDue === opt.value ? accentColor : '#e8e2d8',
+                    background: selectedDue === opt.value ? `${accentColor}10` : '#fff',
+                    color: selectedDue === opt.value ? accentColor : '#374151',
+                  }}
+                >
+                  <div className="font-bold">{opt.label.split(' ')[0]}</div>
+                  <div className="text-[10px] opacity-70">{opt.display}</div>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedDue('custom')}
+              className="w-full p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale"
+              style={{
+                borderRadius: 'var(--radius-sm)',
+                borderColor: selectedDue === 'custom' ? accentColor : '#e8e2d8',
+                background: selectedDue === 'custom' ? `${accentColor}10` : '#fff',
+                color: selectedDue === 'custom' ? accentColor : '#374151',
+              }}
+            >
+              {lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date'}
+            </button>
+            {!hasDueDate && (
+              <p className="text-xs mt-1.5 font-medium" style={{ color: '#C4883A' }}>
+                {lang === 'am' ? 'የመክፍያ ቀን ይምረጡ' : 'Please select a due date'}
+              </p>
+            )}
+            {selectedDue === 'custom' && (
+              <input
+                type="date"
+                value={customDue}
+                onChange={e => setCustomDue(e.target.value)}
+                className="w-full mt-2 p-3 border-2 focus:outline-none text-base"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+              />
+            )}
+          </div>
+        )}
+
+        {/* Payment chips (sale/expense only) */}
+        {!isCredit && (
+          <PaymentTypeChips
+            paymentType={paymentType}
+            provider={paymentProvider}
+            onTypeChange={setPaymentType}
+            onProviderChange={setPaymentProvider}
+            enabledProviders={enabledProviders}
+            lastProviderByType={lastPaymentHistory}
+          />
+        )}
+
+        {/* Advanced cost price toggle (sale/expense) */}
+        {!isCredit && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(v => !v)}
+              className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[36px]"
+              style={{ color: '#C4883A' }}
+            >
+              {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {lang === 'am' ? 'ተጨማሪ (አማራጭ)' : 'Advanced (optional)'}
+            </button>
+
+            {showAdvanced && (
+              <div
+                className="mt-2 p-3 border"
+                style={{ background: 'var(--color-bg)', borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)' }}
+              >
+                <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>
+                  {lang === 'am' ? 'ለዚህ ምን ከፈሉ?' : 'What did you pay for this?'}{' '}
+                  <span style={{ color: '#9ca3af' }}>{lang === 'am' ? '(በአንድ)' : '(per unit)'}</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={fmtInput(costPrice)}
+                    onChange={e => handleNumericInput(e, setCostPrice)}
+                    placeholder="0"
+                    className="w-full p-3 pr-14 border-2 focus:outline-none text-base"
+                    style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: '#9ca3af' }}>
+                    {lang === 'am' ? 'ብር' : 'birr'}
+                  </span>
+                </div>
+                <p className="text-xs mt-1.5" style={{ color: '#9ca3af' }}>
+                  {lang === 'am' ? 'አማራጭ — ትክክለኛውን ትርፍ ለማየት ይረዳል' : 'Optional — helps you see your true profit'}
+                </p>
+
+                {belowCost && (
+                  <div className="mt-2 flex items-start gap-2 p-2.5" style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)' }}>
+                    <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#d97706' }} />
+                    <p className="text-xs" style={{ color: '#92400e' }}>
+                      {lang === 'am' ? 'ከዋጋ በታች እየሸጡ ነው።' : 'You are selling below cost.'}
+                    </p>
+                  </div>
+                )}
+                {cost > 0 && !belowCost && sellingPrice > 0 && (
+                  <div className="mt-2 p-2.5 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', borderRadius: 'var(--radius-sm)' }}>
+                    <p className="text-xs font-semibold" style={{ color: '#166534' }}>
+                      {lang === 'am' ? 'በዚህ ሽያጭ ትርፍ:' : 'Profit on this sale:'}{' '}
+                      {fmt(sellingPrice - cost * qty)} {lang === 'am' ? 'ብር' : 'birr'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* Sticky save button */}
+      <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid #e8e2d8' }}>
+        <button
+          onClick={handleSave}
+          disabled={!canSave}
+          className="w-full p-3 font-bold text-white text-base flex items-center justify-center gap-2 transition-all press-scale"
+          style={{
+            background: canSave ? accentColor : '#e5e7eb',
+            color: canSave ? '#fff' : '#9ca3af',
+            cursor: canSave ? 'pointer' : 'not-allowed',
+            borderRadius: 'var(--radius-md)',
+          }}
+        >
+          <Save className="w-5 h-5" />
+          {saveButtonText}
+        </button>
+      </div>
+
+      {/* Recurring expense popup */}
       {showAddRecurring && (
-        <div className="fixed inset-0 flex items-end sm:items-center justify-center" style={{ zIndex: 60, background: 'rgba(0,0,0,0.4)' }}>
-          <div className="bg-white w-full max-w-md p-6 animate-slide-up" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', boxShadow: 'var(--shadow-lg)' }}>
+        <div
+          className="fixed inset-0 flex items-end sm:items-center justify-center"
+          style={{ zIndex: 60, background: 'rgba(0,0,0,0.4)' }}
+        >
+          <div
+            className="bg-white w-full max-w-md p-5 sm:p-6"
+            style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0' }}
+          >
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-black text-gray-900 font-sans">{t.addRecurring}</h3>
-              <button onClick={() => setShowAddRecurring(false)} aria-label={t.close}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center press-scale">
-                <X className="w-4 h-4 text-gray-500" />
+              <h3 className="text-base font-bold" style={{ color: '#1a1a1a' }}>
+                {lang === 'am' ? 'ተደጋጋሚ ወጪ አክል' : 'Add recurring expense'}
+              </h3>
+              <button
+                onClick={() => setShowAddRecurring(false)}
+                className="press-scale flex items-center justify-center"
+                style={{ minWidth: '36px', minHeight: '36px' }}
+                aria-label={lang === 'am' ? 'ዝጋ' : 'Close'}
+              >
+                <X className="w-4 h-4" style={{ color: '#6b7280' }} />
               </button>
             </div>
-
-            <p className="text-xs text-gray-500 mb-4 font-sans">{t.addRecurringPopupGuide}</p>
-
+            <p className="text-xs mb-4" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'ይህን ወጪ ለሚቀጥሉ ጊዜያት አስቀምጥ' : 'Save this as a recurring expense to reuse it anytime'}
+            </p>
             <div className="space-y-3">
               <div>
-                <label className="block text-gray-700 font-semibold mb-1 text-sm font-sans">{t.whatDidYouSpendOn}</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>
+                  {lang === 'am' ? 'ምን ላይ ወጪ?' : 'What did you spend on?'}
+                </label>
                 <input
                   type="text"
                   value={popupName}
                   onChange={e => setPopupName(e.target.value)}
-                  placeholder={t.spendPlaceholder}
-                  className="w-full p-3 border-2 focus:outline-none text-sm font-sans"
+                  placeholder={lang === 'am' ? 'ለምሳሌ ትራንስፖርት፣ ኪራይ…' : 'e.g. transport, rent...'}
+                  className="w-full p-2.5 border-2 focus:outline-none text-sm"
                   style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
                 />
               </div>
-
               <div>
-                <label className="block text-gray-700 font-semibold mb-1 text-sm font-sans">{t.howMuchTotal}</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>
+                  {lang === 'am' ? 'ጠቅላላ ስንት?' : 'How much total?'}
+                </label>
                 <div className="relative">
                   <input
                     type="text"
@@ -568,50 +921,55 @@ function TransactionForm({ type, onSave, onDone, actorLabel, enabledProviders, c
                     value={fmtInput(popupAmount)}
                     onChange={e => handleNumericInput(e, setPopupAmount)}
                     placeholder="0"
-                    className="w-full p-3 pr-14 border-2 focus:outline-none text-sm font-sans"
+                    className="w-full p-2.5 pr-12 border-2 focus:outline-none text-sm"
                     style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium font-sans">{t.birr}</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: '#9ca3af' }}>
+                    {lang === 'am' ? 'ብር' : 'birr'}
+                  </span>
                 </div>
               </div>
-
               <div>
-                <label className="block text-gray-700 font-semibold mb-1 text-sm font-sans">{t.frequency}</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>
+                  {lang === 'am' ? 'ድግግሞሽ' : 'Frequency'}
+                </label>
                 <div className="flex gap-2">
                   {[
-                    { id: 'daily',   label: t.daily },
-                    { id: 'weekly',  label: t.weekly },
-                    { id: 'monthly', label: t.monthly },
+                    { id: 'daily',   label: lang === 'am' ? 'ዕለታዊ' : 'Daily' },
+                    { id: 'weekly',  label: lang === 'am' ? 'ሳምንታዊ' : 'Weekly' },
+                    { id: 'monthly', label: lang === 'am' ? 'ወርሃዊ' : 'Monthly' },
                   ].map(f => (
-                    <button key={f.id} type="button"
+                    <button
+                      key={f.id}
+                      type="button"
                       onClick={() => setPopupFreq(f.id)}
-                      className="flex-1 py-2 text-xs font-bold border-2 transition-all press-scale font-sans"
+                      className="flex-1 py-2 text-xs font-bold border-2 press-scale"
                       style={{
                         borderRadius: 'var(--radius-sm)',
                         borderColor: popupFreq === f.id ? '#D4654A' : '#e8e2d8',
                         background: popupFreq === f.id ? 'rgba(212,101,74,0.08)' : '#fff',
                         color: popupFreq === f.id ? '#D4654A' : '#6b7280',
-                      }}>
+                      }}
+                    >
                       {f.label}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
-
             <button
               onClick={handleAddAndUse}
               disabled={!popupName.trim() || !parseFloat(parseInput(popupAmount))}
-              className="w-full mt-5 p-4 font-black text-base flex items-center justify-center gap-2 transition-all min-h-[52px] press-scale font-sans"
+              className="w-full mt-4 p-3 font-bold text-base flex items-center justify-center gap-2 press-scale"
               style={{
                 borderRadius: 'var(--radius-md)',
                 background: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#D4654A' : '#e5e7eb',
                 color: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#fff' : '#9ca3af',
                 cursor: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? 'pointer' : 'not-allowed',
-                boxShadow: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '0 4px 0 #a84c37' : 'none',
-              }}>
+              }}
+            >
               <Plus className="w-5 h-5" />
-              {t.addAndUse}
+              {lang === 'am' ? 'አስቀምጥ እና ተጠቀም' : 'Add & Use'}
             </button>
           </div>
         </div>
