@@ -118,6 +118,43 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
 
         <div className="px-6 py-4 space-y-4">
 
+          {/* Multi-item breakdown — read-only display when transaction has items[] */}
+          {Array.isArray(transaction.items) && transaction.items.length > 0 && (() => {
+            const sum = transaction.items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+            const delta = (Number(transaction.amount) || 0) - sum;
+            const accentBdColor = type === 'expense' ? '#dc2626' : type === 'credit' ? '#2563eb' : '#16a34a';
+            return (
+              <div className="p-3" style={{ background: 'rgba(27,67,50,0.04)', borderRadius: 'var(--radius-md)', border: '1px solid #e8e2d8' }}>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
+                  🧺 {transaction.items.length} {transaction.items.length === 1 ? 'item' : 'items'}
+                </p>
+                <div className="space-y-1.5">
+                  {transaction.items.map((it, i) => (
+                    <div key={i} className="flex justify-between items-baseline text-sm">
+                      <span className="truncate min-w-0" style={{ color: '#374151' }}>• {it.name}</span>
+                      <span className="font-semibold flex-shrink-0 ml-2" style={{ color: accentBdColor }}>
+                        {fmt(it.amount || 0)} {t.birr || 'birr'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-between items-baseline mt-2 pt-2 text-xs" style={{ borderTop: '1px solid #e8e2d8' }}>
+                  <span style={{ color: '#6b7280' }}>Items total</span>
+                  <span className="font-bold" style={{ color: '#1a1a1a' }}>{fmt(sum)} {t.birr || 'birr'}</span>
+                </div>
+                {Math.abs(delta) > 0.01 && (
+                  <div className="flex justify-between items-baseline mt-1 text-xs" style={{ color: '#C4883A' }}>
+                    <span>{delta > 0 ? 'Unaccounted' : 'Excess'}</span>
+                    <span className="font-semibold">{fmt(Math.abs(delta))} {t.birr || 'birr'}</span>
+                  </div>
+                )}
+                <p className="text-[10px] mt-2" style={{ color: '#9ca3af' }}>
+                  Editing keeps the breakdown unchanged. To change items, delete and re-enter.
+                </p>
+              </div>
+            );
+          })()}
+
           {isCredit && (
             <div>
               <label className="block text-gray-700 font-semibold mb-2 text-sm font-sans">{t.direction}</label>

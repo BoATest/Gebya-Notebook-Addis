@@ -252,41 +252,96 @@ function StatsSummary({ transactions }) {
   );
 }
 
-function TxRow({ tx, onEdit, t }) {
+function TxRow({ tx, onEdit, t, lang }) {
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const hasBreakdown = Array.isArray(tx.items) && tx.items.length > 0;
+  const amountColor = typeColor[tx.type];
+
   return (
-    <button
-      onClick={() => onEdit(tx)}
-      className="w-full px-4 py-3 flex justify-between items-center text-left transition-colors press-scale"
-      style={{ background: 'transparent' }}
-    >
-      <div className="flex items-center gap-2.5 min-w-0">
-        <span className="text-base flex-shrink-0">{typeIcon[tx.type]}</span>
-        <div className="min-w-0">
-          <span className="font-medium text-gray-800 text-sm truncate block">{tx.item_name}</span>
-          {tx.quantity > 1 && <span className="text-xs text-gray-400">×{tx.quantity}</span>}
-          {tx.customer_name && <p className="text-xs text-gray-400">{tx.customer_name}</p>}
-          {tx.actor_name_snapshot && <p className="text-xs text-gray-500">Entered by {tx.actor_name_snapshot}</p>}
-          {tx.updated_at && <p className="text-xs" style={{ color: '#C4883A' }}>{t.edited}</p>}
-        </div>
+    <div className="w-full px-4 py-3" style={{ background: 'transparent' }}>
+      <div className="flex justify-between items-center gap-2">
+        <button
+          onClick={() => onEdit(tx)}
+          className="flex-1 flex items-center gap-2.5 min-w-0 text-left press-scale"
+        >
+          <span className="text-base flex-shrink-0">{typeIcon[tx.type]}</span>
+          <div className="min-w-0">
+            <span className="font-medium text-gray-800 text-sm truncate block">{tx.item_name}</span>
+            {tx.quantity > 1 && <span className="text-xs text-gray-400">×{tx.quantity}</span>}
+            {tx.customer_name && <p className="text-xs text-gray-400">{tx.customer_name}</p>}
+            {tx.actor_name_snapshot && <p className="text-xs text-gray-500">Entered by {tx.actor_name_snapshot}</p>}
+            {tx.updated_at && <p className="text-xs" style={{ color: '#C4883A' }}>{t.edited}</p>}
+          </div>
+        </button>
+        {hasBreakdown && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setBreakdownOpen(v => !v); }}
+            className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-bold border press-scale flex items-center gap-0.5"
+            style={{
+              borderColor: breakdownOpen ? '#1B4332' : '#e8e2d8',
+              borderRadius: '999px',
+              background: breakdownOpen ? 'rgba(27,67,50,0.08)' : '#fff',
+              color: breakdownOpen ? '#1B4332' : '#6b7280',
+            }}
+            aria-label="Show items"
+          >
+            🧺{tx.items.length}
+            {breakdownOpen
+              ? <ChevronUp className="w-3 h-3" />
+              : <ChevronDown className="w-3 h-3" />
+            }
+          </button>
+        )}
+        <button
+          onClick={() => onEdit(tx)}
+          className="flex items-center gap-1 flex-shrink-0 ml-2 press-scale"
+        >
+          <div className="text-right">
+            <span className="font-semibold text-sm" style={{ color: amountColor }}>
+              {tx.type === 'expense' ? '-' : ''}{fmt(tx.amount || 0)}
+            </span>
+            {tx.profit !== null && tx.profit !== undefined && (
+              <p className={`text-xs ${tx.profit >= 0 ? 'text-green-600' : 'text-red-400'}`}>
+                {tx.profit >= 0 ? '+' : ''}{fmt(tx.profit)} {t.profit}
+              </p>
+            )}
+          </div>
+          <Pencil className="w-3.5 h-3.5 text-gray-300" />
+        </button>
       </div>
-      <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-        <div className="text-right">
-          <span className="font-semibold text-sm" style={{ color: typeColor[tx.type] }}>
-            {tx.type === 'expense' ? '-' : ''}{fmt(tx.amount || 0)}
-          </span>
-          {tx.profit !== null && tx.profit !== undefined && (
-            <p className={`text-xs ${tx.profit >= 0 ? 'text-green-600' : 'text-red-400'}`}>
-              {tx.profit >= 0 ? '+' : ''}{fmt(tx.profit)} {t.profit}
-            </p>
-          )}
+
+      {hasBreakdown && breakdownOpen && (
+        <div
+          className="mt-2 ml-7 pl-3 py-1.5 space-y-1"
+          style={{ borderLeft: '2px solid rgba(27,67,50,0.15)' }}
+        >
+          {tx.items.map((it, i) => (
+            <div key={i} className="flex justify-between items-baseline text-xs">
+              <span className="truncate min-w-0" style={{ color: '#374151' }}>• {it.name}</span>
+              <span className="font-semibold flex-shrink-0 ml-2" style={{ color: amountColor }}>
+                {fmt(it.amount || 0)} {lang === 'am' ? 'ብር' : 'birr'}
+              </span>
+            </div>
+          ))}
+          {(() => {
+            const sum = tx.items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+            const delta = (Number(tx.amount) || 0) - sum;
+            if (Math.abs(delta) < 0.01) return null;
+            return (
+              <div className="flex justify-between items-baseline text-[10px] pt-1 mt-1" style={{ borderTop: '1px dashed rgba(0,0,0,0.08)', color: '#C4883A' }}>
+                <span>{delta > 0 ? (lang === 'am' ? 'ቀሪ' : 'Unaccounted') : (lang === 'am' ? 'በላይ' : 'Excess')}</span>
+                <span className="font-semibold">{fmt(Math.abs(delta))} {lang === 'am' ? 'ብር' : 'birr'}</span>
+              </div>
+            );
+          })()}
         </div>
-        <Pencil className="w-3.5 h-3.5 text-gray-300" />
-      </div>
-    </button>
+      )}
+    </div>
   );
 }
 
-function DayGroupList({ groups, onEdit, expandedGroups, toggleGroup, t }) {
+function DayGroupList({ groups, onEdit, expandedGroups, toggleGroup, t, lang }) {
   return (
     <div className="space-y-3">
       {groups.map(group => {
@@ -335,7 +390,7 @@ function DayGroupList({ groups, onEdit, expandedGroups, toggleGroup, t }) {
             {expanded && (
               <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
                 {group.transactions.map(tx => (
-                  <TxRow key={tx.id} tx={tx} onEdit={onEdit} t={t} />
+                  <TxRow key={tx.id} tx={tx} onEdit={onEdit} t={t} lang={lang} />
                 ))}
               </div>
             )}
@@ -346,7 +401,7 @@ function DayGroupList({ groups, onEdit, expandedGroups, toggleGroup, t }) {
   );
 }
 
-function WeekGroupList({ groups, onEdit, expandedGroups, toggleGroup, t }) {
+function WeekGroupList({ groups, onEdit, expandedGroups, toggleGroup, t, lang }) {
   return (
     <div className="space-y-3">
       {groups.map(group => {
@@ -383,7 +438,7 @@ function WeekGroupList({ groups, onEdit, expandedGroups, toggleGroup, t }) {
             {expanded && (
               <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
                 {group.transactions.map(tx => (
-                  <TxRow key={tx.id} tx={tx} onEdit={onEdit} t={t} />
+                  <TxRow key={tx.id} tx={tx} onEdit={onEdit} t={t} lang={lang} />
                 ))}
               </div>
             )}
@@ -451,7 +506,7 @@ function ActorAuditSummary({ rows, t }) {
 }
 
 function HistoryView({ transactions, onEdit }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [period, setPeriod] = useState('day');
   const [grouping, setGrouping] = useState('day');
   const [expandedGroups, setExpandedGroups] = useState({});
@@ -595,6 +650,7 @@ function HistoryView({ transactions, onEdit }) {
               expandedGroups={expandedGroups}
               toggleGroup={toggleGroup}
               t={t}
+              lang={lang}
             />
           ) : (
             <WeekGroupList
@@ -603,6 +659,7 @@ function HistoryView({ transactions, onEdit }) {
               expandedGroups={expandedGroups}
               toggleGroup={toggleGroup}
               t={t}
+              lang={lang}
             />
           )}
         </>

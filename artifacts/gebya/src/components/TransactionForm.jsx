@@ -48,7 +48,7 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-const QUICK_AMOUNTS = [50, 100, 200, 500, 1000];
+const DEFAULT_QUICK_AMOUNTS = [50, 100, 200, 500, 1000];
 
 function TransactionForm({
   type,
@@ -60,6 +60,8 @@ function TransactionForm({
   recurringExpenses,
   onRecurringChange,
   onSaveCatalogEntry,
+  customQuickAmounts = [],
+  onCustomQuickAmountsChange,
   initialPaymentType,
   initialPaymentProvider,
   lastPaymentHistory,
@@ -284,6 +286,10 @@ function TransactionForm({
     if (!val || val <= 0) return;
     const current = parseFloat(parseInput(amount)) || 0;
     setAmount(String(current + val));
+    // Persist the new chip so it's tappable next time
+    if (onCustomQuickAmountsChange && !DEFAULT_QUICK_AMOUNTS.includes(val)) {
+      onCustomQuickAmountsChange([...customQuickAmounts, val]);
+    }
     setCustomAmountValue('');
     setShowCustomAmount(false);
   };
@@ -547,28 +553,43 @@ function TransactionForm({
             </span>
           </div>
 
-          {/* Quick-pick amount chips — ADDITIVE: tap to add to current amount */}
+          {/* Quick-pick amount chips — ADDITIVE: tap to add to current amount.
+              Defaults + persisted user customs, sorted ascending. Full numbers (e.g. 1000 not 1K). */}
           <div className="flex gap-1.5 mt-3 overflow-x-auto pb-1 items-center">
-            {QUICK_AMOUNTS.map(amt => (
-              <button
-                key={amt}
-                type="button"
-                onClick={() => {
-                  const current = parseFloat(parseInput(amount)) || 0;
-                  setAmount(String(current + amt));
-                }}
-                className="flex-shrink-0 px-3 py-1.5 text-xs font-bold border press-scale"
-                style={{
-                  borderColor: '#e8e2d8',
-                  borderRadius: 'var(--radius-sm)',
-                  background: '#fff',
-                  color: '#374151',
-                  minWidth: '52px',
-                }}
-              >
-                +{amt >= 1000 ? `${amt / 1000}K` : amt}
-              </button>
-            ))}
+            {Array.from(new Set([...DEFAULT_QUICK_AMOUNTS, ...customQuickAmounts]))
+              .filter(n => typeof n === 'number' && n > 0)
+              .sort((a, b) => a - b)
+              .map(amt => {
+                const isCustom = !DEFAULT_QUICK_AMOUNTS.includes(amt);
+                return (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => {
+                      const current = parseFloat(parseInput(amount)) || 0;
+                      setAmount(String(current + amt));
+                    }}
+                    onContextMenu={isCustom ? (e) => {
+                      // Long-press / right-click: remove custom chip
+                      e.preventDefault();
+                      if (onCustomQuickAmountsChange) {
+                        onCustomQuickAmountsChange(customQuickAmounts.filter(n => n !== amt));
+                      }
+                    } : undefined}
+                    className="flex-shrink-0 px-3 py-1.5 text-xs font-bold border press-scale"
+                    style={{
+                      borderColor: isCustom ? '#C4883A' : '#e8e2d8',
+                      borderRadius: 'var(--radius-sm)',
+                      background: isCustom ? 'rgba(196,136,58,0.06)' : '#fff',
+                      color: isCustom ? '#6b4f1d' : '#374151',
+                      minWidth: '52px',
+                    }}
+                    title={isCustom ? (lang === 'am' ? 'ለማስወገድ ይያዙ' : 'Long-press to remove') : undefined}
+                  >
+                    +{amt}
+                  </button>
+                );
+              })}
             {/* + custom amount toggle */}
             <button
               type="button"
