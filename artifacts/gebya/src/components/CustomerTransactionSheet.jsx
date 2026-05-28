@@ -1,5 +1,14 @@
+// CustomerTransactionSheet.jsx — v4 simplified credit/payment entry.
+//
+// Same one-handed treatment as TransactionForm:
+// - Compact header with customer name
+// - Hero amount with quick additive chips
+// - Catalog as chips (no dropdown)
+// - Optional one-line note
+// - Compact due-date pills
+// - Solid colored save button
 import { useMemo, useState } from 'react';
-import { CalendarDays, Save, X } from 'lucide-react';
+import { ArrowLeft, Save, X, Plus, CalendarDays } from 'lucide-react';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { formatEthiopian, getDueDateOptions } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from '../utils/customerTransactionTypes';
@@ -12,13 +21,24 @@ function handleNumericInput(e, setter) {
   setter(raw);
 }
 
-function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD, onSave, onDone, actorLabel, catalogEntries = [] }) {
-  const { t } = useLang();
+const DEFAULT_QUICK_AMOUNTS = [50, 100, 200, 500, 1000];
+
+function CustomerTransactionSheet({
+  customer,
+  mode = CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+  onSave,
+  onDone,
+  actorLabel,
+  catalogEntries = [],
+}) {
+  const { t, lang } = useLang();
   const [amount, setAmount] = useState('');
   const [itemNote, setItemNote] = useState('');
   const [catalogEntryId, setCatalogEntryId] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [saving, setSaving] = useState(false);
+  const [showCustomAmount, setShowCustomAmount] = useState(false);
+  const [customAmountValue, setCustomAmountValue] = useState('');
 
   const transactionType = useMemo(() => {
     if (mode === CUSTOMER_TRANSACTION_TYPES.PAYMENT) return CUSTOMER_TRANSACTION_TYPES.PAYMENT;
@@ -35,10 +55,23 @@ function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.
     : currentBalance + parsedAmount;
   const dueDateOptions = useMemo(() => getDueDateOptions(), []);
   const overPayment = isPayment && parsedAmount > currentBalance;
-  const canSave = parsedAmount > 0 && !overPayment && hasCollectableBalance;
+  const canSave = parsedAmount > 0 && !overPayment && hasCollectableBalance && !saving;
+
+  // Color accent: credit-add (amber for liability) vs payment (green for settled)
+  const accentColor = isPayment ? '#16a34a' : '#C4883A';
+  const headerLabel = isPayment
+    ? (lang === 'am' ? '− ክፍያ' : '− Payment')
+    : (lang === 'am' ? '+ ዱቤ' : '+ Credit');
+  const saveButtonText = isPayment
+    ? (lang === 'am' ? 'ክፍያ አስቀምጥ' : 'Save Payment')
+    : (lang === 'am' ? 'ዱቤ አስቀምጥ' : 'Save Credit');
+
+  const topCatalogItems = catalogEntries
+    .filter(e => e && e.active !== false && e.name)
+    .slice(0, 8);
 
   const handleSave = async () => {
-    if (!canSave || saving) return;
+    if (!canSave) return;
     if (!isValidCustomerTransactionType(transactionType)) return;
 
     setSaving(true);
@@ -58,154 +91,326 @@ function CustomerTransactionSheet({ customer, mode = CUSTOMER_TRANSACTION_TYPES.
     }
   };
 
+  const applyCustomAmount = () => {
+    const val = parseFloat(parseInput(customAmountValue));
+    if (!val || val <= 0) return;
+    const current = parseFloat(parseInput(amount)) || 0;
+    setAmount(String(current + val));
+    setCustomAmountValue('');
+    setShowCustomAmount(false);
+  };
+
+  const handleQuickItem = (entry) => {
+    setCatalogEntryId(String(entry.id));
+    if (!itemNote.trim()) setItemNote(entry.name || '');
+    if (!amount && entry.default_price != null) setAmount(String(entry.default_price));
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-50 animate-fade">
-      <div className="bg-white w-full max-w-md max-h-[92vh] overflow-y-auto animate-slide-up" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', boxShadow: 'var(--shadow-lg)' }}>
-        <div className="sticky top-0 bg-white z-10 px-6 pt-5 pb-4 border-b" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0', borderColor: 'var(--color-border-light)' }}>
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-black text-gray-900">{isPayment ? t.recordPayment : t.addCredit}</h2>
-              <p className="text-sm mt-1" style={{ color: '#6b7280' }}>{customer?.display_name || ''}</p>
-              <p className="text-xs mt-1 font-semibold" style={{ color: '#92400e' }}>
-                {t.today}: {formatEthiopian(Date.now())}
-              </p>
-            </div>
-            <button onClick={onDone} aria-label={t.close} className="p-2 rounded-full hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center press-scale">
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
+    <div
+      className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col"
+      style={{ background: '#ffffff' }}
+    >
+      {/* Header: back arrow + type label + customer name */}
+      <div
+        className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between gap-2"
+        style={{ borderBottom: '1px solid #e8e2d8' }}
+      >
+        <button
+          onClick={onDone}
+          aria-label={lang === 'am' ? 'ተመለስ' : 'Back'}
+          className="press-scale flex items-center justify-center"
+          style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}
+        >
+          <ArrowLeft className="w-5 h-5" style={{ color: '#6b7280' }} />
+        </button>
+        <div className="flex-1 min-w-0 text-center">
+          <h2 className="text-base font-bold truncate" style={{ color: accentColor }}>{headerLabel}</h2>
+          {customer?.display_name && (
+            <p className="text-[11px] truncate" style={{ color: '#6b7280' }}>{customer.display_name}</p>
+          )}
+        </div>
+        {actorLabel ? (
+          <span
+            className="text-[11px] font-semibold truncate"
+            style={{ color: '#6b4f1d', maxWidth: '80px', textAlign: 'right' }}
+            title={actorLabel}
+          >
+            {actorLabel}
+          </span>
+        ) : (
+          <div style={{ width: '36px' }} />
+        )}
+      </div>
+
+      {/* Scrollable body */}
+      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 space-y-4">
+
+        {/* Balance line — compact horizontal */}
+        <div
+          className="p-3 border flex items-center justify-between gap-2"
+          style={{
+            background: isPayment ? '#f0fdf4' : '#fffbeb',
+            borderColor: isPayment ? '#bbf7d0' : '#fde68a',
+            borderRadius: 'var(--radius-md)',
+          }}
+        >
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+              {t.previousBalance}
+            </p>
+            <p className="text-base font-bold truncate" style={{ color: '#1a1a1a' }}>
+              {fmt(currentBalance)} {t.birr}
+            </p>
+          </div>
+          <span className="flex-shrink-0" style={{ color: '#9ca3af' }}>→</span>
+          <div className="min-w-0 text-right">
+            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+              {t.updatedBalance}
+            </p>
+            <p className="text-base font-bold truncate" style={{ color: isPayment ? '#166534' : '#92400e' }}>
+              {fmt(updatedBalance)} {t.birr}
+            </p>
           </div>
         </div>
 
-        <div className="px-6 py-4 space-y-4">
-          <div className="rounded-xl px-4 py-3 text-xs font-medium" style={{ background: '#FAF8F5', color: '#5b6470', border: '1px solid #e8e2d8' }}>
-            This record will be saved as: <span className="font-black text-gray-900">{actorLabel || 'Owner'}</span>
+        {/* AMOUNT — the hero */}
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
+            {t.amount} <span style={{ color: '#dc2626' }}>*</span>
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="decimal"
+              autoFocus
+              value={fmtInput(amount)}
+              onChange={e => handleNumericInput(e, setAmount)}
+              placeholder="0"
+              className="w-full py-3 pr-20 text-3xl sm:text-4xl font-bold text-center focus:outline-none"
+              style={{
+                borderBottom: `2px solid ${amount ? accentColor : '#e8e2d8'}`,
+                background: 'transparent',
+                color: amount ? accentColor : '#9ca3af',
+              }}
+            />
+            <span
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-base sm:text-lg font-semibold"
+              style={{ color: '#9ca3af' }}
+            >
+              {t.birr}
+            </span>
           </div>
 
-          <div
-            className="p-4 border"
-            style={{ background: isPayment ? '#f0fdf4' : '#fffbeb', borderColor: isPayment ? '#bbf7d0' : '#fde68a', borderRadius: 'var(--radius-md)' }}
-          >
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#6b7280' }}>{t.previousBalance}</p>
-                <p className="text-lg font-black text-gray-900">{fmt(currentBalance)} {t.birr}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-bold uppercase tracking-wide" style={{ color: '#6b7280' }}>{t.updatedBalance}</p>
-                <p className="text-lg font-black" style={{ color: isPayment ? '#166534' : '#92400e' }}>{fmt(updatedBalance)} {t.birr}</p>
-              </div>
-            </div>
-            <p className="text-xs mt-2 font-medium" style={{ color: '#6b7280' }}>
-              {isPayment ? t.remainingBalanceHint : t.currentBalanceHint}
-            </p>
+          {/* Quick-pick amount chips — additive */}
+          <div className="flex gap-1.5 mt-3 overflow-x-auto pb-1 items-center">
+            {DEFAULT_QUICK_AMOUNTS.map(amt => (
+              <button
+                key={amt}
+                type="button"
+                onClick={() => {
+                  const current = parseFloat(parseInput(amount)) || 0;
+                  setAmount(String(current + amt));
+                }}
+                className="flex-shrink-0 px-3 py-1.5 text-xs font-bold border press-scale"
+                style={{
+                  borderColor: '#e8e2d8',
+                  borderRadius: 'var(--radius-sm)',
+                  background: '#fff',
+                  color: '#374151',
+                  minWidth: '52px',
+                }}
+              >
+                +{amt}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setShowCustomAmount(v => !v)}
+              className="flex-shrink-0 px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center justify-center"
+              style={{
+                borderColor: showCustomAmount ? accentColor : '#c9bfa8',
+                borderStyle: 'dashed',
+                borderRadius: 'var(--radius-sm)',
+                background: showCustomAmount ? `${accentColor}10` : '#faf9f7',
+                color: showCustomAmount ? accentColor : '#6b7280',
+                minWidth: '40px',
+                minHeight: '32px',
+              }}
+              aria-label={lang === 'am' ? 'ሌላ መጠን' : 'Custom amount'}
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+            {amount && (
+              <button
+                type="button"
+                onClick={() => setAmount('')}
+                className="flex-shrink-0 ml-auto px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center justify-center"
+                style={{
+                  borderColor: '#fecaca',
+                  borderRadius: 'var(--radius-sm)',
+                  background: '#fef2f2',
+                  color: '#dc2626',
+                  minWidth: '40px',
+                  minHeight: '32px',
+                }}
+                aria-label={lang === 'am' ? 'መጠን አጥፋ' : 'Clear amount'}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2">
-              {t.amount} <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
+          {showCustomAmount && (
+            <div className="flex gap-2 mt-2">
               <input
                 type="text"
                 inputMode="decimal"
-                value={fmtInput(amount)}
-                onChange={(e) => handleNumericInput(e, setAmount)}
-                placeholder="0"
                 autoFocus
-                className="w-full p-4 pr-16 border-2 focus:outline-none text-base min-h-[52px]"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: parsedAmount > 0 && !overPayment ? '#1B4332' : '#e8e2d8' }}
+                value={fmtInput(customAmountValue)}
+                onChange={e => handleNumericInput(e, setCustomAmountValue)}
+                onKeyDown={e => { if (e.key === 'Enter') applyCustomAmount(); }}
+                placeholder={lang === 'am' ? 'ሌላ መጠን' : 'Other amount'}
+                className="flex-1 p-2.5 border-2 focus:outline-none text-sm"
+                style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8' }}
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium">{t.birr}</span>
-            </div>
-            {isPayment && !hasCollectableBalance && (
-              <p className="text-xs font-medium mt-2" style={{ color: '#b45309' }}>
-                {t.noBalanceToRecordPayment}
-              </p>
-            )}
-            {overPayment && (
-              <p className="text-xs font-medium mt-2 text-red-600">
-                {t.paymentExceedsOwed}
-              </p>
-            )}
-          </div>
-
-          {!isPayment && catalogEntries.length > 0 && (
-            <div>
-              <label className="block text-gray-700 font-semibold mb-2 text-sm">
-                Saved item / service
-              </label>
-              <select
-                value={catalogEntryId}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setCatalogEntryId(value);
-                  const entry = catalogEntries.find(item => String(item.id) === String(value));
-                  if (!entry) return;
-                  if (!itemNote.trim()) setItemNote(entry.name || '');
+              <button
+                type="button"
+                onClick={applyCustomAmount}
+                disabled={!parseFloat(parseInput(customAmountValue))}
+                className="px-3 py-2 text-xs font-bold press-scale flex items-center gap-1"
+                style={{
+                  background: parseFloat(parseInput(customAmountValue)) ? accentColor : '#e5e7eb',
+                  color: parseFloat(parseInput(customAmountValue)) ? '#fff' : '#9ca3af',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: parseFloat(parseInput(customAmountValue)) ? 'pointer' : 'not-allowed',
+                  minHeight: '40px',
                 }}
-                className="w-full p-3 border-2 focus:outline-none text-sm bg-white"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
               >
-                <option value="">Type note manually</option>
-                {catalogEntries.map(entry => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.name} {entry.kind === 'service' ? '• Service' : '• Item'}
-                  </option>
-                ))}
-              </select>
+                <Plus className="w-3.5 h-3.5" />
+                {lang === 'am' ? 'ጨምር' : 'Add'}
+              </button>
             </div>
           )}
 
-          <div>
-            <label className="block text-gray-700 font-semibold mb-2 text-sm">
-              {isPayment ? t.paymentNoteOptional : t.itemNoteOptional}
-            </label>
-            <textarea value={itemNote} onChange={(e) => setItemNote(e.target.value)} placeholder={isPayment ? t.paymentNotePlaceholder : t.creditItemPlaceholder} rows={3} className="w-full p-3 border-2 focus:outline-none text-sm resize-none" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
-          </div>
+          {isPayment && !hasCollectableBalance && (
+            <p className="text-xs font-medium mt-2" style={{ color: '#b45309' }}>
+              {t.noBalanceToRecordPayment}
+            </p>
+          )}
+          {overPayment && (
+            <p className="text-xs font-medium mt-2 text-red-600">
+              {t.paymentExceedsOwed}
+            </p>
+          )}
+        </div>
 
-          {!isPayment && (
-            <div>
-              <label className="block text-gray-700 font-semibold mb-2 text-sm">{t.dueDateOptional}</label>
-              <div className="flex gap-2 overflow-x-auto pb-1 mb-2">
-                {dueDateOptions.map((option) => {
-                  const optionDate = new Date(option.value).toISOString().slice(0, 10);
-                  const active = dueDate === optionDate;
-                  return (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setDueDate(optionDate)}
-                      className="px-3 py-2 text-left border min-h-[44px] whitespace-nowrap"
-                      style={{
-                        background: active ? '#1B4332' : '#fff',
-                        color: active ? '#fff' : '#374151',
-                        borderColor: active ? '#1B4332' : '#e8e2d8',
-                        borderRadius: '999px',
-                      }}
-                    >
-                      <span className="block text-xs font-bold">{option.label}</span>
-                      <span className="block text-[11px] opacity-80">{option.display}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="relative">
-                <CalendarDays className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full p-3 pl-10 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
-              </div>
-              <p className="text-xs mt-2 font-medium" style={{ color: '#6b7280' }}>
-                {dueDate ? `${t.ethiopianDisplay}: ${formatEthiopian(new Date(dueDate))}` : t.pickDateWithEthiopianHint}
+        {/* Note (optional, single-line) */}
+        <div>
+          <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+            {isPayment ? t.paymentNoteOptional : t.itemNoteOptional}
+          </label>
+          <input
+            type="text"
+            value={itemNote}
+            onChange={e => setItemNote(e.target.value)}
+            placeholder={isPayment ? t.paymentNotePlaceholder : t.creditItemPlaceholder}
+            className="w-full p-3 border-2 focus:outline-none text-base"
+            style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+          />
+
+          {/* Quick item chips from catalog (credit only — saves can tap to auto-fill note + amount) */}
+          {!isPayment && topCatalogItems.length > 0 && (
+            <div className="mt-2">
+              <p className="text-[10px] font-medium mb-1" style={{ color: '#6b7280' }}>
+                {lang === 'am' ? 'ፈጣን ዕቃዎች:' : 'Quick items:'}
               </p>
+              <div className="flex gap-1.5 overflow-x-auto pb-1 items-center">
+                {topCatalogItems.map(entry => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    onClick={() => handleQuickItem(entry)}
+                    className="flex-shrink-0 px-3 py-1.5 text-xs font-bold border press-scale"
+                    style={{
+                      borderColor: '#e8e2d8',
+                      borderRadius: 'var(--radius-sm)',
+                      background: '#fff',
+                      color: '#374151',
+                    }}
+                  >
+                    {entry.name}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
 
-        <div className="px-6 pb-8 pt-2">
-          <button onClick={handleSave} disabled={!canSave || saving} className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 min-h-[56px] press-scale" style={{ background: isPayment ? '#2d6a4f' : '#C4883A', opacity: canSave ? 1 : 0.45, borderRadius: 'var(--radius-md)', boxShadow: canSave ? (isPayment ? '0 4px 0 #1B4332, var(--shadow-sm)' : '0 4px 0 #96662b, var(--shadow-sm)') : 'none' }}>
-            <Save className="w-5 h-5" />
-            {saving ? t.saving : isPayment ? t.savePayment : t.saveCredit}
-          </button>
-        </div>
+        {/* Due date (credit only) */}
+        {!isPayment && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {t.dueDateOptional}
+            </label>
+            <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2">
+              {dueDateOptions.map((option) => {
+                const optionDate = new Date(option.value).toISOString().slice(0, 10);
+                const active = dueDate === optionDate;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setDueDate(optionDate)}
+                    className="flex-shrink-0 px-3 py-2 text-left border min-h-[44px] whitespace-nowrap press-scale"
+                    style={{
+                      background: active ? accentColor : '#fff',
+                      color: active ? '#fff' : '#374151',
+                      borderColor: active ? accentColor : '#e8e2d8',
+                      borderRadius: 'var(--radius-sm)',
+                    }}
+                  >
+                    <span className="block text-xs font-bold">{option.label}</span>
+                    <span className="block text-[10px] opacity-80">{option.display}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="relative">
+              <CalendarDays className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full p-2.5 pl-10 border-2 focus:outline-none text-sm"
+                style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8' }}
+              />
+            </div>
+            {dueDate && (
+              <p className="text-[10px] mt-1.5 font-medium" style={{ color: '#6b7280' }}>
+                {t.ethiopianDisplay}: {formatEthiopian(new Date(dueDate))}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Sticky save button */}
+      <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid #e8e2d8' }}>
+        <button
+          onClick={handleSave}
+          disabled={!canSave}
+          className="w-full p-3 font-bold text-white text-base flex items-center justify-center gap-2 transition-all press-scale"
+          style={{
+            background: canSave ? accentColor : '#e5e7eb',
+            color: canSave ? '#fff' : '#9ca3af',
+            cursor: canSave ? 'pointer' : 'not-allowed',
+            borderRadius: 'var(--radius-md)',
+          }}
+        >
+          <Save className="w-5 h-5" />
+          {saving ? t.saving : saveButtonText}
+        </button>
       </div>
     </div>
   );

@@ -2165,7 +2165,7 @@ function AppInner() {
       </main>
 
       {/* Action bar (Today only) — fixed above bottom nav for thumb reach */}
-      {activeTab === 'today' && !showForm && !showCustomerForm && (
+      {activeTab === 'today' && !showForm && !showCustomerForm && !customerTransactionModal && (
         <div
           className="fixed left-0 right-0 max-w-md mx-auto z-30 px-3 py-2 border-t"
           style={{ bottom: '60px', background: '#ffffff', borderColor: '#e5e7eb' }}
@@ -2184,7 +2184,11 @@ function AppInner() {
                   onClick={() => {
                     if (b.type === 'credit') {
                       setActiveTab('credit');
-                      setShowCustomerForm(true);
+                      // First-time onboarding: auto-open add-customer form only if list is empty.
+                      // Otherwise the user almost always wants to add credit to an existing customer.
+                      if (!customerSummaries || customerSummaries.length === 0) {
+                        setShowCustomerForm(true);
+                      }
                       return;
                     }
                     setShowForm(b.type);
@@ -2223,6 +2227,7 @@ function AppInner() {
                   // Close any open overlay so the nav click actually navigates
                   setShowForm(null);
                   setShowCustomerForm(false);
+                  setCustomerTransactionModal(null);
                   setActiveTab(tab.id);
                   setSelectedCustomerId(null);
                 }}
