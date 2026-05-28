@@ -943,7 +943,7 @@ function SettingsPage({
         </div>
       </SettingsSection>
 
-      <SettingsSection id="team" title="Team" openSection={openSection} setOpenSection={setOpenSection}>
+      <SettingsSection id="team" title={lang === 'am' ? 'ቡድን' : 'Team'} openSection={openSection} setOpenSection={setOpenSection}>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 py-4 space-y-4">
             <div className="rounded-xl px-4 py-3 text-xs font-medium" style={{ background: '#FAF8F5', color: '#5b6470', border: '1px solid #e8e2d8' }}>
@@ -1094,7 +1094,7 @@ function SettingsPage({
         </div>
       </SettingsSection>
 
-      <SettingsSection id="catalog" title="Items & Services" openSection={openSection} setOpenSection={setOpenSection}>
+      <SettingsSection id="catalog" title={lang === 'am' ? 'እቃዎች እና አገልግሎቶች' : 'Items & Services'} openSection={openSection} setOpenSection={setOpenSection}>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 pt-5 pb-4 space-y-3">
             <div className="grid grid-cols-2 gap-2">
@@ -1227,7 +1227,7 @@ function SettingsPage({
         </div>
       </SettingsSection>
 
-      <SettingsSection id="suppliers" title="Suppliers & Dubie" openSection={openSection} setOpenSection={setOpenSection}>
+      <SettingsSection id="suppliers" title={lang === 'am' ? 'አቅራቢዎች እና ዱቤ' : 'Suppliers & Dubie'} openSection={openSection} setOpenSection={setOpenSection}>
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 pt-5 pb-4 space-y-4">
             <div className="p-4 rounded-2xl" style={{ background: '#fff7ed', border: '1.5px solid #fed7aa' }}>
