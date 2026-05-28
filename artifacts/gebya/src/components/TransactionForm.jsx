@@ -59,6 +59,7 @@ function TransactionForm({
   catalogEntries = [],
   recurringExpenses,
   onRecurringChange,
+  onSaveCatalogEntry,
   initialPaymentType,
   initialPaymentProvider,
   lastPaymentHistory,
@@ -123,6 +124,15 @@ function TransactionForm({
   const [lineItems, setLineItems] = useState([]); // [{id, name, amount}]
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // Inline custom-amount add (+ button on amount chips)
+  const [showCustomAmount, setShowCustomAmount] = useState(false);
+  const [customAmountValue, setCustomAmountValue] = useState('');
+  // Inline catalog add (+ button on quick items)
+  const [showAddCatalog, setShowAddCatalog] = useState(false);
+  const [showAddCatalogBreakdown, setShowAddCatalogBreakdown] = useState(false);
+  const [newCatalogName, setNewCatalogName] = useState('');
+  const [newCatalogPrice, setNewCatalogPrice] = useState('');
+  const [catalogSaving, setCatalogSaving] = useState(false);
 
   // ─── Derived ────────────────────────────────────────────────────────────
   const dueDateOptions = getDueDateOptions();
@@ -268,13 +278,64 @@ function TransactionForm({
     if (lineItemsTotal > 0) setAmount(String(lineItemsTotal));
   };
 
-  const handleSelectCatalogEntry = (value) => {
-    setCatalogEntryId(value);
-    const entry = catalogEntries.find(it => String(it.id) === String(value));
-    if (!entry) return;
-    setItem(entry.name || '');
-    if (!amount && entry.default_price != null) setAmount(String(entry.default_price));
-    if (!costPrice && entry.default_cost != null) setCostPrice(String(entry.default_cost));
+  // ─── Inline custom-amount add ──────────────────────────────────────────
+  const applyCustomAmount = () => {
+    const val = parseFloat(parseInput(customAmountValue));
+    if (!val || val <= 0) return;
+    const current = parseFloat(parseInput(amount)) || 0;
+    setAmount(String(current + val));
+    setCustomAmountValue('');
+    setShowCustomAmount(false);
+  };
+
+  // ─── Inline catalog add ───────────────────────────────────────────────
+  const submitNewCatalog = async () => {
+    if (!newCatalogName.trim() || !onSaveCatalogEntry || catalogSaving) return;
+    setCatalogSaving(true);
+    try {
+      const saved = await onSaveCatalogEntry({
+        name: newCatalogName.trim(),
+        kind: 'item',
+        default_price: newCatalogPrice ? parseFloat(parseInput(newCatalogPrice)) : null,
+      });
+      if (saved) {
+        // Auto-fill the form with the new item
+        setItem(saved.name);
+        if (saved.default_price != null && (!amount || parseFloat(parseInput(amount)) === 0)) {
+          setAmount(String(saved.default_price));
+        }
+        setCatalogEntryId(String(saved.id));
+      }
+      setNewCatalogName('');
+      setNewCatalogPrice('');
+      setShowAddCatalog(false);
+    } catch (err) {
+      // surface via App.jsx
+    } finally {
+      setCatalogSaving(false);
+    }
+  };
+
+  const submitNewCatalogToBreakdown = async () => {
+    if (!newCatalogName.trim() || !onSaveCatalogEntry || catalogSaving) return;
+    setCatalogSaving(true);
+    try {
+      const saved = await onSaveCatalogEntry({
+        name: newCatalogName.trim(),
+        kind: 'item',
+        default_price: newCatalogPrice ? parseFloat(parseInput(newCatalogPrice)) : null,
+      });
+      if (saved) {
+        addLineItem({ name: saved.name, amount: saved.default_price });
+      }
+      setNewCatalogName('');
+      setNewCatalogPrice('');
+      setShowAddCatalogBreakdown(false);
+    } catch (err) {
+      // surface via App.jsx
+    } finally {
+      setCatalogSaving(false);
+    }
   };
 
   const handleQuickItem = (entry) => {
@@ -458,28 +519,6 @@ function TransactionForm({
           </div>
         )}
 
-        {/* Catalog dropdown (compact) */}
-        {catalogEntries.length > 0 && (
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'የተቀመጡ ዕቃዎች' : 'SAVED ITEMS'}
-            </label>
-            <select
-              value={catalogEntryId}
-              onChange={e => handleSelectCatalogEntry(e.target.value)}
-              className="w-full px-3 py-2.5 border-2 focus:outline-none text-sm bg-white"
-              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-            >
-              <option value="">{lang === 'am' ? 'በእጅ ይተይቡ' : 'Type manually'}</option>
-              {catalogEntries.map(entry => (
-                <option key={entry.id} value={entry.id}>
-                  {entry.name} {entry.kind === 'service' ? '• Service' : '• Item'}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
         {/* AMOUNT — the hero */}
         <div>
           <label className="block text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
@@ -530,6 +569,24 @@ function TransactionForm({
                 +{amt >= 1000 ? `${amt / 1000}K` : amt}
               </button>
             ))}
+            {/* + custom amount toggle */}
+            <button
+              type="button"
+              onClick={() => setShowCustomAmount(v => !v)}
+              className="flex-shrink-0 px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center justify-center"
+              style={{
+                borderColor: showCustomAmount ? accentColor : '#c9bfa8',
+                borderStyle: 'dashed',
+                borderRadius: 'var(--radius-sm)',
+                background: showCustomAmount ? `${accentColor}10` : '#faf9f7',
+                color: showCustomAmount ? accentColor : '#6b7280',
+                minWidth: '40px',
+                minHeight: '32px',
+              }}
+              aria-label={lang === 'am' ? 'ሌላ መጠን' : 'Custom amount'}
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
             {amount && (
               <button
                 type="button"
@@ -549,6 +606,39 @@ function TransactionForm({
               </button>
             )}
           </div>
+
+          {/* Inline custom amount input */}
+          {showCustomAmount && (
+            <div className="flex gap-2 mt-2">
+              <input
+                type="text"
+                inputMode="decimal"
+                autoFocus
+                value={fmtInput(customAmountValue)}
+                onChange={e => handleNumericInput(e, setCustomAmountValue)}
+                onKeyDown={e => { if (e.key === 'Enter') applyCustomAmount(); }}
+                placeholder={lang === 'am' ? 'ሌላ መጠን' : 'Other amount'}
+                className="flex-1 p-2.5 border-2 focus:outline-none text-sm"
+                style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8' }}
+              />
+              <button
+                type="button"
+                onClick={applyCustomAmount}
+                disabled={!parseFloat(parseInput(customAmountValue))}
+                className="px-3 py-2 text-xs font-bold press-scale flex items-center gap-1"
+                style={{
+                  background: parseFloat(parseInput(customAmountValue)) ? accentColor : '#e5e7eb',
+                  color: parseFloat(parseInput(customAmountValue)) ? '#fff' : '#9ca3af',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: parseFloat(parseInput(customAmountValue)) ? 'pointer' : 'not-allowed',
+                  minHeight: '40px',
+                }}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {lang === 'am' ? 'ጨምር' : 'Add'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Multi-item breakdown (sale/expense only) */}
@@ -571,13 +661,13 @@ function TransactionForm({
                 className="mt-2 p-3 border space-y-3"
                 style={{ background: 'var(--color-bg)', borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)' }}
               >
-                {/* Catalog quick-add chips (tap to add as line item) */}
-                {topCatalogItems.length > 0 && (
+                {/* Catalog quick-add chips (tap to add as line item, or + to create new) */}
+                {(topCatalogItems.length > 0 || onSaveCatalogEntry) && (
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
                       {lang === 'am' ? 'ለማከል ይጫኑ' : 'Tap saved item to add'}
                     </p>
-                    <div className="flex gap-1.5 overflow-x-auto pb-1">
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 items-center">
                       {topCatalogItems.map(entry => (
                         <button
                           key={entry.id}
@@ -600,7 +690,73 @@ function TransactionForm({
                           )}
                         </button>
                       ))}
+                      {onSaveCatalogEntry && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAddCatalogBreakdown(v => !v)}
+                          className="flex-shrink-0 px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center gap-1"
+                          style={{
+                            borderColor: showAddCatalogBreakdown ? accentColor : '#c9bfa8',
+                            borderStyle: 'dashed',
+                            borderRadius: 'var(--radius-sm)',
+                            background: showAddCatalogBreakdown ? `${accentColor}10` : '#faf9f7',
+                            color: showAddCatalogBreakdown ? accentColor : '#6b7280',
+                          }}
+                          aria-label={lang === 'am' ? 'አዲስ ዕቃ' : 'New item'}
+                        >
+                          <Plus className="w-3 h-3" />
+                          {topCatalogItems.length === 0
+                            ? (lang === 'am' ? 'አዲስ ዕቃ' : 'New item')
+                            : (lang === 'am' ? 'አዲስ' : 'New')}
+                        </button>
+                      )}
                     </div>
+
+                    {/* Inline new-catalog form (saves to catalog AND adds to basket) */}
+                    {showAddCatalogBreakdown && (
+                      <div className="mt-2 p-2.5 border space-y-2"
+                        style={{ background: '#fff', borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)' }}
+                      >
+                        <input
+                          type="text"
+                          autoFocus
+                          value={newCatalogName}
+                          onChange={e => setNewCatalogName(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') submitNewCatalogToBreakdown(); }}
+                          placeholder={lang === 'am' ? 'ስም' : 'Name'}
+                          className="w-full p-2 border focus:outline-none text-sm"
+                          style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8' }}
+                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={fmtInput(newCatalogPrice)}
+                            onChange={e => handleNumericInput(e, setNewCatalogPrice)}
+                            onKeyDown={e => { if (e.key === 'Enter') submitNewCatalogToBreakdown(); }}
+                            placeholder={lang === 'am' ? 'ዋጋ' : 'Price'}
+                            className="flex-1 p-2 border focus:outline-none text-sm"
+                            style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={submitNewCatalogToBreakdown}
+                            disabled={!newCatalogName.trim() || catalogSaving}
+                            className="px-3 py-2 text-xs font-bold press-scale flex items-center gap-1"
+                            style={{
+                              background: newCatalogName.trim() ? accentColor : '#e5e7eb',
+                              color: newCatalogName.trim() ? '#fff' : '#9ca3af',
+                              borderRadius: 'var(--radius-sm)',
+                              cursor: newCatalogName.trim() ? 'pointer' : 'not-allowed',
+                              minHeight: '36px',
+                            }}
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            {lang === 'am' ? 'ጨምር' : 'Add'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -789,13 +945,15 @@ function TransactionForm({
             </div>
           )}
 
-          {/* Quick item chips from catalog */}
-          {!isCredit && topCatalogItems.length > 0 && (
+          {/* Quick item chips from catalog (+ inline add new item) */}
+          {!isCredit && (
             <div className="mt-2">
-              <p className="text-[10px] font-medium mb-1" style={{ color: '#6b7280' }}>
-                {lang === 'am' ? 'ፈጣን ዕቃዎች:' : 'Quick items:'}
-              </p>
-              <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {(topCatalogItems.length > 0 || onSaveCatalogEntry) && (
+                <p className="text-[10px] font-medium mb-1" style={{ color: '#6b7280' }}>
+                  {lang === 'am' ? 'ፈጣን ዕቃዎች:' : 'Quick items:'}
+                </p>
+              )}
+              <div className="flex gap-1.5 overflow-x-auto pb-1 items-center">
                 {topCatalogItems.map(entry => (
                   <button
                     key={entry.id}
@@ -812,7 +970,79 @@ function TransactionForm({
                     {entry.name}
                   </button>
                 ))}
+                {/* + inline add to catalog */}
+                {onSaveCatalogEntry && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCatalog(v => !v)}
+                    className="flex-shrink-0 px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center gap-1"
+                    style={{
+                      borderColor: showAddCatalog ? accentColor : '#c9bfa8',
+                      borderStyle: 'dashed',
+                      borderRadius: 'var(--radius-sm)',
+                      background: showAddCatalog ? `${accentColor}10` : '#faf9f7',
+                      color: showAddCatalog ? accentColor : '#6b7280',
+                    }}
+                    aria-label={lang === 'am' ? 'አዲስ ዕቃ' : 'New item'}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {topCatalogItems.length === 0 && (
+                      <span>{lang === 'am' ? 'ዕቃ አስቀምጥ' : 'Save item'}</span>
+                    )}
+                  </button>
+                )}
               </div>
+
+              {/* Inline new-catalog form */}
+              {showAddCatalog && (
+                <div className="mt-2 p-2.5 border space-y-2"
+                  style={{ background: '#faf9f7', borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)' }}
+                >
+                  <input
+                    type="text"
+                    autoFocus
+                    value={newCatalogName}
+                    onChange={e => setNewCatalogName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') submitNewCatalog(); }}
+                    placeholder={lang === 'am' ? 'ስም (ለምሳሌ ዳቦ)' : 'Name (e.g. bread)'}
+                    className="w-full p-2 border focus:outline-none text-sm"
+                    style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }}
+                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={fmtInput(newCatalogPrice)}
+                      onChange={e => handleNumericInput(e, setNewCatalogPrice)}
+                      onKeyDown={e => { if (e.key === 'Enter') submitNewCatalog(); }}
+                      placeholder={lang === 'am' ? 'ዋጋ (አማራጭ)' : 'Price (optional)'}
+                      className="flex-1 p-2 border focus:outline-none text-sm"
+                      style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={submitNewCatalog}
+                      disabled={!newCatalogName.trim() || catalogSaving}
+                      className="px-3 py-2 text-xs font-bold press-scale flex items-center gap-1"
+                      style={{
+                        background: newCatalogName.trim() ? accentColor : '#e5e7eb',
+                        color: newCatalogName.trim() ? '#fff' : '#9ca3af',
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: newCatalogName.trim() ? 'pointer' : 'not-allowed',
+                        minHeight: '36px',
+                      }}
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      {lang === 'am' ? 'አስቀምጥ' : 'Save'}
+                    </button>
+                  </div>
+                  <p className="text-[10px]" style={{ color: '#9ca3af' }}>
+                    {lang === 'am'
+                      ? 'ይህ ዕቃ ለፈጣን መድረሻ ይቀመጣል'
+                      : 'Saves for quick access next time'}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
