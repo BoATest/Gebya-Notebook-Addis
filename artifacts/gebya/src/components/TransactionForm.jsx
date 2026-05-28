@@ -162,16 +162,6 @@ function TransactionForm({
         || (selectedDue === 'custom' && customDue)
     : true;
 
-  // Item is OPTIONAL for sale/expense; REQUIRED (as customer name) for credit
-  // For Partial/Later settlement modes, a customer is also required.
-  const canSave =
-    sellingPrice > 0
-    && (isCredit ? item.trim() && hasDueDate : true)
-    && (!phoneEntered || phoneValid)
-    && !isSaving
-    && (!needsCustomer || !!selectedCustomerForCredit)
-    && (settlementMode !== 'partial' || (partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice));
-
   // Top catalog items (active ones) — shown as chips below item input
   const topCatalogItems = catalogEntries
     .filter(e => e && e.is_active !== false && e.name)
@@ -187,7 +177,7 @@ function TransactionForm({
   );
   const breakdownDelta = sellingPrice - lineItemsTotal; // +ve: items < total, -ve: items > total
 
-  // Paid / Partial / Pay Later — derived
+  // Paid / Partial / Pay Later — derived (must come BEFORE canSave because canSave uses them)
   const partialReceivedAmount = parseFloat(parseInput(partialReceived)) || 0;
   const creditAmount = !isCredit
     ? (settlementMode === 'paid'
@@ -201,6 +191,16 @@ function TransactionForm({
     .slice()
     .sort((a, b) => (b.last_activity_at || b.updated_at || 0) - (a.last_activity_at || a.updated_at || 0))
     .slice(0, 5);
+
+  // Item is OPTIONAL for sale/expense; REQUIRED (as customer name) for credit
+  // For Partial/Later settlement modes, a customer is also required.
+  const canSave =
+    sellingPrice > 0
+    && (isCredit ? item.trim() && hasDueDate : true)
+    && (!phoneEntered || phoneValid)
+    && !isSaving
+    && (!needsCustomer || !!selectedCustomerForCredit)
+    && (settlementMode !== 'partial' || (partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice));
 
   // ─── Handlers ───────────────────────────────────────────────────────────
   const getEffectiveDueDate = () => {
