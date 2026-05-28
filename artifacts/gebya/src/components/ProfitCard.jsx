@@ -130,6 +130,14 @@ function ProfitCard({ transactions, yesterdayNet }) {
           {lang === 'am' ? 'ወጪ' : 'Spent'} {hidden ? '••••' : fmt(expensesTotal)}
         </span>
       </div>
+
+      {/* Trust line — explicit, professional: data is YOURS, not ours.
+          Tax filing is the shopkeeper's choice, not the app's job. */}
+      <p className="text-[10px] mt-2 pt-2 border-t" style={{ color: '#9ca3af', borderColor: 'rgba(0,0,0,0.05)' }}>
+        🔒 {lang === 'am'
+          ? 'በዚህ ስልክ ብቻ ይቀመጣል። ለማንም አንልክም።'
+          : 'Saved on this phone only. We never send your numbers anywhere.'}
+      </p>
     </div>
   );
 }

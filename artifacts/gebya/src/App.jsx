@@ -29,6 +29,10 @@ import { normalizeStaffDraft, resolveActorSnapshot, getActorDisplayLabel } from 
 const TransactionForm = lazy(() => import('./components/TransactionForm'));
 const EditTransactionSheet = lazy(() => import('./components/EditTransactionSheet'));
 const ReminderSheet = lazy(() => import('./components/ReminderSheet'));
+const SupplierList = lazy(() => import('./components/SupplierList'));
+const SupplierDetail = lazy(() => import('./components/SupplierDetail'));
+const SupplierForm = lazy(() => import('./components/SupplierForm'));
+const SupplierTransactionSheet = lazy(() => import('./components/SupplierTransactionSheet'));
 const CustomerDetail = lazy(() => import('./components/CustomerDetail'));
 const CustomerForm = lazy(() => import('./components/CustomerForm'));
 const CustomerTransactionSheet = lazy(() => import('./components/CustomerTransactionSheet'));
@@ -473,6 +477,11 @@ function AppInner() {
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [customerTransactionModal, setCustomerTransactionModal] = useState(null);
   const [reminderTarget, setReminderTarget] = useState(null);
+  // Supplier credit ("I owe") — Khatabook-style second ledger
+  const [creditView, setCreditView] = useState('customers'); // 'customers' | 'suppliers'
+  const [selectedSupplierId, setSelectedSupplierId] = useState(null);
+  const [showSupplierForm, setShowSupplierForm] = useState(false);
+  const [supplierTransactionModal, setSupplierTransactionModal] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const [shopProfile, setShopProfile] = useState(null);
@@ -1007,6 +1016,16 @@ function AppInner() {
     () => buildSupplierSummaries(suppliers, supplierTransactions),
     [suppliers, supplierTransactions]
   );
+
+  const selectedSupplier = useMemo(
+    () => supplierSummaries.find(s => s.id === selectedSupplierId) || null,
+    [supplierSummaries, selectedSupplierId]
+  );
+
+  const activeSupplierTransactionModal = useMemo(() => {
+    if (!supplierTransactionModal?.supplierId) return null;
+    return supplierSummaries.find(s => s.id === supplierTransactionModal.supplierId) || null;
+  }, [supplierSummaries, supplierTransactionModal]);
 
   const telegramConnectCustomer = useMemo(
     () => customerSummaries.find(c => c.id === telegramConnectCustomerId) || null,
@@ -2168,38 +2187,104 @@ function AppInner() {
         )}
 
         {activeTab === 'credit' && (
-          selectedCustomer ? (
-            <Suspense fallback={<PanelFallback label={t.loading} />}>
-              <CustomerDetail
-                customer={selectedCustomer}
-                onBack={() => setSelectedCustomerId(null)}
-                onAddCredit={() => setCustomerTransactionModal({
-                  mode: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
-                  customerId: selectedCustomer.id,
+          <>
+            {/* Segmented control: Customers (people who owe me) vs Suppliers (people I owe) */}
+            {!selectedCustomer && !selectedSupplier && (
+              <div className="flex gap-1.5 p-1 mb-4" style={{ background: '#f5f1ea', borderRadius: 'var(--radius-md)' }}>
+                {[
+                  { id: 'customers', label: lang === 'am' ? 'ደንበኞች (ለእኔ)' : 'Customers (owe me)', accent: '#C4883A' },
+                  { id: 'suppliers', label: lang === 'am' ? 'አቅራቢዎች (ለመክፈል)' : 'Suppliers (I owe)', accent: '#dc2626' },
+                ].map((view) => {
+                  const active = creditView === view.id;
+                  return (
+                    <button
+                      key={view.id}
+                      type="button"
+                      onClick={() => setCreditView(view.id)}
+                      className="flex-1 py-2 px-3 text-xs font-bold transition-all min-h-[40px] press-scale"
+                      style={{
+                        borderRadius: 'var(--radius-sm)',
+                        background: active ? '#fff' : 'transparent',
+                        color: active ? view.accent : '#6b7280',
+                        boxShadow: active ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                      }}
+                    >
+                      {view.label}
+                    </button>
+                  );
                 })}
-                onRecordPayment={() => setCustomerTransactionModal({
-                  mode: CUSTOMER_TRANSACTION_TYPES.PAYMENT,
-                  customerId: selectedCustomer.id,
-                })}
-                onMarkFullyPaid={(c) => setCustomerTransactionModal({
-                  mode: CUSTOMER_TRANSACTION_TYPES.PAYMENT,
-                  customerId: c.id,
-                  initialAmount: Number(c.balance || 0),
-                })}
-                onToggleTelegramNotify={() => handleToggleCustomerTelegramNotify(selectedCustomer)}
-                onOpenTelegramConnect={() => setTelegramConnectCustomerId(selectedCustomer.id)}
-                onResendTelegramUpdate={() => handleResendCustomerTelegramUpdate(selectedCustomer)}
-                onRemind={(c) => setReminderTarget(c)}
-              />
-            </Suspense>
-          ) : (
-            <CustomerList
-              customers={customerSummaries}
-              onSelectCustomer={(customer) => setSelectedCustomerId(customer.id)}
-              onAddCustomer={() => setShowCustomerForm(true)}
-              onRemindCustomer={(customer) => setReminderTarget(customer)}
-            />
-          )
+              </div>
+            )}
+
+            {/* Customers view */}
+            {creditView === 'customers' && (
+              selectedCustomer ? (
+                <Suspense fallback={<PanelFallback label={t.loading} />}>
+                  <CustomerDetail
+                    customer={selectedCustomer}
+                    onBack={() => setSelectedCustomerId(null)}
+                    onAddCredit={() => setCustomerTransactionModal({
+                      mode: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+                      customerId: selectedCustomer.id,
+                    })}
+                    onRecordPayment={() => setCustomerTransactionModal({
+                      mode: CUSTOMER_TRANSACTION_TYPES.PAYMENT,
+                      customerId: selectedCustomer.id,
+                    })}
+                    onMarkFullyPaid={(c) => setCustomerTransactionModal({
+                      mode: CUSTOMER_TRANSACTION_TYPES.PAYMENT,
+                      customerId: c.id,
+                      initialAmount: Number(c.balance || 0),
+                    })}
+                    onToggleTelegramNotify={() => handleToggleCustomerTelegramNotify(selectedCustomer)}
+                    onOpenTelegramConnect={() => setTelegramConnectCustomerId(selectedCustomer.id)}
+                    onResendTelegramUpdate={() => handleResendCustomerTelegramUpdate(selectedCustomer)}
+                    onRemind={(c) => setReminderTarget(c)}
+                  />
+                </Suspense>
+              ) : (
+                <CustomerList
+                  customers={customerSummaries}
+                  onSelectCustomer={(customer) => setSelectedCustomerId(customer.id)}
+                  onAddCustomer={() => setShowCustomerForm(true)}
+                  onRemindCustomer={(customer) => setReminderTarget(customer)}
+                />
+              )
+            )}
+
+            {/* Suppliers view */}
+            {creditView === 'suppliers' && (
+              selectedSupplier ? (
+                <Suspense fallback={<PanelFallback label={t.loading} />}>
+                  <SupplierDetail
+                    supplier={selectedSupplier}
+                    onBack={() => setSelectedSupplierId(null)}
+                    onAddPurchase={() => setSupplierTransactionModal({
+                      mode: SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD,
+                      supplierId: selectedSupplier.id,
+                    })}
+                    onPaySupplier={() => setSupplierTransactionModal({
+                      mode: SUPPLIER_TRANSACTION_TYPES.PAYMENT,
+                      supplierId: selectedSupplier.id,
+                    })}
+                    onMarkFullyPaid={(s) => setSupplierTransactionModal({
+                      mode: SUPPLIER_TRANSACTION_TYPES.PAYMENT,
+                      supplierId: s.id,
+                      initialAmount: Number(s.balance || 0),
+                    })}
+                  />
+                </Suspense>
+              ) : (
+                <Suspense fallback={<PanelFallback label={t.loading} />}>
+                  <SupplierList
+                    suppliers={supplierSummaries}
+                    onSelectSupplier={(s) => setSelectedSupplierId(s.id)}
+                    onAddSupplier={() => setShowSupplierForm(true)}
+                  />
+                </Suspense>
+              )
+            )}
+          </>
         )}
 
         {activeTab === 'history' && (
@@ -2248,7 +2333,7 @@ function AppInner() {
       </main>
 
       {/* Action bar (Today only) — fixed above bottom nav for thumb reach */}
-      {activeTab === 'today' && !showForm && !showCustomerForm && !customerTransactionModal && (
+      {activeTab === 'today' && !showForm && !showCustomerForm && !customerTransactionModal && !showSupplierForm && !supplierTransactionModal && (
         <div
           className="fixed left-0 right-0 max-w-md mx-auto z-30 px-3 py-2 border-t"
           style={{ bottom: '60px', background: '#ffffff', borderColor: '#e5e7eb' }}
@@ -2310,10 +2395,13 @@ function AppInner() {
                   // Close any open overlay so the nav click actually navigates
                   setShowForm(null);
                   setShowCustomerForm(false);
+                  setShowSupplierForm(false);
                   setCustomerTransactionModal(null);
+                  setSupplierTransactionModal(null);
                   setReminderTarget(null);
                   setActiveTab(tab.id);
                   setSelectedCustomerId(null);
+                  setSelectedSupplierId(null);
                 }}
                 className="flex-1 flex flex-col items-center gap-1 py-2 min-h-[56px] press-scale"
                 style={{ color: isActive ? '#1B4332' : '#9ca3af' }}
@@ -2373,6 +2461,32 @@ function AppInner() {
             actorLabel={currentActorLabel}
             catalogEntries={activeCatalogEntries}
             onDone={() => setCustomerTransactionModal(null)}
+          />
+        </Suspense>
+      )}
+
+      {/* Supplier flows */}
+      {showSupplierForm && (
+        <Suspense fallback={<ModalFallback label={t.loading} />}>
+          <SupplierForm
+            onSave={handleSaveSupplier}
+            onDone={(saved) => {
+              setShowSupplierForm(false);
+              if (saved && saved.id) setSelectedSupplierId(saved.id);
+            }}
+          />
+        </Suspense>
+      )}
+
+      {supplierTransactionModal && activeSupplierTransactionModal && (
+        <Suspense fallback={<ModalFallback label={t.loading} />}>
+          <SupplierTransactionSheet
+            supplier={activeSupplierTransactionModal}
+            mode={supplierTransactionModal.mode}
+            initialAmount={supplierTransactionModal.initialAmount}
+            onSave={handleSaveSupplierTransaction}
+            actorLabel={currentActorLabel}
+            onDone={() => setSupplierTransactionModal(null)}
           />
         </Suspense>
       )}
