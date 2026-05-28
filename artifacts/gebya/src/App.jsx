@@ -707,10 +707,11 @@ function AppInner() {
     try {
       const isOnlineNow = isBrowserOnline();
       const now = new Date(transaction.created_at);
+      // Preserve customer_name from the payload (set by Partial/Pay-later flow); fall back to null
       const newTxn = {
         ...transaction,
         ethiopian_date: formatEthiopian(now),
-        customer_name: null,
+        customer_name: transaction.customer_name || null,
         ...buildActorSnapshot(),
       };
 
@@ -727,6 +728,39 @@ function AppInner() {
         const updated = [saved, ...prev];
         return updated;
       });
+
+      // Paid · Partial · Pay Later — when a sale has a credit portion, also
+      // record a customer_transaction so the customer's running balance updates.
+      // Sale record keeps amount = full value sold; customer_transaction tracks
+      // the unpaid portion. Today's cash tally should use cash_received on the
+      // sale (= 0 for Later, partial for Partial).
+      if (transaction.customer_id && Number(transaction.credit_amount) > 0) {
+        try {
+          const createdAt = transaction.created_at || Date.now();
+          const customerTxEntry = {
+            customer_id: transaction.customer_id,
+            type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+            amount: Number(transaction.credit_amount),
+            item_note: transaction.item_name || null,
+            catalog_entry_id: transaction.catalog_entry_id || null,
+            item_kind: transaction.item_kind || null,
+            due_date: null,
+            reference_code: null,
+            telegram_delivery_state: null,
+            telegram_delivery_attempted_at: null,
+            created_at: createdAt,
+            updated_at: Date.now(),
+            ...buildActorSnapshot(),
+          };
+          const cid = await db.customer_transactions.add(customerTxEntry);
+          const savedCustomerTx = await db.customer_transactions.get(cid);
+          if (savedCustomerTx) {
+            setLedgerTransactions(prev => insertCustomerTransaction(prev, savedCustomerTx));
+          }
+        } catch (err) {
+          if (import.meta.env.DEV) console.error('Credit-portion save failed:', err);
+        }
+      }
 
       if (transaction.type === 'sale' || transaction.type === 'expense') {
         const pType = transaction.payment_type || 'cash';
@@ -1174,6 +1208,34 @@ function AppInner() {
       return null;
     }
   }, [shopProfile?.name]);
+
+  // Light-weight customer creator for inline "+ New customer" picker inside
+  // TransactionForm (Partial / Pay Later flow). Returns the saved record so
+  // the caller can immediately wire it into the transaction. No nav switch,
+  // no toast — the caller drives the UX.
+  const handleAddCustomerInline = async (payload) => {
+    const draft = normalizeCustomerDraft(payload);
+    if (!draft) return null;
+    try {
+      const now = Date.now();
+      const linkToken = createCustomerTelegramLinkToken();
+      const id = await db.customers.add({
+        ...draft,
+        telegram_chat_id: null,
+        telegram_link_token: linkToken,
+        telegram_linked_at: null,
+        telegram_link_requested_at: null,
+        created_at: now,
+        updated_at: now,
+      });
+      const saved = await db.customers.get(id);
+      setLedgerCustomers(prev => [...prev, saved]);
+      return saved;
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Inline customer save failed:', err);
+      return null;
+    }
+  };
 
   const handleAddCustomer = async (payload) => {
     const draft = normalizeCustomerDraft(payload);
@@ -2275,6 +2337,8 @@ function AppInner() {
             onSaveCatalogEntry={handleSaveCatalogEntry}
             customQuickAmounts={customQuickAmounts}
             onCustomQuickAmountsChange={handleCustomQuickAmountsChange}
+            customers={customerSummaries}
+            onAddCustomerInline={handleAddCustomerInline}
             initialPaymentType={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.type : undefined}
             initialPaymentProvider={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.provider : undefined}
             lastPaymentHistory={(showForm === 'sale' || showForm === 'expense') ? {

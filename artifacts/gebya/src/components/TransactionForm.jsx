@@ -62,6 +62,8 @@ function TransactionForm({
   onSaveCatalogEntry,
   customQuickAmounts = [],
   onCustomQuickAmountsChange,
+  customers = [],
+  onAddCustomerInline,
   initialPaymentType,
   initialPaymentProvider,
   lastPaymentHistory,
@@ -135,6 +137,13 @@ function TransactionForm({
   const [newCatalogName, setNewCatalogName] = useState('');
   const [newCatalogPrice, setNewCatalogPrice] = useState('');
   const [catalogSaving, setCatalogSaving] = useState(false);
+  // Paid · Partial · Pay Later (sale/expense only)
+  const [settlementMode, setSettlementMode] = useState('paid'); // 'paid' | 'partial' | 'later'
+  const [partialReceived, setPartialReceived] = useState('');
+  const [selectedCustomerForCredit, setSelectedCustomerForCredit] = useState(null);
+  const [showNewCustomerInline, setShowNewCustomerInline] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState('');
+  const [savingCustomer, setSavingCustomer] = useState(false);
 
   // ─── Derived ────────────────────────────────────────────────────────────
   const dueDateOptions = getDueDateOptions();
@@ -154,11 +163,14 @@ function TransactionForm({
     : true;
 
   // Item is OPTIONAL for sale/expense; REQUIRED (as customer name) for credit
+  // For Partial/Later settlement modes, a customer is also required.
   const canSave =
     sellingPrice > 0
     && (isCredit ? item.trim() && hasDueDate : true)
     && (!phoneEntered || phoneValid)
-    && !isSaving;
+    && !isSaving
+    && (!needsCustomer || !!selectedCustomerForCredit)
+    && (settlementMode !== 'partial' || (partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice));
 
   // Top catalog items (active ones) — shown as chips below item input
   const topCatalogItems = catalogEntries
@@ -174,6 +186,21 @@ function TransactionForm({
     l => l.name.trim() && parseFloat(parseInput(l.amount)) > 0
   );
   const breakdownDelta = sellingPrice - lineItemsTotal; // +ve: items < total, -ve: items > total
+
+  // Paid / Partial / Pay Later — derived
+  const partialReceivedAmount = parseFloat(parseInput(partialReceived)) || 0;
+  const creditAmount = !isCredit
+    ? (settlementMode === 'paid'
+        ? 0
+        : settlementMode === 'partial'
+          ? Math.max(0, sellingPrice - partialReceivedAmount)
+          : sellingPrice)
+    : 0;
+  const needsCustomer = !isCredit && settlementMode !== 'paid';
+  const recentCustomers = (customers || [])
+    .slice()
+    .sort((a, b) => (b.last_activity_at || b.updated_at || 0) - (a.last_activity_at || a.updated_at || 0))
+    .slice(0, 5);
 
   // ─── Handlers ───────────────────────────────────────────────────────────
   const getEffectiveDueDate = () => {
@@ -213,6 +240,15 @@ function TransactionForm({
       ? cleanedItems.map(li => li.name).join(', ').substring(0, 200)
       : item.trim();
 
+    // Cash actually received from this sale (drives Today's cash tally vs gross sales)
+    const cashReceived = !isCredit
+      ? (settlementMode === 'paid'
+          ? sellingPrice
+          : settlementMode === 'partial'
+            ? partialReceivedAmount
+            : 0)
+      : null;
+
     const data = {
       type,
       item_name: itemNameForSave,
@@ -223,14 +259,21 @@ function TransactionForm({
       cost_price: isCredit ? 0 : cost,
       profit: (!isCredit && cost > 0) ? (sellingPrice - cost * qty) : null,
       is_credit: isCredit,
+      customer_id: !isCredit && settlementMode !== 'paid' ? (selectedCustomerForCredit?.id || null) : null,
+      customer_name: !isCredit && settlementMode !== 'paid' ? (selectedCustomerForCredit?.display_name || null) : null,
       customer_phone: isCredit ? fullPhone : null,
       due_date: isCredit ? getEffectiveDueDate() : null,
-      payment_type: isCredit ? null : paymentType,
-      payment_provider: (!isCredit && paymentType !== 'cash') ? paymentProvider || null : null,
+      // 'credit' payment_type marks a Pay-later sale (no cash exchanged this turn)
+      payment_type: isCredit ? null : (settlementMode === 'later' ? 'credit' : paymentType),
+      payment_provider: (!isCredit && settlementMode !== 'later' && paymentType !== 'cash') ? paymentProvider || null : null,
       direction: isCredit ? creditDirection : null,
       photo: photo || null,
       photo_taken_at: photo ? Date.now() : null,
-      items: cleanedItems.length > 0 ? cleanedItems : null,  // NEW: multi-item breakdown
+      items: cleanedItems.length > 0 ? cleanedItems : null,  // multi-item breakdown
+      // Paid · Partial · Pay Later metadata
+      settlement_mode: !isCredit ? settlementMode : null,
+      cash_received: cashReceived,
+      credit_amount: !isCredit && creditAmount > 0 ? creditAmount : null,
       created_at: Date.now(),
     };
     try {
@@ -319,6 +362,26 @@ function TransactionForm({
       // surface via App.jsx
     } finally {
       setCatalogSaving(false);
+    }
+  };
+
+  // ─── Inline customer add (for Partial / Pay Later flows) ──────────────
+  const submitNewCustomerInline = async () => {
+    if (!newCustomerName.trim() || !onAddCustomerInline || savingCustomer) return;
+    setSavingCustomer(true);
+    try {
+      const saved = await onAddCustomerInline({
+        display_name: newCustomerName.trim(),
+      });
+      if (saved && saved.id) {
+        setSelectedCustomerForCredit(saved);
+        setNewCustomerName('');
+        setShowNewCustomerInline(false);
+      }
+    } catch (err) {
+      // surface via App.jsx
+    } finally {
+      setSavingCustomer(false);
     }
   };
 
@@ -887,26 +950,34 @@ function TransactionForm({
           </div>
         )}
 
-        {/* ITEM / NAME + photo button (side by side) */}
+        {/* ITEM / NAME + photo button (inline on same row, larger photo tap target) */}
         {/* When breakdown has items, this becomes an optional note since items provide their own names */}
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
-              {validLineItems.length > 0 && !isCredit
-                ? (lang === 'am' ? 'ማስታወሻ (አማራጭ)' : 'NOTE (OPTIONAL)')
-                : itemLabel}
-            </label>
+          <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+            {validLineItems.length > 0 && !isCredit
+              ? (lang === 'am' ? 'ማስታወሻ (አማራጭ)' : 'NOTE (OPTIONAL)')
+              : itemLabel}
+          </label>
 
-            {/* Photo button — visible by default. Sale/expense only. */}
+          <div className="flex gap-2 items-stretch">
+            <input
+              type="text"
+              value={item}
+              onChange={e => setItem(e.target.value)}
+              placeholder={itemPlaceholder}
+              className="flex-1 min-w-0 p-3 border-2 focus:outline-none text-base"
+              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+            />
+
+            {/* Photo button — larger, visible, on the same row. Sale/expense only. */}
             {!isCredit && (
               <label
-                className="cursor-pointer press-scale flex items-center justify-center"
+                className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
                 style={{
-                  width: '40px',
-                  height: '40px',
-                  border: '1.5px solid #e8e2d8',
-                  borderRadius: 'var(--radius-sm)',
-                  background: photo ? '#f0fdf4' : '#fff',
+                  width: '56px',
+                  border: '2px solid #e8e2d8',
+                  borderRadius: 'var(--radius-md)',
+                  background: photo ? '#f0fdf4' : '#fafaf6',
                 }}
                 aria-label={lang === 'am' ? 'ፎቶ ያንሱ' : 'Take photo'}
               >
@@ -919,23 +990,14 @@ function TransactionForm({
                   disabled={photoLoading}
                 />
                 {photoLoading
-                  ? <span className="text-xs">…</span>
+                  ? <span className="text-sm">…</span>
                   : photo
-                    ? <CheckCircle2 className="w-5 h-5" style={{ color: '#16a34a' }} />
-                    : <Camera className="w-5 h-5" style={{ color: '#6b7280' }} />
+                    ? <CheckCircle2 className="w-6 h-6" style={{ color: '#16a34a' }} />
+                    : <Camera className="w-6 h-6" style={{ color: '#6b7280' }} />
                 }
               </label>
             )}
           </div>
-
-          <input
-            type="text"
-            value={item}
-            onChange={e => setItem(e.target.value)}
-            placeholder={itemPlaceholder}
-            className="w-full p-3 border-2 focus:outline-none text-base"
-            style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-          />
 
           {photoError && (
             <p className="text-xs mt-1 font-medium" style={{ color: '#dc2626' }}>
@@ -1168,8 +1230,185 @@ function TransactionForm({
           </div>
         )}
 
-        {/* Payment chips (sale/expense only) */}
+        {/* Settlement: Paid · Partial · Pay Later (sale/expense only) */}
         {!isCredit && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'ክፍያ' : 'Settlement'}
+            </label>
+            <div className="flex gap-1.5">
+              {[
+                { id: 'paid',    label: lang === 'am' ? 'ሙሉ' : 'Paid',    emoji: '💵' },
+                { id: 'partial', label: lang === 'am' ? 'ከፊል' : 'Partial', emoji: '½' },
+                { id: 'later',   label: lang === 'am' ? 'ኋላ' : 'Later',   emoji: '⏳' },
+              ].map(opt => {
+                const active = settlementMode === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      setSettlementMode(opt.id);
+                      // Reset partial value when leaving partial mode
+                      if (opt.id !== 'partial') setPartialReceived('');
+                      // Reset customer selection when going back to paid
+                      if (opt.id === 'paid') {
+                        setSelectedCustomerForCredit(null);
+                        setShowNewCustomerInline(false);
+                      }
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-1 border-2 text-xs font-bold transition-all min-h-[44px] press-scale"
+                    style={{
+                      borderRadius: 'var(--radius-sm)',
+                      borderColor: active ? accentColor : '#e8e2d8',
+                      background: active ? `${accentColor}10` : '#fff',
+                      color: active ? accentColor : '#6b7280',
+                    }}
+                  >
+                    <span className="text-base">{opt.emoji}</span>
+                    <span>{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Partial: amount received input + remaining-credit hint */}
+            {settlementMode === 'partial' && (
+              <div className="mt-2">
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+                  {lang === 'am' ? 'የተቀበሉት መጠን' : 'Amount received'} <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={fmtInput(partialReceived)}
+                    onChange={e => handleNumericInput(e, setPartialReceived)}
+                    placeholder="0"
+                    className="w-full p-2.5 pr-14 border-2 focus:outline-none text-base"
+                    style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: '#9ca3af' }}>
+                    {lang === 'am' ? 'ብር' : 'birr'}
+                  </span>
+                </div>
+                {sellingPrice > 0 && partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice && (
+                  <p className="text-xs mt-1.5 font-semibold" style={{ color: '#C4883A' }}>
+                    {lang === 'am' ? 'ቀሪ ዱቤ' : 'Credit owed'}: {fmt(creditAmount)} {lang === 'am' ? 'ብር' : 'birr'}
+                  </p>
+                )}
+                {partialReceivedAmount > 0 && partialReceivedAmount >= sellingPrice && (
+                  <p className="text-xs mt-1.5 font-medium" style={{ color: '#dc2626' }}>
+                    {lang === 'am'
+                      ? 'የተቀበሉት ሙሉ ነው — "ሙሉ" ይምረጡ'
+                      : 'Amount received is the full sale — use "Paid" instead.'}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Customer picker (Partial or Later) */}
+            {needsCustomer && (
+              <div className="mt-2">
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+                  {lang === 'am' ? 'ለማን?' : 'For whom?'} <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+
+                {selectedCustomerForCredit ? (
+                  <div
+                    className="flex items-center gap-2 p-2.5 border-2"
+                    style={{ borderColor: accentColor, background: `${accentColor}10`, borderRadius: 'var(--radius-md)' }}
+                  >
+                    <span className="flex-1 font-bold text-sm truncate" style={{ color: '#1a1a1a' }}>
+                      {selectedCustomerForCredit.display_name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCustomerForCredit(null)}
+                      className="press-scale flex items-center justify-center"
+                      style={{ minWidth: '32px', minHeight: '32px' }}
+                      aria-label={lang === 'am' ? 'አስወግድ' : 'Clear'}
+                    >
+                      <X className="w-4 h-4" style={{ color: '#6b7280' }} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 items-center">
+                      {recentCustomers.map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setSelectedCustomerForCredit(c)}
+                          className="flex-shrink-0 px-3 py-1.5 text-xs font-bold border press-scale"
+                          style={{
+                            borderColor: '#e8e2d8',
+                            borderRadius: 'var(--radius-sm)',
+                            background: '#fff',
+                            color: '#374151',
+                          }}
+                        >
+                          {c.display_name}
+                        </button>
+                      ))}
+                      {onAddCustomerInline && (
+                        <button
+                          type="button"
+                          onClick={() => setShowNewCustomerInline(v => !v)}
+                          className="flex-shrink-0 px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center gap-1"
+                          style={{
+                            borderColor: showNewCustomerInline ? accentColor : '#c9bfa8',
+                            borderStyle: 'dashed',
+                            borderRadius: 'var(--radius-sm)',
+                            background: showNewCustomerInline ? `${accentColor}10` : '#faf9f7',
+                            color: showNewCustomerInline ? accentColor : '#6b7280',
+                          }}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          {lang === 'am' ? 'አዲስ ደንበኛ' : 'New'}
+                        </button>
+                      )}
+                    </div>
+
+                    {showNewCustomerInline && (
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={newCustomerName}
+                          onChange={e => setNewCustomerName(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') submitNewCustomerInline(); }}
+                          placeholder={lang === 'am' ? 'ስም' : 'Customer name'}
+                          className="flex-1 p-2 border focus:outline-none text-sm"
+                          style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={submitNewCustomerInline}
+                          disabled={!newCustomerName.trim() || savingCustomer}
+                          className="px-3 py-2 text-xs font-bold press-scale flex items-center gap-1"
+                          style={{
+                            background: newCustomerName.trim() ? accentColor : '#e5e7eb',
+                            color: newCustomerName.trim() ? '#fff' : '#9ca3af',
+                            borderRadius: 'var(--radius-sm)',
+                            cursor: newCustomerName.trim() ? 'pointer' : 'not-allowed',
+                            minHeight: '36px',
+                          }}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          {lang === 'am' ? 'ጨምር' : 'Add'}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Payment chips (sale/expense, but hidden when settlementMode is 'later' — no cash to record) */}
+        {!isCredit && settlementMode !== 'later' && (
           <PaymentTypeChips
             paymentType={paymentType}
             provider={paymentProvider}

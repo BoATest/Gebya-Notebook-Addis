@@ -207,21 +207,48 @@ function ReminderSheet({ customer, shopName, onClose, onSent }) {
                 {available.map((ch) => {
                   const info = CHANNEL_INFO[ch];
                   const active = effectiveChannel === ch;
+                  const isTelegram = ch === 'telegram';
+                  // Telegram-first: highlight Telegram with a gold border + "★" badge
+                  // (Most Ethiopian shopkeepers reach customers via Telegram more than WhatsApp.)
                   return (
                     <button
                       key={ch}
                       type="button"
                       onClick={() => setChannel(ch)}
-                      className="flex items-center gap-1.5 py-2 px-3 border-2 text-xs font-bold transition-all min-h-[40px] press-scale"
+                      className="flex items-center gap-1.5 py-2.5 px-3 border-2 text-sm font-bold transition-all min-h-[44px] press-scale relative"
                       style={{
                         borderRadius: 'var(--radius-sm)',
-                        borderColor: active ? '#1B4332' : '#e8e2d8',
-                        background: active ? 'rgba(27,67,50,0.08)' : '#fff',
-                        color: active ? '#1B4332' : '#6b7280',
+                        borderColor: active
+                          ? '#1B4332'
+                          : isTelegram
+                            ? '#C4883A'
+                            : '#e8e2d8',
+                        background: active
+                          ? 'rgba(27,67,50,0.1)'
+                          : isTelegram
+                            ? 'rgba(196,136,58,0.08)'
+                            : '#fff',
+                        color: active
+                          ? '#1B4332'
+                          : isTelegram
+                            ? '#6b4f1d'
+                            : '#6b7280',
                       }}
                     >
-                      <span>{info.emoji}</span>
+                      <span className="text-base">{info.emoji}</span>
                       <span>{info.label[lang] || info.label.en}</span>
+                      {isTelegram && !active && (
+                        <span
+                          className="absolute -top-1.5 -right-1.5 text-[9px] font-bold px-1 py-0.5 leading-none"
+                          style={{
+                            background: '#C4883A',
+                            color: '#fff',
+                            borderRadius: '999px',
+                          }}
+                        >
+                          ★
+                        </span>
+                      )}
                     </button>
                   );
                 })}
