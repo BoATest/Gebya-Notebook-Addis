@@ -1193,7 +1193,7 @@ function AppInner() {
       setLedgerCustomers(prev => [...prev, saved]);
       setShowCustomerForm(false);
       setSelectedCustomerId(id);
-      setActiveTab('merro');
+      setActiveTab('credit');
       fireToast(t.customerSaved, 1800);
       return true;
     } catch (err) {
@@ -1902,14 +1902,14 @@ function AppInner() {
   // Tab labels swap with language toggle (single language at a time, not stacked)
   const TAB_LABELS = {
     today:    { en: 'Today',  am: 'ዛሬ' },
-    merro:    { en: 'Credit', am: 'ዱቤ' },
+    credit:   { en: 'Credit', am: 'ዱቤ' },
     history:  { en: 'Report', am: 'ሪፖርት' },
     settings: { en: 'More',   am: 'ተጨማሪ' },
   };
   // Tab IDs are UNCHANGED — only display labels and icons swap. activeTab logic stays intact.
   const tabs = [
     { id: 'today',    label: TAB_LABELS.today[lang],    icon: BookOpen },
-    { id: 'merro',    label: TAB_LABELS.merro[lang],    icon: CreditCard },
+    { id: 'credit',   label: TAB_LABELS.credit[lang],   icon: CreditCard },
     { id: 'history',  label: TAB_LABELS.history[lang],  icon: BarChart3 },
     { id: 'settings', label: TAB_LABELS.settings[lang], icon: MoreHorizontal },
   ];
@@ -2091,7 +2091,7 @@ function AppInner() {
           </div>
         )}
 
-        {activeTab === 'merro' && (
+        {activeTab === 'credit' && (
           selectedCustomer ? (
             <Suspense fallback={<PanelFallback label={t.loading} />}>
               <CustomerDetail
@@ -2183,7 +2183,7 @@ function AppInner() {
                   key={b.type}
                   onClick={() => {
                     if (b.type === 'credit') {
-                      setActiveTab('merro');
+                      setActiveTab('credit');
                       setShowCustomerForm(true);
                       return;
                     }
