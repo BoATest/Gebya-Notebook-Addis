@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ArrowLeft, Bell, Link2, MessageCircle, Phone, Plus, RefreshCcw, Wallet } from 'lucide-react';
+import { ArrowLeft, Bell, CheckCircle2, Link2, MessageCircle, Phone, Plus, RefreshCcw, Wallet } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
@@ -10,6 +10,7 @@ function CustomerDetail({
   onBack,
   onAddCredit,
   onRecordPayment,
+  onMarkFullyPaid,
   onToggleTelegramNotify,
   onOpenTelegramConnect,
   onResendTelegramUpdate,
@@ -212,27 +213,50 @@ function CustomerDetail({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      {/* Primary actions: +Credit and +Payment (parity with v4 patterns — smaller, no 3D shadow) */}
+      <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={onAddCredit}
-          className="p-4 font-black text-white min-h-[56px] flex items-center justify-center gap-2 press-scale"
-          style={{ background: '#C4883A', borderRadius: 'var(--radius-md)', boxShadow: '0 4px 0 #96662b' }}
+          className="p-3 font-bold text-white text-sm min-h-[48px] flex items-center justify-center gap-1.5 press-scale"
+          style={{ background: '#C4883A', borderRadius: 'var(--radius-md)' }}
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4" />
           {t.addCredit}
         </button>
         <button
           type="button"
           onClick={onRecordPayment}
           disabled={!hasCollectableBalance}
-          className="p-4 font-black text-white min-h-[56px] flex items-center justify-center gap-2 press-scale disabled:opacity-45 disabled:cursor-not-allowed"
-          style={{ background: '#2d6a4f', borderRadius: 'var(--radius-md)', boxShadow: hasCollectableBalance ? '0 4px 0 #1B4332' : 'none' }}
+          className="p-3 font-bold text-white text-sm min-h-[48px] flex items-center justify-center gap-1.5 press-scale disabled:opacity-45 disabled:cursor-not-allowed"
+          style={{ background: '#2d6a4f', borderRadius: 'var(--radius-md)' }}
         >
-          <Wallet className="w-5 h-5" />
+          <Wallet className="w-4 h-4" />
           {t.recordPayment}
         </button>
       </div>
+
+      {/* Mark Fully Paid — recovered from the deprecated CreditDetail.jsx.
+          One tap → opens the Payment sheet with amount pre-filled to the full balance.
+          Shopkeeper just confirms and saves. Hidden when balance = 0. */}
+      {hasCollectableBalance && onMarkFullyPaid && (
+        <button
+          type="button"
+          onClick={() => onMarkFullyPaid(customer)}
+          className="w-full p-3 font-bold text-sm min-h-[44px] flex items-center justify-center gap-2 border-2 press-scale"
+          style={{
+            background: '#f0fdf4',
+            color: '#166534',
+            borderColor: '#bbf7d0',
+            borderRadius: 'var(--radius-md)',
+          }}
+        >
+          <CheckCircle2 className="w-4 h-4" />
+          {lang === 'am'
+            ? `ሙሉ ለሙሉ ተከፍሏል (${fmt(customer.balance || 0)} ${t.birr || 'birr'})`
+            : `Mark fully paid (${fmt(customer.balance || 0)} ${t.birr || 'birr'})`}
+        </button>
+      )}
 
       {!hasCollectableBalance && (
         <p className="text-xs font-medium -mt-1" style={{ color: 'var(--color-text-muted)' }}>

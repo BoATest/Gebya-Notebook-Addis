@@ -1529,14 +1529,26 @@ function TransactionForm({
                       </p>
                     </div>
                   )}
-                  {cost > 0 && !belowCost && sellingPrice > 0 && (
-                    <div className="mt-2 p-2.5 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', borderRadius: 'var(--radius-sm)' }}>
-                      <p className="text-xs font-semibold" style={{ color: '#166534' }}>
-                        {lang === 'am' ? 'በዚህ ሽያጭ ትርፍ:' : 'Profit on this sale:'}{' '}
-                        {fmt(sellingPrice - cost * qty)} {lang === 'am' ? 'ብር' : 'birr'}
-                      </p>
-                    </div>
-                  )}
+                  {cost > 0 && !belowCost && sellingPrice > 0 && (() => {
+                    // Reclaimed from the deprecated ProfitCalculatorModal.jsx —
+                    // live profit + margin% indicator. Margin colored by health:
+                    // ≥30% green, 15-30% amber, <15% red. Helps shopkeepers price.
+                    const profit = sellingPrice - cost * qty;
+                    const margin = sellingPrice > 0 ? (profit / sellingPrice) * 100 : 0;
+                    const marginColor = margin >= 30 ? '#16a34a' : margin >= 15 ? '#C4883A' : '#dc2626';
+                    return (
+                      <div className="mt-2 p-2.5 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', borderRadius: 'var(--radius-sm)' }}>
+                        <div className="flex items-baseline justify-between gap-2">
+                          <p className="text-xs font-semibold" style={{ color: '#166534' }}>
+                            {lang === 'am' ? 'ትርፍ' : 'Profit'}: {fmt(profit)} {lang === 'am' ? 'ብር' : 'birr'}
+                          </p>
+                          <p className="text-xs font-bold flex-shrink-0" style={{ color: marginColor }}>
+                            {Math.round(margin * 10) / 10}% {lang === 'am' ? 'ህዳግ' : 'margin'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

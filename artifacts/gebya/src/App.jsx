@@ -2181,6 +2181,11 @@ function AppInner() {
                   mode: CUSTOMER_TRANSACTION_TYPES.PAYMENT,
                   customerId: selectedCustomer.id,
                 })}
+                onMarkFullyPaid={(c) => setCustomerTransactionModal({
+                  mode: CUSTOMER_TRANSACTION_TYPES.PAYMENT,
+                  customerId: c.id,
+                  initialAmount: Number(c.balance || 0),
+                })}
                 onToggleTelegramNotify={() => handleToggleCustomerTelegramNotify(selectedCustomer)}
                 onOpenTelegramConnect={() => setTelegramConnectCustomerId(selectedCustomer.id)}
                 onResendTelegramUpdate={() => handleResendCustomerTelegramUpdate(selectedCustomer)}
@@ -2363,6 +2368,7 @@ function AppInner() {
           <CustomerTransactionSheet
             customer={activeCustomerTransactionModal}
             mode={customerTransactionModal.mode}
+            initialAmount={customerTransactionModal.initialAmount}
             onSave={handleSaveCustomerTransaction}
             actorLabel={currentActorLabel}
             catalogEntries={activeCatalogEntries}

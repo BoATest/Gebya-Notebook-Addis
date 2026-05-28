@@ -26,13 +26,18 @@ const DEFAULT_QUICK_AMOUNTS = [50, 100, 200, 500, 1000];
 function CustomerTransactionSheet({
   customer,
   mode = CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+  initialAmount,
   onSave,
   onDone,
   actorLabel,
   catalogEntries = [],
 }) {
   const { t, lang } = useLang();
-  const [amount, setAmount] = useState('');
+  // initialAmount lets callers pre-fill the field — e.g. "Mark fully paid"
+  // passes the customer's current balance so the shopkeeper just confirms.
+  const [amount, setAmount] = useState(
+    initialAmount != null && initialAmount > 0 ? String(initialAmount) : ''
+  );
   const [itemNote, setItemNote] = useState('');
   const [catalogEntryId, setCatalogEntryId] = useState('');
   const [dueDate, setDueDate] = useState('');

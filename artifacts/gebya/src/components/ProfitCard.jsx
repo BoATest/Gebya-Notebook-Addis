@@ -75,12 +75,23 @@ function ProfitCard({ transactions, yesterdayNet }) {
         <button
           onClick={toggle}
           aria-label={lang === 'am' ? 'ቁጥሮችን ደብቅ/አሳይ' : 'Toggle privacy'}
-          className="p-1 press-scale"
-          style={{ minWidth: '32px', minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          className="press-scale flex items-center gap-1 px-2"
+          style={{
+            minHeight: '32px',
+            background: hidden ? 'rgba(196,136,58,0.10)' : 'transparent',
+            border: hidden ? '1px solid #fde68a' : '1px solid transparent',
+            borderRadius: '999px',
+            color: hidden ? '#92400e' : '#9ca3af',
+            fontSize: '11px',
+            fontWeight: hidden ? 700 : 500,
+          }}
         >
           {hidden
-            ? <EyeOff className="w-4 h-4" style={{ color: '#9ca3af' }} />
-            : <Eye className="w-4 h-4" style={{ color: '#9ca3af' }} />}
+            ? <EyeOff className="w-4 h-4" />
+            : <Eye className="w-4 h-4" />}
+          {hidden && (
+            <span>{lang === 'am' ? 'አሳይ' : 'Reveal'}</span>
+          )}
         </button>
       </div>
 
