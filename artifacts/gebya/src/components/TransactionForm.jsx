@@ -282,7 +282,7 @@ function TransactionForm({
   // ─── Success screen ─────────────────────────────────────────────────────
   if (saveState === 'success') {
     return (
-      <div className="fixed inset-x-0 top-0 bottom-0 sm:bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col">
+      <div className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col">
         <div className="flex-1 flex items-center justify-center px-6">
           <div className="text-center">
             <CheckCircle2 className="w-16 h-16 mx-auto mb-3" style={{ color: '#16a34a' }} />
@@ -326,7 +326,7 @@ function TransactionForm({
   // ─── Main form ──────────────────────────────────────────────────────────
   return (
     <div
-      className="fixed inset-x-0 top-0 bottom-0 sm:bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col"
+      className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col"
       style={{ background: '#ffffff' }}
     >
       {/* Header: back arrow + type label */}
@@ -343,21 +343,21 @@ function TransactionForm({
           <ArrowLeft className="w-5 h-5" style={{ color: '#6b7280' }} />
         </button>
         <h2 className="text-base font-bold" style={{ color: accentColor }}>{headerLabel}</h2>
-        <div style={{ width: '36px' }} />
+        {actorLabel ? (
+          <span
+            className="text-[11px] font-semibold truncate"
+            style={{ color: '#6b4f1d', maxWidth: '100px', textAlign: 'right' }}
+            title={actorLabel}
+          >
+            {actorLabel}
+          </span>
+        ) : (
+          <div style={{ width: '36px' }} />
+        )}
       </div>
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 pb-2 space-y-4">
-
-        {/* Actor chip */}
-        <div
-          className="px-3 py-2 text-xs font-medium"
-          style={{ background: 'rgba(196,136,58,0.08)', color: '#6b4f1d', borderRadius: 'var(--radius-sm)' }}
-        >
-          {lang === 'am'
-            ? `እንደ ${actorLabel || 'ባለቤት'} ይቀመጣል`
-            : `This record will be saved as: ${actorLabel || 'Owner'}`}
-        </div>
 
         {/* Credit direction picker */}
         {isCredit && (
@@ -651,33 +651,6 @@ function TransactionForm({
           )}
         </div>
 
-        {/* Quantity (sale/expense, not credit) */}
-        {!isCredit && (
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'ብዛት' : 'QUANTITY'}
-            </label>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={quantity}
-              onChange={e => {
-                const raw = e.target.value;
-                if (raw === '') { setQuantity(''); return; }
-                const v = parseInt(raw);
-                if (!isNaN(v) && v >= 1) setQuantity(String(v));
-              }}
-              onBlur={e => {
-                const v = parseInt(e.target.value);
-                setQuantity(isNaN(v) || v < 1 ? '1' : String(v));
-              }}
-              min="1"
-              className="w-full p-3 border-2 focus:outline-none text-base"
-              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-            />
-          </div>
-        )}
-
         {/* Phone (credit) */}
         {isCredit && (
           <div>
@@ -790,7 +763,7 @@ function TransactionForm({
           />
         )}
 
-        {/* Advanced cost price toggle (sale/expense) */}
+        {/* More options toggle (sale/expense) — collapses quantity + cost price */}
         {!isCredit && (
           <div>
             <button
@@ -800,52 +773,115 @@ function TransactionForm({
               style={{ color: '#C4883A' }}
             >
               {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              {lang === 'am' ? 'ተጨማሪ (አማራጭ)' : 'Advanced (optional)'}
+              {lang === 'am'
+                ? `ተጨማሪ (ብዛት፣ ዋጋ) ${qty > 1 ? `• ×${qty}` : ''}`
+                : `More options (qty, cost) ${qty > 1 ? `• ×${qty}` : ''}`}
             </button>
 
             {showAdvanced && (
               <div
-                className="mt-2 p-3 border"
+                className="mt-2 p-3 border space-y-3"
                 style={{ background: 'var(--color-bg)', borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)' }}
               >
-                <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>
-                  {lang === 'am' ? 'ለዚህ ምን ከፈሉ?' : 'What did you pay for this?'}{' '}
-                  <span style={{ color: '#9ca3af' }}>{lang === 'am' ? '(በአንድ)' : '(per unit)'}</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={fmtInput(costPrice)}
-                    onChange={e => handleNumericInput(e, setCostPrice)}
-                    placeholder="0"
-                    className="w-full p-3 pr-14 border-2 focus:outline-none text-base"
-                    style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: '#9ca3af' }}>
-                    {lang === 'am' ? 'ብር' : 'birr'}
-                  </span>
+                {/* Quantity */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>
+                    {lang === 'am' ? 'ብዛት' : 'Quantity'}{' '}
+                    <span style={{ color: '#9ca3af' }}>{lang === 'am' ? '(በነባሪ 1)' : '(default 1)'}</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setQuantity(String(Math.max(1, qty - 1)))}
+                      className="flex items-center justify-center press-scale"
+                      style={{
+                        minWidth: '44px',
+                        minHeight: '44px',
+                        border: '2px solid #e8e2d8',
+                        borderRadius: 'var(--radius-md)',
+                        background: '#fff',
+                      }}
+                      aria-label={lang === 'am' ? 'ቀንስ' : 'Decrease'}
+                    >
+                      <Minus className="w-4 h-4" style={{ color: '#374151' }} />
+                    </button>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={quantity}
+                      onChange={e => {
+                        const raw = e.target.value;
+                        if (raw === '') { setQuantity(''); return; }
+                        const v = parseInt(raw);
+                        if (!isNaN(v) && v >= 1) setQuantity(String(v));
+                      }}
+                      onBlur={e => {
+                        const v = parseInt(e.target.value);
+                        setQuantity(isNaN(v) || v < 1 ? '1' : String(v));
+                      }}
+                      min="1"
+                      className="flex-1 p-2.5 border-2 focus:outline-none text-base text-center font-bold"
+                      style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setQuantity(String(qty + 1))}
+                      className="flex items-center justify-center press-scale"
+                      style={{
+                        minWidth: '44px',
+                        minHeight: '44px',
+                        border: '2px solid #e8e2d8',
+                        borderRadius: 'var(--radius-md)',
+                        background: '#fff',
+                      }}
+                      aria-label={lang === 'am' ? 'ጨምር' : 'Increase'}
+                    >
+                      <Plus className="w-4 h-4" style={{ color: '#374151' }} />
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs mt-1.5" style={{ color: '#9ca3af' }}>
-                  {lang === 'am' ? 'አማራጭ — ትክክለኛውን ትርፍ ለማየት ይረዳል' : 'Optional — helps you see your true profit'}
-                </p>
 
-                {belowCost && (
-                  <div className="mt-2 flex items-start gap-2 p-2.5" style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)' }}>
-                    <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#d97706' }} />
-                    <p className="text-xs" style={{ color: '#92400e' }}>
-                      {lang === 'am' ? 'ከዋጋ በታች እየሸጡ ነው።' : 'You are selling below cost.'}
-                    </p>
+                {/* Cost price */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>
+                    {lang === 'am' ? 'ለዚህ ምን ከፈሉ?' : 'What did you pay for this?'}{' '}
+                    <span style={{ color: '#9ca3af' }}>{lang === 'am' ? '(በአንድ)' : '(per unit)'}</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={fmtInput(costPrice)}
+                      onChange={e => handleNumericInput(e, setCostPrice)}
+                      placeholder="0"
+                      className="w-full p-3 pr-14 border-2 focus:outline-none text-base"
+                      style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: '#9ca3af' }}>
+                      {lang === 'am' ? 'ብር' : 'birr'}
+                    </span>
                   </div>
-                )}
-                {cost > 0 && !belowCost && sellingPrice > 0 && (
-                  <div className="mt-2 p-2.5 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', borderRadius: 'var(--radius-sm)' }}>
-                    <p className="text-xs font-semibold" style={{ color: '#166534' }}>
-                      {lang === 'am' ? 'በዚህ ሽያጭ ትርፍ:' : 'Profit on this sale:'}{' '}
-                      {fmt(sellingPrice - cost * qty)} {lang === 'am' ? 'ብር' : 'birr'}
-                    </p>
-                  </div>
-                )}
+                  <p className="text-xs mt-1.5" style={{ color: '#9ca3af' }}>
+                    {lang === 'am' ? 'አማራጭ — ትክክለኛውን ትርፍ ለማየት ይረዳል' : 'Optional — helps you see your true profit'}
+                  </p>
+
+                  {belowCost && (
+                    <div className="mt-2 flex items-start gap-2 p-2.5" style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)' }}>
+                      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#d97706' }} />
+                      <p className="text-xs" style={{ color: '#92400e' }}>
+                        {lang === 'am' ? 'ከዋጋ በታች እየሸጡ ነው።' : 'You are selling below cost.'}
+                      </p>
+                    </div>
+                  )}
+                  {cost > 0 && !belowCost && sellingPrice > 0 && (
+                    <div className="mt-2 p-2.5 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', borderRadius: 'var(--radius-sm)' }}>
+                      <p className="text-xs font-semibold" style={{ color: '#166534' }}>
+                        {lang === 'am' ? 'በዚህ ሽያጭ ትርፍ:' : 'Profit on this sale:'}{' '}
+                        {fmt(sellingPrice - cost * qty)} {lang === 'am' ? 'ብር' : 'birr'}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
