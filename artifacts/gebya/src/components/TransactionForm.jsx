@@ -1556,8 +1556,44 @@ function TransactionForm({
         )}
       </div>
 
-      {/* Sticky save button */}
+      {/* Sticky save button · with a clear hint when something blocks saving.
+          Surfaces "what's missing" so the user doesn't have to guess. */}
       <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid #e8e2d8' }}>
+        {!canSave && sellingPrice > 0 && (() => {
+          // Identify the blocker, in priority order
+          let blocker = null;
+          if (settlementMode === 'partial' && !(partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice)) {
+            blocker = lang === 'am'
+              ? '↑ የተቀበሉት መጠን ይተይቡ (ከመጠን ያነሰ)'
+              : '↑ Enter amount received (must be less than total)';
+          } else if (needsCustomer && !selectedCustomerForCredit) {
+            blocker = lang === 'am'
+              ? '↑ ለማን ይከፍላል? በላይ ላይ ይምረጡ'
+              : '↑ Pick a customer above';
+          } else if (isCredit && !item.trim()) {
+            blocker = lang === 'am' ? '↑ ስም ይተይቡ' : '↑ Enter customer name';
+          } else if (isCredit && !hasDueDate) {
+            blocker = lang === 'am' ? '↑ የመክፈያ ቀን ይምረጡ' : '↑ Pick due date';
+          } else if (phoneEntered && !phoneValid) {
+            blocker = lang === 'am' ? '↑ ስልክ ስህተት' : '↑ Phone format invalid';
+          }
+          if (!blocker) return null;
+          return (
+            <p style={{
+              fontSize: '0.78rem',
+              color: '#92400e',
+              background: '#fef3c7',
+              border: '1px solid #fde68a',
+              borderRadius: 8,
+              padding: '8px 10px',
+              marginBottom: 8,
+              fontWeight: 600,
+              textAlign: 'center',
+            }}>
+              {blocker}
+            </p>
+          );
+        })()}
         <button
           onClick={handleSave}
           disabled={!canSave}

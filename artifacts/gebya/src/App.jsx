@@ -763,6 +763,11 @@ function AppInner() {
             // or "pay-later" badge on this credit row. Non-indexed, no schema
             // migration needed.
             settlement_mode: transaction.settlement_mode || null,
+            // Multi-item breakdown · copy the items[] array onto the customer
+            // credit so the 🧺 expander shows up in CustomerDetail history.
+            items: Array.isArray(transaction.items) && transaction.items.length > 0
+              ? transaction.items
+              : null,
             reference_code: null,
             telegram_delivery_state: null,
             telegram_delivery_attempted_at: null,

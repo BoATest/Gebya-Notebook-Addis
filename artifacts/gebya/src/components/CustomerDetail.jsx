@@ -17,7 +17,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, Bell, CheckCircle2, ChevronDown, ChevronUp,
-  Link2, MessageCircle, Phone, Plus, RefreshCcw, Wallet, X, Pencil, Trash2,
+  Link2, MessageCircle, MoreVertical, Phone, Plus, RefreshCcw, Wallet, X, Pencil, Trash2,
 } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
@@ -445,7 +445,7 @@ function CustomerDetail({
             {lang === 'am' ? 'መዝገብ' : 'History'} · {historyRows.length} {lang === 'am' ? 'መዝገብ' : 'entries'}
           </p>
           <p style={{ fontSize: '0.62rem', color: '#9ca3af', fontStyle: 'italic' }}>
-            {lang === 'am' ? 'ለመስተካከል ይያዙ' : 'long-press to edit'}
+            {lang === 'am' ? '⋮ ለማስተካከል' : 'tap ⋮ to edit'}
           </p>
         </div>
 
@@ -473,6 +473,7 @@ function CustomerDetail({
                 isLast={idx === historyRows.length - 1}
                 expanded={!!expandedRows[tx.id]}
                 onToggleExpand={() => setExpandedRows(prev => ({ ...prev, [tx.id]: !prev[tx.id] }))}
+                onActionMenu={(t) => setActionSheet({ tx: t })}
                 lang={lang}
                 longPress={longPress}
               />
@@ -552,7 +553,7 @@ function QuickAction({ variant, icon, label, onClick, disabled }) {
 }
 
 // ─── History row with settlement breadcrumb + breakdown expander ──────
-function HistoryRow({ tx, isLast, expanded, onToggleExpand, lang, longPress }) {
+function HistoryRow({ tx, isLast, expanded, onToggleExpand, onActionMenu, lang, longPress }) {
   const isPayment = tx.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT;
   const items = Array.isArray(tx.items) && tx.items.length > 0 ? tx.items : null;
   const settlementMode = tx.settlement_mode || null; // 'partial' | 'later' | null
@@ -670,14 +671,34 @@ function HistoryRow({ tx, isLast, expanded, onToggleExpand, lang, longPress }) {
             </div>
           )}
         </div>
-        <p style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: '0.95rem', fontWeight: 700,
-          color: amountColor, flexShrink: 0,
-          fontVariantNumeric: 'tabular-nums',
-        }}>
-          {sign}{fmt(tx.amount || 0)}
-        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+          <p style={{
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '0.95rem', fontWeight: 700,
+            color: amountColor,
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {sign}{fmt(tx.amount || 0)}
+          </p>
+          {/* Visible 3-dot menu — for users who don't know to long-press.
+              Long-press still works as a power-user shortcut. */}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onActionMenu?.(tx); }}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label={lang === 'am' ? 'ምርጫዎች' : 'More'}
+            style={{
+              width: 28, height: 28, borderRadius: 6,
+              background: 'rgba(0,0,0,0.04)',
+              border: 'none',
+              color: '#6b7280',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
