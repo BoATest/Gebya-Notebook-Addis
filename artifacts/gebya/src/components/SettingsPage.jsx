@@ -10,7 +10,14 @@ import { ALL_BANKS, ALL_WALLETS } from './PaymentTypeChips';
 import { fireToast } from './Toast';
 import { normalizeTelegram } from '../utils/customerTelegram';
 import { SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger';
-import { isValidSubscriber } from '../utils/phoneNumber';
+import { isValidSubscriber, extractSubscriberDigits } from '../utils/phoneNumber';
+import {
+  DEFAULT_CHANNEL_DEFINITIONS,
+  getChannelDefinition,
+  updateChannel,
+  removeChannel,
+  addCustomChannel,
+} from '../utils/paymentChannels';
 
 const PwaInstallPanel = lazy(() => import('./PwaInstallPanel.jsx'));
 
@@ -67,6 +74,349 @@ function SettingsSection({ id, title, openSection, setOpenSection, children, def
   );
 }
 
+// ─── PAYMENT CHANNELS SECTION (Commit C.4) ──────────────────────────────
+//
+// Row per channel. Each row collapses to just the toggle + name when
+// disabled; expands to show phone/account fields when enabled.
+// Auto-saves on every change — there's no Save button.
+function PaymentChannelsSection({ channels, shopPhone, enabledCount, configuredCount, onChange, lang }) {
+  const [showAddCustom, setShowAddCustom] = useState(false);
+  const [addKind, setAddKind] = useState('bank');
+  const [addName, setAddName] = useState('');
+
+  const wallets = channels.filter(c => c.kind === 'wallet');
+  const banks = channels.filter(c => c.kind === 'bank');
+
+  const handleToggle = (channel) => {
+    onChange?.(updateChannel(channels, channel.id, { enabled: !channel.enabled }));
+  };
+  const handleField = (channelId, field, value) => {
+    onChange?.(updateChannel(channels, channelId, { [field]: value }));
+  };
+  const handleToggleSameAsShop = (channelId, isSame) => {
+    onChange?.(updateChannel(channels, channelId, {
+      usePhoneFromShop: isSame,
+      phone: isSame ? '' : '',
+    }));
+  };
+  const handleRemove = (channelId) => {
+    if (!window.confirm(lang === 'am' ? 'ይህን መንገድ ይሰርዙ?' : 'Remove this channel?')) return;
+    onChange?.(removeChannel(channels, channelId));
+  };
+  const handleAddCustom = () => {
+    const name = addName.trim();
+    if (!name) return;
+    onChange?.(addCustomChannel(channels, { kind: addKind, name }));
+    setAddName('');
+    setShowAddCustom(false);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
+      {/* Header strip with progress chip */}
+      <div className="px-5 pt-4 pb-3 border-b" style={{ borderColor: '#f0f9f4' }}>
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4" style={{ color: '#047857' }} />
+            <p className="text-sm font-black" style={{ color: '#065f46' }}>
+              {lang === 'am' ? 'የክፍያ መንገዶች' : 'Payment channels'}
+            </p>
+          </div>
+          <span
+            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+            style={{
+              background: configuredCount > 0 ? '#16a34a' : enabledCount > 0 ? '#b8842c' : '#94a3b8',
+              color: '#fff',
+            }}
+          >
+            {configuredCount}/{enabledCount} {lang === 'am' ? 'ተዋቅሯል' : 'configured'}
+          </span>
+        </div>
+        <p className="text-[11px] leading-snug" style={{ color: '#047857' }}>
+          {lang === 'am'
+            ? 'መንገድ ይምረጡ — በሽያጭ መመዝገብ ጊዜ እና ለደንበኞች በሚላክ የመክፈያ አገናኝ ላይ ይታያል።'
+            : 'Enable channels — they appear when you record a sale AND on the Pay-it-now link for customers.'}
+        </p>
+      </div>
+
+      {/* Wallets group */}
+      <div className="px-5 py-3" style={{ borderBottom: '1px solid #f0f9f4' }}>
+        <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
+          📱 {lang === 'am' ? 'ሞባይል ዋሌት' : 'Mobile wallets'}
+        </p>
+        <div className="flex flex-col gap-2">
+          {wallets.map((c) => (
+            <ChannelRow
+              key={c.id}
+              channel={c}
+              shopPhone={shopPhone}
+              onToggle={() => handleToggle(c)}
+              onField={(field, value) => handleField(c.id, field, value)}
+              onToggleSameAsShop={(v) => handleToggleSameAsShop(c.id, v)}
+              onRemove={() => handleRemove(c.id)}
+              lang={lang}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Banks group */}
+      <div className="px-5 py-3" style={{ borderBottom: '1px solid #f0f9f4' }}>
+        <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
+          🏦 {lang === 'am' ? 'ባንኮች' : 'Banks'}
+        </p>
+        <div className="flex flex-col gap-2">
+          {banks.map((c) => (
+            <ChannelRow
+              key={c.id}
+              channel={c}
+              shopPhone={shopPhone}
+              onToggle={() => handleToggle(c)}
+              onField={(field, value) => handleField(c.id, field, value)}
+              onToggleSameAsShop={(v) => handleToggleSameAsShop(c.id, v)}
+              onRemove={() => handleRemove(c.id)}
+              lang={lang}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Add custom channel */}
+      <div className="px-5 py-3">
+        {showAddCustom ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setAddKind('bank')}
+                className="flex-1 py-2 text-xs font-bold border-2 rounded-lg press-scale"
+                style={{
+                  background: addKind === 'bank' ? 'rgba(196,136,58,0.15)' : '#fff',
+                  borderColor: addKind === 'bank' ? '#C4883A' : '#e8e2d8',
+                  color: addKind === 'bank' ? '#6b4f1d' : '#6b7280',
+                }}
+              >
+                🏦 {lang === 'am' ? 'ባንክ' : 'Bank'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddKind('wallet')}
+                className="flex-1 py-2 text-xs font-bold border-2 rounded-lg press-scale"
+                style={{
+                  background: addKind === 'wallet' ? 'rgba(196,136,58,0.15)' : '#fff',
+                  borderColor: addKind === 'wallet' ? '#C4883A' : '#e8e2d8',
+                  color: addKind === 'wallet' ? '#6b4f1d' : '#6b7280',
+                }}
+              >
+                📱 {lang === 'am' ? 'ዋሌት' : 'Wallet'}
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={addName}
+                onChange={(e) => setAddName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddCustom()}
+                placeholder={lang === 'am' ? 'ስም ለምሳሌ Zemen Bank' : 'e.g. Zemen Bank'}
+                autoFocus
+                className="flex-1 px-3 py-2 border-2 rounded-lg text-sm focus:outline-none"
+                style={{ borderColor: '#e8e2d8' }}
+              />
+              <button
+                onClick={handleAddCustom}
+                disabled={!addName.trim()}
+                className="px-3 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-40 press-scale"
+                style={{ background: addName.trim() ? '#C4883A' : '#e5e7eb' }}
+              >
+                {lang === 'am' ? 'ጨምር' : 'Add'}
+              </button>
+              <button
+                onClick={() => { setShowAddCustom(false); setAddName(''); }}
+                className="px-2 py-2 rounded-lg text-sm font-bold press-scale"
+                style={{ background: 'transparent', color: '#6b7280' }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowAddCustom(true)}
+            className="w-full py-2.5 text-sm font-bold border-2 border-dashed rounded-lg press-scale flex items-center justify-center gap-1.5"
+            style={{ borderColor: '#C4883A', color: '#6b4f1d', background: 'rgba(196,136,58,0.04)' }}
+          >
+            <Plus className="w-4 h-4" />
+            {lang === 'am' ? 'ሌላ መንገድ ጨምር' : 'Add custom channel'}
+          </button>
+        )}
+      </div>
+
+      <div className="px-5 pb-4">
+        <p className="text-[10px] leading-snug" style={{ color: '#9ca3af' }}>
+          🔒 {lang === 'am'
+            ? 'መረጃው በዚህ ስልክ ላይ ብቻ ይቀመጣል። Gebya ገንዘቡን አያይም — እርስዎ በቀጥታ ይቀበላሉ።'
+            : 'Stored on this phone only. Gebya never touches the money — customers pay you direct.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Single row in the Payment Channels section. Collapses when disabled.
+function ChannelRow({ channel, shopPhone, onToggle, onField, onToggleSameAsShop, onRemove, lang }) {
+  const def = getChannelDefinition(channel.id);
+  const emoji = def?.emoji || (channel.kind === 'bank' ? '🏦' : '📱');
+  const ussd = def?.ussd;
+
+  // What fields make sense for this channel?
+  // - Wallet (telebirr-style): phone only (with same-as-shop toggle)
+  // - Wallet (CBE Birr): phone + optional bank account
+  // - Bank: account number only
+  // - Custom wallet: phone
+  // - Custom bank: account
+  const showPhone = channel.kind === 'wallet';
+  const showAccount = channel.kind === 'bank' || channel.id === 'cbe_birr';
+  const showSameAsShop = channel.id === 'telebirr';
+
+  // Phone displayed in subtitle when usePhoneFromShop = true
+  const effectivePhone = channel.usePhoneFromShop ? shopPhone : channel.phone;
+
+  return (
+    <div
+      style={{
+        background: channel.enabled ? '#f8fdf9' : '#fafafa',
+        border: `1.5px solid ${channel.enabled ? '#86efac' : '#e5e7eb'}`,
+        borderRadius: 12,
+        padding: '10px 12px',
+        transition: 'background 0.15s ease, border-color 0.15s ease',
+      }}
+    >
+      {/* Top row: emoji + name + toggle + remove (custom only) */}
+      <div className="flex items-center gap-2">
+        <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>{emoji}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold" style={{ color: channel.enabled ? '#1a1a1a' : '#9ca3af' }}>
+            {channel.name}
+          </p>
+          {ussd && channel.enabled && (
+            <p className="text-[10px]" style={{ color: '#6b7280' }}>
+              USSD {ussd}
+              {effectivePhone && ` · ${effectivePhone}`}
+            </p>
+          )}
+        </div>
+        {channel.custom && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={lang === 'am' ? 'አስወግድ' : 'Remove'}
+            className="press-scale"
+            style={{
+              padding: 4, color: '#9ca3af', background: 'transparent', border: 'none', cursor: 'pointer',
+            }}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {/* Toggle */}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-pressed={channel.enabled}
+          aria-label={channel.enabled ? 'On' : 'Off'}
+          className="press-scale"
+          style={{
+            width: 40, height: 24, borderRadius: 999,
+            background: channel.enabled ? '#16a34a' : '#d1d5db',
+            border: 'none', cursor: 'pointer', position: 'relative',
+            flexShrink: 0, transition: 'background 0.15s ease',
+          }}
+        >
+          <div style={{
+            position: 'absolute',
+            top: 2, left: channel.enabled ? 18 : 2,
+            width: 20, height: 20, borderRadius: '50%',
+            background: '#fff',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
+            transition: 'left 0.18s ease',
+          }} />
+        </button>
+      </div>
+
+      {/* Expanded fields — only when enabled */}
+      {channel.enabled && (showPhone || showAccount) && (
+        <div className="mt-2.5 flex flex-col gap-2" style={{ paddingLeft: 28 }}>
+          {showSameAsShop && (
+            <label className="flex items-center gap-1.5 text-[12px] font-semibold cursor-pointer" style={{ color: '#047857' }}>
+              <input
+                type="checkbox"
+                checked={!!channel.usePhoneFromShop}
+                onChange={(e) => onToggleSameAsShop(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: '#16a34a' }}
+              />
+              {lang === 'am' ? 'ከሱቅ ስልክ ጋር አንድ' : 'Same as shop phone'}
+              {channel.usePhoneFromShop && shopPhone && (
+                <span className="ml-1 text-[11px] font-bold" style={{ color: '#065f46' }}>
+                  ({shopPhone})
+                </span>
+              )}
+            </label>
+          )}
+          {showPhone && !channel.usePhoneFromShop && (
+            <div className="flex gap-0">
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0 10px',
+                  background: '#fff',
+                  border: '2px solid #86efac', borderRight: 'none',
+                  borderRadius: '8px 0 0 8px',
+                  fontSize: '0.85rem', fontWeight: 800, color: '#1B4332',
+                  minWidth: 56,
+                }}
+              >
+                +251
+              </div>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={extractSubscriberDigits(channel.phone)}
+                onChange={(e) => onField('phone', e.target.value.replace(/\D/g, '').slice(0, 9))}
+                placeholder={lang === 'am' ? '9XXXXXXXX' : '9XXXXXXXX'}
+                maxLength={9}
+                className="flex-1 p-2 border-2 focus:outline-none text-sm"
+                style={{
+                  borderRadius: '0 8px 8px 0',
+                  borderColor: '#86efac',
+                  background: '#fff',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              />
+            </div>
+          )}
+          {showAccount && (
+            <input
+              type="text"
+              inputMode="numeric"
+              value={channel.account || ''}
+              onChange={(e) => onField('account', e.target.value)}
+              placeholder={lang === 'am'
+                ? (channel.kind === 'bank' ? 'የመለያ ቁጥር' : 'CBE ባንክ መለያ (አማራጭ)')
+                : (channel.kind === 'bank' ? 'Account number' : 'CBE bank account (optional)')}
+              className="p-2 border-2 rounded-lg text-sm focus:outline-none"
+              style={{
+                borderColor: '#86efac',
+                background: '#fff',
+              }}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SettingsPanelFallback({ label }) {
   return (
     <div className="bg-white rounded-2xl border border-green-100/50 px-5 py-4 text-sm font-semibold text-gray-500">
@@ -93,6 +443,9 @@ function SettingsPage({
   onSetActiveStaffMember,
   enabledProviders,
   onProvidersChange,
+  // Commit C.4 — unified payment channels
+  paymentChannels = [],
+  onSavePaymentChannels,
   recurringExpenses,
   onRecurringChange,
   usageStats,
@@ -152,19 +505,8 @@ function SettingsPage({
   const [profileSaved, setProfileSaved] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
 
-  // Commit C.1: Payment receiving accounts. These get appended to /pay URLs
-  // when the shopkeeper toggles "Add Pay-it-now link" in a reminder.
-  // telebirr defaults to the shop phone via "Same as shop phone" — when
-  // the toggle is ON we store an empty string and the URL builder falls
-  // back to shop_phone.
-  const initialPayments = shopProfile?.payments || {};
-  const [editPayTelebirrSame, setEditPayTelebirrSame] = useState(!initialPayments.telebirr);
-  const [editPayTelebirr, setEditPayTelebirr] = useState(initialPayments.telebirr || '');
-  const [editPayCbePhone, setEditPayCbePhone] = useState(initialPayments.cbe_phone || '');
-  const [editPayCbeAccount, setEditPayCbeAccount] = useState(initialPayments.cbe_account || '');
-  const [editPayAwashPhone, setEditPayAwashPhone] = useState(initialPayments.awash_phone || '');
-  const [editPayBankName, setEditPayBankName] = useState(initialPayments.bank_name || '');
-  const [editPayBankAccount, setEditPayBankAccount] = useState(initialPayments.bank_account || '');
+  // Commit C.4: Payment-account state moved out of the profile form into the
+  // new unified Payment Channels section. See `paymentChannels` prop.
 
   // Phone validation now lives in utils/phoneNumber.js — single source of truth.
   const phoneValid = !editPhoneDigits || isValidSubscriber(editPhoneDigits);
@@ -182,39 +524,13 @@ function SettingsPage({
     setEditTelegram(shopProfile?.telegram || '');
     setEditBusinessType(shopProfile?.businessType || 'retail-shop');
 
-    // Payment receiving accounts — sync on shop profile reload (Commit C.1)
-    const pmt = shopProfile?.payments || {};
-    setEditPayTelebirrSame(!pmt.telebirr);
-    setEditPayTelebirr(pmt.telebirr || '');
-    setEditPayCbePhone(pmt.cbe_phone || '');
-    setEditPayCbeAccount(pmt.cbe_account || '');
-    setEditPayAwashPhone(pmt.awash_phone || '');
-    setEditPayBankName(pmt.bank_name || '');
-    setEditPayBankAccount(pmt.bank_account || '');
+    // Commit C.4: payment-channel sync handled by the new Payment Channels
+    // section — no profile-level payment state to sync here.
   }, [shopProfile]);
 
-  const [providers, setProviders] = useState(enabledProviders || { banks: [...ALL_BANKS], wallets: [...ALL_WALLETS] });
-
-  const [customBanks, setCustomBanks] = useState([]);
-  const [customWallets, setCustomWallets] = useState([]);
-  const [addBankInput, setAddBankInput] = useState('');
-  const [addWalletInput, setAddWalletInput] = useState('');
-  const [showAddBank, setShowAddBank] = useState(false);
-  const [showAddWallet, setShowAddWallet] = useState(false);
-
-  useEffect(() => {
-    const load = async () => {
-      const cbRow = await db.settings.get('custom_banks');
-      const cwRow = await db.settings.get('custom_wallets');
-      if (cbRow?.value) {
-        try { setCustomBanks(JSON.parse(cbRow.value)); } catch { /* ignore */ }
-      }
-      if (cwRow?.value) {
-        try { setCustomWallets(JSON.parse(cwRow.value)); } catch { /* ignore */ }
-      }
-    };
-    load();
-  }, []);
+  // Commit C.4: Legacy `providers`/`customBanks`/`customWallets` state is
+  // gone — replaced by the unified `paymentChannels` prop. The old loader
+  // useEffect is no longer needed.
 
   useEffect(() => {
     const loadVoiceQuality = async () => {
@@ -255,20 +571,12 @@ function SettingsPage({
 
   // Build the payments payload — telebirr defaults to '' when "Same as shop phone"
   // is checked, signaling the URL builder to fall back to shop_phone.
-  const buildPaymentsPayload = () => ({
-    telebirr: editPayTelebirrSame ? '' : (editPayTelebirr.replace(/\D/g, '').slice(-9) || ''),
-    cbe_phone: editPayCbePhone.replace(/\D/g, '').slice(-9) || '',
-    cbe_account: editPayCbeAccount.trim().replace(/\s+/g, ''),
-    awash_phone: editPayAwashPhone.replace(/\D/g, '').slice(-9) || '',
-    bank_name: editPayBankName.trim(),
-    bank_account: editPayBankAccount.trim().replace(/\s+/g, ''),
-  });
-
   const handleProfileSave = async () => {
     if (!editName.trim() || !phoneValid || !telegramValid) return;
     const fullPhone = editPhoneDigits ? '+251' + editPhoneDigits : '';
-    const payments = buildPaymentsPayload();
-    await onProfileSave(editName.trim(), fullPhone, normalizedTelegram || '', editBusinessType, payments);
+    // Commit C.4: payments are now owned by the Payment Channels section.
+    // Profile save handles only identity fields.
+    await onProfileSave(editName.trim(), fullPhone, normalizedTelegram || '', editBusinessType);
     setEditTelegram(normalizedTelegram || '');
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2000);
@@ -448,60 +756,12 @@ function SettingsPage({
     setTimeout(() => window.location.reload(), 800);
   };
 
-  const allBanks = [...ALL_BANKS, ...customBanks.filter(b => !ALL_BANKS.includes(b))];
-  const allWallets = [...ALL_WALLETS, ...customWallets.filter(w => !ALL_WALLETS.includes(w))];
-
-  const toggleBank = async (bank) => {
-    const cur = providers.banks || [];
-    const nowEnabled = !cur.includes(bank);
-    const next = nowEnabled ? [...cur, bank] : cur.filter(b => b !== bank);
-    const updated = { ...providers, banks: next };
-    setProviders(updated);
-    await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(updated) });
-    onProvidersChange?.(updated);
-    fireToast(nowEnabled ? `${bank} ${t.providerEnabled}` : `${bank} ${t.providerDisabled}`, 1800);
-  };
-
-  const toggleWallet = async (wallet) => {
-    const cur = providers.wallets || [];
-    const nowEnabled = !cur.includes(wallet);
-    const next = nowEnabled ? [...cur, wallet] : cur.filter(w => w !== wallet);
-    const updated = { ...providers, wallets: next };
-    setProviders(updated);
-    await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(updated) });
-    onProvidersChange?.(updated);
-    fireToast(nowEnabled ? `${wallet} ${t.providerEnabled}` : `${wallet} ${t.providerDisabled}`, 1800);
-  };
-
-  const addCustomBank = async () => {
-    const name = addBankInput.trim();
-    if (!name || allBanks.includes(name)) return;
-    const updatedCustom = [...customBanks, name];
-    setCustomBanks(updatedCustom);
-    await db.settings.put({ key: 'custom_banks', value: JSON.stringify(updatedCustom) });
-    const updatedProviders = { ...providers, banks: [...(providers.banks || []), name] };
-    setProviders(updatedProviders);
-    await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(updatedProviders) });
-    onProvidersChange?.(updatedProviders);
-    setAddBankInput('');
-    setShowAddBank(false);
-    fireToast(`${name} ${t.providerEnabled}`, 1800);
-  };
-
-  const addCustomWallet = async () => {
-    const name = addWalletInput.trim();
-    if (!name || allWallets.includes(name)) return;
-    const updatedCustom = [...customWallets, name];
-    setCustomWallets(updatedCustom);
-    await db.settings.put({ key: 'custom_wallets', value: JSON.stringify(updatedCustom) });
-    const updatedProviders = { ...providers, wallets: [...(providers.wallets || []), name] };
-    setProviders(updatedProviders);
-    await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(updatedProviders) });
-    onProvidersChange?.(updatedProviders);
-    setAddWalletInput('');
-    setShowAddWallet(false);
-    fireToast(`${name} ${t.providerEnabled}`, 1800);
-  };
+  // Commit C.4: All bank/wallet toggling + custom add now flows through the
+  // unified `paymentChannels` prop via the PaymentChannelsSection component.
+  // The legacy `toggleBank` / `toggleWallet` / `addCustomBank` / `addCustomWallet`
+  // helpers have been removed (their persistence logic moved into App.jsx's
+  // handleSavePaymentChannels which writes the canonical key + derives the
+  // legacy keys for downstream consumers).
 
   const addRecurring = async () => {
     const amt = parseFloat(reAmount);
@@ -552,35 +812,22 @@ function SettingsPage({
   const totalCustomersWithLedger = customerSummaries.length;
   const totalSupplierDubie = (supplierSummaries || []).reduce((sum, supplier) => sum + Math.max(supplier.balance || 0, 0), 0);
   const currentFullPhone = editPhoneDigits ? '+251' + editPhoneDigits : '';
-  // Payment-account changes are also considered profile changes so the
-  // Save button activates when the shopkeeper only updates payments.
-  const existingPayments = shopProfile?.payments || {};
-  const currentPayments = buildPaymentsPayload();
-  const paymentsChanged = (
-    currentPayments.telebirr !== (existingPayments.telebirr || '') ||
-    currentPayments.cbe_phone !== (existingPayments.cbe_phone || '') ||
-    currentPayments.cbe_account !== (existingPayments.cbe_account || '') ||
-    currentPayments.awash_phone !== (existingPayments.awash_phone || '') ||
-    currentPayments.bank_name !== (existingPayments.bank_name || '') ||
-    currentPayments.bank_account !== (existingPayments.bank_account || '')
-  );
+  // Commit C.4: profile-form changes are scoped to identity only. Payment
+  // changes live in their own section (Payment Channels) with auto-save on
+  // every toggle/field — no Save button needed there.
   const profileChanged = (
     editName.trim() !== (shopProfile?.name || '') ||
     currentFullPhone !== (shopProfile?.phone || '') ||
     editTelegram.trim() !== (shopProfile?.telegram || '') ||
-    editBusinessType !== (shopProfile?.businessType || 'retail-shop') ||
-    paymentsChanged
+    editBusinessType !== (shopProfile?.businessType || 'retail-shop')
   );
 
-  // Count how many payment channels are configured — drives the summary chip
-  // in the section header so the user can see at-a-glance whether Pay-it-now
-  // will work for their customers.
-  const configuredPaymentChannels = [
-    editPayTelebirrSame || !!currentPayments.telebirr,
-    !!currentPayments.cbe_phone || !!currentPayments.cbe_account,
-    !!currentPayments.awash_phone,
-    !!currentPayments.bank_name && !!currentPayments.bank_account,
-  ].filter(Boolean).length;
+  // Count enabled + configured payment channels — drives the summary chip
+  // shown in the new Payment Channels section header.
+  const enabledChannelsCount = paymentChannels.filter(c => c.enabled).length;
+  const configuredChannelsCount = paymentChannels.filter(c => c.enabled && (
+    c.usePhoneFromShop || !!c.phone || !!c.account
+  )).length;
 
   const voiceStats = voiceQuality.stats;
   const capturedVoices = voiceStats?.captured || 0;
@@ -990,171 +1237,7 @@ function SettingsPage({
               </p>
             </div>
 
-            {/* ═══ PAYMENT RECEIVING ACCOUNTS (Commit C.1) ═══════════════════ */}
-            {/* These fields populate the /pay channel-picker URL that customers
-                see when the shopkeeper toggles "Add Pay-it-now link" on a
-                reminder. Gebya never touches the money — we just route. */}
-            <div
-              className="rounded-xl border-2 overflow-hidden"
-              style={{ borderColor: '#86efac', background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)' }}
-            >
-              <div className="px-4 pt-4 pb-2">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4" style={{ color: '#047857' }} />
-                    <p className="text-sm font-black" style={{ color: '#065f46' }}>
-                      {lang === 'am' ? 'የክፍያ መቀበያ መለያዎች' : 'Payment receiving accounts'}
-                    </p>
-                  </div>
-                  <span
-                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                    style={{
-                      background: configuredPaymentChannels > 0 ? '#16a34a' : '#94a3b8',
-                      color: '#fff',
-                    }}
-                  >
-                    {configuredPaymentChannels}/4 {lang === 'am' ? 'ተዋቅሯል' : 'set'}
-                  </span>
-                </div>
-                <p className="text-[11px] leading-snug" style={{ color: '#047857' }}>
-                  {lang === 'am'
-                    ? 'ለማስታወሻ "Pay-it-now" አገናኝ ሲጨምሩ ደንበኞች ይህን መረጃ ይመለከታሉ።'
-                    : 'When you add a Pay-it-now link to a reminder, customers see these accounts on a channel-picker page.'}
-                </p>
-              </div>
 
-              <div className="px-4 pb-4 pt-2 space-y-3">
-                {/* telebirr · phone */}
-                <div>
-                  <label className="block text-xs font-bold mb-1.5 flex items-center gap-1" style={{ color: '#065f46' }}>
-                    💛 telebirr {lang === 'am' ? 'ስልክ' : 'phone'}
-                  </label>
-                  <label className="flex items-center gap-2 text-[12px] font-semibold mb-2 cursor-pointer" style={{ color: '#047857' }}>
-                    <input
-                      type="checkbox"
-                      checked={editPayTelebirrSame}
-                      onChange={(e) => setEditPayTelebirrSame(e.target.checked)}
-                      style={{ width: 16, height: 16, accentColor: '#16a34a' }}
-                    />
-                    {lang === 'am' ? 'ከሱቅ ስልክ ጋር አንድ' : 'Same as shop phone'}
-                    {editPayTelebirrSame && editPhoneDigits && (
-                      <span className="ml-1 text-[11px] font-bold" style={{ color: '#065f46' }}>
-                        (+251 {editPhoneDigits})
-                      </span>
-                    )}
-                  </label>
-                  {!editPayTelebirrSame && (
-                    <div className="flex gap-0">
-                      <div
-                        className="flex items-center justify-center px-3 py-2.5 rounded-l-xl border-2 border-r-0 text-sm font-bold"
-                        style={{ background: '#fff', borderColor: '#86efac', color: '#1B4332', minWidth: 64 }}
-                      >
-                        +251
-                      </div>
-                      <input
-                        type="tel"
-                        inputMode="numeric"
-                        value={editPayTelebirr}
-                        onChange={(e) => setEditPayTelebirr(e.target.value.replace(/\D/g, '').slice(0, 9))}
-                        placeholder="9XXXXXXXX"
-                        maxLength={9}
-                        className="flex-1 px-3 py-2.5 border-2 rounded-r-xl text-sm focus:outline-none"
-                        style={{ borderColor: '#86efac', background: '#fff' }}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* CBE Birr */}
-                <div>
-                  <label className="block text-xs font-bold mb-1.5 flex items-center gap-1" style={{ color: '#065f46' }}>
-                    💜 CBE Birr {lang === 'am' ? 'ስልክ ወይም መለያ' : 'phone or account'}
-                  </label>
-                  <div className="flex gap-0 mb-1.5">
-                    <div
-                      className="flex items-center justify-center px-3 py-2.5 rounded-l-xl border-2 border-r-0 text-[11px] font-bold"
-                      style={{ background: '#fff', borderColor: '#86efac', color: '#1B4332', minWidth: 64 }}
-                    >
-                      +251
-                    </div>
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      value={editPayCbePhone}
-                      onChange={(e) => setEditPayCbePhone(e.target.value.replace(/\D/g, '').slice(0, 9))}
-                      placeholder={lang === 'am' ? 'ለ *847# (አማራጭ)' : 'for *847# (optional)'}
-                      maxLength={9}
-                      className="flex-1 px-3 py-2.5 border-2 rounded-r-xl text-sm focus:outline-none"
-                      style={{ borderColor: '#86efac', background: '#fff' }}
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={editPayCbeAccount}
-                    onChange={(e) => setEditPayCbeAccount(e.target.value)}
-                    placeholder={lang === 'am' ? 'የባንክ መለያ ቁጥር (አማራጭ)' : 'CBE bank account number (optional)'}
-                    className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-                    style={{ borderColor: '#86efac', background: '#fff' }}
-                  />
-                </div>
-
-                {/* Awash Mobile */}
-                <div>
-                  <label className="block text-xs font-bold mb-1.5 flex items-center gap-1" style={{ color: '#065f46' }}>
-                    🟡 Awash {lang === 'am' ? 'ስልክ' : 'phone'}
-                  </label>
-                  <div className="flex gap-0">
-                    <div
-                      className="flex items-center justify-center px-3 py-2.5 rounded-l-xl border-2 border-r-0 text-[11px] font-bold"
-                      style={{ background: '#fff', borderColor: '#86efac', color: '#1B4332', minWidth: 64 }}
-                    >
-                      +251
-                    </div>
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      value={editPayAwashPhone}
-                      onChange={(e) => setEditPayAwashPhone(e.target.value.replace(/\D/g, '').slice(0, 9))}
-                      placeholder={lang === 'am' ? 'ለ *901# (አማራጭ)' : 'for *901# (optional)'}
-                      maxLength={9}
-                      className="flex-1 px-3 py-2.5 border-2 rounded-r-xl text-sm focus:outline-none"
-                      style={{ borderColor: '#86efac', background: '#fff' }}
-                    />
-                  </div>
-                </div>
-
-                {/* Other bank */}
-                <div>
-                  <label className="block text-xs font-bold mb-1.5 flex items-center gap-1" style={{ color: '#065f46' }}>
-                    <Building2 className="w-3.5 h-3.5" /> {lang === 'am' ? 'ሌላ ባንክ' : 'Other bank'}
-                  </label>
-                  <input
-                    type="text"
-                    value={editPayBankName}
-                    onChange={(e) => setEditPayBankName(e.target.value)}
-                    placeholder={lang === 'am' ? 'ለምሳሌ Dashen, አቢሲኒያ' : 'e.g. Dashen, Abyssinia'}
-                    className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none mb-1.5"
-                    style={{ borderColor: '#86efac', background: '#fff' }}
-                  />
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={editPayBankAccount}
-                    onChange={(e) => setEditPayBankAccount(e.target.value)}
-                    placeholder={lang === 'am' ? 'የመለያ ቁጥር' : 'Account number'}
-                    className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-                    style={{ borderColor: '#86efac', background: '#fff' }}
-                  />
-                </div>
-
-                <p className="text-[10px] leading-snug pt-1" style={{ color: '#047857' }}>
-                  🔒 {lang === 'am'
-                    ? 'መረጃው በዚህ ስልክ ላይ ብቻ ይቀመጣል። Gebya ገንዘቡን አያይም — እርስዎ በቀጥታ ይቀበላሉ።'
-                    : 'Stored on this phone only. Gebya never touches the money — customers pay you direct.'}
-                </p>
-              </div>
-            </div>
 
             <button
               onClick={handleProfileSave}
@@ -1756,125 +1839,27 @@ function SettingsPage({
         </div>
       </SettingsSection>
 
-      <SettingsSection id="payments" title={t.paymentMethods} openSection={openSection} setOpenSection={setOpenSection}>
-        <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden divide-y divide-green-100/30">
-
-          <div className="px-5 py-3">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-500 font-medium flex items-center gap-1">
-                <CreditCard className="w-3.5 h-3.5" /> {t.banks}
-              </p>
-              <button
-                onClick={() => { setShowAddBank(v => !v); setAddBankInput(''); }}
-                className="flex items-center gap-1 text-xs font-bold min-h-[36px] px-2 rounded-lg transition-colors"
-                style={{ color: '#C4883A', background: showAddBank ? 'rgba(196,136,58,0.12)' : 'transparent' }}
-              >
-                {showAddBank ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                {showAddBank ? t.cancel : t.addCustomBank}
-              </button>
-            </div>
-            {showAddBank && (
-              <div className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  value={addBankInput}
-                  onChange={e => setAddBankInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addCustomBank()}
-                  placeholder={t.customProviderName}
-                  className="flex-1 px-3 py-2 border-2 rounded-xl text-sm focus:outline-none"
-                  style={{ borderColor: '#e8e2d8' }}
-                />
-                <button
-                  onClick={addCustomBank}
-                  disabled={!addBankInput.trim()}
-                  className="px-3 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-40 min-h-[40px]"
-                  style={{ background: '#C4883A' }}
-                >
-                  {t.add}
-                </button>
-              </div>
-            )}
-            <div className="flex flex-wrap gap-2">
-              {allBanks.map(bank => {
-                const enabled = (providers.banks || []).includes(bank);
-                return (
-                  <button
-                    key={bank}
-                    onClick={() => toggleBank(bank)}
-                    className="px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all min-h-[36px]"
-                    style={{
-                      borderColor: enabled ? '#C4883A' : '#e8e2d8',
-                      background: enabled ? 'rgba(196,136,58,0.15)' : '#f9fafb',
-                      color: enabled ? '#1B4332' : '#9ca3af',
-                    }}
-                  >
-                    {enabled ? 'On ' : ''}{bank}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="px-5 py-3">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-500 font-medium flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5" /> {t.mobileWallets}
-              </p>
-              <button
-                onClick={() => { setShowAddWallet(v => !v); setAddWalletInput(''); }}
-                className="flex items-center gap-1 text-xs font-bold min-h-[36px] px-2 rounded-lg transition-colors"
-                style={{ color: '#C4883A', background: showAddWallet ? 'rgba(196,136,58,0.12)' : 'transparent' }}
-              >
-                {showAddWallet ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                {showAddWallet ? t.cancel : t.addCustomWallet}
-              </button>
-            </div>
-            {showAddWallet && (
-              <div className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  value={addWalletInput}
-                  onChange={e => setAddWalletInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addCustomWallet()}
-                  placeholder={t.customProviderName}
-                  className="flex-1 px-3 py-2 border-2 rounded-xl text-sm focus:outline-none"
-                  style={{ borderColor: '#e8e2d8' }}
-                />
-                <button
-                  onClick={addCustomWallet}
-                  disabled={!addWalletInput.trim()}
-                  className="px-3 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-40 min-h-[40px]"
-                  style={{ background: '#C4883A' }}
-                >
-                  {t.add}
-                </button>
-              </div>
-            )}
-            <div className="flex flex-wrap gap-2">
-              {allWallets.map(wallet => {
-                const enabled = (providers.wallets || []).includes(wallet);
-                return (
-                  <button
-                    key={wallet}
-                    onClick={() => toggleWallet(wallet)}
-                    className="px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all min-h-[36px]"
-                    style={{
-                      borderColor: enabled ? '#C4883A' : '#e8e2d8',
-                      background: enabled ? 'rgba(196,136,58,0.15)' : '#f9fafb',
-                      color: enabled ? '#1B4332' : '#9ca3af',
-                    }}
-                  >
-                    {enabled ? 'On ' : ''}{wallet}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="px-5 py-3">
-            <p className="text-xs text-gray-400">{t.onlyEnabled}</p>
-          </div>
-        </div>
+      {/* ═══ PAYMENT CHANNELS — Commit C.4 unified section ═══════════════
+          Merges what used to be two separate sections (Payment Methods +
+          Payment Receiving Accounts) into one row-per-channel layout.
+          Each row has: enable toggle + optional phone/account fields.
+          - Toggle ON → appears in sale dropdown + Pay-it-now URL
+          - Phone/account fields → shown to customers on /pay
+          Auto-saves on every change via onSavePaymentChannels. */}
+      <SettingsSection
+        id="payment_channels"
+        title={lang === 'am' ? '💳 የክፍያ መንገዶች' : '💳 Payment channels'}
+        openSection={openSection}
+        setOpenSection={setOpenSection}
+      >
+        <PaymentChannelsSection
+          channels={paymentChannels}
+          shopPhone={shopProfile?.phone || ''}
+          enabledCount={enabledChannelsCount}
+          configuredCount={configuredChannelsCount}
+          onChange={(nextChannels) => onSavePaymentChannels?.(nextChannels)}
+          lang={lang}
+        />
       </SettingsSection>
 
       <SettingsSection id="recurring" title={t.recurringExpenses} openSection={openSection} setOpenSection={setOpenSection}>

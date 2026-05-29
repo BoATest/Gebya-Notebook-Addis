@@ -26,6 +26,12 @@ import { enrichCustomerSummaries, buildCreditMetrics } from './utils/customerMet
 import { usePwaInstall } from './hooks/usePwaInstall.js';
 import { resendLatestTelegramUpdate, sendTelegramLedgerUpdate, syncTelegramCustomerState } from './utils/telegramBotClient';
 import { normalizeStaffDraft, resolveActorSnapshot, getActorDisplayLabel } from './utils/staffMembers';
+import {
+  buildDefaultChannels,
+  migrateLegacyToChannels,
+  deriveLegacyFromChannels,
+  normalizeChannelsForSave,
+} from './utils/paymentChannels';
 
 const TransactionForm = lazy(() => import('./components/TransactionForm'));
 const EditTransactionSheet = lazy(() => import('./components/EditTransactionSheet'));
@@ -613,9 +619,11 @@ function AppInner() {
         txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, staffRows,
         nameRow, phoneRow, businessTypeRow, epRow, reRow, customQuickAmountsRow, telegramRow,
         snapshotRow, activeStaffRow,
-        // Payment receiving accounts — used by Pay-it-now /pay URLs
+        // Payment receiving accounts — used by Pay-it-now /pay URLs (legacy, C.1)
         payTelebirrRow, payCbePhoneRow, payCbeAccountRow, payAwashPhoneRow,
         payBankNameRow, payBankAccountRow,
+        // Unified payment channels (Commit C.4) + legacy custom lists for migration
+        paymentChannelsRow, customBanksRow, customWalletsRow,
       ] = await Promise.all([
         db.transactions.toArray(),
         db.customers.toArray(),
@@ -639,7 +647,52 @@ function AppInner() {
         db.settings.get('shop_pay_awash_phone'),
         db.settings.get('shop_pay_bank_name'),
         db.settings.get('shop_pay_bank_account'),
+        db.settings.get('shop_payment_channels'),
+        db.settings.get('custom_banks'),
+        db.settings.get('custom_wallets'),
       ]);
+
+      // Commit C.4: Migrate legacy payment storage to unified channels[] shape.
+      // First load after C.4: read all legacy keys, run migration, persist.
+      // Subsequent loads: parse the canonical key directly.
+      let paymentChannels;
+      if (paymentChannelsRow?.value) {
+        try {
+          const parsed = JSON.parse(paymentChannelsRow.value);
+          paymentChannels = Array.isArray(parsed) && parsed.length > 0
+            ? parsed
+            : buildDefaultChannels();
+        } catch {
+          paymentChannels = buildDefaultChannels();
+        }
+      } else {
+        // Check if user has ANY legacy data (existing user); seed defaults otherwise.
+        const hasLegacy = !!(
+          epRow?.value || payTelebirrRow?.value || payCbePhoneRow?.value ||
+          payCbeAccountRow?.value || payAwashPhoneRow?.value ||
+          payBankNameRow?.value || payBankAccountRow?.value ||
+          customBanksRow?.value || customWalletsRow?.value
+        );
+        if (hasLegacy) {
+          paymentChannels = migrateLegacyToChannels({
+            enabledProvidersRaw: epRow?.value,
+            customBanksRaw: customBanksRow?.value,
+            customWalletsRaw: customWalletsRow?.value,
+            payTelebirr: payTelebirrRow?.value,
+            payCbePhone: payCbePhoneRow?.value,
+            payCbeAccount: payCbeAccountRow?.value,
+            payAwashPhone: payAwashPhoneRow?.value,
+            payBankName: payBankNameRow?.value,
+            payBankAccount: payBankAccountRow?.value,
+          });
+        } else {
+          paymentChannels = buildDefaultChannels();
+        }
+        // Persist migrated/default channels so this one-time work is durable.
+        try {
+          await db.settings.put({ key: 'shop_payment_channels', value: JSON.stringify(paymentChannels) });
+        } catch { /* non-critical — next save will retry */ }
+      }
       txns.sort((a, b) => b.created_at - a.created_at);
       setTransactions(txns);
       setLedgerCustomers(customerRows);
@@ -652,23 +705,28 @@ function AppInner() {
         return String(a.display_name || '').localeCompare(String(b.display_name || ''));
       }));
       const hasName = !!nameRow?.value;
+      // Commit C.4: derive legacy shapes from the canonical channels array so
+      // PaymentTypeChips (reads enabledProviders) and ReminderSheet (reads
+      // shopProfile.payments) keep working without changes.
+      const derivedLegacy = deriveLegacyFromChannels(paymentChannels);
+
       setShopProfile({
         name: nameRow?.value || null,
         phone: phoneRow?.value || '',
         telegram: telegramRow?.value || '',
         businessType: businessTypeRow?.value || 'retail-shop',
-        // Payment receiving accounts (Commit C.1)
-        // Empty strings mean "not set" — falsy in URL builder, hidden in PayPage.
-        payments: {
-          telebirr: payTelebirrRow?.value || '',
-          cbe_phone: payCbePhoneRow?.value || '',
-          cbe_account: payCbeAccountRow?.value || '',
-          awash_phone: payAwashPhoneRow?.value || '',
-          bank_name: payBankNameRow?.value || '',
-          bank_account: payBankAccountRow?.value || '',
-        },
+        // Canonical (Commit C.4)
+        paymentChannels,
+        // Legacy compat shim — derived, never written to from outside App.jsx
+        payments: derivedLegacy.payments,
       });
-      try { setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS); } catch { setEnabledProviders(DEFAULT_PROVIDERS); }
+      // Commit C.4: enabledProviders is derived from the canonical channels[]
+      // (used by PaymentTypeChips). Keep DEFAULT_PROVIDERS as the safety net.
+      try {
+        setEnabledProviders(derivedLegacy.enabledProviders || DEFAULT_PROVIDERS);
+      } catch {
+        setEnabledProviders(DEFAULT_PROVIDERS);
+      }
       try { setRecurringExpenses(reRow ? JSON.parse(reRow.value) : []); } catch { setRecurringExpenses([]); }
       try {
         const arr = customQuickAmountsRow ? JSON.parse(customQuickAmountsRow.value) : [];
@@ -963,45 +1021,70 @@ function AppInner() {
     }
   };
 
-  const handleProfileSave = async (name, phone, telegram, businessType = 'retail-shop', payments = null) => {
+  /**
+   * Commit C.4: Persist a unified payment-channels array.
+   *
+   * Writes the canonical key (shop_payment_channels) AND keeps the legacy
+   * keys (enabled_payment_methods, custom_banks, custom_wallets, shop_pay_*)
+   * in sync so PaymentTypeChips and ReminderSheet continue to read from
+   * their existing data paths without needing their own refactor.
+   *
+   * Called from SettingsPage whenever the user toggles a channel or edits
+   * a phone/account field. Optimistic update: state is updated first, then
+   * Dexie writes happen; on write failure, state still reflects the user's
+   * intent (we just log).
+   */
+  const handleSavePaymentChannels = async (channels) => {
+    const normalized = normalizeChannelsForSave(channels || []);
+    // Update React state immediately (optimistic)
+    setShopProfile(prev => ({
+      ...prev,
+      paymentChannels: normalized,
+      payments: deriveLegacyFromChannels(normalized).payments,
+    }));
+    const derived = deriveLegacyFromChannels(normalized);
+    setEnabledProviders(derived.enabledProviders || DEFAULT_PROVIDERS);
+
+    try {
+      // Canonical
+      await db.settings.put({ key: 'shop_payment_channels', value: JSON.stringify(normalized) });
+      // Legacy compat — derived
+      await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(derived.enabledProviders) });
+      await db.settings.put({ key: 'custom_banks', value: JSON.stringify(derived.customBanks) });
+      await db.settings.put({ key: 'custom_wallets', value: JSON.stringify(derived.customWallets) });
+      // Pay-it-now legacy
+      await db.settings.put({ key: 'shop_pay_telebirr', value: derived.payments.telebirr });
+      await db.settings.put({ key: 'shop_pay_cbe_phone', value: derived.payments.cbe_phone });
+      await db.settings.put({ key: 'shop_pay_cbe_account', value: derived.payments.cbe_account });
+      await db.settings.put({ key: 'shop_pay_awash_phone', value: derived.payments.awash_phone });
+      await db.settings.put({ key: 'shop_pay_bank_name', value: derived.payments.bank_name });
+      await db.settings.put({ key: 'shop_pay_bank_account', value: derived.payments.bank_account });
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Payment channels save failed:', err);
+    }
+  };
+
+  const handleProfileSave = async (name, phone, telegram, businessType = 'retail-shop') => {
     await db.settings.put({ key: 'shop_name', value: name });
     await db.settings.put({ key: 'shop_phone', value: phone || '' });
     await db.settings.put({ key: 'shop_telegram', value: telegram || '' });
     await db.settings.put({ key: 'shop_business_type', value: businessType || 'retail-shop' });
 
-    // Commit C.1: persist payment receiving accounts. SettingsPage passes a
-    // payments object; legacy callers (Onboarding) pass null → we preserve
-    // whatever was already in shopProfile.payments rather than wiping it.
-    const nextPayments = payments
-      ? {
-          telebirr: payments.telebirr || '',
-          cbe_phone: payments.cbe_phone || '',
-          cbe_account: payments.cbe_account || '',
-          awash_phone: payments.awash_phone || '',
-          bank_name: payments.bank_name || '',
-          bank_account: payments.bank_account || '',
-        }
-      : (shopProfile?.payments || {
-          telebirr: '', cbe_phone: '', cbe_account: '',
-          awash_phone: '', bank_name: '', bank_account: '',
-        });
-
-    if (payments) {
-      await db.settings.put({ key: 'shop_pay_telebirr', value: nextPayments.telebirr });
-      await db.settings.put({ key: 'shop_pay_cbe_phone', value: nextPayments.cbe_phone });
-      await db.settings.put({ key: 'shop_pay_cbe_account', value: nextPayments.cbe_account });
-      await db.settings.put({ key: 'shop_pay_awash_phone', value: nextPayments.awash_phone });
-      await db.settings.put({ key: 'shop_pay_bank_name', value: nextPayments.bank_name });
-      await db.settings.put({ key: 'shop_pay_bank_account', value: nextPayments.bank_account });
-    }
-
-    setShopProfile({
+    // Commit C.4: payment accounts moved to handleSavePaymentChannels.
+    // The profile form no longer owns telebirr/CBE/Awash fields — those
+    // live in the unified Payment Channels section (which has its own
+    // save handler). We preserve shopProfile.paymentChannels here so
+    // the profile-form save doesn't blank them out.
+    setShopProfile(prev => ({
+      ...prev,
       name,
       phone: phone || '',
       telegram: telegram || '',
       businessType: businessType || 'retail-shop',
-      payments: nextPayments,
-    });
+      // Preserve channel state untouched
+      paymentChannels: prev?.paymentChannels,
+      payments: prev?.payments,
+    }));
   };
 
   const handleSaveStaffMember = async (payload) => {
@@ -2258,15 +2341,21 @@ function AppInner() {
   if (!shopProfile || !shopProfile.name) {
     return (
       <OnboardingScreen
-        onComplete={(profile) => setShopProfile({
-          ...profile,
-          telegram: '',
-          businessType: profile.businessType || 'retail-shop',
-          payments: {
-            telebirr: '', cbe_phone: '', cbe_account: '',
-            awash_phone: '', bank_name: '', bank_account: '',
-          },
-        })}
+        onComplete={(profile) => {
+          // Commit C.4: seed default channels for new users so Pay-it-now
+          // works immediately (telebirr defaults to their shop phone).
+          const defaults = buildDefaultChannels();
+          setShopProfile({
+            ...profile,
+            telegram: '',
+            businessType: profile.businessType || 'retail-shop',
+            paymentChannels: defaults,
+            payments: deriveLegacyFromChannels(defaults).payments,
+          });
+          // Persist immediately so the channels survive the next reload
+          db.settings.put({ key: 'shop_payment_channels', value: JSON.stringify(defaults) })
+            .catch(() => { /* non-critical */ });
+        }}
       />
     );
   }
@@ -2616,6 +2705,8 @@ function AppInner() {
               onSetActiveStaffMember={handleSetActiveStaffMember}
               enabledProviders={enabledProviders}
               onProvidersChange={setEnabledProviders}
+              paymentChannels={shopProfile?.paymentChannels || []}
+              onSavePaymentChannels={handleSavePaymentChannels}
               recurringExpenses={recurringExpenses}
               onRecurringChange={setRecurringExpenses}
               usageStats={usageStats}
