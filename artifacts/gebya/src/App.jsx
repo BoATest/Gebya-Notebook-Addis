@@ -45,6 +45,7 @@ const CustomerForm = lazy(() => import('./components/CustomerForm'));
 const CustomerTransactionSheet = lazy(() => import('./components/CustomerTransactionSheet'));
 const CustomerTelegramConnectSheet = lazy(() => import('./components/CustomerTelegramConnectSheet'));
 const HistoryView = lazy(() => import('./components/HistoryView'));
+const ReportView = lazy(() => import('./components/ReportView'));
 const SettingsPage = lazy(() => import('./components/SettingsPage'));
 const DailySuggestions = lazy(() => import('./components/DailySuggestions'));
 
@@ -2316,6 +2317,14 @@ function AppInner() {
     setShowShareModal(true);
   };
 
+  // Commit R: ReportView builds its own weekly summary text and passes it
+  // through here so we reuse the existing ShareModal flow.
+  const handleShareCustomReport = (text) => {
+    if (!text) return;
+    setShareText(text);
+    setShowShareModal(true);
+  };
+
   const hid = (n) => hidden ? '••••' : fmt(n);
 
   const getTimeGreeting = () => {
@@ -2682,9 +2691,22 @@ function AppInner() {
 
         {activeTab === 'history' && (
           <Suspense fallback={<PanelFallback label={t.loading} />}>
-            <HistoryView
+            <ReportView
               transactions={transactions}
+              ledgerTransactions={ledgerTransactions}
+              enrichedCustomerSummaries={enrichedCustomerSummaries}
+              customerSummaries={customerSummaries}
+              supplierSummaries={supplierSummaries}
+              customers={ledgerCustomers}
+              suppliers={suppliers}
+              shopProfile={shopProfile}
               onEdit={setEditTarget}
+              onChaseOverdue={() => {
+                // Jump to Credit tab — overdue customers are surfaced there
+                setActiveTab('credit');
+                setCreditView('customers');
+              }}
+              onShareReport={handleShareCustomReport}
             />
           </Suspense>
         )}
