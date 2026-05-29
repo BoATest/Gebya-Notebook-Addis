@@ -22,6 +22,7 @@ import { normalizeCustomerDraft, normalizeCustomerTransactionDraft } from './uti
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from './utils/customerTransactionTypes';
 import { buildCustomerLedgerTelegramMessage, buildTelegramMessageUrl, createCustomerTelegramLinkToken, createCustomerTransactionReference } from './utils/customerTelegram';
 import { buildSupplierSummaries, getSupplierBalance, isValidSupplierTransactionType, SUPPLIER_TRANSACTION_TYPES } from './utils/supplierLedger';
+import { enrichCustomerSummaries, buildCreditMetrics } from './utils/customerMetrics';
 import { usePwaInstall } from './hooks/usePwaInstall.js';
 import { resendLatestTelegramUpdate, sendTelegramLedgerUpdate, syncTelegramCustomerState } from './utils/telegramBotClient';
 import { normalizeStaffDraft, resolveActorSnapshot, getActorDisplayLabel } from './utils/staffMembers';
@@ -477,6 +478,8 @@ function AppInner() {
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [customerTransactionModal, setCustomerTransactionModal] = useState(null);
   const [reminderTarget, setReminderTarget] = useState(null);
+  // Bulk reminder · queue of customer ids to remind in sequence
+  const [bulkReminderQueue, setBulkReminderQueue] = useState([]);
   // Supplier credit ("I owe") — Khatabook-style second ledger
   const [creditView, setCreditView] = useState('customers'); // 'customers' | 'suppliers'
   const [selectedSupplierId, setSelectedSupplierId] = useState(null);
@@ -997,20 +1000,47 @@ function AppInner() {
     [ledgerCustomers, ledgerTransactions]
   );
 
+  // Enriched customer summaries — adds on_time_count, on_time_rate, has_overdue,
+  // overdue_amount, overdue_days, avg_pay_days. Used by the v0.3 Credit page.
+  // Defined HERE (early) because selectedCustomer + activeCustomerTransactionModal
+  // both pull from this enriched list.
+  const enrichedCustomerSummariesEarly = useMemo(
+    () => enrichCustomerSummaries(customerSummaries),
+    [customerSummaries]
+  );
+
   const selectedCustomer = useMemo(
-    () => customerSummaries.find(c => c.id === selectedCustomerId) || null,
-    [customerSummaries, selectedCustomerId]
+    () => enrichedCustomerSummariesEarly.find(c => c.id === selectedCustomerId) || null,
+    [enrichedCustomerSummariesEarly, selectedCustomerId]
   );
 
   const activeCustomerTransactionModal = useMemo(() => {
     if (!customerTransactionModal?.customerId) return null;
-    return customerSummaries.find(c => c.id === customerTransactionModal.customerId) || null;
-  }, [customerSummaries, customerTransactionModal]);
+    return enrichedCustomerSummariesEarly.find(c => c.id === customerTransactionModal.customerId) || null;
+  }, [enrichedCustomerSummariesEarly, customerTransactionModal]);
 
   const activeCatalogEntries = useMemo(
     () => catalogEntries.filter(entry => entry.active !== false).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),
     [catalogEntries]
   );
+
+  // Alias for backward-compat in renders below. (Already enriched up top.)
+  const enrichedCustomerSummaries = enrichedCustomerSummariesEarly;
+
+  // Composite credit-page metrics (hero card numbers, streak, top customer).
+  // Streak draws on ALL transactions across types so it reflects real shop use.
+  const creditMetrics = useMemo(() => {
+    const allTimestamps = [
+      ...transactions.map(t => t.created_at),
+      ...ledgerTransactions.map(t => t.created_at),
+      ...supplierTransactions.map(t => t.created_at),
+    ];
+    return buildCreditMetrics({
+      enrichedSummaries: enrichedCustomerSummaries,
+      customerTransactions: ledgerTransactions,
+      globalTimestamps: allTimestamps,
+    });
+  }, [enrichedCustomerSummaries, ledgerTransactions, transactions, supplierTransactions]);
 
   const supplierSummaries = useMemo(
     () => buildSupplierSummaries(suppliers, supplierTransactions),
@@ -1332,6 +1362,19 @@ function AppInner() {
     setLedgerCustomers(prev => prev.map(c => (
       c.id === customerId ? { ...c, last_reminded_at: stamp } : c
     )));
+    // Bulk-reminder queue: advance to next overdue customer automatically.
+    // Use functional update so we read the latest queue state.
+    setBulkReminderQueue(prevQueue => {
+      if (!prevQueue || prevQueue.length === 0) return prevQueue;
+      const [nextId, ...rest] = prevQueue;
+      const nextCustomer = ledgerCustomers.find(c => c.id === nextId);
+      if (nextCustomer) {
+        // Defer slightly so the current ReminderSheet closes cleanly before
+        // the next one opens.
+        setTimeout(() => setReminderTarget(nextCustomer), 120);
+      }
+      return rest;
+    });
   };
 
   const handleCustomQuickAmountsChange = async (nextList) => {
@@ -2244,10 +2287,21 @@ function AppInner() {
                 </Suspense>
               ) : (
                 <CustomerList
-                  customers={customerSummaries}
+                  customers={enrichedCustomerSummaries}
+                  metrics={creditMetrics}
                   onSelectCustomer={(customer) => setSelectedCustomerId(customer.id)}
                   onAddCustomer={() => setShowCustomerForm(true)}
                   onRemindCustomer={(customer) => setReminderTarget(customer)}
+                  onBulkRemind={() => {
+                    // Build queue of overdue customers with at least one contact channel
+                    const queue = enrichedCustomerSummaries
+                      .filter((c) => c.has_overdue
+                        && (c.telegram_chat_id || c.telegram_username || c.phone_number))
+                      .map((c) => c.id);
+                    if (queue.length === 0) return;
+                    setBulkReminderQueue(queue.slice(1));
+                    setReminderTarget(enrichedCustomerSummaries.find(c => c.id === queue[0]));
+                  }}
                 />
               )
             )}
