@@ -560,8 +560,19 @@ function CustomerDetail({
           <p style={{ fontSize: '0.62rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             {lang === 'am' ? 'መዝገብ' : 'History'} · {historyRows.length} {lang === 'am' ? 'መዝገብ' : 'entries'}
           </p>
-          <p style={{ fontSize: '0.62rem', color: '#9ca3af', fontStyle: 'italic' }}>
-            {lang === 'am' ? '⋮ ለማስተካከል' : 'tap ⋮ to edit'}
+          {/* Commit P: stronger discoverability hint for edit/delete */}
+          <p
+            style={{
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              background: '#f5f1ea',
+              color: '#6b4f1d',
+              padding: '2px 8px',
+              borderRadius: 999,
+              border: '1px solid #ece6d6',
+            }}
+          >
+            {lang === 'am' ? 'ለማስተካከል ⋮ ይንኩ' : '⋮ tap to edit / delete'}
           </p>
         </div>
 
@@ -869,23 +880,26 @@ function HistoryRow({ tx, isLast, expanded, onToggleExpand, onActionMenu, lang, 
           }}>
             {sign}{fmt(tx.amount || 0)}
           </p>
-          {/* Visible 3-dot menu — for users who don't know to long-press.
-              Long-press still works as a power-user shortcut. */}
+          {/* Commit P: 3-dot menu — primary action surface for edit/delete.
+              Long-press still works as a fallback. Made larger (36×36 was 28×28)
+              + tinted background so users actually find it without holding. */}
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onActionMenu?.(tx); }}
             onPointerDown={(e) => e.stopPropagation()}
-            aria-label={lang === 'am' ? 'ምርጫዎች' : 'More'}
+            aria-label={lang === 'am' ? 'ምርጫዎች · ለማስተካከል ወይም ለመሰረዝ' : 'More · edit or delete'}
+            className="press-scale"
             style={{
-              width: 28, height: 28, borderRadius: 6,
-              background: 'rgba(0,0,0,0.04)',
-              border: 'none',
-              color: '#6b7280',
+              width: 36, height: 36, borderRadius: 10,
+              background: '#f5f1ea',
+              border: '1px solid #ece6d6',
+              color: '#1B4332',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer',
+              flexShrink: 0,
             }}
           >
-            <MoreVertical className="w-4 h-4" />
+            <MoreVertical className="w-5 h-5" />
           </button>
         </div>
       </div>

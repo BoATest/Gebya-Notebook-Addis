@@ -36,7 +36,8 @@ import {
 } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import PaymentTypeChips from './PaymentTypeChips';
-import { getDueDateOptions } from '../utils/ethiopianCalendar';
+import EthiopianDatePicker from './EthiopianDatePicker';
+import { getDueDateOptions, formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { compressPhoto, photoSizeBytes } from '../utils/photoCapture';
 import { db } from '../db';
@@ -116,6 +117,8 @@ function TransactionForm({
   const [phoneTouched, setPhoneTouched] = useState(false);
   const [selectedDue, setSelectedDue] = useState(null);
   const [customDue, setCustomDue] = useState('');
+  // Commit P: Ethiopian calendar picker modal for the "Pick a date" path
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [paymentType, setPaymentType] = useState(initialPaymentType || 'cash');
   const [paymentProvider, setPaymentProvider] = useState(initialPaymentProvider || '');
   const [creditDirection, setCreditDirection] = useState('owes_me');
@@ -1202,8 +1205,11 @@ function TransactionForm({
             </div>
             <button
               type="button"
-              onClick={() => setSelectedDue('custom')}
-              className="w-full p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale"
+              onClick={() => {
+                setSelectedDue('custom');
+                setShowDatePicker(true);
+              }}
+              className="w-full p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale flex items-center justify-center gap-2"
               style={{
                 borderRadius: 'var(--radius-sm)',
                 borderColor: selectedDue === 'custom' ? accentColor : '#e8e2d8',
@@ -1211,24 +1217,26 @@ function TransactionForm({
                 color: selectedDue === 'custom' ? accentColor : '#374151',
               }}
             >
-              {lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date'}
+              📅 {selectedDue === 'custom' && customDue
+                ? formatEthiopian(new Date(`${customDue}T12:00:00`))
+                : (lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date')}
             </button>
             {!hasDueDate && (
               <p className="text-xs mt-1.5 font-medium" style={{ color: '#C4883A' }}>
                 {lang === 'am' ? 'የመክፍያ ቀን ይምረጡ' : 'Please select a due date'}
               </p>
             )}
-            {selectedDue === 'custom' && (
-              <input
-                type="date"
-                value={customDue}
-                onChange={e => setCustomDue(e.target.value)}
-                className="w-full mt-2 p-3 border-2 focus:outline-none text-base"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-              />
-            )}
           </div>
         )}
+
+        {/* Commit P: Ethiopian calendar picker modal for sale/expense form */}
+        <EthiopianDatePicker
+          open={showDatePicker}
+          value={customDue}
+          onChange={(iso) => { setCustomDue(iso); setSelectedDue('custom'); }}
+          onClose={() => setShowDatePicker(false)}
+          lang={lang}
+        />
 
         {/* Settlement: Paid · Partial · Pay Later (sale/expense only) */}
         {!isCredit && (

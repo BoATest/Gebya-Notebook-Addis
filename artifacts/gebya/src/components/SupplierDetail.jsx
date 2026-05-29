@@ -77,6 +77,7 @@ function SupplierDetail({
 }) {
   const { t, lang } = useLang();
   const [actionSheet, setActionSheet] = useState(null);
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null);
   const [expandedRows, setExpandedRows] = useState({});
   const longPress = useLongPress((tx) => setActionSheet({ tx }));
 
@@ -384,8 +385,18 @@ function SupplierDetail({
             {lang === 'am' ? 'መዝገብ' : 'History'} · {historyRows.length} {lang === 'am' ? 'መዝገብ' : 'entries'}
           </h3>
           {historyRows.length > 0 && (
-            <span style={{ fontSize: '0.62rem', color: '#9ca3af', fontStyle: 'italic' }}>
-              {lang === 'am' ? 'ለማስተካከል ⋮ ይንኩ' : 'tap ⋮ to edit'}
+            <span
+              style={{
+                fontSize: '0.62rem',
+                fontWeight: 700,
+                background: '#fef2f2',
+                color: '#991b1b',
+                padding: '2px 8px',
+                borderRadius: 999,
+                border: '1px solid #fecaca',
+              }}
+            >
+              {lang === 'am' ? 'ለማስተካከል ⋮ ይንኩ' : '⋮ tap to edit / delete'}
             </span>
           )}
         </div>
@@ -477,17 +488,95 @@ function SupplierDetail({
             onEditSupplierTransaction?.(actionSheet.tx);
           }}
           onDelete={() => {
-            const ok = window.confirm(
-              lang === 'am'
-                ? 'መዝገብ ይሰረዝ? መልሰው ሊያገኙት አይችሉም።'
-                : 'Delete this entry? This cannot be undone.'
-            );
-            if (ok) {
-              setActionSheet(null);
-              onDeleteSupplierTransaction?.(actionSheet.tx.id);
-            }
+            // Commit P: replace window.confirm with proper in-app confirm modal.
+            // Routes through deleteConfirmTarget state instead of native dialog.
+            setDeleteConfirmTarget(actionSheet.tx);
+            setActionSheet(null);
           }}
         />
+      )}
+
+      {/* Commit P: in-app delete confirm modal — matches CustomerDetail pattern */}
+      {deleteConfirmTarget && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 90,
+            background: 'rgba(0,0,0,0.55)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setDeleteConfirmTarget(null); }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 20,
+              padding: 22,
+              width: '100%', maxWidth: 380,
+              boxShadow: '0 20px 40px -8px rgba(0,0,0,0.3)',
+              border: '2px solid #fecaca',
+            }}
+          >
+            <div style={{ fontSize: '2.4rem', textAlign: 'center', marginBottom: 8 }}>🗑️</div>
+            <h3
+              style={{
+                fontSize: '1.1rem', fontWeight: 800,
+                color: '#991b1b', textAlign: 'center', marginBottom: 6,
+              }}
+            >
+              {lang === 'am' ? 'መዝገብ ይሰረዝ?' : 'Delete this entry?'}
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: '#6b7280', textAlign: 'center', marginBottom: 6 }}>
+              {deleteConfirmTarget.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT
+                ? (lang === 'am' ? 'ክፍያ' : 'Payment')
+                : (lang === 'am' ? 'ግዢ' : 'Purchase')}
+              {' · '}
+              <strong style={{ color: '#1f2937' }}>
+                {fmt(deleteConfirmTarget.amount || 0)} {lang === 'am' ? 'ብር' : 'birr'}
+              </strong>
+              {deleteConfirmTarget.item_name && (
+                <span> · {deleteConfirmTarget.item_name}</span>
+              )}
+            </p>
+            <p style={{ fontSize: '0.75rem', color: '#9ca3af', textAlign: 'center', marginBottom: 16 }}>
+              {lang === 'am'
+                ? 'መልሰው ሊያገኙት አይችሉም።'
+                : 'This cannot be undone.'}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const id = deleteConfirmTarget.id;
+                  setDeleteConfirmTarget(null);
+                  onDeleteSupplierTransaction?.(id);
+                }}
+                style={{
+                  width: '100%', padding: 14,
+                  background: '#dc2626', color: '#fff',
+                  border: 'none', borderRadius: 12,
+                  fontSize: '0.95rem', fontWeight: 800,
+                  cursor: 'pointer', minHeight: 48,
+                }}
+              >
+                {lang === 'am' ? 'አዎ፣ ሰርዝ' : 'Yes, delete'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmTarget(null)}
+                style={{
+                  width: '100%', padding: 14,
+                  background: '#f3f4f6', color: '#374151',
+                  border: 'none', borderRadius: 12,
+                  fontSize: '0.9rem', fontWeight: 700,
+                  cursor: 'pointer', minHeight: 48,
+                }}
+              >
+                {lang === 'am' ? 'ይቅር' : 'Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -609,18 +698,23 @@ function HistoryRow({ tx, lang, expanded, onToggleExpand, onLongPress, onOpenAct
         }}>
           {isPayment ? '−' : '+'}{fmt(tx.amount || 0)}
         </p>
+        {/* Commit P: bigger ⋮ menu — primary edit/delete affordance (long-press is fallback) */}
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onOpenActions?.(); }}
-          aria-label={lang === 'am' ? 'ተጨማሪ' : 'More'}
+          aria-label={lang === 'am' ? 'ምርጫዎች · ለማስተካከል ወይም ለመሰረዝ' : 'More · edit or delete'}
           style={{
-            background: 'transparent', border: 'none', padding: 2,
-            color: '#9ca3af', cursor: 'pointer',
-            marginTop: 2,
+            background: '#fff', border: '1px solid #fecaca',
+            color: '#991b1b',
+            width: 32, height: 32, borderRadius: 8,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+            marginTop: 4,
+            flexShrink: 0,
           }}
           className="press-scale"
         >
-          <MoreVertical className="w-4 h-4" />
+          <MoreVertical className="w-5 h-5" />
         </button>
       </div>
     </div>
