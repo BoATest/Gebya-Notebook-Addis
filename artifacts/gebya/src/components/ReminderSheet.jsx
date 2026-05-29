@@ -369,6 +369,17 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent }) {
                   <p className="text-[10px] mt-1.5" style={{ color: 'rgba(255,255,255,0.7)' }}>
                     🔒 {lang === 'am' ? 'Gebya ገንዘቡን አያይም።' : "Gebya doesn't see the money."}
                   </p>
+                  {/* Commit C.3: SMS size hint. Amharic SMS is 70 chars/segment
+                      so cramming all account numbers into the message body
+                      would multiply cost. The /pay link carries the data. */}
+                  <p
+                    className="text-[10px] mt-1.5"
+                    style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.4 }}
+                  >
+                    💡 {lang === 'am'
+                      ? 'መልዕክት አጭር ይቆያል — አገናኙ ሁሉንም መለያዎች ይይዛል።'
+                      : 'Message stays short — the link carries all your account numbers.'}
+                  </p>
                 </div>
               )}
             </button>

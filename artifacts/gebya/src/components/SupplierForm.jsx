@@ -12,19 +12,35 @@ import { useState } from 'react';
 import { Save, X, Camera, Image as ImageIcon, Trash2, CheckCircle2 } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { compressPhoto, photoSizeBytes } from '../utils/photoCapture';
+import {
+  extractSubscriberDigits,
+  isValidSubscriber,
+  normalizeEthiopianPhone,
+} from '../utils/phoneNumber';
 
 function SupplierForm({ existing = null, onSave, onDone }) {
   const { t, lang } = useLang();
   const editing = !!existing?.id;
   const [displayName, setDisplayName] = useState(existing?.display_name || '');
-  const [phoneNumber, setPhoneNumber] = useState(existing?.phone_number || '');
+  // Phone: store 9-digit subscriber portion. The +251 prefix is rendered as
+  // a static block, and on save we normalize to E.164 ("+251911234567").
+  const [phoneDigits, setPhoneDigits] = useState(
+    existing?.phone_number ? extractSubscriberDigits(existing.phone_number) : ''
+  );
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [note, setNote] = useState(existing?.note || '');
   const [photo, setPhoto] = useState(existing?.photo || null);
   const [photoError, setPhotoError] = useState(null);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const canSave = displayName.trim().length > 0 && !saving;
+  const phoneValid = !phoneDigits || isValidSubscriber(phoneDigits);
+  const canSave = displayName.trim().length > 0 && phoneValid && !saving;
+
+  const handlePhoneChange = (e) => {
+    const raw = e.target.value.replace(/\D/g, '');
+    setPhoneDigits(raw.slice(0, 9));
+  };
   const initials = (displayName.trim() || existing?.display_name || '?')
     .split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
@@ -48,9 +64,10 @@ function SupplierForm({ existing = null, onSave, onDone }) {
     if (!canSave) return;
     setSaving(true);
     try {
+      const normalizedPhone = phoneDigits ? normalizeEthiopianPhone(phoneDigits) : null;
       const saved = await onSave?.({
         display_name: displayName.trim(),
-        phone_number: phoneNumber.trim() || null,
+        phone_number: normalizedPhone,
         note: note.trim() || null,
         photo: photo || null,
       });
@@ -210,19 +227,62 @@ function SupplierForm({ existing = null, onSave, onDone }) {
             />
           </div>
 
+          {/* Phone — Commit C.3: +251 prefix block + 7/9 validation */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2 text-sm">
-              {lang === 'am' ? 'ስልክ (አማራጭ)' : 'Phone (optional)'}
+              📞 {lang === 'am' ? 'ስልክ' : 'Phone'}
+              <span className="font-normal text-xs ml-1" style={{ color: '#9ca3af' }}>
+                ({lang === 'am' ? 'አማራጭ' : 'optional'})
+              </span>
             </label>
-            <input
-              type="tel"
-              inputMode="tel"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder={lang === 'am' ? '0911...' : '0911...'}
-              className="w-full p-3 border-2 focus:outline-none text-sm"
-              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-            />
+            <div style={{ display: 'flex', gap: 0 }}>
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0 12px',
+                  background: '#f5f0e8',
+                  border: `2px solid ${(phoneTouched && !phoneValid) ? '#dc2626' : '#e8e2d8'}`,
+                  borderRight: 'none',
+                  borderTopLeftRadius: 'var(--radius-md)',
+                  borderBottomLeftRadius: 'var(--radius-md)',
+                  fontSize: '0.92rem',
+                  fontWeight: 800,
+                  color: '#991b1b',
+                  minWidth: 64,
+                  minHeight: 48,
+                }}
+              >
+                +251
+              </div>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={phoneDigits}
+                onChange={handlePhoneChange}
+                onBlur={() => setPhoneTouched(true)}
+                placeholder="9XXXXXXXX"
+                maxLength={9}
+                className="flex-1 p-3 border-2 focus:outline-none text-base"
+                style={{
+                  borderRadius: '0 var(--radius-md) var(--radius-md) 0',
+                  borderColor: (phoneTouched && !phoneValid)
+                    ? '#dc2626'
+                    : phoneValid && phoneDigits
+                      ? '#dc2626'
+                      : '#e8e2d8',
+                  minHeight: 48,
+                  fontVariantNumeric: 'tabular-nums',
+                  letterSpacing: '0.04em',
+                }}
+              />
+            </div>
+            {phoneTouched && !phoneValid && phoneDigits.length > 0 && (
+              <p className="text-xs font-medium mt-1" style={{ color: '#dc2626' }}>
+                {lang === 'am'
+                  ? 'ስልክ 9 ወይም 7 ይጀምር — 9 አኃዝ መሆን አለበት'
+                  : 'Phone must start with 9 or 7 — 9 digits total'}
+              </p>
+            )}
           </div>
 
           <div>

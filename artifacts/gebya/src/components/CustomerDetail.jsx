@@ -699,10 +699,26 @@ function HistoryRow({ tx, isLast, expanded, onToggleExpand, onActionMenu, lang, 
               {tx.item_note}
             </p>
           )}
-          <p style={{ fontSize: '0.65rem', color: '#94a3b8', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <p style={{ fontSize: '0.65rem', color: '#94a3b8', display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
             <span>{formatEthiopian(tx.created_at)}</span>
             {!isPayment && tx.due_date && (
               <span>{lang === 'am' ? 'መጨረሻ' : 'due'}: {formatEthiopian(tx.due_date)}</span>
+            )}
+            {/* Commit C.3: visible badge when credit has NO due date.
+                Soft amber dashed-border chip — easy to scan and identify
+                which credits don't have a return commitment yet. */}
+            {!isPayment && !tx.due_date && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                background: '#fffaeb',
+                border: '1px dashed #fbbf24',
+                color: '#92400e',
+                padding: '1px 6px', borderRadius: 999,
+                fontSize: '0.58rem', fontWeight: 700,
+                letterSpacing: '0.02em',
+              }}>
+                📅? {lang === 'am' ? 'መመለሻ ቀን አልተወሰነም' : 'no due date'}
+              </span>
             )}
             {tx.actor_name_snapshot && (
               <span>{lang === 'am' ? 'በ' : 'by'} {tx.actor_name_snapshot}</span>

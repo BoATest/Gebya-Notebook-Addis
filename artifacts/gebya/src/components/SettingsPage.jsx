@@ -10,6 +10,7 @@ import { ALL_BANKS, ALL_WALLETS } from './PaymentTypeChips';
 import { fireToast } from './Toast';
 import { normalizeTelegram } from '../utils/customerTelegram';
 import { SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger';
+import { isValidSubscriber } from '../utils/phoneNumber';
 
 const PwaInstallPanel = lazy(() => import('./PwaInstallPanel.jsx'));
 
@@ -165,7 +166,8 @@ function SettingsPage({
   const [editPayBankName, setEditPayBankName] = useState(initialPayments.bank_name || '');
   const [editPayBankAccount, setEditPayBankAccount] = useState(initialPayments.bank_account || '');
 
-  const phoneValid = !editPhoneDigits || /^[79]\d{8}$/.test(editPhoneDigits);
+  // Phone validation now lives in utils/phoneNumber.js — single source of truth.
+  const phoneValid = !editPhoneDigits || isValidSubscriber(editPhoneDigits);
   const normalizedTelegram = normalizeTelegram(editTelegram);
   const telegramValid = !editTelegram.trim() || !!normalizedTelegram;
   const handlePhoneChange = (e) => {
