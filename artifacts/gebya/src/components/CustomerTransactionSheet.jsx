@@ -8,7 +8,8 @@
 // - Compact due-date pills
 // - Solid colored save button
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Save, X, Plus, Camera, CheckCircle2, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Save, X, Plus, Minus, Camera, CheckCircle2, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
+import EthiopianDatePicker from './EthiopianDatePicker';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { formatEthiopian, getDueDateOptions } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from '../utils/customerTransactionTypes';
@@ -51,6 +52,8 @@ function CustomerTransactionSheet({
   const [itemNote, setItemNote] = useState(initInitialNote);
   const [catalogEntryId, setCatalogEntryId] = useState('');
   const [dueDate, setDueDate] = useState(initInitialDue);
+  // Commit C.7: Ethiopian calendar picker modal
+  const [showDatePicker, setShowDatePicker] = useState(false);
   // Commit C.6: quantity for credit. Captures "I gave 5 sacks of sugar for
   // 1500 birr total" — descriptive, not multiplicative (amount is the
   // already-computed total). Defaults to empty so users who don't care
@@ -793,10 +796,14 @@ function CustomerTransactionSheet({
                   </button>
                 );
               })}
-              {/* Calendar icon button — opens native date picker.
-                  When dueDate is custom (not matching any chip), this button
-                  is active-styled so the user sees their picked date below. */}
-              <label
+              {/* Calendar icon button — Commit C.7: opens our custom Ethiopian
+                  calendar picker modal instead of the browser's Gregorian
+                  native picker. When dueDate is custom (doesn't match any
+                  quick chip), this button is active-styled. */}
+              <button
+                type="button"
+                onClick={() => setShowDatePicker(true)}
+                aria-label={lang === 'am' ? 'ቀን ይምረጡ' : 'Pick date'}
                 className="flex-shrink-0 press-scale"
                 style={{
                   width: 48, minHeight: 48,
@@ -804,27 +811,15 @@ function CustomerTransactionSheet({
                     ? accentColor : '#fff',
                   color: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate)
                     ? '#fff' : '#374151',
-                  border: '1px solid #e8e2d8',
-                  borderColor: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate)
-                    ? accentColor : '#e8e2d8',
+                  border: `1px solid ${dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate)
+                    ? accentColor : '#e8e2d8'}`,
                   borderRadius: 'var(--radius-sm)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer',
                 }}
-                aria-label={lang === 'am' ? 'ቀን ይምረጡ' : 'Pick date'}
               >
                 <CalendarDays className="w-5 h-5" />
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  style={{
-                    position: 'absolute', width: 1, height: 1,
-                    padding: 0, margin: -1, overflow: 'hidden',
-                    clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0,
-                  }}
-                />
-              </label>
+              </button>
               {dueDate && (
                 <button
                   type="button"
@@ -877,6 +872,15 @@ function CustomerTransactionSheet({
           {saving ? t.saving : saveButtonText}
         </button>
       </div>
+
+      {/* Commit C.7: Ethiopian calendar picker modal */}
+      <EthiopianDatePicker
+        open={showDatePicker}
+        value={dueDate}
+        onChange={(iso) => setDueDate(iso)}
+        onClose={() => setShowDatePicker(false)}
+        lang={lang}
+      />
     </div>
   );
 }
