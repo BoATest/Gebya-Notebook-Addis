@@ -51,6 +51,14 @@ function CustomerTransactionSheet({
   const [itemNote, setItemNote] = useState(initInitialNote);
   const [catalogEntryId, setCatalogEntryId] = useState('');
   const [dueDate, setDueDate] = useState(initInitialDue);
+  // Commit C.6: quantity for credit. Captures "I gave 5 sacks of sugar for
+  // 1500 birr total" — descriptive, not multiplicative (amount is the
+  // already-computed total). Defaults to empty so users who don't care
+  // about qty don't see "1" everywhere.
+  const initInitialQuantity = isEditing && editingTransaction?.quantity
+    ? String(editingTransaction.quantity)
+    : '';
+  const [quantity, setQuantity] = useState(initInitialQuantity);
   const [saving, setSaving] = useState(false);
   const [showCustomAmount, setShowCustomAmount] = useState(false);
   const [customAmountValue, setCustomAmountValue] = useState('');
@@ -184,10 +192,18 @@ function CustomerTransactionSheet({
         ? cleanedItems.map(it => it.name).join(', ').substring(0, 200)
         : (itemNote.trim() || selectedCatalogEntry?.name || null);
 
+      const parsedQty = parseInt(quantity, 10);
+      const validQty = !isPayment && Number.isFinite(parsedQty) && parsedQty > 0
+        ? parsedQty
+        : null;
+
       const didSave = await onSave?.({
         customer_id: customer?.id,
         type: transactionType,
         amount: parsedAmount,
+        // Commit C.6: quantity is descriptive (5 sacks of sugar). Stored only
+        // for credit_add, null on payment. amount remains the authoritative total.
+        quantity: validQty,
         catalog_entry_id: catalogEntryId ? Number(catalogEntryId) : null,
         item_kind: selectedCatalogEntry?.kind || null,
         item_note: itemNoteForSave,
@@ -415,6 +431,78 @@ function CustomerTransactionSheet({
             </p>
           )}
         </div>
+
+        {/* Quantity (credit only) — Commit C.6.
+            Descriptive: "I gave 5 sacks of sugar for 1500 birr total".
+            Amount stays the authoritative total — qty does not multiply. */}
+        {!isPayment && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'ብዛት (አማራጭ)' : 'Quantity (optional)'}
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const cur = parseInt(quantity, 10) || 0;
+                  setQuantity(cur > 1 ? String(cur - 1) : '');
+                }}
+                aria-label={lang === 'am' ? 'ቀንስ' : 'Decrease'}
+                className="press-scale flex items-center justify-center"
+                style={{
+                  width: 44, height: 44,
+                  border: '2px solid #e8e2d8',
+                  borderRadius: 'var(--radius-md)',
+                  background: '#fff',
+                }}
+              >
+                <Minus className="w-4 h-4" style={{ color: '#374151' }} />
+              </button>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={quantity}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, '');
+                  setQuantity(raw.slice(0, 4));
+                }}
+                placeholder={lang === 'am' ? 'ለምሳሌ 5' : 'e.g. 5'}
+                className="flex-1 p-2.5 border-2 focus:outline-none text-base text-center font-bold"
+                style={{
+                  borderRadius: 'var(--radius-md)',
+                  borderColor: quantity ? accentColor : '#e8e2d8',
+                  minHeight: 44,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const cur = parseInt(quantity, 10) || 0;
+                  setQuantity(String(cur + 1));
+                }}
+                aria-label={lang === 'am' ? 'ጨምር' : 'Increase'}
+                className="press-scale flex items-center justify-center"
+                style={{
+                  width: 44, height: 44,
+                  border: '2px solid #e8e2d8',
+                  borderRadius: 'var(--radius-md)',
+                  background: '#fff',
+                }}
+              >
+                <Plus className="w-4 h-4" style={{ color: '#374151' }} />
+              </button>
+              <span className="text-xs font-semibold" style={{ color: '#9ca3af', minWidth: 70 }}>
+                {lang === 'am' ? 'ብዛት' : 'pieces'}
+              </span>
+            </div>
+            <p className="text-[10px] mt-1.5" style={{ color: '#9ca3af' }}>
+              {lang === 'am'
+                ? 'ለመመዝገብ ብቻ — መጠን ላይ ተጽዕኖ የለውም።'
+                : 'For your records only — does not multiply the amount.'}
+            </p>
+          </div>
+        )}
 
         {/* Note (optional) + Photo button inline (credit only — proof of goods) */}
         <div>
@@ -675,7 +763,11 @@ function CustomerTransactionSheet({
             <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
               {t.dueDateOptional}
             </label>
-            <div className="flex gap-1.5 overflow-x-auto pb-1 mb-2">
+            {/* Commit C.6: All 4 controls in ONE responsive row.
+                Today / Tomorrow / Next week as quick chips + a calendar icon
+                button that opens the native date picker. Hidden date input
+                catches the picker output. Chips shrink to fit small screens. */}
+            <div className="flex gap-1.5 mb-1.5" style={{ alignItems: 'stretch' }}>
               {dueDateOptions.map((option) => {
                 const optionDate = new Date(option.value).toISOString().slice(0, 10);
                 const active = dueDate === optionDate;
@@ -684,33 +776,84 @@ function CustomerTransactionSheet({
                     key={option.value}
                     type="button"
                     onClick={() => setDueDate(optionDate)}
-                    className="flex-shrink-0 px-3 py-2 text-left border min-h-[44px] whitespace-nowrap press-scale"
+                    className="flex-1 min-w-0 px-1.5 py-1.5 text-center border press-scale"
                     style={{
                       background: active ? accentColor : '#fff',
                       color: active ? '#fff' : '#374151',
                       borderColor: active ? accentColor : '#e8e2d8',
                       borderRadius: 'var(--radius-sm)',
+                      minHeight: 48,
+                      display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', justifyContent: 'center',
+                      lineHeight: 1.1,
                     }}
                   >
-                    <span className="block text-xs font-bold">{option.label}</span>
-                    <span className="block text-[10px] opacity-80">{option.display}</span>
+                    <span className="block text-[11px] font-bold truncate w-full">{option.label}</span>
+                    <span className="block text-[9px] opacity-80 truncate w-full">{option.display}</span>
                   </button>
                 );
               })}
+              {/* Calendar icon button — opens native date picker.
+                  When dueDate is custom (not matching any chip), this button
+                  is active-styled so the user sees their picked date below. */}
+              <label
+                className="flex-shrink-0 press-scale"
+                style={{
+                  width: 48, minHeight: 48,
+                  background: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate)
+                    ? accentColor : '#fff',
+                  color: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate)
+                    ? '#fff' : '#374151',
+                  border: '1px solid #e8e2d8',
+                  borderColor: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate)
+                    ? accentColor : '#e8e2d8',
+                  borderRadius: 'var(--radius-sm)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+                aria-label={lang === 'am' ? 'ቀን ይምረጡ' : 'Pick date'}
+              >
+                <CalendarDays className="w-5 h-5" />
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  style={{
+                    position: 'absolute', width: 1, height: 1,
+                    padding: 0, margin: -1, overflow: 'hidden',
+                    clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0,
+                  }}
+                />
+              </label>
+              {dueDate && (
+                <button
+                  type="button"
+                  onClick={() => setDueDate('')}
+                  aria-label={lang === 'am' ? 'አጥፋ' : 'Clear'}
+                  className="flex-shrink-0 press-scale flex items-center justify-center"
+                  style={{
+                    width: 36, minHeight: 48,
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderRadius: 'var(--radius-sm)',
+                    color: '#dc2626',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
-            <div className="relative">
-              <CalendarDays className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full p-2.5 pl-10 border-2 focus:outline-none text-sm"
-                style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8' }}
-              />
-            </div>
+            {/* Ethiopian display — promoted to a clearer affirmation under the row */}
             {dueDate && (
-              <p className="text-[10px] mt-1.5 font-medium" style={{ color: '#6b7280' }}>
-                {t.ethiopianDisplay}: {formatEthiopian(new Date(dueDate))}
+              <p
+                className="text-xs mt-2 font-bold flex items-center gap-1"
+                style={{ color: accentColor }}
+              >
+                <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#9ca3af', letterSpacing: '0.06em' }}>
+                  {lang === 'am' ? 'ኢትዮጵያ ዘመን' : 'ETHIOPIAN'}
+                </span>
+                · {formatEthiopian(new Date(dueDate))}
               </p>
             )}
           </div>

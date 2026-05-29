@@ -1956,6 +1956,8 @@ function AppInner() {
         items: itemsToStore,
         // Preserve / replace product photo on edit
         photo: originalPayload?.photo || null,
+        // Commit C.6: descriptive quantity ("5 sacks of sugar"). null on payment.
+        quantity: originalPayload?.quantity != null ? Number(originalPayload.quantity) : null,
         updated_at: Date.now(),
       };
       await db.customer_transactions.update(editingId, updates);
@@ -2061,6 +2063,8 @@ function AppInner() {
           : null,
         // Preserve product photo (base64 data URL, non-indexed)
         photo: payload?.photo || null,
+        // Commit C.6: descriptive quantity (5 sacks of sugar). Null for payments.
+        quantity: payload?.quantity != null ? Number(payload.quantity) : null,
         reference_code: null,
         telegram_delivery_state: null,
         telegram_delivery_attempted_at: null,

@@ -770,10 +770,23 @@ function HistoryRow({ tx, isLast, expanded, onToggleExpand, onActionMenu, lang, 
             )}
           </div>
 
-          {/* Note + meta */}
-          {tx.item_note && (
-            <p style={{ fontSize: '0.82rem', color: '#1f2937', marginTop: 2, marginBottom: 2 }}>
-              {tx.item_note}
+          {/* Note + qty + meta. Commit C.6: surface qty as a small "× N" prefix
+              so shopkeepers can see how many units they handed over. */}
+          {(tx.item_note || tx.quantity) && (
+            <p style={{ fontSize: '0.82rem', color: '#1f2937', marginTop: 2, marginBottom: 2, display: 'inline-flex', flexWrap: 'wrap', gap: 5, alignItems: 'baseline' }}>
+              {!isPayment && tx.quantity > 0 && (
+                <span style={{
+                  display: 'inline-block',
+                  background: '#fef3c7', color: '#92400e',
+                  padding: '1px 6px', borderRadius: 4,
+                  fontSize: '0.68rem', fontWeight: 800,
+                  letterSpacing: '0.02em',
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                  × {tx.quantity}
+                </span>
+              )}
+              {tx.item_note && <span>{tx.item_note}</span>}
             </p>
           )}
           <p style={{ fontSize: '0.65rem', color: '#94a3b8', display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
