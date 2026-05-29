@@ -32,11 +32,17 @@ import {
 // Build the customer-facing Pay-it-now URL.
 // All params are URL-encoded; PayPage decodes them and renders the channel
 // picker page. Empty/missing values are simply omitted.
-function buildPayUrl({ shopName, shopPhone, shopTelegram, customer, lang }) {
+//
+// Commit C.1: also passes payment-account fields from shopProfile.payments
+// so PayPage can show real account numbers (telebirr / CBE / Awash / bank)
+// instead of just generic USSD codes.
+function buildPayUrl({ shopName, shopPhone, shopTelegram, shopPayments, customer, lang }) {
   if (typeof window === 'undefined') return '';
   const origin = window.location.origin;
   const balance = Number(customer?.balance || 0);
   const params = new URLSearchParams();
+
+  // Core fields
   if (shopName) params.set('to', shopName);
   if (balance > 0) params.set('amount', String(balance));
   if (customer?.display_name) params.set('from', customer.display_name);
@@ -44,6 +50,32 @@ function buildPayUrl({ shopName, shopPhone, shopTelegram, customer, lang }) {
   if (shopPhone) params.set('phone', shopPhone);
   if (shopTelegram) params.set('tg', shopTelegram);
   if (lang) params.set('lang', lang);
+
+  // Payment receiving accounts (Commit C.1). telebirr defaults to shopPhone
+  // when its dedicated field is empty — common case for shopkeepers who use
+  // the same number for both. Other channels are independent.
+  const pmt = shopPayments || {};
+  // telebirr: explicit field overrides shop phone; empty string → fall back to phone
+  const telebirrPhone = (pmt.telebirr && pmt.telebirr.trim())
+    ? (pmt.telebirr.startsWith('+251') ? pmt.telebirr : `+251${pmt.telebirr.replace(/\D/g, '').slice(-9)}`)
+    : shopPhone;
+  if (telebirrPhone) params.set('tb', telebirrPhone);
+  if (pmt.cbe_phone) {
+    const cbeFormatted = pmt.cbe_phone.startsWith('+251')
+      ? pmt.cbe_phone
+      : `+251${pmt.cbe_phone.replace(/\D/g, '').slice(-9)}`;
+    params.set('cbe_p', cbeFormatted);
+  }
+  if (pmt.cbe_account) params.set('cbe_a', pmt.cbe_account);
+  if (pmt.awash_phone) {
+    const awashFormatted = pmt.awash_phone.startsWith('+251')
+      ? pmt.awash_phone
+      : `+251${pmt.awash_phone.replace(/\D/g, '').slice(-9)}`;
+    params.set('aw_p', awashFormatted);
+  }
+  if (pmt.bank_name) params.set('bk_n', pmt.bank_name);
+  if (pmt.bank_account) params.set('bk_a', pmt.bank_account);
+
   return `${origin}/pay?${params.toString()}`;
 }
 
@@ -77,15 +109,21 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent }) {
   );
 
   // Build the pay link once, memoized on shop/customer changes.
+  // Includes payment receiving accounts from shopProfile.payments (Commit C.1).
+  const shopPayments = shopProfile?.payments;
+  const paymentsKey = shopPayments
+    ? `${shopPayments.telebirr || ''}|${shopPayments.cbe_phone || ''}|${shopPayments.cbe_account || ''}|${shopPayments.awash_phone || ''}|${shopPayments.bank_name || ''}|${shopPayments.bank_account || ''}`
+    : '';
   const payUrl = useMemo(
     () => buildPayUrl({
       shopName,
       shopPhone: shopProfile?.phone,
       shopTelegram: shopProfile?.telegram,
+      shopPayments,
       customer,
       lang,
     }),
-    [shopName, shopProfile?.phone, shopProfile?.telegram, customer?.id, customer?.balance, customer?.display_name, lang]
+    [shopName, shopProfile?.phone, shopProfile?.telegram, paymentsKey, customer?.id, customer?.balance, customer?.display_name, lang]
   );
 
   // Reset edited message when template OR pay-link toggle changes
@@ -291,9 +329,43 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent }) {
                   <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.7)' }}>
                     {lang === 'am' ? 'ደንበኛው የሚያየው' : 'Customer sees'}
                   </p>
-                  <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.95)' }}>
-                    💛 telebirr · 💜 CBE · 🟡 Awash · 🏦 {lang === 'am' ? 'ባንክ' : 'Bank'}
+                  {/* Show configured channels with checkmarks so the shopkeeper
+                      knows which payment options will appear on the customer-
+                      facing page. Unconfigured channels show in faded text. */}
+                  <p className="text-[11px] mt-0.5 leading-snug" style={{ color: 'rgba(255,255,255,0.95)' }}>
+                    {(() => {
+                      const tbOk = !!(shopPayments?.telebirr || shopProfile?.phone);
+                      const cbeOk = !!(shopPayments?.cbe_phone || shopPayments?.cbe_account);
+                      const awOk = !!(shopPayments?.awash_phone);
+                      const bkOk = !!(shopPayments?.bank_name && shopPayments?.bank_account);
+                      const tag = (label, ok) => (
+                        <span style={{ opacity: ok ? 1 : 0.45 }}>
+                          {ok ? '✓' : '○'} {label}
+                        </span>
+                      );
+                      return (
+                        <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '6px 10px' }}>
+                          {tag('💛 telebirr', tbOk)}
+                          {tag('💜 CBE', cbeOk)}
+                          {tag('🟡 Awash', awOk)}
+                          {tag(`🏦 ${lang === 'am' ? 'ባንክ' : 'Bank'}`, bkOk)}
+                        </span>
+                      );
+                    })()}
                   </p>
+                  {/* Hint when no channels beyond telebirr are configured */}
+                  {!shopPayments?.cbe_phone && !shopPayments?.cbe_account
+                    && !shopPayments?.awash_phone
+                    && !(shopPayments?.bank_name && shopPayments?.bank_account) && (
+                    <p
+                      className="text-[10px] mt-1.5"
+                      style={{ color: 'rgba(255,255,255,0.85)', fontStyle: 'italic' }}
+                    >
+                      💡 {lang === 'am'
+                        ? 'ብዙ አማራጭ ለመስጠት Settings → ክፍያ መለያዎች ላይ ይጨምሩ።'
+                        : 'Add more options in Settings → Payment accounts.'}
+                    </p>
+                  )}
                   <p className="text-[10px] mt-1.5" style={{ color: 'rgba(255,255,255,0.7)' }}>
                     🔒 {lang === 'am' ? 'Gebya ገንዘቡን አያይም።' : "Gebya doesn't see the money."}
                   </p>

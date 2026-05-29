@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useEffect } from 'react';
-import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown, Share2, Sun, Moon, Users } from 'lucide-react';
+import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown, Share2, Sun, Moon, Users, Building2, Sparkles } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
 import { useTheme } from '../context/ThemeContext';
@@ -151,6 +151,20 @@ function SettingsPage({
   const [profileSaved, setProfileSaved] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
 
+  // Commit C.1: Payment receiving accounts. These get appended to /pay URLs
+  // when the shopkeeper toggles "Add Pay-it-now link" in a reminder.
+  // telebirr defaults to the shop phone via "Same as shop phone" — when
+  // the toggle is ON we store an empty string and the URL builder falls
+  // back to shop_phone.
+  const initialPayments = shopProfile?.payments || {};
+  const [editPayTelebirrSame, setEditPayTelebirrSame] = useState(!initialPayments.telebirr);
+  const [editPayTelebirr, setEditPayTelebirr] = useState(initialPayments.telebirr || '');
+  const [editPayCbePhone, setEditPayCbePhone] = useState(initialPayments.cbe_phone || '');
+  const [editPayCbeAccount, setEditPayCbeAccount] = useState(initialPayments.cbe_account || '');
+  const [editPayAwashPhone, setEditPayAwashPhone] = useState(initialPayments.awash_phone || '');
+  const [editPayBankName, setEditPayBankName] = useState(initialPayments.bank_name || '');
+  const [editPayBankAccount, setEditPayBankAccount] = useState(initialPayments.bank_account || '');
+
   const phoneValid = !editPhoneDigits || /^[79]\d{8}$/.test(editPhoneDigits);
   const normalizedTelegram = normalizeTelegram(editTelegram);
   const telegramValid = !editTelegram.trim() || !!normalizedTelegram;
@@ -165,6 +179,16 @@ function SettingsPage({
     setEditPhoneDigits(rawPhone.startsWith('+251') ? rawPhone.slice(4) : rawPhone.replace(/\D/g, '').slice(-9));
     setEditTelegram(shopProfile?.telegram || '');
     setEditBusinessType(shopProfile?.businessType || 'retail-shop');
+
+    // Payment receiving accounts — sync on shop profile reload (Commit C.1)
+    const pmt = shopProfile?.payments || {};
+    setEditPayTelebirrSame(!pmt.telebirr);
+    setEditPayTelebirr(pmt.telebirr || '');
+    setEditPayCbePhone(pmt.cbe_phone || '');
+    setEditPayCbeAccount(pmt.cbe_account || '');
+    setEditPayAwashPhone(pmt.awash_phone || '');
+    setEditPayBankName(pmt.bank_name || '');
+    setEditPayBankAccount(pmt.bank_account || '');
   }, [shopProfile]);
 
   const [providers, setProviders] = useState(enabledProviders || { banks: [...ALL_BANKS], wallets: [...ALL_WALLETS] });
@@ -227,10 +251,22 @@ function SettingsPage({
   const activeCatalogEntries = (catalogEntries || []).filter(entry => entry.active !== false);
   const selectedSupplier = (supplierSummaries || []).find(item => String(item.id) === String(supplierTxForm.supplier_id)) || null;
 
+  // Build the payments payload — telebirr defaults to '' when "Same as shop phone"
+  // is checked, signaling the URL builder to fall back to shop_phone.
+  const buildPaymentsPayload = () => ({
+    telebirr: editPayTelebirrSame ? '' : (editPayTelebirr.replace(/\D/g, '').slice(-9) || ''),
+    cbe_phone: editPayCbePhone.replace(/\D/g, '').slice(-9) || '',
+    cbe_account: editPayCbeAccount.trim().replace(/\s+/g, ''),
+    awash_phone: editPayAwashPhone.replace(/\D/g, '').slice(-9) || '',
+    bank_name: editPayBankName.trim(),
+    bank_account: editPayBankAccount.trim().replace(/\s+/g, ''),
+  });
+
   const handleProfileSave = async () => {
     if (!editName.trim() || !phoneValid || !telegramValid) return;
     const fullPhone = editPhoneDigits ? '+251' + editPhoneDigits : '';
-    await onProfileSave(editName.trim(), fullPhone, normalizedTelegram || '', editBusinessType);
+    const payments = buildPaymentsPayload();
+    await onProfileSave(editName.trim(), fullPhone, normalizedTelegram || '', editBusinessType, payments);
     setEditTelegram(normalizedTelegram || '');
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2000);
@@ -514,12 +550,35 @@ function SettingsPage({
   const totalCustomersWithLedger = customerSummaries.length;
   const totalSupplierDubie = (supplierSummaries || []).reduce((sum, supplier) => sum + Math.max(supplier.balance || 0, 0), 0);
   const currentFullPhone = editPhoneDigits ? '+251' + editPhoneDigits : '';
+  // Payment-account changes are also considered profile changes so the
+  // Save button activates when the shopkeeper only updates payments.
+  const existingPayments = shopProfile?.payments || {};
+  const currentPayments = buildPaymentsPayload();
+  const paymentsChanged = (
+    currentPayments.telebirr !== (existingPayments.telebirr || '') ||
+    currentPayments.cbe_phone !== (existingPayments.cbe_phone || '') ||
+    currentPayments.cbe_account !== (existingPayments.cbe_account || '') ||
+    currentPayments.awash_phone !== (existingPayments.awash_phone || '') ||
+    currentPayments.bank_name !== (existingPayments.bank_name || '') ||
+    currentPayments.bank_account !== (existingPayments.bank_account || '')
+  );
   const profileChanged = (
     editName.trim() !== (shopProfile?.name || '') ||
     currentFullPhone !== (shopProfile?.phone || '') ||
     editTelegram.trim() !== (shopProfile?.telegram || '') ||
-    editBusinessType !== (shopProfile?.businessType || 'retail-shop')
+    editBusinessType !== (shopProfile?.businessType || 'retail-shop') ||
+    paymentsChanged
   );
+
+  // Count how many payment channels are configured — drives the summary chip
+  // in the section header so the user can see at-a-glance whether Pay-it-now
+  // will work for their customers.
+  const configuredPaymentChannels = [
+    editPayTelebirrSame || !!currentPayments.telebirr,
+    !!currentPayments.cbe_phone || !!currentPayments.cbe_account,
+    !!currentPayments.awash_phone,
+    !!currentPayments.bank_name && !!currentPayments.bank_account,
+  ].filter(Boolean).length;
 
   const voiceStats = voiceQuality.stats;
   const capturedVoices = voiceStats?.captured || 0;
@@ -928,6 +987,173 @@ function SettingsPage({
                   : 'We use this to tailor suggestions for your shop.'}
               </p>
             </div>
+
+            {/* ═══ PAYMENT RECEIVING ACCOUNTS (Commit C.1) ═══════════════════ */}
+            {/* These fields populate the /pay channel-picker URL that customers
+                see when the shopkeeper toggles "Add Pay-it-now link" on a
+                reminder. Gebya never touches the money — we just route. */}
+            <div
+              className="rounded-xl border-2 overflow-hidden"
+              style={{ borderColor: '#86efac', background: 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)' }}
+            >
+              <div className="px-4 pt-4 pb-2">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4" style={{ color: '#047857' }} />
+                    <p className="text-sm font-black" style={{ color: '#065f46' }}>
+                      {lang === 'am' ? 'የክፍያ መቀበያ መለያዎች' : 'Payment receiving accounts'}
+                    </p>
+                  </div>
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{
+                      background: configuredPaymentChannels > 0 ? '#16a34a' : '#94a3b8',
+                      color: '#fff',
+                    }}
+                  >
+                    {configuredPaymentChannels}/4 {lang === 'am' ? 'ተዋቅሯል' : 'set'}
+                  </span>
+                </div>
+                <p className="text-[11px] leading-snug" style={{ color: '#047857' }}>
+                  {lang === 'am'
+                    ? 'ለማስታወሻ "Pay-it-now" አገናኝ ሲጨምሩ ደንበኞች ይህን መረጃ ይመለከታሉ።'
+                    : 'When you add a Pay-it-now link to a reminder, customers see these accounts on a channel-picker page.'}
+                </p>
+              </div>
+
+              <div className="px-4 pb-4 pt-2 space-y-3">
+                {/* telebirr · phone */}
+                <div>
+                  <label className="block text-xs font-bold mb-1.5 flex items-center gap-1" style={{ color: '#065f46' }}>
+                    💛 telebirr {lang === 'am' ? 'ስልክ' : 'phone'}
+                  </label>
+                  <label className="flex items-center gap-2 text-[12px] font-semibold mb-2 cursor-pointer" style={{ color: '#047857' }}>
+                    <input
+                      type="checkbox"
+                      checked={editPayTelebirrSame}
+                      onChange={(e) => setEditPayTelebirrSame(e.target.checked)}
+                      style={{ width: 16, height: 16, accentColor: '#16a34a' }}
+                    />
+                    {lang === 'am' ? 'ከሱቅ ስልክ ጋር አንድ' : 'Same as shop phone'}
+                    {editPayTelebirrSame && editPhoneDigits && (
+                      <span className="ml-1 text-[11px] font-bold" style={{ color: '#065f46' }}>
+                        (+251 {editPhoneDigits})
+                      </span>
+                    )}
+                  </label>
+                  {!editPayTelebirrSame && (
+                    <div className="flex gap-0">
+                      <div
+                        className="flex items-center justify-center px-3 py-2.5 rounded-l-xl border-2 border-r-0 text-sm font-bold"
+                        style={{ background: '#fff', borderColor: '#86efac', color: '#1B4332', minWidth: 64 }}
+                      >
+                        +251
+                      </div>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        value={editPayTelebirr}
+                        onChange={(e) => setEditPayTelebirr(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                        placeholder="9XXXXXXXX"
+                        maxLength={9}
+                        className="flex-1 px-3 py-2.5 border-2 rounded-r-xl text-sm focus:outline-none"
+                        style={{ borderColor: '#86efac', background: '#fff' }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* CBE Birr */}
+                <div>
+                  <label className="block text-xs font-bold mb-1.5 flex items-center gap-1" style={{ color: '#065f46' }}>
+                    💜 CBE Birr {lang === 'am' ? 'ስልክ ወይም መለያ' : 'phone or account'}
+                  </label>
+                  <div className="flex gap-0 mb-1.5">
+                    <div
+                      className="flex items-center justify-center px-3 py-2.5 rounded-l-xl border-2 border-r-0 text-[11px] font-bold"
+                      style={{ background: '#fff', borderColor: '#86efac', color: '#1B4332', minWidth: 64 }}
+                    >
+                      +251
+                    </div>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      value={editPayCbePhone}
+                      onChange={(e) => setEditPayCbePhone(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                      placeholder={lang === 'am' ? 'ለ *847# (አማራጭ)' : 'for *847# (optional)'}
+                      maxLength={9}
+                      className="flex-1 px-3 py-2.5 border-2 rounded-r-xl text-sm focus:outline-none"
+                      style={{ borderColor: '#86efac', background: '#fff' }}
+                    />
+                  </div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={editPayCbeAccount}
+                    onChange={(e) => setEditPayCbeAccount(e.target.value)}
+                    placeholder={lang === 'am' ? 'የባንክ መለያ ቁጥር (አማራጭ)' : 'CBE bank account number (optional)'}
+                    className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
+                    style={{ borderColor: '#86efac', background: '#fff' }}
+                  />
+                </div>
+
+                {/* Awash Mobile */}
+                <div>
+                  <label className="block text-xs font-bold mb-1.5 flex items-center gap-1" style={{ color: '#065f46' }}>
+                    🟡 Awash {lang === 'am' ? 'ስልክ' : 'phone'}
+                  </label>
+                  <div className="flex gap-0">
+                    <div
+                      className="flex items-center justify-center px-3 py-2.5 rounded-l-xl border-2 border-r-0 text-[11px] font-bold"
+                      style={{ background: '#fff', borderColor: '#86efac', color: '#1B4332', minWidth: 64 }}
+                    >
+                      +251
+                    </div>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      value={editPayAwashPhone}
+                      onChange={(e) => setEditPayAwashPhone(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                      placeholder={lang === 'am' ? 'ለ *901# (አማራጭ)' : 'for *901# (optional)'}
+                      maxLength={9}
+                      className="flex-1 px-3 py-2.5 border-2 rounded-r-xl text-sm focus:outline-none"
+                      style={{ borderColor: '#86efac', background: '#fff' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Other bank */}
+                <div>
+                  <label className="block text-xs font-bold mb-1.5 flex items-center gap-1" style={{ color: '#065f46' }}>
+                    <Building2 className="w-3.5 h-3.5" /> {lang === 'am' ? 'ሌላ ባንክ' : 'Other bank'}
+                  </label>
+                  <input
+                    type="text"
+                    value={editPayBankName}
+                    onChange={(e) => setEditPayBankName(e.target.value)}
+                    placeholder={lang === 'am' ? 'ለምሳሌ Dashen, አቢሲኒያ' : 'e.g. Dashen, Abyssinia'}
+                    className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none mb-1.5"
+                    style={{ borderColor: '#86efac', background: '#fff' }}
+                  />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={editPayBankAccount}
+                    onChange={(e) => setEditPayBankAccount(e.target.value)}
+                    placeholder={lang === 'am' ? 'የመለያ ቁጥር' : 'Account number'}
+                    className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
+                    style={{ borderColor: '#86efac', background: '#fff' }}
+                  />
+                </div>
+
+                <p className="text-[10px] leading-snug pt-1" style={{ color: '#047857' }}>
+                  🔒 {lang === 'am'
+                    ? 'መረጃው በዚህ ስልክ ላይ ብቻ ይቀመጣል። Gebya ገንዘቡን አያይም — እርስዎ በቀጥታ ይቀበላሉ።'
+                    : 'Stored on this phone only. Gebya never touches the money — customers pay you direct.'}
+                </p>
+              </div>
+            </div>
+
             <button
               onClick={handleProfileSave}
               disabled={!editName.trim() || !phoneValid || !telegramValid || (!profileChanged && !profileSaved)}

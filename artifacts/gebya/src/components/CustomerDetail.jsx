@@ -241,8 +241,10 @@ function CustomerDetail({
             <p style={{ fontSize: '1.05rem', fontWeight: 800, lineHeight: 1.15 }}>
               {customer.display_name}
             </p>
-            <p style={{ fontSize: '0.7rem', opacity: 0.7, marginTop: 1, display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              {customer.phone_number && (
+            {/* Identity line: phone (or Telegram if no phone) — dropped redundant
+                "N entries" since OWES ME card shows the same. Commit C.1 polish. */}
+            <p style={{ fontSize: '0.7rem', opacity: 0.7, marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {customer.phone_number ? (
                 <a
                   href={`tel:${customer.phone_number}`}
                   style={{ color: '#fff', textDecoration: 'none' }}
@@ -250,11 +252,11 @@ function CustomerDetail({
                 >
                   📞 {customer.phone_number}
                 </a>
-              )}
-              {customer.phone_number && customer.transaction_count > 0 && <span>·</span>}
-              {customer.transaction_count > 0 && (
-                <span>
-                  {customer.transaction_count} {lang === 'am' ? 'መዝገብ' : 'entries'}
+              ) : customer.telegram_username ? (
+                <span>💬 @{customer.telegram_username}</span>
+              ) : (
+                <span style={{ fontStyle: 'italic', opacity: 0.7 }}>
+                  {lang === 'am' ? 'ስልክ ወይም ቴሌግራም የለም' : 'No phone or Telegram'}
                 </span>
               )}
             </p>
@@ -346,6 +348,23 @@ function CustomerDetail({
         }}
       >
         <div>
+          {/* Prominent OVERDUE badge above the amount — Commit C.1 polish.
+              Promotes the urgency signal so shopkeepers immediately know
+              this is a chase-now situation, not a "we have time" one. */}
+          {customer.has_overdue && customer.overdue_days > 0 && (
+            <span
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                background: '#dc2626', color: '#fff',
+                fontSize: '0.62rem', fontWeight: 800,
+                padding: '3px 8px', borderRadius: 999,
+                letterSpacing: '0.06em', textTransform: 'uppercase',
+                marginBottom: 5,
+              }}
+            >
+              🔴 {customer.overdue_days}d {lang === 'am' ? 'ቆይቷል' : 'overdue'}
+            </span>
+          )}
           <p style={{
             fontSize: '0.6rem', fontWeight: 800,
             color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase',
@@ -365,13 +384,6 @@ function CustomerDetail({
               {lang === 'am' ? 'ብር' : 'birr'}
             </span>
           </p>
-          {customer.has_overdue && customer.overdue_days > 0 && (
-            <p style={{ fontSize: '0.65rem', color: '#dc2626', fontWeight: 700, marginTop: 3 }}>
-              {lang === 'am'
-                ? `−${customer.overdue_days} ቀን ቆይቷል`
-                : `−${customer.overdue_days} days late`}
-            </p>
-          )}
         </div>
         <div style={{
           display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end',
@@ -381,14 +393,23 @@ function CustomerDetail({
             <strong style={{ color: '#1f2937', fontWeight: 700 }}>{customer.transaction_count || 0}</strong>{' '}
             {lang === 'am' ? 'መዝገብ' : 'entries'}
           </span>
-          {customer.on_time_eligible > 0 && (
-            <span>
-              <strong style={{ color: '#047857', fontWeight: 700 }}>
-                {customer.on_time_count}/{customer.on_time_eligible}
-              </strong>{' '}
-              {lang === 'am' ? 'በሰዓቱ' : 'on time'}
-            </span>
-          )}
+          {/* On-time rate as a percentage when there's enough data — clearer
+              than "0/1" fraction notation. Commit C.1 polish. */}
+          {customer.on_time_eligible > 0 && (() => {
+            const pct = Math.round((customer.on_time_count / customer.on_time_eligible) * 100);
+            const pctColor = pct >= 80 ? '#047857' : pct >= 50 ? '#b8842c' : '#dc2626';
+            return (
+              <span>
+                <strong style={{ color: pctColor, fontWeight: 700 }}>
+                  {pct}%
+                </strong>{' '}
+                {lang === 'am' ? 'በሰዓቱ' : 'on time'}
+                <span style={{ color: '#9ca3af', marginLeft: 3, fontSize: '0.62rem' }}>
+                  ({customer.on_time_count}/{customer.on_time_eligible})
+                </span>
+              </span>
+            );
+          })()}
           {customer.avg_pay_days !== null && customer.avg_pay_days !== undefined && (
             <span>
               {lang === 'am' ? 'አማካይ ክፍያ' : 'Avg pay'}:{' '}
@@ -443,6 +464,22 @@ function CustomerDetail({
       {!hasBalance && (
         <p style={{ fontSize: '0.7rem', color: '#9ca3af', textAlign: 'center', fontStyle: 'italic' }}>
           {lang === 'am' ? 'ምንም ቀሪ ዱቤ የለም' : 'No outstanding balance'}
+        </p>
+      )}
+
+      {/* Hint when Remind is greyed because customer has no contact info.
+          Commit C.1 polish — was previously silent / mysterious.
+          The Telegram link state block already gives a path to add contact
+          info, so this is a guide arrow, not an action. */}
+      {hasBalance && !customer.telegram_chat_id && !customer.telegram_username && !customer.phone_number && (
+        <p style={{
+          fontSize: '0.7rem', color: '#b8842c', fontWeight: 600,
+          textAlign: 'center', fontStyle: 'italic',
+          padding: '4px 8px',
+        }}>
+          {lang === 'am'
+            ? '🔔 ለማስታወሻ ስልክ ወይም ቴሌግራም ይጨምሩ'
+            : '🔔 Add a phone or Telegram to enable reminders'}
         </p>
       )}
 

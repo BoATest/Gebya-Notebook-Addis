@@ -599,7 +599,14 @@ function AppInner() {
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, staffRows, nameRow, phoneRow, businessTypeRow, epRow, reRow, customQuickAmountsRow, telegramRow, snapshotRow, activeStaffRow] = await Promise.all([
+      const [
+        txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, staffRows,
+        nameRow, phoneRow, businessTypeRow, epRow, reRow, customQuickAmountsRow, telegramRow,
+        snapshotRow, activeStaffRow,
+        // Payment receiving accounts — used by Pay-it-now /pay URLs
+        payTelebirrRow, payCbePhoneRow, payCbeAccountRow, payAwashPhoneRow,
+        payBankNameRow, payBankAccountRow,
+      ] = await Promise.all([
         db.transactions.toArray(),
         db.customers.toArray(),
         db.customer_transactions.toArray(),
@@ -616,6 +623,12 @@ function AppInner() {
         db.settings.get('shop_telegram'),
         db.settings.get('last_saved_snapshot'),
         db.settings.get('active_staff_member_id'),
+        db.settings.get('shop_pay_telebirr'),
+        db.settings.get('shop_pay_cbe_phone'),
+        db.settings.get('shop_pay_cbe_account'),
+        db.settings.get('shop_pay_awash_phone'),
+        db.settings.get('shop_pay_bank_name'),
+        db.settings.get('shop_pay_bank_account'),
       ]);
       txns.sort((a, b) => b.created_at - a.created_at);
       setTransactions(txns);
@@ -634,6 +647,16 @@ function AppInner() {
         phone: phoneRow?.value || '',
         telegram: telegramRow?.value || '',
         businessType: businessTypeRow?.value || 'retail-shop',
+        // Payment receiving accounts (Commit C.1)
+        // Empty strings mean "not set" — falsy in URL builder, hidden in PayPage.
+        payments: {
+          telebirr: payTelebirrRow?.value || '',
+          cbe_phone: payCbePhoneRow?.value || '',
+          cbe_account: payCbeAccountRow?.value || '',
+          awash_phone: payAwashPhoneRow?.value || '',
+          bank_name: payBankNameRow?.value || '',
+          bank_account: payBankAccountRow?.value || '',
+        },
       });
       try { setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS); } catch { setEnabledProviders(DEFAULT_PROVIDERS); }
       try { setRecurringExpenses(reRow ? JSON.parse(reRow.value) : []); } catch { setRecurringExpenses([]); }
@@ -930,12 +953,45 @@ function AppInner() {
     }
   };
 
-  const handleProfileSave = async (name, phone, telegram, businessType = 'retail-shop') => {
+  const handleProfileSave = async (name, phone, telegram, businessType = 'retail-shop', payments = null) => {
     await db.settings.put({ key: 'shop_name', value: name });
     await db.settings.put({ key: 'shop_phone', value: phone || '' });
     await db.settings.put({ key: 'shop_telegram', value: telegram || '' });
     await db.settings.put({ key: 'shop_business_type', value: businessType || 'retail-shop' });
-    setShopProfile({ name, phone: phone || '', telegram: telegram || '', businessType: businessType || 'retail-shop' });
+
+    // Commit C.1: persist payment receiving accounts. SettingsPage passes a
+    // payments object; legacy callers (Onboarding) pass null → we preserve
+    // whatever was already in shopProfile.payments rather than wiping it.
+    const nextPayments = payments
+      ? {
+          telebirr: payments.telebirr || '',
+          cbe_phone: payments.cbe_phone || '',
+          cbe_account: payments.cbe_account || '',
+          awash_phone: payments.awash_phone || '',
+          bank_name: payments.bank_name || '',
+          bank_account: payments.bank_account || '',
+        }
+      : (shopProfile?.payments || {
+          telebirr: '', cbe_phone: '', cbe_account: '',
+          awash_phone: '', bank_name: '', bank_account: '',
+        });
+
+    if (payments) {
+      await db.settings.put({ key: 'shop_pay_telebirr', value: nextPayments.telebirr });
+      await db.settings.put({ key: 'shop_pay_cbe_phone', value: nextPayments.cbe_phone });
+      await db.settings.put({ key: 'shop_pay_cbe_account', value: nextPayments.cbe_account });
+      await db.settings.put({ key: 'shop_pay_awash_phone', value: nextPayments.awash_phone });
+      await db.settings.put({ key: 'shop_pay_bank_name', value: nextPayments.bank_name });
+      await db.settings.put({ key: 'shop_pay_bank_account', value: nextPayments.bank_account });
+    }
+
+    setShopProfile({
+      name,
+      phone: phone || '',
+      telegram: telegram || '',
+      businessType: businessType || 'retail-shop',
+      payments: nextPayments,
+    });
   };
 
   const handleSaveStaffMember = async (payload) => {
@@ -2143,7 +2199,15 @@ function AppInner() {
   if (!shopProfile || !shopProfile.name) {
     return (
       <OnboardingScreen
-        onComplete={(profile) => setShopProfile({ ...profile, telegram: '', businessType: profile.businessType || 'retail-shop' })}
+        onComplete={(profile) => setShopProfile({
+          ...profile,
+          telegram: '',
+          businessType: profile.businessType || 'retail-shop',
+          payments: {
+            telebirr: '', cbe_phone: '', cbe_account: '',
+            awash_phone: '', bank_name: '', bank_account: '',
+          },
+        })}
       />
     );
   }

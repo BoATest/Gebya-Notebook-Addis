@@ -31,6 +31,16 @@ function readUrlParams() {
     ref: decodeParam(u.get('ref')),
     phone: decodeParam(u.get('phone')),
     tg: decodeParam(u.get('tg')),
+    // Commit C.1: explicit payment account fields. When set, channel cards
+    // show the real account number with a copy button. When unset, cards
+    // still render but only with the generic USSD code as a fallback.
+    tb: decodeParam(u.get('tb')),        // telebirr phone (defaults to `phone`)
+    cbe_p: decodeParam(u.get('cbe_p')),  // CBE Birr phone (for *847#)
+    cbe_a: decodeParam(u.get('cbe_a')),  // CBE bank account number
+    aw_p: decodeParam(u.get('aw_p')),    // Awash Mobile phone (for *901#)
+    bk_n: decodeParam(u.get('bk_n')),    // Bank name (e.g. "Dashen")
+    bk_a: decodeParam(u.get('bk_a')),    // Bank account number
+    // Legacy single-CBE param — keep reading it for backwards compat with old links
     cbe: decodeParam(u.get('cbe')),
     awash: decodeParam(u.get('awash')),
     lang: (u.get('lang') === 'am') ? 'am' : 'en',
@@ -54,17 +64,23 @@ const TEXT = {
     popular: 'Most popular in Ethiopia',
     bankTransfer: 'Bank transfer',
     telebirrName: 'telebirr',
-    telebirrSub: 'Open telebirr app · or USSD *127#',
+    telebirrSubGeneric: 'Open telebirr app · or USSD *127#',
+    telebirrSubWithPhone: 'Send to this phone via telebirr · or USSD *127#',
     telebirrTag: '⭐ MOST USED',
     cbeName: 'CBE Birr',
-    cbeSub: 'Open CBE Mobile · or USSD *847#',
+    cbeSubGeneric: 'Open CBE Mobile · or USSD *847#',
+    cbeSubWithPhone: 'Send to this CBE Birr phone · or USSD *847#',
+    cbeAccountLabel: 'CBE bank account',
     awashName: 'Awash Mobile',
-    awashSub: 'Open Awash app · or USSD *901#',
-    bankName: 'Send via bank or other',
+    awashSubGeneric: 'Open Awash app · or USSD *901#',
+    awashSubWithPhone: 'Send to this Awash phone · or USSD *901#',
+    bankName: 'Other bank',
     bankSubWithPhone: 'Contact the shop on',
     bankSubNoContact: 'Pay in person or coordinate with the shop',
+    accountNumberLabel: 'Account number',
     copy: 'Copy',
     copied: 'Copied!',
+    tapToDial: 'Tap card to dial',
     privacy: '🔒 Gebya doesn\'t see your money. Pay direct to the shop, they\'ll confirm when it arrives.',
     poweredBy: 'Powered by Gebya · የንግድ ማስታወሻ',
   },
@@ -77,17 +93,23 @@ const TEXT = {
     popular: 'በኢትዮጵያ በብዛት ጥቅም ላይ',
     bankTransfer: 'ባንክ ዝውውር',
     telebirrName: 'telebirr',
-    telebirrSub: 'telebirr ይክፈቱ · ወይም *127# ይደውሉ',
+    telebirrSubGeneric: 'telebirr ይክፈቱ · ወይም *127# ይደውሉ',
+    telebirrSubWithPhone: 'ለዚህ ስልክ በ telebirr ይላኩ · ወይም *127#',
     telebirrTag: '⭐ በብዛት',
     cbeName: 'CBE Birr',
-    cbeSub: 'CBE Mobile ይክፈቱ · ወይም *847# ይደውሉ',
+    cbeSubGeneric: 'CBE Mobile ይክፈቱ · ወይም *847# ይደውሉ',
+    cbeSubWithPhone: 'ለዚህ CBE Birr ስልክ ይላኩ · ወይም *847#',
+    cbeAccountLabel: 'CBE ባንክ መለያ',
     awashName: 'Awash Mobile',
-    awashSub: 'Awash ይክፈቱ · ወይም *901# ይደውሉ',
-    bankName: 'በባንክ ወይም ሌላ ይክፈሉ',
+    awashSubGeneric: 'Awash ይክፈቱ · ወይም *901# ይደውሉ',
+    awashSubWithPhone: 'ለዚህ Awash ስልክ ይላኩ · ወይም *901#',
+    bankName: 'ሌላ ባንክ',
     bankSubWithPhone: 'ለመገናኘት',
     bankSubNoContact: 'በአካል ይክፈሉ ወይም ሱቅ ቤት ይገናኙ',
+    accountNumberLabel: 'የመለያ ቁጥር',
     copy: 'ቅዳ',
     copied: 'ተቀዳ!',
+    tapToDial: 'ለመደወል ይንኩ',
     privacy: '🔒 Gebya ገንዘብዎን አያይም። ለሱቁ በቀጥታ ይክፈሉ።',
     poweredBy: 'በ Gebya የተደገፈ · የንግድ ማስታወሻ',
   },
@@ -190,44 +212,70 @@ function PayPage() {
 
         <p style={sectionLabelStyle()}>{t.popular}</p>
 
-        {/* Telebirr — featured */}
+        {/* Telebirr — featured. Uses explicit `tb` if set, otherwise falls back
+            to the shop's `phone` (most common case — shopkeepers receive
+            telebirr on their own phone). */}
         <ChannelCard
           icon="💛"
           iconBg="#ffeb3b"
           iconColor="#1f2937"
           name={t.telebirrName}
-          sub={t.telebirrSub}
+          sub={(params.tb || params.phone) ? t.telebirrSubWithPhone : t.telebirrSubGeneric}
           tag={t.telebirrTag}
           tagBg="#d1f4e0"
           tagColor="#047857"
-          onClick={() => {
-            // Open telebirr USSD; some phones will prompt to dial
-            window.location.href = 'tel:*127%23';
-          }}
+          accountValue={params.tb || params.phone}
+          accountKey="tb"
+          copyLabel={t.copy}
+          copiedLabel={t.copied}
+          copiedKey={copied}
+          onCopy={copyText}
+          onClick={() => { window.location.href = 'tel:*127%23'; }}
           featured
         />
 
+        {/* CBE Birr — show phone if set; also show bank account as a second
+            row when the shopkeeper has provided one. */}
         <ChannelCard
           icon="💜"
           iconBg="#5d3a98"
           iconColor="#fff"
           name={t.cbeName}
-          sub={t.cbeSub}
+          sub={(params.cbe_p || params.cbe) ? t.cbeSubWithPhone : t.cbeSubGeneric}
+          accountValue={params.cbe_p || params.cbe}
+          accountKey="cbe_p"
+          secondaryLabel={t.cbeAccountLabel}
+          secondaryValue={params.cbe_a}
+          secondaryKey="cbe_a"
+          copyLabel={t.copy}
+          copiedLabel={t.copied}
+          copiedKey={copied}
+          onCopy={copyText}
           onClick={() => { window.location.href = 'tel:*847%23'; }}
         />
 
+        {/* Awash Mobile */}
         <ChannelCard
           icon="🟡"
           iconBg="#d4af37"
           iconColor="#1f2937"
           name={t.awashName}
-          sub={t.awashSub}
+          sub={(params.aw_p || params.awash) ? t.awashSubWithPhone : t.awashSubGeneric}
+          accountValue={params.aw_p || params.awash}
+          accountKey="aw_p"
+          copyLabel={t.copy}
+          copiedLabel={t.copied}
+          copiedKey={copied}
+          onCopy={copyText}
           onClick={() => { window.location.href = 'tel:*901%23'; }}
         />
 
         <p style={sectionLabelStyle()}>{t.bankTransfer}</p>
 
-        {/* Bank / contact card */}
+        {/* Bank / contact card.
+            If the shopkeeper has set bk_n + bk_a (Commit C.1), this becomes a
+            full bank-transfer card with the account number. Otherwise it
+            falls back to a generic contact card with the shop's phone/Telegram. */}
         <div style={{
           background: '#fff',
           border: '1px solid #ece6d6',
@@ -235,7 +283,7 @@ function PayPage() {
           padding: 14,
           marginBottom: 6,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
             <div style={{
               width: 40, height: 40, borderRadius: 10,
               background: '#1a1a1a', color: '#fff',
@@ -244,12 +292,26 @@ function PayPage() {
               flexShrink: 0,
             }}>🏦</div>
             <p style={{ flex: 1, fontSize: '0.92rem', fontWeight: 700, color: '#1f2937' }}>
-              {t.bankName}
+              {params.bk_n ? params.bk_n : t.bankName}
             </p>
           </div>
+
+          {/* Bank account if configured */}
+          {params.bk_a && (
+            <ContactRow
+              label="#"
+              value={params.bk_a}
+              onCopy={() => copyText(params.bk_a, 'bk_a')}
+              copied={copied === 'bk_a'}
+              copyLabel={t.copy}
+              copiedLabel={t.copied}
+            />
+          )}
+
+          {/* Contact rows */}
           {(params.phone || params.tg) ? (
             <>
-              <p style={{ fontSize: '0.7rem', color: '#6b7280', marginBottom: 8 }}>
+              <p style={{ fontSize: '0.7rem', color: '#6b7280', margin: '8px 0 6px' }}>
                 {t.bankSubWithPhone}:
               </p>
               {params.phone && (
@@ -272,18 +334,8 @@ function PayPage() {
                   copiedLabel={t.copied}
                 />
               )}
-              {params.cbe && (
-                <ContactRow
-                  label="CBE"
-                  value={params.cbe}
-                  onCopy={() => copyText(params.cbe, 'cbe')}
-                  copied={copied === 'cbe'}
-                  copyLabel={t.copy}
-                  copiedLabel={t.copied}
-                />
-              )}
             </>
-          ) : (
+          ) : !params.bk_a && (
             <p style={{ fontSize: '0.78rem', color: '#6b7280' }}>
               {t.bankSubNoContact}
             </p>
@@ -342,11 +394,33 @@ function sectionLabelStyle() {
   };
 }
 
-function ChannelCard({ icon, iconBg, iconColor, name, sub, tag, tagBg, tagColor, onClick, featured }) {
+// Channel card with optional account-number row.
+//
+// When `accountValue` is provided, an inline row appears under the channel
+// name with the account number and a Copy button. The card itself is still
+// tappable to dial the USSD code — but tapping the Copy button stops
+// propagation so it doesn't dial accidentally.
+//
+// Commit C.1: also supports a `secondaryValue` (e.g. CBE bank account in
+// addition to CBE Birr phone). Each row has its own copy state via copyKey.
+function ChannelCard({
+  icon, iconBg, iconColor, name, sub, tag, tagBg, tagColor, onClick, featured,
+  accountValue, accountKey, secondaryLabel, secondaryValue, secondaryKey,
+  copyLabel, copiedLabel, copiedKey, onCopy,
+}) {
+  const hasAccount = !!accountValue;
+  const hasSecondary = !!secondaryValue;
+  const handleCardClick = (e) => {
+    // Don't trigger when the user is tapping inside a copy button or input
+    if (e.target.closest('[data-copy-button]')) return;
+    onClick?.();
+  };
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={handleCardClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCardClick(e); }}
       style={{
         width: '100%',
         background: featured ? 'linear-gradient(135deg, #f0fdf4 0%, #fff 100%)' : '#fff',
@@ -354,41 +428,137 @@ function ChannelCard({ icon, iconBg, iconColor, name, sub, tag, tagBg, tagColor,
         borderRadius: 12,
         padding: 14,
         marginBottom: 6,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
         cursor: 'pointer',
         textAlign: 'left',
       }}
     >
-      <div style={{
-        width: 42, height: 42, borderRadius: 10,
-        background: iconBg, color: iconColor,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '1.4rem',
-        flexShrink: 0,
-      }}>
-        {icon}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{
+          width: 42, height: 42, borderRadius: 10,
+          background: iconBg, color: iconColor,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '1.4rem',
+          flexShrink: 0,
+        }}>
+          {icon}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1f2937', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {name}
+            {tag && (
+              <span style={{
+                display: 'inline-block',
+                fontSize: '0.58rem', fontWeight: 800,
+                background: tagBg, color: tagColor,
+                padding: '2px 6px', borderRadius: 4,
+                letterSpacing: '0.04em',
+              }}>
+                {tag}
+              </span>
+            )}
+          </p>
+          <p style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 2 }}>{sub}</p>
+        </div>
+        <span style={{ fontSize: '1.1rem', color: '#9ca3af' }}>→</span>
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1f2937', display: 'flex', alignItems: 'center', gap: 6 }}>
-          {name}
-          {tag && (
-            <span style={{
-              display: 'inline-block',
-              fontSize: '0.58rem', fontWeight: 800,
-              background: tagBg, color: tagColor,
-              padding: '2px 6px', borderRadius: 4,
-              letterSpacing: '0.04em',
-            }}>
-              {tag}
+
+      {/* Account-number row (Commit C.1) — visible when shopkeeper has set
+          an explicit account on this channel. Tap to copy, doesn't dial. */}
+      {hasAccount && (
+        <div
+          data-copy-button
+          style={{
+            marginTop: 10,
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 10px',
+            background: 'rgba(0,0,0,0.04)',
+            border: '1px solid rgba(0,0,0,0.06)',
+            borderRadius: 8,
+          }}
+        >
+          <span
+            style={{
+              flex: 1,
+              fontSize: '0.92rem',
+              fontWeight: 800,
+              color: '#1f2937',
+              fontFamily: 'JetBrains Mono, ui-monospace, SFMono-Regular, monospace',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              letterSpacing: '0.02em',
+            }}
+          >
+            {accountValue}
+          </span>
+          <button
+            type="button"
+            data-copy-button
+            onClick={(e) => { e.stopPropagation(); onCopy?.(accountValue, accountKey); }}
+            style={{
+              background: copiedKey === accountKey ? '#047857' : '#1a1a1a',
+              color: '#fff',
+              padding: '5px 12px',
+              borderRadius: 6,
+              fontSize: '0.72rem', fontWeight: 800,
+              border: 'none',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            {copiedKey === accountKey ? `✓ ${copiedLabel}` : copyLabel}
+          </button>
+        </div>
+      )}
+
+      {/* Secondary row — e.g. CBE bank account number alongside CBE Birr phone */}
+      {hasSecondary && (
+        <div
+          data-copy-button
+          style={{
+            marginTop: 6,
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 10px',
+            background: 'rgba(0,0,0,0.04)',
+            border: '1px solid rgba(0,0,0,0.06)',
+            borderRadius: 8,
+          }}
+        >
+          {secondaryLabel && (
+            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#6b7280', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              {secondaryLabel}
             </span>
           )}
-        </p>
-        <p style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 2 }}>{sub}</p>
-      </div>
-      <span style={{ fontSize: '1.1rem', color: '#9ca3af' }}>→</span>
-    </button>
+          <span
+            style={{
+              flex: 1,
+              fontSize: '0.88rem',
+              fontWeight: 800,
+              color: '#1f2937',
+              fontFamily: 'JetBrains Mono, ui-monospace, SFMono-Regular, monospace',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}
+          >
+            {secondaryValue}
+          </span>
+          <button
+            type="button"
+            data-copy-button
+            onClick={(e) => { e.stopPropagation(); onCopy?.(secondaryValue, secondaryKey); }}
+            style={{
+              background: copiedKey === secondaryKey ? '#047857' : '#1a1a1a',
+              color: '#fff',
+              padding: '5px 12px',
+              borderRadius: 6,
+              fontSize: '0.7rem', fontWeight: 800,
+              border: 'none',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            {copiedKey === secondaryKey ? `✓ ${copiedLabel}` : copyLabel}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
