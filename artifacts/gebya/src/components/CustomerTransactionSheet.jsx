@@ -8,11 +8,12 @@
 // - Compact due-date pills
 // - Solid colored save button
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Save, X, Plus, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Save, X, Plus, Camera, CheckCircle2, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { formatEthiopian, getDueDateOptions } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from '../utils/customerTransactionTypes';
 import { useLang } from '../context/LangContext';
+import { compressPhoto, photoSizeBytes } from '../utils/photoCapture';
 
 function handleNumericInput(e, setter) {
   let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
@@ -68,6 +69,26 @@ function CustomerTransactionSheet({
     && Array.isArray(editingTransaction.items)
     && editingTransaction.items.length > 0
   );
+  // Product photo · the goods/items being credited. Pre-fills from edit target.
+  const [photo, setPhoto] = useState(isEditing ? (editingTransaction.photo || null) : null);
+  const [photoError, setPhotoError] = useState(null);
+  const [photoLoading, setPhotoLoading] = useState(false);
+
+  const handlePhotoCapture = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoLoading(true);
+    setPhotoError(null);
+    try {
+      const dataUrl = await compressPhoto(file);
+      setPhoto(dataUrl);
+    } catch (err) {
+      setPhotoError(err.message || 'Photo capture failed');
+    } finally {
+      setPhotoLoading(false);
+    }
+    e.target.value = '';
+  };
 
   // In edit mode, derive type from the record; otherwise from the mode prop.
   const transactionType = useMemo(() => {
@@ -172,6 +193,7 @@ function CustomerTransactionSheet({
         item_note: itemNoteForSave,
         due_date: !isPayment && dueDate ? new Date(dueDate).getTime() : null,
         items: cleanedItems.length > 0 ? cleanedItems : null,  // multi-item breakdown
+        photo: !isPayment ? (photo || null) : null,             // product photo
         editing_id: editingTransaction?.id || null,
       });
       if (didSave) onDone?.();
@@ -394,19 +416,79 @@ function CustomerTransactionSheet({
           )}
         </div>
 
-        {/* Note (optional, single-line) */}
+        {/* Note (optional) + Photo button inline (credit only — proof of goods) */}
         <div>
           <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
             {isPayment ? t.paymentNoteOptional : t.itemNoteOptional}
           </label>
-          <input
-            type="text"
-            value={itemNote}
-            onChange={e => setItemNote(e.target.value)}
-            placeholder={isPayment ? t.paymentNotePlaceholder : t.creditItemPlaceholder}
-            className="w-full p-3 border-2 focus:outline-none text-base"
-            style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-          />
+          <div className="flex gap-2 items-stretch">
+            <input
+              type="text"
+              value={itemNote}
+              onChange={e => setItemNote(e.target.value)}
+              placeholder={isPayment ? t.paymentNotePlaceholder : t.creditItemPlaceholder}
+              className="flex-1 min-w-0 p-3 border-2 focus:outline-none text-base"
+              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+            />
+            {/* Product photo · credits only (payments don't carry items) */}
+            {!isPayment && (
+              <label
+                className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
+                style={{
+                  width: 56,
+                  border: '2px solid #e8e2d8',
+                  borderRadius: 'var(--radius-md)',
+                  background: photo ? '#f0fdf4' : '#fafaf6',
+                }}
+                aria-label={lang === 'am' ? 'የዕቃ ፎቶ' : 'Item photo'}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhotoCapture}
+                  className="hidden"
+                  disabled={photoLoading}
+                />
+                {photoLoading
+                  ? <span className="text-sm">…</span>
+                  : photo
+                    ? <CheckCircle2 className="w-6 h-6" style={{ color: '#16a34a' }} />
+                    : <Camera className="w-6 h-6" style={{ color: '#6b7280' }} />
+                }
+              </label>
+            )}
+          </div>
+
+          {/* Photo preview · credits only */}
+          {!isPayment && photo && (
+            <div className="mt-2 flex items-center gap-2 p-2"
+              style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}
+            >
+              <img src={photo} alt="" className="w-12 h-12 object-cover" style={{ borderRadius: 6, flexShrink: 0 }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold" style={{ color: '#1a1a1a' }}>
+                  {lang === 'am' ? 'የዕቃ ፎቶ ተጨምሯል' : 'Item photo attached'}
+                </p>
+                <p className="text-[10px]" style={{ color: '#9ca3af' }}>
+                  {Math.round(photoSizeBytes(photo) / 1024)} KB
+                </p>
+              </div>
+              <button
+                onClick={() => setPhoto(null)}
+                className="press-scale flex items-center justify-center"
+                style={{ minWidth: 32, minHeight: 32 }}
+                aria-label={lang === 'am' ? 'ፎቶ አስወግድ' : 'Remove photo'}
+              >
+                <X className="w-4 h-4" style={{ color: '#6b7280' }} />
+              </button>
+            </div>
+          )}
+          {!isPayment && photoError && (
+            <p className="text-xs mt-1 font-medium" style={{ color: '#dc2626' }}>
+              {photoError}
+            </p>
+          )}
 
           {/* Quick item chips from catalog (credit only — saves can tap to auto-fill note + amount) */}
           {!isPayment && topCatalogItems.length > 0 && (

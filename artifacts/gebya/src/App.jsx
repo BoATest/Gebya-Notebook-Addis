@@ -1281,6 +1281,8 @@ function AppInner() {
       const linkToken = createCustomerTelegramLinkToken();
       const id = await db.customers.add({
         ...draft,
+        // Customer photo · base64, non-indexed, no schema migration needed
+        photo: payload?.photo || null,
         telegram_chat_id: null,
         telegram_link_token: linkToken,
         telegram_linked_at: null,
@@ -1303,9 +1305,25 @@ function AppInner() {
 
     try {
       const now = Date.now();
+      // Edit branch — payload.id present means update existing row
+      if (payload.id) {
+        const updates = {
+          ...draft,
+          photo: payload?.photo || null,
+          updated_at: now,
+        };
+        await db.customers.update(payload.id, updates);
+        const updated = await db.customers.get(payload.id);
+        setLedgerCustomers(prev => prev.map(c => (c.id === payload.id ? updated : c)));
+        setShowCustomerForm(false);
+        fireToast(lang === 'am' ? 'ተስተካክሏል' : 'Customer updated', 1800);
+        return true;
+      }
       const linkToken = createCustomerTelegramLinkToken();
       const id = await db.customers.add({
         ...draft,
+        // Customer photo · base64, non-indexed
+        photo: payload?.photo || null,
         telegram_chat_id: null,
         telegram_link_token: linkToken,
         telegram_linked_at: null,
@@ -1738,6 +1756,8 @@ function AppInner() {
         item_kind: draft.item_kind || null,
         due_date: draft.due_date || null,
         items: itemsToStore,
+        // Preserve / replace product photo on edit
+        photo: originalPayload?.photo || null,
         updated_at: Date.now(),
       };
       await db.customer_transactions.update(editingId, updates);
@@ -1841,6 +1861,8 @@ function AppInner() {
         items: Array.isArray(payload?.items) && payload.items.length > 0
           ? payload.items
           : null,
+        // Preserve product photo (base64 data URL, non-indexed)
+        photo: payload?.photo || null,
         reference_code: null,
         telegram_delivery_state: null,
         telegram_delivery_attempted_at: null,
@@ -2779,6 +2801,7 @@ function AppInner() {
           <ReminderSheet
             customer={reminderTarget}
             shopName={shopProfile?.name}
+            shopProfile={shopProfile}
             onClose={() => setReminderTarget(null)}
             onSent={handleCustomerReminderSent}
           />
