@@ -110,8 +110,9 @@ function CustomerDetail({
   onOpenTelegramConnect,
   onResendTelegramUpdate,
   onRemind,
-  onEditCustomerTransaction,   // NEW · long-press → Edit
-  onDeleteCustomerTransaction, // NEW · long-press → Delete
+  onEditCustomer,              // Commit C.2 · Edit customer (name/phone/Telegram/photo)
+  onEditCustomerTransaction,   // long-press → Edit
+  onDeleteCustomerTransaction, // long-press → Delete
   isOnline = true,
   isSlowConnection = false,
 }) {
@@ -182,30 +183,56 @@ function CustomerDetail({
             <span>{lang === 'am' ? 'ተመለስ · ደንበኞች' : 'Back · Customers'}</span>
           </button>
 
-          {/* Compact status pill on the right — saves vertical space */}
-          {(customer.has_overdue && customer.overdue_days > 0) && (
-            <span style={{
-              background: '#fee2e2', color: '#991b1b',
-              padding: '2px 8px', borderRadius: 999,
-              fontSize: '0.62rem', fontWeight: 800,
-              letterSpacing: '0.04em',
-              flexShrink: 0,
-            }}>
-              {customer.overdue_days}d {lang === 'am' ? 'ቆይቷል' : 'OVERDUE'}
-            </span>
-          )}
-          {!customer.has_overdue && isTopCustomer && (
-            <span style={{
-              background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-              color: '#1a1a1a',
-              padding: '2px 8px', borderRadius: 999,
-              fontSize: '0.62rem', fontWeight: 800,
-              letterSpacing: '0.04em',
-              flexShrink: 0,
-            }}>
-              👑 {lang === 'am' ? 'በሰዓቱ' : 'ON TIME'}
-            </span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Compact status pill — saves vertical space */}
+            {(customer.has_overdue && customer.overdue_days > 0) && (
+              <span style={{
+                background: '#fee2e2', color: '#991b1b',
+                padding: '2px 8px', borderRadius: 999,
+                fontSize: '0.62rem', fontWeight: 800,
+                letterSpacing: '0.04em',
+                flexShrink: 0,
+              }}>
+                {customer.overdue_days}d {lang === 'am' ? 'ቆይቷል' : 'OVERDUE'}
+              </span>
+            )}
+            {!customer.has_overdue && isTopCustomer && (
+              <span style={{
+                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                color: '#1a1a1a',
+                padding: '2px 8px', borderRadius: 999,
+                fontSize: '0.62rem', fontWeight: 800,
+                letterSpacing: '0.04em',
+                flexShrink: 0,
+              }}>
+                👑 {lang === 'am' ? 'በሰዓቱ' : 'ON TIME'}
+              </span>
+            )}
+
+            {/* Edit customer button — Commit C.2.
+                Opens CustomerForm pre-filled so the shopkeeper can add or
+                update phone, Telegram, photo, or note for an existing customer. */}
+            {onEditCustomer && (
+              <button
+                type="button"
+                onClick={() => onEditCustomer(customer)}
+                className="press-scale"
+                aria-label={lang === 'am' ? 'አስተካክል' : 'Edit customer'}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 30, height: 30,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.12)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Identity row — avatar 44 + name + phone/entries one line */}
@@ -468,19 +495,30 @@ function CustomerDetail({
       )}
 
       {/* Hint when Remind is greyed because customer has no contact info.
-          Commit C.1 polish — was previously silent / mysterious.
-          The Telegram link state block already gives a path to add contact
-          info, so this is a guide arrow, not an action. */}
+          Commit C.2 — now tappable: opens CustomerForm in edit mode so the
+          shopkeeper can add phone/Telegram without hunting for it. */}
       {hasBalance && !customer.telegram_chat_id && !customer.telegram_username && !customer.phone_number && (
-        <p style={{
-          fontSize: '0.7rem', color: '#b8842c', fontWeight: 600,
-          textAlign: 'center', fontStyle: 'italic',
-          padding: '4px 8px',
-        }}>
+        <button
+          type="button"
+          onClick={() => onEditCustomer?.(customer)}
+          className="press-scale"
+          style={{
+            background: '#fffbeb',
+            border: '1px dashed #fbbf24',
+            borderRadius: 8,
+            padding: '8px 12px',
+            fontSize: '0.72rem', color: '#92400e', fontWeight: 700,
+            textAlign: 'center',
+            cursor: 'pointer',
+            width: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}
+        >
+          <Pencil className="w-3.5 h-3.5" />
           {lang === 'am'
-            ? '🔔 ለማስታወሻ ስልክ ወይም ቴሌግራም ይጨምሩ'
-            : '🔔 Add a phone or Telegram to enable reminders'}
-        </p>
+            ? 'ለማስታወሻ ስልክ ወይም ቴሌግራም ይጨምሩ →'
+            : 'Tap to add phone or Telegram for reminders →'}
+        </button>
       )}
 
       {/* ═══ 5. HISTORY ══════════════════════════════════════════ */}

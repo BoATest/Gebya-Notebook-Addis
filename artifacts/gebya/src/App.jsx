@@ -482,6 +482,9 @@ function AppInner() {
   const [bulkReminderQueue, setBulkReminderQueue] = useState([]);
   // Edit a single customer_transaction · opens CustomerTransactionSheet pre-filled
   const [customerTransactionEditTarget, setCustomerTransactionEditTarget] = useState(null);
+  // Commit C.2: track the customer being edited (vs added). When non-null,
+  // CustomerForm renders in edit mode pre-filled with `existing={customer}`.
+  const [customerEditTarget, setCustomerEditTarget] = useState(null);
   // Supplier credit ("I owe") — Khatabook-style second ledger
   const [creditView, setCreditView] = useState('customers'); // 'customers' | 'suppliers'
   const [selectedSupplierId, setSelectedSupplierId] = useState(null);
@@ -2458,6 +2461,7 @@ function AppInner() {
                     onOpenTelegramConnect={() => setTelegramConnectCustomerId(selectedCustomer.id)}
                     onResendTelegramUpdate={() => handleResendCustomerTelegramUpdate(selectedCustomer)}
                     onRemind={(c) => setReminderTarget(c)}
+                    onEditCustomer={(c) => setCustomerEditTarget(c)}
                     onEditCustomerTransaction={(tx) => setCustomerTransactionEditTarget({
                       transaction: tx,
                       customerId: selectedCustomer.id,
@@ -2682,6 +2686,21 @@ function AppInner() {
           <CustomerForm
             onSave={handleAddCustomer}
             onDone={() => setShowCustomerForm(false)}
+          />
+        </Suspense>
+      )}
+
+      {/* Commit C.2: Edit customer flow. Reuses CustomerForm in edit mode. */}
+      {customerEditTarget && (
+        <Suspense fallback={<ModalFallback label={t.loading} />}>
+          <CustomerForm
+            existing={customerEditTarget}
+            onSave={async (payload) => {
+              const ok = await handleAddCustomer({ ...payload, id: customerEditTarget.id });
+              if (ok) setCustomerEditTarget(null);
+              return ok;
+            }}
+            onDone={() => setCustomerEditTarget(null)}
           />
         </Suspense>
       )}
