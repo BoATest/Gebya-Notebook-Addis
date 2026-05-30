@@ -324,9 +324,15 @@ function CustomerDetail({
         </div>
       </div>
 
-      {/* ═══ 2. TELEGRAM LINK STATE BLOCK ══════════════════════════════════════════ */}
+      {/* ═══ 2. TELEGRAM LINK STATE BLOCK ══════════════════════════════════════════
+          Commit T2 polish: the WHOLE row is tappable now (not just the small + Link
+          button). Easier to hit on small phones. Action button stays for visual
+          affordance but the row click also fires onOpenTelegramConnect. */}
       {(tg !== 'none' || customer.phone_number) && (
-        <div
+        <button
+          type="button"
+          onClick={onOpenTelegramConnect}
+          className="press-scale"
           style={{
             background: tg === 'linked' ? '#f0fdf4' : tg === 'manual' ? '#fffbeb' : '#fff',
             border: `1px solid ${tg === 'linked' ? '#a3e9c1' : tg === 'manual' ? '#fde68a' : '#ece6d6'}`,
@@ -337,6 +343,9 @@ function CustomerDetail({
             marginTop: -8, // Float slightly into the dark band for visual depth
             position: 'relative', zIndex: 2,
             boxShadow: '0 2px 8px -2px rgba(0,0,0,0.06)',
+            cursor: 'pointer',
+            textAlign: 'left',
+            width: '100%',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
@@ -366,35 +375,32 @@ function CustomerDetail({
               <p style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: 1 }}>
                 {tg === 'linked'
                   ? (isTelegramNotifyEnabled
-                    ? (lang === 'am' ? 'ራስ-ሰር ማሳወቂያ በርቷል' : 'Auto-updates ON')
-                    : (lang === 'am' ? 'ራስ-ሰር ማሳወቂያ ጠፍቷል' : 'Auto-updates OFF'))
+                    ? (lang === 'am' ? 'ራስ-ሰር ማሳወቂያ በርቷል · ለመቆጣጠር ይንኩ' : 'Auto-updates ON · tap to manage')
+                    : (lang === 'am' ? 'ራስ-ሰር ማሳወቂያ ጠፍቷል · ለመቆጣጠር ይንኩ' : 'Auto-updates OFF · tap to manage'))
                   : tg === 'manual'
-                    ? (lang === 'am' ? 'ቦት ለማገናኘት ይጫኑ' : 'Link bot to send auto-updates')
+                    ? (lang === 'am' ? 'ቦት ለማገናኘት ይንኩ' : 'Tap to link the bot')
                     : hasPendingLink
-                      ? (lang === 'am' ? 'ቦት ይጠብቃል' : 'Waiting for bot start')
-                      : (lang === 'am' ? 'ለማስታወሻ ቴሌግራም ይጨምሩ' : 'Add Telegram for reminders')}
+                      ? (lang === 'am' ? 'ቦት ይጠብቃል · ለመፈተሽ ይንኩ' : 'Waiting for bot · tap to refresh')
+                      : (lang === 'am' ? 'ለማስታወሻ ቴሌግራም ይጨምሩ' : 'Tap to add Telegram for reminders')}
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onOpenTelegramConnect}
-            className="press-scale"
+          <span
             style={{
               background: tg === 'linked' ? '#047857' : tg === 'manual' ? '#92400e' : '#1a1a1a',
               color: '#fff',
               padding: '6px 10px', borderRadius: 6,
               fontSize: '0.7rem', fontWeight: 800,
-              cursor: 'pointer', minHeight: 32,
               flexShrink: 0,
-              border: 'none',
+              minHeight: 32,
+              display: 'inline-flex', alignItems: 'center',
             }}
           >
             {tg === 'linked'
               ? (lang === 'am' ? 'አያያዝ' : 'Manage')
               : (lang === 'am' ? '+ አገናኝ' : '+ Link')}
-          </button>
-        </div>
+          </span>
+        </button>
       )}
 
       {/* ═══ 3. BALANCE BLOCK ══════════════════════════════════════════ */}

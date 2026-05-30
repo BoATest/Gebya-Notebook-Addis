@@ -58,18 +58,38 @@ function createDeepLink(token: string) {
   return `https://t.me/${botUsername}?start=${encodeURIComponent(token)}`;
 }
 
-// Phase 2: friendlier replies for un-tokenized commands.
-// Previously, /start (without a token) said "This link is no longer valid"
-// which felt cold to anyone who naturally explored the bot. Now we warmly
-// welcome strangers AND fall back to bound-session replies for linked users.
+// Phase 2 + Q3 (bilingual): friendly replies that auto-detect Amharic vs
+// English from the user's Telegram client language_code. We never force a
+// language — we just match what their Telegram app is set to.
+
+type Lang = "am" | "en";
+
+function pickLang(code?: string | null): Lang {
+  // Telegram sends a 2-letter language code from the user's app settings
+  // (e.g., "am" for Amharic, "en" for English, "fr-FR" for French).
+  // We currently support am + en. Anything else falls back to English.
+  return code?.toLowerCase().startsWith("am") ? "am" : "en";
+}
 
 function buildStartReply(
   session: ReturnType<typeof getTelegramLinkSession>,
   existingSession: ReturnType<typeof getSessionByChatId>,
   hadToken: boolean,
+  lang: Lang,
 ) {
   // Case A — they came from a fresh shop-generated link and got linked
   if (session && hadToken) {
+    if (lang === "am") {
+      return [
+        `🏪 ${session.shopName}`,
+        "",
+        `✓ ተገናኝተዋል! እንደ ${session.customerName} ተመዝግበዋል።`,
+        "የቀሪ ሂሳብ ማስታወሻዎችን እና አስታዋሾችን እዚህ እልክልዎታለሁ።",
+        "",
+        "የቀሪ ሂሳብዎን ለመፈተሽ /balance ይተይቡ።",
+        "ሌላ ምን ማድረግ እንደምችል ለማየት /help ይተይቡ።",
+      ].join("\n");
+    }
     return [
       `🏪 ${session.shopName}`,
       "",
@@ -83,6 +103,16 @@ function buildStartReply(
 
   // Case B — they typed /start with an invalid/expired token
   if (hadToken && !session) {
+    if (lang === "am") {
+      return [
+        "ጌባያ",
+        "",
+        "ይህ አገናኝ ጊዜው አልፎበታል።",
+        "ከሱቅ ባለቤትዎ አዲስ የቴሌግራም አገናኝ ይጠይቁ።",
+        "",
+        "ተጨማሪ መረጃ ከፈለጉ /help ይተይቡ።",
+      ].join("\n");
+    }
     return [
       "Gebya",
       "",
@@ -95,6 +125,17 @@ function buildStartReply(
 
   // Case C — they're already linked from a previous /start
   if (existingSession) {
+    if (lang === "am") {
+      return [
+        `🏪 ${existingSession.shopName}`,
+        "",
+        `👋 በደህና ተመለሱ፣ ${existingSession.customerName}።`,
+        "አሁንም ተገናኝተዋል። ማስታወሻዎችን ማላክን እቀጥላለሁ።",
+        "",
+        "የቀሪ ሂሳብዎን ለመፈተሽ /balance ይተይቡ።",
+        "ሌላ ምን ማድረግ እንደምችል ለማየት /help ይተይቡ።",
+      ].join("\n");
+    }
     return [
       `🏪 ${existingSession.shopName}`,
       "",
@@ -107,6 +148,20 @@ function buildStartReply(
   }
 
   // Case D — plain /start with no token and no prior link → friendly intro
+  if (lang === "am") {
+    return [
+      "👋 ወደ ጌባያ እንኳን ደህና መጡ!",
+      "",
+      "እኔ የሱቅ ረዳት ቦት ነኝ። የሱቅ ባለቤቶች የደንበኞቻቸውን ዱቤ",
+      "(ብድር) ለመከታተል ጌባያን ይጠቀማሉ — እኔ የቀሪ ሂሳብ",
+      "ማስታወሻዎችን እና ወዳጃዊ አስታዋሾችን እንዲልኩልዎ እረዳቸዋለሁ።",
+      "",
+      "ማስታወሻዎችን መቀበል ለመጀመር፣ የጌባያ አገናኛቸውን",
+      "እንዲያጋሩልዎ ከሱቅ ባለቤትዎ ይጠይቁ።",
+      "",
+      "ተጨማሪ ለማወቅ /help ይተይቡ።",
+    ].join("\n");
+  }
   return [
     "👋 Welcome to Gebya!",
     "",
@@ -121,8 +176,21 @@ function buildStartReply(
   ].join("\n");
 }
 
-function buildBalanceReply(session: ReturnType<typeof getSessionByChatId>) {
+function buildBalanceReply(
+  session: ReturnType<typeof getSessionByChatId>,
+  lang: Lang,
+) {
   if (!session) {
+    if (lang === "am") {
+      return [
+        "ጌባያ",
+        "",
+        "ገና ከሱቅ ጋር አልተገናኙም።",
+        "የጌባያ አገናኛቸውን እንዲያጋሩልዎ ከሱቅ ባለቤትዎ ይጠይቁ።",
+        "",
+        "ተጨማሪ መረጃ ለማግኘት /help ይተይቡ።",
+      ].join("\n");
+    }
     return [
       "Gebya",
       "",
@@ -133,6 +201,19 @@ function buildBalanceReply(session: ReturnType<typeof getSessionByChatId>) {
     ].join("\n");
   }
 
+  if (lang === "am") {
+    return [
+      `🏪 ${session.shopName}`,
+      "",
+      `👤 ${session.customerName}`,
+      `💰 የአሁኑ ቀሪ ሂሳብ: ${session.currentBalance.toFixed(2)} ብር`,
+      session.lastReference ? `🔢 የመጨረሻ ማጣቀሻ: ${session.lastReference}` : null,
+      "",
+      "ክፍያ ከከፈሉ /paid ይተይቡ — ሱቁን አሳውቃለሁ።",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
   return [
     `🏪 ${session.shopName}`,
     "",
@@ -146,8 +227,29 @@ function buildBalanceReply(session: ReturnType<typeof getSessionByChatId>) {
     .join("\n");
 }
 
-// Phase 2: /help command — explains the bot's capabilities.
-function buildHelpReply(linked: boolean) {
+function buildHelpReply(linked: boolean, lang: Lang) {
+  if (lang === "am") {
+    const lines = [
+      "📒 ጌባያ ቦት · እንዴት እንደሚሰራ",
+      "",
+      "እኔ ጌባያን (የንግድ ማስታወሻ) ለሚጠቀሙ ሱቆች የደንበኛ ጎን ቦት ነኝ።",
+      "የሱቅ ባለቤቶች የዱቤ / ብድር ማስታወሻዎችን እና አስታዋሾችን ለመላክ ይጠቀሙኛል።",
+      "",
+      "ትዕዛዞች:",
+      "  /start — ከሱቅዎ ጋር መገናኘት ይጀምሩ",
+      "  /balance — የአሁኑን ቀሪ ሂሳብዎን ይፈትሹ",
+      "  /paid — ሱቁን እንደከፈሉ ይንገሩ",
+      "  /help — ይህን መልዕክት አሳይ",
+      "",
+    ];
+    if (!linked) {
+      lines.push("ከ/start በላይ ትዕዛዞችን ለመጠቀም፣ የጌባያ አገናኛቸውን");
+      lines.push("እንዲያጋሩልዎ ከሱቅ ባለቤትዎ ይጠይቁ። አገናኙን ይንኩ፣ ከዚያ Start ይንኩ።");
+    } else {
+      lines.push("አስቀድመው ተገናኝተዋል — አሁን /balance ይሞክሩ።");
+    }
+    return lines.join("\n");
+  }
   const lines = [
     "📒 Gebya Bot · how it works",
     "",
@@ -170,21 +272,39 @@ function buildHelpReply(linked: boolean) {
   return lines.join("\n");
 }
 
-// Phase 2: /paid command — customer reports they've paid.
-// MVP behavior: friendly acknowledgement; the shop owner reconciles manually
-// via the Gebya app when they next open the customer detail page.
-// Future: persist the report on the session so the Gebya app can surface
-// "Customer reported paid X birr · confirm or reject" on the customer card.
 function buildPaidReply(
   session: ReturnType<typeof getSessionByChatId>,
   amount: string | null,
+  lang: Lang,
 ) {
   if (!session) {
+    if (lang === "am") {
+      return [
+        "ጌባያ",
+        "",
+        "ገና ከሱቅ ጋር አልተገናኙም፣ ስለዚህ ማንንም ማሳወቅ አልችልም።",
+        "በቅድሚያ የጌባያ አገናኛቸውን እንዲያጋሩልዎ ከሱቅ ባለቤትዎ ይጠይቁ።",
+      ].join("\n");
+    }
     return [
       "Gebya",
       "",
       "You're not linked to a shop yet, so I can't notify anyone.",
       "Ask your shop owner to share their Gebya link with you first.",
+    ].join("\n");
+  }
+  if (lang === "am") {
+    const amountLineAm = amount
+      ? `መጠን: ${amount}`
+      : `በመዝገብ ላይ ያለ ቀሪ ሂሳብ: ${session.currentBalance.toFixed(2)} ብር`;
+    return [
+      `🏪 ${session.shopName}`,
+      "",
+      `✓ እናመሰግናለን፣ ${session.customerName} — ክፍያዎን አስቀምጫለሁ።`,
+      amountLineAm,
+      "",
+      "የሱቅ ባለቤቱ በጌባያ መተግበሪያ ውስጥ ያረጋግጣል እና",
+      "ቀሪ ሂሳብዎ ይዘምናል። በኋላ ለማረጋገጥ እንደገና /balance ይተይቡ።",
     ].join("\n");
   }
   const amountLine = amount
@@ -201,8 +321,22 @@ function buildPaidReply(
   ].join("\n");
 }
 
-// Phase 2: fallback reply for unrecognized text.
-function buildFallbackReply(linked: boolean) {
+function buildFallbackReply(linked: boolean, lang: Lang) {
+  if (lang === "am") {
+    const lines = [
+      "ያንን በትክክል አልገባኝም።",
+      "",
+      "ይሞክሩ:",
+      "  /balance — ምን እንደተበደሩ ይፈትሹ",
+      "  /paid — ሱቁን እንደከፈሉ ይንገሩ",
+      "  /help — ሁሉንም ትዕዛዞች ይመልከቱ",
+    ];
+    if (!linked) {
+      lines.push("");
+      lines.push("ወይም የሱቅ ባለቤትዎ እንዲያገናኝዎት አገናኝ እንዲያጋሩ ይጠይቁ።");
+    }
+    return lines.join("\n");
+  }
   const lines = [
     "I didn't quite understand that.",
     "",
@@ -402,6 +536,8 @@ router.post("/webhook", async (req: Request, res: Response) => {
   const chatId = message?.chat?.id ? String(message.chat.id) : null;
   const text = String(message?.text || "").trim();
   const username = message?.from?.username ? `@${message.from.username}` : null;
+  // Q3: detect language from the user's Telegram client (am | en).
+  const lang: Lang = pickLang(message?.from?.language_code);
 
   if (!chatId || !text) {
     return res.json({ ok: true });
@@ -415,7 +551,6 @@ router.post("/webhook", async (req: Request, res: Response) => {
   // ─── /start [TOKEN] ───────────────────────────────────────────────
   if (cmd === "/start") {
     const hadToken = !!arg;
-    // If a token was provided, try to link this chat to that session
     const newlyLinkedSession = hadToken
       ? linkTelegramChatToSession({
           token: arg as string,
@@ -423,19 +558,18 @@ router.post("/webhook", async (req: Request, res: Response) => {
           telegramUsername: username,
         })
       : null;
-    // Whether or not a fresh token was sent, fall back to any existing
-    // session bound to this chat (for the "already linked" case).
     const existingSession = getSessionByChatId(chatId);
 
     try {
       await sendTelegramTextMessage(
         chatId,
-        buildStartReply(newlyLinkedSession, existingSession, hadToken)
+        buildStartReply(newlyLinkedSession, existingSession, hadToken, lang)
       );
     } catch (error) {
       console.error("[telegram:webhook:start]", {
         token: arg,
         chatId,
+        lang,
         requestId: res.locals.requestId,
         message: error instanceof Error ? error.message : "Telegram webhook reply failed",
       });
@@ -451,10 +585,11 @@ router.post("/webhook", async (req: Request, res: Response) => {
   if (cmd === "/balance") {
     const session = getSessionByChatId(chatId);
     try {
-      await sendTelegramTextMessage(chatId, buildBalanceReply(session));
+      await sendTelegramTextMessage(chatId, buildBalanceReply(session, lang));
     } catch (error) {
       console.error("[telegram:webhook:balance]", {
         chatId,
+        lang,
         requestId: res.locals.requestId,
         message: error instanceof Error ? error.message : "Telegram balance reply failed",
       });
@@ -466,10 +601,11 @@ router.post("/webhook", async (req: Request, res: Response) => {
   if (cmd === "/help") {
     const session = getSessionByChatId(chatId);
     try {
-      await sendTelegramTextMessage(chatId, buildHelpReply(Boolean(session)));
+      await sendTelegramTextMessage(chatId, buildHelpReply(Boolean(session), lang));
     } catch (error) {
       console.error("[telegram:webhook:help]", {
         chatId,
+        lang,
         requestId: res.locals.requestId,
         message: error instanceof Error ? error.message : "Telegram help reply failed",
       });
@@ -478,15 +614,14 @@ router.post("/webhook", async (req: Request, res: Response) => {
   }
 
   // ─── /paid [amount] ────────────────────────────────────────────
-  // Customer reports they paid. Friendly acknowledgement; shop owner
-  // reconciles in the Gebya app. Future: persist on session for surfacing.
   if (cmd === "/paid") {
     const session = getSessionByChatId(chatId);
     try {
-      await sendTelegramTextMessage(chatId, buildPaidReply(session, arg));
+      await sendTelegramTextMessage(chatId, buildPaidReply(session, arg, lang));
     } catch (error) {
       console.error("[telegram:webhook:paid]", {
         chatId,
+        lang,
         requestId: res.locals.requestId,
         message: error instanceof Error ? error.message : "Telegram paid reply failed",
       });
@@ -495,14 +630,13 @@ router.post("/webhook", async (req: Request, res: Response) => {
   }
 
   // ─── Fallback for anything else ──────────────────────────────────
-  // The bot shouldn't be silent on free-form text — that confuses users.
-  // Reply with a short guidance pointing at the known commands.
   const session = getSessionByChatId(chatId);
   try {
-    await sendTelegramTextMessage(chatId, buildFallbackReply(Boolean(session)));
+    await sendTelegramTextMessage(chatId, buildFallbackReply(Boolean(session), lang));
   } catch (error) {
     console.error("[telegram:webhook:fallback]", {
       chatId,
+      lang,
       text: text.slice(0, 80),
       requestId: res.locals.requestId,
       message: error instanceof Error ? error.message : "Telegram fallback reply failed",

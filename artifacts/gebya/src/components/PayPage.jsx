@@ -83,6 +83,16 @@ const TEXT = {
     tapToDial: 'Tap card to dial',
     privacy: '🔒 Gebya doesn\'t see your money. Pay direct to the shop, they\'ll confirm when it arrives.',
     poweredBy: 'Powered by Gebya · የንግድ ማስታወሻ',
+    iPaidTitle: 'I’ve paid',
+    iPaidSub: 'Tell the shop you’ve sent the payment',
+    iPaidMsgPrefix: 'Hi, I just paid',
+    iPaidMsgSuffix: 'birr for the credit. Please confirm.',
+    iPaidViaTelegram: 'Notify via Telegram',
+    iPaidViaSMS: 'Notify via SMS',
+    iPaidConfirmTitle: 'Did you complete the payment?',
+    iPaidConfirmBody: 'Only tap if you’ve actually sent the payment. The shop will be notified.',
+    iPaidConfirmYes: 'Yes, notify shop',
+    iPaidConfirmCancel: 'Not yet',
   },
   am: {
     title: 'ይክፈሉ ለ',
@@ -112,12 +122,26 @@ const TEXT = {
     tapToDial: 'ለመደወል ይንኩ',
     privacy: '🔒 Gebya ገንዘብዎን አያይም። ለሱቁ በቀጥታ ይክፈሉ።',
     poweredBy: 'በ Gebya የተደገፈ · የንግድ ማስታወሻ',
+    iPaidTitle: 'ከፍያለሁ',
+    iPaidSub: 'ክፍያ መላክዎን ለሱቅ ይንገሩ',
+    iPaidMsgPrefix: 'ሰላም፣ አሁን',
+    iPaidMsgSuffix: 'ብር ለዱቤ ከፍያለሁ። እባክዎ ያረጋግጡ።',
+    iPaidViaTelegram: 'በቴሌግራም ላክ',
+    iPaidViaSMS: 'በSMS ላክ',
+    iPaidConfirmTitle: 'ክፍያውን ጨርሰዋል?',
+    iPaidConfirmBody: 'በትክክል ክፍያ ከላኩ ብቻ ይንኩ። ሱቁ ይነገራል።',
+    iPaidConfirmYes: 'አዎ፣ ሱቁን አሳውቅ',
+    iPaidConfirmCancel: 'ገና አይደለም',
   },
 };
 
 function PayPage() {
   const params = useMemo(() => readUrlParams(), []);
   const [copied, setCopied] = useState(null); // null | 'phone' | 'tg' | etc.
+  // T2 (Q1 + queue): "I paid" callback — confirm modal then opens
+  // shop's Telegram or SMS with a pre-filled "I just paid" message.
+  const [showPaidConfirm, setShowPaidConfirm] = useState(false);
+  const [paidSent, setPaidSent] = useState(false);
   const t = TEXT[params.lang] || TEXT.en;
 
   useEffect(() => {
@@ -341,6 +365,165 @@ function PayPage() {
             </p>
           )}
         </div>
+
+        {/* T2: "I paid" callback — only if the customer has a way to message
+            the shop back (phone or Telegram). Lets the customer ping the shop
+            after they've completed the USSD transfer. */}
+        {(params.phone || params.tg) && !paidSent && (
+          <div
+            style={{
+              marginTop: 18,
+              padding: 14,
+              background: '#f0fdf4',
+              border: '1px solid #86efac',
+              borderRadius: 12,
+              textAlign: 'center',
+            }}
+          >
+            <p style={{ fontSize: '0.62rem', fontWeight: 800, color: '#047857', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
+              {t.iPaidTitle}
+            </p>
+            <p style={{ fontSize: '0.78rem', color: '#065f46', marginBottom: 10 }}>
+              {t.iPaidSub}
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowPaidConfirm(true)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: '#16a34a',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 10,
+                fontSize: '0.95rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                minHeight: 48,
+              }}
+            >
+              ✓ {t.iPaidTitle}
+            </button>
+          </div>
+        )}
+
+        {paidSent && (
+          <div
+            style={{
+              marginTop: 18,
+              padding: 14,
+              background: '#dbeafe',
+              border: '1px solid #93c5fd',
+              borderRadius: 10,
+              fontSize: '0.78rem',
+              color: '#1e3a8a',
+              textAlign: 'center',
+              lineHeight: 1.55,
+            }}
+          >
+            ✓ {params.lang === 'am'
+              ? 'ሱቁ ተነገረ። ቀሪ ሂሳብዎ ሲረጋገጥ ይዘምናል።'
+              : 'Shop has been notified. Your balance will update once confirmed.'}
+          </div>
+        )}
+
+        {/* I-paid confirmation modal */}
+        {showPaidConfirm && (
+          <div
+            style={{
+              position: 'fixed', inset: 0, zIndex: 100,
+              background: 'rgba(0,0,0,0.55)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 16,
+            }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowPaidConfirm(false); }}
+          >
+            <div
+              style={{
+                background: '#fff',
+                borderRadius: 18,
+                padding: 22,
+                width: '100%', maxWidth: 380,
+                boxShadow: '0 20px 40px -8px rgba(0,0,0,0.3)',
+              }}
+            >
+              <div style={{ fontSize: '2.4rem', textAlign: 'center', marginBottom: 8 }}>💸</div>
+              <h3
+                style={{
+                  fontSize: '1.1rem', fontWeight: 800,
+                  color: '#065f46', textAlign: 'center', marginBottom: 6,
+                }}
+              >
+                {t.iPaidConfirmTitle}
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: '#6b7280', textAlign: 'center', marginBottom: 16 }}>
+                {t.iPaidConfirmBody}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {/* If shop has Telegram, prefer that — guarantees delivery */}
+                {params.tg && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tgHandle = String(params.tg).replace(/^@/, '');
+                      const msg = `${t.iPaidMsgPrefix} ${params.amount || ''} ${t.iPaidMsgSuffix}`;
+                      const url = `https://t.me/${tgHandle}?text=${encodeURIComponent(msg)}`;
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                      setShowPaidConfirm(false);
+                      setPaidSent(true);
+                    }}
+                    style={{
+                      width: '100%', padding: 14,
+                      background: '#0088cc', color: '#fff',
+                      border: 'none', borderRadius: 12,
+                      fontSize: '0.95rem', fontWeight: 800,
+                      cursor: 'pointer', minHeight: 48,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    }}
+                  >
+                    💬 {t.iPaidViaTelegram}
+                  </button>
+                )}
+                {/* SMS fallback if there's a phone number on file */}
+                {params.phone && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const msg = `${t.iPaidMsgPrefix} ${params.amount || ''} ${t.iPaidMsgSuffix}`;
+                      const url = `sms:${params.phone}?body=${encodeURIComponent(msg)}`;
+                      window.location.href = url;
+                      setShowPaidConfirm(false);
+                      setPaidSent(true);
+                    }}
+                    style={{
+                      width: '100%', padding: 14,
+                      background: '#16a34a', color: '#fff',
+                      border: 'none', borderRadius: 12,
+                      fontSize: '0.95rem', fontWeight: 800,
+                      cursor: 'pointer', minHeight: 48,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    }}
+                  >
+                    📱 {t.iPaidViaSMS}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowPaidConfirm(false)}
+                  style={{
+                    width: '100%', padding: 14,
+                    background: '#f3f4f6', color: '#374151',
+                    border: 'none', borderRadius: 12,
+                    fontSize: '0.9rem', fontWeight: 700,
+                    cursor: 'pointer', minHeight: 48,
+                  }}
+                >
+                  {t.iPaidConfirmCancel}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Privacy line · explicit */}
         <div style={{
