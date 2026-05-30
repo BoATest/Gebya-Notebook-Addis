@@ -55,7 +55,10 @@ function getPublicApiBase(req: Request) {
 function createDeepLink(token: string) {
   const botUsername = getTelegramBotUsername();
   if (!botUsername) return null;
-  return `https://t.me/${botUsername}?start=${encodeURIComponent(token)}`;
+  // Strip any leading '@' — TELEGRAM_BOT_USERNAME may be set as '@shopnotebookbot'
+  // but a t.me URL must not contain '@' or it won't open the bot.
+  const handle = botUsername.replace(/^@+/, '');
+  return `https://t.me/${handle}?start=${encodeURIComponent(token)}`;
 }
 
 // Phase 2 + Q3 (bilingual): friendly replies that auto-detect Amharic vs

@@ -67,13 +67,13 @@ function OnboardingScreen({ onComplete }) {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-6 py-8 texture-noise"
+      className="min-h-screen flex flex-col items-center justify-start px-4 py-5 texture-noise overflow-y-auto"
       style={{ background: '#1B4332' }}
     >
       <div className="w-full max-w-sm">
         {/* Language toggle — new users default to Amharic; this is the escape
             hatch for English speakers right on the first screen. */}
-        <div className="flex justify-end mb-3">
+        <div className="flex justify-end mb-2">
           <button
             type="button"
             onClick={toggleLang}
@@ -94,10 +94,18 @@ function OnboardingScreen({ onComplete }) {
             🌐 {lang === 'am' ? 'English' : 'አማርኛ'}
           </button>
         </div>
-        <div className="text-center mb-6 animate-elastic">
-          <div className="text-4xl mb-3 font-black text-white" aria-hidden="true">GB</div>
-          <h1 className="text-4xl font-black text-white tracking-tight mb-1 font-serif">Gebya</h1>
-          <p className="text-base font-semibold font-sans" style={{ color: 'rgba(255,255,255,0.72)' }}>
+        {/* Compact header — uses the real app icon (was a plain 'GB' text) */}
+        <div className="text-center mb-4 animate-elastic">
+          <img
+            src="/icon-192.png"
+            alt="Gebya"
+            width={56}
+            height={56}
+            className="mx-auto mb-2"
+            style={{ borderRadius: 14, boxShadow: '0 4px 12px -4px rgba(0,0,0,0.4)' }}
+          />
+          <h1 className="text-2xl font-black text-white tracking-tight mb-0.5 font-serif">Gebya</h1>
+          <p className="text-sm font-semibold font-sans" style={{ color: 'rgba(255,255,255,0.72)' }}>
             {t.onboardTagline}
           </p>
         </div>
@@ -175,7 +183,8 @@ function OnboardingScreen({ onComplete }) {
                   onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
                   placeholder="9XXXXXXXX"
                   maxLength={9}
-                  className="flex-1 p-4 border-2 text-base focus:outline-none font-sans"
+                  size={1}
+                  className="flex-1 min-w-0 p-4 border-2 text-base focus:outline-none font-sans"
                   style={{
                     borderRadius: '0 var(--radius-md) var(--radius-md) 0',
                     borderColor: touched.phone && !phoneValid ? '#dc2626' : (phoneValid ? '#1B4332' : '#e8e2d8'),
