@@ -25,6 +25,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",
+    "@vercel/node": "^3.2.0",
     "esbuild": "^0.27.3",
     "tsx": "catalog:"
   }
