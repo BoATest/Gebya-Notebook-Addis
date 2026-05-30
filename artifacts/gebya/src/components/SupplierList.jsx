@@ -222,7 +222,7 @@ function SupplierList({ suppliers = [], onSelectSupplier, onAddSupplier }) {
           tone="red"
         />
         <FilterChip
-          label={`✓ ${lang === 'am' ? 'ተከፍሏል' : 'Cleared'}`}
+          label={`✓ ${lang === 'am' ? 'የተዘጋ' : 'Cleared'}`}
           active={filter === 'cleared'}
           onClick={() => setFilter('cleared')}
           count={counts.cleared}

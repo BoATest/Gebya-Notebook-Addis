@@ -193,7 +193,7 @@ function CustomerDetail({
                 letterSpacing: '0.04em',
                 flexShrink: 0,
               }}>
-                {customer.overdue_days}d {lang === 'am' ? 'ቆይቷል' : 'OVERDUE'}
+                {customer.overdue_days}{lang === 'am' ? 'ቀን ያለፈው' : 'd OVERDUE'}
               </span>
             )}
             {!customer.has_overdue && isTopCustomer && (
@@ -205,7 +205,7 @@ function CustomerDetail({
                 letterSpacing: '0.04em',
                 flexShrink: 0,
               }}>
-                👑 {lang === 'am' ? 'በሰዓቱ' : 'ON TIME'}
+                👑 {lang === 'am' ? 'በወቅቱ' : 'ON TIME'}
               </span>
             )}
 
@@ -428,7 +428,7 @@ function CustomerDetail({
                 marginBottom: 5,
               }}
             >
-              🔴 {customer.overdue_days}d {lang === 'am' ? 'ቆይቷል' : 'overdue'}
+              🔴 {customer.overdue_days}{lang === 'am' ? 'ቀን ያለፈው' : 'd overdue'}
             </span>
           )}
           <p style={{
@@ -469,7 +469,7 @@ function CustomerDetail({
                 <strong style={{ color: pctColor, fontWeight: 700 }}>
                   {pct}%
                 </strong>{' '}
-                {lang === 'am' ? 'በሰዓቱ' : 'on time'}
+                {lang === 'am' ? 'በወቅቱ' : 'on time'}
                 <span style={{ color: '#9ca3af', marginLeft: 3, fontSize: '0.62rem' }}>
                   ({customer.on_time_count}/{customer.on_time_eligible})
                 </span>

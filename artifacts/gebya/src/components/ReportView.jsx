@@ -191,7 +191,7 @@ function buildWeeklySummaryText({
     if (weekTopCustomer) lines.push(`👑 ምርጥ ደንበኛ: ${weekTopCustomer.name} (${fmt(weekTopCustomer.total)} ብር)`);
     if (weekTopProduct) lines.push(`📦 ምርጥ ምርት: ${weekTopProduct.name} × ${weekTopProduct.qty}`);
     lines.push('');
-    lines.push(`📒 ዱቤ ለእኔ: ${fmt(totalOwed)} ብር${overdueCount > 0 ? ` (${overdueCount} ቆይተዋል)` : ''}`);
+    lines.push(`📒 ዱቤ ለእኔ: ${fmt(totalOwed)} ብር${overdueCount > 0 ? ` (${overdueCount} የዘገዩ)` : ''}`);
     lines.push(`📋 ለመክፈል ላለኝ: ${fmt(totalIOwe)} ብር`);
     lines.push('');
     lines.push('— Gebya · የንግድ ማስታወሻ');
@@ -433,7 +433,7 @@ function RightNowSection({ todayNet, totalOwed, totalIOwe, overdueCount, overdue
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: '0.78rem', fontWeight: 800, color: '#991b1b' }}>
               {lang === 'am'
-                ? `${overdueCount} ደንበኛ ቆይተዋል — ${fmt(overdueAmount)} ብር`
+                ? `${overdueCount} ደንበኛ የዘገዩ — ${fmt(overdueAmount)} ብር`
                 : `${overdueCount} customer${overdueCount === 1 ? '' : 's'} overdue — ${fmt(overdueAmount)} birr`}
             </p>
             <p style={{ fontSize: '0.65rem', color: '#dc2626', marginTop: 1 }}>
