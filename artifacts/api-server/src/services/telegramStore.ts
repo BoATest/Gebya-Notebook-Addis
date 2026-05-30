@@ -35,8 +35,13 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const SESSION_TTL_SEC = Math.floor(SESSION_TTL_MS / 1000);
 
 // ─── storage backend selection ────────────────────────────────────────
-const KV_URL = process.env.KV_REST_API_URL?.trim();
-const KV_TOKEN = process.env.KV_REST_API_TOKEN?.trim();
+// Accept BOTH naming conventions: the classic Vercel KV names
+// (KV_REST_API_URL / KV_REST_API_TOKEN) and the native Upstash names
+// (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN). The Vercel Marketplace
+// → Upstash integration may inject either set depending on how the store is
+// connected, so reading both means provisioning "just works" either way.
+const KV_URL = (process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL)?.trim();
+const KV_TOKEN = (process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN)?.trim();
 const kvEnabled = Boolean(KV_URL && KV_TOKEN);
 const isServerlessEnvironment = process.env.VERCEL === "1";
 
