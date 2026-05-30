@@ -9,6 +9,7 @@ import {
   storeTelegramDelivery,
   syncTelegramCustomerState,
   upsertTelegramLinkSession,
+  type TelegramLinkSession,
 } from "../services/telegramStore.js";
 import {
   getTelegramBotUsername,
@@ -75,8 +76,8 @@ function pickLang(code?: string | null): Lang {
 }
 
 function buildStartReply(
-  session: ReturnType<typeof getTelegramLinkSession>,
-  existingSession: ReturnType<typeof getSessionByChatId>,
+  session: TelegramLinkSession | null,
+  existingSession: TelegramLinkSession | null,
   hadToken: boolean,
   lang: Lang,
 ) {
@@ -180,7 +181,7 @@ function buildStartReply(
 }
 
 function buildBalanceReply(
-  session: ReturnType<typeof getSessionByChatId>,
+  session: TelegramLinkSession | null,
   lang: Lang,
 ) {
   if (!session) {
@@ -276,7 +277,7 @@ function buildHelpReply(linked: boolean, lang: Lang) {
 }
 
 function buildPaidReply(
-  session: ReturnType<typeof getSessionByChatId>,
+  session: TelegramLinkSession | null,
   amount: string | null,
   lang: Lang,
 ) {
@@ -369,7 +370,7 @@ router.get("/status", (_req: Request, res: Response) => {
   });
 });
 
-router.post("/link-sessions", (req: Request, res: Response) => {
+router.post("/link-sessions", async (req: Request, res: Response) => {
   const store = getTelegramSessionStoreStatus();
   if (!store.linkingAvailable) {
     return res.status(503).json({
@@ -384,7 +385,7 @@ router.post("/link-sessions", (req: Request, res: Response) => {
   }
 
   const input = parsed.data;
-  const session = upsertTelegramLinkSession({
+  const session = await upsertTelegramLinkSession({
     token: input.token,
     customerId: String(input.customerId),
     customerName: input.customerName.trim(),
@@ -409,8 +410,8 @@ router.post("/link-sessions", (req: Request, res: Response) => {
   });
 });
 
-router.get("/link-sessions/:token", (req: Request, res: Response) => {
-  const session = getTelegramLinkSession(String(req.params.token || ""));
+router.get("/link-sessions/:token", async (req: Request, res: Response) => {
+  const session = await getTelegramLinkSession(String(req.params.token || ""));
   if (!session) {
     return res.status(404).json({ error: "Link session not found" });
   }
@@ -429,13 +430,13 @@ router.get("/link-sessions/:token", (req: Request, res: Response) => {
   });
 });
 
-router.post("/customers/sync", (req: Request, res: Response) => {
+router.post("/customers/sync", async (req: Request, res: Response) => {
   const parsed = syncSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid sync payload" });
   }
 
-  const session = syncTelegramCustomerState(parsed.data);
+  const session = await syncTelegramCustomerState(parsed.data);
   if (!session) {
     return res.status(404).json({ error: "Customer link session not found" });
   }
@@ -457,12 +458,12 @@ router.post("/send-ledger-update", async (req: Request, res: Response) => {
   }
 
   const input = parsed.data;
-  const session = getTelegramLinkSession(input.token);
+  const session = await getTelegramLinkSession(input.token);
   if (!session) {
     return res.status(404).json({ error: "Customer link session not found" });
   }
 
-  storeTelegramDelivery({
+  await storeTelegramDelivery({
     token: input.token,
     currentBalance: input.currentBalance,
     message: input.message,
@@ -482,7 +483,7 @@ router.post("/send-ledger-update", async (req: Request, res: Response) => {
     return res.json({
       delivered: true,
       delivery: "bot",
-      state: formatTelegramSessionState(getTelegramLinkSession(input.token)),
+      state: formatTelegramSessionState(await getTelegramLinkSession(input.token)),
     });
   } catch (error) {
     console.error("[telegram:send-ledger-update]", {
@@ -495,14 +496,14 @@ router.post("/send-ledger-update", async (req: Request, res: Response) => {
       delivered: false,
       delivery: "bot",
       error: error instanceof Error ? error.message : "Telegram send failed",
-      state: formatTelegramSessionState(getTelegramLinkSession(input.token)),
+      state: formatTelegramSessionState(await getTelegramLinkSession(input.token)),
     });
   }
 });
 
 router.post("/resend-latest", async (req: Request, res: Response) => {
   const token = String(req.body?.token || "");
-  const session = getTelegramLinkSession(token);
+  const session = await getTelegramLinkSession(token);
   if (!session) {
     return res.status(404).json({ error: "Customer link session not found" });
   }
@@ -555,13 +556,13 @@ router.post("/webhook", async (req: Request, res: Response) => {
   if (cmd === "/start") {
     const hadToken = !!arg;
     const newlyLinkedSession = hadToken
-      ? linkTelegramChatToSession({
+      ? await linkTelegramChatToSession({
           token: arg as string,
           chatId,
           telegramUsername: username,
         })
       : null;
-    const existingSession = getSessionByChatId(chatId);
+    const existingSession = await getSessionByChatId(chatId);
 
     try {
       await sendTelegramTextMessage(
@@ -586,7 +587,7 @@ router.post("/webhook", async (req: Request, res: Response) => {
 
   // ─── /balance ────────────────────────────────────────────────────
   if (cmd === "/balance") {
-    const session = getSessionByChatId(chatId);
+    const session = await getSessionByChatId(chatId);
     try {
       await sendTelegramTextMessage(chatId, buildBalanceReply(session, lang));
     } catch (error) {
@@ -602,7 +603,7 @@ router.post("/webhook", async (req: Request, res: Response) => {
 
   // ─── /help ──────────────────────────────────────────────────────
   if (cmd === "/help") {
-    const session = getSessionByChatId(chatId);
+    const session = await getSessionByChatId(chatId);
     try {
       await sendTelegramTextMessage(chatId, buildHelpReply(Boolean(session), lang));
     } catch (error) {
@@ -618,7 +619,7 @@ router.post("/webhook", async (req: Request, res: Response) => {
 
   // ─── /paid [amount] ────────────────────────────────────────────
   if (cmd === "/paid") {
-    const session = getSessionByChatId(chatId);
+    const session = await getSessionByChatId(chatId);
     try {
       await sendTelegramTextMessage(chatId, buildPaidReply(session, arg, lang));
     } catch (error) {
@@ -633,7 +634,7 @@ router.post("/webhook", async (req: Request, res: Response) => {
   }
 
   // ─── Fallback for anything else ──────────────────────────────────
-  const session = getSessionByChatId(chatId);
+  const session = await getSessionByChatId(chatId);
   try {
     await sendTelegramTextMessage(chatId, buildFallbackReply(Boolean(session), lang));
   } catch (error) {
