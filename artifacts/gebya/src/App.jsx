@@ -2420,7 +2420,7 @@ function AppInner() {
 
   // Tab labels swap with language toggle (single language at a time, not stacked)
   const TAB_LABELS = {
-    today:    { en: 'Today',  am: 'ዛሬ' },
+    today:    { en: 'Today',  am: 'የዛሬ' },
     credit:   { en: 'Credit', am: 'ዱቤ' },
     history:  { en: 'Report', am: 'ሪፖርት' },
     settings: { en: 'More',   am: 'ተጨማሪ' },
@@ -2679,8 +2679,8 @@ function AppInner() {
             {!selectedCustomer && !selectedSupplier && (
               <div className="flex gap-1.5 p-1 mb-4" style={{ background: '#f5f1ea', borderRadius: 'var(--radius-md)' }}>
                 {[
-                  { id: 'customers', label: lang === 'am' ? 'ደንበኞች (ለእኔ)' : 'Customers (owe me)', accent: '#C4883A' },
-                  { id: 'suppliers', label: lang === 'am' ? 'አቅራቢዎች (ለመክፈል)' : 'Suppliers (I owe)', accent: '#dc2626' },
+                  { id: 'customers', label: lang === 'am' ? 'ደንበኞች (ያለባቸው)' : 'Customers (owe me)', accent: '#C4883A' },
+                  { id: 'suppliers', label: lang === 'am' ? 'አቅራቢዎች (ያለብኝ)' : 'Suppliers (I owe)', accent: '#dc2626' },
                 ].map((view) => {
                   const active = creditView === view.id;
                   return (

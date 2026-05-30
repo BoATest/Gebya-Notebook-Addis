@@ -215,8 +215,8 @@ function CustomerList({
         </p>
         <div style={{ opacity: 0.55 }}>
           {[
-            { name: 'Abebe Tilahun', meta: lang === 'am' ? '3 መዝገብ · 2 ቀን' : '3 entries · 2d ago', amt: 4500, urg: '#f59e0b' },
-            { name: 'Tigist Kebede',  meta: lang === 'am' ? '5 መዝገብ · 5 ቀን ቆይቷል' : '5 entries · 5d overdue', amt: 3200, urg: '#dc2626' },
+            { name: 'Abebe Tilahun', meta: lang === 'am' ? '3 መዝገቦች · ከ2 ቀን በፊት' : '3 entries · 2d ago', amt: 4500, urg: '#f59e0b' },
+            { name: 'Tigist Kebede',  meta: lang === 'am' ? '5 መዝገቦች · 5 ቀን ዘገይቷል' : '5 entries · 5d overdue', amt: 3200, urg: '#dc2626' },
           ].map((ex, i) => (
             <div
               key={i}
@@ -290,7 +290,7 @@ function CustomerList({
               color: '#92400e', letterSpacing: '0.1em',
               textTransform: 'uppercase',
             }}>
-              {lang === 'am' ? 'ለእኔ የተከፈለ ጠቅላላ' : 'Total owed to me'}
+              {lang === 'am' ? 'ሊሰበሰብ የሚገባው ጠቅላላ' : 'Total owed to me'}
             </p>
             <p style={{
               fontFamily: 'Manrope, system-ui, sans-serif',
@@ -306,8 +306,8 @@ function CustomerList({
               </span>
             </p>
             <p style={{ fontSize: '0.7rem', color: '#6b7280' }}>
-              {customers.length} {lang === 'am' ? 'ደንበኛ' : 'customers'}
-              {counts.overdue > 0 && ` · ${counts.overdue} ${lang === 'am' ? 'ቆይቷል' : 'overdue'}`}
+              {customers.length} {lang === 'am' ? 'ደንበኞች' : 'customers'}
+              {counts.overdue > 0 && ` · ${counts.overdue} ${lang === 'am' ? 'የዘገዩ' : 'overdue'}`}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
@@ -353,7 +353,7 @@ function CustomerList({
         }}>
           <div style={{ textAlign: 'center' }}>
             <p style={{ fontSize: '0.55rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              {lang === 'am' ? 'ቆይቷል' : 'Overdue'}
+              {lang === 'am' ? 'የዘገዩ' : 'Overdue'}
             </p>
             <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem', fontWeight: 700, color: hidden ? '#d1d5db' : '#dc2626', marginTop: 2 }}>
               {overdueAmount}
@@ -361,7 +361,7 @@ function CustomerList({
           </div>
           <div style={{ textAlign: 'center' }}>
             <p style={{ fontSize: '0.55rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              {lang === 'am' ? 'የተሰበሰበ (30d)' : 'Collected (30d)'}
+              {lang === 'am' ? 'የተሰበሰበ (በ30 ቀን)' : 'Collected (30d)'}
             </p>
             <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem', fontWeight: 700, color: hidden ? '#d1d5db' : '#047857', marginTop: 2 }}>
               {monthlyDeltaText && !hidden ? `${monthlyDeltaText[0] === '+' ? '+' : ''}` : ''}{monthlyAmount}
@@ -369,7 +369,7 @@ function CustomerList({
           </div>
           <div style={{ textAlign: 'center' }}>
             <p style={{ fontSize: '0.55rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              {lang === 'am' ? 'በሰዓቱ' : 'On-time'}
+              {lang === 'am' ? 'በወቅቱ የተከፈለ' : 'On-time'}
             </p>
             <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem', fontWeight: 700, color: '#1f2937', marginTop: 2 }}>
               {onTimePct}
@@ -409,18 +409,18 @@ function CustomerList({
             flexShrink: 0,
           }}
         >
-          <Plus className="w-4 h-4" /> {lang === 'am' ? 'አክል' : 'Add'}
+          <Plus className="w-4 h-4" /> {lang === 'am' ? 'ደንበኛ መዝግብ' : 'Add'}
         </button>
       </div>
 
       {/* ═══ FILTER CHIPS ══════════════════════════════════════════ */}
       <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }} className="hide-scrollbar">
         {[
-          { id: 'all',      label: lang === 'am' ? 'ሁሉ'      : 'All',     count: counts.all,      style: 'default' },
-          { id: 'overdue',  label: lang === 'am' ? 'ቆይቷል'    : 'Overdue', count: counts.overdue,  style: 'overdue' },
-          { id: 'top',      label: lang === 'am' ? '👑 ምርጥ'   : '👑 Top',  count: counts.top,      style: 'top' },
+          { id: 'all',      label: lang === 'am' ? 'ሁሉም'     : 'All',     count: counts.all,      style: 'default' },
+          { id: 'overdue',  label: lang === 'am' ? 'የዘገዩ'    : 'Overdue', count: counts.overdue,  style: 'overdue' },
+          { id: 'top',      label: lang === 'am' ? '👑 ዋና'    : '👑 Top',  count: counts.top,      style: 'top' },
           { id: 'telegram', label: lang === 'am' ? 'ቴሌግራም'  : 'Telegram', count: counts.telegram, style: 'default' },
-          { id: 'cleared',  label: lang === 'am' ? 'ተከፍሏል'    : 'Cleared', count: counts.cleared,  style: 'default' },
+          { id: 'cleared',  label: lang === 'am' ? 'የተዘጋ'     : 'Cleared', count: counts.cleared,  style: 'default' },
         ].map((f) => {
           const active = filter === f.id;
           const isOverdue = f.style === 'overdue';
@@ -492,17 +492,17 @@ function CustomerList({
       {/* Sort + count line */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px', fontSize: '0.7rem', color: '#6b7280' }}>
         <span>
-          {lang === 'am' ? 'ቅደም ተከተል፡' : 'Sort:'}{' '}
+          {lang === 'am' ? 'ቅደም ተከተል፦' : 'Sort:'}{' '}
           <strong style={{ color: '#1f2937' }}>
             {filter === 'top'
-              ? (lang === 'am' ? 'በሰዓቱ መክፈል' : 'Most on-time')
-              : (lang === 'am' ? 'ብዙ ቆይቷል' : 'Most overdue')}
+              ? (lang === 'am' ? 'በወቅቱ የከፈሉ' : 'Most on-time')
+              : (lang === 'am' ? 'ከፍተኛ መዘግየት' : 'Most overdue')}
           </strong>
         </span>
         <span>
           {sorted.length} {sorted.length === 1
             ? (lang === 'am' ? 'ደንበኛ' : 'customer')
-            : (lang === 'am' ? 'ደንበኛ' : 'customers')}
+            : (lang === 'am' ? 'ደንበኞች' : 'customers')}
         </span>
       </div>
 
@@ -603,7 +603,7 @@ function CustomerList({
                       background: '#dc2626', color: '#fff',
                       borderRadius: 3, letterSpacing: '0.04em',
                     }}>
-                      {customer.overdue_days}d {lang === 'am' ? 'ቆይቷል' : 'OD'}
+                      {customer.overdue_days}{lang === 'am' ? 'ቀን ያለፈው' : 'd OD'}
                     </span>
                   )}
                 </p>
@@ -614,7 +614,7 @@ function CustomerList({
                 }}>
                   <span>
                     {(customer.transaction_count || 0)}{' '}
-                    {lang === 'am' ? 'መዝገብ' : 'entries'}
+                    {lang === 'am' ? 'መዝገቦች' : 'entries'}
                   </span>
                   {customer.last_activity_at && (
                     <span>· {daysAgoLabel(customer.last_activity_at, lang)}</span>
@@ -722,7 +722,7 @@ function CustomerList({
         >
           <p style={{ fontSize: '0.78rem' }}>
             <strong style={{ color: '#fbbf24', fontWeight: 800 }}>
-              {counts.overdue} {lang === 'am' ? 'ቆይቷል' : 'overdue'}
+              {counts.overdue} {lang === 'am' ? 'የዘገዩ' : 'overdue'}
             </strong>
             {' · '}
             {hidden ? '••••' : fmt(metrics.overdueAmount || 0)} {lang === 'am' ? 'ብር' : 'birr'}
@@ -739,7 +739,7 @@ function CustomerList({
               display: 'flex', alignItems: 'center', gap: 4,
             }}
           >
-            🔔 {lang === 'am' ? `አስታውስ ${counts.overdue}` : `Remind ${counts.overdue}`}
+            🔔 {lang === 'am' ? `አስታውስ (${counts.overdue})` : `Remind ${counts.overdue}`}
           </button>
         </div>
       )}
