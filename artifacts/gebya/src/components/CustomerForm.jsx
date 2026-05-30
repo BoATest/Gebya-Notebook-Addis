@@ -17,6 +17,7 @@ import { Camera, CheckCircle2, Save, X } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { normalizeTelegram } from '../utils/customerTelegram';
 import { compressPhoto, photoSizeBytes } from '../utils/photoCapture';
+import CameraCapture from './CameraCapture';
 import {
   extractSubscriberDigits,
   isValidSubscriber,
@@ -47,6 +48,7 @@ function CustomerForm({ onSave, onDone, existing }) {
   const [photo, setPhoto] = useState(existing?.photo || null);
   const [photoError, setPhotoError] = useState(null);
   const [photoLoading, setPhotoLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false); // B2: rear-camera capture modal
   const [saving, setSaving] = useState(false);
 
   const phoneValid = !phoneDigits || isValidSubscriber(phoneDigits);
@@ -187,16 +189,20 @@ function CustomerForm({ onSave, onDone, existing }) {
                   </span>
                 </p>
                 <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-                  <label className="cursor-pointer press-scale" style={{
-                    padding: '4px 10px', fontSize: '0.7rem', fontWeight: 700,
-                    background: '#fff', border: '1px solid #ece6d6',
-                    borderRadius: 6, color: '#1a1a1a',
-                    display: 'inline-flex', alignItems: 'center', gap: 3,
-                  }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowCamera(true)}
+                    className="cursor-pointer press-scale"
+                    style={{
+                      padding: '4px 10px', fontSize: '0.7rem', fontWeight: 700,
+                      background: '#fff', border: '1px solid #ece6d6',
+                      borderRadius: 6, color: '#1a1a1a',
+                      display: 'inline-flex', alignItems: 'center', gap: 3,
+                    }}
+                  >
                     <Camera className="w-3 h-3" />
                     {lang === 'am' ? 'ቀይር' : 'Replace'}
-                    <input type="file" accept="image/*" capture="environment" onChange={handlePhotoCapture} className="hidden" disabled={photoLoading} />
-                  </label>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setPhoto(null)}
@@ -223,16 +229,20 @@ function CustomerForm({ onSave, onDone, existing }) {
                   {lang === 'am' ? 'በቆጣሪው ላይ ለማወቅ ይረዳዎታል' : 'recognize them faster at the counter'}
                 </p>
                 <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-                  <label className="cursor-pointer press-scale" style={{
-                    padding: '5px 10px', fontSize: '0.72rem', fontWeight: 700,
-                    background: '#1a1a1a', color: '#fff',
-                    borderRadius: 6,
-                    display: 'inline-flex', alignItems: 'center', gap: 3,
-                  }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowCamera(true)}
+                    className="cursor-pointer press-scale"
+                    style={{
+                      padding: '5px 10px', fontSize: '0.72rem', fontWeight: 700,
+                      background: '#1a1a1a', color: '#fff',
+                      borderRadius: 6,
+                      display: 'inline-flex', alignItems: 'center', gap: 3,
+                    }}
+                  >
                     <Camera className="w-3.5 h-3.5" />
                     {lang === 'am' ? 'ካሜራ' : 'Camera'}
-                    <input type="file" accept="image/*" capture="environment" onChange={handlePhotoCapture} className="hidden" disabled={photoLoading} />
-                  </label>
+                  </button>
                   <label className="cursor-pointer press-scale" style={{
                     padding: '5px 10px', fontSize: '0.72rem', fontWeight: 700,
                     background: '#fff', color: '#1a1a1a',
@@ -416,6 +426,14 @@ function CustomerForm({ onSave, onDone, existing }) {
           </button>
         </div>
       </div>
+
+      {/* B2: rear-camera capture modal */}
+      <CameraCapture
+        open={showCamera}
+        onCapture={(dataUrl) => { setPhoto(dataUrl); setShowCamera(false); }}
+        onClose={() => setShowCamera(false)}
+        lang={lang}
+      />
     </div>
   );
 }

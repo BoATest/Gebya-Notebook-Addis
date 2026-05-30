@@ -10,6 +10,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, Save, X, Plus, Minus, Camera, CheckCircle2, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
 import EthiopianDatePicker from './EthiopianDatePicker';
+import CameraCapture from './CameraCapture';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { formatEthiopian, getDueDateOptions } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from '../utils/customerTransactionTypes';
@@ -84,6 +85,7 @@ function CustomerTransactionSheet({
   const [photo, setPhoto] = useState(isEditing ? (editingTransaction.photo || null) : null);
   const [photoError, setPhotoError] = useState(null);
   const [photoLoading, setPhotoLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false); // B2: rear-camera capture modal
 
   const handlePhotoCapture = async (e) => {
     const file = e.target.files?.[0];
@@ -521,9 +523,12 @@ function CustomerTransactionSheet({
               className="flex-1 min-w-0 p-3 border-2 focus:outline-none text-base"
               style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
             />
-            {/* Product photo · credits only (payments don't carry items) */}
+            {/* Product photo · credits only (payments don't carry items).
+                B2: opens the rear-camera capture modal instead of a file input. */}
             {!isPayment && (
-              <label
+              <button
+                type="button"
+                onClick={() => setShowCamera(true)}
                 className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
                 style={{
                   width: 56,
@@ -533,21 +538,13 @@ function CustomerTransactionSheet({
                 }}
                 aria-label={lang === 'am' ? 'የዕቃ ፎቶ' : 'Item photo'}
               >
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handlePhotoCapture}
-                  className="hidden"
-                  disabled={photoLoading}
-                />
                 {photoLoading
                   ? <span className="text-sm">…</span>
                   : photo
                     ? <CheckCircle2 className="w-6 h-6" style={{ color: '#16a34a' }} />
                     : <Camera className="w-6 h-6" style={{ color: '#6b7280' }} />
                 }
-              </label>
+              </button>
             )}
           </div>
 
@@ -879,6 +876,14 @@ function CustomerTransactionSheet({
         value={dueDate}
         onChange={(iso) => setDueDate(iso)}
         onClose={() => setShowDatePicker(false)}
+        lang={lang}
+      />
+
+      {/* B2: rear-camera capture modal (product photo) */}
+      <CameraCapture
+        open={showCamera}
+        onCapture={(dataUrl) => { setPhoto(dataUrl); setShowCamera(false); }}
+        onClose={() => setShowCamera(false)}
         lang={lang}
       />
     </div>

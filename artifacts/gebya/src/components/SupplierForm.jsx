@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { Save, X, Camera, Image as ImageIcon, Trash2, CheckCircle2 } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { compressPhoto, photoSizeBytes } from '../utils/photoCapture';
+import CameraCapture from './CameraCapture';
 import {
   extractSubscriberDigits,
   isValidSubscriber,
@@ -32,6 +33,7 @@ function SupplierForm({ existing = null, onSave, onDone }) {
   const [photo, setPhoto] = useState(existing?.photo || null);
   const [photoError, setPhotoError] = useState(null);
   const [photoLoading, setPhotoLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false); // B2: rear-camera capture modal
   const [saving, setSaving] = useState(false);
 
   const phoneValid = !phoneDigits || isValidSubscriber(phoneDigits);
@@ -166,14 +168,15 @@ function SupplierForm({ existing = null, onSave, onDone }) {
                     : `Photo added · ~${photoKb} KB · on this phone only`}
                 </p>
                 <div className="flex gap-2">
-                  <label
+                  <button
+                    type="button"
+                    onClick={() => setShowCamera(true)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 border-2 rounded-xl font-bold text-xs cursor-pointer press-scale"
                     style={{ borderColor: '#e8e2d8', color: '#4b5563', background: '#fff' }}
                   >
                     <Camera className="w-3.5 h-3.5" />
                     {lang === 'am' ? 'መልሰው ይውሰዱ' : 'Replace'}
-                    <input type="file" accept="image/*" capture="environment" onChange={handlePhotoCapture} className="hidden" disabled={photoLoading} />
-                  </label>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setPhoto(null)}
@@ -187,14 +190,15 @@ function SupplierForm({ existing = null, onSave, onDone }) {
               </div>
             ) : (
               <div className="flex gap-2 w-full">
-                <label
+                <button
+                  type="button"
+                  onClick={() => setShowCamera(true)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 border-2 rounded-xl font-bold text-sm cursor-pointer press-scale"
                   style={{ borderColor: '#dc2626', color: '#dc2626', background: '#fff' }}
                 >
                   <Camera className="w-4 h-4" />
                   {lang === 'am' ? 'ካሜራ' : 'Camera'}
-                  <input type="file" accept="image/*" capture="environment" onChange={handlePhotoCapture} className="hidden" disabled={photoLoading} />
-                </label>
+                </button>
                 <label
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 border-2 rounded-xl font-bold text-sm cursor-pointer press-scale"
                   style={{ borderColor: '#e8e2d8', color: '#4b5563', background: '#fff' }}
@@ -324,6 +328,14 @@ function SupplierForm({ existing = null, onSave, onDone }) {
           </button>
         </div>
       </div>
+
+      {/* B2: rear-camera capture modal */}
+      <CameraCapture
+        open={showCamera}
+        onCapture={(dataUrl) => { setPhoto(dataUrl); setShowCamera(false); }}
+        onClose={() => setShowCamera(false)}
+        lang={lang}
+      />
     </div>
   );
 }

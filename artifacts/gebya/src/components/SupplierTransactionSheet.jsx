@@ -11,6 +11,7 @@ import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { SUPPLIER_TRANSACTION_TYPES, isValidSupplierTransactionType } from '../utils/supplierLedger';
 import { useLang } from '../context/LangContext';
 import { compressPhoto, photoSizeBytes } from '../utils/photoCapture';
+import CameraCapture from './CameraCapture';
 
 function handleNumericInput(e, setter) {
   let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
@@ -44,6 +45,7 @@ function SupplierTransactionSheet({
   const [photo, setPhoto] = useState(editing ? (editingTransaction.photo || null) : null);
   const [photoError, setPhotoError] = useState(null);
   const [photoLoading, setPhotoLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false); // B2: rear-camera capture modal
 
   const transactionType = useMemo(() => {
     if (editing) return editingTransaction.type;
@@ -337,8 +339,10 @@ function SupplierTransactionSheet({
                 className="flex-1 p-3 border-2 focus:outline-none text-base"
                 style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
               />
-              {/* 56px inline photo button — mirror of CustomerTransactionSheet */}
-              <label
+              {/* 56px inline photo button — B2: opens rear-camera capture modal */}
+              <button
+                type="button"
+                onClick={() => setShowCamera(true)}
                 className="flex items-center justify-center press-scale cursor-pointer"
                 style={{
                   width: 56, height: 56,
@@ -348,6 +352,7 @@ function SupplierTransactionSheet({
                   flexShrink: 0,
                   overflow: 'hidden',
                   position: 'relative',
+                  padding: 0,
                 }}
                 aria-label={lang === 'am' ? 'ፎቶ ይውሰዱ' : 'Take photo'}
               >
@@ -356,15 +361,7 @@ function SupplierTransactionSheet({
                 ) : (
                   <Camera className="w-5 h-5" style={{ color: '#dc2626' }} />
                 )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handlePhotoCapture}
-                  className="hidden"
-                  disabled={photoLoading}
-                />
-              </label>
+              </button>
             </div>
             {photo && (
               <div className="flex items-center justify-between gap-2 mt-2 px-1">
@@ -406,6 +403,14 @@ function SupplierTransactionSheet({
           {saving ? (lang === 'am' ? 'እያስቀመጥኩ…' : 'Saving…') : saveButtonText}
         </button>
       </div>
+
+      {/* B2: rear-camera capture modal (product photo) */}
+      <CameraCapture
+        open={showCamera}
+        onCapture={(dataUrl) => { setPhoto(dataUrl); setShowCamera(false); }}
+        onClose={() => setShowCamera(false)}
+        lang={lang}
+      />
     </div>
   );
 }
