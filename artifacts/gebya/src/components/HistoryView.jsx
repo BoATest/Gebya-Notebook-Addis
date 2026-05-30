@@ -40,6 +40,34 @@ function calcStats(transactions) {
   return { revenue, profit, hasCost, expenseTotal };
 }
 
+// ─── Fix C (Report scalability): month bucketing ──────────────────────────
+// As transaction count grows, rendering every day-group at once janks cheap
+// phones. We bucket day-groups under Ethiopian-month headers and only render
+// the day rows for EXPANDED months — so we never render more than one month's
+// rows at a time, no matter how much history exists.
+
+function monthLabelOf(ts) {
+  // formatEthiopian returns "DD MonthName YYYY"; month+year are tokens 1..2.
+  // Amharic month names are single tokens so this split is safe.
+  const parts = String(formatEthiopian(ts)).split(' ');
+  return parts.length >= 3 ? `${parts[1]} ${parts[2]}` : String(formatEthiopian(ts));
+}
+
+function groupDaysByMonth(dayGroups) {
+  const buckets = new Map();
+  for (const dg of dayGroups) {
+    const label = monthLabelOf(dg.date);
+    if (!buckets.has(label)) {
+      buckets.set(label, { label, date: dg.date, dayGroups: [], transactions: [] });
+    }
+    const b = buckets.get(label);
+    b.dayGroups.push(dg);
+    b.transactions.push(...dg.transactions);
+    if (dg.date > b.date) b.date = dg.date; // keep newest date for sort + current-month detection
+  }
+  return Array.from(buckets.values()).sort((a, b) => b.date - a.date);
+}
+
 function getTopProducts(transactions, limit = 5) {
   const byQty = {};
   const byRev = {};
@@ -341,6 +369,91 @@ function TxRow({ tx, onEdit, t, lang }) {
   );
 }
 
+// Fix C: month-bucketed wrapper around DayGroupList. Shows month header bars;
+// only the expanded month renders its day cards. Current month auto-expands.
+function MonthBucketedDayList({ dayGroups, onEdit, expandedGroups, toggleGroup, expandedMonths, toggleMonth, t, lang }) {
+  const monthBuckets = groupDaysByMonth(dayGroups);
+  const currentMonthLabel = monthLabelOf(Date.now());
+
+  return (
+    <div className="space-y-3">
+      {monthBuckets.map((bucket, idx) => {
+        const stats = calcStats(bucket.transactions);
+        const isCurrentMonth = bucket.label === currentMonthLabel;
+        // Current month + the first bucket default open; others collapsed.
+        const expanded = expandedMonths[bucket.label] ?? (isCurrentMonth || idx === 0);
+        return (
+          <div key={bucket.label}>
+            {/* Month header bar — tappable */}
+            <button
+              type="button"
+              onClick={() => toggleMonth(bucket.label, expanded)}
+              className="w-full px-4 py-3 flex justify-between items-center press-scale"
+              style={{
+                background: isCurrentMonth
+                  ? 'linear-gradient(135deg, #1B4332 0%, #2d6a4f 100%)'
+                  : '#1f2937',
+                color: '#fff',
+                borderRadius: expanded ? 'var(--radius-md) var(--radius-md) 0 0' : 'var(--radius-md)',
+                boxShadow: 'var(--shadow-xs)',
+              }}
+            >
+              <div className="text-left">
+                <span className="font-black text-sm">{bucket.label}</span>
+                <div className="text-[11px] mt-0.5" style={{ opacity: 0.7 }}>
+                  {bucket.transactions.length} {t.entries}
+                  {isCurrentMonth && (
+                    <span style={{ marginLeft: 6 }}>
+                      · {lang === 'am' ? 'አሁን' : 'current'}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <div className="text-sm font-black" style={{ color: stats.profit >= 0 ? '#86efac' : '#fca5a5' }}>
+                    {stats.hasCost
+                      ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}`
+                      : fmt(stats.revenue)} {t.birr}
+                  </div>
+                  <div className="text-[10px]" style={{ opacity: 0.65 }}>
+                    {stats.hasCost ? t.profit : t.revenue}
+                  </div>
+                </div>
+                {expanded
+                  ? <ChevronUp className="w-4 h-4" style={{ opacity: 0.8 }} />
+                  : <ChevronDown className="w-4 h-4" style={{ opacity: 0.8 }} />}
+              </div>
+            </button>
+
+            {/* Day cards for this month — only rendered when the month is open */}
+            {expanded && (
+              <div
+                className="pt-3 px-2 pb-2"
+                style={{
+                  background: 'rgba(0,0,0,0.02)',
+                  borderRadius: '0 0 var(--radius-md) var(--radius-md)',
+                  border: '1px solid var(--color-border)',
+                  borderTop: 'none',
+                }}
+              >
+                <DayGroupList
+                  groups={bucket.dayGroups}
+                  onEdit={onEdit}
+                  expandedGroups={expandedGroups}
+                  toggleGroup={toggleGroup}
+                  t={t}
+                  lang={lang}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function DayGroupList({ groups, onEdit, expandedGroups, toggleGroup, t, lang }) {
   return (
     <div className="space-y-3">
@@ -510,10 +623,15 @@ function HistoryView({ transactions, onEdit }) {
   const [period, setPeriod] = useState('day');
   const [grouping, setGrouping] = useState('day');
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [expandedMonths, setExpandedMonths] = useState({}); // Fix C: month bucket expansion
   const [searchQuery, setSearchQuery] = useState('');
   const [actorFilter, setActorFilter] = useState('');
 
   const toggleGroup = (key) => setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
+  // Fix C: takes the current EFFECTIVE expanded state (which may come from a
+  // default-open rule) so the first tap flips correctly instead of re-opening.
+  const toggleMonth = (key, currentlyExpanded) =>
+    setExpandedMonths(prev => ({ ...prev, [key]: !currentlyExpanded }));
 
   const actorOptions = buildActorOptions(transactions);
   const filteredTransactions = transactions.filter(tx => (
@@ -644,11 +762,14 @@ function HistoryView({ transactions, onEdit }) {
               </div>
             )
           ) : grouping === 'day' ? (
-            <DayGroupList
-              groups={dayGroups}
+            /* Fix C: month-bucketed so we never render all days at once. */
+            <MonthBucketedDayList
+              dayGroups={dayGroups}
               onEdit={onEdit}
               expandedGroups={expandedGroups}
               toggleGroup={toggleGroup}
+              expandedMonths={expandedMonths}
+              toggleMonth={toggleMonth}
               t={t}
               lang={lang}
             />
