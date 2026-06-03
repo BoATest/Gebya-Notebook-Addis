@@ -66,6 +66,7 @@ function CustomerTransactionSheet({
   const [saving, setSaving] = useState(false);
   const [showCustomAmount, setShowCustomAmount] = useState(false);
   const [customAmountValue, setCustomAmountValue] = useState('');
+  const showQuantityField = false;
   // Multi-item breakdown — credit_add only. Pre-populates from editingTransaction.items.
   const [lineItems, setLineItems] = useState(
     isEditing && Array.isArray(editingTransaction.items)
@@ -440,7 +441,7 @@ function CustomerTransactionSheet({
         {/* Quantity (credit only) — Commit C.6.
             Descriptive: "I gave 5 sacks of sugar for 1500 birr total".
             Amount stays the authoritative total — qty does not multiply. */}
-        {!isPayment && (
+        {showQuantityField && !isPayment && (
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
               {lang === 'am' ? 'ብዛት (አማራጭ)' : 'Quantity (optional)'}

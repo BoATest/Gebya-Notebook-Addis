@@ -555,7 +555,6 @@ function PayPage() {
 // ─── helpers ──────────────────────────────────────────────────────────
 function pageStyle() {
   return {
-    minHeight: '100vh',
     minHeight: '100svh',
     background: '#f9f6f0',
     fontFamily: "'Inter', 'Noto Sans Ethiopic', system-ui, sans-serif",
