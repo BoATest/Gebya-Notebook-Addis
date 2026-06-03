@@ -618,7 +618,7 @@ function SettingsPage({
   const { lang, t } = useLang();
   const { theme, setTheme } = useTheme();
   const FREQ_LABELS = lang === 'am' ? FREQ_LABELS_AM : FREQ_LABELS_EN;
-  const [openSection, setOpenSection] = useState('profile');
+  const [openSection, setOpenSection] = useState(null);
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [cleared, setCleared] = useState(false);
@@ -1288,7 +1288,6 @@ function SettingsPage({
         subtitle={profileSubtitle}
         openSection={openSection}
         setOpenSection={setOpenSection}
-        defaultOpen
       >
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
           <div className="px-5 pt-5 pb-4 space-y-3">

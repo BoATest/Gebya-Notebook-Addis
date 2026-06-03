@@ -90,12 +90,12 @@ function TransactionForm({
   const itemPlaceholder = isCredit
     ? (lang === 'am' ? 'ለምሳሌ አበበ…' : 'e.g. Abebe...')
     : isExpense
-      ? (lang === 'am' ? 'ለምሳሌ ትራንስፖርት፣ ኪራይ…' : 'e.g. transport, rent...')
-      : (lang === 'am' ? 'ለምሳሌ ዳቦ፣ ስኳር…' : 'e.g. bread, sugar...');
+      ? (lang === 'am' ? 'ዝርዝሩን ይመዝቡ...' : 'Add details...')
+      : (lang === 'am' ? 'ዝርዝሩን ይመዝቡ...' : 'Add details...');
 
   const itemLabel = isCredit
     ? (lang === 'am' ? 'ስም' : 'NAME')
-    : (lang === 'am' ? 'ዕቃ (አማራጭ)' : 'ITEM (OPTIONAL)');
+    : (lang === 'am' ? 'ዕቃ / አገልግሎት (አማራጭ)' : 'Item / Service (Optional)');
 
   const saveButtonText = isCredit
     ? (lang === 'am' ? 'ዱቤ አስቀምጥ' : 'Save Dubie')
@@ -956,7 +956,7 @@ function TransactionForm({
         {/* ITEM / NAME + photo button (inline on same row, larger photo tap target) */}
         {/* When breakdown has items, this becomes an optional note since items provide their own names */}
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+          <label className="block text-[10px] font-bold tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
             {validLineItems.length > 0 && !isCredit
               ? (lang === 'am' ? 'ማስታወሻ (አማራጭ)' : 'NOTE (OPTIONAL)')
               : itemLabel}
@@ -1653,7 +1653,7 @@ function TransactionForm({
                   type="text"
                   value={popupName}
                   onChange={e => setPopupName(e.target.value)}
-                  placeholder={lang === 'am' ? 'ለምሳሌ ትራንስፖርት፣ ኪራይ…' : 'e.g. transport, rent...'}
+                  placeholder={lang === 'am' ? 'ዝርዝሩን ይመዝቡ...' : 'Add details...'}
                   className="w-full p-2.5 border-2 focus:outline-none text-sm"
                   style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
                 />

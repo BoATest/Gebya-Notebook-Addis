@@ -10,11 +10,8 @@ import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { LangProvider, useLang } from './context/LangContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProfitCard from './components/ProfitCard';
-import CustomerList from './components/CustomerList';
-import PwaInstallPanel from './components/PwaInstallPanel.jsx';
 import OnboardingScreen from './components/OnboardingScreen';
 import { ToastContainer, fireToast } from './components/Toast';
-import { DEFAULT_PROVIDERS } from './components/PaymentTypeChips';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
 import { fmt } from './utils/numformat';
 import { buildCustomerSummaries, getCustomerBalance, insertCustomerTransaction, sortCustomerTransactions } from './utils/customerLedger';
@@ -24,7 +21,8 @@ import { buildCustomerLedgerTelegramMessage, buildTelegramMessageUrl, createCust
 import { buildSupplierSummaries, getSupplierBalance, isValidSupplierTransactionType, SUPPLIER_TRANSACTION_TYPES } from './utils/supplierLedger';
 import { enrichCustomerSummaries, buildCreditMetrics } from './utils/customerMetrics';
 import { usePwaInstall } from './hooks/usePwaInstall.js';
-import { resendLatestTelegramUpdate, sendTelegramLedgerUpdate, syncTelegramCustomerState } from './utils/telegramBotClient';
+import { resendLatestTelegramUpdate, syncTelegramCustomerState } from './utils/telegramBotClient';
+import { countPendingTelegramSync, drainTelegramSyncQueue, enqueueTelegramLedgerUpdate } from './utils/syncQueue';
 import { normalizeStaffDraft, resolveActorSnapshot, getActorDisplayLabel } from './utils/staffMembers';
 import {
   buildDefaultChannels,
@@ -33,12 +31,22 @@ import {
   normalizeChannelsForSave,
 } from './utils/paymentChannels';
 
+const DEFAULT_PROVIDERS = {
+  banks: ['CBE', 'Dashen', 'Awash', 'Abyssinia'],
+  wallets: ['telebirr', 'CBE Birr'],
+};
+
 // Stale-chunk self-heal. After a new deploy, Vite emits new hashed chunk
 // filenames. A browser still running the previous index.html (or a stale
 // service-worker shell) requests an old chunk URL that now 404s, throwing
 // "Failed to fetch dynamically imported module". We retry once via a hard
 // reload (which pulls the fresh index.html + new hashes); a per-chunk
 // sessionStorage guard prevents reload loops if the asset is truly missing.
+function isLikelyStaleChunkError(err) {
+  const message = String(err?.message || err || '');
+  return /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk .* failed|ChunkLoadError/i.test(message);
+}
+
 function lazyWithRetry(importer, name) {
   return lazy(async () => {
     const flag = `gebya_chunk_reload_${name}`;
@@ -49,7 +57,7 @@ function lazyWithRetry(importer, name) {
       setFlag(false);
       return mod;
     } catch (err) {
-      if (!getFlag()) {
+      if (isLikelyStaleChunkError(err) && !getFlag()) {
         setFlag(true);
         window.location.reload();
         return new Promise(() => {}); // hold the render until the reload lands
@@ -59,21 +67,39 @@ function lazyWithRetry(importer, name) {
   });
 }
 
-const TransactionForm = lazyWithRetry(() => import('./components/TransactionForm'), 'TransactionForm');
-const EditTransactionSheet = lazyWithRetry(() => import('./components/EditTransactionSheet'), 'EditTransactionSheet');
-const ReminderSheet = lazyWithRetry(() => import('./components/ReminderSheet'), 'ReminderSheet');
-const SupplierList = lazyWithRetry(() => import('./components/SupplierList'), 'SupplierList');
-const SupplierDetail = lazyWithRetry(() => import('./components/SupplierDetail'), 'SupplierDetail');
-const SupplierForm = lazyWithRetry(() => import('./components/SupplierForm'), 'SupplierForm');
-const SupplierTransactionSheet = lazyWithRetry(() => import('./components/SupplierTransactionSheet'), 'SupplierTransactionSheet');
-const CustomerDetail = lazyWithRetry(() => import('./components/CustomerDetail'), 'CustomerDetail');
-const CustomerForm = lazyWithRetry(() => import('./components/CustomerForm'), 'CustomerForm');
-const CustomerTransactionSheet = lazyWithRetry(() => import('./components/CustomerTransactionSheet'), 'CustomerTransactionSheet');
-const CustomerTelegramConnectSheet = lazyWithRetry(() => import('./components/CustomerTelegramConnectSheet'), 'CustomerTelegramConnectSheet');
-const HistoryView = lazyWithRetry(() => import('./components/HistoryView'), 'HistoryView');
-const ReportView = lazyWithRetry(() => import('./components/ReportView'), 'ReportView');
-const SettingsPage = lazyWithRetry(() => import('./components/SettingsPage'), 'SettingsPage');
-const DailySuggestions = lazyWithRetry(() => import('./components/DailySuggestions'), 'DailySuggestions');
+const importTransactionForm = () => import('./components/TransactionForm');
+const importEditTransactionSheet = () => import('./components/EditTransactionSheet');
+const importReminderSheet = () => import('./components/ReminderSheet');
+const importSupplierList = () => import('./components/SupplierList');
+const importSupplierDetail = () => import('./components/SupplierDetail');
+const importSupplierForm = () => import('./components/SupplierForm');
+const importSupplierTransactionSheet = () => import('./components/SupplierTransactionSheet');
+const importCustomerList = () => import('./components/CustomerList');
+const importCustomerDetail = () => import('./components/CustomerDetail');
+const importCustomerForm = () => import('./components/CustomerForm');
+const importCustomerTransactionSheet = () => import('./components/CustomerTransactionSheet');
+const importCustomerTelegramConnectSheet = () => import('./components/CustomerTelegramConnectSheet');
+const importHistoryView = () => import('./components/HistoryView');
+const importReportView = () => import('./components/ReportView');
+const importSettingsPage = () => import('./components/SettingsPage');
+const importDailySuggestions = () => import('./components/DailySuggestions');
+
+const TransactionForm = lazyWithRetry(importTransactionForm, 'TransactionForm');
+const EditTransactionSheet = lazyWithRetry(importEditTransactionSheet, 'EditTransactionSheet');
+const ReminderSheet = lazyWithRetry(importReminderSheet, 'ReminderSheet');
+const SupplierList = lazyWithRetry(importSupplierList, 'SupplierList');
+const SupplierDetail = lazyWithRetry(importSupplierDetail, 'SupplierDetail');
+const SupplierForm = lazyWithRetry(importSupplierForm, 'SupplierForm');
+const SupplierTransactionSheet = lazyWithRetry(importSupplierTransactionSheet, 'SupplierTransactionSheet');
+const CustomerList = lazyWithRetry(importCustomerList, 'CustomerList');
+const CustomerDetail = lazyWithRetry(importCustomerDetail, 'CustomerDetail');
+const CustomerForm = lazyWithRetry(importCustomerForm, 'CustomerForm');
+const CustomerTransactionSheet = lazyWithRetry(importCustomerTransactionSheet, 'CustomerTransactionSheet');
+const CustomerTelegramConnectSheet = lazyWithRetry(importCustomerTelegramConnectSheet, 'CustomerTelegramConnectSheet');
+const HistoryView = lazyWithRetry(importHistoryView, 'HistoryView');
+const ReportView = lazyWithRetry(importReportView, 'ReportView');
+const SettingsPage = lazyWithRetry(importSettingsPage, 'SettingsPage');
+const DailySuggestions = lazyWithRetry(importDailySuggestions, 'DailySuggestions');
 
 // Voice subsystem hidden per D-027 (Amharic/Oromifa STT quality insufficient today).
 // Files preserved (VoiceButton, VoiceRecordScreen, VoiceResultScreen, VoiceFixScreen,
@@ -182,9 +208,112 @@ function isBrowserOnline() {
   return navigator.onLine !== false;
 }
 
+function runAfterFirstPaint(callback) {
+  if (typeof window === 'undefined') return () => {};
+  let cancelled = false;
+  let timeoutId = null;
+  let idleId = null;
+
+  const run = () => {
+    if (cancelled) return;
+    callback();
+  };
+
+  if ('requestIdleCallback' in window) {
+    idleId = window.requestIdleCallback(run, { timeout: 2500 });
+  } else {
+    timeoutId = window.setTimeout(run, 1200);
+  }
+
+  return () => {
+    cancelled = true;
+    if (idleId != null && 'cancelIdleCallback' in window) {
+      window.cancelIdleCallback(idleId);
+    }
+    if (timeoutId != null) window.clearTimeout(timeoutId);
+  };
+}
+
 function buildSavedOnDeviceMessage(message, isOnline) {
   const baseMessage = String(message || 'Saved').trim() || 'Saved';
   return isOnline ? baseMessage : (baseMessage + ' - saved on this phone');
+}
+
+function OfflineStatusStrip({ pwa, pendingTelegramCount = 0, lang = 'en' }) {
+  let tone = null;
+  let label = '';
+  let detail = '';
+  let action = null;
+
+  if (!pwa?.isOnline) {
+    tone = 'offline';
+    label = lang === 'am' ? 'ኔትወርክ የለም' : 'Offline';
+    detail = lang === 'am' ? 'በዚህ ስልክ ይቀመጣል' : 'saves on this phone';
+  } else if (pendingTelegramCount > 0) {
+    tone = 'waiting';
+    label = lang === 'am' ? 'ቴሌግራም ይጠብቃል' : 'Telegram waiting';
+    detail = `${pendingTelegramCount}`;
+  } else if (pwa?.updateReady) {
+    tone = 'update';
+    label = lang === 'am' ? 'አዲስ ስሪት ዝግጁ ነው' : 'Update ready';
+    detail = lang === 'am' ? 'ለማደስ ይጫኑ' : 'tap to refresh';
+    action = (
+      <button
+        type="button"
+        onClick={pwa.applyUpdate}
+        className="press-scale"
+        style={{
+          minHeight: 30,
+          padding: '4px 10px',
+          border: 'none',
+          borderRadius: 8,
+          background: '#1B4332',
+          color: '#fff',
+          fontSize: 11,
+          fontWeight: 800,
+        }}
+      >
+        {lang === 'am' ? 'አድስ' : 'Update'}
+      </button>
+    );
+  } else if (pwa?.offlineReady) {
+    tone = 'ready';
+    label = lang === 'am' ? 'ከመስመር ውጭ ዝግጁ' : 'Offline ready';
+    detail = lang === 'am' ? 'ያለ ኢንተርኔት ይሰራል' : 'works without internet';
+  }
+
+  if (!tone) return null;
+
+  const styles = {
+    offline: { background: '#fff7ed', border: '#fed7aa', color: '#9a3412' },
+    waiting: { background: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
+    update: { background: '#ecfdf5', border: '#bbf7d0', color: '#166534' },
+    ready: { background: '#f0fdf4', border: '#bbf7d0', color: '#166534' },
+  }[tone];
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="mt-2 flex items-center justify-between gap-2"
+      style={{
+        minHeight: 36,
+        padding: '7px 9px',
+        borderRadius: 8,
+        background: styles.background,
+        border: `1px solid ${styles.border}`,
+        color: styles.color,
+        fontSize: 12,
+        fontWeight: 800,
+      }}
+    >
+      <span className="min-w-0 truncate">
+        {label}
+        {detail ? <span style={{ fontWeight: 700 }}> · {detail}</span> : null}
+      </span>
+      {action}
+    </div>
+  );
 }
 
 function ShareModal({ summary, telegram, onClose, t }) {
@@ -556,6 +685,7 @@ function AppInner() {
   const [voiceProvider, setVoiceProvider] = useState(null);
   const [voiceDraft, setVoiceDraft] = useState(null);
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(null);
+  const [pendingTelegramCount, setPendingTelegramCount] = useState(0);
 
   const buildActorSnapshot = useCallback(() => (
     resolveActorSnapshot({ shopProfile, staffMembers, activeStaffMemberId })
@@ -782,6 +912,78 @@ function AppInner() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  useEffect(() => {
+    if (loading) return undefined;
+    return runAfterFirstPaint(() => {
+      [
+        importCustomerList,
+        importSupplierList,
+        importReportView,
+        importSettingsPage,
+      ].forEach((preload) => {
+        preload().catch(() => {
+          // Non-critical preload. The lazy boundary will handle real navigation.
+        });
+      });
+    });
+  }, [loading]);
+
+  const refreshPendingTelegramCount = useCallback(async () => {
+    try {
+      const count = await countPendingTelegramSync();
+      setPendingTelegramCount(count);
+      return count;
+    } catch {
+      setPendingTelegramCount(0);
+      return 0;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (loading) return undefined;
+    refreshPendingTelegramCount();
+    const handleQueueChanged = () => {
+      refreshPendingTelegramCount();
+    };
+    window.addEventListener('gebya:sync-queue-changed', handleQueueChanged);
+    window.addEventListener('online', handleQueueChanged);
+    return () => {
+      window.removeEventListener('gebya:sync-queue-changed', handleQueueChanged);
+      window.removeEventListener('online', handleQueueChanged);
+    };
+  }, [loading, refreshPendingTelegramCount]);
+
+  const refreshQueuedTelegramRecords = useCallback(async () => {
+    const result = await drainTelegramSyncQueue({ limit: 5 });
+    if (result.records?.length) {
+      setLedgerTransactions(prev => prev.map((entry) => {
+        const updated = result.records.find((record) => record.id === entry.id);
+        return updated || entry;
+      }));
+    }
+    await refreshPendingTelegramCount();
+    return result;
+  }, [refreshPendingTelegramCount]);
+
+  useEffect(() => {
+    if (loading) return undefined;
+    let cancelled = false;
+    if (isBrowserOnline()) {
+      runAfterFirstPaint(() => {
+        if (cancelled) return;
+        refreshQueuedTelegramRecords().catch(() => {});
+      });
+    }
+    const handleOnline = () => {
+      refreshQueuedTelegramRecords().catch(() => {});
+    };
+    window.addEventListener('online', handleOnline);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [loading, refreshQueuedTelegramRecords]);
+
   // Launch-critical: load the last-backup timestamp once on mount so we can
   // decide whether to surface the data-loss nudge on the Today tab.
   useEffect(() => {
@@ -913,9 +1115,59 @@ function AppInner() {
             ...buildActorSnapshot(),
           };
           const cid = await db.customer_transactions.add(customerTxEntry);
+          const referenceCode = createCustomerTransactionReference(cid, createdAt);
+          await db.customer_transactions.update(cid, { reference_code: referenceCode });
           const savedCustomerTx = await db.customer_transactions.get(cid);
           if (savedCustomerTx) {
             setLedgerTransactions(prev => insertCustomerTransaction(prev, savedCustomerTx));
+            const customerRecord = await db.customers.get(transaction.customer_id);
+            if (customerRecord?.telegram_notify_enabled && customerRecord?.telegram_chat_id && customerRecord?.telegram_link_token) {
+              const customerTxRows = await db.customer_transactions.where('customer_id').equals(transaction.customer_id).toArray();
+              const nextBalance = Math.max(getCustomerBalance(customerTxRows), 0);
+              const creditAmount = Number(transaction.credit_amount || 0);
+              const previousBalance = Math.max(nextBalance - creditAmount, 0);
+              const message = buildCustomerLedgerTelegramMessage({
+                shopName: shopProfile?.name,
+                customerName: customerRecord.display_name,
+                type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+                amount: creditAmount,
+                itemNote: transaction.item_name,
+                previousBalance,
+                updatedBalance: nextBalance,
+                createdAt,
+                referenceCode,
+              });
+              const deliveryUpdates = {
+                reference_code: referenceCode,
+                telegram_delivery_state: isOnlineNow ? 'bot_pending' : 'bot_waiting_for_connection',
+                telegram_delivery_error: isOnlineNow ? null : 'Telegram update needs internet.',
+                telegram_delivery_attempted_at: Date.now(),
+              };
+              await db.customer_transactions.update(cid, deliveryUpdates);
+              setLedgerTransactions(prev => prev.map(entry => (
+                entry.id === cid ? { ...entry, ...deliveryUpdates } : entry
+              )));
+              await enqueueTelegramLedgerUpdate({
+                recordTable: 'customer_transactions',
+                recordId: cid,
+                payload: {
+                  customerState: {
+                    token: customerRecord.telegram_link_token,
+                    currentBalance: nextBalance,
+                    updatesEnabled: !!customerRecord.telegram_notify_enabled,
+                    telegramUsername: customerRecord.telegram_username || null,
+                    chatId: customerRecord.telegram_chat_id || null,
+                  },
+                  ledgerUpdate: {
+                    token: customerRecord.telegram_link_token,
+                    currentBalance: nextBalance,
+                    message,
+                    reference: referenceCode,
+                  },
+                },
+              });
+              if (isOnlineNow) refreshQueuedTelegramRecords().catch(() => {});
+            }
           }
         } catch (err) {
           if (import.meta.env.DEV) console.error('Credit-portion save failed:', err);
@@ -2185,6 +2437,7 @@ function AppInner() {
 
     let telegramDeliveryState = 'not_configured';
     let telegramDeliveryError = null;
+    let shouldDrainQueuedTelegram = false;
     const message = buildCustomerLedgerTelegramMessage({
       shopName: shopProfile?.name,
       customerName: deliveryCustomer.display_name,
@@ -2197,27 +2450,33 @@ function AppInner() {
       referenceCode,
     });
 
-    if (deliveryCustomer?.telegram_chat_id && isOnlineNow) {
-      await syncLinkedCustomerTelegramState(deliveryCustomer, nextBalance);
-    }
-
     if (deliveryCustomer?.telegram_notify_enabled && deliveryCustomer?.telegram_chat_id && deliveryCustomer?.telegram_link_token) {
-      if (!isOnlineNow) {
-        telegramDeliveryState = 'bot_waiting_for_connection';
-        telegramDeliveryError = 'Telegram update needs internet.';
-      } else {
-        try {
-          const result = await sendTelegramLedgerUpdate({
-            token: deliveryCustomer.telegram_link_token,
-            currentBalance: nextBalance,
-            message,
-            reference: referenceCode,
-          });
-          telegramDeliveryState = result?.delivered ? 'bot_sent' : 'bot_pending';
-        } catch (error) {
-          telegramDeliveryState = 'bot_failed';
-          telegramDeliveryError = error?.message || 'Telegram send failed';
-        }
+      telegramDeliveryState = isOnlineNow ? 'bot_pending' : 'bot_waiting_for_connection';
+      telegramDeliveryError = isOnlineNow ? null : 'Telegram update needs internet.';
+      try {
+        await enqueueTelegramLedgerUpdate({
+          recordTable: 'customer_transactions',
+          recordId: saved.id,
+          payload: {
+            customerState: {
+              token: deliveryCustomer.telegram_link_token,
+              currentBalance: nextBalance,
+              updatesEnabled: !!deliveryCustomer.telegram_notify_enabled,
+              telegramUsername: deliveryCustomer.telegram_username || null,
+              chatId: deliveryCustomer.telegram_chat_id || null,
+            },
+            ledgerUpdate: {
+              token: deliveryCustomer.telegram_link_token,
+              currentBalance: nextBalance,
+              message,
+              reference: referenceCode,
+            },
+          },
+        });
+        shouldDrainQueuedTelegram = isOnlineNow;
+      } catch (error) {
+        telegramDeliveryState = 'bot_failed';
+        telegramDeliveryError = error?.message || 'Telegram queue failed';
       }
     } else if (deliveryCustomer?.telegram_notify_enabled && deliveryCustomer?.telegram_username) {
       if (!isOnlineNow) {
@@ -2247,6 +2506,10 @@ function AppInner() {
       await db.customer_transactions.update(saved.id, deliveryUpdates);
       saved = { ...saved, ...deliveryUpdates };
       setLedgerTransactions(prev => prev.map(entry => entry.id === saved.id ? saved : entry));
+    }
+
+    if (shouldDrainQueuedTelegram) {
+      refreshQueuedTelegramRecords().catch(() => {});
     }
 
     if (telegramDeliveryState === 'bot_failed') {
@@ -2523,6 +2786,11 @@ function AppInner() {
             <Settings className="w-4 h-4" style={{ color: '#6b7280' }} />
           </button>
         </div>
+        <OfflineStatusStrip
+          pwa={pwa}
+          pendingTelegramCount={pendingTelegramCount}
+          lang={lang}
+        />
         {/* Sales/Spent chips REMOVED — TodaySummary below owns them now */}
       </header>
 
@@ -2736,23 +3004,25 @@ function AppInner() {
                   />
                 </Suspense>
               ) : (
-                <CustomerList
-                  customers={enrichedCustomerSummaries}
-                  metrics={creditMetrics}
-                  onSelectCustomer={(customer) => setSelectedCustomerId(customer.id)}
-                  onAddCustomer={() => setShowCustomerForm(true)}
-                  onRemindCustomer={(customer) => setReminderTarget(customer)}
-                  onBulkRemind={() => {
-                    // Build queue of overdue customers with at least one contact channel
-                    const queue = enrichedCustomerSummaries
-                      .filter((c) => c.has_overdue
-                        && (c.telegram_chat_id || c.telegram_username || c.phone_number))
-                      .map((c) => c.id);
-                    if (queue.length === 0) return;
-                    setBulkReminderQueue(queue.slice(1));
-                    setReminderTarget(enrichedCustomerSummaries.find(c => c.id === queue[0]));
-                  }}
-                />
+                <Suspense fallback={<PanelFallback label={t.loading} />}>
+                  <CustomerList
+                    customers={enrichedCustomerSummaries}
+                    metrics={creditMetrics}
+                    onSelectCustomer={(customer) => setSelectedCustomerId(customer.id)}
+                    onAddCustomer={() => setShowCustomerForm(true)}
+                    onRemindCustomer={(customer) => setReminderTarget(customer)}
+                    onBulkRemind={() => {
+                      // Build queue of overdue customers with at least one contact channel
+                      const queue = enrichedCustomerSummaries
+                        .filter((c) => c.has_overdue
+                          && (c.telegram_chat_id || c.telegram_username || c.phone_number))
+                        .map((c) => c.id);
+                      if (queue.length === 0) return;
+                      setBulkReminderQueue(queue.slice(1));
+                      setReminderTarget(enrichedCustomerSummaries.find(c => c.id === queue[0]));
+                    }}
+                  />
+                </Suspense>
               )
             )}
 

@@ -20,6 +20,7 @@ import { lazy, Suspense, useMemo, useState } from 'react';
 import {
   ArrowDown, ArrowUp, ChevronDown, ChevronUp, Download, Share2,
   Wallet, Users, Truck, TrendingUp, Calendar as CalendarIcon, Crown, Package, Bell,
+  Eye, EyeOff,
 } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { usePrivacy } from '../context/PrivacyContext';
@@ -127,6 +128,9 @@ function bestDayOfWeek(transactions, from, to, lang) {
 // We sum credits + payments in the window per customer.
 function topCustomersByVolume(ledgerTransactions, customers, from, to, limit = 5) {
   const byCust = new Map();
+  const customerLookup = customers instanceof Map
+    ? customers
+    : new Map((customers || []).map((customer) => [customer.id, customer]));
   for (const tx of ledgerTransactions) {
     if (tx.created_at < from || tx.created_at >= to) continue;
     const id = tx.customer_id;
@@ -135,13 +139,56 @@ function topCustomersByVolume(ledgerTransactions, customers, from, to, limit = 5
   }
   const rows = Array.from(byCust.entries())
     .map(([id, total]) => {
-      const c = customers.find(cu => cu.id === id);
+      const c = customerLookup.get(id);
       return c ? { id, name: c.display_name, total } : null;
     })
     .filter(Boolean)
     .sort((a, b) => b.total - a.total)
     .slice(0, limit);
   return rows;
+}
+
+function createNetBucket() {
+  return { sales: 0, expenses: 0, net: 0 };
+}
+
+function createLedgerBucket() {
+  return { collected: 0, newCredits: 0 };
+}
+
+function buildReportBuckets(transactions = [], ledgerTransactions = [], windows = {}) {
+  const nets = {};
+  const ledger = {};
+  const entries = Object.entries(windows);
+
+  for (const [key] of entries) {
+    nets[key] = createNetBucket();
+    ledger[key] = createLedgerBucket();
+  }
+
+  for (const tx of transactions) {
+    const ts = Number(tx.created_at || 0);
+    for (const [key, range] of entries) {
+      if (!inRange(ts, range.from, range.to)) continue;
+      if (tx.type === 'sale') nets[key].sales += Number(tx.amount || 0);
+      else if (tx.type === 'expense') nets[key].expenses += Number(tx.amount || 0);
+    }
+  }
+
+  for (const tx of ledgerTransactions) {
+    const ts = Number(tx.created_at || 0);
+    for (const [key, range] of entries) {
+      if (!inRange(ts, range.from, range.to)) continue;
+      if (tx.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT) ledger[key].collected += Number(tx.amount || 0);
+      else if (tx.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD) ledger[key].newCredits += Number(tx.amount || 0);
+    }
+  }
+
+  for (const key of Object.keys(nets)) {
+    nets[key].net = nets[key].sales - nets[key].expenses;
+  }
+
+  return { nets, ledger };
 }
 
 // Top products by quantity sold (sale rows only).
@@ -867,7 +914,7 @@ function ReportView({
   onShareReport,
 }) {
   const { lang, t } = useLang();
-  const { hidden } = usePrivacy();
+  const { hidden, toggle: togglePrivacy } = usePrivacy();
   const [exportRange, setExportRange] = useState('month');
 
   // ─── time windows ───
@@ -884,31 +931,60 @@ function ReportView({
   const lastMonthStart = startOfMonth(monthStart - 1);
 
   // ─── derived stats ───
-  const today = useMemo(() => netOf(transactions, todayStart, todayEnd), [transactions, todayStart, todayEnd]);
-  const yesterday = useMemo(() => netOf(transactions, yesterdayStart, todayStart), [transactions, yesterdayStart, todayStart]);
-  const week = useMemo(() => netOf(transactions, weekStart, weekEnd), [transactions, weekStart, weekEnd]);
-  const lastWeek = useMemo(() => netOf(transactions, lastWeekStart, weekStart), [transactions, lastWeekStart, weekStart]);
-  const month = useMemo(() => netOf(transactions, monthStart, monthEnd), [transactions, monthStart, monthEnd]);
-  const lastMonth = useMemo(() => netOf(transactions, lastMonthStart, lastMonthEnd), [transactions, lastMonthStart, lastMonthEnd]);
+  const reportWindows = useMemo(() => ({
+    today: { from: todayStart, to: todayEnd },
+    yesterday: { from: yesterdayStart, to: todayStart },
+    week: { from: weekStart, to: weekEnd },
+    lastWeek: { from: lastWeekStart, to: weekStart },
+    month: { from: monthStart, to: monthEnd },
+    lastMonth: { from: lastMonthStart, to: lastMonthEnd },
+  }), [
+    todayStart,
+    todayEnd,
+    yesterdayStart,
+    weekStart,
+    weekEnd,
+    lastWeekStart,
+    monthStart,
+    monthEnd,
+    lastMonthStart,
+    lastMonthEnd,
+  ]);
 
-  const todayCollected = useMemo(() => collectedIn(ledgerTransactions, todayStart, todayEnd), [ledgerTransactions, todayStart, todayEnd]);
-  const todayNewCredits = useMemo(() => newCreditsIn(ledgerTransactions, todayStart, todayEnd), [ledgerTransactions, todayStart, todayEnd]);
-  const weekCollected = useMemo(() => collectedIn(ledgerTransactions, weekStart, weekEnd), [ledgerTransactions, weekStart, weekEnd]);
-  const weekNewCredits = useMemo(() => newCreditsIn(ledgerTransactions, weekStart, weekEnd), [ledgerTransactions, weekStart, weekEnd]);
-  const monthCollected = useMemo(() => collectedIn(ledgerTransactions, monthStart, monthEnd), [ledgerTransactions, monthStart, monthEnd]);
-  const monthNewCredits = useMemo(() => newCreditsIn(ledgerTransactions, monthStart, monthEnd), [ledgerTransactions, monthStart, monthEnd]);
+  const reportBuckets = useMemo(
+    () => buildReportBuckets(transactions, ledgerTransactions, reportWindows),
+    [transactions, ledgerTransactions, reportWindows]
+  );
+
+  const today = reportBuckets.nets.today;
+  const yesterday = reportBuckets.nets.yesterday;
+  const week = reportBuckets.nets.week;
+  const lastWeek = reportBuckets.nets.lastWeek;
+  const month = reportBuckets.nets.month;
+  const lastMonth = reportBuckets.nets.lastMonth;
+
+  const todayCollected = reportBuckets.ledger.today.collected;
+  const todayNewCredits = reportBuckets.ledger.today.newCredits;
+  const weekCollected = reportBuckets.ledger.week.collected;
+  const weekNewCredits = reportBuckets.ledger.week.newCredits;
+  const monthCollected = reportBuckets.ledger.month.collected;
+  const monthNewCredits = reportBuckets.ledger.month.newCredits;
 
   const bestSale = useMemo(() => bestSaleOf(transactions, todayStart, todayEnd), [transactions, todayStart, todayEnd]);
   const bestDay = useMemo(() => bestDayOfWeek(transactions, weekStart, weekEnd, lang), [transactions, weekStart, weekEnd, lang]);
 
+  const customerLookup = useMemo(
+    () => new Map((customers || []).map((customer) => [customer.id, customer])),
+    [customers]
+  );
   const weekTopCustomers = useMemo(
-    () => topCustomersByVolume(ledgerTransactions, customers, weekStart, weekEnd, 1),
-    [ledgerTransactions, customers, weekStart, weekEnd]
+    () => topCustomersByVolume(ledgerTransactions, customerLookup, weekStart, weekEnd, 1),
+    [ledgerTransactions, customerLookup, weekStart, weekEnd]
   );
   const weekTopProducts = useMemo(() => topProductsByQty(transactions, weekStart, weekEnd, 1), [transactions, weekStart, weekEnd]);
   const monthTopCustomers = useMemo(
-    () => topCustomersByVolume(ledgerTransactions, customers, monthStart, monthEnd, 5),
-    [ledgerTransactions, customers, monthStart, monthEnd]
+    () => topCustomersByVolume(ledgerTransactions, customerLookup, monthStart, monthEnd, 5),
+    [ledgerTransactions, customerLookup, monthStart, monthEnd]
   );
   const monthTopProducts = useMemo(() => topProductsByQty(transactions, monthStart, monthEnd, 5), [transactions, monthStart, monthEnd]);
 
@@ -979,12 +1055,37 @@ function ReportView({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 16 }}>
-      <h2 style={{
-        fontSize: '1.15rem', fontWeight: 800,
-        color: '#1B4332', padding: '4px 2px 0',
-      }}>
-        {lang === 'am' ? 'ሪፖርት' : 'Report'}
-      </h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '4px 2px 0' }}>
+        <h2 style={{
+          fontSize: '1.15rem', fontWeight: 800,
+          color: '#1B4332',
+        }}>
+          {lang === 'am' ? 'ሪፖርት' : 'Report'}
+        </h2>
+        <button
+          type="button"
+          onClick={togglePrivacy}
+          aria-label={hidden ? (lang === 'am' ? 'ቁጥሮችን አሳይ' : 'Show amounts') : (lang === 'am' ? 'ቁጥሮችን ደብቅ' : 'Hide amounts')}
+          className="press-scale"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            minHeight: 36,
+            padding: '7px 10px',
+            borderRadius: 999,
+            border: hidden ? '1px solid #fde68a' : '1px solid #e5e7eb',
+            background: hidden ? 'rgba(196,136,58,0.10)' : '#fff',
+            color: hidden ? '#92400e' : '#6b7280',
+            fontSize: '0.72rem',
+            fontWeight: 800,
+            cursor: 'pointer',
+          }}
+        >
+          {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          {hidden ? (lang === 'am' ? 'አሳይ' : 'Show') : (lang === 'am' ? 'ደብቅ' : 'Hide')}
+        </button>
+      </div>
 
       <RightNowSection
         todayNet={today.net}
