@@ -12,6 +12,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import ProfitCard from './components/ProfitCard';
 import OnboardingScreen from './components/OnboardingScreen';
 import { ToastContainer, fireToast } from './components/Toast';
+import PhotoAttachment from './components/PhotoAttachment';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
 import { fmt } from './utils/numformat';
 import { buildCustomerSummaries, getCustomerBalance, insertCustomerTransaction, sortCustomerTransactions } from './utils/customerLedger';
@@ -568,6 +569,13 @@ function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
             <span className="text-gray-400"> · {method}</span>
           </span>
         </button>
+        {tx.photo && (
+          <PhotoAttachment
+            photo={tx.photo}
+            lang={lang}
+            label={lang === 'am' ? 'የግብይት ፎቶ ይመልከቱ' : 'View transaction photo'}
+          />
+        )}
         {hasBreakdown && (
           <button
             type="button"
@@ -1152,6 +1160,9 @@ function AppInner() {
             items: Array.isArray(transaction.items) && transaction.items.length > 0
               ? transaction.items
               : null,
+            // Copy transaction-level proof photo into the generated Dubie row.
+            // Payments remain photo-free; item-level photos are out of scope.
+            photo: transaction.photo || null,
             reference_code: null,
             telegram_delivery_state: null,
             telegram_delivery_attempted_at: null,
