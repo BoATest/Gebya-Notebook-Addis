@@ -239,7 +239,13 @@ function buildSavedOnDeviceMessage(message, isOnline) {
   return isOnline ? baseMessage : (baseMessage + ' - saved on this phone');
 }
 
-function OfflineStatusStrip({ pwa, pendingTelegramCount = 0, lang = 'en' }) {
+function OfflineStatusStrip({
+  pwa,
+  pendingTelegramCount = 0,
+  lang = 'en',
+  onRetryTelegram,
+  retryingTelegram = false,
+}) {
   let tone = null;
   let label = '';
   let detail = '';
@@ -253,6 +259,30 @@ function OfflineStatusStrip({ pwa, pendingTelegramCount = 0, lang = 'en' }) {
     tone = 'waiting';
     label = lang === 'am' ? 'ቴሌግራም ይጠብቃል' : 'Telegram waiting';
     detail = `${pendingTelegramCount}`;
+    if (typeof onRetryTelegram === 'function') {
+      action = (
+        <button
+          type="button"
+          onClick={onRetryTelegram}
+          disabled={retryingTelegram}
+          className="press-scale"
+          style={{
+            minHeight: 36,
+            minWidth: 56,
+            padding: '6px 10px',
+            border: 'none',
+            borderRadius: 8,
+            background: retryingTelegram ? '#bfdbfe' : '#1d4ed8',
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: 800,
+            cursor: retryingTelegram ? 'wait' : 'pointer',
+          }}
+        >
+          {retryingTelegram ? '...' : (lang === 'am' ? 'እንደገና' : 'Retry')}
+        </button>
+      );
+    }
   } else if (pwa?.updateReady) {
     tone = 'update';
     label = lang === 'am' ? 'አዲስ ስሪት ዝግጁ ነው' : 'Update ready';
@@ -686,6 +716,7 @@ function AppInner() {
   const [voiceDraft, setVoiceDraft] = useState(null);
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(null);
   const [pendingTelegramCount, setPendingTelegramCount] = useState(0);
+  const [retryingTelegram, setRetryingTelegram] = useState(false);
 
   const buildActorSnapshot = useCallback(() => (
     resolveActorSnapshot({ shopProfile, staffMembers, activeStaffMemberId })
@@ -964,6 +995,20 @@ function AppInner() {
     await refreshPendingTelegramCount();
     return result;
   }, [refreshPendingTelegramCount]);
+
+  const handleRetryQueuedTelegram = useCallback(async () => {
+    if (retryingTelegram || !isBrowserOnline()) return;
+    setRetryingTelegram(true);
+    try {
+      const result = await refreshQueuedTelegramRecords();
+      const sentCount = result.records?.filter(record => record.telegram_sync_status === 'sent').length || 0;
+      fireToast(sentCount > 0 ? `Telegram sent: ${sentCount}` : 'Telegram queue checked', 2200);
+    } catch {
+      fireToast('Telegram retry failed - will keep waiting', 2600);
+    } finally {
+      setRetryingTelegram(false);
+    }
+  }, [refreshQueuedTelegramRecords, retryingTelegram]);
 
   useEffect(() => {
     if (loading) return undefined;
@@ -2781,15 +2826,17 @@ function AppInner() {
             onClick={() => setActiveTab('settings')}
             className="flex-shrink-0 press-scale flex items-center justify-center"
             aria-label="Settings"
-            style={{ minWidth: '32px', minHeight: '32px', padding: '4px' }}
+            style={{ minWidth: '44px', minHeight: '44px', padding: '8px' }}
           >
-            <Settings className="w-4 h-4" style={{ color: '#6b7280' }} />
+            <Settings className="w-5 h-5" style={{ color: '#6b7280' }} />
           </button>
         </div>
         <OfflineStatusStrip
           pwa={pwa}
           pendingTelegramCount={pendingTelegramCount}
           lang={lang}
+          onRetryTelegram={handleRetryQueuedTelegram}
+          retryingTelegram={retryingTelegram}
         />
         {/* Sales/Spent chips REMOVED — TodaySummary below owns them now */}
       </header>
