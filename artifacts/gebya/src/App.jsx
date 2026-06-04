@@ -2025,7 +2025,9 @@ function AppInner() {
           amount,
           item_name: payload.item_name || existing.item_name || null,
           note: payload.note || existing.note || null,
-          photo: payload.photo || existing.photo || null,
+          ...(existing.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT
+            ? { photos: [], photo: null, photo_taken_at: null }
+            : buildPhotoFields(normalizePhotos(payload))),
           updated_at: now,
         };
         await db.supplier_transactions.update(payload.editing_id, nextEntry);
@@ -2080,8 +2082,10 @@ function AppInner() {
         quantity: payload.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? (Number(payload.quantity) || 1) : null,
         amount,
         note: payload.note || null,
-        // Commit D: product photo (base64 data URL, non-indexed Dexie property).
-        photo: payload.photo || null,
+        // Product proof photos (base64 data URLs, non-indexed Dexie property).
+        ...(payload.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT
+          ? { photos: [], photo: null, photo_taken_at: null }
+          : buildPhotoFields(normalizePhotos(payload))),
         created_at: now,
         updated_at: now,
         ...buildActorSnapshot(),

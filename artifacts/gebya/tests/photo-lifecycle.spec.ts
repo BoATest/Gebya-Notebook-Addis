@@ -88,6 +88,39 @@ async function seedEnglishShopWithCustomer(page, customerName = 'Photo Customer'
   await expect(page.getByText(/photo proof shop/i)).toBeVisible();
 }
 
+async function seedEnglishShopWithSupplier(page, supplierName = 'Photo Supplier') {
+  await page.addInitScript(() => localStorage.setItem('gebya_lang', 'en'));
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.evaluate(async (name) => {
+    const request = window.indexedDB.open('GebyaDB');
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(['settings', 'suppliers'], 'readwrite');
+      tx.objectStore('settings').put({ key: 'shop_name', value: 'Photo Proof Shop' });
+      tx.objectStore('settings').put({ key: 'shop_phone', value: '' });
+      tx.objectStore('settings').put({ key: 'shop_business_type', value: 'retail-shop' });
+      tx.objectStore('suppliers').add({
+        display_name: name,
+        phone_number: '',
+        note: '',
+        active: true,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    db.close();
+  }, supplierName);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByText(/photo proof shop/i)).toBeVisible();
+}
+
 async function clickBottomAction(page, label: RegExp) {
   await page.locator('button').filter({ hasText: label }).last().click();
 }
@@ -95,6 +128,16 @@ async function clickBottomAction(page, label: RegExp) {
 async function uploadTransactionPhotos(page, files = [photoFile]) {
   await page.locator('input[type="file"][accept="image/*"]').first().setInputFiles(files);
   await expect(page.getByText(new RegExp(`${files.length}/3`))).toBeVisible();
+}
+
+async function addCameraModalPhoto(page, file, expectedCount: number) {
+  await page.getByRole('button', { name: /take or choose photo/i }).click();
+  await expect(page.getByText(/choose from gallery/i)).toBeVisible();
+  const chooserPromise = page.waitForEvent('filechooser');
+  await page.getByText(/choose from gallery/i).click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles(file);
+  await expect(page.getByText(new RegExp(`${expectedCount}/3`))).toBeVisible();
 }
 
 async function openTransactionEditor(page, itemName: string) {
@@ -140,6 +183,42 @@ async function getCustomerTransactionRecord(page, itemNote: string) {
     db.close();
     return rows.find(row => row.item_note === note) || null;
   }, itemNote);
+}
+
+async function getSupplierTransactionRecord(page, itemName: string) {
+  return page.evaluate(async (name) => {
+    const request = window.indexedDB.open('GebyaDB');
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const rows = await new Promise<any[]>((resolve, reject) => {
+      const tx = db.transaction('supplier_transactions', 'readonly');
+      const req = tx.objectStore('supplier_transactions').getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+    db.close();
+    return rows.find(row => row.item_name === name) || null;
+  }, itemName);
+}
+
+async function getSupplierPaymentRecords(page) {
+  return page.evaluate(async () => {
+    const request = window.indexedDB.open('GebyaDB');
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const rows = await new Promise<any[]>((resolve, reject) => {
+      const tx = db.transaction('supplier_transactions', 'readonly');
+      const req = tx.objectStore('supplier_transactions').getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+    db.close();
+    return rows.filter(row => row.type === 'supplier_payment');
+  });
 }
 
 async function seedLegacySaleWithPhoto(page) {
@@ -258,7 +337,8 @@ test('sale edit mode can add, replace, and remove individual proof photos', asyn
 
   await openTransactionEditor(page, 'Edit multi photo sale');
   await page.getByRole('button', { name: /remove photo 1/i }).click();
-  await expect(page.getByText(/0\/3/)).toBeVisible();
+  await expect(page.getByText(/proof photos/i)).toHaveCount(0);
+  await expect(page.getByText('+3')).toBeVisible();
   await saveEdit(page);
 
   const afterRemoveAll = await getTransactionRecord(page, 'Edit multi photo sale');
@@ -354,6 +434,50 @@ test('direct Dubie supports proof photos and payment rows stay photo-free', asyn
   await page.getByPlaceholder('0').first().fill('50');
   await page.getByRole('button', { name: /save payment/i }).click();
   await expect(page.getByRole('button', { name: /view item photo/i })).toHaveCount(1);
+});
+
+test('supplier purchases support proof photos and supplier payments stay photo-free', async ({ page }) => {
+  await seedEnglishShopWithSupplier(page);
+
+  await page.locator('nav').getByRole('button', { name: /credit/i }).click();
+  await page.getByRole('button', { name: /suppliers/i }).click();
+  await page.getByRole('button', { name: /photo supplier/i }).click();
+  await page.getByRole('button', { name: /^buy$/i }).click();
+  await page.getByPlaceholder('0').first().fill('500');
+  await page.getByPlaceholder(/bags coffee/i).fill('Supplier photo purchase');
+
+  await addCameraModalPhoto(page, photoFile, 1);
+  await addCameraModalPhoto(page, replacementPhotoFile, 2);
+  await addCameraModalPhoto(page, thirdPhotoFile, 3);
+  await expect(page.getByText(/3\/3/)).toBeVisible();
+  await page.getByRole('button', { name: /save purchase/i }).click();
+
+  const purchase = await getSupplierTransactionRecord(page, 'Supplier photo purchase');
+  expect(purchase?.photos).toHaveLength(3);
+  expect(purchase?.photo).toBe(purchase.photos[0].dataUrl);
+  expect(purchase?.photo_taken_at).toBe(purchase.photos[0].taken_at);
+
+  await expect(page.getByText(/supplier photo purchase/i)).toBeVisible();
+  await expect(page.getByRole('button', { name: /view purchase photo/i })).toBeVisible();
+  await expect(page.getByText('+2')).toBeVisible();
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.locator('nav').getByRole('button', { name: /credit/i }).click();
+  await page.getByRole('button', { name: /suppliers/i }).click();
+  await page.getByRole('button', { name: /photo supplier/i }).click();
+  await expect(page.getByRole('button', { name: /view purchase photo/i })).toBeVisible();
+
+  await page.getByRole('button', { name: /^pay$/i }).click();
+  await page.getByPlaceholder('0').first().fill('50');
+  await expect(page.getByRole('button', { name: /take or choose photo/i })).toHaveCount(0);
+  await page.getByRole('button', { name: /save payment/i }).click();
+
+  const payments = await getSupplierPaymentRecords(page);
+  expect(payments).toHaveLength(1);
+  expect(payments[0].photos).toEqual([]);
+  expect(payments[0].photo).toBeNull();
+  expect(payments[0].photo_taken_at).toBeNull();
+  await expect(page.getByRole('button', { name: /view purchase photo/i })).toHaveCount(1);
 });
 
 test('legacy single-photo records still display without photos array', async ({ page }) => {
