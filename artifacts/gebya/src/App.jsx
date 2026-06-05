@@ -13,6 +13,7 @@ import ProfitCard from './components/ProfitCard';
 import OnboardingScreen from './components/OnboardingScreen';
 import { ToastContainer, fireToast } from './components/Toast';
 import PhotoAttachment from './components/PhotoAttachment';
+import { buildPhotoFields, normalizePhotos } from './utils/photoProof';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
 import { fmt } from './utils/numformat';
 import { buildCustomerSummaries, getCustomerBalance, insertCustomerTransaction, sortCustomerTransactions } from './utils/customerLedger';
@@ -588,9 +589,10 @@ function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
             <span className="text-gray-400"> · {method}</span>
           </span>
         </button>
-        {tx.photo && (
+        {(tx.photo || (Array.isArray(tx.photos) && tx.photos.length > 0)) && (
           <PhotoAttachment
             photo={tx.photo}
+            photos={tx.photos}
             lang={lang}
             label={lang === 'am' ? 'የግብይት ፎቶ ይመልከቱ' : 'View transaction photo'}
           />
@@ -1174,6 +1176,7 @@ function AppInner() {
         try {
           const createdAt = transaction.created_at || Date.now();
           const customerCloudProofFields = await createCloudProofFields();
+          const proofFields = buildPhotoFields(normalizePhotos(transaction));
           const customerTxEntry = {
             customer_id: transaction.customer_id,
             type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
@@ -1193,7 +1196,9 @@ function AppInner() {
               : null,
             // Copy transaction-level proof photo into the generated Dubie row.
             // Payments remain photo-free; item-level photos are out of scope.
-            photo: transaction.photo || null,
+            ...proofFields,
+            source_transaction_id: id,
+            source_type: 'pay_later_sale',
             reference_code: null,
             telegram_delivery_state: null,
             telegram_delivery_attempted_at: null,
@@ -2060,7 +2065,9 @@ function AppInner() {
           amount,
           item_name: payload.item_name || existing.item_name || null,
           note: payload.note || existing.note || null,
-          photo: payload.photo || existing.photo || null,
+          ...(existing.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT
+            ? { photos: [], photo: null, photo_taken_at: null }
+            : buildPhotoFields(normalizePhotos(payload))),
           updated_at: now,
         };
         await db.supplier_transactions.update(payload.editing_id, nextEntry);
@@ -2116,8 +2123,10 @@ function AppInner() {
         quantity: payload.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? (Number(payload.quantity) || 1) : null,
         amount,
         note: payload.note || null,
-        // Commit D: product photo (base64 data URL, non-indexed Dexie property).
-        photo: payload.photo || null,
+        // Product proof photos (base64 data URLs, non-indexed Dexie property).
+        ...(payload.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT
+          ? { photos: [], photo: null, photo_taken_at: null }
+          : buildPhotoFields(normalizePhotos(payload))),
         created_at: now,
         updated_at: now,
         ...buildActorSnapshot(),
@@ -2348,6 +2357,9 @@ function AppInner() {
       const itemsToStore = Array.isArray(originalPayload?.items) && originalPayload.items.length > 0
         ? originalPayload.items
         : null;
+      const proofFields = existing.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT
+        ? { photos: [], photo: null, photo_taken_at: null }
+        : buildPhotoFields(normalizePhotos(originalPayload));
       const updates = {
         type: draft.type,
         amount: draft.amount,
@@ -2356,8 +2368,8 @@ function AppInner() {
         item_kind: draft.item_kind || null,
         due_date: draft.due_date || null,
         items: itemsToStore,
-        // Preserve / replace product photo on edit
-        photo: originalPayload?.photo || null,
+        // Preserve / replace product proof photos on edit
+        ...proofFields,
         // Commit C.6: descriptive quantity ("5 sacks of sugar"). null on payment.
         quantity: originalPayload?.quantity != null ? Number(originalPayload.quantity) : null,
         updated_at: Date.now(),
@@ -2465,8 +2477,10 @@ function AppInner() {
         items: Array.isArray(payload?.items) && payload.items.length > 0
           ? payload.items
           : null,
-        // Preserve product photo (base64 data URL, non-indexed)
-        photo: payload?.photo || null,
+        // Preserve product proof photos (base64 data URLs, non-indexed)
+        ...(draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT
+          ? { photos: [], photo: null, photo_taken_at: null }
+          : buildPhotoFields(normalizePhotos(payload))),
         // Commit C.6: descriptive quantity (5 sacks of sugar). Null for payments.
         quantity: payload?.quantity != null ? Number(payload.quantity) : null,
         reference_code: null,

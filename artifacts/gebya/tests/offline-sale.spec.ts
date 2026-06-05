@@ -11,9 +11,10 @@ test('offline typed sale is saved locally and survives reload', async ({ page, c
 
   await expect(page.getByText(/tigist shop/i)).toBeVisible();
 
-  await context.setOffline(true);
-
   await page.getByRole('button', { name: /^sale$/i }).click();
+  await expect(page.getByPlaceholder(/add details|bread|sugar/i)).toBeVisible();
+
+  await context.setOffline(true);
   await page.getByPlaceholder(/add details|bread|sugar/i).fill('Sugar');
   await page.getByPlaceholder('0').fill('250');
   await page.getByRole('button', { name: /save sale/i }).click();
