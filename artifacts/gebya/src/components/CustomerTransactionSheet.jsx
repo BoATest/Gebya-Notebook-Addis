@@ -8,7 +8,7 @@
 // - Compact due-date pills
 // - Solid colored save button
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Save, X, Plus, Minus, Camera, CheckCircle2, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Save, X, Plus, Minus, Camera, CalendarDays, ChevronDown, ChevronUp } from 'lucide-react';
 import EthiopianDatePicker from './EthiopianDatePicker';
 import CameraCapture from './CameraCapture';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
@@ -548,20 +548,40 @@ function CustomerTransactionSheet({
                   borderRadius: 'var(--radius-md)',
                   background: photos.length > 0 ? '#f0fdf4' : '#fafaf6',
                   opacity: photos.length >= MAX_PROOF_PHOTOS ? 0.55 : 1,
+                  position: 'relative',
                 }}
                 aria-label={lang === 'am' ? '\u134E\u1276 \u12EB\u1295\u1231 \u12C8\u12ED\u121D \u12ED\u121D\u1228\u1321' : 'Take or choose photo'}
               >
                 {photoLoading
                   ? <span className="text-sm">...</span>
-                  : photos.length > 0
-                    ? <CheckCircle2 className="w-6 h-6" style={{ color: '#16a34a' }} />
-                    : <Camera className="w-6 h-6" style={{ color: '#6b7280' }} />
+                  : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? '#16a34a' : '#6b7280' }} />
                 }
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    top: -7,
+                    right: -7,
+                    minWidth: 24,
+                    height: 20,
+                    padding: '0 5px',
+                    borderRadius: 999,
+                    background: photos.length >= MAX_PROOF_PHOTOS ? '#6b7280' : accentColor,
+                    color: '#fff',
+                    border: '2px solid #fff',
+                    fontSize: 10,
+                    fontWeight: 900,
+                    lineHeight: '16px',
+                    textAlign: 'center',
+                  }}
+                >
+                  {photos.length >= MAX_PROOF_PHOTOS ? '0' : `+${MAX_PROOF_PHOTOS - photos.length}`}
+                </span>
               </button>
             )}
           </div>
 
-          {!isPayment && (
+          {!isPayment && photos.length > 0 && (
             <div className="mt-2 p-2"
               style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}
             >
@@ -573,48 +593,42 @@ function CustomerTransactionSheet({
                   {photos.length}/{MAX_PROOF_PHOTOS}
                 </p>
               </div>
-              {photos.length > 0 ? (
-                <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
-                  {photos.map((entry, index) => (
-                    <div key={entry.id} className="relative flex-shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => openPhotoCapture(entry.id)}
-                        className="press-scale block"
-                        style={{ padding: 0, border: 'none', background: 'transparent' }}
-                        aria-label={lang === 'am' ? '\u134E\u1276 \u1240\u12ED\u122D' : `Replace photo ${index + 1}`}
-                      >
-                        <img src={entry.dataUrl} alt="" className="w-14 h-14 object-cover" style={{ borderRadius: 6 }} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleRemovePhoto(entry.id)}
-                        className="press-scale flex items-center justify-center"
-                        style={{
-                          position: 'absolute',
-                          top: -6,
-                          right: -6,
-                          minWidth: 28,
-                          minHeight: 28,
-                          borderRadius: 999,
-                          border: '1px solid #e8e2d8',
-                          background: '#fff',
-                        }}
-                        aria-label={lang === 'am' ? '\u134E\u1276 \u12A0\u1235\u12C8\u130D\u12F5' : `Remove photo ${index + 1}`}
-                      >
-                        <X className="w-3.5 h-3.5" style={{ color: '#6b7280' }} />
-                      </button>
-                      <p className="text-[10px] text-center mt-1" style={{ color: '#9ca3af' }}>
-                        {Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[11px] mt-1" style={{ color: '#9ca3af' }}>
-                  {lang === 'am' ? '\u134E\u1276 \u12EB\u1295\u1231 \u12C8\u12ED\u121D \u12ED\u121D\u1228\u1321' : 'Take / choose photo'}
-                </p>
-              )}
+              <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                {photos.map((entry, index) => (
+                  <div key={entry.id} className="relative flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => openPhotoCapture(entry.id)}
+                      className="press-scale block"
+                      style={{ padding: 0, border: 'none', background: 'transparent' }}
+                      aria-label={lang === 'am' ? '\u134E\u1276 \u1240\u12ED\u122D' : `Replace photo ${index + 1}`}
+                    >
+                      <img src={entry.dataUrl} alt="" className="w-14 h-14 object-cover" style={{ borderRadius: 6 }} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(entry.id)}
+                      className="press-scale flex items-center justify-center"
+                      style={{
+                        position: 'absolute',
+                        top: -6,
+                        right: -6,
+                        minWidth: 28,
+                        minHeight: 28,
+                        borderRadius: 999,
+                        border: '1px solid #e8e2d8',
+                        background: '#fff',
+                      }}
+                      aria-label={lang === 'am' ? '\u134E\u1276 \u12A0\u1235\u12C8\u130D\u12F5' : `Remove photo ${index + 1}`}
+                    >
+                      <X className="w-3.5 h-3.5" style={{ color: '#6b7280' }} />
+                    </button>
+                    <p className="text-[10px] text-center mt-1" style={{ color: '#9ca3af' }}>
+                      {Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           {!isPayment && photoError && (
