@@ -9,7 +9,7 @@
 //   • Refresh smaller, secondary
 //   • Manual fallback collapsed by default
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2, Copy, MessageCircle, QrCode, RefreshCcw, Send,
   ChevronDown, ChevronUp, X, AlertTriangle,
@@ -42,6 +42,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
   const [linkSession, setLinkSession] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [telegramServiceAvailable, setTelegramServiceAvailable] = useState(true);
+  const autoSavedChatRef = useRef(customer?.telegram_chat_id || null);
 
   // T2: collapsibles default to closed for compact first impression
   const [showQR, setShowQR] = useState(false);
@@ -57,6 +58,8 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
   const slowConnection = isSlowConnection();
   const canShowInviteTools = Boolean(customer?.telegram_link_token);
   const linkingAvailable = (telegramServiceAvailable && safeBotStatus.configured) || (slowConnection && canShowInviteTools);
+  const detectedChatId = linkSession?.chat_id || null;
+  const detectedUsername = linkSession?.telegram_username || null;
 
   const inviteLink = useMemo(
     () => buildCustomerConnectLink({
@@ -149,6 +152,40 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
     }, 5000);
     return () => clearInterval(id);
   }, [customer?.telegram_link_token, hasLinkedBorrower, slowConnection]);
+
+  useEffect(() => {
+    if (!detectedChatId || customer?.telegram_chat_id || autoSavedChatRef.current === detectedChatId) return;
+
+    autoSavedChatRef.current = detectedChatId;
+    setSaving(true);
+    Promise.resolve(onSave?.({
+      telegram_username: detectedUsername || normalizedTelegram || customer?.telegram_username || null,
+      telegram_chat_id: detectedChatId,
+      telegram_linked_at: linkSession?.linked_at || Date.now(),
+      telegram_link_requested_at: linkSession?.requested_at || customer?.telegram_link_requested_at || Date.now(),
+      showSavedToast: false,
+      closeSheet: false,
+    }))
+      .then(() => {
+        fireToast(lang === 'am' ? 'ቴሌግራም ተገናኝቷል' : 'Telegram connected', 1800);
+      })
+      .catch(() => {
+        autoSavedChatRef.current = null;
+        fireToast(lang === 'am' ? 'ቴሌግራም ማስቀመጥ አልተሳካም' : 'Could not save Telegram link', 2200);
+      })
+      .finally(() => setSaving(false));
+  }, [
+    customer?.telegram_chat_id,
+    customer?.telegram_link_requested_at,
+    customer?.telegram_username,
+    detectedChatId,
+    detectedUsername,
+    lang,
+    linkSession?.linked_at,
+    linkSession?.requested_at,
+    normalizedTelegram,
+    onSave,
+  ]);
 
   const handleRefresh = async () => {
     if (!customer?.telegram_link_token) return;
@@ -280,6 +317,45 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
             {statusChip.text}
           </div>
 
+          {linkingAvailable && canShowInviteTools && (
+            <div
+              className="p-3 space-y-2"
+              style={{
+                background: hasLinkedBorrower ? '#f0fdf4' : '#f8fafc',
+                border: `1px solid ${hasLinkedBorrower ? '#bbf7d0' : '#e2e8f0'}`,
+                borderRadius: 'var(--radius-md)',
+              }}
+            >
+              <p className="text-sm font-black text-gray-900">
+                {hasLinkedBorrower
+                  ? (lang === 'am' ? 'ዝግጁ ነው' : 'Ready')
+                  : (lang === 'am' ? 'ደንበኛውን በቴሌግራም ያገናኙ' : 'Connect the customer in Telegram')}
+              </p>
+              <div className="grid gap-1.5 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                <p>
+                  <strong style={{ color: hasLinkedBorrower ? '#047857' : '#1B4332' }}>
+                    {hasLinkedBorrower ? '✓' : '1.'}
+                  </strong>{' '}
+                  {lang === 'am' ? 'ሊንኩን ይክፈቱ ወይም QR ያሳዩ' : 'Open the link or show the QR'}
+                </p>
+                <p>
+                  <strong style={{ color: hasLinkedBorrower ? '#047857' : '#1B4332' }}>
+                    {hasLinkedBorrower ? '✓' : '2.'}
+                  </strong>{' '}
+                  {lang === 'am' ? 'ደንበኛው በቴሌግራም Start ይጫናል' : 'Customer taps Start in Telegram'}
+                </p>
+                <p>
+                  <strong style={{ color: hasLinkedBorrower ? '#047857' : '#1B4332' }}>
+                    {hasLinkedBorrower ? '✓' : '3.'}
+                  </strong>{' '}
+                  {hasLinkedBorrower
+                    ? (lang === 'am' ? 'Gebya በራሱ አስቀምጧል' : 'Gebya saved the link automatically')
+                    : (lang === 'am' ? 'Gebya በራሱ ያስቀምጣል' : 'Gebya detects and saves it automatically')}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* T2: PRIMARY action — opens Telegram with the bot + pre-filled /start */}
           {linkingAvailable && canShowInviteTools && (
             <>
@@ -304,8 +380,8 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
               {/* Helpful hint below primary action */}
               <p className="text-[11px] text-center" style={{ color: 'var(--color-text-muted)' }}>
                 {lang === 'am'
-                  ? 'ይህን ይክፈቱ → በቴሌግራም Start ይንኩ → ወደዚህ ይመለሱ'
-                  : 'Open this → tap Start in Telegram → come back here'}
+                  ? 'ደንበኛው Start ከጫነ በኋላ Gebya በራሱ ያስቀምጣል'
+                  : 'After the customer taps Start, Gebya saves the link automatically'}
               </p>
 
               {/* T2: QR code collapsed by default for in-person scenarios */}
@@ -378,7 +454,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
                 <RefreshCcw className={`w-3.5 h-3.5 ${loadingSession ? 'animate-spin' : ''}`} />
                 {loadingSession
                   ? (lang === 'am' ? 'እየፈተሸ...' : 'Checking...')
-                  : (lang === 'am' ? 'ሁኔታ አድስ (ደንበኛው Start ካደረገ በኋላ)' : 'Refresh status (after they tap Start)')}
+                  : (lang === 'am' ? 'አሁን ፈትሽ' : 'Check again')}
               </button>
             </>
           )}
@@ -416,7 +492,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
             }}
           >
             <span className="inline-flex items-center gap-1.5">
-              ⌨️ {lang === 'am' ? 'ወይም በእጅ ይጨምሩ' : 'Or enter manually'}
+              {lang === 'am' ? 'የእጅ አማራጭ' : 'Manual fallback'}
             </span>
             {showManualFallback ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
@@ -484,7 +560,9 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
             <CheckCircle2 className="w-5 h-5" />
             {saving
               ? (lang === 'am' ? 'እያስቀመጥኩ...' : 'Saving...')
-              : (lang === 'am' ? 'አስቀምጥ' : (manualTelegram.trim() ? t.saveFallbackContact : 'Done'))}
+              : hasLinkedBorrower
+                ? (lang === 'am' ? 'ተጠናቋል' : 'Done')
+                : (lang === 'am' ? 'አስቀምጥ' : (manualTelegram.trim() ? t.saveFallbackContact : 'Skip for now'))}
           </button>
         </div>
       </div>
