@@ -60,6 +60,34 @@ function netOf(transactions, from, to) {
   return { sales, expenses, expectedCash: sales - expenses };
 }
 
+function moneyFlowOf(transactions, ledgerTransactions, from, to) {
+  let cash = 0;
+  let transfer = 0;
+
+  for (const tx of transactions || []) {
+    if (!inRange(tx.created_at, from, to)) continue;
+    const paymentType = tx.payment_type || 'cash';
+    const amount = Number(tx.cash_received ?? tx.amount ?? 0);
+    if (!amount || paymentType === 'credit') continue;
+
+    if (paymentType === 'cash') {
+      cash += tx.type === 'expense' ? -amount : amount;
+    } else if (tx.type === 'sale') {
+      transfer += amount;
+    } else if (tx.type === 'expense') {
+      transfer -= amount;
+    }
+  }
+
+  for (const tx of ledgerTransactions || []) {
+    if (tx.type !== CUSTOMER_TRANSACTION_TYPES.PAYMENT) continue;
+    if (!inRange(tx.created_at, from, to)) continue;
+    cash += Number(tx.amount || 0);
+  }
+
+  return { cash, transfer };
+}
+
 function collectedIn(ledgerTransactions, from, to) {
   let total = 0;
   for (const tx of ledgerTransactions || []) {
@@ -243,30 +271,29 @@ function SummaryCard({ label, value, hidden, tone }) {
   );
 }
 
-function ActionCard({ title, subtext, onClick }) {
+function RangeChip({ timeRange, customFrom, customTo, lang }) {
+  const label = (() => {
+    if (timeRange === 'week') return lang === 'am' ? 'የዚህ ሳምንት' : 'This week';
+    if (timeRange === 'month') return lang === 'am' ? 'የዚህ ወር' : 'This month';
+    if (timeRange === 'custom') return `${customFrom || '...'} - ${customTo || '...'}`;
+    return lang === 'am' ? 'ዛሬ' : 'Today';
+  })();
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="press-scale"
-      style={{
-        textAlign: 'left',
-        background: '#fff',
-        border: '1px solid #e5e7eb',
-        borderRadius: 10,
-        padding: '9px 10px',
-        minHeight: 48,
-        cursor: 'pointer',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <div style={{ minWidth: 0 }}>
-          <p style={{ color: '#1f2937', fontSize: 13, fontWeight: 900, lineHeight: 1.15 }}>{title}</p>
-          {subtext && <p style={{ color: '#6b7280', fontSize: 11, fontWeight: 650, marginTop: 2 }}>{subtext}</p>}
-        </div>
-        <ChevronRight className="w-4 h-4" style={{ color: '#9ca3af', flexShrink: 0 }} />
-      </div>
-    </button>
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      minHeight: 24,
+      padding: '4px 8px',
+      borderRadius: 999,
+      background: '#f3f4f6',
+      color: '#6b7280',
+      fontSize: 11,
+      fontWeight: 850,
+      whiteSpace: 'nowrap',
+    }}>
+      {label}
+    </span>
   );
 }
 
@@ -434,6 +461,8 @@ function ReportView({
   const [showExport, setShowExport] = useState(false);
   const [exportRange, setExportRange] = useState('month');
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [customFrom, setCustomFrom] = useState(() => new Date().toISOString().slice(0, 10));
+  const [customTo, setCustomTo] = useState(() => new Date().toISOString().slice(0, 10));
 
   const searchRef = useRef(null);
   const staffRef = useRef(null);
@@ -452,8 +481,14 @@ function ReportView({
   const rangeBounds = useMemo(() => {
     if (timeRange === 'week') return [weekStart, weekEnd];
     if (timeRange === 'month') return [monthStart, monthEnd];
+    if (timeRange === 'custom') {
+      const fromDate = customFrom ? new Date(`${customFrom}T00:00:00`) : new Date(todayStart);
+      const toDate = customTo ? new Date(`${customTo}T00:00:00`) : new Date(todayStart);
+      toDate.setDate(toDate.getDate() + 1);
+      return [fromDate.getTime(), toDate.getTime()];
+    }
     return [todayStart, todayEnd];
-  }, [timeRange, todayStart, todayEnd, weekStart, weekEnd, monthStart, monthEnd]);
+  }, [timeRange, todayStart, todayEnd, weekStart, weekEnd, monthStart, monthEnd, customFrom, customTo]);
 
   const selectedStats = useMemo(
     () => netOf(transactions, rangeBounds[0], rangeBounds[1]),
@@ -463,7 +498,10 @@ function ReportView({
     () => collectedIn(ledgerTransactions, rangeBounds[0], rangeBounds[1]),
     [ledgerTransactions, rangeBounds]
   );
-  const selectedExpectedCash = selectedStats.expectedCash + selectedCollected;
+  const selectedFlow = useMemo(
+    () => moneyFlowOf(transactions, ledgerTransactions, rangeBounds[0], rangeBounds[1]),
+    [transactions, ledgerTransactions, rangeBounds]
+  );
 
   const rangeTransactions = useMemo(
     () => (transactions || []).filter(tx => inRange(tx.created_at, rangeBounds[0], rangeBounds[1])),
@@ -491,11 +529,6 @@ function ReportView({
 
   const scrollTo = (ref) => {
     ref.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-  };
-
-  const focusSearch = () => {
-    searchRef.current?.focus?.();
-    searchRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
   };
 
   const handleFullHistory = () => {
@@ -533,8 +566,8 @@ function ReportView({
     sold: lang === 'am' ? 'ሽያጭ' : 'Sold',
     spent: lang === 'am' ? 'ወጪ' : 'Spent',
     collected: lang === 'am' ? 'ተሰብስቧል' : 'Collected',
-    expectedCash: lang === 'am' ? 'የሚጠበቅ ገንዘብ' : 'Expected Cash',
-    checkTitle: lang === 'am' ? 'ፈጣን ቼክ' : 'Quick checks',
+    cashToExpect: lang === 'am' ? 'የሚጠበቅ ጥሬ ገንዘብ' : 'Cash to Expect',
+    transferExpected: lang === 'am' ? 'የሚጠበቅ ትራንስፈር' : 'Transfer Expected',
     staffSales: lang === 'am' ? 'የዛሬ የሰራተኛ ሽያጭ' : 'Staff Sales Today',
     ownerAlerts: lang === 'am' ? 'የባለቤት ማሳወቂያ' : 'Owner Alerts',
     recent: lang === 'am' ? 'የቅርብ ግብይቶች' : 'Recent Transactions',
@@ -587,7 +620,6 @@ function ReportView({
           <button
             key={id}
             type="button"
-            disabled={id === 'custom'}
             onClick={() => setTimeRange(id)}
             className="press-scale"
             style={{
@@ -595,10 +627,10 @@ function ReportView({
               border: 'none',
               borderRadius: 9,
               background: timeRange === id ? '#1B4332' : 'transparent',
-              color: timeRange === id ? '#fff' : (id === 'custom' ? '#9ca3af' : '#6b7280'),
+              color: timeRange === id ? '#fff' : '#6b7280',
               fontSize: 12,
               fontWeight: 900,
-              cursor: id === 'custom' ? 'not-allowed' : 'pointer',
+              cursor: 'pointer',
             }}
           >
             {label}
@@ -606,11 +638,41 @@ function ReportView({
         ))}
       </div>
 
+      {timeRange === 'custom' && (
+        <Section title={lang === 'am' ? 'Custom range' : 'Custom range'}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, color: '#6b7280', fontSize: 11, fontWeight: 850 }}>
+              {lang === 'am' ? 'From' : 'From'}
+              <input
+                type="date"
+                value={customFrom}
+                onChange={e => setCustomFrom(e.target.value)}
+                style={{ minHeight: 38, border: '1px solid #e5e7eb', borderRadius: 9, padding: '6px 8px', fontSize: 13 }}
+              />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, color: '#6b7280', fontSize: 11, fontWeight: 850 }}>
+              {lang === 'am' ? 'To' : 'To'}
+              <input
+                type="date"
+                value={customTo}
+                onChange={e => setCustomTo(e.target.value)}
+                style={{ minHeight: 38, border: '1px solid #e5e7eb', borderRadius: 9, padding: '6px 8px', fontSize: 13 }}
+              />
+            </label>
+          </div>
+        </Section>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '-2px 2px' }}>
+        <RangeChip timeRange={timeRange} customFrom={customFrom} customTo={customTo} lang={lang} />
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
         <SummaryCard label={labels.sold} value={selectedStats.sales} hidden={hidden} tone="good" />
         <SummaryCard label={labels.spent} value={selectedStats.expenses} hidden={hidden} tone="bad" />
         <SummaryCard label={labels.collected} value={selectedCollected} hidden={hidden} tone="warn" />
-        <SummaryCard label={labels.expectedCash} value={selectedExpectedCash} hidden={hidden} tone={selectedExpectedCash >= 0 ? 'good' : 'bad'} />
+        <SummaryCard label={labels.cashToExpect} value={selectedFlow.cash} hidden={hidden} tone={selectedFlow.cash >= 0 ? 'good' : 'bad'} />
+        <SummaryCard label={labels.transferExpected} value={selectedFlow.transfer} hidden={hidden} tone={selectedFlow.transfer >= 0 ? 'good' : 'bad'} />
       </div>
 
       <div style={{ position: 'relative' }}>
@@ -697,14 +759,6 @@ function ReportView({
           )}
         </Section>
       )}
-
-      <Section title={labels.checkTitle}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
-          <ActionCard title="Past Price" subtext="" onClick={focusSearch} />
-          <ActionCard title="Staff Sales" subtext="" onClick={() => scrollTo(staffRef)} />
-          <ActionCard title="History" subtext="" onClick={handleFullHistory} />
-        </div>
-      </Section>
 
       <Section title={labels.staffSales} refProp={staffRef}>
         <StaffSalesToday rows={todayStaffSalesRows} hidden={hidden} lang={lang} />
@@ -874,11 +928,11 @@ function ReportView({
         </button>
         <button
           type="button"
-          disabled
-          title="Coming later"
-          style={{ minHeight: 38, border: 'none', borderRadius: 9, background: '#f3f4f6', color: '#9ca3af', fontSize: 11, fontWeight: 950, cursor: 'not-allowed' }}
+          onClick={handleFullHistory}
+          className="press-scale"
+          style={{ minHeight: 38, border: 'none', borderRadius: 9, background: historyOpen ? '#1B4332' : '#fff', color: historyOpen ? '#fff' : '#374151', fontSize: 12, fontWeight: 950, cursor: 'pointer' }}
         >
-          Saved
+          History
         </button>
       </div>
     </div>
