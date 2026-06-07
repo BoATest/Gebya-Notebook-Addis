@@ -51,6 +51,28 @@ function matchingStore(): StaffSaleEventStore {
         duplicate: true,
       };
     },
+    async list(options) {
+      return Array.from(rows.values())
+        .filter((event) => event.shop_id === options.shopId)
+        .filter((event) => !options.staffId || event.staff_id === options.staffId)
+        .map((event) => ({
+          event_id: event.event_id,
+          transaction_id: event.transaction_id,
+          shop_id: event.shop_id,
+          staff_id: event.staff_id,
+          staff_name_snapshot: event.staff_name_snapshot,
+          device_id: event.device_id,
+          amount: event.amount,
+          item_note: event.item_note || null,
+          item_code: event.item_code || null,
+          payment_type: event.payment_type || null,
+          created_at_device: event.created_at_device,
+          received_at_server: "2026-06-07T00:00:00.000Z",
+          event_type: event.event_type,
+          schema_version: event.schema_version,
+        }))
+        .slice(0, options.limit || 20);
+    },
   };
 }
 
@@ -166,4 +188,79 @@ test("missing database config gives clear non-fake failure", async () => {
     });
     if (oldDatabaseUrl) process.env.DATABASE_URL = oldDatabaseUrl;
   }
+});
+
+test("staff sale API list reports missing database config clearly", async () => {
+  const oldDatabaseUrl = process.env.DATABASE_URL;
+  delete process.env.DATABASE_URL;
+
+  const app = express();
+  app.use(express.json());
+  app.use("/api/staff-sales", createStaffSalesRouter());
+  const localServer = http.createServer(app);
+  const localBaseUrl = await new Promise<string>((resolve) => {
+    localServer.listen(0, "127.0.0.1", () => {
+      const address = localServer.address() as AddressInfo;
+      resolve(`http://127.0.0.1:${address.port}`);
+    });
+  });
+
+  try {
+    const response = await fetch(`${localBaseUrl}/api/staff-sales/events?shop_id=local_demo_shop`);
+    const body = await response.json() as Record<string, unknown>;
+
+    assert.equal(response.status, 503);
+    assert.equal(body.accepted, false);
+    assert.equal(body.required_env, "DATABASE_URL");
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      localServer.close((error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
+    if (oldDatabaseUrl) process.env.DATABASE_URL = oldDatabaseUrl;
+  }
+});
+
+test("staff sale API lists events for one shop only", async () => {
+  await fetch(`${baseUrl}/api/staff-sales/events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...validSaleEvent(),
+      event_id: "evt_other_shop_123456",
+      transaction_id: "txn_other_shop_123456",
+      shop_id: "other_shop",
+    }),
+  });
+
+  const response = await fetch(`${baseUrl}/api/staff-sales/events?shop_id=local_demo_shop`);
+  const body = await response.json() as Record<string, unknown>;
+  const events = body.events as Array<Record<string, unknown>>;
+
+  assert.equal(response.status, 200);
+  assert.equal(body.accepted, true);
+  assert.equal(body.shop_id, "local_demo_shop");
+  assert.equal(body.security_note, "Demo unauthenticated endpoint. Do not use as production staff security.");
+  assert.ok(events.length >= 1);
+  assert.ok(events.every((event) => event.shop_id === "local_demo_shop"));
+});
+
+test("staff sale API list requires shop_id", async () => {
+  const response = await fetch(`${baseUrl}/api/staff-sales/events`);
+  const body = await response.json() as Record<string, unknown>;
+
+  assert.equal(response.status, 400);
+  assert.equal(body.accepted, false);
+  assert.equal(body.error, "shop_id is required to fetch staff sale events.");
+});
+
+test("staff sale API list limit works", async () => {
+  const response = await fetch(`${baseUrl}/api/staff-sales/events?shop_id=local_demo_shop&limit=1`);
+  const body = await response.json() as Record<string, unknown>;
+  const events = body.events as Array<Record<string, unknown>>;
+
+  assert.equal(response.status, 200);
+  assert.equal(events.length, 1);
 });

@@ -28,7 +28,13 @@ import { usePwaInstall } from './hooks/usePwaInstall.js';
 import { resendLatestTelegramUpdate, syncTelegramCustomerState } from './utils/telegramBotClient';
 import { countPendingTelegramSync, drainTelegramSyncQueue, enqueueTelegramLedgerUpdate } from './utils/syncQueue';
 import { createCloudProofFields, enqueueCloudProofUpsert } from './utils/cloudProof';
-import { createAndQueueStaffSaleEvent, drainStaffSaleSyncQueue } from './utils/staffSalesSync';
+import {
+  LOCAL_DEMO_SHOP_ID,
+  createAndQueueStaffSaleEvent,
+  drainStaffSaleSyncQueue,
+  fetchRemoteStaffSaleEvents,
+  getOrCreateLocalShopId,
+} from './utils/staffSalesSync';
 import { normalizeStaffDraft, resolveActorSnapshot, getActorDisplayLabel } from './utils/staffMembers';
 import { buildQuickNoteDueActions, normalizeQuickNoteDraft, QUICK_NOTE_STATUSES, sortQuickNotes } from './utils/quickNotes';
 import {
@@ -330,6 +336,70 @@ function OwnerAlertFeed({ alerts = [], settings, lang }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function RemoteStaffSalesPreview({ events = [], status, error, shopId, onRefresh, refreshing, lang }) {
+  const isDemo = !shopId || shopId === LOCAL_DEMO_SHOP_ID;
+  return (
+    <div className="px-4 py-3 border" style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}>
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <div className="min-w-0">
+          <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+            {lang === 'am' ? 'ከሌሎች ስልኮች የመጣ ሽያጭ' : 'Remote staff sales preview'}
+          </h3>
+          <p className="text-[11px] text-gray-500 mt-0.5">
+            {isDemo
+              ? (lang === 'am' ? 'Demo shop identity - not secure staff management.' : 'Demo shop identity - not secure staff management.')
+              : (lang === 'am' ? 'Manual refresh. Not realtime.' : 'Manual refresh. Not realtime.')}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={refreshing}
+          className="px-3 py-2 text-xs font-bold border press-scale"
+          style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', color: '#1f2937', background: refreshing ? '#f3f4f6' : '#fff' }}
+        >
+          {refreshing ? 'Checking...' : 'Refresh'}
+        </button>
+      </div>
+
+      {status === 'error' && (
+        <p className="text-xs font-semibold" style={{ color: '#92400e' }}>
+          {error || 'Remote staff sales unavailable. Local records still work.'}
+        </p>
+      )}
+
+      {status !== 'error' && events.length === 0 && (
+        <p className="text-xs text-gray-500">
+          {isDemo
+            ? 'Set up the same shop ID on another phone later to preview synced staff sales.'
+            : 'No synced staff sales found for this shop yet.'}
+        </p>
+      )}
+
+      {events.length > 0 && (
+        <div className="space-y-2">
+          {events.slice(0, 5).map((event) => (
+            <div key={event.event_id} className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-gray-900 truncate">
+                  {event.staff_name_snapshot || 'Staff'} · {event.item_note || 'Sale'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {event.item_code ? `${event.item_code} · ` : ''}{event.received_at_server ? new Date(event.received_at_server).toLocaleString() : 'Synced'}
+                </p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-sm font-black text-green-700">{fmt(event.amount || 0)}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">synced</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -771,6 +841,10 @@ function AppInner() {
   const [quickNotes, setQuickNotes] = useState([]);
   const [ownerAlerts, setOwnerAlerts] = useState([]);
   const [ownerAlertSettings, setOwnerAlertSettings] = useState(DEFAULT_OWNER_ALERT_SETTINGS);
+  const [remoteStaffSales, setRemoteStaffSales] = useState([]);
+  const [remoteStaffSalesStatus, setRemoteStaffSalesStatus] = useState('idle');
+  const [remoteStaffSalesError, setRemoteStaffSalesError] = useState(null);
+  const [refreshingRemoteStaffSales, setRefreshingRemoteStaffSales] = useState(false);
   const [staffMembers, setStaffMembers] = useState([]);
   const [activeStaffMemberId, setActiveStaffMemberId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1109,7 +1183,7 @@ function AppInner() {
       const [
         txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, quickNoteRows, ownerAlertRows, staffRows,
         nameRow, phoneRow, businessTypeRow, epRow, reRow, customQuickAmountsRow, telegramRow,
-        snapshotRow, activeStaffRow, ownerAlertSettingsRow,
+        snapshotRow, activeStaffRow, ownerAlertSettingsRow, shopIdRow,
         // Payment receiving accounts — used by Pay-it-now /pay URLs (legacy, C.1)
         payTelebirrRow, payCbePhoneRow, payCbeAccountRow, payAwashPhoneRow,
         payBankNameRow, payBankAccountRow,
@@ -1135,6 +1209,7 @@ function AppInner() {
         db.settings.get('last_saved_snapshot'),
         db.settings.get('active_staff_member_id'),
         db.settings.get('owner_alert_settings'),
+        db.settings.get('shop_id'),
         db.settings.get('shop_pay_telebirr'),
         db.settings.get('shop_pay_cbe_phone'),
         db.settings.get('shop_pay_cbe_account'),
@@ -1212,6 +1287,7 @@ function AppInner() {
         phone: phoneRow?.value || '',
         telegram: telegramRow?.value || '',
         businessType: businessTypeRow?.value || 'retail-shop',
+        shopId: shopIdRow?.value || null,
         // Canonical (Commit C.4)
         paymentChannels,
         // Legacy compat shim — derived, never written to from outside App.jsx
@@ -1308,6 +1384,25 @@ function AppInner() {
       return { processed: 0, records: [] };
     }
   }, []);
+
+  const refreshRemoteStaffSales = useCallback(async () => {
+    const shopId = shopProfile?.shopId || await getOrCreateLocalShopId();
+    setRefreshingRemoteStaffSales(true);
+    setRemoteStaffSalesError(null);
+    try {
+      const result = await fetchRemoteStaffSaleEvents({ shopId, limit: 10 });
+      setRemoteStaffSales(Array.isArray(result?.events) ? result.events : []);
+      setRemoteStaffSalesStatus('ready');
+      setShopProfile(prev => prev ? { ...prev, shopId } : prev);
+      return result;
+    } catch {
+      setRemoteStaffSalesStatus('error');
+      setRemoteStaffSalesError('Remote staff sales unavailable. Local records still work.');
+      return null;
+    } finally {
+      setRefreshingRemoteStaffSales(false);
+    }
+  }, [shopProfile?.shopId]);
 
   const handleRetryQueuedTelegram = useCallback(async () => {
     if (retryingTelegram || !isBrowserOnline()) return;
@@ -1767,6 +1862,7 @@ function AppInner() {
   };
 
   const handleProfileSave = async (name, phone, telegram, businessType = 'retail-shop') => {
+    const shopId = await getOrCreateLocalShopId();
     await db.settings.put({ key: 'shop_name', value: name });
     await db.settings.put({ key: 'shop_phone', value: phone || '' });
     await db.settings.put({ key: 'shop_telegram', value: telegram || '' });
@@ -1783,6 +1879,7 @@ function AppInner() {
       phone: phone || '',
       telegram: telegram || '',
       businessType: businessType || 'retail-shop',
+      shopId,
       // Preserve channel state untouched
       paymentChannels: prev?.paymentChannels,
       payments: prev?.payments,
@@ -3282,6 +3379,16 @@ function AppInner() {
             <TodayStaffSalesSummary rows={todayStaffSalesRows} lang={lang} />
 
             <OwnerAlertFeed alerts={ownerAlerts} settings={ownerAlertSettings} lang={lang} />
+
+            <RemoteStaffSalesPreview
+              events={remoteStaffSales}
+              status={remoteStaffSalesStatus}
+              error={remoteStaffSalesError}
+              shopId={shopProfile?.shopId}
+              refreshing={refreshingRemoteStaffSales}
+              onRefresh={refreshRemoteStaffSales}
+              lang={lang}
+            />
 
             <QuickNotesList
               notes={pendingQuickNotes}

@@ -418,3 +418,67 @@ test('staff sale event becomes synced after API persistence succeeds', async ({ 
     syncedAt: 'number',
   });
 });
+
+test('owner remote activity feed shows fetched synced staff events', async ({ page }) => {
+  await page.route('**/api/staff-sales/events?*', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        accepted: true,
+        shop_id: 'shop_test_owner',
+        security_note: 'Demo unauthenticated endpoint. Do not use as production staff security.',
+        events: [{
+          event_id: 'evt_remote_abel_1',
+          transaction_id: 'txn_remote_abel_1',
+          shop_id: 'shop_test_owner',
+          staff_id: 'abel',
+          staff_name_snapshot: 'Abel',
+          device_id: 'device_abel',
+          amount: 1500,
+          item_note: 'charger CH-25',
+          item_code: 'CH-25',
+          payment_type: 'cash',
+          created_at_device: Date.now(),
+          received_at_server: '2026-06-07T00:00:00.000Z',
+          event_type: 'sale_created',
+          schema_version: 1,
+        }],
+      }),
+    });
+  });
+  await startFreshShop(page);
+
+  await expect(page.getByText(/remote staff sales preview/i)).toBeVisible();
+  await page.getByRole('button', { name: /^refresh$/i }).click();
+  await expect(page.getByText(/abel · charger CH-25/i)).toBeVisible();
+  await expect(page.getByText(/CH-25/i).first()).toBeVisible();
+  await expect(page.getByText(/1,500|1500/i).first()).toBeVisible();
+});
+
+test('owner remote activity feed shows quiet unavailable state when API fails', async ({ page }) => {
+  await page.route('**/api/staff-sales/events?*', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        accepted: false,
+        error: 'DATABASE_URL is not configured. Staff sale event persistence is unavailable.',
+        required_env: 'DATABASE_URL',
+      }),
+    });
+  });
+  await startFreshShop(page);
+
+  await expect(page.getByText(/remote staff sales preview/i)).toBeVisible();
+  await page.getByRole('button', { name: /^refresh$/i }).click();
+  await expect(page.getByText(/remote staff sales unavailable\. local records still work\./i)).toBeVisible();
+
+  await page.getByRole('button', { name: /^sale$/i }).click();
+  await page.getByPlaceholder(/add details|bread|sugar/i).fill('Offline-safe local sale');
+  await page.getByPlaceholder('0').fill('50');
+  await page.getByRole('button', { name: /save sale/i }).click();
+  await expect(page.getByText(/offline-safe local sale/i)).toBeVisible();
+});

@@ -15,6 +15,7 @@ export const STAFF_SALE_SYNC_STATUS = {
   FAILED: 'failed',
 };
 export const LOCAL_DEMO_SHOP_ID = 'local_demo_shop';
+export const LOCAL_SHOP_ID_KEY = 'shop_id';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 const STAFF_SALE_EVENT_PATH = '/api/staff-sales/events';
@@ -46,8 +47,7 @@ export async function buildStaffSaleEvent(record) {
   if (!record || record.type !== 'sale' || !record.transaction_id) return null;
 
   const deviceId = record.device_id || await getOrCreateCloudProofDeviceId();
-  const shopSetting = await db.settings.get('shop_id').catch(() => null);
-  const shopId = stringOrNull(shopSetting?.value) || LOCAL_DEMO_SHOP_ID;
+  const shopId = await getOrCreateLocalShopId();
   const now = Date.now();
 
   return {
@@ -69,6 +69,18 @@ export async function buildStaffSaleEvent(record) {
     queued_at: now,
     updated_at: now,
   };
+}
+
+export async function getOrCreateLocalShopId() {
+  const existing = await db.settings.get(LOCAL_SHOP_ID_KEY).catch(() => null);
+  if (stringOrNull(existing?.value)) return existing.value;
+
+  const shopName = await db.settings.get('shop_name').catch(() => null);
+  if (!stringOrNull(shopName?.value)) return LOCAL_DEMO_SHOP_ID;
+
+  const shopId = `shop_${createTransactionId()}`;
+  await db.settings.put({ key: LOCAL_SHOP_ID_KEY, value: shopId });
+  return shopId;
 }
 
 export function buildStaffSaleQueuePayload(event) {
@@ -171,6 +183,57 @@ async function postStaffSaleEvent(payload) {
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+async function staffSaleRequest(path, options = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      signal: controller.signal,
+      ...options,
+    });
+    const data = (response.headers.get('content-type') || '').includes('application/json')
+      ? await response.json().catch(() => null)
+      : null;
+    if (!response.ok || data?.accepted === false) {
+      const error = new Error(data?.error || `Staff sale request failed (${response.status})`);
+      error.status = response.status;
+      error.payload = data;
+      throw error;
+    }
+    return data;
+  } catch (cause) {
+    const error = new Error(cause?.name === 'AbortError' ? 'Remote staff sales timed out' : (cause?.message || 'Remote staff sales unavailable'));
+    error.cause = cause;
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+export async function fetchRemoteStaffSaleEvents({ shopId, limit = 10, staffId = null, since = null } = {}) {
+  const effectiveShopId = stringOrNull(shopId) || await getOrCreateLocalShopId();
+  if (!effectiveShopId || effectiveShopId === LOCAL_DEMO_SHOP_ID) {
+    return {
+      shop_id: effectiveShopId || LOCAL_DEMO_SHOP_ID,
+      events: [],
+      demo: true,
+      security_note: 'Local demo shop has no configured remote identity yet.',
+    };
+  }
+
+  const params = new URLSearchParams({
+    shop_id: effectiveShopId,
+    limit: String(limit),
+  });
+  if (staffId) params.set('staff_id', staffId);
+  if (since) params.set('since', since);
+
+  return staffSaleRequest(`${STAFF_SALE_EVENT_PATH}?${params.toString()}`, {
+    method: 'GET',
+  });
 }
 
 async function processStaffSaleQueueRow(row) {

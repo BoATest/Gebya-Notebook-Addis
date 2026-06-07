@@ -330,7 +330,7 @@ test('staff sales memory supports code and amount search with local high-value o
         abelEvent
         && abelEvent.staff_name_snapshot === 'Abel'
         && abelEvent.staff_id === String(abelSale?.actor_staff_member_id)
-        && abelEvent.shop_id === 'local_demo_shop'
+        && String(abelEvent.shop_id || '').startsWith('shop_')
         && abelEvent.item_code === 'CH-25'
         && abelEvent.item_note === 'charger CH-25'
         && Number(abelEvent.amount) === 1500
@@ -419,7 +419,7 @@ test('shop check summary cards follow the selected time range', async ({ page })
   const now = new Date();
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  const makeTx = (amount: number, createdAt: number, item: string) => ({
+  const makeTx = (amount: number, createdAt: number, item: string, extra: Record<string, unknown> = {}) => ({
     type: 'sale',
     amount,
     item_name: item,
@@ -431,16 +431,27 @@ test('shop check summary cards follow the selected time range', async ({ page })
     actor_name_snapshot: 'Owner',
     actor_role: 'owner',
     actor_staff_member_id: null,
+    ...extra,
   });
 
-  await addLegacyTransaction(page, makeTx(100, yesterday.getTime(), 'yesterday sale'));
-  await addLegacyTransaction(page, makeTx(25, now.getTime(), 'today sale'));
+  await addLegacyTransaction(page, makeTx(100, yesterday.getTime(), 'yesterday transfer sale', {
+    payment_type: 'bank',
+    payment_provider: 'CBE',
+    cash_received: 100,
+  }));
+  await addLegacyTransaction(page, makeTx(25, now.getTime(), 'today cash sale', {
+    payment_type: 'cash',
+    cash_received: 25,
+  }));
 
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.locator('nav').getByRole('button', { name: /report/i }).click();
   await expect(page.getByRole('heading', { name: /shop check/i })).toBeVisible();
 
+  await expect(page.getByText(/cash to expect/i)).toBeVisible();
+  await expect(page.getByText(/transfer expected/i)).toBeVisible();
   await expect(page.getByText('25.00').first()).toBeVisible();
   await page.getByRole('button', { name: /^week$/i }).click();
   await expect(page.getByText('125.00').first()).toBeVisible();
+  await expect(page.getByText('100.00').first()).toBeVisible();
 });

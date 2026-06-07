@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { DatabaseNotConfiguredError, getDb } from "../db/client.js";
 import { staffSaleEvents, type StaffSaleEventRow } from "../db/schema.js";
@@ -29,6 +29,30 @@ export type PersistedStaffSaleEvent = {
   duplicate: boolean;
 };
 
+export type ListedStaffSaleEvent = {
+  event_id: string;
+  transaction_id: string;
+  shop_id: string;
+  staff_id: string;
+  staff_name_snapshot: string;
+  device_id: string;
+  amount: number;
+  item_note: string | null;
+  item_code: string | null;
+  payment_type: string | null;
+  created_at_device: number;
+  received_at_server: string;
+  event_type: string;
+  schema_version: number;
+};
+
+export type ListStaffSaleEventsOptions = {
+  shopId: string;
+  limit?: number;
+  since?: Date | null;
+  staffId?: string | null;
+};
+
 export class StaffSaleEventConflictError extends Error {
   constructor(eventId: string) {
     super(`Staff sale event ${eventId} already exists with different data.`);
@@ -44,6 +68,25 @@ function toApiRow(row: StaffSaleEventRow, duplicate: boolean): PersistedStaffSal
     transaction_id: row.transactionId,
     received_at_server: row.receivedAtServer.toISOString(),
     duplicate,
+  };
+}
+
+function toListedEvent(row: StaffSaleEventRow): ListedStaffSaleEvent {
+  return {
+    event_id: row.eventId,
+    transaction_id: row.transactionId,
+    shop_id: row.shopId,
+    staff_id: row.staffId,
+    staff_name_snapshot: row.staffNameSnapshot,
+    device_id: row.deviceId,
+    amount: Number(row.amount),
+    item_note: row.itemNote || null,
+    item_code: row.itemCode || null,
+    payment_type: row.paymentType || null,
+    created_at_device: Number(row.createdAtDevice),
+    received_at_server: row.receivedAtServer.toISOString(),
+    event_type: row.eventType,
+    schema_version: Number(row.schemaVersion),
   };
 }
 
@@ -133,4 +176,21 @@ export async function persistStaffSaleEvent(event: StaffSaleEventInput): Promise
   }
 
   return toApiRow(existing, true);
+}
+
+export async function listStaffSaleEvents(options: ListStaffSaleEventsOptions): Promise<ListedStaffSaleEvent[]> {
+  await ensureStaffSaleEventsTable();
+  const db = getDb();
+  const filters = [eq(staffSaleEvents.shopId, options.shopId)];
+  if (options.staffId) filters.push(eq(staffSaleEvents.staffId, options.staffId));
+  if (options.since) filters.push(gte(staffSaleEvents.receivedAtServer, options.since));
+
+  const rows = await db
+    .select()
+    .from(staffSaleEvents)
+    .where(and(...filters))
+    .orderBy(desc(staffSaleEvents.receivedAtServer))
+    .limit(Math.min(Math.max(Number(options.limit || 20), 1), 100));
+
+  return rows.map(toListedEvent);
 }
