@@ -125,14 +125,37 @@ function filterCurrentMonth(transactions) {
   return transactions.filter(tx => tx.created_at >= ms && tx.created_at <= me);
 }
 
-function matchesSearch(tx, query) {
+export function matchesSearch(tx, query) {
   if (!query) return true;
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  return (
-    (tx.item_name || '').toLowerCase().includes(q) ||
-    (tx.customer_name || '').toLowerCase().includes(q)
-  );
+
+  const createdAt = tx.created_at ? new Date(tx.created_at) : null;
+  const gregorianDate = createdAt && !Number.isNaN(createdAt.getTime())
+    ? createdAt.toLocaleDateString('en-US')
+    : '';
+  const ethiopianDate = tx.created_at ? formatEthiopian(tx.created_at) : '';
+  const amount = Number(tx.amount || 0);
+  const amountText = [
+    String(tx.amount ?? ''),
+    String(amount),
+    fmt(amount),
+    fmt(amount).replace(/,/g, ''),
+  ];
+
+  return [
+    tx.item_name,
+    tx.item_note,
+    tx.item_code,
+    tx.customer_name,
+    tx.note,
+    tx.actor_name_snapshot,
+    tx.staff_name,
+    tx.type,
+    gregorianDate,
+    ethiopianDate,
+    ...amountText,
+  ].some(value => String(value || '').toLowerCase().includes(q));
 }
 
 function matchesActor(tx, actorFilter) {
