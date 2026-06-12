@@ -1,11 +1,11 @@
 import { lazy, Suspense, useState, useEffect } from 'react';
-import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown, Share2, Sun, Moon, Users, Building2, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown, Share2, Sun, Moon, Users, Building2, Sparkles, Copy, AlertCircle } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt, parseInput } from '../utils/numformat';
-import db from '../db';
+import db, { getIdentity, setIdentity } from '../db';
 import { ALL_BANKS, ALL_WALLETS } from './PaymentTypeChips';
 import { fireToast } from './Toast';
 import { normalizeTelegram } from '../utils/customerTelegram';
@@ -597,6 +597,11 @@ function SettingsPage({
   onDeactivateStaffMember,
   onReactivateStaffMember,
   onSetActiveStaffMember,
+  onRefreshStaffMembers,
+  onRotateJoinCode,
+  onUpdateShopSettings,
+  onApproveDevice,
+  onRejectDevice,
   enabledProviders,
   onProvidersChange,
   // Commit C.4 — unified payment channels
@@ -640,6 +645,10 @@ function SettingsPage({
   const [staffDeactivateTarget, setStaffDeactivateTarget] = useState(null);
   const [editingStaffId, setEditingStaffId] = useState(null);
   const [editingStaffName, setEditingStaffName] = useState('');
+  const [identity, setIdentityState] = useState(null);
+  const [shopJoinCode, setShopJoinCode] = useState('');
+  const [shopJoinSettings, setShopJoinSettings] = useState(null);
+  const [rotating, setRotating] = useState(false);
 
   const [editName, setEditName] = useState(shopProfile?.name || '');
   const [editPhoneDigits, setEditPhoneDigits] = useState(() => {
@@ -648,6 +657,25 @@ function SettingsPage({
   });
   const [editTelegram, setEditTelegram] = useState(shopProfile?.telegram || '');
   const [editBusinessType, setEditBusinessType] = useState(shopProfile?.businessType || 'retail-shop');
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const ident = await getIdentity();
+        if (!alive) return;
+        setIdentityState(ident || null);
+        setShopJoinCode(ident?.join_code || shopProfile?.join_code || '');
+        if (ident || shopProfile?.join_code) {
+          setShopJoinSettings({
+            require_phone_on_join: !!(ident?.require_phone_on_join ?? ident?.phone_required),
+            require_approval: !!(ident?.require_approval ?? ident?.approval_required),
+          });
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { alive = false; };
+  }, [shopProfile?.join_code]);
   const [profileSaved, setProfileSaved] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
 
@@ -769,6 +797,59 @@ function SettingsPage({
     if (!saved) return;
     cancelEditingStaffMember();
   };
+
+  const handleRotateJoinCode = async () => {
+    const shopId = identity?.shop_id || shopProfile?.shop_id || shopProfile?.id;
+    if (!shopId || rotating) return;
+    setRotating(true);
+    try {
+      const result = await onRotateJoinCode?.(shopId);
+      if (result?.join_code) {
+        setShopJoinCode(result.join_code);
+        const current = await getIdentity();
+        if (current) await setIdentity({ ...current, join_code: result.join_code, join_url: result.join_url });
+        fireToast('Shop code rotated', 1800);
+      }
+    } finally {
+      setRotating(false);
+    }
+  };
+
+  const handleToggleStaffSetting = async (key, value) => {
+    const shopId = identity?.shop_id || shopProfile?.shop_id || shopProfile?.id;
+    if (!shopId) return;
+    const next = { ...(shopJoinSettings || {}), [key]: value };
+    setShopJoinSettings(next);
+    const result = await onUpdateShopSettings?.(shopId, next);
+    if (result) {
+      const current = await getIdentity();
+      const identityKey = key === 'require_phone_on_join' ? 'phone_required' : 'approval_required';
+      if (current) await setIdentity({ ...current, [key]: value, [identityKey]: value });
+      fireToast('Team setting saved', 1600);
+    }
+  };
+
+  const handleApprovePendingDevice = async (staffId) => {
+    const member = staffMembers?.find(m => String(m.id) === String(staffId));
+    const pendingDevice = (member?.devices || []).find(d => d.device_status === 'pending' || d.pending === true);
+    if (!pendingDevice) return;
+    const ok = await onApproveDevice?.(pendingDevice.id || pendingDevice.device_id);
+    if (ok) fireToast('Staff approved', 1800);
+  };
+
+  const handleRejectPendingDevice = async (staffId) => {
+    const member = staffMembers?.find(m => String(m.id) === String(staffId));
+    const pendingDevice = (member?.devices || []).find(d => d.device_status === 'pending' || d.pending === true);
+    if (!pendingDevice) return;
+    const ok = await onRejectDevice?.(pendingDevice.id || pendingDevice.device_id);
+    if (ok) fireToast('Request rejected', 1800);
+  };
+
+  useEffect(() => {
+    if (openSection === 'team' && (!identity || identity.role === 'owner')) {
+      onRefreshStaffMembers?.();
+    }
+  }, [identity, onRefreshStaffMembers, openSection]);
 
   const csvCell = (value) => {
     const stringValue = value == null ? '' : String(value);
@@ -1689,13 +1770,13 @@ function SettingsPage({
       <GroupLabel>{lang === 'am' ? 'ሰዎች' : 'People'}</GroupLabel>
       <SettingsSection
         id="team"
-        title={lang === 'am' ? 'ቡድን' : 'Team'}
+        title={lang === 'am' ? 'ቡድን' : 'Team & Staff'}
         icon="👥"
         status={teamStatus}
         statusTone={teamTone}
         subtitle={activeStaffCount > 0
           ? (lang === 'am' ? `${activeStaffCount} ሰራተኞች ንቁ ናቸው` : `${activeStaffCount} active staff`)
-          : (lang === 'am' ? 'ሰራተኛ ለመጨመር ይንኩ' : 'Add staff members to attribute records')}
+          : (lang === 'am' ? 'ሰራተኛ ለመጨመር ይንኩ' : 'Invite staff and manage recording access')}
         openSection={openSection}
         setOpenSection={setOpenSection}
       >
@@ -1703,6 +1784,84 @@ function SettingsPage({
           <div className="px-5 py-4 space-y-4">
             <div className="rounded-xl px-4 py-3 text-xs font-medium" style={{ background: '#FAF8F5', color: '#5b6470', border: '1px solid #e8e2d8' }}>
               Owner-only area. Add staff for future attribution, choose who is currently entering records on this phone, and deactivate staff without deleting shop history.
+            </div>
+
+            <div className="rounded-xl border px-4 py-4 space-y-4" style={{ borderColor: '#d7eadf', background: '#F5FBF7' }}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#1B4332' }}>Shop invite code</p>
+                  <p className="text-xs mt-1 leading-5 text-gray-500">Share this code only with staff you trust to record for this shop.</p>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono font-black text-lg tracking-widest text-gray-900">{shopJoinCode || '---- ----'}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!shopJoinCode) return;
+                    navigator.clipboard.writeText(shopJoinCode).catch(() => {});
+                    fireToast('Shop code copied', 1400);
+                  }}
+                  disabled={!shopJoinCode}
+                  className="py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 min-h-[44px]"
+                  style={{ background: shopJoinCode ? '#fff' : '#f3f4f6', color: shopJoinCode ? '#1B4332' : '#9ca3af', border: '1px solid #d7eadf' }}
+                >
+                  <Copy className="w-4 h-4" /> Copy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRotateJoinCode}
+                  disabled={!shopJoinCode || rotating}
+                  className="py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 min-h-[44px]"
+                  style={{ background: '#1B4332', color: '#fff', opacity: (!shopJoinCode || rotating) ? 0.45 : 1 }}
+                >
+                  <RefreshCw className={`w-4 h-4 ${rotating ? 'animate-spin' : ''}`} /> Rotate
+                </button>
+              </div>
+
+              {shopJoinSettings && (
+                <div className="grid gap-2">
+                  {[
+                    {
+                      key: 'require_phone_on_join',
+                      label: 'Require staff phone number',
+                      hint: 'Useful when the owner needs a contact number for each staff phone.',
+                    },
+                    {
+                      key: 'require_approval',
+                      label: 'Require device approval',
+                      hint: 'New staff wait for owner approval before they can record.',
+                    },
+                  ].map((setting) => {
+                    const on = !!shopJoinSettings[setting.key];
+                    return (
+                      <button
+                        key={setting.key}
+                        type="button"
+                        onClick={() => handleToggleStaffSetting(setting.key, !on)}
+                        className="w-full rounded-xl px-3 py-3 text-left flex items-center justify-between gap-3 min-h-[58px]"
+                        style={{ background: '#fff', border: '1px solid #d7eadf' }}
+                      >
+                        <span>
+                          <span className="block text-sm font-black text-gray-900">{setting.label}</span>
+                          <span className="block text-xs text-gray-500 mt-0.5 leading-4">{setting.hint}</span>
+                        </span>
+                        <span
+                          className="w-11 h-6 rounded-full flex-shrink-0 transition-colors p-1"
+                          style={{ background: on ? '#1B4332' : '#d1d5db' }}
+                        >
+                          <span
+                            className="block w-4 h-4 rounded-full bg-white shadow transition-transform"
+                            style={{ transform: on ? 'translateX(20px)' : 'translateX(0)' }}
+                          />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="rounded-xl border px-4 py-3" style={{ borderColor: '#e8e2d8', background: '#fcfbf8' }}>
@@ -1757,7 +1916,9 @@ function SettingsPage({
                   No staff added yet. Owner remains the default actor for every record.
                 </div>
               ) : (
-                (staffMembers || []).map(member => (
+                (staffMembers || []).map(member => {
+                  const hasPendingDevice = member.pending || (member.devices || []).some(d => d.pending || d.device_status === 'pending');
+                  return (
                   <div key={member.id} className="rounded-xl border px-4 py-3 flex items-center justify-between gap-3" style={{ borderColor: '#e8e2d8', background: member.active === false ? '#f9fafb' : '#fff' }}>
                     <div className="min-w-0 flex-1">
                       {String(editingStaffId) === String(member.id) ? (
@@ -1778,12 +1939,15 @@ function SettingsPage({
                         <>
                           <div className="font-bold text-sm text-gray-900">{member.display_name}</div>
                           <div className="text-xs text-gray-500">
-                            {member.active === false ? 'Inactive - past records stay attributed to this staff member.' : 'Active staff member'}
+                            {hasPendingDevice ? 'Pending approval - this device cannot record yet.' : (member.active === false ? 'Inactive - past records stay attributed to this staff member.' : 'Active staff member')}
                           </div>
+                          {member.phone_snapshot && (
+                            <div className="text-[11px] text-gray-400 mt-1">{member.phone_snapshot}</div>
+                          )}
                         </>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap justify-end">
                       {String(editingStaffId) === String(member.id) ? (
                         <>
                           <button
@@ -1811,7 +1975,25 @@ function SettingsPage({
                           Edit
                         </button>
                       )}
-                      {member.active !== false && (
+                      {hasPendingDevice && (
+                        <>
+                          <button
+                            onClick={() => handleApprovePendingDevice(member.staff_id || member.id)}
+                            className="px-3 py-2 rounded-xl text-xs font-bold min-h-[40px]"
+                            style={{ background: '#dcfce7', color: '#166534' }}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectPendingDevice(member.staff_id || member.id)}
+                            className="px-3 py-2 rounded-xl text-xs font-bold min-h-[40px]"
+                            style={{ background: '#fff1f2', color: '#b91c1c' }}
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {member.active !== false && !hasPendingDevice && (
                         <button
                           onClick={() => onSetActiveStaffMember?.(member.id)}
                           className="px-3 py-2 rounded-xl text-xs font-bold min-h-[40px]"
@@ -1820,7 +2002,7 @@ function SettingsPage({
                           {String(activeStaffMemberId) === String(member.id) ? 'Current' : 'Use'}
                         </button>
                       )}
-                      {member.active !== false && (
+                      {member.active !== false && !hasPendingDevice && (
                         <button
                           onClick={() => setStaffDeactivateTarget(member)}
                           disabled={String(editingStaffId) === String(member.id)}
@@ -1842,7 +2024,8 @@ function SettingsPage({
                       )}
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

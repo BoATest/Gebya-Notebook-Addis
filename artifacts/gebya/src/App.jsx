@@ -5,12 +5,14 @@ import {
   MoreVertical, ChevronUp, ChevronDown,
   CreditCard, BarChart3, MoreHorizontal,
 } from 'lucide-react';
-import db from './db';
+import db, { getDeviceToken, getIdentity, setIdentity } from './db';
+import identityApi from './api/identity';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { LangProvider, useLang } from './context/LangContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProfitCard from './components/ProfitCard';
 import OnboardingScreen from './components/OnboardingScreen';
+import StaffJoinScreen from './components/StaffJoinScreen';
 import { ToastContainer, fireToast } from './components/Toast';
 import PhotoAttachment from './components/PhotoAttachment';
 import { buildPhotoFields, normalizePhotos } from './utils/photoProof';
@@ -725,6 +727,7 @@ function AppInner() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const [shopProfile, setShopProfile] = useState(null);
+  const [onboardingType, setOnboardingType] = useState(null);
   const [enabledProviders, setEnabledProviders] = useState(DEFAULT_PROVIDERS);
   const [recurringExpenses, setRecurringExpenses] = useState([]);
   const [customQuickAmounts, setCustomQuickAmounts] = useState([]);
@@ -844,7 +847,7 @@ function AppInner() {
         payTelebirrRow, payCbePhoneRow, payCbeAccountRow, payAwashPhoneRow,
         payBankNameRow, payBankAccountRow,
         // Unified payment channels (Commit C.4) + legacy custom lists for migration
-        paymentChannelsRow, customBanksRow, customWalletsRow,
+        paymentChannelsRow, customBanksRow, customWalletsRow, identityRow,
       ] = await Promise.all([
         db.transactions.toArray(),
         db.customers.toArray(),
@@ -871,6 +874,7 @@ function AppInner() {
         db.settings.get('shop_payment_channels'),
         db.settings.get('custom_banks'),
         db.settings.get('custom_wallets'),
+        getIdentity(),
       ]);
 
       // Commit C.4: Migrate legacy payment storage to unified channels[] shape.
@@ -925,17 +929,51 @@ function AppInner() {
         if ((a.active !== false) !== (b.active !== false)) return a.active === false ? 1 : -1;
         return String(a.display_name || '').localeCompare(String(b.display_name || ''));
       }));
-      const hasName = !!nameRow?.value;
+      let identityForProfile = identityRow || null;
+      if (!identityForProfile && nameRow?.value) {
+        try {
+          const result = await identityApi.createShop({
+            display_name: nameRow.value,
+            phone: phoneRow?.value || undefined,
+            business_type: businessTypeRow?.value || 'retail-shop',
+          });
+          identityForProfile = {
+            shop_id: result.shop_id,
+            shop_name: result.shop_name || nameRow.value,
+            join_code: result.join_code,
+            join_url: result.join_url,
+            device_id: result.device_id,
+            device_token: result.device_token,
+            staff_id: result.staff_id,
+            display_name: result.display_name || nameRow.value,
+            phone_number: phoneRow?.value || '',
+            role: 'owner',
+            permissions: result.permissions || {},
+            device_status: result.device_status || 'active',
+            phone_required: result.phone_required ?? false,
+            approval_required: result.approval_required ?? false,
+          };
+          await setIdentity(identityForProfile);
+        } catch {
+          identityForProfile = null;
+        }
+      }
+      const profileName = nameRow?.value || identityForProfile?.shop_name || null;
       // Commit C.4: derive legacy shapes from the canonical channels array so
       // PaymentTypeChips (reads enabledProviders) and ReminderSheet (reads
       // shopProfile.payments) keep working without changes.
       const derivedLegacy = deriveLegacyFromChannels(paymentChannels);
 
       setShopProfile({
-        name: nameRow?.value || null,
-        phone: phoneRow?.value || '',
+        id: identityForProfile?.shop_id || null,
+        shop_id: identityForProfile?.shop_id || null,
+        name: profileName,
+        phone: phoneRow?.value || identityForProfile?.phone_number || '',
         telegram: telegramRow?.value || '',
         businessType: businessTypeRow?.value || 'retail-shop',
+        role: identityForProfile?.role || 'owner',
+        join_code: identityForProfile?.join_code || '',
+        join_url: identityForProfile?.join_url || '',
         // Canonical (Commit C.4)
         paymentChannels,
         // Legacy compat shim — derived, never written to from outside App.jsx
@@ -1525,6 +1563,17 @@ function AppInner() {
   const handleDeactivateStaffMember = async (staffId) => {
     const member = staffMembers.find(item => String(item.id) === String(staffId));
     if (!member) return false;
+    if (member.staff_id) {
+      try {
+        const token = await getDeviceToken();
+        if (!token) return false;
+        await identityApi.deactivateStaff(member.staff_id, token);
+        await refreshStaffMembers();
+        return true;
+      } catch {
+        return false;
+      }
+    }
     const now = Date.now();
     await db.staff_members.update(member.id, { active: false, updated_at: now, deactivated_at: now });
     setStaffMembers(prev => prev
@@ -1553,6 +1602,90 @@ function AppInner() {
       }));
     return true;
   };
+
+  const refreshStaffMembers = useCallback(async () => {
+    const shopId = shopProfile?.shop_id || shopProfile?.id;
+    if (!shopId) return;
+    const token = await getDeviceToken();
+    if (!token) return;
+    const data = await identityApi.listStaff(shopId, token);
+    if (!data?.staff) return;
+    setStaffMembers(data.staff
+      .filter(s => s.role !== 'owner')
+      .map(s => ({
+        id: s.staff_id,
+        staff_id: s.staff_id,
+        display_name: s.display_name,
+        phone_snapshot: s.phone_snapshot,
+        role: s.role,
+        active: s.staff_status !== 'inactive',
+        staff_status: s.staff_status,
+        pending: (s.devices || []).some(d => d.device_status === 'pending'),
+        permissions: s.permissions,
+        joined_at: s.joined_at,
+        updated_at: Date.now(),
+        deactivated_at: s.deactivated_at,
+        devices: (s.devices || []).map(d => ({
+          id: d.device_id,
+          device_id: d.device_id,
+          device_label: d.device_label,
+          active: d.device_status === 'active',
+          device_status: d.device_status,
+          pending: d.device_status === 'pending',
+          last_seen_at: d.last_seen_at,
+          created_at: d.created_at,
+        })),
+      })));
+  }, [shopProfile]);
+
+  const handleRotateJoinCode = useCallback(async (shopId) => {
+    try {
+      const token = await getDeviceToken();
+      if (!token) return null;
+      const result = await identityApi.rotateJoinCode(shopId, token);
+      setShopProfile(prev => prev ? { ...prev, join_code: result.join_code, join_url: result.join_url } : prev);
+      return result;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const handleUpdateShopSettings = useCallback(async (shopId, patch) => {
+    try {
+      const token = await getDeviceToken();
+      if (!token) return null;
+      return identityApi.updateShopSettings(shopId, {
+        phone_required: patch.require_phone_on_join,
+        approval_required: patch.require_approval,
+      }, token);
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const handleApproveDevice = useCallback(async (deviceId) => {
+    try {
+      const token = await getDeviceToken();
+      if (!token) return null;
+      const result = await identityApi.approveDevice(deviceId, token);
+      await refreshStaffMembers();
+      return result;
+    } catch {
+      return null;
+    }
+  }, [refreshStaffMembers]);
+
+  const handleRejectDevice = useCallback(async (deviceId, reason) => {
+    try {
+      const token = await getDeviceToken();
+      if (!token) return null;
+      const result = await identityApi.rejectDevice(deviceId, { reason }, token);
+      await refreshStaffMembers();
+      return result;
+    } catch {
+      return null;
+    }
+  }, [refreshStaffMembers]);
 
   const customerSummaries = useMemo(
     () => buildCustomerSummaries(ledgerCustomers, ledgerTransactions),
@@ -2760,6 +2893,41 @@ function AppInner() {
     setShowShareModal(true);
   };
 
+  const handleOnboardingComplete = useCallback((profile) => {
+    if (profile?.__staff_join) {
+      setOnboardingType('staff');
+      return;
+    }
+    const defaults = buildDefaultChannels();
+    setShopProfile({
+      ...profile,
+      id: profile?.id || profile?.shop_id || null,
+      shop_id: profile?.shop_id || profile?.id || null,
+      telegram: profile?.telegram || '',
+      businessType: profile?.businessType || 'retail-shop',
+      role: profile?.role || 'owner',
+      paymentChannels: profile?.paymentChannels || defaults,
+      payments: profile?.payments || deriveLegacyFromChannels(defaults).payments,
+    });
+    db.settings.put({ key: 'shop_payment_channels', value: JSON.stringify(defaults) })
+      .catch(() => { /* non-critical */ });
+  }, []);
+
+  const handleStaffJoined = useCallback((identity) => {
+    setOnboardingType(null);
+    setShopProfile({
+      id: identity?.shop_id || null,
+      shop_id: identity?.shop_id || null,
+      name: identity?.shop_name || 'Gebya',
+      phone: identity?.phone_number || '',
+      telegram: '',
+      businessType: 'retail-shop',
+      role: identity?.role || 'staff',
+      paymentChannels: buildDefaultChannels(),
+      payments: deriveLegacyFromChannels(buildDefaultChannels()).payments,
+    });
+  }, []);
+
   const hid = (n) => hidden ? '••••' : fmt(n);
 
   const getTimeGreeting = () => {
@@ -2786,24 +2954,19 @@ function AppInner() {
     );
   }
 
+  if (onboardingType === 'staff') {
+    return (
+      <StaffJoinScreen
+        onJoined={handleStaffJoined}
+        onBack={() => setOnboardingType(null)}
+      />
+    );
+  }
+
   if (!shopProfile || !shopProfile.name) {
     return (
       <OnboardingScreen
-        onComplete={(profile) => {
-          // Commit C.4: seed default channels for new users so Pay-it-now
-          // works immediately (telebirr defaults to their shop phone).
-          const defaults = buildDefaultChannels();
-          setShopProfile({
-            ...profile,
-            telegram: '',
-            businessType: profile.businessType || 'retail-shop',
-            paymentChannels: defaults,
-            payments: deriveLegacyFromChannels(defaults).payments,
-          });
-          // Persist immediately so the channels survive the next reload
-          db.settings.put({ key: 'shop_payment_channels', value: JSON.stringify(defaults) })
-            .catch(() => { /* non-critical */ });
-        }}
+        onComplete={handleOnboardingComplete}
       />
     );
   }
@@ -2859,7 +3022,7 @@ function AppInner() {
               {shopProfile.name}
             </h1>
             <p className="text-[10px] sm:text-xs font-medium mt-0.5 truncate" style={{ color: '#6b7280' }}>
-              {t.appName}
+              Recording as {currentActorLabel || 'Owner'} · {String(shopProfile.role || 'owner').replace(/_/g, ' ')}
             </p>
           </div>
 
@@ -3236,6 +3399,11 @@ function AppInner() {
               onDeactivateStaffMember={handleDeactivateStaffMember}
               onReactivateStaffMember={handleReactivateStaffMember}
               onSetActiveStaffMember={handleSetActiveStaffMember}
+              onRefreshStaffMembers={refreshStaffMembers}
+              onRotateJoinCode={handleRotateJoinCode}
+              onUpdateShopSettings={handleUpdateShopSettings}
+              onApproveDevice={handleApproveDevice}
+              onRejectDevice={handleRejectDevice}
               enabledProviders={enabledProviders}
               onProvidersChange={setEnabledProviders}
               paymentChannels={shopProfile?.paymentChannels || []}

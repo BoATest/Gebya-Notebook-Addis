@@ -4,7 +4,8 @@
     "outDir": "dist",
     "rootDir": "src",
     "types": ["node"],
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "customConditions": ["workspace"]
   },
   "include": ["src"],
   "references": [

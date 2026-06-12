@@ -9,7 +9,9 @@
   },
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",
-    "push-force": "drizzle-kit push --force --config ./drizzle.config.ts"
+    "push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
+    "test": "node --import ../../artifacts/api-server/node_modules/tsx/dist/loader.mjs src/__tests__/identity.test.ts",
+    "test:identity": "node --import ../../artifacts/api-server/node_modules/tsx/dist/loader.mjs src/__tests__/identity.test.ts"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",
