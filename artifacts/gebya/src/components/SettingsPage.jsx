@@ -1,5 +1,5 @@
 ﻿import { lazy, Suspense, useState, useEffect } from 'react';
-import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown, Share2, Sun, Moon, Users } from 'lucide-react';
+import { Eye, EyeOff, Download, Trash2, Info, Shield, ChevronRight, Store, Phone, Check, CreditCard, RefreshCw, Plus, MessageCircle, X, TrendingUp, TrendingDown, Share2, Sun, Moon, Users, Copy, AlertCircle } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
 import { useTheme } from '../context/ThemeContext';
@@ -78,6 +78,7 @@ function SettingsPage({
   onUpdateStaffMember,
   onDeactivateStaffMember,
   onReactivateStaffMember,
+  onRefreshStaffMembers,
   onRotateJoinCode,
   onUpdateShopSettings,
   onApproveDevice,
@@ -156,12 +157,15 @@ function SettingsPage({
     (async () => {
       try {
         const ident = await getIdentity();
-        if (!cancelled && ident) {
-          setIdentityState(ident);
-          if (typeof ident.join_code === 'string') setShopJoinCode(ident.join_code);
+        if (!cancelled) {
+          if (ident) {
+            setIdentityState(ident);
+          }
+          const joinCode = ident?.join_code || shopProfile?.join_code || '';
+          if (joinCode) setShopJoinCode(joinCode);
           setShopJoinSettings({
-            require_phone_on_join: !!ident.require_phone_on_join,
-            require_approval: !!ident.require_approval,
+            require_phone_on_join: !!(ident?.require_phone_on_join ?? ident?.phone_required),
+            require_approval: !!(ident?.require_approval ?? ident?.approval_required),
           });
         }
       } catch {
@@ -169,7 +173,7 @@ function SettingsPage({
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [shopProfile?.join_code]);
 
   const handleRotateJoinCode = async () => {
     if (rotating) return;
@@ -182,7 +186,7 @@ function SettingsPage({
         setShopJoinCode(result.join_code);
         try {
           const current = await getIdentity();
-          if (current) await setIdentity({ ...current, join_code: result.join_code });
+          if (current) await setIdentity({ ...current, join_code: result.join_code, join_url: result.join_url });
         } catch { /* ignore cache write */ }
         fireToast(t.teamStaffCodeRotated || 'Code rotated', { icon: <Check className="w-4 h-4" /> });
       }
@@ -202,7 +206,8 @@ function SettingsPage({
       setShopJoinSettings(prev => ({ ...prev, [key]: value }));
       try {
         const current = await getIdentity();
-        if (current) await setIdentity({ ...current, [key]: value });
+        const identityKey = key === 'require_phone_on_join' ? 'phone_required' : 'approval_required';
+        if (current) await setIdentity({ ...current, [key]: value, [identityKey]: value });
       } catch { /* ignore */ }
     }
   };
@@ -236,6 +241,12 @@ function SettingsPage({
   const handleReactivateStaff = async (staffId) => {
     await onReactivateStaffMember?.(staffId);
   };
+
+  useEffect(() => {
+    if (openSection === 'team' && (!identity || identity.role === 'owner')) {
+      onRefreshStaffMembers?.();
+    }
+  }, [identity, onRefreshStaffMembers, openSection]);
 
   const phoneValid = !editPhoneDigits || /^[79]\d{8}$/.test(editPhoneDigits);
   const normalizedTelegram = normalizeTelegram(editTelegram);
@@ -1077,26 +1088,28 @@ function SettingsPage({
                       {/* Staff join settings toggles */}
                       {shopJoinSettings && (
                         <div className="space-y-2">
-                          <div
+                          <button
+                            type="button"
                             onClick={() => handleToggleStaffSetting('require_phone_on_join', !shopJoinSettings.require_phone_on_join)}
-                            className="rounded-xl border px-4 py-3 flex items-center justify-between cursor-pointer"
+                            className="w-full rounded-xl border px-4 py-3 flex items-center justify-between cursor-pointer text-left"
                             style={{ borderColor: '#e8e2d8', background: '#fcfbf8' }}
                           >
                             <span className="text-sm font-medium text-gray-700">{t.teamStaffPhoneRequired}</span>
                             <div className={`w-10 h-6 rounded-full transition-colors ${shopJoinSettings.require_phone_on_join ? 'bg-green-600' : 'bg-gray-300'}`}>
                               <div className={`w-4 h-4 rounded-full bg-white shadow mt-1 transition-transform ${shopJoinSettings.require_phone_on_join ? 'translate-x-5' : 'translate-x-1'}`} />
                             </div>
-                          </div>
-                          <div
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleToggleStaffSetting('require_approval', !shopJoinSettings.require_approval)}
-                            className="rounded-xl border px-4 py-3 flex items-center justify-between cursor-pointer"
+                            className="w-full rounded-xl border px-4 py-3 flex items-center justify-between cursor-pointer text-left"
                             style={{ borderColor: '#e8e2d8', background: '#fcfbf8' }}
                           >
                             <span className="text-sm font-medium text-gray-700">{t.teamStaffApprovalRequired}</span>
                             <div className={`w-10 h-6 rounded-full transition-colors ${shopJoinSettings.require_approval ? 'bg-green-600' : 'bg-gray-300'}`}>
                               <div className={`w-4 h-4 rounded-full bg-white shadow mt-1 transition-transform ${shopJoinSettings.require_approval ? 'translate-x-5' : 'translate-x-1'}`} />
                             </div>
-                          </div>
+                          </button>
                         </div>
                       )}
 

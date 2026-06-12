@@ -102,10 +102,11 @@ export const identityApi = {
 
   // POST /api/devices/:device_id/reject - owner rejects device
   async rejectDevice(deviceId, { reason }, token) {
+    const body = reason ? { reason } : {};
     return request(`/devices/${deviceId}/reject`, {
       method: 'POST',
       token,
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify(body),
     });
   },
 

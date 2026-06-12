@@ -76,9 +76,11 @@ export default function OnboardingScreen({ onComplete }) {
         business_type: businessType,
       });
       // Persist identity locally
-      await setIdentity({
+      const identity = {
         shop_id: result.shop_id,
         shop_name: result.shop_name || name.trim(),
+        join_code: result.join_code,
+        join_url: result.join_url,
         device_id: result.device_id,
         device_token: result.device_token,
         staff_id: result.staff_id,
@@ -87,11 +89,23 @@ export default function OnboardingScreen({ onComplete }) {
         role: 'owner',
         permissions: result.permissions || {},
         device_status: result.device_status || 'active',
-        phone_required: false,
-        approval_required: false,
-      });
+        phone_required: result.phone_required ?? false,
+        approval_required: result.approval_required ?? false,
+      };
+      await setIdentity(identity);
       await db.settings.put({ key: 'intro_seen', value: 'yes' });
-      onComplete({ name: name.trim(), phone: fullPhone, businessType });
+      await db.settings.put({ key: 'shop_name', value: identity.shop_name });
+      await db.settings.put({ key: 'shop_phone', value: fullPhone || '' });
+      await db.settings.put({ key: 'shop_business_type', value: businessType });
+      onComplete({
+        name: identity.shop_name,
+        phone: fullPhone,
+        businessType,
+        shop_id: result.shop_id,
+        id: result.shop_id,
+        join_code: result.join_code,
+        join_url: result.join_url,
+      });
     } catch (err) {
       // Network/server error — fall back to local-only mode
       // (backend not running; user can still use Gebya locally)

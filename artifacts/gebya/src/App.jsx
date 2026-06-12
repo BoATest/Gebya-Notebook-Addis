@@ -1,6 +1,6 @@
 ﻿import { lazy, Suspense, useState, useEffect, useCallback, useMemo } from 'react';
 import { BookOpen, Users, Calendar, Settings, Trash2, Pencil, Share2, X } from 'lucide-react';
-import db, { getDeviceToken } from './db';
+import db, { getDeviceToken, getIdentity, setIdentity } from './db';
 import identityApi from './api/identity';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { LangProvider, useLang } from './context/LangContext';
@@ -449,7 +449,7 @@ function AppInner() {
 
   const loadData = useCallback(async () => {
     try {
-      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, staffRows, nameRow, phoneRow, businessTypeRow, epRow, reRow, telegramRow, snapshotRow, activeStaffRow] = await Promise.all([
+      const [txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, staffRows, nameRow, phoneRow, businessTypeRow, epRow, reRow, telegramRow, snapshotRow, activeStaffRow, identityRow] = await Promise.all([
         db.transactions.toArray(),
         db.customers.toArray(),
         db.customer_transactions.toArray(),
@@ -465,6 +465,7 @@ function AppInner() {
         db.settings.get('shop_telegram'),
         db.settings.get('last_saved_snapshot'),
         db.settings.get('active_staff_member_id'),
+        getIdentity(),
       ]);
       txns.sort((a, b) => b.created_at - a.created_at);
       setTransactions(txns);
@@ -477,12 +478,45 @@ function AppInner() {
         if ((a.active !== false) !== (b.active !== false)) return a.active === false ? 1 : -1;
         return String(a.display_name || '').localeCompare(String(b.display_name || ''));
       }));
-      const hasName = !!nameRow?.value;
+      let identityForProfile = identityRow || null;
+      if (!identityForProfile && nameRow?.value) {
+        try {
+          const result = await identityApi.createShop({
+            display_name: nameRow.value,
+            phone: phoneRow?.value || undefined,
+            business_type: businessTypeRow?.value || 'retail-shop',
+          });
+          identityForProfile = {
+            shop_id: result.shop_id,
+            shop_name: result.shop_name || nameRow.value,
+            join_code: result.join_code,
+            join_url: result.join_url,
+            device_id: result.device_id,
+            device_token: result.device_token,
+            staff_id: result.staff_id,
+            display_name: result.display_name || nameRow.value,
+            phone_number: phoneRow?.value || '',
+            role: 'owner',
+            permissions: result.permissions || {},
+            device_status: result.device_status || 'active',
+            phone_required: result.phone_required ?? false,
+            approval_required: result.approval_required ?? false,
+          };
+          await setIdentity(identityForProfile);
+        } catch {
+          identityForProfile = null;
+        }
+      }
+      const profileName = nameRow?.value || identityForProfile?.shop_name || null;
       setShopProfile({
-        name: nameRow?.value || null,
-        phone: phoneRow?.value || '',
+        id: identityForProfile?.shop_id || null,
+        shop_id: identityForProfile?.shop_id || null,
+        name: profileName,
+        phone: phoneRow?.value || identityForProfile?.phone_number || '',
         telegram: telegramRow?.value || '',
         businessType: businessTypeRow?.value || 'retail-shop',
+        join_code: identityForProfile?.join_code || '',
+        join_url: identityForProfile?.join_url || '',
       });
       try { setEnabledProviders(epRow ? JSON.parse(epRow.value) : DEFAULT_PROVIDERS); } catch { setEnabledProviders(DEFAULT_PROVIDERS); }
       try { setRecurringExpenses(reRow ? JSON.parse(reRow.value) : []); } catch { setRecurringExpenses([]); }
@@ -815,6 +849,17 @@ function AppInner() {
   const handleDeactivateStaffMember = async (staffId) => {
     const member = staffMembers.find(item => String(item.id) === String(staffId));
     if (!member) return false;
+    if (member.staff_id) {
+      try {
+        const token = await getDeviceToken();
+        if (!token) return false;
+        await identityApi.deactivateStaff(member.staff_id, token);
+        await refreshStaffMembers();
+        return true;
+      } catch {
+        return false;
+      }
+    }
     const now = Date.now();
     await db.staff_members.update(member.id, { active: false, updated_at: now, deactivated_at: now });
     setStaffMembers(prev => prev
@@ -852,30 +897,32 @@ function AppInner() {
     if (!token) return;
     const data = await identityApi.listStaff(shopId, token);
     if (!data?.staff) return;
-    setStaffMembers(data.staff.map(s => ({
-      id: s.staff_id,
-      staff_id: s.staff_id,
-      display_name: s.display_name,
-      phone_snapshot: s.phone_snapshot,
-      role: s.role,
-      active: s.staff_status !== 'inactive',
-      staff_status: s.staff_status,
-      pending: (s.devices || []).some(d => d.device_status === 'pending'),
-      permissions: s.permissions,
-      joined_at: s.joined_at,
-      updated_at: Date.now(),
-      deactivated_at: s.deactivated_at,
-      devices: (s.devices || []).map(d => ({
-        id: d.device_id,
-        device_id: d.device_id,
-        device_label: d.device_label,
-        active: d.device_status === 'active',
-        device_status: d.device_status,
-        pending: d.device_status === 'pending',
-        last_seen_at: d.last_seen_at,
-        created_at: d.created_at,
-      })),
-    })));
+    setStaffMembers(data.staff
+      .filter(s => s.role !== 'owner')
+      .map(s => ({
+        id: s.staff_id,
+        staff_id: s.staff_id,
+        display_name: s.display_name,
+        phone_snapshot: s.phone_snapshot,
+        role: s.role,
+        active: s.staff_status !== 'inactive',
+        staff_status: s.staff_status,
+        pending: (s.devices || []).some(d => d.device_status === 'pending'),
+        permissions: s.permissions,
+        joined_at: s.joined_at,
+        updated_at: Date.now(),
+        deactivated_at: s.deactivated_at,
+        devices: (s.devices || []).map(d => ({
+          id: d.device_id,
+          device_id: d.device_id,
+          device_label: d.device_label,
+          active: d.device_status === 'active',
+          device_status: d.device_status,
+          pending: d.device_status === 'pending',
+          last_seen_at: d.last_seen_at,
+          created_at: d.created_at,
+        })),
+      })));
   }, [shopProfile]);
 
   const handleRotateJoinCode = useCallback(async (shopId) => {
@@ -1815,6 +1862,32 @@ function AppInner() {
     setShowShareModal(true);
   };
 
+  const handleOnboardingComplete = useCallback((profile) => {
+    if (profile?.__staff_join) {
+      setOnboardingType('staff');
+      return;
+    }
+    setShopProfile({
+      ...profile,
+      id: profile?.id || profile?.shop_id || null,
+      shop_id: profile?.shop_id || profile?.id || null,
+      telegram: profile?.telegram || '',
+      businessType: profile?.businessType || 'retail-shop',
+    });
+  }, []);
+
+  const handleStaffJoined = useCallback((identity) => {
+    setOnboardingType(null);
+    setShopProfile({
+      id: identity?.shop_id || null,
+      shop_id: identity?.shop_id || null,
+      name: identity?.shop_name || 'Gebya',
+      phone: identity?.phone_number || '',
+      telegram: '',
+      businessType: 'retail-shop',
+    });
+  }, []);
+
   const hid = (n) => hidden ? 'â€¢â€¢â€¢â€¢' : fmt(n);
 
   const getTimeGreeting = () => {
@@ -1844,7 +1917,8 @@ function AppInner() {
   if (onboardingType === 'staff') {
       return (
         <StaffJoinScreen
-          onComplete={() => setOnboardingType(null)}
+          onJoined={handleStaffJoined}
+          onBack={() => setOnboardingType(null)}
         />
       );
     }
@@ -1852,8 +1926,7 @@ function AppInner() {
     if (!shopProfile || !shopProfile.name) {
       return (
         <OnboardingScreen
-          onComplete={(profile) => setShopProfile({ ...profile, telegram: '', businessType: profile.businessType || 'retail-shop' })}
-          onStaffSelected={() => setOnboardingType('staff')}
+          onComplete={handleOnboardingComplete}
         />
       );
     }
@@ -2171,6 +2244,7 @@ function AppInner() {
               onUpdateStaffMember={handleUpdateStaffMember}
               onDeactivateStaffMember={handleDeactivateStaffMember}
               onReactivateStaffMember={handleReactivateStaffMember}
+              onRefreshStaffMembers={refreshStaffMembers}
               onRotateJoinCode={handleRotateJoinCode}
               onUpdateShopSettings={handleUpdateShopSettings}
               onApproveDevice={handleApproveDevice}

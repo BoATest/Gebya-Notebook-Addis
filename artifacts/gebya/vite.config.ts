@@ -14,8 +14,16 @@ if (Number.isNaN(port) || port <= 0) {
 
 const basePath = process.env.BASE_PATH ?? "/";
 const sentrySourceMaps = process.env.SENTRY_SOURCE_MAPS === "true";
+const apiBase = process.env.VITE_API_BASE ?? process.env.VITE_API_BASE_URL ?? "";
 
 const normalizedBasePath = basePath.endsWith("/") ? basePath : `${basePath}/`;
+const apiConnectOrigin = (() => {
+  try {
+    return apiBase ? new URL(apiBase).origin : null;
+  } catch {
+    return null;
+  }
+})();
 
 function securityHeadersPlugin(): Plugin {
   const setSecurityHeaders = (res: { setHeader: (k: string, v: string) => void }, isDev: boolean) => {
@@ -29,7 +37,7 @@ function securityHeadersPlugin(): Plugin {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob:",
-        "connect-src 'self' https:",
+        ["connect-src 'self' https:", apiConnectOrigin].filter(Boolean).join(" "),
         "worker-src 'self' blob:",
         "manifest-src 'self'",
       ].join("; ")

@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
 import { QrCode, Copy, Check, ChevronRight, AlertCircle, Users } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { identityApi } from '../api/identity';
@@ -14,6 +13,7 @@ const STEP_NAME = 1;
 const STEP_CONFIRM = 2;
 const STEP_PENDING = 3;
 const STEP_ERROR = 4;
+const DEVICE_LABEL = 'Staff phone';
 
 function BankTrustCopy({ className = '' }) {
   return (
@@ -37,10 +37,16 @@ function formatDisplay(code) {
 
 export default function StaffJoinScreen({ onJoined, onBack }) {
   const { t } = useLang();
-  const [searchParams] = useSearchParams();
 
-  // Pre-fill code from invite link (?code=XXXX-XXXX or ?invite=XXXX-XXXX)
-  const prefillCode = searchParams.get('code') || searchParams.get('invite') || '';
+  // Pre-fill code from invite link without adding a router dependency.
+  const prefillCode = (() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      return searchParams.get('join') || searchParams.get('code') || '';
+    } catch {
+      return '';
+    }
+  })();
 
   const [step, setStep] = useState(prefillCode ? STEP_NAME : STEP_CODE);
   const [joinCode, setJoinCode] = useState(prefillCode);
@@ -53,9 +59,6 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [joinResult, setJoinResult] = useState(null); // stored after join for pending state
-
-  // On step 2 (confirm), look up shop info
-  const [shopInfoLoading, setShopInfoLoading] = useState(false);
 
   function handleCodeChange(e) {
     // Auto-format: strip non-alphanumeric, uppercase, insert dash every 4
@@ -71,32 +74,8 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
       return;
     }
     setError(null);
-    // Try to look up the shop by joining — the backend returns shop_name + settings
-    setLoading(true);
-    try {
-      // Use join with a placeholder name; backend will fail if code invalid
-      const result = await identityApi.joinShop({
-        join_code: formatJoinCode(joinCode),
-        display_name: '__CHECK__',  // sentinel — backend validates code only
-        device_label: navigator.userAgent,
-      });
-      // If we get here, code was valid
-      setShopName(result.shop_name || 'this shop');
-      setPhoneRequired(result.phone_required ?? false);
-      setApprovalRequired(result.approval_required ?? false);
-      setStep(STEP_NAME);
-    } catch (err) {
-      if (err.status === 404) {
-        setError(t.staffJoinCodeInvalid || 'Shop code not found. Check with your owner and try again.');
-      } else if (err.status === 409) {
-        // Device already joined — this device already has an identity
-        setError(t.staffJoinAlreadyJoined || 'This device is already connected to a shop. Leave the current shop first from Settings.');
-      } else {
-        setError(err.data?.error || err.message || t.staffJoinNetworkError || 'Could not reach the server. Check your connection.');
-      }
-    } finally {
-      setLoading(false);
-    }
+    setShopName(t.staffJoinThisShop || 'this shop');
+    setStep(STEP_NAME);
   }
 
   async function handleNameSubmit() {
@@ -117,7 +96,7 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
         join_code: formatJoinCode(joinCode),
         display_name: name,
         phone: phoneRequired ? phoneDigits : undefined,
-        device_label: navigator.userAgent,
+        device_label: DEVICE_LABEL,
       });
 
       if (result.device_status === 'pending') {
@@ -138,6 +117,9 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
         setError(t.staffJoinCodeInvalid || 'Shop code not found.');
       } else if (err.status === 409) {
         setError(t.staffJoinAlreadyJoined || 'This device is already connected to a shop. Leave the current shop first.');
+      } else if (err.status === 400 && /phone/i.test(err.data?.error || err.message || '')) {
+        setPhoneRequired(true);
+        setError(t.staffPhoneRequired || 'Phone number is required by this shop');
       } else {
         setError(err.data?.error || err.message || t.staffJoinNetworkError || 'Could not reach the server.');
       }
@@ -172,7 +154,7 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
         join_code: formatJoinCode(joinCode),
         display_name: displayName.trim(),
         phone: phoneRequired ? phone.replace(/[^0-9]/g, '') : undefined,
-        device_label: navigator.userAgent,
+        device_label: DEVICE_LABEL,
       });
       if (result.device_status === 'pending') {
         setJoinResult(result);
