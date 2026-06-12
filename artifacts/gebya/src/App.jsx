@@ -1,6 +1,7 @@
 ﻿import { lazy, Suspense, useState, useEffect, useCallback, useMemo } from 'react';
 import { BookOpen, Users, Calendar, Settings, Trash2, Pencil, Share2, X } from 'lucide-react';
-import db from './db';
+import db, { getDeviceToken } from './db';
+import identityApi from './api/identity';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { LangProvider, useLang } from './context/LangContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -842,6 +843,91 @@ function AppInner() {
       }));
     return true;
   };
+
+  // PR 1A-UI: API-backed owner actions (wired to backend via identityApi)
+  const refreshStaffMembers = useCallback(async () => {
+    const shopId = shopProfile?.id || shopProfile?.shop_id;
+    if (!shopId) return;
+    const token = await getDeviceToken();
+    if (!token) return;
+    const data = await identityApi.listStaff(shopId, token);
+    if (!data?.staff) return;
+    setStaffMembers(data.staff.map(s => ({
+      id: s.staff_id,
+      staff_id: s.staff_id,
+      display_name: s.display_name,
+      phone_snapshot: s.phone_snapshot,
+      role: s.role,
+      active: s.staff_status !== 'inactive',
+      staff_status: s.staff_status,
+      pending: (s.devices || []).some(d => d.device_status === 'pending'),
+      permissions: s.permissions,
+      joined_at: s.joined_at,
+      updated_at: Date.now(),
+      deactivated_at: s.deactivated_at,
+      devices: (s.devices || []).map(d => ({
+        id: d.device_id,
+        device_id: d.device_id,
+        device_label: d.device_label,
+        active: d.device_status === 'active',
+        device_status: d.device_status,
+        pending: d.device_status === 'pending',
+        last_seen_at: d.last_seen_at,
+        created_at: d.created_at,
+      })),
+    })));
+  }, [shopProfile]);
+
+  const handleRotateJoinCode = useCallback(async (shopId) => {
+    try {
+      const token = await getDeviceToken();
+      if (!token) return null;
+      const result = await identityApi.rotateJoinCode(shopId, token);
+      return result;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const handleUpdateShopSettings = useCallback(async (shopId, patch) => {
+    try {
+      const token = await getDeviceToken();
+      if (!token) return null;
+      // PR 1A backend uses snake_case keys: phone_required, approval_required
+      const result = await identityApi.updateShopSettings(shopId, {
+        phone_required: patch.require_phone_on_join,
+        approval_required: patch.require_approval,
+      }, token);
+      return result;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const handleApproveDevice = useCallback(async (deviceId) => {
+    try {
+      const token = await getDeviceToken();
+      if (!token) return null;
+      const result = await identityApi.approveDevice(deviceId, token);
+      // Refresh so the pending badge clears
+      await refreshStaffMembers();
+      return result;
+    } catch {
+      return null;
+    }
+  }, [refreshStaffMembers]);
+
+  const handleRejectDevice = useCallback(async (deviceId, reason) => {
+    try {
+      const token = await getDeviceToken();
+      if (!token) return null;
+      const result = await identityApi.rejectDevice(deviceId, { reason: reason ?? null }, token);
+      await refreshStaffMembers();
+      return result;
+    } catch {
+      return null;
+    }
+  }, [refreshStaffMembers]);
 
   const customerSummaries = useMemo(
     () => buildCustomerSummaries(ledgerCustomers, ledgerTransactions),
@@ -2085,6 +2171,10 @@ function AppInner() {
               onUpdateStaffMember={handleUpdateStaffMember}
               onDeactivateStaffMember={handleDeactivateStaffMember}
               onReactivateStaffMember={handleReactivateStaffMember}
+              onRotateJoinCode={handleRotateJoinCode}
+              onUpdateShopSettings={handleUpdateShopSettings}
+              onApproveDevice={handleApproveDevice}
+              onRejectDevice={handleRejectDevice}
               onSetActiveStaffMember={handleSetActiveStaffMember}
               enabledProviders={enabledProviders}
               onProvidersChange={setEnabledProviders}

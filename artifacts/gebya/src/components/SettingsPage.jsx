@@ -5,7 +5,7 @@ import { useLang } from '../context/LangContext';
 import { useTheme } from '../context/ThemeContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt, parseInput } from '../utils/numformat';
-import db from '../db';
+import db, { getIdentity, setIdentity } from '../db';
 import { ALL_BANKS, ALL_WALLETS } from './PaymentTypeChips';
 import { fireToast } from './Toast';
 import { normalizeTelegram } from '../utils/customerTelegram';
@@ -78,6 +78,10 @@ function SettingsPage({
   onUpdateStaffMember,
   onDeactivateStaffMember,
   onReactivateStaffMember,
+  onRotateJoinCode,
+  onUpdateShopSettings,
+  onApproveDevice,
+  onRejectDevice,
   onSetActiveStaffMember,
   enabledProviders,
   onProvidersChange,
@@ -140,6 +144,98 @@ function SettingsPage({
   const [editBusinessType, setEditBusinessType] = useState(shopProfile?.businessType || 'retail-shop');
   const [profileSaved, setProfileSaved] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
+
+  // PR 1A-UI: Team & Staff state (resolved from identity cache + props)
+  const [identity, setIdentityState] = useState(null);
+  const [shopJoinCode, setShopJoinCode] = useState('');
+  const [shopJoinSettings, setShopJoinSettings] = useState(null);
+  const [rotating, setRotating] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const ident = await getIdentity();
+        if (!cancelled && ident) {
+          setIdentityState(ident);
+          if (typeof ident.join_code === 'string') setShopJoinCode(ident.join_code);
+          setShopJoinSettings({
+            require_phone_on_join: !!ident.require_phone_on_join,
+            require_approval: !!ident.require_approval,
+          });
+        }
+      } catch {
+        // ignore - SettingsPage is still useful without an identity
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleRotateJoinCode = async () => {
+    if (rotating) return;
+    const shopId = shopProfile?.id || shopProfile?.shop_id;
+    if (!shopId) return;
+    setRotating(true);
+    try {
+      const result = await onRotateJoinCode?.(shopId);
+      if (result?.join_code) {
+        setShopJoinCode(result.join_code);
+        try {
+          const current = await getIdentity();
+          if (current) await setIdentity({ ...current, join_code: result.join_code });
+        } catch { /* ignore cache write */ }
+        fireToast(t.teamStaffCodeRotated || 'Code rotated', { icon: <Check className="w-4 h-4" /> });
+      }
+    } catch {
+      fireToast('Failed to rotate code', { icon: <AlertCircle className="w-4 h-4" /> });
+    } finally {
+      setRotating(false);
+    }
+  };
+
+  const handleToggleStaffSetting = async (key, value) => {
+    const shopId = shopProfile?.id || shopProfile?.shop_id;
+    if (!shopId) return;
+    const patch = { [key]: value };
+    const result = await onUpdateShopSettings?.(shopId, patch);
+    if (result) {
+      setShopJoinSettings(prev => ({ ...prev, [key]: value }));
+      try {
+        const current = await getIdentity();
+        if (current) await setIdentity({ ...current, [key]: value });
+      } catch { /* ignore */ }
+    }
+  };
+
+  const handleApprovePendingDevice = async (staffId) => {
+    const member = staffMembers?.find(m => String(m.id) === String(staffId));
+    if (!member) return;
+    const pendingDevice = (member.devices || []).find(
+      d => d.device_status === 'pending' || d.pending === true
+    );
+    if (!pendingDevice) return;
+    const ok = await onApproveDevice?.(pendingDevice.id || pendingDevice.device_id);
+    if (ok) {
+      fireToast(t.teamStaffApproved || 'Approved', { icon: <Check className="w-4 h-4" /> });
+    }
+  };
+
+  const handleRejectPendingDevice = async (staffId) => {
+    const member = staffMembers?.find(m => String(m.id) === String(staffId));
+    if (!member) return;
+    const pendingDevice = (member.devices || []).find(
+      d => d.device_status === 'pending' || d.pending === true
+    );
+    if (!pendingDevice) return;
+    const ok = await onRejectDevice?.(pendingDevice.id || pendingDevice.device_id, null);
+    if (ok) {
+      fireToast(t.teamStaffRejected || 'Rejected', { icon: <X className="w-4 h-4" /> });
+    }
+  };
+
+  const handleReactivateStaff = async (staffId) => {
+    await onReactivateStaffMember?.(staffId);
+  };
 
   const phoneValid = !editPhoneDigits || /^[79]\d{8}$/.test(editPhoneDigits);
   const normalizedTelegram = normalizeTelegram(editTelegram);
