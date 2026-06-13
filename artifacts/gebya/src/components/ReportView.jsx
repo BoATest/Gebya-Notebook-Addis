@@ -241,6 +241,7 @@ export default function ReportView({
   const [reviewNote, setReviewNote] = useState('');
   const [savedReview, setSavedReview] = useState(null);
   const [closingMessage, setClosingMessage] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
   const [searchPlaceholder, setSearchPlaceholder] = useState('Search shop records');
 
   useEffect(() => {
@@ -333,8 +334,9 @@ export default function ReportView({
     { key: 'spent', label: 'Spent Today', helper: 'Money paid out', value: metrics.spentToday, rows: metrics.expenseRows, tone: 'bad', color: '#dc2626', bg: '#fef2f2', icon: AlertTriangle },
   ];
 
+  const hasStaffMembers = staffMembers.length > 0;
   const scopeOptions = [
-    { id: ALL_SCOPE, label: 'All Staff', helper: 'Owner + active staff' },
+    ...(hasStaffMembers ? [{ id: ALL_SCOPE, label: 'All Staff', helper: 'Owner + active staff' }] : []),
     { id: OWNER_SCOPE, label: 'Owner', helper: shopProfile?.name || 'Owner records' },
     ...staffMembers.filter(member => member.active !== false).map(member => ({ id: String(member.id), label: member.display_name || 'Staff', helper: member.role || 'Staff' })),
   ];
@@ -377,9 +379,10 @@ export default function ReportView({
 
   const exportRows = (format) => {
     if (isStaffView) {
-      setClosingMessage('Export is owner-only on this device.');
+      setActionMessage('Export is owner-only on this device.');
       return;
     }
+    setActionMessage('');
     const stamp = new Date().toISOString().slice(0, 10);
     if (format === 'json') {
       downloadBlob(JSON.stringify({ exported_at: new Date().toISOString(), period: { from, to }, scope: selectedScope.label, filters, rows: reportRows, customers, suppliers }, null, 2), `gebya-report-${stamp}.json`, 'application/json');
@@ -428,7 +431,7 @@ export default function ReportView({
           <input value={rawSearch} onChange={event => setRawSearch(event.target.value)} placeholder={searchPlaceholder} style={{ width: '100%', minHeight: 45, border: `1px solid ${rawSearch ? '#005B36' : '#e5e7eb'}`, borderRadius: 10, background: '#fff', padding: '10px 38px 10px 38px', color: '#1f2937', fontSize: 13, outline: 'none' }} />
           {rawSearch && <button type="button" aria-label="Clear search" onClick={() => setRawSearch('')} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', color: '#667085' }}><X className="w-4 h-4" /></button>}
         </div>
-        {!isStaffView && staffMembers.length > 0 && (
+        {!isStaffView && hasStaffMembers && (
           <button type="button" onClick={() => setScopeOpen(true)} style={{ minHeight: 45, border: '1px solid #e5e7eb', borderRadius: 10, background: '#fff', padding: '8px 10px', display: 'inline-flex', alignItems: 'center', gap: 8, color: '#005B36', fontSize: 13, fontWeight: 950 }}>
             {selectedScope.label}
             <ChevronDown className="w-4 h-4" />
@@ -473,7 +476,7 @@ export default function ReportView({
         </section>
       )}
 
-      {!isStaffView && staffMembers.length > 0 && staffRows.length === 0 && (
+      {!isStaffView && hasStaffMembers && staffRows.length === 0 && (
         <section data-report-section="staff-sales" style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 12 }}>
           <h3 style={{ color: '#1f2937', fontSize: 16, fontWeight: 950 }}>Staff sales in this report</h3>
           <p style={{ color: '#667085', fontSize: 13, fontWeight: 750, marginTop: 6 }}>No staff activity in this period.</p>
@@ -533,6 +536,7 @@ export default function ReportView({
         <button type="button" onClick={() => exportRows('csv')} style={{ minHeight: 46, border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', color: isStaffView ? '#9ca3af' : '#005B36', fontSize: 13, fontWeight: 950, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}><Download className="w-4 h-4" />Export</button>
         <button type="button" onClick={() => setHistoryOpen(true)} style={{ minHeight: 46, border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', color: '#005B36', fontSize: 13, fontWeight: 950, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}><History className="w-4 h-4" />History</button>
       </div>
+      {actionMessage && <p style={{ color: '#667085', fontSize: 12, fontWeight: 800, marginTop: -4 }}>{actionMessage}</p>}
 
       {selectedCard && (
         <Sheet title={selectedCard.label} onClose={() => setSelectedCard(null)}>
