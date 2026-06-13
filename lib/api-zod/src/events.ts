@@ -42,3 +42,23 @@ export const PushEventResult = z.object({
 export const PushEventsResponse = z.object({
   results: z.array(PushEventResult),
 });
+
+export const StaffActivityItem = z.object({
+  id: z.string().uuid(),
+  client_event_id: z.string(),
+  event_type: SyncEventType,
+  staff_name: z.string(),
+  staff_role: z.string(),
+  amount: z.number().nullable(),
+  summary: z.string().nullable(),
+  note: z.string().nullable(),
+  payment_method_label: z.string().nullable(),
+  occurred_at_device: z.string().datetime(),
+  created_at_server: z.string().datetime(),
+  sync_state: z.literal("synced"),
+});
+
+export const StaffActivityResponse = z.object({
+  activities: z.array(StaffActivityItem),
+  persistence: z.literal("in_memory_preview"),
+});

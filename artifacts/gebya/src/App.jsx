@@ -29,6 +29,7 @@ import { resendLatestTelegramUpdate, syncTelegramCustomerState } from './utils/t
 import { countPendingTelegramSync, drainTelegramSyncQueue, enqueueTelegramLedgerUpdate } from './utils/syncQueue';
 import { createCloudProofFields, enqueueCloudProofUpsert } from './utils/cloudProof';
 import { enqueueStaffEventSync, processStaffEventQueue } from './utils/staffEventSync';
+import { loadStaffActivityFeed, retryStaffActivityFeed } from './utils/staffActivityFeed';
 import { normalizeStaffDraft, resolveActorSnapshot, getActorDisplayLabel } from './utils/staffMembers';
 import {
   buildDefaultChannels,
@@ -1710,6 +1711,9 @@ function AppInner() {
       return null;
     }
   }, [refreshStaffMembers]);
+
+  const handleLoadStaffActivity = useCallback(() => loadStaffActivityFeed(), []);
+  const handleRetryStaffActivity = useCallback(() => retryStaffActivityFeed(), []);
 
   const customerSummaries = useMemo(
     () => buildCustomerSummaries(ledgerCustomers, ledgerTransactions),
@@ -3434,6 +3438,8 @@ function AppInner() {
               onUpdateShopSettings={handleUpdateShopSettings}
               onApproveDevice={handleApproveDevice}
               onRejectDevice={handleRejectDevice}
+              onLoadStaffActivity={handleLoadStaffActivity}
+              onRetryStaffActivity={handleRetryStaffActivity}
               enabledProviders={enabledProviders}
               onProvidersChange={setEnabledProviders}
               paymentChannels={shopProfile?.paymentChannels || []}

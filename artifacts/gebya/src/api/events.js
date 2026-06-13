@@ -26,6 +26,10 @@ async function request(path, options = {}) {
 }
 
 export const eventsApi = {
+  listActivity(token) {
+    return request('/events/activity', { token });
+  },
+
   pushEvents(events, token) {
     return request('/events/push', {
       method: 'POST',
