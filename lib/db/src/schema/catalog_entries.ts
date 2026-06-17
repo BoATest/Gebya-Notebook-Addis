@@ -1,5 +1,4 @@
 import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique, real } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const catalogEntries = pgTable("catalog_entries", {
@@ -25,7 +24,20 @@ export const catalogEntries = pgTable("catalog_entries", {
   unique("catalog_device_txn").on(t.deviceId, t.transactionId),
 ]);
 
-export const insertCatalogEntrySchema = createInsertSchema(catalogEntries)
-  .omit({ id: true, syncedAt: true });
+export const insertCatalogEntrySchema = z.object({
+  localId: z.number().optional(),
+  deviceId: z.string().max(128),
+  transactionId: z.string().max(128),
+  name: z.string(),
+  kind: z.string().max(32).optional(),
+  active: z.boolean().optional(),
+  defaultPrice: z.number().nullable().optional(),
+  defaultCost: z.number().nullable().optional(),
+  note: z.string().nullable().optional(),
+  createdAt: z.number(),
+  updatedAt: z.number().optional(),
+  schemaVersion: z.number().optional(),
+});
+
 export type InsertCatalogEntry = z.infer<typeof insertCatalogEntrySchema>;
 export type CatalogEntry = typeof catalogEntries.$inferSelect;
