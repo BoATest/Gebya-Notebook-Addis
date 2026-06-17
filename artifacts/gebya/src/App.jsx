@@ -3744,16 +3744,17 @@ function AppInner() {
 
       <ToastContainer />
 
-      {/* Phase 5: Auth gate — blocks the app until user signs in */}
+      {/* Phase 5: Auth gate — blocks the app until user signs in or skips */}
       {authChecked && authUser === false && (
         <AuthGate
           lang={lang}
+          shopPhone={shopProfile?.phone || ''}
           onAuthenticated={(user) => {
             setAuthUser(user);
-            // Kick off sync now that we have a token
             const engine = getSyncEngine();
             if (engine) engine.sync();
           }}
+          onSkip={() => setAuthUser({ skipped: true })}
         />
       )}
     </div>

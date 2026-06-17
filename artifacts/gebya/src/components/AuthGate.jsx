@@ -1,16 +1,26 @@
 import { useState, useEffect } from 'react';
-import { Phone, ArrowRight, Check, AlertCircle } from 'lucide-react';
+import { Phone, ArrowRight, Check, AlertCircle, X } from 'lucide-react';
 import { requestOtp, verifyOtp, linkDevice } from '../utils/authClient';
 import { getAuthToken, setAuthToken } from '../utils/syncEngine';
 import { getOrCreateCloudProofDeviceId } from '../utils/cloudProof';
 import { fireToast } from './Toast';
 
-export default function AuthGate({ onAuthenticated, lang = 'en' }) {
+export default function AuthGate({ onAuthenticated, onSkip, shopPhone = '', lang = 'en' }) {
   const [step, setStep] = useState('phone'); // phone | otp | loading
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Pre-fill phone from shop profile on mount
+  useEffect(() => {
+    if (shopPhone) {
+      const digits = shopPhone.replace(/\D/g, '');
+      if (digits.startsWith('251') && digits.length === 12) {
+        setPhone('+' + digits);
+      }
+    }
+  }, [shopPhone]);
 
   const t = {
     en: {
@@ -24,8 +34,11 @@ export default function AuthGate({ onAuthenticated, lang = 'en' }) {
       verify: 'Verify',
       resend: 'Resend code',
       back: 'Back',
+      skip: 'Use without cloud',
+      skipHint: 'Your data stays on this phone only',
       invalidPhone: 'Please enter a valid Ethiopian phone number',
-      otpSent: 'Code sent!',
+      otpSent: 'Code sent! Check Telegram',
+      noTelegram: 'No Telegram? Use without cloud below',
       loginSuccess: 'Signed in successfully',
       genericError: 'Something went wrong. Please try again.',
     },
@@ -40,8 +53,11 @@ export default function AuthGate({ onAuthenticated, lang = 'en' }) {
       verify: 'ያረጋግጡ',
       resend: 'ኮድ እንደገና ይላኩ',
       back: 'ተመለስ',
+      skip: 'በደመና ሳይሆን ይጠቀሙ',
+      skipHint: 'መረጃዎ በዚህ ስልክ ላይ ብቻ ይቀመጣል',
       invalidPhone: 'የሚሰራ የኢትዮጵያ ስልክ ቁጥር ያስገቡ',
-      otpSent: 'ኮድ ተላክ!',
+      otpSent: 'ኮድ ተላክ! ቴሌግራም ያረጋግጡ',
+      noTelegram: 'ቴሌግራም የለዎትም? ከዚህ በታች ያለውን ይጠቀሙ',
       loginSuccess: 'በተሳካ ሁኔታ ገብተዋል',
       genericError: 'ችግር ተፈጥሯል። እባክዎ ይደጉሙ።',
     },
@@ -64,7 +80,7 @@ export default function AuthGate({ onAuthenticated, lang = 'en' }) {
     try {
       await requestOtp(formatted);
       setStep('otp');
-      fireToast(t.otpSent, 2000);
+      fireToast(t.otpSent, 3000);
     } catch (err) {
       setError(err.message || t.genericError);
     } finally {
@@ -80,16 +96,8 @@ export default function AuthGate({ onAuthenticated, lang = 'en' }) {
     try {
       const { token, user } = await verifyOtp(formatted, otp);
       await setAuthToken(token);
-
-      // Link this device to the user
       const deviceId = await getOrCreateCloudProofDeviceId();
-      try {
-        await linkDevice(token, deviceId);
-      } catch (err) {
-        // Non-critical — sync will auto-link on next push
-        if (import.meta.env.DEV) console.warn('Device link failed:', err);
-      }
-
+      try { await linkDevice(token, deviceId); } catch (e) { /* non-critical */ }
       fireToast(t.loginSuccess, 2000);
       onAuthenticated?.(user);
     } catch (err) {
@@ -148,6 +156,14 @@ export default function AuthGate({ onAuthenticated, lang = 'en' }) {
             >
               {loading ? '...' : <><ArrowRight className="w-4 h-4" /> {t.continue}</>}
             </button>
+            <button
+              onClick={() => onSkip?.()}
+              className="w-full py-3 rounded-xl text-sm font-bold border-2 border-dashed transition-all min-h-[48px]"
+              style={{ borderColor: '#e8e2d8', color: '#6b7280', background: '#FAF8F5' }}
+            >
+              <X className="w-4 h-4 inline mr-1" /> {t.skip}
+            </button>
+            <p className="text-[10px] text-center" style={{ color: '#9ca3af' }}>{t.skipHint}</p>
           </div>
         )}
 
@@ -167,6 +183,7 @@ export default function AuthGate({ onAuthenticated, lang = 'en' }) {
                 autoFocus
               />
             </div>
+            <p className="text-[10px] text-center" style={{ color: '#9ca3af' }}>{t.noTelegram}</p>
             <button
               onClick={handleVerifyOtp}
               disabled={loading || otp.length !== 6}
@@ -195,6 +212,13 @@ export default function AuthGate({ onAuthenticated, lang = 'en' }) {
                 {t.resend}
               </button>
             </div>
+            <button
+              onClick={() => onSkip?.()}
+              className="w-full py-2.5 rounded-xl text-xs font-bold min-h-[40px]"
+              style={{ background: '#fff', color: '#6b7280', border: '1px solid #e8e2d8' }}
+            >
+              <X className="w-3.5 h-3.5 inline mr-1" /> {t.skip}
+            </button>
           </div>
         )}
       </div>
