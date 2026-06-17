@@ -1,5 +1,4 @@
 import { pgTable, serial, text, integer, real, boolean, bigint, varchar, timestamp, unique } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export const transactions = pgTable("transactions", {
@@ -45,7 +44,37 @@ export const transactions = pgTable("transactions", {
   unique("transactions_device_txn").on(t.deviceId, t.transactionId),
 ]);
 
-export const insertTransactionSchema = createInsertSchema(transactions)
-  .omit({ id: true, syncedAt: true });
+export const insertTransactionSchema = z.object({
+  localId: z.number().optional(),
+  deviceId: z.string().max(128),
+  transactionId: z.string().max(128),
+  type: z.string().max(32),
+  amount: z.number().optional(),
+  itemName: z.string().nullable().optional(),
+  costPrice: z.number().nullable().optional(),
+  quantity: z.number().optional(),
+  profit: z.number().nullable().optional(),
+  isCredit: z.boolean().optional(),
+  customerId: z.number().nullable().optional(),
+  customerName: z.string().nullable().optional(),
+  createdAt: z.number(),
+  updatedAt: z.number().optional(),
+  ethiopianDate: z.string().nullable().optional(),
+  paymentType: z.string().max(64).nullable().optional(),
+  paymentProvider: z.string().max(64).nullable().optional(),
+  source: z.string().max(32).nullable().optional(),
+  rawTranscript: z.string().nullable().optional(),
+  detectedTotal: z.number().nullable().optional(),
+  wasEdited: z.boolean().optional(),
+  transcriptionProvider: z.string().max(64).nullable().optional(),
+  parsingConfidence: z.number().nullable().optional(),
+  voiceNote: z.string().nullable().optional(),
+  rawAudioRef: z.string().nullable().optional(),
+  actorRole: z.string().max(32).nullable().optional(),
+  actorStaffMemberId: z.number().nullable().optional(),
+  actorNameSnapshot: z.string().nullable().optional(),
+  schemaVersion: z.number().optional(),
+});
+
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Transaction = typeof transactions.$inferSelect;
