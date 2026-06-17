@@ -26,6 +26,8 @@ import { usePwaInstall } from './hooks/usePwaInstall.js';
 import { resendLatestTelegramUpdate, syncTelegramCustomerState } from './utils/telegramBotClient';
 import { countPendingTelegramSync, drainTelegramSyncQueue, enqueueTelegramLedgerUpdate } from './utils/syncQueue';
 import { createCloudProofFields, enqueueCloudProofUpsert } from './utils/cloudProof';
+import { initSyncEngine, getAuthToken, getSyncEngine, clearAuthToken } from './utils/syncEngine';
+import AuthGate from './components/AuthGate';
 import { normalizeStaffDraft, resolveActorSnapshot, getActorDisplayLabel } from './utils/staffMembers';
 import {
   buildDefaultChannels,
@@ -38,6 +40,16 @@ const DEFAULT_PROVIDERS = {
   banks: ['CBE', 'Dashen', 'Awash', 'Abyssinia'],
   wallets: ['telebirr', 'CBE Birr'],
 };
+
+const OWNER_ALERT_THRESHOLD_SETTING_KEY = 'owner_alert_threshold_amount';
+const DEFAULT_OWNER_ALERT_THRESHOLD_AMOUNT = 1000;
+
+function normalizeOwnerAlertThreshold(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0
+    ? Math.round(amount)
+    : DEFAULT_OWNER_ALERT_THRESHOLD_AMOUNT;
+}
 
 // Stale-chunk self-heal. After a new deploy, Vite emits new hashed chunk
 // filenames. A browser still running the previous index.html (or a stale
@@ -725,6 +737,9 @@ function AppInner() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const [shopProfile, setShopProfile] = useState(null);
+  const [ownerAlertSettings, setOwnerAlertSettings] = useState({
+    threshold_amount: DEFAULT_OWNER_ALERT_THRESHOLD_AMOUNT,
+  });
   const [enabledProviders, setEnabledProviders] = useState(DEFAULT_PROVIDERS);
   const [recurringExpenses, setRecurringExpenses] = useState([]);
   const [customQuickAmounts, setCustomQuickAmounts] = useState([]);
@@ -746,6 +761,9 @@ function AppInner() {
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(null);
   const [pendingTelegramCount, setPendingTelegramCount] = useState(0);
   const [retryingTelegram, setRetryingTelegram] = useState(false);
+  // Phase 5: Auth state — null = not checked, false = checked but no user, object = logged in
+  const [authUser, setAuthUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const buildActorSnapshot = useCallback(() => (
     resolveActorSnapshot({ shopProfile, staffMembers, activeStaffMemberId })
@@ -844,7 +862,7 @@ function AppInner() {
         payTelebirrRow, payCbePhoneRow, payCbeAccountRow, payAwashPhoneRow,
         payBankNameRow, payBankAccountRow,
         // Unified payment channels (Commit C.4) + legacy custom lists for migration
-        paymentChannelsRow, customBanksRow, customWalletsRow,
+        paymentChannelsRow, customBanksRow, customWalletsRow, ownerAlertThresholdRow,
       ] = await Promise.all([
         db.transactions.toArray(),
         db.customers.toArray(),
@@ -871,6 +889,7 @@ function AppInner() {
         db.settings.get('shop_payment_channels'),
         db.settings.get('custom_banks'),
         db.settings.get('custom_wallets'),
+        db.settings.get(OWNER_ALERT_THRESHOLD_SETTING_KEY),
       ]);
 
       // Commit C.4: Migrate legacy payment storage to unified channels[] shape.
@@ -925,6 +944,9 @@ function AppInner() {
         if ((a.active !== false) !== (b.active !== false)) return a.active === false ? 1 : -1;
         return String(a.display_name || '').localeCompare(String(b.display_name || ''));
       }));
+      setOwnerAlertSettings({
+        threshold_amount: normalizeOwnerAlertThreshold(ownerAlertThresholdRow?.value),
+      });
       const hasName = !!nameRow?.value;
       // Commit C.4: derive legacy shapes from the canonical channels array so
       // PaymentTypeChips (reads enabledProviders) and ReminderSheet (reads
@@ -971,6 +993,42 @@ function AppInner() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Phase 5: Check auth token on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAuthToken();
+        if (!token) {
+          if (!cancelled) { setAuthUser(false); setAuthChecked(true); }
+          return;
+        }
+        // Token exists — try to get user info
+        const { getCurrentUser } = await import('./utils/authClient');
+        const user = await getCurrentUser(token);
+        if (!cancelled) { setAuthUser(user); setAuthChecked(true); }
+      } catch (err) {
+        // Token invalid or expired — clear it
+        await clearAuthToken();
+        if (!cancelled) { setAuthUser(false); setAuthChecked(true); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Phase 3: Cloud sync engine — initializes after auth check
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await initSyncEngine();
+      } catch (err) {
+        if (import.meta.env.DEV) console.error('Sync engine init failed:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (loading) return undefined;
@@ -1484,6 +1542,17 @@ function AppInner() {
       paymentChannels: prev?.paymentChannels,
       payments: prev?.payments,
     }));
+  };
+
+  const handleSaveOwnerAlertSettings = async (settings = {}) => {
+    const thresholdAmount = normalizeOwnerAlertThreshold(settings.threshold_amount);
+    const nextSettings = { threshold_amount: thresholdAmount };
+    setOwnerAlertSettings(nextSettings);
+    await db.settings.put({
+      key: OWNER_ALERT_THRESHOLD_SETTING_KEY,
+      value: String(thresholdAmount),
+    });
+    return nextSettings;
   };
 
   const handleSaveStaffMember = async (payload) => {
@@ -2694,6 +2763,35 @@ function AppInner() {
     [todayExpenses]
   );
 
+  const todayStaffSalesRows = useMemo(() => {
+    const rows = new Map();
+    todaySales
+      .filter(tx => tx.actor_staff_member_id)
+      .forEach((tx) => {
+        const id = String(tx.actor_staff_member_id);
+        const existing = rows.get(id) || {
+          id,
+          name: tx.actor_name_snapshot || 'Staff',
+          total: 0,
+          count: 0,
+        };
+
+        existing.total += Number(tx.amount || 0);
+        existing.count += 1;
+        rows.set(id, existing);
+      });
+
+    return Array.from(rows.values()).sort((a, b) => b.total - a.total);
+  }, [todaySales]);
+
+  const ownerAlerts = useMemo(
+    () => todaySales
+      .filter(tx => Number(tx.amount || 0) >= ownerAlertSettings.threshold_amount)
+      .sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0))
+      .slice(0, 4),
+    [ownerAlertSettings.threshold_amount, todaySales]
+  );
+
   // Yesterday derived state — used by TodaySummary's trend indicator (▲/▼ vs yesterday)
   const yesterdayDateStr = useMemo(() => {
     const d = new Date();
@@ -3213,6 +3311,9 @@ function AppInner() {
                 setActiveTab('credit');
                 setCreditView('customers');
               }}
+              ownerAlerts={ownerAlerts}
+              ownerAlertSettings={ownerAlertSettings}
+              todayStaffSalesRows={todayStaffSalesRows}
               onShareReport={handleShareCustomReport}
             />
           </Suspense>
@@ -3230,7 +3331,9 @@ function AppInner() {
               staffMembers={staffMembers}
               activeStaffMemberId={activeStaffMemberId}
               currentActorLabel={currentActorLabel}
+              ownerAlertSettings={ownerAlertSettings}
               onProfileSave={handleProfileSave}
+              onSaveOwnerAlertSettings={handleSaveOwnerAlertSettings}
               onSaveStaffMember={handleSaveStaffMember}
               onUpdateStaffMember={handleUpdateStaffMember}
               onDeactivateStaffMember={handleDeactivateStaffMember}
@@ -3640,6 +3743,19 @@ function AppInner() {
       )}
 
       <ToastContainer />
+
+      {/* Phase 5: Auth gate — blocks the app until user signs in */}
+      {authChecked && authUser === false && (
+        <AuthGate
+          lang={lang}
+          onAuthenticated={(user) => {
+            setAuthUser(user);
+            // Kick off sync now that we have a token
+            const engine = getSyncEngine();
+            if (engine) engine.sync();
+          }}
+        />
+      )}
     </div>
   );
 }

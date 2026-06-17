@@ -10,6 +10,11 @@ import router from "./routes/index.js";
 const app: Express = express();
 const isProduction = process.env.NODE_ENV === "production";
 
+// Phase 5: Warn if using default JWT secret in production
+if (isProduction && (!process.env.JWT_SECRET || process.env.JWT_SECRET === "gebya-dev-secret-change-me")) {
+  console.error("[security] JWT_SECRET is not set or using default value. Set a strong secret in production.");
+}
+
 function createRequestId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -35,6 +40,12 @@ function isAllowedOrigin(origin?: string | null) {
 
   if (!isProduction && allowedOrigins.length === 0) {
     return true;
+  }
+
+  // Phase 5: In production, if no origins are configured, reject everything
+  if (isProduction && allowedOrigins.length === 0) {
+    console.error("[security] CORS_ORIGIN is not set in production. Rejecting all cross-origin requests.");
+    return false;
   }
 
   return allowedOrigins.includes(origin);
@@ -82,8 +93,8 @@ try {
 }
 
 // ---- BODY PARSING ----
-app.use(express.json({ limit: "100kb" }));
-app.use(express.urlencoded({ extended: true, limit: "100kb" }));
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
 // ---- REQUEST CONTEXT ----
 app.use((req, res, next) => {

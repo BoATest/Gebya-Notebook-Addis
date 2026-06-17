@@ -10,6 +10,7 @@ import { ALL_BANKS, ALL_WALLETS } from './PaymentTypeChips';
 import { fireToast } from './Toast';
 import { normalizeTelegram } from '../utils/customerTelegram';
 import { isValidSubscriber, extractSubscriberDigits } from '../utils/phoneNumber';
+import { getSyncEngine } from '../utils/syncEngine';
 import {
   DEFAULT_CHANNEL_DEFINITIONS,
   getChannelDefinition,
@@ -591,7 +592,9 @@ function SettingsPage({
   staffMembers,
   activeStaffMemberId,
   currentActorLabel,
+  ownerAlertSettings,
   onProfileSave,
+  onSaveOwnerAlertSettings,
   onSaveStaffMember,
   onUpdateStaffMember,
   onDeactivateStaffMember,
@@ -624,6 +627,14 @@ function SettingsPage({
   const [cleared, setCleared] = useState(false);
   // Commit E: backup + restore state
   const [lastBackupAt, setLastBackupAt] = useState(null);
+  const [syncState, setSyncState] = useState({ status: 'idle', lastSyncAt: 0, error: null, online: true });
+
+  // Sync status listener
+  useEffect(() => {
+    const engine = getSyncEngine();
+    if (!engine) return;
+    return engine.onChange(setSyncState);
+  }, []);
   const [restoreTarget, setRestoreTarget] = useState(null);
   const [restoreConfirmStep2, setRestoreConfirmStep2] = useState(false);
   const [catalogForm, setCatalogForm] = useState({
@@ -1938,93 +1949,51 @@ function SettingsPage({
             </div>
           </div>
 
-          {/* Last backup indicator · Commit E */}
-          <div
-            className="px-5 py-3"
-            style={{
-              background: lastBackupAt
-                ? (Date.now() - lastBackupAt < 7 * 86400000 ? '#f0fdf4' : '#fef3c7')
-                : '#fef2f2',
-              borderTop: '1px solid rgba(0,0,0,0.04)',
-              borderBottom: '1px solid rgba(0,0,0,0.04)',
-            }}
-          >
+          {/* Cloud sync status · Phase 3 */}
+          <div className="px-5 py-3" style={{ background: '#f0f9ff', borderTop: '1px solid rgba(0,0,0,0.04)', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
             <div className="flex items-center gap-2">
               <span style={{ fontSize: '0.95rem' }}>
-                {lastBackupAt
-                  ? (Date.now() - lastBackupAt < 7 * 86400000 ? '✓' : '⏰')
-                  : '⚠️'}
+                {syncState.status === 'syncing' ? '🔄' : syncState.status === 'error' ? '⚠️' : syncState.lastSyncAt ? '✅' : '☁️'}
               </span>
               <div className="flex-1">
-                <p className="text-xs font-bold" style={{
-                  color: lastBackupAt
-                    ? (Date.now() - lastBackupAt < 7 * 86400000 ? '#065f46' : '#92400e')
-                    : '#991b1b',
-                }}>
+                <p className="text-xs font-bold" style={{ color: syncState.status === 'error' ? '#991b1b' : '#065f46' }}>
                   {(() => {
-                    if (!lastBackupAt) {
-                      return lang === 'am' ? 'ምንም ምትኬ የለም' : 'No backup yet';
-                    }
-                    const days = Math.floor((Date.now() - lastBackupAt) / 86400000);
-                    if (days === 0) return lang === 'am' ? 'ምትኬ ዛሬ ተወስዷል' : 'Backed up today';
-                    if (days === 1) return lang === 'am' ? 'ምትኬ ትናንት ተወስዷል' : 'Backed up yesterday';
-                    return lang === 'am' ? `ምትኬ ከ ${days} ቀን በፊት` : `Backed up ${days} days ago`;
+                    if (syncState.status === 'syncing') return lang === 'am' ? 'በመቀነስ ላይ…' : 'Syncing…';
+                    if (syncState.status === 'error') return lang === 'am' ? 'ማቀነስ አልተሳካም' : 'Sync failed';
+                    if (!syncState.lastSyncAt) return lang === 'am' ? 'አሁን ይቀነሱ' : 'Not synced yet';
+                    const mins = Math.floor((Date.now() - syncState.lastSyncAt) / 60000);
+                    if (mins < 1) return lang === 'am' ? 'ዛሬ ተቀነሰ' : 'Synced just now';
+                    if (mins < 60) return lang === 'am' ? `ከ ${mins} ደቂቃ በፊት ተቀነሰ` : `Synced ${mins} min${mins === 1 ? '' : 's'} ago`;
+                    const hours = Math.floor(mins / 60);
+                    if (hours < 24) return lang === 'am' ? `ከ ${hours} ሰዓት በፊት ተቀነሰ` : `Synced ${hours} hour${hours === 1 ? '' : 's'} ago`;
+                    const days = Math.floor(hours / 24);
+                    return lang === 'am' ? `ከ ${days} ቀን በፊት ተቀነሰ` : `Synced ${days} day${days === 1 ? '' : 's'} ago`;
                   })()}
                 </p>
                 <p className="text-[11px]" style={{ color: '#6b7280' }}>
                   {lang === 'am'
-                    ? 'በስልክዎ ላይ ብቻ ይቀመጣል — እርስዎ ይያዙት'
-                    : 'Stored on your phone only — you own it'}
+                    ? 'የእርስዎ መረጃ በደመና ላይ ይቀመጣል — ስልክ ከተጠለቀ ወይም ከተሰረዘ መልሰው ያግኙ'
+                    : 'Your data is stored in the cloud — recover if phone is lost or replaced'}
                 </p>
               </div>
+              <button
+                onClick={() => {
+                  const engine = getSyncEngine();
+                  if (engine) engine.sync();
+                }}
+                disabled={syncState.status === 'syncing' || !syncState.online}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold min-h-[32px]"
+                style={{
+                  background: syncState.status === 'syncing' ? '#e5e7eb' : '#1B4332',
+                  color: syncState.status === 'syncing' ? '#9ca3af' : '#fff',
+                }}
+              >
+                {syncState.status === 'syncing'
+                  ? (lang === 'am' ? 'ይጠብቁ…' : 'Wait…')
+                  : (lang === 'am' ? 'አሁን ቀነስ' : 'Sync now')}
+              </button>
             </div>
           </div>
-
-          {/* Download JSON backup · Commit E */}
-          <button
-            onClick={exportToJSON}
-            disabled={totalEntries === 0 && totalCustomersWithLedger === 0}
-            className="w-full flex items-center gap-4 px-5 py-4 active:bg-green-50 transition-colors min-h-[64px] disabled:opacity-40 text-left"
-          >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#dcfce7' }}>
-              <Download className="w-5 h-5" style={{ color: '#15803d' }} />
-            </div>
-            <div className="flex-1">
-              <div className="font-bold text-gray-800">
-                {lang === 'am' ? 'JSON ምትኬ አውጣ' : 'Download backup (JSON)'}
-              </div>
-              <div className="text-xs text-gray-500 mt-0.5">
-                {lang === 'am'
-                  ? 'ሁሉም መረጃ ከፎቶ ጋር · ለመመለስ ይጠቅማል'
-                  : 'Full data + photos · restorable on new phone'}
-              </div>
-            </div>
-            <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-          </button>
-
-          {/* Share via OS share sheet (Telegram saved messages, email, etc.) · Commit E */}
-          {typeof navigator !== 'undefined' && (navigator.canShare || navigator.share) && (
-            <button
-              onClick={shareBackup}
-              disabled={totalEntries === 0 && totalCustomersWithLedger === 0}
-              className="w-full flex items-center gap-4 px-5 py-4 active:bg-blue-50 transition-colors min-h-[64px] disabled:opacity-40 text-left"
-            >
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#dbeafe' }}>
-                <Share2 className="w-5 h-5" style={{ color: '#1d4ed8' }} />
-              </div>
-              <div className="flex-1">
-                <div className="font-bold text-gray-800">
-                  {lang === 'am' ? 'ምትኬ አጋራ' : 'Share backup'}
-                </div>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  {lang === 'am'
-                    ? 'ቴሌግራም Saved Messages፣ ኢሜል፣ ወዘተ'
-                    : 'Send to Telegram Saved Messages, email, etc.'}
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
-            </button>
-          )}
 
           {/* Restore from JSON file · Commit E */}
           <label

@@ -12,12 +12,14 @@
     "typecheck": "tsc -p tsconfig.build.json --noEmit"
   },
   "dependencies": {
+    "@workspace/db": "workspace:*",
     "@types/multer": "^2.1.0",
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
     "express-rate-limit": "^8.3.1",
     "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
     "multer": "^2.1.1",
     "zod": "catalog:"
   },
