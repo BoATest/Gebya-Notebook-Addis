@@ -7,8 +7,15 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, gt, inArray } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
+import { syncRateLimiter } from "../app.js";
+
+// Max rows per table per push (prevents runaway payloads)
+const MAX_ROWS_PER_TABLE = 500;
 
 const router = Router();
+
+// Apply sync-specific rate limit to all routes in this router
+router.use(syncRateLimiter);
 
 // ─── Auth middleware for sync routes ───
 function getUserIdFromRequest(req: any): number | null {
@@ -24,14 +31,30 @@ async function getUserDevices(userId: number): Promise<string[]> {
   return rows.map((r) => r.deviceId);
 }
 
-async function ensureDeviceLinked(userId: number, deviceId: string) {
-  await db
-    .insert(devices)
-    .values({ userId, deviceId })
-    .onConflictDoUpdate({
+/**
+ * Validates that `deviceId` is already linked to `userId`, OR links it if
+ * this is the first push from a newly registered device.
+ * Returns false if the device is registered to a *different* user — push is rejected.
+ */
+async function validateAndLinkDevice(userId: number, deviceId: string): Promise<boolean> {
+  const existing = await db.select({ userId: devices.userId })
+    .from(devices).where(eq(devices.deviceId, deviceId)).limit(1);
+
+  if (existing.length === 0) {
+    // New device — link to this user
+    await db.insert(devices).values({ userId, deviceId }).onConflictDoUpdate({
       target: devices.deviceId,
       set: { userId, lastSeenAt: new Date() },
     });
+    return true;
+  }
+
+  // Device exists — reject if it belongs to a different user
+  if (existing[0].userId !== userId) return false;
+
+  // Update last-seen
+  await db.update(devices).set({ lastSeenAt: new Date() }).where(eq(devices.deviceId, deviceId));
+  return true;
 }
 
 // ─── Map frontend snake_case → Drizzle camelCase ───
@@ -205,132 +228,70 @@ function mapAnalytics(body: any, deviceId: string) {
 // ─── PUSH ───
 router.post("/push", async (req, res) => {
   const userId = getUserIdFromRequest(req);
-  if (!userId) {
-    return res.status(401).json({ error: "Authorization required" });
-  }
+  if (!userId) return res.status(401).json({ error: "Authorization required" });
 
   const { device_id, tables } = req.body;
-  if (!device_id || typeof device_id !== "string") {
-    return res.status(400).json({ error: "device_id is required" });
+  if (!device_id || typeof device_id !== "string" || device_id.length > 128) {
+    return res.status(400).json({ error: "device_id is required and must be a string ≤ 128 chars" });
   }
 
-  // Ensure this device is linked to the authenticated user
-  await ensureDeviceLinked(userId, device_id);
+  // Reject if device belongs to a different user
+  const deviceOk = await validateAndLinkDevice(userId, device_id);
+  if (!deviceOk) {
+    return res.status(403).json({ error: "Device is registered to a different account" });
+  }
+
+  if (tables !== undefined && (typeof tables !== "object" || Array.isArray(tables))) {
+    return res.status(400).json({ error: "tables must be an object" });
+  }
 
   const results: Record<string, { count: number }> = {};
 
-  if (tables?.transactions?.length) {
+  // Helper: cap array length, then upsert rows
+  const upsertTable = async <T>(
+    key: string,
+    table: any,
+    conflictTarget: any[],
+    mapper: (row: any) => T
+  ) => {
+    const rows: any[] = tables?.[key];
+    if (!Array.isArray(rows) || rows.length === 0) return;
+    const capped = rows.slice(0, MAX_ROWS_PER_TABLE);
     let count = 0;
-    for (const row of tables.transactions) {
-      const data = mapTx({ ...row, device_id });
-      await db.insert(transactions).values(data).onConflictDoUpdate({
-        target: [transactions.deviceId, transactions.localId],
-        set: data,
-      });
+    for (const row of capped) {
+      const data = mapper({ ...row, device_id });
+      await db.insert(table).values(data).onConflictDoUpdate({ target: conflictTarget, set: data });
       count++;
     }
-    results.transactions = { count };
-  }
+    results[key] = { count };
+  };
 
-  if (tables?.customers?.length) {
-    let count = 0;
-    for (const row of tables.customers) {
-      const data = mapCustomer({ ...row, device_id });
-      await db.insert(customers).values(data).onConflictDoUpdate({
-        target: [customers.deviceId, customers.localId],
-        set: data,
-      });
-      count++;
-    }
-    results.customers = { count };
-  }
+  await upsertTable("transactions",           transactions,           [transactions.deviceId, transactions.localId],                   mapTx);
+  await upsertTable("customers",              customers,              [customers.deviceId, customers.localId],                         mapCustomer);
+  await upsertTable("customer_transactions",  customerTransactions,   [customerTransactions.deviceId, customerTransactions.localId],   mapCustomerTx);
+  await upsertTable("catalog_entries",        catalogEntries,         [catalogEntries.deviceId, catalogEntries.localId],               mapCatalog);
+  await upsertTable("suppliers",              suppliers,              [suppliers.deviceId, suppliers.localId],                         mapSupplier);
+  await upsertTable("supplier_transactions",  supplierTransactions,   [supplierTransactions.deviceId, supplierTransactions.localId],   mapSupplierTx);
+  await upsertTable("staff_members",          staffMembers,           [staffMembers.deviceId, staffMembers.localId],                   mapStaff);
 
-  if (tables?.customer_transactions?.length) {
+  // settings / analytics use (deviceId, key) conflict target
+  if (Array.isArray(tables?.settings)) {
+    const capped = (tables.settings as any[]).slice(0, MAX_ROWS_PER_TABLE);
     let count = 0;
-    for (const row of tables.customer_transactions) {
-      const data = mapCustomerTx({ ...row, device_id });
-      await db.insert(customerTransactions).values(data).onConflictDoUpdate({
-        target: [customerTransactions.deviceId, customerTransactions.localId],
-        set: data,
-      });
-      count++;
-    }
-    results.customer_transactions = { count };
-  }
-
-  if (tables?.catalog_entries?.length) {
-    let count = 0;
-    for (const row of tables.catalog_entries) {
-      const data = mapCatalog({ ...row, device_id });
-      await db.insert(catalogEntries).values(data).onConflictDoUpdate({
-        target: [catalogEntries.deviceId, catalogEntries.localId],
-        set: data,
-      });
-      count++;
-    }
-    results.catalog_entries = { count };
-  }
-
-  if (tables?.suppliers?.length) {
-    let count = 0;
-    for (const row of tables.suppliers) {
-      const data = mapSupplier({ ...row, device_id });
-      await db.insert(suppliers).values(data).onConflictDoUpdate({
-        target: [suppliers.deviceId, suppliers.localId],
-        set: data,
-      });
-      count++;
-    }
-    results.suppliers = { count };
-  }
-
-  if (tables?.supplier_transactions?.length) {
-    let count = 0;
-    for (const row of tables.supplier_transactions) {
-      const data = mapSupplierTx({ ...row, device_id });
-      await db.insert(supplierTransactions).values(data).onConflictDoUpdate({
-        target: [supplierTransactions.deviceId, supplierTransactions.localId],
-        set: data,
-      });
-      count++;
-    }
-    results.supplier_transactions = { count };
-  }
-
-  if (tables?.staff_members?.length) {
-    let count = 0;
-    for (const row of tables.staff_members) {
-      const data = mapStaff({ ...row, device_id });
-      await db.insert(staffMembers).values(data).onConflictDoUpdate({
-        target: [staffMembers.deviceId, staffMembers.localId],
-        set: data,
-      });
-      count++;
-    }
-    results.staff_members = { count };
-  }
-
-  if (tables?.settings?.length) {
-    let count = 0;
-    for (const row of tables.settings) {
+    for (const row of capped) {
       const data = mapSetting(row, device_id);
-      await db.insert(settings).values(data).onConflictDoUpdate({
-        target: [settings.deviceId, settings.key],
-        set: data,
-      });
+      await db.insert(settings).values(data).onConflictDoUpdate({ target: [settings.deviceId, settings.key], set: data });
       count++;
     }
     results.settings = { count };
   }
 
-  if (tables?.analytics?.length) {
+  if (Array.isArray(tables?.analytics)) {
+    const capped = (tables.analytics as any[]).slice(0, MAX_ROWS_PER_TABLE);
     let count = 0;
-    for (const row of tables.analytics) {
+    for (const row of capped) {
       const data = mapAnalytics(row, device_id);
-      await db.insert(analytics).values(data).onConflictDoUpdate({
-        target: [analytics.deviceId, analytics.key],
-        set: data,
-      });
+      await db.insert(analytics).values(data).onConflictDoUpdate({ target: [analytics.deviceId, analytics.key], set: data });
       count++;
     }
     results.analytics = { count };
