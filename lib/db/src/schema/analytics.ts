@@ -1,4 +1,5 @@
-import { pgTable, text, integer, boolean, bigint, varchar, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, boolean, bigint, varchar, timestamp, unique, index } from "drizzle-orm/pg-core";
+import { businesses } from "./businesses";
 import { z } from "zod";
 
 export const analytics = pgTable("analytics", {
@@ -10,10 +11,13 @@ export const analytics = pgTable("analytics", {
   lastSeenAt: bigint("last_seen_at", { mode: "number" }),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }),
+  businessId: integer("business_id").references(() => businesses.id, { onDelete: "restrict" }),
   schemaVersion: integer("schema_version").default(1),
+  syncVersion: integer("sync_version").default(1),
   syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow(),
 }, (t) => [
   unique("analytics_device_key").on(t.deviceId, t.key),
+  index("analytics_business_idx").on(t.businessId),
 ]);
 
 export const insertAnalyticsSchema = z.object({
@@ -25,6 +29,7 @@ export const insertAnalyticsSchema = z.object({
   createdAt: z.number(),
   updatedAt: z.number().optional(),
   schemaVersion: z.number().optional(),
+  syncVersion: z.number().optional(),
 });
 
 export type InsertAnalytics = z.infer<typeof insertAnalyticsSchema>;

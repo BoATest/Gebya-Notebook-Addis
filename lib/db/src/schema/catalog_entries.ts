@@ -1,4 +1,5 @@
-import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique, real } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique, real, index } from "drizzle-orm/pg-core";
+import { businesses } from "./businesses";
 import { z } from "zod";
 
 export const catalogEntries = pgTable("catalog_entries", {
@@ -17,11 +18,14 @@ export const catalogEntries = pgTable("catalog_entries", {
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }),
 
+  businessId: integer("business_id").references(() => businesses.id, { onDelete: "restrict" }),
   schemaVersion: integer("schema_version").default(1),
+  syncVersion: integer("sync_version").default(1),
   syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow(),
 }, (t) => [
   unique("catalog_device_local").on(t.deviceId, t.localId),
   unique("catalog_device_txn").on(t.deviceId, t.transactionId),
+  index("catalog_entries_business_idx").on(t.businessId),
 ]);
 
 export const insertCatalogEntrySchema = z.object({
@@ -37,6 +41,7 @@ export const insertCatalogEntrySchema = z.object({
   createdAt: z.number(),
   updatedAt: z.number().optional(),
   schemaVersion: z.number().optional(),
+  syncVersion: z.number().optional(),
 });
 
 export type InsertCatalogEntry = z.infer<typeof insertCatalogEntrySchema>;

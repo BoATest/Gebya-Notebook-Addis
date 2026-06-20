@@ -1,4 +1,5 @@
-import { pgTable, serial, text, integer, real, boolean, bigint, varchar, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, real, boolean, bigint, varchar, timestamp, unique, index } from "drizzle-orm/pg-core";
+import { businesses } from "./businesses";
 import { z } from "zod";
 
 export const transactions = pgTable("transactions", {
@@ -37,11 +38,14 @@ export const transactions = pgTable("transactions", {
   actorStaffMemberId: integer("actor_staff_member_id"),
   actorNameSnapshot: text("actor_name_snapshot"),
 
+  businessId: integer("business_id").references(() => businesses.id, { onDelete: "restrict" }),
   schemaVersion: integer("schema_version").default(1),
+  syncVersion: integer("sync_version").default(1),
   syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow(),
 }, (t) => [
   unique("transactions_device_local").on(t.deviceId, t.localId),
   unique("transactions_device_txn").on(t.deviceId, t.transactionId),
+  index("transactions_business_idx").on(t.businessId),
 ]);
 
 export const insertTransactionSchema = z.object({
@@ -74,6 +78,7 @@ export const insertTransactionSchema = z.object({
   actorStaffMemberId: z.number().nullable().optional(),
   actorNameSnapshot: z.string().nullable().optional(),
   schemaVersion: z.number().optional(),
+  syncVersion: z.number().optional(),
 });
 
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;

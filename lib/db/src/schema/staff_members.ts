@@ -1,4 +1,5 @@
-import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique, index } from "drizzle-orm/pg-core";
+import { businesses } from "./businesses";
 import { z } from "zod";
 
 export const staffMembers = pgTable("staff_members", {
@@ -14,11 +15,14 @@ export const staffMembers = pgTable("staff_members", {
   updatedAt: bigint("updated_at", { mode: "number" }),
   deactivatedAt: bigint("deactivated_at", { mode: "number" }),
 
+  businessId: integer("business_id").references(() => businesses.id, { onDelete: "restrict" }),
   schemaVersion: integer("schema_version").default(1),
+  syncVersion: integer("sync_version").default(1),
   syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow(),
 }, (t) => [
   unique("staff_device_local").on(t.deviceId, t.localId),
   unique("staff_device_txn").on(t.deviceId, t.transactionId),
+  index("staff_members_business_idx").on(t.businessId),
 ]);
 
 export const insertStaffMemberSchema = z.object({
@@ -32,6 +36,7 @@ export const insertStaffMemberSchema = z.object({
   updatedAt: z.number().optional(),
   deactivatedAt: z.number().optional(),
   schemaVersion: z.number().optional(),
+  syncVersion: z.number().optional(),
 });
 
 export type InsertStaffMember = z.infer<typeof insertStaffMemberSchema>;

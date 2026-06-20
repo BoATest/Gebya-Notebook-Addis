@@ -1,4 +1,5 @@
-import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique, index } from "drizzle-orm/pg-core";
+import { businesses } from "./businesses";
 import { z } from "zod";
 
 export const customers = pgTable("customers", {
@@ -20,12 +21,21 @@ export const customers = pgTable("customers", {
   note: text("note"),
   telegramChatId: text("telegram_chat_id"),
   telegramLinkRequestedAt: bigint("telegram_link_requested_at", { mode: "number" }),
+  displayName: text("display_name"),
+  phoneNumber: text("phone_number"),
+  telegramUsername: text("telegram_username"),
+  telegramNotifyEnabled: boolean("telegram_notify_enabled").default(false),
+  telegramLinkToken: text("telegram_link_token"),
+  telegramLinkedAt: bigint("telegram_linked_at", { mode: "number" }),
 
+  businessId: integer("business_id").references(() => businesses.id, { onDelete: "restrict" }),
   schemaVersion: integer("schema_version").default(1),
+  syncVersion: integer("sync_version").default(1),
   syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow(),
 }, (t) => [
   unique("customers_device_local").on(t.deviceId, t.localId),
   unique("customers_device_txn").on(t.deviceId, t.transactionId),
+  index("customers_business_idx").on(t.businessId),
 ]);
 
 export const insertCustomerSchema = z.object({
@@ -45,7 +55,14 @@ export const insertCustomerSchema = z.object({
   note: z.string().nullable().optional(),
   telegramChatId: z.string().nullable().optional(),
   telegramLinkRequestedAt: z.number().optional(),
+  displayName: z.string().nullable().optional(),
+  phoneNumber: z.string().nullable().optional(),
+  telegramUsername: z.string().nullable().optional(),
+  telegramNotifyEnabled: z.boolean().optional(),
+  telegramLinkToken: z.string().nullable().optional(),
+  telegramLinkedAt: z.number().optional(),
   schemaVersion: z.number().optional(),
+  syncVersion: z.number().optional(),
 });
 
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;

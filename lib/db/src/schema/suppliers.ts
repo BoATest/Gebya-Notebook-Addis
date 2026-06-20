@@ -1,4 +1,5 @@
-import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique, index } from "drizzle-orm/pg-core";
+import { businesses } from "./businesses";
 import { z } from "zod";
 
 export const suppliers = pgTable("suppliers", {
@@ -15,11 +16,14 @@ export const suppliers = pgTable("suppliers", {
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }),
 
+  businessId: integer("business_id").references(() => businesses.id, { onDelete: "restrict" }),
   schemaVersion: integer("schema_version").default(1),
+  syncVersion: integer("sync_version").default(1),
   syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow(),
 }, (t) => [
   unique("suppliers_device_local").on(t.deviceId, t.localId),
   unique("suppliers_device_txn").on(t.deviceId, t.transactionId),
+  index("suppliers_business_idx").on(t.businessId),
 ]);
 
 export const insertSupplierSchema = z.object({
@@ -33,6 +37,7 @@ export const insertSupplierSchema = z.object({
   createdAt: z.number(),
   updatedAt: z.number().optional(),
   schemaVersion: z.number().optional(),
+  syncVersion: z.number().optional(),
 });
 
 export type InsertSupplier = z.infer<typeof insertSupplierSchema>;
