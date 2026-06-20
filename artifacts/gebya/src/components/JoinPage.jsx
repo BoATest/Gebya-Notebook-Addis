@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Phone, ArrowRight, Check, AlertCircle, Building2 } from 'lucide-react';
 import { requestOtp, verifyOtp, linkDevice } from '../utils/authClient';
-import { setAuthToken, getSyncEngine } from '../utils/syncEngine';
+import { setAuthToken, forceFullSync } from '../utils/syncEngine';
 import { getOrCreateCloudProofDeviceId } from '../utils/cloudProof';
 import { fireToast } from './Toast';
 
@@ -157,10 +157,9 @@ export default function JoinPage() {
 
   async function triggerSyncAndRedirect() {
     try {
-      const engine = getSyncEngine();
-      if (engine) await engine.sync();
+      await forceFullSync();
     } catch (e) {
-      if (import.meta.env.DEV) console.error('[join] sync failed:', e);
+      if (import.meta.env.DEV) console.error('[join] full sync failed:', e);
     }
     setTimeout(() => {
       window.location.href = '/';

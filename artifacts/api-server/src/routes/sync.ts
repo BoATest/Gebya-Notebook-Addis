@@ -400,6 +400,7 @@ router.post("/push", async (req, res) => {
   return res.json({
     ok: true,
     device_id,
+    business_id: businessId,
     results,
     conflicts: allConflicts.length > 0 ? allConflicts.map((c) => ({
       table: c.table,
@@ -498,6 +499,7 @@ router.get("/pull", async (req, res) => {
   return res.json({
     ok: true,
     user_id: userId,
+    business_id: businessId,
     since: sinceMs,
     pulled_at: Date.now(),
     tables,

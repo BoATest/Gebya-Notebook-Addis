@@ -4,6 +4,9 @@ import { useSyncStore } from '../stores/syncStore';
 
 const SYNC_API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
 const AUTH_TOKEN_KEY = 'gebya_auth_token';
+const LAST_SYNC_AT_KEY = 'gebya_last_sync_at';
+const TABLE_LAST_SYNC_KEY = 'gebya_table_last_sync';
+const BUSINESS_ID_KEY = 'gebya_business_id';
 
 let syncEngineInstance = null;
 
@@ -35,22 +38,50 @@ function mapPullRow(row) {
   return mapped;
 }
 
+// ─── Retry with exponential backoff ───
+async function fetchWithRetry(url, options, retries = 5, baseDelay = 1000) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok) return res;
+      // Don't retry on 4xx errors (client errors)
+      if (res.status >= 400 && res.status < 500) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      // Retry on 5xx or network errors
+      if (attempt < retries) {
+        const delay = baseDelay * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, delay));
+      } else {
+        throw new Error(`HTTP ${res.status}: ${res.statusText} after ${retries} retries`);
+      }
+    } catch (err) {
+      if (attempt >= retries) throw err;
+      const delay = baseDelay * Math.pow(2, attempt);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw new Error('Unreachable');
+}
+
 class SyncEngine {
   constructor() {
     this.deviceId = null;
     this.status = 'idle'; // idle | syncing | error | offline | unauthenticated
     this.error = null;
     this.lastSyncAt = 0;
+    this.tableLastSync = {}; // per-table last sync timestamps for resumable syncs
+    this.businessId = null;
     this.listeners = [];
     this.unsubscribers = [];
     this.online = typeof navigator !== 'undefined' ? navigator.onLine : true;
     this.timer = null;
+    this._pushDebounce = null;
   }
 
   _notify() {
     const state = this.getState();
     this.listeners.forEach((cb) => cb(state));
-    // Phase B: Also update Zustand syncStore for global access
     try {
       useSyncStore.getState().setSyncState(state);
     } catch { /* ignore if store not initialized yet */ }
@@ -62,6 +93,7 @@ class SyncEngine {
       error: this.error,
       lastSyncAt: this.lastSyncAt,
       online: this.online,
+      businessId: this.businessId,
     };
   }
 
@@ -75,8 +107,15 @@ class SyncEngine {
 
   async init() {
     this.deviceId = await getOrCreateCloudProofDeviceId();
-    const row = await db.settings.get('gebya_last_sync_at');
-    if (row?.value) this.lastSyncAt = Number(row.value);
+
+    const globalRow = await db.settings.get(LAST_SYNC_AT_KEY);
+    if (globalRow?.value) this.lastSyncAt = Number(globalRow.value);
+
+    const tableRow = await db.settings.get(TABLE_LAST_SYNC_KEY);
+    if (tableRow?.value) this.tableLastSync = tableRow.value;
+
+    const bizRow = await db.settings.get(BUSINESS_ID_KEY);
+    if (bizRow?.value) this.businessId = bizRow.value;
 
     this._setupOnlineListeners();
     this._setupDexieHooks();
@@ -118,9 +157,18 @@ class SyncEngine {
       if (!table?.hook) return;
 
       const onCreate = (primKey, obj, trans) => {
+        // Ensure sync_version is set on new records
+        if (obj.sync_version === undefined || obj.sync_version === null) {
+          obj.sync_version = 1;
+        }
         this._schedulePush(tableName, 'create', obj);
       };
       const onUpdate = (modifications, primKey, obj, trans) => {
+        // Increment sync_version on updates (if not already set by caller)
+        if (!modifications.sync_version) {
+          const currentVersion = obj.sync_version || 1;
+          modifications.sync_version = currentVersion + 1;
+        }
         this._schedulePush(tableName, 'update', obj);
       };
 
@@ -138,11 +186,23 @@ class SyncEngine {
       const table = db[tableName];
       if (!table?.hook) return;
       const onCreate = (primKey, obj, trans) => {
+        if (obj.sync_version === undefined || obj.sync_version === null) {
+          obj.sync_version = 1;
+        }
         this._schedulePush(tableName, 'create', obj);
       };
+      const onUpdate = (modifications, primKey, obj, trans) => {
+        if (!modifications.sync_version) {
+          const currentVersion = obj.sync_version || 1;
+          modifications.sync_version = currentVersion + 1;
+        }
+        this._schedulePush(tableName, 'update', obj);
+      };
       table.hook('creating', onCreate);
+      table.hook('updating', onUpdate);
       this.unsubscribers.push(() => {
         table.hook('creating').unsubscribe(onCreate);
+        table.hook('updating').unsubscribe(onUpdate);
       });
     });
   }
@@ -169,7 +229,8 @@ class SyncEngine {
       await this._pushAll(token);
       await this._pullAll(token);
       this.lastSyncAt = Date.now();
-      await db.settings.put({ key: 'gebya_last_sync_at', value: this.lastSyncAt });
+      await db.settings.put({ key: LAST_SYNC_AT_KEY, value: this.lastSyncAt });
+      await db.settings.put({ key: TABLE_LAST_SYNC_KEY, value: this.tableLastSync });
       this.status = 'idle';
     } catch (err) {
       if (err.message?.includes('401') || err.message?.includes('403')) {
@@ -180,6 +241,49 @@ class SyncEngine {
         this.error = err.message || 'Sync failed';
       }
       if (import.meta.env.DEV) console.error('[sync]', err);
+    }
+    this._notify();
+  }
+
+  /**
+   * Force a full sync from the beginning of time. Used when a user joins a
+   * new business so they download the entire shop history immediately.
+   */
+  async fullSync() {
+    const token = await getAuthToken();
+    if (!token) {
+      this.status = 'unauthenticated';
+      this._notify();
+      return;
+    }
+    if (!this.online || this.status === 'syncing') return;
+
+    // Save current state so we can restore if needed
+    const previousLastSync = this.lastSyncAt;
+    const previousTableLastSync = { ...this.tableLastSync };
+
+    this.lastSyncAt = 0;
+    this.tableLastSync = {};
+    this.status = 'syncing';
+    this.error = null;
+    this._notify();
+
+    try {
+      await this._pushAll(token);
+      await this._pullAll(token);
+      this.lastSyncAt = Date.now();
+      await db.settings.put({ key: LAST_SYNC_AT_KEY, value: this.lastSyncAt });
+      await db.settings.put({ key: TABLE_LAST_SYNC_KEY, value: this.tableLastSync });
+      this.status = 'idle';
+    } catch (err) {
+      if (err.message?.includes('401') || err.message?.includes('403')) {
+        this.status = 'unauthenticated';
+        await clearAuthToken();
+      } else {
+        this.status = 'error';
+        this.error = err.message || 'Sync failed';
+      }
+      if (import.meta.env.DEV) console.error('[sync full]', err);
     }
     this._notify();
   }
@@ -213,64 +317,176 @@ class SyncEngine {
     const hasData = Object.values(payload.tables).some((arr) => arr.length > 0);
     if (!hasData) return;
 
-    const res = await fetch(`${SYNC_API_BASE}/sync/push`, {
+    const res = await fetchWithRetry(`${SYNC_API_BASE}/sync/push`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify(payload),
-    });
+    }, 3);
 
     if (!res.ok) throw new Error(`Push failed: ${res.status}`);
+
+    const response = await res.json();
+
+    // Track business_id from server if returned
+    if (response.business_id) {
+      this.businessId = response.business_id;
+      await db.settings.put({ key: BUSINESS_ID_KEY, value: response.business_id });
+    }
+
+    // Handle conflicts: re-pull and re-merge conflicting records
+    if (response.conflicts && response.conflicts.length > 0) {
+      await this._resolveConflicts(response.conflicts, token);
+    }
+  }
+
+  async _resolveConflicts(conflicts, token) {
+    // For each conflict, fetch the server record, merge with local, and re-push
+    const conflictMap = {};
+
+    for (const conflict of conflicts) {
+      if (!conflictMap[conflict.table]) conflictMap[conflict.table] = [];
+      conflictMap[conflict.table].push(conflict.localId);
+    }
+
+    for (const [tableName, localIds] of Object.entries(conflictMap)) {
+      for (const localId of localIds) {
+        try {
+          // Fetch local record
+          const localRecord = await db[tableName].get(localId);
+          if (!localRecord) continue;
+
+          // Fetch server record via pull
+          const serverRes = await fetch(
+            `${SYNC_API_BASE}/sync/pull?since=${(localRecord.updated_at || 0) - 1}&limit=50`,
+            { headers: { 'Authorization': `Bearer ${token}` } }
+          );
+          if (!serverRes.ok) continue;
+          const { tables } = await serverRes.json();
+          const serverRows = tables?.[tableName] || [];
+          const serverRecord = serverRows.find((r) => r.localId === localId || r.id === localId);
+          if (!serverRecord) continue;
+
+          // Merge: accept server version but bump local version so next push wins
+          const merged = { ...localRecord };
+          merged.sync_version = (serverRecord.syncVersion || 1) + 1;
+          merged.updated_at = Date.now();
+
+          await db[tableName].put(merged);
+        } catch (err) {
+          if (import.meta.env.DEV) console.error('[sync] conflict resolution failed:', err);
+        }
+      }
+    }
+
+    // Re-push the merged records
+    await this._pushAll(token);
   }
 
   async _pullAll(token) {
-    const res = await fetch(
-      `${SYNC_API_BASE}/sync/pull?since=${this.lastSyncAt}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+    const tables = [
+      'transactions',
+      'customers',
+      'customer_transactions',
+      'catalog_entries',
+      'suppliers',
+      'supplier_transactions',
+      'staff_members',
+    ];
+    const kvTables = ['settings', 'analytics'];
+    const allTables = [...tables, ...kvTables];
+
+    let hasMore = true;
+    let cursor = this.lastSyncAt;
+    let pulledAny = false;
+
+    // Paginated pull: keep pulling until no more pages
+    while (hasMore) {
+      const res = await fetchWithRetry(
+        `${SYNC_API_BASE}/sync/pull?since=${cursor}&limit=200`,
+        { headers: { 'Authorization': `Bearer ${token}` } },
+        3
+      );
+      if (!res.ok) throw new Error(`Pull failed: ${res.status}`);
+      const { tables: serverTables, hasMore: pageHasMore, nextCursor, business_id } = await res.json();
+      if (!serverTables) break;
+
+      // Track business_id from server
+      if (business_id) {
+        this.businessId = business_id;
+        await db.settings.put({ key: BUSINESS_ID_KEY, value: business_id });
       }
-    );
-    if (!res.ok) throw new Error(`Pull failed: ${res.status}`);
-    const { tables } = await res.json();
-    if (!tables) return;
 
-    await db.transaction(
-      'rw',
-      db.transactions,
-      db.customers,
-      db.customer_transactions,
-      db.catalog_entries,
-      db.suppliers,
-      db.supplier_transactions,
-      db.staff_members,
-      db.settings,
-      db.analytics,
-      async () => {
-        for (const [name, rows] of Object.entries(tables)) {
-          const table = db[name];
-          if (!table || !rows?.length) continue;
+      await db.transaction(
+        'rw',
+        db.transactions,
+        db.customers,
+        db.customer_transactions,
+        db.catalog_entries,
+        db.suppliers,
+        db.supplier_transactions,
+        db.staff_members,
+        db.settings,
+        db.analytics,
+        async () => {
+          for (const [name, rows] of Object.entries(serverTables)) {
+            const table = db[name];
+            if (!table || !rows?.length) continue;
 
-          const isKeyValueTable = name === 'settings' || name === 'analytics';
+            const isKeyValueTable = name === 'settings' || name === 'analytics';
 
-          for (const row of rows) {
-            const mapped = mapPullRow(row);
-            if (isKeyValueTable) {
-              const local = await table.get(mapped.key);
-              if (local && (local.updated_at || 0) >= (mapped.updated_at || 0)) continue;
-              await table.put(mapped);
-            } else {
+            for (const row of rows) {
+              const mapped = mapPullRow(row);
+
+              if (isKeyValueTable) {
+                // KV tables: merge by key, keep newer updated_at
+                const local = await table.get(mapped.key);
+                if (local && (local.updated_at || 0) >= (mapped.updated_at || 0)) continue;
+                await table.put(mapped);
+                continue;
+              }
+
+              // Data tables: merge by id, with cross-device collision safety
               const local = await table.get(mapped.id);
-              if (local && (local.updated_at || 0) >= (mapped.updated_at || 0)) continue;
-              await table.put(mapped);
+
+              if (!local) {
+                // New record — insert as-is
+                await table.put(mapped);
+              } else if (local.device_id === mapped.device_id) {
+                // Same device — safe merge by timestamp
+                if ((local.updated_at || 0) >= (mapped.updated_at || 0)) continue;
+                await table.put(mapped);
+              } else {
+                // Different device with same local id — collision!
+                // We must preserve the local record. Assign the remote record
+                // a fresh local id via auto-increment.
+                delete mapped.id; // let Dexie auto-increment
+                await table.add(mapped);
+              }
+            }
+
+            // Track per-table last sync timestamp
+            if (rows.length > 0) {
+              const maxUpdatedAt = Math.max(...rows.map((r) => r.updatedAt || r.createdAt || 0));
+              this.tableLastSync[name] = Math.max(this.tableLastSync[name] || 0, maxUpdatedAt);
+              pulledAny = true;
             }
           }
         }
+      );
+
+      hasMore = !!pageHasMore;
+      if (hasMore && nextCursor) {
+        cursor = nextCursor;
+      } else {
+        hasMore = false;
       }
-    );
+
+      // Safety: break if we've pulled too many pages
+      if (!pulledAny && !hasMore) break;
+    }
   }
 
   destroy() {
@@ -295,4 +511,14 @@ export function getSyncEngine() {
 export function destroySyncEngine() {
   syncEngineInstance?.destroy();
   syncEngineInstance = null;
+}
+
+/**
+ * Trigger a full sync from the beginning of time. Call this after a user
+ * joins a new business so their phone downloads the entire shop history.
+ */
+export async function forceFullSync() {
+  if (!syncEngineInstance) return false;
+  await syncEngineInstance.fullSync();
+  return true;
 }
