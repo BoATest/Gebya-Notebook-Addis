@@ -4,6 +4,8 @@ import telegramRouter from "./telegram.js";
 import transcribeRouter from "./transcribe.js";
 import syncRouter from "./sync.js";
 import authRouter from "./auth.js";
+import backupRouter from "./backup.js";
+import businessRouter from "./business.js";
 
 const router: IRouter = Router();
 
@@ -13,5 +15,7 @@ router.use("/telegram", telegramRouter);
 router.use("/transcribe", transcribeRouter);
 router.use("/sync", syncRouter);
 router.use("/auth", authRouter);
+router.use("/backup", backupRouter);
+router.use("/business", businessRouter);
 
 export default router;
