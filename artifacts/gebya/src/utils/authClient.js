@@ -46,5 +46,5 @@ export async function getCurrentUser(token) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to get user');
-  return data.user;
+  return data; // { ok, user, role, permissions }
 }

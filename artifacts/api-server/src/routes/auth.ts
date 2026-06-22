@@ -26,7 +26,7 @@ function signJwt(userId: number) {
   return jwt.sign({ userId, type: "access" }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 }
 
-function verifyJwt(token: string) {
+export function verifyJwt(token: string) {
   try {
     return jwt.verify(token, JWT_SECRET, { clockTolerance: 60 }) as { userId: number; type: string };
   } catch {
@@ -157,6 +157,14 @@ router.post("/verify", async (req, res) => {
 
   const token = signJwt(user.id);
 
+  // Fetch membership info (role + permissions)
+  const memberRows = await db
+    .select({ role: businessMembers.role, permissions: businessMembers.permissions })
+    .from(businessMembers)
+    .where(eq(businessMembers.userId, user.id))
+    .limit(1);
+  const member = memberRows[0];
+
   return res.json({
     ok: true,
     token,
@@ -166,6 +174,8 @@ router.post("/verify", async (req, res) => {
       preferred_lang: user.preferredLang,
       created_at: user.createdAt,
     },
+    role: member?.role || null,
+    permissions: member?.permissions || null,
   });
 });
 
@@ -222,6 +232,14 @@ router.get("/me", async (req, res) => {
     return res.status(404).json({ error: "User not found" });
   }
 
+  // Fetch user's business membership (role + permissions)
+  const memberRows = await db
+    .select({ role: businessMembers.role, permissions: businessMembers.permissions })
+    .from(businessMembers)
+    .where(eq(businessMembers.userId, user.id))
+    .limit(1);
+  const member = memberRows[0];
+
   return res.json({
     ok: true,
     user: {
@@ -230,8 +248,9 @@ router.get("/me", async (req, res) => {
       preferred_lang: user.preferredLang,
       created_at: user.createdAt,
     },
+    role: member?.role || null,
+    permissions: member?.permissions || null,
   });
 });
 
 export default router;
-export { verifyJwt };

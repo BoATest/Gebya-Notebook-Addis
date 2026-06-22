@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { Pencil, Trash2, MoreVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import PhotoAttachment from './PhotoAttachment';
+import { usePermissionsStore } from '../stores/permissionsStore';
 
 export default function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const menuRef = useRef(null);
+  const canDelete = usePermissionsStore(s => s.hasPermission('can_delete_records'));
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -66,9 +68,11 @@ export default function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
               <button onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full px-3 py-2 text-left flex items-center gap-2 text-sm hover:bg-gray-50">
                 <Pencil className="w-3.5 h-3.5" /> {lang === 'am' ? 'አርትዕ' : 'Edit'}
               </button>
-              <button onClick={() => { onDelete(); setMenuOpen(false); }} className="w-full px-3 py-2 text-left flex items-center gap-2 text-sm text-red-600 hover:bg-red-50">
-                <Trash2 className="w-3.5 h-3.5" /> {lang === 'am' ? 'ሰርዝ' : 'Delete'}
-              </button>
+              {canDelete && (
+                <button onClick={() => { onDelete(); setMenuOpen(false); }} className="w-full px-3 py-2 text-left flex items-center gap-2 text-sm text-red-600 hover:bg-red-50">
+                  <Trash2 className="w-3.5 h-3.5" /> {lang === 'am' ? 'ሰርዝ' : 'Delete'}
+                </button>
+              )}
             </div>
           )}
         </div>

@@ -10,6 +10,27 @@ const router = Router();
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://gebya.app";
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+// ─── Default permission maps per role ───
+const DEFAULT_PERMISSIONS = {
+  owner:   { can_manage_team: true, can_delete_records: true, can_edit_settings: true, can_add_records: true, can_view_reports: true },
+  cashier: { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: true, can_view_reports: true },
+  viewer:  { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: false, can_view_reports: true },
+};
+
+function getRoleDefault(role: string) {
+  return DEFAULT_PERMISSIONS[role as keyof typeof DEFAULT_PERMISSIONS] || DEFAULT_PERMISSIONS.viewer;
+}
+
+/**
+ * Merge user's JSONB permissions over role defaults.
+ * If permissions is null/undefined, return role defaults.
+ */
+function resolvePermissions(role: string, storedPermissions: any) {
+  const base = getRoleDefault(role);
+  if (!storedPermissions || typeof storedPermissions !== "object") return base;
+  return { ...base, ...storedPermissions };
+}
+
 function getUserIdFromRequest(req: any): number | null {
   const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
   if (!token) return null;
@@ -183,7 +204,7 @@ router.get("/members", requireRole("owner"), async (req, res) => {
   const businessId = await getBusinessForUser(userId);
   if (!businessId) return res.status(403).json({ error: "No business found" });
 
-  const members = await db
+  const rows = await db
     .select({
       id: businessMembers.id,
       userId: businessMembers.userId,
@@ -191,6 +212,7 @@ router.get("/members", requireRole("owner"), async (req, res) => {
       phone: users.phoneNumber,
       phoneNumber: users.phoneNumber,
       role: businessMembers.role,
+      permissions: businessMembers.permissions,
       joined_at: businessMembers.joinedAt,
       joinedAt: businessMembers.joinedAt,
       active: businessMembers.active,
@@ -199,7 +221,73 @@ router.get("/members", requireRole("owner"), async (req, res) => {
     .innerJoin(users, eq(users.id, businessMembers.userId))
     .where(eq(businessMembers.businessId, businessId));
 
+  const members = rows.map((m) => ({
+    ...m,
+    resolved_permissions: resolvePermissions(m.role, m.permissions),
+  }));
+
   return res.json({ ok: true, members });
+});
+
+router.patch("/members/:userId/permissions", requireRole("owner"), async (req, res) => {
+  const ownerId = getUserIdFromRequest(req);
+  if (!ownerId) return res.status(401).json({ error: "Authorization required" });
+
+  const targetUserId = Number(req.params.userId);
+  if (!Number.isFinite(targetUserId) || targetUserId <= 0) {
+    return res.status(400).json({ error: "Invalid userId" });
+  }
+
+  // Don't let owner edit their own permissions (owner is always full access)
+  if (targetUserId === ownerId) {
+    return res.status(403).json({ error: "Cannot modify owner permissions" });
+  }
+
+  const businessId = await getBusinessForUser(ownerId);
+  if (!businessId) return res.status(403).json({ error: "No business found" });
+
+  // Verify target is a member of this business
+  const targetRows = await db
+    .select({ id: businessMembers.id, role: businessMembers.role, permissions: businessMembers.permissions })
+    .from(businessMembers)
+    .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.userId, targetUserId)))
+    .limit(1);
+
+  if (!targetRows.length) {
+    return res.status(404).json({ error: "Member not found in this business" });
+  }
+
+  const { role, permissions: existingPermissions } = targetRows[0];
+  const current = resolvePermissions(role, existingPermissions);
+  const incoming = req.body;
+
+  // Only accept known permission keys
+  const allowedKeys = Object.keys(current);
+  const nextPermissions: Record<string, boolean> = {};
+  for (const key of allowedKeys) {
+    if (incoming[key] !== undefined && typeof incoming[key] === "boolean") {
+      nextPermissions[key] = incoming[key];
+    } else if (existingPermissions && typeof existingPermissions === "object" && existingPermissions[key] !== undefined) {
+      nextPermissions[key] = existingPermissions[key] as boolean;
+    }
+  }
+
+  // Upsert: if next matches role defaults, store NULL (clean state)
+  const defaults = getRoleDefault(role);
+  let permissionsToStore: any = nextPermissions;
+  const matchesDefaults = Object.keys(nextPermissions).every(
+    (k) => nextPermissions[k] === (defaults as any)[k]
+  );
+  if (matchesDefaults) {
+    permissionsToStore = null;
+  }
+
+  await db
+    .update(businessMembers)
+    .set({ permissions: permissionsToStore })
+    .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.userId, targetUserId)));
+
+  return res.json({ ok: true, permissions: nextPermissions });
 });
 
 export default router;

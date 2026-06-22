@@ -5,6 +5,7 @@ import { LangProvider, useLang } from './context/LangContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { useAppStore } from './stores/appStore';
 import { useAuthStore } from './stores/authStore';
+import { usePermissionsStore } from './stores/permissionsStore';
 import { useShopStore } from './stores/shopStore';
 import { useTransactions } from './hooks/useTransactions';
 import { useCustomers } from './hooks/useCustomers';
@@ -33,6 +34,18 @@ import { buildDefaultChannels, migrateLegacyToChannels, deriveLegacyFromChannels
 import { sortCustomerTransactions } from './utils/customerLedger';
 
 const P = { bg: 'var(--color-bg)' };
+
+const DEFAULT_PERMISSIONS = {
+  owner:   { can_manage_team: true, can_delete_records: true, can_edit_settings: true, can_add_records: true, can_view_reports: true },
+  cashier: { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: true, can_view_reports: true },
+  viewer:  { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: false, can_view_reports: true },
+};
+
+function resolvePermissions(role, storedPermissions) {
+  const base = DEFAULT_PERMISSIONS[role] || DEFAULT_PERMISSIONS.viewer;
+  if (!storedPermissions || typeof storedPermissions !== 'object') return base;
+  return { ...base, ...storedPermissions };
+}
 
 const DEFAULT_PROVIDERS = { banks: ['CBE', 'Dashen', 'Awash', 'Abyssinia'], wallets: ['telebirr', 'CBE Birr'] };
 const OWNER_ALERT_THRESHOLD_SETTING_KEY = 'owner_alert_threshold_amount';
@@ -106,6 +119,12 @@ function AppInner() {
   const authUser = useAuthStore(s => s.user);
   const authChecked = useAuthStore(s => s.checked);
   const setAuthUser = useAuthStore(s => s.setUser);
+
+  // Permissions
+  const canAddRecords = usePermissionsStore(s => s.hasPermission('can_add_records'));
+  const canDeleteRecords = usePermissionsStore(s => s.hasPermission('can_delete_records'));
+  const canEditSettings = usePermissionsStore(s => s.hasPermission('can_edit_settings'));
+  const canManageTeam = usePermissionsStore(s => s.hasPermission('can_manage_team'));
 
   // Shop
   const shopProfile = useShopStore(s => s.shopProfile);
@@ -228,7 +247,13 @@ function AppInner() {
         const token = await getAuthToken();
         if (!token) { if (!cancelled) setAuthUser(false); return; }
         const { getCurrentUser } = await import('./utils/authClient');
-        const user = await getCurrentUser(token);
+        const data = await getCurrentUser(token);
+        const user = data.user;
+        const role = data.role || null;
+        const rawPerms = data.permissions;
+        // Resolve permissions: default to full access if null
+        const resolvedPerms = resolvePermissions(role, rawPerms);
+        usePermissionsStore.getState().setPermissions(resolvedPerms);
         if (!cancelled) setAuthUser(user);
       } catch { await clearAuthToken(); if (!cancelled) setAuthUser(false); }
     })();
@@ -445,7 +470,7 @@ function AppInner() {
     { id:'today',    label:TAB_LABELS.today[lang],    icon:BookOpen },
     { id:'credit',   label:TAB_LABELS.credit[lang],   icon:CreditCard },
     { id:'history',  label:TAB_LABELS.history[lang],  icon:BarChart3 },
-    { id:'settings', label:TAB_LABELS.settings[lang], icon:MoreHorizontal },
+    ...(canEditSettings ? [{ id:'settings', label:TAB_LABELS.settings[lang], icon:MoreHorizontal }] : []),
   ];
 
 
@@ -455,7 +480,7 @@ function AppInner() {
       {/* Header */}
       <header className="flex-shrink-0 px-3 sm:px-4 pt-3 sm:pt-4 pb-2 sm:pb-3" style={{ background: 'var(--color-bg)', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
         <div className="flex items-center gap-2 sm:gap-3">
-          <button onClick={() => setActiveTab('settings')} className="flex-shrink-0 press-scale flex items-center justify-center rounded-full font-bold text-white" aria-label="Open profile" style={{ width:36, height:36, background:'#6b7280', fontSize:14 }}>
+          <button onClick={() => canEditSettings ? setActiveTab('settings') : null} className="flex-shrink-0 press-scale flex items-center justify-center rounded-full font-bold text-white" aria-label="Open profile" style={{ width:36, height:36, background:'#6b7280', fontSize:14 }}>
             {shopProfile.name.charAt(0).toUpperCase()}
           </button>
           <div className="flex-1 min-w-0">
@@ -559,10 +584,11 @@ function AppInner() {
         <div className="fixed left-0 right-0 max-w-md mx-auto z-30 px-3 py-2 border-t" style={{ bottom:60, background:'#fff', borderColor:'#e5e7eb' }}>
           <div className="flex gap-1.5 sm:gap-2">
             {[
+              {canAddRecords ? [
               { type:'sale',    label:lang==='am'?'ሽያጭ':'Sale',    color:'#16a34a', Icon:Plus },
               { type:'expense', label:lang==='am'?'ወጪ':'Expense',  color:'#dc2626', Icon:Minus },
               { type:'credit',  label:lang==='am'?'ዱቤ':'Credit',   color:'#2563eb', Icon:RotateCw },
-            ].map(({ type, label, color, Icon }) => (
+            ].map(({ type, label, color, Icon }) => (({ type, label, color, Icon }) => (
               <button
                 key={type}
                 onClick={() => {
@@ -578,7 +604,11 @@ function AppInner() {
                 <Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color, strokeWidth:2.5 }} />
                 <span className="font-bold text-xs sm:text-sm truncate" style={{ color }}>{label}</span>
               </button>
-            ))}
+            ))})) : (
+              <div className="flex-1 py-2.5 text-center text-xs text-gray-400">
+                {lang === 'am' ? 'ሪኮርድ ማስገባት አልተፈቀደልዎትም' : 'You do not have permission to add records'}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -638,7 +668,7 @@ function AppInner() {
         <AuthGate
           lang={lang}
           shopPhone={shopProfile?.phone || ''}
-          onAuthenticated={(user) => { setAuthUser(user); getSyncEngine()?.sync(); }}
+          onAuthenticated={(user, role, permissions) => { setAuthUser(user); usePermissionsStore.getState().setPermissions(resolvePermissions(role, permissions)); getSyncEngine()?.sync(); }}
           onSkip={() => useAuthStore.getState().setUser({ skipped: true })}
         />
       )}

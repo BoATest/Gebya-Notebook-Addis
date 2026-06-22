@@ -94,12 +94,12 @@ export default function AuthGate({ onAuthenticated, onSkip, shopPhone = '', lang
     setError(null);
     setLoading(true);
     try {
-      const { token, user } = await verifyOtp(formatted, otp);
+      const { token, user, role, permissions } = await verifyOtp(formatted, otp);
       await setAuthToken(token);
       const deviceId = await getOrCreateCloudProofDeviceId();
       try { await linkDevice(token, deviceId); } catch (e) { /* non-critical */ }
       fireToast(t.loginSuccess, 2000);
-      onAuthenticated?.(user);
+      onAuthenticated?.(user, role, permissions);
     } catch (err) {
       setError(err.message || t.genericError);
     } finally {
