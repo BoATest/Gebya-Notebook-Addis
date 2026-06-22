@@ -17,6 +17,7 @@ import {
   removeChannel,
   addCustomChannel,
 } from '../utils/paymentChannels';
+import { friendlyEventLabel, friendlySyncLabel } from '../utils/staffActivityFeed';
 
 const PwaInstallPanel = lazy(() => import('./PwaInstallPanel.jsx'));
 
@@ -602,6 +603,8 @@ function SettingsPage({
   onUpdateShopSettings,
   onApproveDevice,
   onRejectDevice,
+  onLoadStaffActivity,
+  onRetryStaffActivity,
   enabledProviders,
   onProvidersChange,
   // Commit C.4 — unified payment channels
@@ -649,6 +652,12 @@ function SettingsPage({
   const [shopJoinCode, setShopJoinCode] = useState('');
   const [shopJoinSettings, setShopJoinSettings] = useState(null);
   const [rotating, setRotating] = useState(false);
+  const [staffActivity, setStaffActivity] = useState([]);
+  const [staffActivityFilter, setStaffActivityFilter] = useState('all');
+  const [staffActivityLoading, setStaffActivityLoading] = useState(false);
+  const [staffActivityError, setStaffActivityError] = useState('');
+  const [staffActivityOffline, setStaffActivityOffline] = useState(false);
+  const [staffActivitySource, setStaffActivitySource] = useState('local');
 
   const [editName, setEditName] = useState(shopProfile?.name || '');
   const [editPhoneDigits, setEditPhoneDigits] = useState(() => {
@@ -845,11 +854,44 @@ function SettingsPage({
     if (ok) fireToast('Request rejected', 1800);
   };
 
+  const effectiveRole = identity?.role || shopProfile?.role;
+  const canViewStaffActivity = effectiveRole === 'owner' || identity?.permissions?.can_view_staff_feed === true;
+
+  const applyStaffActivityResult = (result) => {
+    setStaffActivity(Array.isArray(result?.activities) ? result.activities : []);
+    setStaffActivityError(result?.error || '');
+    setStaffActivityOffline(!!result?.offline);
+    setStaffActivitySource(result?.source || 'local');
+  };
+
+  const refreshStaffActivity = async ({ retry = false } = {}) => {
+    if (!canViewStaffActivity || staffActivityLoading) return;
+    setStaffActivityLoading(true);
+    try {
+      const result = retry
+        ? await onRetryStaffActivity?.()
+        : await onLoadStaffActivity?.();
+      applyStaffActivityResult(result || {});
+      if (retry) fireToast('Staff activity refreshed', 1400);
+    } catch (error) {
+      setStaffActivityError(error?.message || 'Could not refresh staff activity.');
+    } finally {
+      setStaffActivityLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (openSection === 'team' && (!identity || identity.role === 'owner')) {
       onRefreshStaffMembers?.();
     }
   }, [identity, onRefreshStaffMembers, openSection]);
+
+  useEffect(() => {
+    if (openSection === 'team' && canViewStaffActivity) {
+      refreshStaffActivity();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canViewStaffActivity, openSection]);
 
   const csvCell = (value) => {
     const stringValue = value == null ? '' : String(value);
@@ -1317,6 +1359,35 @@ function SettingsPage({
   const activeStaffCount = (staffMembers || []).filter(m => m.active !== false).length;
   const teamStatus = activeStaffCount > 0 ? `${activeStaffCount}` : (lang === 'am' ? 'ብቻ እርስዎ' : 'Solo');
   const teamTone = activeStaffCount > 0 ? 'ok' : 'neutral';
+  const staffActivityFilters = [
+    { id: 'all', label: 'All' },
+    { id: 'sale', label: 'Sales' },
+    { id: 'customer_payment', label: 'Customer payments' },
+    { id: 'customer_credit', label: 'Dubie' },
+  ];
+  const filteredStaffActivity = (staffActivity || [])
+    .filter((item) => staffActivityFilter === 'all' || item.event_type === staffActivityFilter)
+    .slice(0, 8);
+  const staffActivityCount = filteredStaffActivity.length;
+  const staffActivitySyncTone = staffActivity.some(item => item.sync_state === 'needs_retry')
+    ? 'warn'
+    : (staffActivity.some(item => item.sync_state === 'waiting_to_sync') ? 'info' : 'ok');
+  const staffActivityStatusStyle = {
+    synced: { background: '#dcfce7', color: '#166534' },
+    waiting_to_sync: { background: '#fef3c7', color: '#92400e' },
+    needs_retry: { background: '#fee2e2', color: '#991b1b' },
+  };
+  const formatActivityTime = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  };
+  const activityCopy = {
+    loading: staffActivityLoading ? 'Refreshing...' : 'Refresh',
+    empty: staffActivityFilter === 'all'
+      ? 'No staff activity yet. When staff records sales, payments, or Dubie, it will appear here.'
+      : 'No activity for this filter yet.',
+  };
 
   const displayPrivacyStatus = `${theme === 'dark' ? (lang === 'am' ? 'ጨለማ' : 'Dark') : (lang === 'am' ? 'ብርሃን' : 'Light')} · ${hidden ? (lang === 'am' ? 'ተደብቋል' : 'Hidden') : (lang === 'am' ? 'ይታያል' : 'Visible')}`;
 
@@ -2028,6 +2099,122 @@ function SettingsPage({
                 })
               )}
             </div>
+
+            {canViewStaffActivity && (
+              <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#d7eadf', background: '#F5FBF7' }}>
+                <div className="px-4 py-4 border-b" style={{ borderColor: '#d7eadf' }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#1B4332' }}>Staff activity</p>
+                      <h3 className="text-base font-black text-gray-900 mt-1">What staff recorded</h3>
+                      <p className="text-xs text-gray-500 mt-1 leading-5">
+                        Preview history from the staff sync foundation. Server history is in-memory for now, so API restarts can clear synced activity.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => refreshStaffActivity({ retry: false })}
+                      disabled={staffActivityLoading}
+                      className="px-3 py-2 rounded-xl text-xs font-bold min-h-[40px] flex items-center gap-1.5"
+                      style={{ background: '#fff', color: '#1B4332', border: '1px solid #d7eadf', opacity: staffActivityLoading ? 0.55 : 1 }}
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${staffActivityLoading ? 'animate-spin' : ''}`} />
+                      {activityCopy.loading}
+                    </button>
+                  </div>
+
+                  <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                    {staffActivityFilters.map(filter => {
+                      const active = staffActivityFilter === filter.id;
+                      return (
+                        <button
+                          key={filter.id}
+                          type="button"
+                          onClick={() => setStaffActivityFilter(filter.id)}
+                          className="px-3 py-2 rounded-xl text-xs font-black whitespace-nowrap"
+                          style={{
+                            background: active ? '#1B4332' : '#fff',
+                            color: active ? '#fff' : '#475569',
+                            border: active ? '1px solid #1B4332' : '1px solid #d7eadf',
+                          }}
+                        >
+                          {filter.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {(staffActivityOffline || staffActivityError) && (
+                  <div className="px-4 py-3 flex items-start gap-2" style={{ background: '#fff7ed', borderBottom: '1px solid #fed7aa' }}>
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#c2410c' }} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold" style={{ color: '#9a3412' }}>
+                        {staffActivityOffline ? 'Offline - showing what is saved on this phone.' : 'Could not refresh server activity.'}
+                      </p>
+                      {staffActivityError && <p className="text-xs mt-0.5" style={{ color: '#9a3412' }}>{staffActivityError}</p>}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => refreshStaffActivity({ retry: true })}
+                      className="px-3 py-2 rounded-lg text-xs font-bold"
+                      style={{ background: '#fff', color: '#9a3412', border: '1px solid #fed7aa' }}
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+
+                <div className="divide-y" style={{ borderColor: '#d7eadf' }}>
+                  {staffActivityLoading && staffActivity.length === 0 ? (
+                    <div className="px-4 py-6 text-sm text-gray-500">Loading staff activity...</div>
+                  ) : staffActivityCount === 0 ? (
+                    <div className="px-4 py-6">
+                      <p className="text-sm font-bold text-gray-800">No activity yet</p>
+                      <p className="text-xs text-gray-500 mt-1 leading-5">{activityCopy.empty}</p>
+                    </div>
+                  ) : (
+                    filteredStaffActivity.map((item) => {
+                      const statusStyle = staffActivityStatusStyle[item.sync_state] || staffActivityStatusStyle.waiting_to_sync;
+                      return (
+                        <div key={`${item.source}-${item.client_event_id}`} className="px-4 py-3 bg-white">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-black text-gray-900">{friendlyEventLabel(item.event_type)}</span>
+                                <span className="text-[10px] font-black uppercase tracking-wide px-2 py-1 rounded-full" style={statusStyle}>
+                                  {friendlySyncLabel(item.sync_state)}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {item.staff_name || 'Staff'} · {formatActivityTime(item.occurred_at_device)}
+                              </p>
+                              {(item.summary || item.note) && (
+                                <p className="text-xs text-gray-600 mt-1 leading-5">
+                                  {[item.summary, item.note].filter(Boolean).join(' - ')}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <div className="text-sm font-black text-gray-900">
+                                {item.amount == null ? '-' : `${fmt(item.amount)} birr`}
+                              </div>
+                              {item.payment_method_label && (
+                                <div className="text-[11px] text-gray-400 mt-0.5">{item.payment_method_label}</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="px-4 py-3 text-[11px] leading-5" style={{ background: '#fcfbf8', color: '#6b7280' }}>
+                  Showing accepted staff sync events plus any local items waiting to sync. This is a preview, not durable backup history yet.
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </SettingsSection>

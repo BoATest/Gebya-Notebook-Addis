@@ -8,7 +8,7 @@
 import { Router, type Request, type Response } from "express";
 import { createHash } from "node:crypto";
 import { PushEventsBody, type PushEventsBodyT, type SyncEventEnvelopeT } from "@workspace/api-zod/events";
-import { canCreateEvent, permissionsFor, store } from "@workspace/db/schema";
+import { canCreateEvent, permissionsFor, store, type StoredStaffEvent } from "@workspace/db/schema";
 
 const router = Router();
 
@@ -25,6 +25,10 @@ function hashToken(token: string): string {
 
 function iso(d: Date | null | undefined): string | undefined {
   return d ? d.toISOString() : undefined;
+}
+
+function isoRequired(d: Date): string {
+  return d.toISOString();
 }
 
 function parsePushEventsBody(body: unknown, res: Response): PushEventsBodyT | null {
@@ -67,6 +71,87 @@ function reject(event: SyncEventEnvelopeT, error: string) {
     error,
   };
 }
+
+function numberOrNull(value: unknown): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function textOrNull(value: unknown): string | null {
+  const text = String(value ?? "").trim();
+  return text || null;
+}
+
+function activitySummary(event: StoredStaffEvent): string | null {
+  const payload = event.payload || {};
+  if (event.eventType === "sale") {
+    return textOrNull(payload.item_name) || textOrNull(payload.item_code) || "Sale";
+  }
+  if (event.eventType === "customer_payment") {
+    return textOrNull(payload.customer_name) || textOrNull(payload.customer_id) || "Customer payment";
+  }
+  if (event.eventType === "customer_credit") {
+    return textOrNull(payload.item_name) || textOrNull(payload.customer_name) || textOrNull(payload.customer_id) || "Dubie";
+  }
+  return null;
+}
+
+function toActivity(event: StoredStaffEvent) {
+  const payload = event.payload || {};
+  return {
+    id: event.eventId,
+    client_event_id: event.clientEventId,
+    event_type: event.eventType,
+    staff_name: event.actorNameSnapshot,
+    staff_role: event.actorRoleAtEvent,
+    amount: numberOrNull(payload.amount),
+    summary: activitySummary(event),
+    note: textOrNull(payload.note),
+    payment_method_label: textOrNull(payload.payment_method_label),
+    occurred_at_device: isoRequired(event.occurredAtDevice),
+    created_at_server: isoRequired(event.createdAtServer),
+    sync_state: "synced" as const,
+  };
+}
+
+router.get("/events/activity", (req: Request, res: Response) => {
+  const token = getToken(req);
+  if (!token) {
+    res.status(401).json({ error: "Missing bearer token." });
+    return;
+  }
+
+  const device = store.findDeviceByTokenHash(hashToken(token));
+  if (!device || device.deviceStatus !== "active") {
+    res.status(401).json({ error: "Device is not active." });
+    return;
+  }
+
+  const staff = store.findStaffById(device.staffId);
+  if (!staff || staff.staffStatus !== "active") {
+    res.status(401).json({ error: "Staff no longer active." });
+    return;
+  }
+
+  const perms = permissionsFor(staff);
+  if (!perms.can_view_staff_feed) {
+    res.status(403).json({ error: "Owner access required." });
+    return;
+  }
+
+  const activities = store.listEventsForShop(staff.shopId)
+    .filter((event) => ["sale", "customer_payment", "customer_credit"].includes(event.eventType))
+    .sort((a, b) => (
+      b.occurredAtDevice.getTime() - a.occurredAtDevice.getTime()
+      || b.createdAtServer.getTime() - a.createdAtServer.getTime()
+    ))
+    .map(toActivity);
+
+  res.json({
+    activities,
+    persistence: "in_memory_preview",
+  });
+});
 
 router.post("/events/push", (req: Request, res: Response) => {
   const token = getToken(req);

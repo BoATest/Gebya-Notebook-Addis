@@ -130,9 +130,20 @@ async function addCustomer(page: Page, name: string) {
 }
 
 async function saveCustomerPayment(page: Page, amount: string) {
-  await page.getByRole('main').getByRole('button', { name: /^payment$/i }).click();
-  await page.getByPlaceholder('0').fill(amount);
-  await page.getByPlaceholder(/any note about this payment/i).fill('Cash');
+  const paymentButton = page.getByRole('main').getByRole('button', { name: /^payment$/i });
+  await expect(paymentButton).toBeVisible();
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await paymentButton.click();
+    try {
+      await expect(page.getByRole('heading', { name: /payment/i })).toBeVisible({ timeout: 2000 });
+      break;
+    } catch (error) {
+      if (attempt === 2) throw error;
+    }
+  }
+
+  await page.locator('input[placeholder="0"]').first().fill(amount);
   await page.getByRole('button', { name: /save payment/i }).click();
 }
 
@@ -141,6 +152,7 @@ async function saveCustomerCredit(page: Page, amount: string) {
   await page.getByPlaceholder('0').fill(amount);
   await page.getByPlaceholder(/what they took/i).fill('Sugar');
   await page.getByRole('button', { name: /save (credit|dubie)/i }).click();
+  await expect(page.getByText('CREDIT', { exact: true })).toBeVisible();
 }
 
 test('offline sale queues a staff event and keeps the local ledger after reload', async ({ page, context }) => {

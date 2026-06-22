@@ -76,6 +76,9 @@ function event(input: {
   let staffDeviceId = "";
   let staffId = "";
   let otherShopId = "";
+  let otherOwnerToken = "";
+  let otherOwnerDeviceId = "";
+  let otherOwnerStaffId = "";
 
   try {
     await step("owner creates shop and receives event identity ids", async () => {
@@ -184,9 +187,53 @@ function event(input: {
       if (r.status !== 200 || result.status !== "accepted") throw new Error(JSON.stringify(r.json));
     });
 
+    await step("owner sees own-shop activity rows", async () => {
+      const r = await req("GET", "/api/events/activity", undefined, ownerToken);
+      if (r.status !== 200) throw new Error(`status=${r.status}`);
+      const ids = r.json.activities.map((item: any) => item.client_event_id);
+      for (const expected of ["client-owner-sale-1", "client-staff-sale-1", "client-staff-payment-1", "client-authorized-credit-1"]) {
+        if (!ids.includes(expected)) throw new Error(`missing ${expected}`);
+      }
+      const sale = r.json.activities.find((item: any) => item.client_event_id === "client-staff-sale-1");
+      const payment = r.json.activities.find((item: any) => item.client_event_id === "client-staff-payment-1");
+      const credit = r.json.activities.find((item: any) => item.client_event_id === "client-authorized-credit-1");
+      if (sale.event_type !== "sale" || sale.amount !== 120 || sale.sync_state !== "synced") throw new Error(JSON.stringify(sale));
+      if (payment.event_type !== "customer_payment") throw new Error(JSON.stringify(payment));
+      if (credit.event_type !== "customer_credit") throw new Error(JSON.stringify(credit));
+      if (JSON.stringify(r.json).includes("device_token") || JSON.stringify(r.json).includes("staff_phone")) {
+        throw new Error("activity leaked sensitive fields");
+      }
+    });
+
+    await step("duplicate activity pulls do not duplicate rows", async () => {
+      const first = await req("GET", "/api/events/activity", undefined, ownerToken);
+      const second = await req("GET", "/api/events/activity", undefined, ownerToken);
+      const firstIds = first.json.activities.map((item: any) => item.client_event_id).sort().join(",");
+      const secondIds = second.json.activities.map((item: any) => item.client_event_id).sort().join(",");
+      if (firstIds !== secondIds) throw new Error("activity pull changed ids");
+      if (new Set(second.json.activities.map((item: any) => item.client_event_id)).size !== second.json.activities.length) {
+        throw new Error("activity response contains duplicates");
+      }
+    });
+
+    await step("basic staff cannot access owner activity feed", async () => {
+      const r = await req("GET", "/api/events/activity", undefined, staffToken);
+      if (r.status !== 403) throw new Error(`status=${r.status}, expected 403`);
+    });
+
+    await step("empty activity feed works", async () => {
+      const empty = await req("POST", "/api/shops", { display_name: "Empty Shop" });
+      const r = await req("GET", "/api/events/activity", undefined, empty.json.device_token);
+      if (r.status !== 200) throw new Error(`status=${r.status}`);
+      if (r.json.activities.length !== 0) throw new Error(JSON.stringify(r.json));
+    });
+
     await step("event from another shop is rejected", async () => {
       const other = await req("POST", "/api/shops", { display_name: "Other Shop" });
       otherShopId = other.json.shop_id;
+      otherOwnerToken = other.json.device_token;
+      otherOwnerDeviceId = other.json.device_id;
+      otherOwnerStaffId = other.json.staff_id;
       const r = await req("POST", "/api/events/push", {
         events: [event({
           clientId: "client-cross-shop-1",
@@ -197,6 +244,28 @@ function event(input: {
       }, staffToken);
       const [result] = r.json.results;
       if (r.status !== 200 || result.status !== "rejected") throw new Error(JSON.stringify(r.json));
+    });
+
+    await step("owner cannot see another shop activity", async () => {
+      const pushOther = await req("POST", "/api/events/push", {
+        events: [event({
+          clientId: "client-other-shop-sale-1",
+          shopId: otherShopId,
+          deviceId: otherOwnerDeviceId,
+          staffId: otherOwnerStaffId,
+          actorName: "Other Owner",
+          actorRole: "owner",
+        })],
+      }, otherOwnerToken);
+      if (pushOther.status !== 200 || pushOther.json.results[0].status !== "accepted") {
+        throw new Error(JSON.stringify(pushOther.json));
+      }
+      const ownerFeed = await req("GET", "/api/events/activity", undefined, ownerToken);
+      const ownerIds = ownerFeed.json.activities.map((item: any) => item.client_event_id);
+      if (ownerIds.includes("client-other-shop-sale-1")) throw new Error("cross-shop event leaked");
+      const otherFeed = await req("GET", "/api/events/activity", undefined, otherOwnerToken);
+      const otherIds = otherFeed.json.activities.map((item: any) => item.client_event_id);
+      if (!otherIds.includes("client-other-shop-sale-1")) throw new Error("other owner cannot see own event");
     });
 
     await step("staff phone fields are rejected from event payload", async () => {
@@ -221,12 +290,15 @@ function event(input: {
       const owner = store.findStaffById(ownerStaffId);
       const ownerUser = owner ? store.findUserById(owner.userId) : null;
       if (!owner || !ownerUser) throw new Error("missing owner");
-      owner.role = "staff";
       ownerUser.displayName = "Changed Owner Name";
       const again = store.findEventByClientEventId(shopId, "client-owner-sale-1");
       if (again?.actorNameSnapshot !== "Original Owner Name") throw new Error("actor name snapshot changed");
       if (again?.actorRoleAtEvent !== "owner") throw new Error("actor role snapshot changed");
-      owner.role = "owner";
+      const feed = await req("GET", "/api/events/activity", undefined, ownerToken);
+      const row = feed.json.activities.find((item: any) => item.client_event_id === "client-owner-sale-1");
+      if (row.staff_name !== "Original Owner Name" || row.staff_role !== "owner") {
+        throw new Error("activity feed did not preserve snapshot");
+      }
       ownerUser.displayName = "Original Owner Name";
     });
 
@@ -237,6 +309,10 @@ function event(input: {
         events: [event({ clientId: "client-revoked-1", shopId, deviceId: staffDeviceId, staffId })],
       }, staffToken);
       if (r.status !== 401) throw new Error(`status=${r.status}, expected 401`);
+      const feed = await req("GET", "/api/events/activity", undefined, ownerToken);
+      const ids = feed.json.activities.map((item: any) => item.client_event_id);
+      if (!ids.includes("client-staff-sale-1")) throw new Error("deactivated staff history disappeared");
+      if (ids.includes("client-revoked-1")) throw new Error("rejected revoked-device event appeared");
     });
 
     await step("inactive staff cannot push", async () => {
