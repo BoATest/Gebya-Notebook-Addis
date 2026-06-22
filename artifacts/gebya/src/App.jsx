@@ -5,16 +5,17 @@ import {
   MoreVertical, ChevronUp, ChevronDown,
   CreditCard, BarChart3, MoreHorizontal,
 } from 'lucide-react';
-import db from './db';
+import db, { getDeviceToken, getIdentity, setIdentity } from './db';
+import identityApi from './api/identity';
 import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { LangProvider, useLang } from './context/LangContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProfitCard from './components/ProfitCard';
-import CustomerList from './components/CustomerList';
-import PwaInstallPanel from './components/PwaInstallPanel.jsx';
 import OnboardingScreen from './components/OnboardingScreen';
+import StaffJoinScreen from './components/StaffJoinScreen';
 import { ToastContainer, fireToast } from './components/Toast';
-import { DEFAULT_PROVIDERS } from './components/PaymentTypeChips';
+import PhotoAttachment from './components/PhotoAttachment';
+import { buildPhotoFields, normalizePhotos } from './utils/photoProof';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
 import { fmt } from './utils/numformat';
 import { buildCustomerSummaries, getCustomerBalance, insertCustomerTransaction, sortCustomerTransactions } from './utils/customerLedger';
@@ -24,7 +25,10 @@ import { buildCustomerLedgerTelegramMessage, buildTelegramMessageUrl, createCust
 import { buildSupplierSummaries, getSupplierBalance, isValidSupplierTransactionType, SUPPLIER_TRANSACTION_TYPES } from './utils/supplierLedger';
 import { enrichCustomerSummaries, buildCreditMetrics } from './utils/customerMetrics';
 import { usePwaInstall } from './hooks/usePwaInstall.js';
-import { resendLatestTelegramUpdate, sendTelegramLedgerUpdate, syncTelegramCustomerState } from './utils/telegramBotClient';
+import { resendLatestTelegramUpdate, syncTelegramCustomerState } from './utils/telegramBotClient';
+import { countPendingTelegramSync, drainTelegramSyncQueue, enqueueTelegramLedgerUpdate } from './utils/syncQueue';
+import { createCloudProofFields, enqueueCloudProofUpsert } from './utils/cloudProof';
+import { enqueueStaffEventSync, processStaffEventQueue } from './utils/staffEventSync';
 import { normalizeStaffDraft, resolveActorSnapshot, getActorDisplayLabel } from './utils/staffMembers';
 import {
   buildDefaultChannels,
@@ -33,12 +37,22 @@ import {
   normalizeChannelsForSave,
 } from './utils/paymentChannels';
 
+const DEFAULT_PROVIDERS = {
+  banks: ['CBE', 'Dashen', 'Awash', 'Abyssinia'],
+  wallets: ['telebirr', 'CBE Birr'],
+};
+
 // Stale-chunk self-heal. After a new deploy, Vite emits new hashed chunk
 // filenames. A browser still running the previous index.html (or a stale
 // service-worker shell) requests an old chunk URL that now 404s, throwing
 // "Failed to fetch dynamically imported module". We retry once via a hard
 // reload (which pulls the fresh index.html + new hashes); a per-chunk
 // sessionStorage guard prevents reload loops if the asset is truly missing.
+function isLikelyStaleChunkError(err) {
+  const message = String(err?.message || err || '');
+  return /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk .* failed|ChunkLoadError/i.test(message);
+}
+
 function lazyWithRetry(importer, name) {
   return lazy(async () => {
     const flag = `gebya_chunk_reload_${name}`;
@@ -49,7 +63,7 @@ function lazyWithRetry(importer, name) {
       setFlag(false);
       return mod;
     } catch (err) {
-      if (!getFlag()) {
+      if (isLikelyStaleChunkError(err) && !getFlag()) {
         setFlag(true);
         window.location.reload();
         return new Promise(() => {}); // hold the render until the reload lands
@@ -59,21 +73,39 @@ function lazyWithRetry(importer, name) {
   });
 }
 
-const TransactionForm = lazyWithRetry(() => import('./components/TransactionForm'), 'TransactionForm');
-const EditTransactionSheet = lazyWithRetry(() => import('./components/EditTransactionSheet'), 'EditTransactionSheet');
-const ReminderSheet = lazyWithRetry(() => import('./components/ReminderSheet'), 'ReminderSheet');
-const SupplierList = lazyWithRetry(() => import('./components/SupplierList'), 'SupplierList');
-const SupplierDetail = lazyWithRetry(() => import('./components/SupplierDetail'), 'SupplierDetail');
-const SupplierForm = lazyWithRetry(() => import('./components/SupplierForm'), 'SupplierForm');
-const SupplierTransactionSheet = lazyWithRetry(() => import('./components/SupplierTransactionSheet'), 'SupplierTransactionSheet');
-const CustomerDetail = lazyWithRetry(() => import('./components/CustomerDetail'), 'CustomerDetail');
-const CustomerForm = lazyWithRetry(() => import('./components/CustomerForm'), 'CustomerForm');
-const CustomerTransactionSheet = lazyWithRetry(() => import('./components/CustomerTransactionSheet'), 'CustomerTransactionSheet');
-const CustomerTelegramConnectSheet = lazyWithRetry(() => import('./components/CustomerTelegramConnectSheet'), 'CustomerTelegramConnectSheet');
-const HistoryView = lazyWithRetry(() => import('./components/HistoryView'), 'HistoryView');
-const ReportView = lazyWithRetry(() => import('./components/ReportView'), 'ReportView');
-const SettingsPage = lazyWithRetry(() => import('./components/SettingsPage'), 'SettingsPage');
-const DailySuggestions = lazyWithRetry(() => import('./components/DailySuggestions'), 'DailySuggestions');
+const importTransactionForm = () => import('./components/TransactionForm');
+const importEditTransactionSheet = () => import('./components/EditTransactionSheet');
+const importReminderSheet = () => import('./components/ReminderSheet');
+const importSupplierList = () => import('./components/SupplierList');
+const importSupplierDetail = () => import('./components/SupplierDetail');
+const importSupplierForm = () => import('./components/SupplierForm');
+const importSupplierTransactionSheet = () => import('./components/SupplierTransactionSheet');
+const importCustomerList = () => import('./components/CustomerList');
+const importCustomerDetail = () => import('./components/CustomerDetail');
+const importCustomerForm = () => import('./components/CustomerForm');
+const importCustomerTransactionSheet = () => import('./components/CustomerTransactionSheet');
+const importCustomerTelegramConnectSheet = () => import('./components/CustomerTelegramConnectSheet');
+const importHistoryView = () => import('./components/HistoryView');
+const importReportView = () => import('./components/ReportView');
+const importSettingsPage = () => import('./components/SettingsPage');
+const importDailySuggestions = () => import('./components/DailySuggestions');
+
+const TransactionForm = lazyWithRetry(importTransactionForm, 'TransactionForm');
+const EditTransactionSheet = lazyWithRetry(importEditTransactionSheet, 'EditTransactionSheet');
+const ReminderSheet = lazyWithRetry(importReminderSheet, 'ReminderSheet');
+const SupplierList = lazyWithRetry(importSupplierList, 'SupplierList');
+const SupplierDetail = lazyWithRetry(importSupplierDetail, 'SupplierDetail');
+const SupplierForm = lazyWithRetry(importSupplierForm, 'SupplierForm');
+const SupplierTransactionSheet = lazyWithRetry(importSupplierTransactionSheet, 'SupplierTransactionSheet');
+const CustomerList = lazyWithRetry(importCustomerList, 'CustomerList');
+const CustomerDetail = lazyWithRetry(importCustomerDetail, 'CustomerDetail');
+const CustomerForm = lazyWithRetry(importCustomerForm, 'CustomerForm');
+const CustomerTransactionSheet = lazyWithRetry(importCustomerTransactionSheet, 'CustomerTransactionSheet');
+const CustomerTelegramConnectSheet = lazyWithRetry(importCustomerTelegramConnectSheet, 'CustomerTelegramConnectSheet');
+const HistoryView = lazyWithRetry(importHistoryView, 'HistoryView');
+const ReportView = lazyWithRetry(importReportView, 'ReportView');
+const SettingsPage = lazyWithRetry(importSettingsPage, 'SettingsPage');
+const DailySuggestions = lazyWithRetry(importDailySuggestions, 'DailySuggestions');
 
 // Voice subsystem hidden per D-027 (Amharic/Oromifa STT quality insufficient today).
 // Files preserved (VoiceButton, VoiceRecordScreen, VoiceResultScreen, VoiceFixScreen,
@@ -182,9 +214,160 @@ function isBrowserOnline() {
   return navigator.onLine !== false;
 }
 
+function runAfterFirstPaint(callback) {
+  if (typeof window === 'undefined') return () => {};
+  let cancelled = false;
+  let timeoutId = null;
+  let idleId = null;
+
+  const run = () => {
+    if (cancelled) return;
+    callback();
+  };
+
+  if ('requestIdleCallback' in window) {
+    idleId = window.requestIdleCallback(run, { timeout: 2500 });
+  } else {
+    timeoutId = window.setTimeout(run, 1200);
+  }
+
+  return () => {
+    cancelled = true;
+    if (idleId != null && 'cancelIdleCallback' in window) {
+      window.cancelIdleCallback(idleId);
+    }
+    if (timeoutId != null) window.clearTimeout(timeoutId);
+  };
+}
+
 function buildSavedOnDeviceMessage(message, isOnline) {
   const baseMessage = String(message || 'Saved').trim() || 'Saved';
   return isOnline ? baseMessage : (baseMessage + ' - saved on this phone');
+}
+
+function getTransactionCloudProofRecordType(transaction) {
+  if (transaction?.type === 'sale') return 'sale';
+  if (transaction?.type === 'expense') return 'expense';
+  return null;
+}
+
+function getCustomerCloudProofRecordType(transaction) {
+  if (transaction?.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT) return 'customer_payment';
+  if (transaction?.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD) return 'customer_credit';
+  return null;
+}
+
+function getSupplierCloudProofRecordType(transaction) {
+  if (transaction?.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT) return 'supplier_payment';
+  if (transaction?.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD) return 'supplier_purchase';
+  return null;
+}
+
+function OfflineStatusStrip({
+  pwa,
+  pendingTelegramCount = 0,
+  lang = 'en',
+  onRetryTelegram,
+  retryingTelegram = false,
+}) {
+  let tone = null;
+  let label = '';
+  let detail = '';
+  let action = null;
+
+  if (!pwa?.isOnline) {
+    tone = 'offline';
+    label = lang === 'am' ? 'ኔትወርክ የለም' : 'Offline';
+    detail = lang === 'am' ? 'በዚህ ስልክ ይቀመጣል' : 'saves on this phone';
+  } else if (pendingTelegramCount > 0) {
+    tone = 'waiting';
+    label = lang === 'am' ? 'ቴሌግራም ይጠብቃል' : 'Telegram waiting';
+    detail = `${pendingTelegramCount}`;
+    if (typeof onRetryTelegram === 'function') {
+      action = (
+        <button
+          type="button"
+          onClick={onRetryTelegram}
+          disabled={retryingTelegram}
+          className="press-scale"
+          style={{
+            minHeight: 36,
+            minWidth: 56,
+            padding: '6px 10px',
+            border: 'none',
+            borderRadius: 8,
+            background: retryingTelegram ? '#bfdbfe' : '#1d4ed8',
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: 800,
+            cursor: retryingTelegram ? 'wait' : 'pointer',
+          }}
+        >
+          {retryingTelegram ? '...' : (lang === 'am' ? 'እንደገና' : 'Retry')}
+        </button>
+      );
+    }
+  } else if (pwa?.updateReady) {
+    tone = 'update';
+    label = lang === 'am' ? 'አዲስ ስሪት ዝግጁ ነው' : 'Update ready';
+    detail = lang === 'am' ? 'ለማደስ ይጫኑ' : 'tap to refresh';
+    action = (
+      <button
+        type="button"
+        onClick={pwa.applyUpdate}
+        className="press-scale"
+        style={{
+          minHeight: 30,
+          padding: '4px 10px',
+          border: 'none',
+          borderRadius: 8,
+          background: '#1B4332',
+          color: '#fff',
+          fontSize: 11,
+          fontWeight: 800,
+        }}
+      >
+        {lang === 'am' ? 'አድስ' : 'Update'}
+      </button>
+    );
+  } else if (pwa?.offlineReady) {
+    tone = 'ready';
+    label = lang === 'am' ? 'ከመስመር ውጭ ዝግጁ' : 'Offline ready';
+    detail = lang === 'am' ? 'ያለ ኢንተርኔት ይሰራል' : 'works without internet';
+  }
+
+  if (!tone) return null;
+
+  const styles = {
+    offline: { background: '#fff7ed', border: '#fed7aa', color: '#9a3412' },
+    waiting: { background: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
+    update: { background: '#ecfdf5', border: '#bbf7d0', color: '#166534' },
+    ready: { background: '#f0fdf4', border: '#bbf7d0', color: '#166534' },
+  }[tone];
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="mt-2 flex items-center justify-between gap-2"
+      style={{
+        minHeight: 36,
+        padding: '7px 9px',
+        borderRadius: 8,
+        background: styles.background,
+        border: `1px solid ${styles.border}`,
+        color: styles.color,
+        fontSize: 12,
+        fontWeight: 800,
+      }}
+    >
+      <span className="min-w-0 truncate">
+        {label}
+        {detail ? <span style={{ fontWeight: 700 }}> · {detail}</span> : null}
+      </span>
+      {action}
+    </div>
+  );
 }
 
 function ShareModal({ summary, telegram, onClose, t }) {
@@ -409,6 +592,14 @@ function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
             <span className="text-gray-400"> · {method}</span>
           </span>
         </button>
+        {(tx.photo || (Array.isArray(tx.photos) && tx.photos.length > 0)) && (
+          <PhotoAttachment
+            photo={tx.photo}
+            photos={tx.photos}
+            lang={lang}
+            label={lang === 'am' ? 'የግብይት ፎቶ ይመልከቱ' : 'View transaction photo'}
+          />
+        )}
         {hasBreakdown && (
           <button
             type="button"
@@ -537,6 +728,7 @@ function AppInner() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editTarget, setEditTarget] = useState(null);
   const [shopProfile, setShopProfile] = useState(null);
+  const [onboardingType, setOnboardingType] = useState(null);
   const [enabledProviders, setEnabledProviders] = useState(DEFAULT_PROVIDERS);
   const [recurringExpenses, setRecurringExpenses] = useState([]);
   const [customQuickAmounts, setCustomQuickAmounts] = useState([]);
@@ -556,6 +748,8 @@ function AppInner() {
   const [voiceProvider, setVoiceProvider] = useState(null);
   const [voiceDraft, setVoiceDraft] = useState(null);
   const [lastSavedSnapshot, setLastSavedSnapshot] = useState(null);
+  const [pendingTelegramCount, setPendingTelegramCount] = useState(0);
+  const [retryingTelegram, setRetryingTelegram] = useState(false);
 
   const buildActorSnapshot = useCallback(() => (
     resolveActorSnapshot({ shopProfile, staffMembers, activeStaffMemberId })
@@ -654,7 +848,7 @@ function AppInner() {
         payTelebirrRow, payCbePhoneRow, payCbeAccountRow, payAwashPhoneRow,
         payBankNameRow, payBankAccountRow,
         // Unified payment channels (Commit C.4) + legacy custom lists for migration
-        paymentChannelsRow, customBanksRow, customWalletsRow,
+        paymentChannelsRow, customBanksRow, customWalletsRow, identityRow,
       ] = await Promise.all([
         db.transactions.toArray(),
         db.customers.toArray(),
@@ -681,6 +875,7 @@ function AppInner() {
         db.settings.get('shop_payment_channels'),
         db.settings.get('custom_banks'),
         db.settings.get('custom_wallets'),
+        getIdentity(),
       ]);
 
       // Commit C.4: Migrate legacy payment storage to unified channels[] shape.
@@ -735,17 +930,53 @@ function AppInner() {
         if ((a.active !== false) !== (b.active !== false)) return a.active === false ? 1 : -1;
         return String(a.display_name || '').localeCompare(String(b.display_name || ''));
       }));
-      const hasName = !!nameRow?.value;
+      let identityForProfile = identityRow || null;
+      if (!identityForProfile && nameRow?.value) {
+        try {
+          const result = await identityApi.createShop({
+            display_name: nameRow.value,
+            phone: phoneRow?.value || undefined,
+            business_type: businessTypeRow?.value || 'retail-shop',
+          });
+          identityForProfile = {
+            shop_id: result.shop_id,
+            shop_name: result.shop_name || nameRow.value,
+            join_code: result.join_code,
+            join_url: result.join_url,
+            device_id: result.device_id,
+            device_token: result.device_token,
+            staff_id: result.staff_id,
+            display_name: result.display_name || nameRow.value,
+            phone_number: phoneRow?.value || '',
+            role: 'owner',
+            permissions: result.permissions || {},
+            device_status: result.device_status || 'active',
+            phone_required: result.phone_required ?? false,
+            approval_required: result.approval_required ?? false,
+          };
+          await setIdentity(identityForProfile);
+        } catch {
+          identityForProfile = null;
+        }
+      }
+      const profileName = nameRow?.value || identityForProfile?.shop_name || null;
       // Commit C.4: derive legacy shapes from the canonical channels array so
       // PaymentTypeChips (reads enabledProviders) and ReminderSheet (reads
       // shopProfile.payments) keep working without changes.
       const derivedLegacy = deriveLegacyFromChannels(paymentChannels);
 
       setShopProfile({
-        name: nameRow?.value || null,
-        phone: phoneRow?.value || '',
+        id: identityForProfile?.shop_id || null,
+        shop_id: identityForProfile?.shop_id || null,
+        name: profileName,
+        phone: phoneRow?.value || identityForProfile?.phone_number || '',
         telegram: telegramRow?.value || '',
         businessType: businessTypeRow?.value || 'retail-shop',
+        role: identityForProfile?.role || 'owner',
+        staff_id: identityForProfile?.staff_id || null,
+        device_id: identityForProfile?.device_id || null,
+        join_code: identityForProfile?.join_code || '',
+        join_url: identityForProfile?.join_url || '',
         // Canonical (Commit C.4)
         paymentChannels,
         // Legacy compat shim — derived, never written to from outside App.jsx
@@ -781,6 +1012,92 @@ function AppInner() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    if (loading) return undefined;
+    return runAfterFirstPaint(() => {
+      [
+        importCustomerList,
+        importSupplierList,
+        importReportView,
+        importSettingsPage,
+      ].forEach((preload) => {
+        preload().catch(() => {
+          // Non-critical preload. The lazy boundary will handle real navigation.
+        });
+      });
+    });
+  }, [loading]);
+
+  const refreshPendingTelegramCount = useCallback(async () => {
+    try {
+      const count = await countPendingTelegramSync();
+      setPendingTelegramCount(count);
+      return count;
+    } catch {
+      setPendingTelegramCount(0);
+      return 0;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (loading) return undefined;
+    refreshPendingTelegramCount();
+    const handleQueueChanged = () => {
+      refreshPendingTelegramCount();
+    };
+    window.addEventListener('gebya:sync-queue-changed', handleQueueChanged);
+    window.addEventListener('online', handleQueueChanged);
+    return () => {
+      window.removeEventListener('gebya:sync-queue-changed', handleQueueChanged);
+      window.removeEventListener('online', handleQueueChanged);
+    };
+  }, [loading, refreshPendingTelegramCount]);
+
+  const refreshQueuedTelegramRecords = useCallback(async () => {
+    const result = await drainTelegramSyncQueue({ limit: 5 });
+    if (result.records?.length) {
+      setLedgerTransactions(prev => prev.map((entry) => {
+        const updated = result.records.find((record) => record.id === entry.id);
+        return updated || entry;
+      }));
+    }
+    await refreshPendingTelegramCount();
+    return result;
+  }, [refreshPendingTelegramCount]);
+
+  const handleRetryQueuedTelegram = useCallback(async () => {
+    if (retryingTelegram || !isBrowserOnline()) return;
+    setRetryingTelegram(true);
+    try {
+      const result = await refreshQueuedTelegramRecords();
+      const sentCount = result.records?.filter(record => record.telegram_delivery_state === 'bot_sent').length || 0;
+      fireToast(sentCount > 0 ? `Telegram sent: ${sentCount}` : 'Telegram queue checked', 2200);
+    } catch {
+      fireToast('Telegram retry failed - will keep waiting', 2600);
+    } finally {
+      setRetryingTelegram(false);
+    }
+  }, [refreshQueuedTelegramRecords, retryingTelegram]);
+
+  useEffect(() => {
+    if (loading) return undefined;
+    let cancelled = false;
+    if (isBrowserOnline()) {
+      runAfterFirstPaint(() => {
+        if (cancelled) return;
+        refreshQueuedTelegramRecords().catch(() => {});
+      });
+    }
+    const handleOnline = () => {
+      refreshQueuedTelegramRecords().catch(() => {});
+    };
+    window.addEventListener('online', handleOnline);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [loading, refreshQueuedTelegramRecords]);
 
   // Launch-critical: load the last-backup timestamp once on mount so we can
   // decide whether to surface the data-loss nudge on the Today tab.
@@ -854,20 +1171,46 @@ function AppInner() {
 
   useEffect(() => { trackSession(); }, [trackSession]);
 
+  useEffect(() => {
+    processStaffEventQueue({ limit: 5 }).catch(() => {});
+    const handleOnline = () => processStaffEventQueue({ limit: 5 }).catch(() => {});
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
   const handleAddTransaction = async (transaction) => {
     try {
       const isOnlineNow = isBrowserOnline();
       const now = new Date(transaction.created_at);
+      const cloudProofFields = await createCloudProofFields();
       // Preserve customer_name from the payload (set by Partial/Pay-later flow); fall back to null
       const newTxn = {
         ...transaction,
         ethiopian_date: formatEthiopian(now),
         customer_name: transaction.customer_name || null,
         ...buildActorSnapshot(),
+        ...cloudProofFields,
       };
 
       const id = await db.transactions.add(newTxn);
       const saved = await db.transactions.get(id);
+      const transactionRecordType = getTransactionCloudProofRecordType(saved);
+      if (transactionRecordType) {
+        await enqueueCloudProofUpsert({
+          recordTable: 'transactions',
+          recordId: id,
+          recordType: transactionRecordType,
+          record: saved,
+        });
+      }
+      if (saved?.type === 'sale') {
+        await enqueueStaffEventSync({
+          recordTable: 'transactions',
+          record: saved,
+          eventType: 'sale',
+        });
+        if (isOnlineNow) processStaffEventQueue({ limit: 3 }).catch(() => {});
+      }
       await rememberLastSave({
         type: transaction.type,
         label: saved?.item_name || transaction.item_name || null,
@@ -888,6 +1231,8 @@ function AppInner() {
       if (transaction.customer_id && Number(transaction.credit_amount) > 0) {
         try {
           const createdAt = transaction.created_at || Date.now();
+          const customerCloudProofFields = await createCloudProofFields();
+          const proofFields = buildPhotoFields(normalizePhotos(transaction));
           const customerTxEntry = {
             customer_id: transaction.customer_id,
             type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
@@ -905,17 +1250,87 @@ function AppInner() {
             items: Array.isArray(transaction.items) && transaction.items.length > 0
               ? transaction.items
               : null,
+            // Copy transaction-level proof photo into the generated Dubie row.
+            // Payments remain photo-free; item-level photos are out of scope.
+            ...proofFields,
+            source_transaction_id: id,
+            source_type: 'pay_later_sale',
             reference_code: null,
             telegram_delivery_state: null,
             telegram_delivery_attempted_at: null,
             created_at: createdAt,
             updated_at: Date.now(),
             ...buildActorSnapshot(),
+            ...customerCloudProofFields,
           };
           const cid = await db.customer_transactions.add(customerTxEntry);
+          const referenceCode = createCustomerTransactionReference(cid, createdAt);
+          await db.customer_transactions.update(cid, { reference_code: referenceCode });
           const savedCustomerTx = await db.customer_transactions.get(cid);
           if (savedCustomerTx) {
+            await enqueueCloudProofUpsert({
+              recordTable: 'customer_transactions',
+              recordId: cid,
+              recordType: 'customer_credit',
+              record: savedCustomerTx,
+            });
+            await enqueueStaffEventSync({
+              recordTable: 'customer_transactions',
+              record: savedCustomerTx,
+              eventType: 'customer_credit',
+            });
+            if (isOnlineNow) processStaffEventQueue({ limit: 3 }).catch(() => {});
+          }
+          if (savedCustomerTx) {
             setLedgerTransactions(prev => insertCustomerTransaction(prev, savedCustomerTx));
+            const customerRecord = await db.customers.get(transaction.customer_id);
+            if (customerRecord?.telegram_notify_enabled && customerRecord?.telegram_chat_id && customerRecord?.telegram_link_token) {
+              const customerTxRows = await db.customer_transactions.where('customer_id').equals(transaction.customer_id).toArray();
+              const nextBalance = Math.max(getCustomerBalance(customerTxRows), 0);
+              const creditAmount = Number(transaction.credit_amount || 0);
+              const previousBalance = Math.max(nextBalance - creditAmount, 0);
+              const message = buildCustomerLedgerTelegramMessage({
+                shopName: shopProfile?.name,
+                customerName: customerRecord.display_name,
+                type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+                amount: creditAmount,
+                itemNote: transaction.item_name,
+                previousBalance,
+                updatedBalance: nextBalance,
+                createdAt,
+                referenceCode,
+              });
+              const deliveryUpdates = {
+                reference_code: referenceCode,
+                telegram_delivery_state: isOnlineNow ? 'bot_pending' : 'bot_waiting_for_connection',
+                telegram_delivery_error: isOnlineNow ? null : 'Telegram update needs internet.',
+                telegram_delivery_attempted_at: Date.now(),
+              };
+              await db.customer_transactions.update(cid, deliveryUpdates);
+              setLedgerTransactions(prev => prev.map(entry => (
+                entry.id === cid ? { ...entry, ...deliveryUpdates } : entry
+              )));
+              await enqueueTelegramLedgerUpdate({
+                recordTable: 'customer_transactions',
+                recordId: cid,
+                payload: {
+                  customerState: {
+                    token: customerRecord.telegram_link_token,
+                    currentBalance: nextBalance,
+                    updatesEnabled: !!customerRecord.telegram_notify_enabled,
+                    telegramUsername: customerRecord.telegram_username || null,
+                    chatId: customerRecord.telegram_chat_id || null,
+                  },
+                  ledgerUpdate: {
+                    token: customerRecord.telegram_link_token,
+                    currentBalance: nextBalance,
+                    message,
+                    reference: referenceCode,
+                  },
+                },
+              });
+              if (isOnlineNow) refreshQueuedTelegramRecords().catch(() => {});
+            }
           }
         } catch (err) {
           if (import.meta.env.DEV) console.error('Credit-portion save failed:', err);
@@ -1172,6 +1587,17 @@ function AppInner() {
   const handleDeactivateStaffMember = async (staffId) => {
     const member = staffMembers.find(item => String(item.id) === String(staffId));
     if (!member) return false;
+    if (member.staff_id) {
+      try {
+        const token = await getDeviceToken();
+        if (!token) return false;
+        await identityApi.deactivateStaff(member.staff_id, token);
+        await refreshStaffMembers();
+        return true;
+      } catch {
+        return false;
+      }
+    }
     const now = Date.now();
     await db.staff_members.update(member.id, { active: false, updated_at: now, deactivated_at: now });
     setStaffMembers(prev => prev
@@ -1200,6 +1626,90 @@ function AppInner() {
       }));
     return true;
   };
+
+  const refreshStaffMembers = useCallback(async () => {
+    const shopId = shopProfile?.shop_id || shopProfile?.id;
+    if (!shopId) return;
+    const token = await getDeviceToken();
+    if (!token) return;
+    const data = await identityApi.listStaff(shopId, token);
+    if (!data?.staff) return;
+    setStaffMembers(data.staff
+      .filter(s => s.role !== 'owner')
+      .map(s => ({
+        id: s.staff_id,
+        staff_id: s.staff_id,
+        display_name: s.display_name,
+        phone_snapshot: s.phone_snapshot,
+        role: s.role,
+        active: s.staff_status !== 'inactive',
+        staff_status: s.staff_status,
+        pending: (s.devices || []).some(d => d.device_status === 'pending'),
+        permissions: s.permissions,
+        joined_at: s.joined_at,
+        updated_at: Date.now(),
+        deactivated_at: s.deactivated_at,
+        devices: (s.devices || []).map(d => ({
+          id: d.device_id,
+          device_id: d.device_id,
+          device_label: d.device_label,
+          active: d.device_status === 'active',
+          device_status: d.device_status,
+          pending: d.device_status === 'pending',
+          last_seen_at: d.last_seen_at,
+          created_at: d.created_at,
+        })),
+      })));
+  }, [shopProfile]);
+
+  const handleRotateJoinCode = useCallback(async (shopId) => {
+    try {
+      const token = await getDeviceToken();
+      if (!token) return null;
+      const result = await identityApi.rotateJoinCode(shopId, token);
+      setShopProfile(prev => prev ? { ...prev, join_code: result.join_code, join_url: result.join_url } : prev);
+      return result;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const handleUpdateShopSettings = useCallback(async (shopId, patch) => {
+    try {
+      const token = await getDeviceToken();
+      if (!token) return null;
+      return identityApi.updateShopSettings(shopId, {
+        phone_required: patch.require_phone_on_join,
+        approval_required: patch.require_approval,
+      }, token);
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const handleApproveDevice = useCallback(async (deviceId) => {
+    try {
+      const token = await getDeviceToken();
+      if (!token) return null;
+      const result = await identityApi.approveDevice(deviceId, token);
+      await refreshStaffMembers();
+      return result;
+    } catch {
+      return null;
+    }
+  }, [refreshStaffMembers]);
+
+  const handleRejectDevice = useCallback(async (deviceId, reason) => {
+    try {
+      const token = await getDeviceToken();
+      if (!token) return null;
+      const result = await identityApi.rejectDevice(deviceId, { reason }, token);
+      await refreshStaffMembers();
+      return result;
+    } catch {
+      return null;
+    }
+  }, [refreshStaffMembers]);
 
   const customerSummaries = useMemo(
     () => buildCustomerSummaries(ledgerCustomers, ledgerTransactions),
@@ -1712,7 +2222,9 @@ function AppInner() {
           amount,
           item_name: payload.item_name || existing.item_name || null,
           note: payload.note || existing.note || null,
-          photo: payload.photo || existing.photo || null,
+          ...(existing.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT
+            ? { photos: [], photo: null, photo_taken_at: null }
+            : buildPhotoFields(normalizePhotos(payload))),
           updated_at: now,
         };
         await db.supplier_transactions.update(payload.editing_id, nextEntry);
@@ -1739,6 +2251,7 @@ function AppInner() {
     }
 
     const now = Date.now();
+    const cloudProofFields = await createCloudProofFields();
     let supplierMissing = false;
     let staleOverPayment = false;
     let saved = null;
@@ -1767,11 +2280,14 @@ function AppInner() {
         quantity: payload.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? (Number(payload.quantity) || 1) : null,
         amount,
         note: payload.note || null,
-        // Commit D: product photo (base64 data URL, non-indexed Dexie property).
-        photo: payload.photo || null,
+        // Product proof photos (base64 data URLs, non-indexed Dexie property).
+        ...(payload.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT
+          ? { photos: [], photo: null, photo_taken_at: null }
+          : buildPhotoFields(normalizePhotos(payload))),
         created_at: now,
         updated_at: now,
         ...buildActorSnapshot(),
+        ...cloudProofFields,
       };
 
       const id = await db.supplier_transactions.add(entry);
@@ -1791,6 +2307,12 @@ function AppInner() {
 
     setSupplierTransactions(prev => [saved, ...prev]);
     setSuppliers(prev => prev.map(item => item.id === payload.supplier_id ? { ...item, updated_at: now } : item));
+    await enqueueCloudProofUpsert({
+      recordTable: 'supplier_transactions',
+      recordId: saved.id,
+      recordType: getSupplierCloudProofRecordType(saved),
+      record: saved,
+    });
     return true;
   };
 
@@ -1992,6 +2514,9 @@ function AppInner() {
       const itemsToStore = Array.isArray(originalPayload?.items) && originalPayload.items.length > 0
         ? originalPayload.items
         : null;
+      const proofFields = existing.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT
+        ? { photos: [], photo: null, photo_taken_at: null }
+        : buildPhotoFields(normalizePhotos(originalPayload));
       const updates = {
         type: draft.type,
         amount: draft.amount,
@@ -2000,8 +2525,8 @@ function AppInner() {
         item_kind: draft.item_kind || null,
         due_date: draft.due_date || null,
         items: itemsToStore,
-        // Preserve / replace product photo on edit
-        photo: originalPayload?.photo || null,
+        // Preserve / replace product proof photos on edit
+        ...proofFields,
         // Commit C.6: descriptive quantity ("5 sacks of sugar"). null on payment.
         quantity: originalPayload?.quantity != null ? Number(originalPayload.quantity) : null,
         updated_at: Date.now(),
@@ -2078,6 +2603,8 @@ function AppInner() {
     }
 
     const now = Date.now();
+    const isOnlineNow = isBrowserOnline();
+    const cloudProofFields = await createCloudProofFields();
     let customerMissing = false;
     let staleOverPayment = false;
     let saved = null;
@@ -2107,8 +2634,10 @@ function AppInner() {
         items: Array.isArray(payload?.items) && payload.items.length > 0
           ? payload.items
           : null,
-        // Preserve product photo (base64 data URL, non-indexed)
-        photo: payload?.photo || null,
+        // Preserve product proof photos (base64 data URLs, non-indexed)
+        ...(draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT
+          ? { photos: [], photo: null, photo_taken_at: null }
+          : buildPhotoFields(normalizePhotos(payload))),
         // Commit C.6: descriptive quantity (5 sacks of sugar). Null for payments.
         quantity: payload?.quantity != null ? Number(payload.quantity) : null,
         reference_code: null,
@@ -2117,6 +2646,7 @@ function AppInner() {
         created_at: now,
         updated_at: now,
         ...buildActorSnapshot(),
+        ...cloudProofFields,
       };
 
       const id = await db.customer_transactions.add(entry);
@@ -2150,6 +2680,18 @@ function AppInner() {
     setLedgerTransactions(prev => insertCustomerTransaction(prev, saved));
     setLedgerCustomers(prev => prev.map(c => c.id === draft.customer_id ? { ...c, updated_at: now } : c));
     setCustomerTransactionModal(null);
+    await enqueueCloudProofUpsert({
+      recordTable: 'customer_transactions',
+      recordId: saved.id,
+      recordType: getCustomerCloudProofRecordType(saved),
+      record: saved,
+    });
+    await enqueueStaffEventSync({
+      recordTable: 'customer_transactions',
+      record: saved,
+      eventType: draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? 'customer_payment' : 'customer_credit',
+    });
+    if (isOnlineNow) processStaffEventQueue({ limit: 3 }).catch(() => {});
     await rememberLastSave({
       type: draft.type,
       label: draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT
@@ -2185,6 +2727,7 @@ function AppInner() {
 
     let telegramDeliveryState = 'not_configured';
     let telegramDeliveryError = null;
+    let shouldDrainQueuedTelegram = false;
     const message = buildCustomerLedgerTelegramMessage({
       shopName: shopProfile?.name,
       customerName: deliveryCustomer.display_name,
@@ -2197,27 +2740,33 @@ function AppInner() {
       referenceCode,
     });
 
-    if (deliveryCustomer?.telegram_chat_id && isOnlineNow) {
-      await syncLinkedCustomerTelegramState(deliveryCustomer, nextBalance);
-    }
-
     if (deliveryCustomer?.telegram_notify_enabled && deliveryCustomer?.telegram_chat_id && deliveryCustomer?.telegram_link_token) {
-      if (!isOnlineNow) {
-        telegramDeliveryState = 'bot_waiting_for_connection';
-        telegramDeliveryError = 'Telegram update needs internet.';
-      } else {
-        try {
-          const result = await sendTelegramLedgerUpdate({
-            token: deliveryCustomer.telegram_link_token,
-            currentBalance: nextBalance,
-            message,
-            reference: referenceCode,
-          });
-          telegramDeliveryState = result?.delivered ? 'bot_sent' : 'bot_pending';
-        } catch (error) {
-          telegramDeliveryState = 'bot_failed';
-          telegramDeliveryError = error?.message || 'Telegram send failed';
-        }
+      telegramDeliveryState = isOnlineNow ? 'bot_pending' : 'bot_waiting_for_connection';
+      telegramDeliveryError = isOnlineNow ? null : 'Telegram update needs internet.';
+      try {
+        await enqueueTelegramLedgerUpdate({
+          recordTable: 'customer_transactions',
+          recordId: saved.id,
+          payload: {
+            customerState: {
+              token: deliveryCustomer.telegram_link_token,
+              currentBalance: nextBalance,
+              updatesEnabled: !!deliveryCustomer.telegram_notify_enabled,
+              telegramUsername: deliveryCustomer.telegram_username || null,
+              chatId: deliveryCustomer.telegram_chat_id || null,
+            },
+            ledgerUpdate: {
+              token: deliveryCustomer.telegram_link_token,
+              currentBalance: nextBalance,
+              message,
+              reference: referenceCode,
+            },
+          },
+        });
+        shouldDrainQueuedTelegram = isOnlineNow;
+      } catch (error) {
+        telegramDeliveryState = 'bot_failed';
+        telegramDeliveryError = error?.message || 'Telegram queue failed';
       }
     } else if (deliveryCustomer?.telegram_notify_enabled && deliveryCustomer?.telegram_username) {
       if (!isOnlineNow) {
@@ -2247,6 +2796,10 @@ function AppInner() {
       await db.customer_transactions.update(saved.id, deliveryUpdates);
       saved = { ...saved, ...deliveryUpdates };
       setLedgerTransactions(prev => prev.map(entry => entry.id === saved.id ? saved : entry));
+    }
+
+    if (shouldDrainQueuedTelegram) {
+      refreshQueuedTelegramRecords().catch(() => {});
     }
 
     if (telegramDeliveryState === 'bot_failed') {
@@ -2370,6 +2923,41 @@ function AppInner() {
     setShowShareModal(true);
   };
 
+  const handleOnboardingComplete = useCallback((profile) => {
+    if (profile?.__staff_join) {
+      setOnboardingType('staff');
+      return;
+    }
+    const defaults = buildDefaultChannels();
+    setShopProfile({
+      ...profile,
+      id: profile?.id || profile?.shop_id || null,
+      shop_id: profile?.shop_id || profile?.id || null,
+      telegram: profile?.telegram || '',
+      businessType: profile?.businessType || 'retail-shop',
+      role: profile?.role || 'owner',
+      paymentChannels: profile?.paymentChannels || defaults,
+      payments: profile?.payments || deriveLegacyFromChannels(defaults).payments,
+    });
+    db.settings.put({ key: 'shop_payment_channels', value: JSON.stringify(defaults) })
+      .catch(() => { /* non-critical */ });
+  }, []);
+
+  const handleStaffJoined = useCallback((identity) => {
+    setOnboardingType(null);
+    setShopProfile({
+      id: identity?.shop_id || null,
+      shop_id: identity?.shop_id || null,
+      name: identity?.shop_name || 'Gebya',
+      phone: identity?.phone_number || '',
+      telegram: '',
+      businessType: 'retail-shop',
+      role: identity?.role || 'staff',
+      paymentChannels: buildDefaultChannels(),
+      payments: deriveLegacyFromChannels(buildDefaultChannels()).payments,
+    });
+  }, []);
+
   const hid = (n) => hidden ? '••••' : fmt(n);
 
   const getTimeGreeting = () => {
@@ -2396,24 +2984,19 @@ function AppInner() {
     );
   }
 
+  if (onboardingType === 'staff') {
+    return (
+      <StaffJoinScreen
+        onJoined={handleStaffJoined}
+        onBack={() => setOnboardingType(null)}
+      />
+    );
+  }
+
   if (!shopProfile || !shopProfile.name) {
     return (
       <OnboardingScreen
-        onComplete={(profile) => {
-          // Commit C.4: seed default channels for new users so Pay-it-now
-          // works immediately (telebirr defaults to their shop phone).
-          const defaults = buildDefaultChannels();
-          setShopProfile({
-            ...profile,
-            telegram: '',
-            businessType: profile.businessType || 'retail-shop',
-            paymentChannels: defaults,
-            payments: deriveLegacyFromChannels(defaults).payments,
-          });
-          // Persist immediately so the channels survive the next reload
-          db.settings.put({ key: 'shop_payment_channels', value: JSON.stringify(defaults) })
-            .catch(() => { /* non-critical */ });
-        }}
+        onComplete={handleOnboardingComplete}
       />
     );
   }
@@ -2469,7 +3052,7 @@ function AppInner() {
               {shopProfile.name}
             </h1>
             <p className="text-[10px] sm:text-xs font-medium mt-0.5 truncate" style={{ color: '#6b7280' }}>
-              {t.appName}
+              Recording as {currentActorLabel || 'Owner'} · {String(shopProfile.role || 'owner').replace(/_/g, ' ')}
             </p>
           </div>
 
@@ -2518,11 +3101,18 @@ function AppInner() {
             onClick={() => setActiveTab('settings')}
             className="flex-shrink-0 press-scale flex items-center justify-center"
             aria-label="Settings"
-            style={{ minWidth: '32px', minHeight: '32px', padding: '4px' }}
+            style={{ minWidth: '44px', minHeight: '44px', padding: '8px' }}
           >
-            <Settings className="w-4 h-4" style={{ color: '#6b7280' }} />
+            <Settings className="w-5 h-5" style={{ color: '#6b7280' }} />
           </button>
         </div>
+        <OfflineStatusStrip
+          pwa={pwa}
+          pendingTelegramCount={pendingTelegramCount}
+          lang={lang}
+          onRetryTelegram={handleRetryQueuedTelegram}
+          retryingTelegram={retryingTelegram}
+        />
         {/* Sales/Spent chips REMOVED — TodaySummary below owns them now */}
       </header>
 
@@ -2736,23 +3326,25 @@ function AppInner() {
                   />
                 </Suspense>
               ) : (
-                <CustomerList
-                  customers={enrichedCustomerSummaries}
-                  metrics={creditMetrics}
-                  onSelectCustomer={(customer) => setSelectedCustomerId(customer.id)}
-                  onAddCustomer={() => setShowCustomerForm(true)}
-                  onRemindCustomer={(customer) => setReminderTarget(customer)}
-                  onBulkRemind={() => {
-                    // Build queue of overdue customers with at least one contact channel
-                    const queue = enrichedCustomerSummaries
-                      .filter((c) => c.has_overdue
-                        && (c.telegram_chat_id || c.telegram_username || c.phone_number))
-                      .map((c) => c.id);
-                    if (queue.length === 0) return;
-                    setBulkReminderQueue(queue.slice(1));
-                    setReminderTarget(enrichedCustomerSummaries.find(c => c.id === queue[0]));
-                  }}
-                />
+                <Suspense fallback={<PanelFallback label={t.loading} />}>
+                  <CustomerList
+                    customers={enrichedCustomerSummaries}
+                    metrics={creditMetrics}
+                    onSelectCustomer={(customer) => setSelectedCustomerId(customer.id)}
+                    onAddCustomer={() => setShowCustomerForm(true)}
+                    onRemindCustomer={(customer) => setReminderTarget(customer)}
+                    onBulkRemind={() => {
+                      // Build queue of overdue customers with at least one contact channel
+                      const queue = enrichedCustomerSummaries
+                        .filter((c) => c.has_overdue
+                          && (c.telegram_chat_id || c.telegram_username || c.phone_number))
+                        .map((c) => c.id);
+                      if (queue.length === 0) return;
+                      setBulkReminderQueue(queue.slice(1));
+                      setReminderTarget(enrichedCustomerSummaries.find(c => c.id === queue[0]));
+                    }}
+                  />
+                </Suspense>
               )
             )}
 
@@ -2837,6 +3429,11 @@ function AppInner() {
               onDeactivateStaffMember={handleDeactivateStaffMember}
               onReactivateStaffMember={handleReactivateStaffMember}
               onSetActiveStaffMember={handleSetActiveStaffMember}
+              onRefreshStaffMembers={refreshStaffMembers}
+              onRotateJoinCode={handleRotateJoinCode}
+              onUpdateShopSettings={handleUpdateShopSettings}
+              onApproveDevice={handleApproveDevice}
+              onRejectDevice={handleRejectDevice}
               enabledProviders={enabledProviders}
               onProvidersChange={setEnabledProviders}
               paymentChannels={shopProfile?.paymentChannels || []}

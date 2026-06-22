@@ -3,6 +3,7 @@ import { Calendar, ChevronDown, ChevronUp, Pencil, Search, X } from 'lucide-reac
 import { useLang } from '../context/LangContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/numformat';
+import PhotoAttachment from './PhotoAttachment';
 
 function groupByDay(transactions) {
   const groups = {};
@@ -124,14 +125,37 @@ function filterCurrentMonth(transactions) {
   return transactions.filter(tx => tx.created_at >= ms && tx.created_at <= me);
 }
 
-function matchesSearch(tx, query) {
+export function matchesSearch(tx, query) {
   if (!query) return true;
   const q = query.trim().toLowerCase();
   if (!q) return true;
-  return (
-    (tx.item_name || '').toLowerCase().includes(q) ||
-    (tx.customer_name || '').toLowerCase().includes(q)
-  );
+
+  const createdAt = tx.created_at ? new Date(tx.created_at) : null;
+  const gregorianDate = createdAt && !Number.isNaN(createdAt.getTime())
+    ? createdAt.toLocaleDateString('en-US')
+    : '';
+  const ethiopianDate = tx.created_at ? formatEthiopian(tx.created_at) : '';
+  const amount = Number(tx.amount || 0);
+  const amountText = [
+    String(tx.amount ?? ''),
+    String(amount),
+    fmt(amount),
+    fmt(amount).replace(/,/g, ''),
+  ];
+
+  return [
+    tx.item_name,
+    tx.item_note,
+    tx.item_code,
+    tx.customer_name,
+    tx.note,
+    tx.actor_name_snapshot,
+    tx.staff_name,
+    tx.type,
+    gregorianDate,
+    ethiopianDate,
+    ...amountText,
+  ].some(value => String(value || '').toLowerCase().includes(q));
 }
 
 function matchesActor(tx, actorFilter) {
@@ -301,6 +325,14 @@ function TxRow({ tx, onEdit, t, lang }) {
             {tx.updated_at && <p className="text-xs" style={{ color: '#C4883A' }}>{t.edited}</p>}
           </div>
         </button>
+        {(tx.photo || (Array.isArray(tx.photos) && tx.photos.length > 0)) && (
+          <PhotoAttachment
+            photo={tx.photo}
+            photos={tx.photos}
+            lang={lang}
+            label={lang === 'am' ? 'የግብይት ፎቶ ይመልከቱ' : 'View transaction photo'}
+          />
+        )}
         {hasBreakdown && (
           <button
             type="button"
@@ -324,6 +356,7 @@ function TxRow({ tx, onEdit, t, lang }) {
         <button
           onClick={() => onEdit(tx)}
           className="flex items-center gap-1 flex-shrink-0 ml-2 press-scale"
+          style={{ minHeight: 44, minWidth: 44, justifyContent: 'flex-end' }}
         >
           <div className="text-right">
             <span className="font-semibold text-sm" style={{ color: amountColor }}>

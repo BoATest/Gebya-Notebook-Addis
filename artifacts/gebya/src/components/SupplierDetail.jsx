@@ -23,6 +23,7 @@ import { fmt } from '../utils/numformat';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger';
 import { useLang } from '../context/LangContext';
+import PhotoAttachment from './PhotoAttachment';
 
 // ─── helpers ──────────────────────────────────────────────────────────
 
@@ -640,22 +641,14 @@ function HistoryRow({ tx, lang, expanded, onToggleExpand, onLongPress, onOpenAct
       }}
     >
       {/* Photo thumbnail (purchase only) */}
-      {!isPayment && tx.photo && (
-        <button
-          type="button"
-          onClick={onToggleExpand}
-          style={{
-            flexShrink: 0,
-            width: 36, height: 36,
-            borderRadius: 8,
-            overflow: 'hidden',
-            border: '1.5px solid rgba(0,0,0,0.08)',
-            padding: 0,
-            cursor: 'pointer',
-          }}
-        >
-          <img src={tx.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        </button>
+      {!isPayment && (tx.photo || (Array.isArray(tx.photos) && tx.photos.length > 0)) && (
+        <PhotoAttachment
+          photo={tx.photo}
+          photos={tx.photos}
+          lang={lang}
+          label={lang === 'am' ? 'የግዢ ፎቶ ይመልከቱ' : 'View purchase photo'}
+          size={40}
+        />
       )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -681,12 +674,6 @@ function HistoryRow({ tx, lang, expanded, onToggleExpand, onLongPress, onOpenAct
           {' · '}
           <span>{lang === 'am' ? 'ቀሪ' : 'after'}: {fmt(tx.balance_after || 0)} {lang === 'am' ? 'ብር' : 'birr'}</span>
         </p>
-        {/* Expanded photo preview */}
-        {expanded && tx.photo && (
-          <div style={{ marginTop: 6, borderRadius: 8, overflow: 'hidden', maxWidth: 180 }}>
-            <img src={tx.photo} alt="" style={{ width: '100%', height: 'auto', display: 'block' }} />
-          </div>
-        )}
       </div>
 
       <div style={{ flexShrink: 0, textAlign: 'right' }}>

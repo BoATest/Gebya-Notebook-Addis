@@ -28,7 +28,6 @@ import {
   ChevronUp,
   Save,
   AlertTriangle,
-  CheckCircle2,
   Plus,
   Minus,
   Camera,
@@ -40,6 +39,7 @@ import EthiopianDatePicker from './EthiopianDatePicker';
 import { getDueDateOptions, formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { compressPhoto, photoSizeBytes } from '../utils/photoCapture';
+import { buildPhotoFields, createPhotoProof, MAX_PROOF_PHOTOS } from '../utils/photoProof';
 import { db } from '../db';
 
 function handleNumericInput(e, setter) {
@@ -90,12 +90,12 @@ function TransactionForm({
   const itemPlaceholder = isCredit
     ? (lang === 'am' ? 'ለምሳሌ አበበ…' : 'e.g. Abebe...')
     : isExpense
-      ? (lang === 'am' ? 'ለምሳሌ ትራንስፖርት፣ ኪራይ…' : 'e.g. transport, rent...')
-      : (lang === 'am' ? 'ለምሳሌ ዳቦ፣ ስኳር…' : 'e.g. bread, sugar...');
+      ? (lang === 'am' ? 'ዝርዝሩን ይመዝቡ...' : 'Add details...')
+      : (lang === 'am' ? 'ዝርዝሩን ይመዝቡ...' : 'Add details...');
 
   const itemLabel = isCredit
     ? (lang === 'am' ? 'ስም' : 'NAME')
-    : (lang === 'am' ? 'ዕቃ (አማራጭ)' : 'ITEM (OPTIONAL)');
+    : (lang === 'am' ? 'ዕቃ / አገልግሎት (አማራጭ)' : 'Item / Service (Optional)');
 
   const saveButtonText = isCredit
     ? (lang === 'am' ? 'ዱቤ አስቀምጥ' : 'Save Dubie')
@@ -109,7 +109,7 @@ function TransactionForm({
   const [quantity, setQuantity] = useState('1');
   const [amount, setAmount] = useState('');
   const [costPrice, setCostPrice] = useState('');
-  const [photo, setPhoto] = useState(null);
+  const [photos, setPhotos] = useState([]);
   const [photoError, setPhotoError] = useState(null);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -212,13 +212,15 @@ function TransactionForm({
   };
 
   const handlePhotoCapture = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []).slice(0, Math.max(0, MAX_PROOF_PHOTOS - photos.length));
+    if (files.length === 0) return;
     setPhotoLoading(true);
     setPhotoError(null);
     try {
-      const dataUrl = await compressPhoto(file);
-      setPhoto(dataUrl);
+      const nextPhotos = await Promise.all(files.map(async (file) => (
+        createPhotoProof(await compressPhoto(file))
+      )));
+      setPhotos(prev => [...prev, ...nextPhotos.filter(Boolean)].slice(0, MAX_PROOF_PHOTOS));
     } catch (err) {
       setPhotoError(err.message || 'Photo capture failed');
     } finally {
@@ -226,6 +228,11 @@ function TransactionForm({
     }
     // Reset the input so the same file can be picked again
     e.target.value = '';
+  };
+
+  const handleRemovePhoto = (photoId) => {
+    setPhotos(prev => prev.filter(photo => photo.id !== photoId));
+    setPhotoError(null);
   };
 
   const handleSave = async () => {
@@ -252,6 +259,7 @@ function TransactionForm({
             : 0)
       : null;
 
+    const photoFields = buildPhotoFields(photos);
     const data = {
       type,
       item_name: itemNameForSave,
@@ -270,8 +278,7 @@ function TransactionForm({
       payment_type: isCredit ? null : (settlementMode === 'later' ? 'credit' : paymentType),
       payment_provider: (!isCredit && settlementMode !== 'later' && paymentType !== 'cash') ? paymentProvider || null : null,
       direction: isCredit ? creditDirection : null,
-      photo: photo || null,
-      photo_taken_at: photo ? Date.now() : null,
+      ...photoFields,
       items: cleanedItems.length > 0 ? cleanedItems : null,  // multi-item breakdown
       // Paid · Partial · Pay Later metadata
       settlement_mode: !isCredit ? settlementMode : null,
@@ -956,7 +963,7 @@ function TransactionForm({
         {/* ITEM / NAME + photo button (inline on same row, larger photo tap target) */}
         {/* When breakdown has items, this becomes an optional note since items provide their own names */}
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+          <label className="block text-[10px] font-bold tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
             {validLineItems.length > 0 && !isCredit
               ? (lang === 'am' ? 'ማስታወሻ (አማራጭ)' : 'NOTE (OPTIONAL)')
               : itemLabel}
@@ -972,7 +979,7 @@ function TransactionForm({
               style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
             />
 
-            {/* Photo button — larger, visible, on the same row. Sale/expense only. */}
+            {/* Photo button - Sale/expense only. Camera/gallery chooser stays browser-controlled. */}
             {!isCredit && (
               <label
                 className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
@@ -980,24 +987,45 @@ function TransactionForm({
                   width: '56px',
                   border: '2px solid #e8e2d8',
                   borderRadius: 'var(--radius-md)',
-                  background: photo ? '#f0fdf4' : '#fafaf6',
+                  background: photos.length > 0 ? '#f0fdf4' : '#fafaf6',
+                  opacity: photos.length >= MAX_PROOF_PHOTOS ? 0.55 : 1,
+                  position: 'relative',
                 }}
-                aria-label={lang === 'am' ? 'ፎቶ ያንሱ' : 'Take photo'}
+                aria-label={lang === 'am' ? '\u134E\u1276 \u12EB\u1295\u1231 \u12C8\u12ED\u121D \u12ED\u121D\u1228\u1321' : 'Take or choose photo'}
               >
                 <input
                   type="file"
                   accept="image/*"
-                  capture="environment"
+                  multiple
                   onChange={handlePhotoCapture}
                   className="hidden"
-                  disabled={photoLoading}
+                  disabled={photoLoading || photos.length >= MAX_PROOF_PHOTOS}
                 />
                 {photoLoading
-                  ? <span className="text-sm">…</span>
-                  : photo
-                    ? <CheckCircle2 className="w-6 h-6" style={{ color: '#16a34a' }} />
-                    : <Camera className="w-6 h-6" style={{ color: '#6b7280' }} />
+                  ? <span className="text-sm">...</span>
+                  : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? '#16a34a' : '#6b7280' }} />
                 }
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    top: -7,
+                    right: -7,
+                    minWidth: 24,
+                    height: 20,
+                    padding: '0 5px',
+                    borderRadius: 999,
+                    background: photos.length >= MAX_PROOF_PHOTOS ? '#6b7280' : accentColor,
+                    color: '#fff',
+                    border: '2px solid #fff',
+                    fontSize: 10,
+                    fontWeight: 900,
+                    lineHeight: '16px',
+                    textAlign: 'center',
+                  }}
+                >
+                  {photos.length >= MAX_PROOF_PHOTOS ? '0' : `+${MAX_PROOF_PHOTOS - photos.length}`}
+                </span>
               </label>
             )}
           </div>
@@ -1008,27 +1036,45 @@ function TransactionForm({
             </p>
           )}
 
-          {/* Photo preview */}
-          {photo && (
-            <div className="mt-2 flex items-center gap-2 p-2" style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
-              <img src={photo} alt="" className="w-12 h-12 object-cover" style={{ borderRadius: '6px' }} />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold" style={{ color: '#1a1a1a' }}>
-                  {lang === 'am' ? 'ፎቶ ተጨምሯል' : 'Photo attached'}
-                </p>
-                <p className="text-[10px]" style={{ color: '#9ca3af' }}>
-                  {Math.round(photoSizeBytes(photo) / 1024)} KB
-                </p>
-              </div>
-              <button
-                onClick={() => setPhoto(null)}
-                className="press-scale flex items-center justify-center"
-                style={{ minWidth: '32px', minHeight: '32px' }}
-                aria-label={lang === 'am' ? 'ፎቶ አስወግድ' : 'Remove photo'}
-              >
-                <X className="w-4 h-4" style={{ color: '#6b7280' }} />
-              </button>
+          {photos.length > 0 && (
+          <div className="mt-2 p-2" style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold" style={{ color: '#1a1a1a' }}>
+                {lang === 'am' ? '\u134E\u1276' : 'Proof photos'}
+              </p>
+              <p className="text-[10px] font-bold" style={{ color: '#6b7280' }}>
+                {photos.length}/{MAX_PROOF_PHOTOS}
+              </p>
             </div>
+            <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+              {photos.map((entry, index) => (
+                <div key={entry.id} className="relative flex-shrink-0">
+                  <img src={entry.dataUrl} alt="" className="w-14 h-14 object-cover" style={{ borderRadius: 6 }} />
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePhoto(entry.id)}
+                    className="press-scale flex items-center justify-center"
+                    style={{
+                      position: 'absolute',
+                      top: -6,
+                      right: -6,
+                      minWidth: 28,
+                      minHeight: 28,
+                      borderRadius: 999,
+                      border: '1px solid #e8e2d8',
+                      background: '#fff',
+                    }}
+                    aria-label={lang === 'am' ? '\u134E\u1276 \u12A0\u1235\u12C8\u130D\u12F5' : `Remove photo ${index + 1}`}
+                  >
+                    <X className="w-3.5 h-3.5" style={{ color: '#6b7280' }} />
+                  </button>
+                  <p className="text-[10px] text-center mt-1" style={{ color: '#9ca3af' }}>
+                    {Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
           )}
 
           {/* Quick item chips from catalog (+ inline add new item) */}
@@ -1653,7 +1699,7 @@ function TransactionForm({
                   type="text"
                   value={popupName}
                   onChange={e => setPopupName(e.target.value)}
-                  placeholder={lang === 'am' ? 'ለምሳሌ ትራንስፖርት፣ ኪራይ…' : 'e.g. transport, rent...'}
+                  placeholder={lang === 'am' ? 'ዝርዝሩን ይመዝቡ...' : 'Add details...'}
                   className="w-full p-2.5 border-2 focus:outline-none text-sm"
                   style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
                 />
