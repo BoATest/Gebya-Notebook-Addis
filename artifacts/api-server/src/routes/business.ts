@@ -62,8 +62,8 @@ async function findValidInvite(tx: any, token: string) {
     .where(
       and(
         eq(invites.token, token),
-        eq(invites.acceptedAt, null),
-        eq(invites.revokedAt, null),
+        isNull(invites.acceptedAt),
+        isNull(invites.revokedAt),
         gt(invites.expiresAt, new Date())
       )
     )
@@ -259,16 +259,19 @@ router.patch("/members/:userId/permissions", requireRole("owner"), async (req, r
 
   const { role, permissions: existingPermissions } = targetRows[0];
   const current = resolvePermissions(role, existingPermissions);
-  const incoming = req.body;
+  const incoming = req.body as Record<string, unknown>;
+
+  // Normalize existing permissions to a record for safe indexing
+  const existingPerms = (existingPermissions ?? {}) as Record<string, boolean>;
 
   // Only accept known permission keys
   const allowedKeys = Object.keys(current);
   const nextPermissions: Record<string, boolean> = {};
   for (const key of allowedKeys) {
     if (incoming[key] !== undefined && typeof incoming[key] === "boolean") {
-      nextPermissions[key] = incoming[key];
-    } else if (existingPermissions && typeof existingPermissions === "object" && existingPermissions[key] !== undefined) {
-      nextPermissions[key] = existingPermissions[key] as boolean;
+      nextPermissions[key] = incoming[key] as boolean;
+    } else if (existingPerms[key] !== undefined) {
+      nextPermissions[key] = existingPerms[key];
     }
   }
 
