@@ -470,4 +470,56 @@ db.on('ready', async () => {
   }
 });
 
+export async function getIdentity() {
+  return db.identity.get('me');
+}
+
+export async function setIdentity(identity) {
+  const now = Date.now();
+  return db.identity.put({ key: 'me', ...identity, updated_at: now });
+}
+
+export async function clearIdentity() {
+  return db.identity.delete('me');
+}
+
+export async function getDeviceToken() {
+  const ident = await db.identity.get('me');
+  return ident?.device_token ?? null;
+}
+
+export async function getShopId() {
+  const ident = await db.identity.get('me');
+  return ident?.shop_id ?? null;
+}
+
+export async function getStaffId() {
+  const ident = await db.identity.get('me');
+  return ident?.staff_id ?? null;
+}
+
+export async function getRole() {
+  const ident = await db.identity.get('me');
+  return ident?.role ?? null;
+}
+
+export async function getPermissions() {
+  const ident = await db.identity.get('me');
+  return ident?.permissions ?? {};
+}
+
+export async function canCreateEvent(eventType) {
+  const perms = await getPermissions();
+  const map = {
+    sale: 'can_create_sale',
+    customer_payment: 'can_create_customer_payment',
+    customer_credit: 'can_create_customer_credit',
+    note: 'can_create_note',
+    expense: 'can_create_expense',
+    supplier_transaction: 'can_create_supplier_transaction',
+  };
+  const key = map[eventType];
+  return key ? !!perms[key] : false;
+}
+
 export default db;

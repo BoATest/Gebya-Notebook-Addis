@@ -211,8 +211,10 @@ function AppInner() {
 
       const derivedLegacy = deriveLegacyFromChannels(paymentChannels);
       setShopProfile({
-        name: nameRow?.value || null,
-        phone: phoneRow?.value || '',
+        id: identityForProfile?.shop_id || null,
+        shop_id: identityForProfile?.shop_id || null,
+        name: profileName,
+        phone: phoneRow?.value || identityForProfile?.phone_number || '',
         telegram: telegramRow?.value || '',
         businessType: businessTypeRow?.value || 'retail-shop',
         paymentChannels,
@@ -559,6 +561,13 @@ function AppInner() {
               onDeactivateStaffMember={handleDeactivateStaffMember}
               onReactivateStaffMember={handleReactivateStaffMember}
               onSetActiveStaffMember={handleSetActiveStaffMember}
+              onRefreshStaffMembers={refreshStaffMembers}
+              onRotateJoinCode={handleRotateJoinCode}
+              onUpdateShopSettings={handleUpdateShopSettings}
+              onApproveDevice={handleApproveDevice}
+              onRejectDevice={handleRejectDevice}
+              onLoadStaffActivity={handleLoadStaffActivity}
+              onRetryStaffActivity={handleRetryStaffActivity}
               enabledProviders={enabledProviders}
               onProvidersChange={setEnabledProviders}
               paymentChannels={shopProfile?.paymentChannels || []}

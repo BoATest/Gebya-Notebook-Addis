@@ -153,6 +153,13 @@ function SettingsPage({
   onDeactivateStaffMember,
   onReactivateStaffMember,
   onSetActiveStaffMember,
+  onRefreshStaffMembers,
+  onRotateJoinCode,
+  onUpdateShopSettings,
+  onApproveDevice,
+  onRejectDevice,
+  onLoadStaffActivity,
+  onRetryStaffActivity,
   enabledProviders,
   onProvidersChange,
   paymentChannels,
@@ -186,6 +193,16 @@ function SettingsPage({
   const [staffDeactivateTarget, setStaffDeactivateTarget] = useState(null);
   const [editingStaffId, setEditingStaffId] = useState(null);
   const [editingStaffName, setEditingStaffName] = useState('');
+  const [identity, setIdentityState] = useState(null);
+  const [shopJoinCode, setShopJoinCode] = useState('');
+  const [shopJoinSettings, setShopJoinSettings] = useState(null);
+  const [rotating, setRotating] = useState(false);
+  const [staffActivity, setStaffActivity] = useState([]);
+  const [staffActivityFilter, setStaffActivityFilter] = useState('all');
+  const [staffActivityLoading, setStaffActivityLoading] = useState(false);
+  const [staffActivityError, setStaffActivityError] = useState('');
+  const [staffActivityOffline, setStaffActivityOffline] = useState(false);
+  const [staffActivitySource, setStaffActivitySource] = useState('local');
 
   const handleAddStaffMember = async () => {
     const saved = await onSaveStaffMember?.({ display_name: staffName, role: 'staff', active: true });
@@ -298,6 +315,35 @@ function SettingsPage({
   const activeStaffCount = (staffMembers || []).filter(m => m.active !== false).length;
   const teamStatus = activeStaffCount > 0 ? `${activeStaffCount}` : (lang === 'am' ? 'ብቻ እርስዎ' : 'Solo');
   const teamTone = activeStaffCount > 0 ? 'ok' : 'neutral';
+  const staffActivityFilters = [
+    { id: 'all', label: 'All' },
+    { id: 'sale', label: 'Sales' },
+    { id: 'customer_payment', label: 'Customer payments' },
+    { id: 'customer_credit', label: 'Dubie' },
+  ];
+  const filteredStaffActivity = (staffActivity || [])
+    .filter((item) => staffActivityFilter === 'all' || item.event_type === staffActivityFilter)
+    .slice(0, 8);
+  const staffActivityCount = filteredStaffActivity.length;
+  const staffActivitySyncTone = staffActivity.some(item => item.sync_state === 'needs_retry')
+    ? 'warn'
+    : (staffActivity.some(item => item.sync_state === 'waiting_to_sync') ? 'info' : 'ok');
+  const staffActivityStatusStyle = {
+    synced: { background: '#dcfce7', color: '#166534' },
+    waiting_to_sync: { background: '#fef3c7', color: '#92400e' },
+    needs_retry: { background: '#fee2e2', color: '#991b1b' },
+  };
+  const formatActivityTime = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  };
+  const activityCopy = {
+    loading: staffActivityLoading ? 'Refreshing...' : 'Refresh',
+    empty: staffActivityFilter === 'all'
+      ? 'No staff activity yet. When staff records sales, payments, or Dubie, it will appear here.'
+      : 'No activity for this filter yet.',
+  };
 
   const displayPrivacyStatus = `${theme === 'dark' ? (lang === 'am' ? 'ጨለማ' : 'Dark') : (lang === 'am' ? 'ብርሃን' : 'Light')} · ${hidden ? (lang === 'am' ? 'ተደብቋል' : 'Hidden') : (lang === 'am' ? 'ይታያል' : 'Visible')}`;
 
@@ -411,13 +457,13 @@ function SettingsPage({
       <GroupLabel>{lang === 'am' ? 'ሰዎች' : 'People'}</GroupLabel>
       <SettingsSection
         id="team"
-        title={lang === 'am' ? 'ቡድን' : 'Team'}
+        title={lang === 'am' ? 'ቡድን' : 'Team & Staff'}
         icon="👥"
         status={teamStatus}
         statusTone={teamTone}
         subtitle={activeStaffCount > 0
           ? (lang === 'am' ? `${activeStaffCount} ሰራተኞች ንቁ ናቸው` : `${activeStaffCount} active staff`)
-          : (lang === 'am' ? 'ሰራተኛ ለመጨመር ይንኩ' : 'Add staff members to attribute records')}
+          : (lang === 'am' ? 'ሰራተኛ ለመጨመር ይንኩ' : 'Invite staff and manage recording access')}
         openSection={openSection}
         setOpenSection={setOpenSection}
       >

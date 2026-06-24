@@ -1,29 +1,43 @@
 import { lazy, Suspense, useMemo, useRef, useState, useEffect } from 'react';
 import {
+  AlertTriangle,
+  Banknote,
+  CheckCircle2,
+  ChevronDown,
   ChevronRight,
   ChevronDown,
   Download,
   Eye,
   EyeOff,
   Filter,
+  History,
   Search,
+  Settings2,
+  ShoppingCart,
+  UserRound,
+  Wallet,
   X,
   Clock,
 } from 'lucide-react';
-import { useLang } from '../context/LangContext';
+import db from '../db';
 import { usePrivacy } from '../context/PrivacyContext';
+import { getCurrentEthiopianDate } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/numformat';
-import { formatEthiopian, getCurrentEthiopianDate } from '../utils/ethiopianCalendar';
-import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
-import { matchesSearch } from './HistoryView';
+import {
+  ALL_SCOPE,
+  OWNER_SCOPE,
+  actorName,
+  amountOf,
+  buildReportRows,
+  buildStaffReportRows,
+  computeReportMetrics,
+  paymentLabel,
+  reportRowSearchText,
+  startOfLocalDay,
+} from '../utils/reportSelectors';
 
-const HistoryView = lazy(() => import('./HistoryView'));
-
-function startOfDay(ms = Date.now()) {
-  const d = new Date(ms);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
+const DAY_MS = 86400000;
+const EMPTY_FILTERS = { type: '', payment: '', status: '' };
 
 function startOfWeek(ms = Date.now()) {
   const d = new Date(ms);
@@ -42,123 +56,51 @@ function startOfMonth(ms = Date.now()) {
 
 function endOfMonth(ms = Date.now()) {
   const d = new Date(ms);
-  d.setMonth(d.getMonth() + 1, 0);
-  d.setHours(23, 59, 59, 999);
+  d.setMonth(d.getMonth() + 1, 1);
+  d.setHours(0, 0, 0, 0);
   return d.getTime();
 }
 
-function inRange(ts, from, to) {
-  return Number(ts || 0) >= from && Number(ts || 0) < to;
+function displayDate(ms) {
+  return new Date(ms).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function netOf(transactions, from, to) {
-  let sales = 0;
-  let expenses = 0;
-  for (const tx of transactions || []) {
-    if (!inRange(tx.created_at, from, to)) continue;
-    if (tx.type === 'sale') sales += Number(tx.amount || 0);
-    if (tx.type === 'expense') expenses += Number(tx.amount || 0);
-  }
-  return { sales, expenses, expectedCash: sales - expenses };
+function displayTime(ms) {
+  return ms ? new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 }
 
-function moneyFlowOf(transactions, ledgerTransactions, from, to) {
-  let cash = 0;
-  let transfer = 0;
-
-  for (const tx of transactions || []) {
-    if (!inRange(tx.created_at, from, to)) continue;
-    const paymentType = tx.payment_type || 'cash';
-    const amount = Number(tx.cash_received ?? tx.amount ?? 0);
-    if (!amount || paymentType === 'credit') continue;
-
-    if (paymentType === 'cash') {
-      cash += tx.type === 'expense' ? -amount : amount;
-    } else if (tx.type === 'sale') {
-      transfer += amount;
-    } else if (tx.type === 'expense') {
-      transfer -= amount;
-    }
-  }
-
-  for (const tx of ledgerTransactions || []) {
-    if (tx.type !== CUSTOMER_TRANSACTION_TYPES.PAYMENT) continue;
-    if (!inRange(tx.created_at, from, to)) continue;
-    cash += Number(tx.amount || 0);
-  }
-
-  return { cash, transfer };
+function displayPeriod(timeRange, from, to) {
+  if (timeRange === 'today') return 'Today';
+  if (timeRange === 'week') return 'This week';
+  if (timeRange === 'month') return 'This month';
+  return `${displayDate(from)} - ${displayDate(to - 1)}`;
 }
 
-function collectedIn(ledgerTransactions, from, to) {
-  let total = 0;
-  for (const tx of ledgerTransactions || []) {
-    if (tx.type !== CUSTOMER_TRANSACTION_TYPES.PAYMENT) continue;
-    if (!inRange(tx.created_at, from, to)) continue;
-    total += Number(tx.amount || 0);
-  }
-  return total;
+function titleOf(row) {
+  return row.title || row.item_name || row.item_note || row.customer_name || row.note || 'Record';
 }
 
 function csvEscape(value) {
   if (value == null) return '';
-  const s = String(value);
-  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
+  const text = String(value);
+  if (text.includes(',') || text.includes('"') || text.includes('\n')) return `"${text.replace(/"/g, '""')}"`;
+  return text;
 }
 
-function buildCSV({ transactions, ledgerTransactions }, from, to, customers = []) {
-  const header = ['date', 'type', 'amount', 'item_name', 'item_code', 'customer', 'note', 'quantity', 'entered_by'];
-  const rows = [header.join(',')];
-  const custName = (id) => customers.find(c => c.id === id)?.display_name || '';
-
-  for (const tx of transactions || []) {
-    if (!inRange(tx.created_at, from, to)) continue;
-    rows.push([
-      new Date(tx.created_at).toISOString(),
-      tx.type,
-      Number(tx.amount || 0),
-      csvEscape(tx.item_name || tx.item_note),
-      csvEscape(tx.item_code),
-      csvEscape(tx.customer_name),
-      csvEscape(tx.note || tx.item_note),
-      Number(tx.quantity || 1),
-      csvEscape(tx.actor_name_snapshot),
-    ].join(','));
-  }
-
-  for (const tx of ledgerTransactions || []) {
-    if (!inRange(tx.created_at, from, to)) continue;
-    rows.push([
-      new Date(tx.created_at).toISOString(),
-      tx.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? 'dubie_payment' : 'dubie_credit',
-      Number(tx.amount || 0),
-      csvEscape(tx.item_note),
-      '',
-      csvEscape(custName(tx.customer_id)),
-      '',
-      tx.quantity || '',
-      csvEscape(tx.actor_name_snapshot),
-    ].join(','));
-  }
-
-  return rows.join('\n');
-}
-
-function buildJSON({ transactions, ledgerTransactions, customers, suppliers }, from, to) {
-  return JSON.stringify({
-    exported_at: new Date().toISOString(),
-    range: {
-      from: new Date(from).toISOString(),
-      to: new Date(to).toISOString(),
-    },
-    transactions: (transactions || []).filter(tx => inRange(tx.created_at, from, to)),
-    customer_transactions: (ledgerTransactions || []).filter(tx => inRange(tx.created_at, from, to)),
-    customers: customers || [],
-    suppliers: suppliers || [],
-  }, null, 2);
+function buildCSV(rows) {
+  const header = ['date', 'type', 'amount', 'item_or_person', 'payment', 'status', 'entered_by'];
+  return [
+    header.join(','),
+    ...rows.map(row => [
+      row.created_at ? new Date(row.created_at).toISOString() : '',
+      row.report_kind || row.type,
+      amountOf(row),
+      csvEscape(titleOf(row)),
+      csvEscape(paymentLabel(row)),
+      csvEscape(row.status || 'recorded'),
+      csvEscape(actorName(row)),
+    ].join(',')),
+  ].join('\n');
 }
 
 function downloadBlob(content, filename, mimeType) {
@@ -586,66 +528,102 @@ function TransactionRow({ tx, hidden, lang, onEdit }) {
   return (
     <button
       type="button"
-      onClick={() => onEdit?.(tx)}
+      onClick={() => onOpen(item)}
       className="press-scale"
       style={{
-        width: '100%',
-        border: 'none',
-        background: 'transparent',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 10,
-        padding: '9px 0',
+        minWidth: 0,
+        minHeight: 120,
+        padding: 12,
+        background: '#fff',
+        border: '1px solid #e5e7eb',
+        borderRadius: 8,
+        boxShadow: '0 2px 8px -6px rgba(0,0,0,0.22)',
         textAlign: 'left',
-        cursor: onEdit ? 'pointer' : 'default',
+        cursor: 'pointer',
       }}
     >
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <p style={{ color: '#111827', fontSize: 14, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {displayItem(tx, lang)}
-        </p>
-        <p style={{ color: '#6b7280', fontSize: 12, fontWeight: 650, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {tx.type || 'entry'} · Entered by {actorName(tx)} · {displayTime(tx.created_at)}
-        </p>
-        {tx.item_code && (
-          <p style={{ color: '#9ca3af', fontSize: 11, fontWeight: 700, marginTop: 1 }}>{tx.item_code}</p>
-        )}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
-        <span style={{ fontSize: 14 }}>
-          <Amount
-            value={Number(tx.amount || 0)}
-            hidden={hidden}
-            tone={tx.type === 'expense' ? 'bad' : 'good'}
-            suffix={false}
-          />
+      <div style={{ display: 'grid', gridTemplateColumns: '34px 1fr 16px', gap: 8, alignItems: 'start' }}>
+        <span style={{ width: 34, height: 34, borderRadius: 8, background: item.bg, display: 'grid', placeItems: 'center' }}>
+          <Icon className="w-5 h-5" style={{ color: item.color }} />
         </span>
-        <ChevronRight className="w-4 h-4" style={{ color: '#d1d5db' }} />
+        <div style={{ minWidth: 0 }}>
+          <p style={{ color: '#1f2937', fontSize: 13, fontWeight: 950, lineHeight: 1.15 }}>
+            {item.label}
+          </p>
+          <p style={{ color: '#6b7280', fontSize: 11, fontWeight: 700, marginTop: 3, lineHeight: 1.2 }}>
+            {item.helper}
+          </p>
+        </div>
+        <ChevronRight className="w-4 h-4" style={{ color: '#6b7280', marginTop: 8 }} />
       </div>
+      <p style={{ marginTop: 14, fontSize: 'clamp(18px, 6vw, 22px)', lineHeight: 1.05 }}>
+        <Amount value={item.value} hidden={hidden} tone={item.tone} />
+      </p>
     </button>
   );
 }
 
-function EmptyText({ children }) {
-  return <p style={{ color: '#9ca3af', fontSize: 13, fontWeight: 650 }}>{children}</p>;
+function RecordRow({ row, hidden, onEdit }) {
+  const isOut = row.report_kind === 'expense';
+  return (
+    <button
+      type="button"
+      onClick={() => onEdit?.(row)}
+      style={{ width: '100%', border: 'none', borderTop: '1px solid #f3f4f6', background: '#fff', padding: '10px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, textAlign: 'left' }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <p style={{ color: '#1f2937', fontSize: 13, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titleOf(row)}</p>
+        <p style={{ color: '#6b7280', fontSize: 11, fontWeight: 700, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {paymentLabel(row)} · {actorName(row)} · {displayTime(row.created_at)}
+        </p>
+      </div>
+      <span style={{ fontSize: 14, flexShrink: 0 }}>
+        <Amount value={amountOf(row)} hidden={hidden} tone={isOut ? 'bad' : 'good'} />
+      </span>
+    </button>
+  );
 }
 
-function ReportView({
+function Sheet({ title, children, onClose }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(17,24,39,0.28)', display: 'flex', alignItems: 'flex-end' }}>
+      <div style={{ width: '100%', maxHeight: '82vh', overflowY: 'auto', background: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 0px))', boxShadow: '0 -18px 48px rgba(0,0,0,0.18)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
+          <h3 style={{ color: '#1f2937', fontSize: 18, fontWeight: 950 }}>{title}</h3>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ width: 36, height: 36, borderRadius: 18, border: '1px solid #e5e7eb', background: '#fff', display: 'grid', placeItems: 'center' }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function SelectRow({ label, value, onChange, options }) {
+  return (
+    <label style={{ display: 'grid', gap: 5, color: '#667085', fontSize: 12, fontWeight: 850 }}>
+      {label}
+      <select value={value} onChange={event => onChange(event.target.value)} style={{ minHeight: 42, border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', padding: '8px 10px', color: '#1f2937', fontSize: 14 }}>
+        {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
+export default function ReportView({
   transactions = [],
   ledgerTransactions = [],
   enrichedCustomerSummaries = [],
-  supplierSummaries = [],
   customers = [],
   suppliers = [],
   shopProfile,
   onEdit,
   onChaseOverdue,
   ownerAlerts = [],
-  ownerAlertSettings,
-  todayStaffSalesRows = [],
+  staffMembers = [],
+  activeStaffMemberId = null,
 }) {
-  const { lang } = useLang();
   const { hidden, toggle: togglePrivacy } = usePrivacy();
   const [timeRange, setTimeRange] = useState('today');
   const [searchQuery, setSearchQuery] = useState('');
@@ -694,37 +672,30 @@ function ReportView({
   const headerRef = useRef(null);
 
   const now = Date.now();
-  const todayStart = startOfDay(now);
-  const todayEnd = todayStart + 86400000;
-  const weekStart = startOfWeek(now);
-  const weekEnd = weekStart + 7 * 86400000;
-  const monthStart = startOfMonth(now);
-  const monthEnd = endOfMonth(now);
+  const todayStart = startOfLocalDay(now);
+  const activeStaff = staffMembers.find(member => String(member.id) === String(activeStaffMemberId));
+  const isStaffView = Boolean(activeStaffMemberId);
+  const viewerStaffId = isStaffView ? activeStaffMemberId : null;
 
-  const rangeBounds = useMemo(() => {
-    if (timeRange === 'week') return [weekStart, weekEnd];
-    if (timeRange === 'month') return [monthStart, monthEnd];
+  const [from, to] = useMemo(() => {
+    if (timeRange === 'week') return [startOfWeek(now), startOfWeek(now) + 7 * DAY_MS];
+    if (timeRange === 'month') return [startOfMonth(now), endOfMonth(now)];
     if (timeRange === 'custom') {
-      const fromDate = customFrom ? new Date(`${customFrom}T00:00:00`) : new Date(todayStart);
-      const toDate = customTo ? new Date(`${customTo}T00:00:00`) : new Date(todayStart);
-      toDate.setDate(toDate.getDate() + 1);
-      return [fromDate.getTime(), toDate.getTime()];
+      const start = customFrom ? new Date(`${customFrom}T00:00:00`).getTime() : todayStart;
+      const endDate = customTo ? new Date(`${customTo}T00:00:00`) : new Date(todayStart);
+      endDate.setDate(endDate.getDate() + 1);
+      return [start, endDate.getTime()];
     }
-    return [todayStart, todayEnd];
-  }, [timeRange, todayStart, todayEnd, weekStart, weekEnd, monthStart, monthEnd, customFrom, customTo]);
+    return [todayStart, todayStart + DAY_MS];
+  }, [timeRange, customFrom, customTo, todayStart, now]);
 
-  const selectedStats = useMemo(
-    () => netOf(transactions, rangeBounds[0], rangeBounds[1]),
-    [transactions, rangeBounds]
-  );
-  const selectedCollected = useMemo(
-    () => collectedIn(ledgerTransactions, rangeBounds[0], rangeBounds[1]),
-    [ledgerTransactions, rangeBounds]
-  );
-  const selectedFlow = useMemo(
-    () => moneyFlowOf(transactions, ledgerTransactions, rangeBounds[0], rangeBounds[1]),
-    [transactions, ledgerTransactions, rangeBounds]
-  );
+  const reportRows = useMemo(() => buildReportRows({ transactions, ledgerTransactions, customers, from, to, scope, viewerStaffId, filters }), [transactions, ledgerTransactions, customers, from, to, scope, viewerStaffId, filters]);
+  const metrics = useMemo(() => computeReportMetrics(reportRows), [reportRows]);
+  const staffRows = useMemo(() => buildStaffReportRows(reportRows), [reportRows]);
+  const searchRows = useMemo(() => {
+    if (!searchQuery) return [];
+    return reportRows.filter(row => reportRowSearchText(row).includes(searchQuery)).slice(0, 8);
+  }, [reportRows, searchQuery]);
 
   const rangeTransactions = useMemo(
     () => (transactions || []).filter(tx => inRange(tx.created_at, rangeBounds[0], rangeBounds[1])),
@@ -778,23 +749,18 @@ function ReportView({
     ref.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   };
 
-  const handleFullHistory = () => {
-    setHistoryOpen(true);
-    window.setTimeout(() => scrollTo(historyRef), 50);
-  };
-
-  const getExportBounds = (range) => {
-    if (range === 'today') return [todayStart, todayEnd];
-    if (range === 'week') return [weekStart, weekEnd];
-    if (range === 'month') return [monthStart, monthEnd];
-    return [0, Date.now() + 86400000];
-  };
-
-  const handleExportCSV = () => {
-    const [from, to] = getExportBounds(exportRange);
-    const csv = buildCSV({ transactions, ledgerTransactions }, from, to, customers);
+  const exportRows = (format) => {
+    if (isStaffView) {
+      setActionMessage('Export is owner-only on this device.');
+      return;
+    }
+    setActionMessage('');
     const stamp = new Date().toISOString().slice(0, 10);
-    downloadBlob(csv, `gebya-${exportRange}-${stamp}.csv`, 'text/csv;charset=utf-8');
+    if (format === 'json') {
+      downloadBlob(JSON.stringify({ exported_at: new Date().toISOString(), period: { from, to }, scope: selectedScope.label, filters, rows: reportRows, customers, suppliers }, null, 2), `gebya-report-${stamp}.json`, 'application/json');
+      return;
+    }
+    downloadBlob(buildCSV(reportRows), `gebya-report-${stamp}.csv`, 'text/csv;charset=utf-8');
   };
 
   const handleExportJSON = () => {
@@ -1301,5 +1267,3 @@ function ReportView({
     </>
   );
 }
-
-export default ReportView;
