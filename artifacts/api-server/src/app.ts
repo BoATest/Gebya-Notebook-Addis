@@ -34,9 +34,7 @@ const allowedOrigins = [
     ? `https://${process.env.REPLIT_DEV_DOMAIN}`
     : null,
   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
-  // Frontend deployment: gebya-notebook-addis on Vercel
   process.env.FRONTEND_URL || null,
-  // Also explicitly allow known frontend domains for this deployment
   "https://gebya-notebook-addis-gebya.vercel.app",
   ...configuredOrigins,
 ].filter(Boolean) as string[];
@@ -45,17 +43,13 @@ function isAllowedOrigin(origin?: string | null) {
   if (!origin) {
     return true;
   }
-
   if (!isProduction && allowedOrigins.length === 0) {
     return true;
   }
-
-  // Phase 5: In production, if no origins are configured, reject everything
   if (isProduction && allowedOrigins.length === 0) {
     console.error("[security] CORS_ORIGIN is not set in production. Rejecting all cross-origin requests.");
     return false;
   }
-
   return allowedOrigins.includes(origin);
 }
 
@@ -84,13 +78,11 @@ app.use(
 );
 
 // ---- RATE LIMITS ----
-let syncRateLimiter: any = (_req: any, _res: any, next: any) => next(); // passthrough fallback
+let syncRateLimiter: any = (_req: any, _res: any, next: any) => next();
 try {
   const rl = (rateLimit as any)?.default ?? rateLimit;
   if (typeof rl === "function") {
-    // Global: 200 req / 15 min
     app.use(rl({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: "Too many requests." } }));
-    // Sync-specific: 60 req / 5 min per IP (prevents sync abuse)
     syncRateLimiter = rl({ windowMs: 5 * 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false, message: { error: "Sync rate limit exceeded. Slow down." } });
   }
 } catch (e) {
@@ -106,10 +98,8 @@ app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 app.use((req, res, next) => {
   const requestId = createRequestId();
   const startedAt = Date.now();
-
   res.locals.requestId = requestId;
   res.setHeader("X-Request-Id", requestId);
-
   res.on("finish", () => {
     console.info("[api]", JSON.stringify({
       requestId,
@@ -119,7 +109,24 @@ app.use((req, res, next) => {
       durationMs: Date.now() - startedAt,
     }));
   });
+  next();
+});
 
+// ---- CORS PREFLIGHT HANDLER ----
+// Vercel serverless intercepts OPTIONS before reaching cors middleware,
+// so we handle it explicitly here.
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    const origin = req.headers.origin;
+    if (isAllowedOrigin(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin || "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+      return res.status(200).end();
+    }
+    return res.status(403).json({ error: "CORS: origin not allowed" });
+  }
   next();
 });
 
@@ -130,18 +137,15 @@ app.use("/api", router);
 // ---- ERROR HANDLER ----
 app.use((err, req, res, _next) => {
   const requestId = res.locals.requestId || createRequestId();
-
   console.error("[api:error]", JSON.stringify({
     requestId,
     method: req.method,
     path: req.originalUrl || req.url,
     message: err instanceof Error ? err.message : "Unhandled error",
   }));
-
   if (res.headersSent) {
     return;
   }
-
   res.status(500).json({
     error: "Internal server error",
     request_id: requestId,
