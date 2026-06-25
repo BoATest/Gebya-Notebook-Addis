@@ -195,7 +195,7 @@ router.post("/config", async (req: Request, res: Response) => {
 router.get("/config/:customerId", async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
-    const customerId = parseInt(req.params.customerId, 10);
+    const customerId = parseInt(String(req.params.customerId), 10);
     if (!Number.isInteger(customerId) || customerId <= 0) {
       return res.status(400).json({ error: "Invalid customerId" });
     }
@@ -223,7 +223,7 @@ router.get("/config/:customerId", async (req: Request, res: Response) => {
 router.post("/config/:customerId", async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
-    const customerId = parseInt(req.params.customerId, 10);
+    const customerId = parseInt(String(req.params.customerId), 10);
     if (!Number.isInteger(customerId) || customerId <= 0) {
       return res.status(400).json({ error: "Invalid customerId" });
     }
@@ -256,7 +256,7 @@ router.post("/config/:customerId", async (req: Request, res: Response) => {
 router.delete("/config/:customerId", async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
-    const customerId = parseInt(req.params.customerId, 10);
+    const customerId = parseInt(String(req.params.customerId), 10);
     if (!Number.isInteger(customerId) || customerId <= 0) {
       return res.status(400).json({ error: "Invalid customerId" });
     }
@@ -309,7 +309,7 @@ router.get("/history", async (req: Request, res: Response) => {
 router.post("/test/:customerId", async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
-    const customerId = parseInt(req.params.customerId, 10);
+    const customerId = parseInt(String(req.params.customerId), 10);
     if (!Number.isInteger(customerId) || customerId <= 0) {
       return res.status(400).json({ error: "Invalid customerId" });
     }
