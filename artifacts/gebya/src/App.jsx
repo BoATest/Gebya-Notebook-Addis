@@ -1,5 +1,5 @@
 import { Suspense, useState, useEffect, useCallback, useMemo } from 'react';
-import { BookOpen, CreditCard, BarChart3, MoreHorizontal, Settings, Plus, Minus, RotateCw } from 'lucide-react';
+import { BookOpen, CreditCard, BarChart3, MoreHorizontal, Settings, Plus, Minus, RotateCw, Shield } from 'lucide-react';
 import { PrivacyProvider } from './context/PrivacyContext';
 import { LangProvider, useLang } from './context/LangContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -24,6 +24,8 @@ import CreditTab from './components/CreditTab';
 import HistoryTab from './components/HistoryTab';
 import GlobalModals from './components/GlobalModals';
 import { SettingsPage, importCustomerList, importSupplierList, importReportView, importSettingsPage, VOICE_ENABLED } from './utils/lazyImports';
+import OwnerActivityDashboard from './components/OwnerActivityDashboard';
+import StaffInviteAcceptScreen from './components/StaffInviteAcceptScreen';
 import { fmt } from './utils/numformat';
 import { buildCreditMetrics } from './utils/customerMetrics';
 import { resolveActorSnapshot, getActorDisplayLabel } from './utils/staffMembers';
@@ -126,6 +128,7 @@ function AppInner() {
   const canDeleteRecords = usePermissionsStore(s => s.hasPermission('can_delete_records'));
   const canEditSettings = usePermissionsStore(s => s.hasPermission('can_edit_settings'));
   const canManageTeam = usePermissionsStore(s => s.hasPermission('can_manage_team'));
+  const authRole = useAuthStore(s => s.role);
 
   // Shop
   const shopProfile = useShopStore(s => s.shopProfile);
@@ -468,11 +471,19 @@ function AppInner() {
     );
   }
 
-  const TAB_LABELS = { today:{en:'Today',am:'የዛሬ'}, credit:{en:'Credit',am:'ዱቤ'}, history:{en:'Report',am:'ሪፖርት'}, settings:{en:'More',am:'ተጨማሪ'} };
+  const TAB_LABELS = {
+    today:{en:'Today',am:'የዛሬ'},
+    credit:{en:'Credit',am:'ዱቤ'},
+    history:{en:'Report',am:'ሪፖርት'},
+    activity:{en:'Activity',am:'እንቅስቃሴ'},
+    settings:{en:'More',am:'ተጨማሪ'},
+  };
+  const isOwner = authRole === 'owner';
   const tabs = [
     { id:'today',    label:TAB_LABELS.today[lang],    icon:BookOpen },
     { id:'credit',   label:TAB_LABELS.credit[lang],   icon:CreditCard },
     { id:'history',  label:TAB_LABELS.history[lang],  icon:BarChart3 },
+    ...(isOwner ? [{ id:'activity', label:TAB_LABELS.activity[lang], icon:Shield }] : []),
     ...(canEditSettings ? [{ id:'settings', label:TAB_LABELS.settings[lang], icon:MoreHorizontal }] : []),
   ];
 
@@ -541,6 +552,9 @@ function AppInner() {
             currentActorLabel={currentActorLabel}
             activeCatalogEntries={activeCatalogEntries}
           />
+        )}
+        {activeTab === 'activity' && isOwner && (
+          <OwnerActivityDashboard shopProfile={shopProfile} staffMembers={staffMembers} />
         )}
         {activeTab === 'settings' && (
           <Suspense fallback={<PanelFallback label={t.loading} />}>
@@ -683,6 +697,8 @@ function AppInner() {
           onSkip={() => useAuthStore.getState().setUser({ skipped: true })}
         />
       )}
+
+      <StaffInviteAcceptScreen />
     </div>
   );
 }

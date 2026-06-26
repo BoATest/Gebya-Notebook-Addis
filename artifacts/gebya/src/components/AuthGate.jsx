@@ -1,23 +1,27 @@
 import { useState, useEffect } from 'react';
-import { Phone, ArrowRight, Check, AlertCircle, X } from 'lucide-react';
+import { Phone, ArrowRight, Check, AlertCircle, X, KeyRound } from 'lucide-react';
 import { requestOtp, verifyOtp, linkDevice } from '../utils/authClient';
 import { getAuthToken, setAuthToken } from '../utils/syncEngine';
 import { getOrCreateCloudProofDeviceId } from '../utils/cloudProof';
 import { fireToast } from './Toast';
 
+const API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
+
 export default function AuthGate({ onAuthenticated, onSkip, shopPhone = '', lang = 'en' }) {
-  const [step, setStep] = useState('phone'); // phone | otp | loading
+  const [step, setStep] = useState('phone'); // phone | otp | loading | invite_code
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Pre-fill phone from shop profile on mount (store only the 9 local digits)
+  // Pre-fill phone from shop profile on mount
   useEffect(() => {
     if (shopPhone) {
       const digits = shopPhone.replace(/\D/g, '');
       if (digits.startsWith('251') && digits.length === 12) {
-        setPhone(digits.slice(3)); // strip 251, keep the 9 local digits
+        setPhone(digits.slice(3));
       } else if (digits.length === 9 && (digits[0] === '9' || digits[0] === '7')) {
         setPhone(digits);
       }
@@ -43,6 +47,12 @@ export default function AuthGate({ onAuthenticated, onSkip, shopPhone = '', lang
       noTelegram: 'No Telegram? Use without cloud below',
       loginSuccess: 'Signed in successfully',
       genericError: 'Something went wrong. Please try again.',
+      inviteTitle: 'Have an invite code?',
+      inviteSubtitle: 'Enter the code your shop owner gave you to join their shop',
+      invitePlaceholder: 'Paste invite code here',
+      joinShop: 'Join Shop',
+      invalidInvite: 'This code is invalid or has expired',
+      inviteJoined: 'You have joined the shop! Signing you in...',
     },
     am: {
       title: 'ወደ ጌባያ ይግቡ',
@@ -62,19 +72,21 @@ export default function AuthGate({ onAuthenticated, onSkip, shopPhone = '', lang
       noTelegram: 'ቴሌግራም የለዎትም? ከዚህ በታች ያለውን ይጠቀሙ',
       loginSuccess: 'በተሳካ ሁኔታ ገብተዋል',
       genericError: 'ችግር ተፈጥሯል። እባክዎ ይደጉሙ።',
+      inviteTitle: 'የጋበዛ ኮድ አለዎት?',
+      inviteSubtitle: 'የሱቅ ባለቤት የሰጠዎትን ኮድ ያስገቡ',
+      invitePlaceholder: 'ኮዱን እዚህ ያስገቡ',
+      joinShop: 'ሱቁን ይቀላቀሉ',
+      invalidInvite: 'ኮዱ ልክ አይደለም ወይም ጊዜው አልፏል',
+      inviteJoined: 'ሱቁን ተቀላቅለዋል! እያስገባንዎት ነው...',
     },
   }[lang];
 
-  // phone state holds the 9 local digits only (e.g. "912345678" or "712345678")
   function isValidLocalPhone(localDigits) {
     return localDigits.length === 9 && (localDigits[0] === '9' || localDigits[0] === '7');
   }
 
   async function handleRequestOtp() {
-    if (!isValidLocalPhone(phone)) {
-      setError(t.invalidPhone);
-      return;
-    }
+    if (!isValidLocalPhone(phone)) { setError(t.invalidPhone); return; }
     const formatted = `+251${phone}`;
     setError(null);
     setLoading(true);
@@ -82,11 +94,8 @@ export default function AuthGate({ onAuthenticated, onSkip, shopPhone = '', lang
       await requestOtp(formatted);
       setStep('otp');
       fireToast(t.otpSent, 3000);
-    } catch (err) {
-      setError(err.message || t.genericError);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setError(err.message || t.genericError); }
+    finally { setLoading(false); }
   }
 
   async function handleVerifyOtp() {
@@ -100,16 +109,48 @@ export default function AuthGate({ onAuthenticated, onSkip, shopPhone = '', lang
       try { await linkDevice(token, deviceId); } catch (e) { /* non-critical */ }
       fireToast(t.loginSuccess, 2000);
       onAuthenticated?.(user, role, permissions);
+    } catch (err) { setError(err.message || t.genericError); }
+    finally { setLoading(false); }
+  }
+
+  async function handleJoinViaInvite() {
+    const code = inviteCode.trim();
+    if (!code) return;
+    setError(null);
+    setInviteLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/business/join/${encodeURIComponent(code)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || t.invalidInvite);
+      if (data.requires_auth) {
+        // Staff needs to login first
+        setError(lang === 'am' ? 'በመጀመሪያ ይግቡ ከዚያ ኮዱን ይጠቀሙ' : 'Please sign in first, then enter the code');
+        return;
+      }
+      if (data.joined || data.already_member) {
+        fireToast(t.inviteJoined, 2500);
+        // Reload auth to pick up new membership
+        const storedToken = await getAuthToken();
+        if (storedToken) {
+          const { getCurrentUser } = await import('../utils/authClient');
+          try {
+            const userData = await getCurrentUser(storedToken);
+            onAuthenticated?.(userData.user, userData.role, userData.permissions);
+          } catch { window.location.reload(); }
+        }
+      } else {
+        setError(t.invalidInvite);
+      }
     } catch (err) {
-      setError(err.message || t.genericError);
+      setError(err.message || t.invalidInvite);
     } finally {
-      setLoading(false);
+      setInviteLoading(false);
     }
   }
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center px-6" style={{ background: 'rgba(0,0,0,0.6)' }}>
-      <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+      <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl max-h-[95vh] overflow-y-auto">
         <div className="text-center mb-6">
           <div className="w-12 h-12 rounded-xl mx-auto mb-3 flex items-center justify-center" style={{ background: '#f0fdf4' }}>
             <Phone className="w-6 h-6 text-green-700" />
@@ -138,9 +179,7 @@ export default function AuthGate({ onAuthenticated, onSkip, shopPhone = '', lang
                   inputMode="numeric"
                   value={phone}
                   onChange={(e) => {
-                    // Strip non-digits, cap at 9 chars
                     const raw = e.target.value.replace(/\D/g, '').slice(0, 9);
-                    // First digit must be 7 or 9 (or empty while typing)
                     if (raw.length > 0 && raw[0] !== '7' && raw[0] !== '9') return;
                     setPhone(raw);
                     setError(null);
@@ -157,13 +196,43 @@ export default function AuthGate({ onAuthenticated, onSkip, shopPhone = '', lang
               onClick={handleRequestOtp}
               disabled={loading || !isValidLocalPhone(phone)}
               className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all min-h-[48px]"
-              style={{
-                background: loading ? '#e5e7eb' : '#1B4332',
-                color: loading ? '#9ca3af' : '#fff',
-              }}
+              style={{ background: loading ? '#e5e7eb' : '#1B4332', color: loading ? '#9ca3af' : '#fff' }}
             >
               {loading ? '...' : <><ArrowRight className="w-4 h-4" /> {t.continue}</>}
             </button>
+
+            {/* Divider */}
+            <div className="flex items-center gap-2 py-1">
+              <div className="flex-1 h-px" style={{ background: '#e8e2d8' }}></div>
+              <span className="text-[10px] font-bold text-gray-400 uppercase">or</span>
+              <div className="flex-1 h-px" style={{ background: '#e8e2d8' }}></div>
+            </div>
+
+            {/* Invite code section */}
+            <div className="rounded-xl border p-3" style={{ borderColor: '#e8e2d8', background: '#fcfbf8' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <KeyRound className="w-4 h-4 text-amber-600" />
+                <span className="text-xs font-bold text-gray-700">{t.inviteTitle}</span>
+              </div>
+              <p className="text-[10px] text-gray-500 mb-2">{t.inviteSubtitle}</p>
+              <input
+                type="text"
+                value={inviteCode}
+                onChange={(e) => { setInviteCode(e.target.value); setError(null); }}
+                placeholder={t.invitePlaceholder}
+                className="w-full px-3 py-2.5 border-2 rounded-xl text-xs font-mono focus:outline-none mb-2"
+                style={{ borderColor: '#e8e2d8' }}
+              />
+              <button
+                onClick={handleJoinViaInvite}
+                disabled={inviteLoading || !inviteCode.trim()}
+                className="w-full py-2.5 rounded-xl text-xs font-bold min-h-[40px]"
+                style={{ background: (inviteLoading || !inviteCode.trim()) ? '#e5e7eb' : '#1B4332', color: (inviteLoading || !inviteCode.trim()) ? '#9ca3af' : '#fff' }}
+              >
+                {inviteLoading ? '...' : t.joinShop}
+              </button>
+            </div>
+
             <button
               onClick={() => onSkip?.()}
               className="w-full py-3 rounded-xl text-sm font-bold border-2 border-dashed transition-all min-h-[48px]"
@@ -196,27 +265,15 @@ export default function AuthGate({ onAuthenticated, onSkip, shopPhone = '', lang
               onClick={handleVerifyOtp}
               disabled={loading || otp.length !== 6}
               className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all min-h-[48px]"
-              style={{
-                background: loading ? '#e5e7eb' : '#1B4332',
-                color: loading ? '#9ca3af' : '#fff',
-              }}
+              style={{ background: loading ? '#e5e7eb' : '#1B4332', color: loading ? '#9ca3af' : '#fff' }}
             >
               {loading ? '...' : <><Check className="w-4 h-4" /> {t.verify}</>}
             </button>
             <div className="flex gap-2">
-              <button
-                onClick={() => setStep('phone')}
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold min-h-[40px]"
-                style={{ background: '#f5f5f5', color: '#374151' }}
-              >
+              <button onClick={() => setStep('phone')} className="flex-1 py-2.5 rounded-xl text-xs font-bold min-h-[40px]" style={{ background: '#f5f5f5', color: '#374151' }}>
                 {t.back}
               </button>
-              <button
-                onClick={handleRequestOtp}
-                disabled={loading}
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold min-h-[40px]"
-                style={{ background: '#FAF8F5', color: '#1B4332', border: '1px solid #e8e2d8' }}
-              >
+              <button onClick={handleRequestOtp} disabled={loading} className="flex-1 py-2.5 rounded-xl text-xs font-bold min-h-[40px]" style={{ background: '#FAF8F5', color: '#1B4332', border: '1px solid #e8e2d8' }}>
                 {t.resend}
               </button>
             </div>
