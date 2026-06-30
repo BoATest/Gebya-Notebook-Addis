@@ -14,7 +14,7 @@ export const devices = pgTable("devices", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
   deviceId: varchar("device_id", { length: 128 }).notNull().unique(),
-  tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+  tokenHash: varchar("token_hash", { length: 64 }),
   shopId: integer("shop_id"),
   staffId: integer("staff_id"),
   name: text("name"),
