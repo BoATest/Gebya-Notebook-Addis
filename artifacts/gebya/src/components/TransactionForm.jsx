@@ -1071,7 +1071,10 @@ try {
           >
             {lang === 'am' ? 'ጥሬ' : 'Cash'}
           </button>
-          {(enabledProviders || []).map(provider => (
+          {[
+            ...(enabledProviders?.banks || []),
+            ...(enabledProviders?.wallets || []),
+          ].map(provider => (
             <button
               key={provider}
               onPointerDown={() => { setPaymentType('provider'); setPaymentProvider(provider); }}
