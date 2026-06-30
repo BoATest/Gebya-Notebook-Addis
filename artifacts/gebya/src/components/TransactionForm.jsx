@@ -342,17 +342,30 @@ function TransactionForm({
         || (selectedDue === 'custom' && customDue)
     : true;
 
-  // Top catalog items (active ones) — shown as chips below item input
-  const activeCatalogItems = useMemo(() => (
-    catalogEntries
+  // Context-aware Quick Items ranking (spec §4.2)
+  // Considers: frequency, recency, time-of-day affinity, price memory
+  const activeCatalogItems = useMemo(() => {
+    const now = Date.now();
+    const currentHour = new Date().getHours();
+    return catalogEntries
       .filter(e => e && e.is_active !== false && e.name)
       .slice()
       .sort((a, b) => {
-        const bScore = Number(b.use_count || 0) * 10000000000000 + Number(b.last_used_at || b.updated_at || 0);
-        const aScore = Number(a.use_count || 0) * 10000000000000 + Number(a.last_used_at || a.updated_at || 0);
-        return bScore - aScore;
-      })
-  ), [catalogEntries]);
+        const freqA = Number(a.use_count || 0);
+        const freqB = Number(b.use_count || 0);
+        const recencyA = Number(a.last_used_at || a.updated_at || 0);
+        const recencyB = Number(b.last_used_at || b.updated_at || 0);
+        // Time-of-day boost: items used in the same 4-hour window rank higher
+        const todA = a.last_used_at ? (Math.abs(new Date(a.last_used_at).getHours() - currentHour) <= 2 ? 1 : 0) : 0;
+        const todB = b.last_used_at ? (Math.abs(new Date(b.last_used_at).getHours() - currentHour) <= 2 ? 1 : 0) : 0;
+        // Price memory boost: items with a remembered price rank higher
+        const priceA = (a.default_price || a.last_unit_price) ? 1 : 0;
+        const priceB = (b.default_price || b.last_unit_price) ? 1 : 0;
+        const scoreA = freqA * 10000000000000 + recencyA + todA * 1000000000000 + priceA * 100000000000;
+        const scoreB = freqB * 10000000000000 + recencyB + todB * 1000000000000 + priceB * 100000000000;
+        return scoreB - scoreA;
+      });
+  }, [catalogEntries]);
   const topCatalogItems = activeCatalogItems.slice(0, 8);
 
   // Multi-item breakdown — derived
@@ -926,7 +939,7 @@ try {
                   setSaleItemInput(val)
                   setParsedPreview(parseItemInput(val))
                 }}
-                onKeyDown={event => { if (event.key === 'Enter' && canAddSaleItem) handleSaleAddItem(); }}
+                onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); } }}
                 placeholder={lang === 'am' ? 'ንጥል ወይም "ስንዴ 40"' : 'Item  or  "Sugar 40"'}
                 className="flex-1 min-w-0 px-3 py-3 border-2 focus:outline-none text-base"
                 style={{ borderRadius: 'var(--radius-md)', borderColor: saleItemInput ? '#86efac' : '#d7e3da' }}
@@ -946,6 +959,33 @@ try {
                 Add Item
               </button>
             </div>
+            {/* Draft Item preview card (spec §3.3) — shows before adding so merchant
+                can correct the text or accept an autocomplete suggestion first. */}
+            {saleItemInput.trim() && !canAddSaleItem && (
+              <div className="p-2 border text-sm flex items-center justify-between" style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', background: '#faf9f7' }}>
+                <span style={{ color: '#374151' }}>"{saleItemInput.trim()}"</span>
+                <span className="text-[10px]" style={{ color: '#9ca3af' }}>Tap Add Item to confirm</span>
+              </div>
+            )}
+            {parsedPreview?.kind === 'item' && parsedPreview.name && (parsedPreview.unitPrice || parsedPreview.qty >= 1) && (
+              <div className="p-2.5 border" style={{ borderColor: '#bbd7c5', borderRadius: 'var(--radius-sm)', background: '#f7fcf8' }}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-black truncate" style={{ color: '#14532d' }}>{parsedPreview.name}</p>
+                    <p className="text-xs" style={{ color: '#4b6855' }}>Qty: {parsedPreview.qty || 1} · Unit: {fmt(parsedPreview.unitPrice || 0)} ETB</p>
+                  </div>
+                  <p className="text-sm font-black flex-shrink-0" style={{ color: '#14532d' }}>{fmt((parsedPreview.qty || 1) * (parsedPreview.unitPrice || 0))} ETB</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSaleAddItem}
+                  className="mt-1.5 w-full py-1.5 text-xs font-black text-center press-scale"
+                  style={{ borderRadius: 'var(--radius-sm)', background: '#14532d', color: '#fff' }}
+                >
+                  Add Item
+                </button>
+              </div>
+            )}
 {photos.length > 0 && (
                <p className="text-xs font-black" style={{ color: '#14532d' }}>✓ {photos.length} photo attached</p>
              )}

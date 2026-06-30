@@ -41,6 +41,72 @@ function OnboardingScreen({ onComplete }) {
     t.onboardPromisePrivate || 'Your records stay on this phone',
   ];
   const businessTypeOptions = lang === 'am' ? BUSINESS_TYPE_OPTIONS_AM : BUSINESS_TYPE_OPTIONS_EN;
+  const onboardKicker = lang === 'am' ? 'ጌብያን ለመጠቀም ሁለት መንገዶች' : 'Two ways to use Gebya';
+
+  const handleNewShop = () => setMode('form');
+  const handleJoinShop = () => onComplete({ __staff_join: true });
+
+  function renderEnglishOptions() {
+    return (
+      <div className="space-y-3">
+        <button
+          type="button"
+          onClick={handleNewShop}
+          className="w-full flex items-center gap-4 p-4 rounded-xl press-scale text-left"
+          style={{ background: 'rgba(27,67,50,0.06)', border: '2px solid rgba(27,67,50,0.12)' }}
+        >
+          <span className="text-3xl">🏪</span>
+          <div>
+            <div className="font-black text-gray-900">Shop Owner</div>
+            <div className="text-sm font-medium" style={{ color: '#6b7280' }}>Create your own notebook</div>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={handleJoinShop}
+          className="w-full flex items-center gap-4 p-4 rounded-xl press-scale text-left"
+          style={{ background: 'rgba(196,136,58,0.08)', border: '2px solid rgba(196,136,58,0.2)' }}
+        >
+          <span className="text-3xl">👥</span>
+          <div>
+            <div className="font-black text-gray-900">Join a Shop</div>
+            <div className="text-sm font-medium" style={{ color: '#6b7280' }}>Connect as a staff member</div>
+          </div>
+        </button>
+      </div>
+    );
+  }
+
+  function renderAmharicOptions() {
+    return (
+      <div className="space-y-3">
+        <button
+          type="button"
+          onClick={handleNewShop}
+          className="w-full flex items-center gap-4 p-4 rounded-xl press-scale text-left"
+          style={{ background: 'rgba(27,67,50,0.06)', border: '2px solid rgba(27,67,50,0.12)' }}
+        >
+          <span className="text-3xl">🏪</span>
+          <div>
+            <div className="font-black text-gray-900">የሱቅ ባለቤት</div>
+            <div className="text-sm font-medium" style={{ color: '#6b7280' }}>የራስዎን ማስታወሻ ይፍጠሩ</div>
+          </div>
+        </button>
+        <button
+          type="button"
+          onClick={handleJoinShop}
+          className="w-full flex items-center gap-4 p-4 rounded-xl press-scale text-left"
+          style={{ background: 'rgba(196,136,58,0.08)', border: '2px solid rgba(196,136,58,0.2)' }}
+        >
+          <span className="text-3xl">👥</span>
+          <div>
+            <div className="font-black text-gray-900">ሱቅ ይቀላቀሉ</div>
+            <div className="text-sm font-medium" style={{ color: '#6b7280' }}>እንደ ሰራተኛ ይገናኙ</div>
+          </div>
+        </button>
+      </div>
+    );
+  }
 
   const [mode, setMode] = useState('choice');
   const [name, setName] = useState('');
@@ -189,46 +255,157 @@ function OnboardingScreen({ onComplete }) {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-4 py-5 texture-noise"
+      className="min-h-screen flex flex-col items-center justify-start px-4 py-5 texture-noise overflow-y-auto"
       style={{ background: '#1B4332' }}
     >
       <div className="w-full max-w-sm">
-        <div className="text-center animate-elastic">
+        {/* Back */}
+        <div className="flex justify-start mb-2">
+          <button
+            type="button"
+            onClick={() => setMode('choice')}
+            className="press-scale"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: 'rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.25)',
+              borderRadius: 999,
+              padding: '6px 12px',
+              color: '#fff',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            ← {lang === 'am' ? 'ተመለስ' : 'Back'}
+          </button>
+        </div>
+
+        <div className="text-center mb-4 animate-elastic">
           <img
             src="/icon-192.png"
             alt="Gebya"
-            width={80}
-            height={80}
-            className="mx-auto mb-4"
-            style={{ borderRadius: 16, boxShadow: '0 6px 20px -4px rgba(0,0,0,0.4)' }}
+            width={56}
+            height={56}
+            className="mx-auto mb-2"
+            style={{ borderRadius: 14, boxShadow: '0 4px 12px -4px rgba(0,0,0,0.4)' }}
           />
-          <h1 className="text-3xl font-black text-white tracking-tight mb-2 font-serif">Gebya</h1>
-          <p className="text-base font-semibold font-sans" style={{ color: 'rgba(255,255,255,0.72)' }}>
-            {t.onboardTagline}
-          </p>
+          <h1 className="text-2xl font-black text-white tracking-tight mb-0.5 font-serif">Gebya</h1>
         </div>
 
         <div
-          className="bg-white p-8 mt-6 animate-slide-up"
+          className="bg-white p-6 animate-slide-up"
           style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)' }}
         >
-          <h2 className="text-2xl font-black text-gray-900 mb-4 font-sans">
-            {lang === 'am' ? 'የሱቅን መሰጠን ሲደል በመመጥር' : 'Setting up your Notebook'}
+          <h2 className="text-xl font-black text-gray-900 mb-4 font-sans">
+            {lang === 'am' ? 'የሱቅዎን ማስታወሻ ደብተር ያዘጋጁ' : 'Set up your notebook'}
           </h2>
 
-          <div className="flex items-center justify-center py-8">
-            <div className="text-center">
-              <div
-                className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
-                style={{ background: 'rgba(27,67,50,0.08)' }}
-              >
-                ⏳
-              </div>
-              <p className="text-sm text-gray-600 font-medium">
-                {lang === 'am' ? 'በመመጥር ሲደን ሲድመር በመመጥር...'.charAt(0) + '...' : 'Setting up your notebook...'}
+          {/* Name */}
+          <div className="mb-4">
+            <label className="block text-xs font-black uppercase tracking-wide mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'ስም' : 'Your Name'} *
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => setTouched(prev => ({ ...prev, name: true }))}
+              placeholder={lang === 'am' ? 'ስምዎን ያስገቡ' : 'Enter your name'}
+              className="w-full px-4 py-3 rounded-xl text-sm font-medium"
+              style={{
+                background: '#f9fafb',
+                border: `2px solid ${touched.name && !nameValid ? '#ef4444' : '#e5e7eb'}`,
+                outline: 'none',
+              }}
+              autoFocus
+            />
+            {touched.name && !nameValid && (
+              <p className="text-xs font-medium mt-1" style={{ color: '#ef4444' }}>
+                {lang === 'am' ? 'እባክዎ ስም ያስገቡ' : 'Please enter your name'}
               </p>
-            </div>
+            )}
           </div>
+
+          {/* Phone */}
+          <div className="mb-4">
+            <label className="block text-xs font-black uppercase tracking-wide mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'ስልክ ቁጥር' : 'Phone Number'} <span style={{ color: '#9ca3af', fontWeight: 500 }}>{phoneOptionalLabel}</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold px-3 py-3 rounded-xl" style={{ background: '#f3f4f6', color: '#6b7280' }}>+251</span>
+              <input
+                type="tel"
+                value={phoneDigits}
+                onChange={handlePhoneChange}
+                onBlur={() => setTouched(prev => ({ ...prev, phone: true }))}
+                placeholder="912345678"
+                className="flex-1 px-4 py-3 rounded-xl text-sm font-medium"
+                style={{
+                  background: '#f9fafb',
+                  border: `2px solid ${touched.phone && phoneEntered && !phoneValid ? '#ef4444' : '#e5e7eb'}`,
+                  outline: 'none',
+                }}
+                inputMode="numeric"
+              />
+            </div>
+            {touched.phone && phoneEntered && !phoneValid && (
+              <p className="text-xs font-medium mt-1" style={{ color: '#ef4444' }}>
+                {lang === 'am' ? 'እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ' : 'Enter a valid phone number'}
+              </p>
+            )}
+            <p className="text-xs mt-1 font-medium" style={{ color: '#9ca3af' }}>{phoneHelper}</p>
+          </div>
+
+          {/* Business type */}
+          <div className="mb-4">
+            <label className="block text-xs font-black uppercase tracking-wide mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'የሱቅ አይነት' : 'Business Type'}
+            </label>
+            <select
+              value={businessType}
+              onChange={(e) => setBusinessType(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl text-sm font-medium"
+              style={{ background: '#f9fafb', border: '2px solid #e5e7eb', outline: 'none' }}
+            >
+              {businessTypeOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Promises */}
+          <div className="mb-4 space-y-2">
+            {onboardingPromises.map((promise, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs font-medium" style={{ color: '#6b7280' }}>
+                <span style={{ color: '#16a34a' }}>✓</span>
+                {promise}
+              </div>
+            ))}
+          </div>
+
+          {/* Bank copy */}
+          <div className="mb-5 rounded-xl px-4 py-3 text-xs leading-5 font-medium" style={{ background: '#fff7ed', color: '#7c2d12', border: '1px solid #fed7aa' }}>
+            {BANK_COPY}
+          </div>
+
+          {/* Submit */}
+          <button
+            type="button"
+            onClick={handleStart}
+            disabled={!canProceed || saving}
+            className="w-full py-3.5 rounded-xl font-black text-sm min-h-[48px] press-scale"
+            style={{
+              background: canProceed && !saving ? '#1B4332' : '#d1d5db',
+              color: canProceed && !saving ? '#fff' : '#9ca3af',
+              cursor: canProceed && !saving ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {saving
+              ? (lang === 'am' ? 'በማስቀመጥ ላይ...' : 'Saving...')
+              : (lang === 'am' ? 'ጀምር' : 'Start')
+            }
+          </button>
         </div>
 
         <p className="text-center text-xs mt-4 leading-5 font-sans" style={{ color: 'rgba(255,255,255,0.45)' }}>
