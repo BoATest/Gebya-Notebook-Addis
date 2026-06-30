@@ -974,7 +974,23 @@ try {
                   ))}
                 </div>
               ) : (
-                <p className="text-xs border p-2.5" style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', color: '#6b7280' }}>No local item match. Add it as typed.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const draft = parseItemInput(saleItemInput);
+                    if (draft?.kind === 'item') {
+                      addSaleItem({ name: draft.name, unitPrice: draft.unitPrice, qty: 1 });
+                    } else if (draft?.kind === 'amount') {
+                      setAmount(String(draft.value));
+                    }
+                  }}
+                  className="w-full p-2.5 border text-left press-scale"
+                  style={{ borderColor: '#1B4332', borderRadius: 'var(--radius-sm)', background: '#f7fcf8' }}
+                >
+                  <span className="text-sm font-bold" style={{ color: '#1B4332' }}>
+                    + Use "{saleItemInput.trim()}"
+                  </span>
+                </button>
               )
             ) : topCatalogItems.length > 0 ? (
               <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -1069,6 +1085,15 @@ try {
             className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'credit' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}
           >
             {lang === 'am' ? 'ዱቤ' : 'Credit'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab?.('settings')}
+            className="shrink-0 px-3 py-2 rounded-full text-sm font-bold border-2 border-dashed press-scale"
+            style={{ borderColor: '#c9bfa8', background: '#faf9f7', color: '#9ca3af', whiteSpace: 'nowrap' }}
+            aria-label={lang === 'am' ? 'አክል' : 'Add provider'}
+          >
+            +
           </button>
         </div>
 
