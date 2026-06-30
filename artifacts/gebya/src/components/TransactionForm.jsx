@@ -286,11 +286,42 @@ function TransactionForm({
   const [keypayVisible, setKeypayVisible] = useState(false);
   const [customerQuery, setCustomerQuery] = useState('');
   const [undoStack, setUndoStack] = useState(null);
+  const [lineItems, setLineItems] = useState([]);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [saleItemInput, setSaleItemInput] = useState('');
+  const [saleItems, setSaleItems] = useState([]);
+  const [saleAmountBasis, setSaleAmountBasis] = useState('entered');
+  const [parsedPreview, setParsedPreview] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedTransaction, setLastSavedTransaction] = useState(null);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [customAmountValue, setCustomAmountValue] = useState('');
+  const [showCustomAmount, setShowCustomAmount] = useState(false);
+  const [newCatalogName, setNewCatalogName] = useState('');
+  const [newCatalogPrice, setNewCatalogPrice] = useState('');
+  const [catalogSaving, setCatalogSaving] = useState(false);
+  const [showAddCatalog, setShowAddCatalog] = useState(false);
+  const [showAddCatalogBreakdown, setShowAddCatalogBreakdown] = useState(false);
+  const [popupName, setPopupName] = useState('');
+  const [popupAmount, setPopupAmount] = useState('');
+  const [popupFreq, setPopupFreq] = useState('monthly');
+  const [showAddRecurring, setShowAddRecurring] = useState(false);
+  const [addRecurringHint, setAddRecurringHint] = useState(false);
+  const [showUndo, setShowUndo] = useState(false);
+  const amountInputRef = useRef(null);
+
+  const handleUndo = () => {
+    if (undoStack) executeUndo(undoStack);
+  };
 
   useEffect(() => {
-    if (!undoStack) return
-    const timer = setTimeout(() => setUndoStack(null), 5000)
-    return () => clearTimeout(timer)
+    if (!undoStack) {
+      setShowUndo(false);
+      return;
+    }
+    setShowUndo(true);
+    const timer = setTimeout(() => setUndoStack(null), 5000);
+    return () => clearTimeout(timer);
   }, [undoStack]);
 
   // ─── Derived ────────────────────────────────────────────────────────────
