@@ -3,8 +3,6 @@ import { useLang } from '../context/LangContext';
 import db, { setIdentity } from '../db';
 import { identityApi } from '../api/identity';
 
-const BANK_COPY = 'Gebya is a notebook, not a bank. Gebya does not connect to your bank. Gebya cannot withdraw money. Never enter PIN, OTP, or password. Payment method is only a label like Cash, CBE, Telebirr, or Bank Transfer.';
-
 function isValidPhone(digits) {
   return /^[79]\d{8}$/.test(digits);
 }
@@ -239,10 +237,6 @@ function OnboardingScreen({ onComplete }) {
             </h2>
 
             {lang === 'am' ? renderAmharicOptions() : renderEnglishOptions()}
-
-            <div className="mt-5 rounded-xl px-4 py-3 text-xs leading-5 font-medium" style={{ background: '#fff7ed', color: '#7c2d12', border: '1px solid #fed7aa' }}>
-              {BANK_COPY}
-            </div>
           </div>
 
           <p className="text-center text-xs mt-4 leading-5 font-sans" style={{ color: 'rgba(255,255,255,0.45)' }}>
@@ -382,11 +376,6 @@ function OnboardingScreen({ onComplete }) {
                 {promise}
               </div>
             ))}
-          </div>
-
-          {/* Bank copy */}
-          <div className="mb-5 rounded-xl px-4 py-3 text-xs leading-5 font-medium" style={{ background: '#fff7ed', color: '#7c2d12', border: '1px solid #fed7aa' }}>
-            {BANK_COPY}
           </div>
 
           {/* Submit */}

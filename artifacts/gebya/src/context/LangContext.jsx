@@ -190,7 +190,7 @@ const EN = {
   onboardPromisePrivate: 'Your records stay on this phone',
   onboardGetStarted: 'Start using Gebya',
   onboardSettingUp: 'Setting up…',
-  onboardFooter: 'All data stays on your phone · No account needed · Free',
+  onboardFooter: 'All data stays on your phone · Not connected with your bank · Free',
 
   iSoldSomething: 'I Sold Something',
   iSpentSomething: 'I Spent Something',
@@ -651,7 +651,7 @@ const AM = {
   onboardPromisePrivate: 'መዝገቦችዎ በዚህ ስልክ ላይ ይቆያሉ',
   onboardGetStarted: 'ገበያን ጀምር',
   onboardSettingUp: 'በማዘጋጀት ላይ…',
-  onboardFooter: 'ውሂቡ በስልክዎ ላይ ይቆያል · ምዝገባ አያስፈልግም · ነፃ',
+  onboardFooter: 'መረጃዎ በስልክዎ ላይ ይቆያል · ከባንክ ጋር አልተገናኘም · ነፃ',
 
   iSoldSomething: 'áˆ¸áŒ áˆ',
   iSpentSomething: 'á‹ˆáŒª',
@@ -1346,7 +1346,7 @@ const AM_OVERRIDES = {
   onboardPromisePrivate: 'መዝገቦችዎ በዚህ ስልክ ላይ ይቆያሉ',
   onboardGetStarted: 'ገበያን ጀምር',
   onboardSettingUp: 'በማዘጋጀት ላይ…',
-  onboardFooter: 'ውሂቡ በስልክዎ ላይ ይቆያል · ምዝገባ አያስፈልግም · ነፃ',
+  onboardFooter: 'መረጃዎ በስልክዎ ላይ ይቆያል · ከባንክ ጋር አልተገናኘም · ነፃ',
 
   // Trust card
   trustCardTitle: 'ማስታወሻዎ በዚህ ስልክ ላይ ይቆያል',
