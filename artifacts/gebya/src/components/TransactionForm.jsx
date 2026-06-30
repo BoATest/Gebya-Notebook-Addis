@@ -414,6 +414,8 @@ function TransactionForm({
   const activeSalePayment = salePaymentOptions.find(option => option.id === selectedSalePaymentId) || salePaymentOptions[0];
   const isCreditSale = paymentType === 'credit';
 
+  const effectiveSellingPrice = type === 'sale' ? saleFinalAmount : sellingPrice;
+
   // Item is OPTIONAL for sale/expense; REQUIRED (as customer name) for credit
   // For Credit payment mode, a customer is required.
    const canSave =
@@ -476,7 +478,6 @@ function TransactionForm({
           name: l.name.trim(),
           amount: parseFloat(parseInput(l.amount)),
         }));
-    const effectiveSellingPrice = type === 'sale' ? saleFinalAmount : sellingPrice;
     const itemNameForSave = (!isCredit && cleanedItems.length > 0)
       ? cleanedItems.map(li => li.name).join(', ').substring(0, 200)
       : item.trim();
