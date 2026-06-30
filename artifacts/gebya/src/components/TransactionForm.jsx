@@ -1871,6 +1871,90 @@ try {
           )}
         </div>
 
+        {/* Customer selection (credit) */}
+        {isCredit && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'ደንበኛ' : 'CUSTOMER'}
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={customerQuery}
+                onChange={e => {
+                  setCustomerQuery(e.target.value);
+                  setCustomerMatch(null);
+                }}
+                placeholder={lang === 'am' ? 'ስም ይተይቡ...' : 'Type customer name...'}
+                className="w-full p-3 border-2 focus:outline-none text-base"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: customerQuery ? '#86efac' : '#e8e2d8' }}
+              />
+              {customerQuery.trim() && (
+                <div className="absolute z-20 left-0 right-0 mt-1 bg-white border shadow-lg" style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)', maxHeight: '160px', overflowY: 'auto' }}>
+                  {customers.filter(c => {
+                    const q = customerQuery.trim().toLowerCase();
+                    return !q || (c.display_name || c.name || '').toLowerCase().includes(q);
+                  }).slice(0, 6).map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        setCustomerMatch(c);
+                        setCustomerQuery(c.display_name || c.name || '');
+                      }}
+                      className="w-full px-3 py-2.5 text-left border-b press-scale flex items-center justify-between gap-2"
+                      style={{ borderColor: '#f3f4f6', background: '#fff' }}
+                    >
+                      <span className="text-sm font-semibold truncate" style={{ color: '#111827' }}>{c.display_name || c.name}</span>
+                      {c.balance > 0 && <span className="text-xs font-bold flex-shrink-0" style={{ color: '#C4883A' }}>{fmt(c.balance)} {lang === 'am' ? 'ብር' : 'ETB'}</span>}
+                    </button>
+                  ))}
+                  {onAddCustomerInline && (customers.filter(c => {
+                    const q = customerQuery.trim().toLowerCase();
+                    return !q || (c.display_name || c.name || '').toLowerCase().includes(q);
+                  }).length === 0) && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const name = customerQuery.trim();
+                        if (!name) return;
+                        const saved = await onAddCustomerInline({ display_name: name });
+                        if (saved?.id) {
+                          setCustomerMatch(saved);
+                          setCustomerQuery(saved.display_name || saved.name || '');
+                        }
+                      }}
+                      className="w-full px-3 py-2.5 text-left text-sm font-bold press-scale flex items-center gap-2"
+                      style={{ background: '#f7fcf8', color: '#14532d' }}
+                    >
+                      <Plus className="w-4 h-4" /> {lang === 'am' ? 'አዲስ ደንበኛ ይመልከቱ' : 'Add new customer'}: <span className="truncate" style={{ color: '#1B4332' }}>{customerQuery.trim()}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+              {customerMatch && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomerMatch(null);
+                    setCustomerQuery('');
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 press-scale"
+                  style={{ minWidth: '32px', minHeight: '32px', borderRadius: 999, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  aria-label={lang === 'am' ? 'አጥፋ' : 'Clear'}
+                >
+                  <X className="w-4 h-4" style={{ color: '#6b7280' }} />
+                </button>
+              )}
+            </div>
+            {!customerMatch && customerQuery.trim() && (
+              <p className="text-xs mt-1.5 font-medium" style={{ color: '#C4883A' }}>
+                {lang === 'am' ? 'ደንበኛ ይምረጡ ወይም ይፍጠሩ' : 'Select or create a customer'}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Phone (credit) */}
         {isCredit && (
           <div>
