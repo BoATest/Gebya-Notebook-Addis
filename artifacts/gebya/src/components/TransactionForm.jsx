@@ -228,6 +228,7 @@ function TransactionForm({
    initialPaymentProvider,
    lastPaymentHistory,
    setActiveTab,
+   editingTransaction,  // Seamless editing (§8) — prefills all fields for edit
  }) {
   const { lang, t } = useLang();
 
@@ -895,18 +896,25 @@ try {
 <div className="px-3 pb-3">
                <input
                  type="text"
-                 inputMode="decimal"
+                 inputMode="none"
+                 readOnly
                  autoFocus
                  value={fmtInput(amount)}
                  onChange={event => {
                    handleNumericInput(event, setAmount);
                    setSaleAmountBasis('entered');
                  }}
-                 onFocus={() => setShowCalculator(true)}
+                 onFocus={() => setKeypayVisible(true)}
                  placeholder="0"
                  className="w-full px-3 py-3 border-2 focus:outline-none text-2xl font-black"
                  style={{ borderRadius: 'var(--radius-md)', borderColor: amount ? '#86efac' : '#d7e3da', color: amount ? '#14532d' : '#9ca3af' }}
                />
+               {keypayVisible && (
+                 <MerchantKeypad
+                   onChange={(finalTotal) => { setAmount(finalTotal); setSaleAmountBasis('entered'); }}
+                   onDismiss={() => setKeypayVisible(false)}
+                 />
+               )}
              </div>
           </section>
 
