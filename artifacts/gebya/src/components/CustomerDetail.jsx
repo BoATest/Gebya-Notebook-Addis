@@ -4,7 +4,7 @@
 //   1. Dark header band       · back + photo/avatar + name + phone + status pill
 //   2. Telegram link state    · linked / manual / (none — hidden if no phone)
 //   3. Balance block          · owes me + days late + on-time/entries/due stats
-//   4. 4-icon quick actions   · Credit · Payment · Mark paid · Remind
+//   4. 3-icon quick actions   · Credit · Payment · Remind
 //   5. History                · tagged rows with settlement breadcrumb badges
 //                               + 🧺 breakdown expander + long-press action sheet
 //   6. Trust line             · 🔒 Backed up securely. Amounts auto-hide for privacy.
@@ -16,7 +16,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, Bell, CheckCircle2, ChevronDown, ChevronUp,
+  ArrowLeft, Bell, ChevronDown, ChevronUp,
   Link2, MessageCircle, MoreVertical, Phone, Plus, RefreshCcw, Wallet, X, Pencil, Trash2,
 } from 'lucide-react';
 import { fmt } from '../utils/numformat';
@@ -338,7 +338,7 @@ function CustomerDetail({
             background: tg === 'linked' ? '#f0fdf4' : tg === 'manual' ? '#fffbeb' : '#fff',
             border: `1px solid ${tg === 'linked' ? '#a3e9c1' : tg === 'manual' ? '#fde68a' : '#ece6d6'}`,
             borderRadius: 10,
-            padding: '10px 12px',
+            padding: '8px 12px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             gap: 10,
             marginTop: -8, // Float slightly into the dark band for visual depth
@@ -357,43 +357,26 @@ function CustomerDetail({
                 flexShrink: 0,
               }}
             />
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <p style={{
-                fontSize: '0.78rem', fontWeight: 700,
-                color: tg === 'linked' ? '#047857' : tg === 'manual' ? '#92400e' : '#1a1a1a',
-              }}>
-                {tg === 'linked'
-                  ? (lang === 'am' ? '✓ ቦት ተገናኝቷል' : '✓ Bot connected')
-                  : tg === 'manual'
-                    ? (lang === 'am' ? 'ቴሌግራም በእጅ' : 'Manual Telegram')
-                    : (lang === 'am' ? 'ቴሌግራም አልተገናኘም' : 'No Telegram link')}
-                {tg === 'manual' && customer.telegram_username && (
-                  <span style={{ marginLeft: 5, fontWeight: 500, opacity: 0.85 }}>
-                    · {customer.telegram_username}
-                  </span>
-                )}
-              </p>
-              <p style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: 1 }}>
-                {tg === 'linked'
-                  ? (isTelegramNotifyEnabled
-                    ? (lang === 'am' ? 'ራስ-ሰር ማሳወቂያ በርቷል · ለመቆጣጠር ይንኩ' : 'Auto-updates ON · tap to manage')
-                    : (lang === 'am' ? 'ራስ-ሰር ማሳወቂያ ጠፍቷል · ለመቆጣጠር ይንኩ' : 'Auto-updates OFF · tap to manage'))
-                  : tg === 'manual'
-                    ? (lang === 'am' ? 'ቦት ለማገናኘት ይንኩ' : 'Tap to link the bot')
-                    : hasPendingLink
-                      ? (lang === 'am' ? 'ቦት ይጠብቃል · ለመፈተሽ ይንኩ' : 'Waiting for bot · tap to refresh')
-                      : (lang === 'am' ? 'ለማስታወሻ ቴሌግራም ይጨምሩ' : 'Tap to add Telegram for reminders')}
-              </p>
-            </div>
+            <p style={{
+              fontSize: '0.75rem', fontWeight: 700, flex: 1, minWidth: 0,
+              color: tg === 'linked' ? '#047857' : tg === 'manual' ? '#92400e' : '#1a1a1a',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              {tg === 'linked'
+                ? (lang === 'am' ? '✓ ቦት ተገናኝቷል' : '✓ Bot connected')
+                : tg === 'manual'
+                  ? (lang === 'am' ? `ቴሌḡራም · ${customer.telegram_username || ''}` : `Telegram · ${customer.telegram_username || ''}`)
+                  : (lang === 'am' ? 'ለማስታወሻ ቴሌግራም ይጨምሩ' : 'Add Telegram for reminders')}
+            </p>
           </div>
           <span
             style={{
               background: tg === 'linked' ? '#047857' : tg === 'manual' ? '#92400e' : '#1a1a1a',
               color: '#fff',
-              padding: '6px 10px', borderRadius: 6,
-              fontSize: '0.7rem', fontWeight: 800,
+              padding: '5px 10px', borderRadius: 6,
+              fontSize: '0.68rem', fontWeight: 800,
               flexShrink: 0,
-              minHeight: 32,
+              minHeight: 28,
               display: 'inline-flex', alignItems: 'center',
             }}
           >
@@ -496,7 +479,7 @@ function CustomerDetail({
 
       {/* ═══ 4. QUICK ACTIONS GRID ══════════════════════════════════════════ */}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
+        display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
         gap: 6,
       }}>
         <QuickAction
@@ -511,13 +494,6 @@ function CustomerDetail({
           label={lang === 'am' ? 'ክፍያ' : 'Payment'}
           onClick={onRecordPayment}
           disabled={!hasBalance}
-        />
-        <QuickAction
-          variant="green"
-          icon={<CheckCircle2 className="w-4 h-4" />}
-          label={lang === 'am' ? 'ሙሉ' : 'Mark paid'}
-          onClick={() => onMarkFullyPaid?.(customer)}
-          disabled={!hasBalance || !onMarkFullyPaid}
         />
         <QuickAction
           variant="amber"

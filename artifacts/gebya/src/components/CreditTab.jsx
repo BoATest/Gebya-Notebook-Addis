@@ -50,26 +50,34 @@ export default function CreditTab({
 
   return (
     <>
-      {/* Segmented control */}
+      {/* Segmented control — Customers primary, Suppliers subtle */}
       {!selectedCustomer && !selectedSupplier && (
-        <div className="flex gap-1.5 p-1 mb-4" style={{ background: '#f5f1ea', borderRadius: 'var(--radius-md)' }}>
-          {[
-            { id: 'customers', label: lang === 'am' ? 'ደንበኞች (ያለባቸው)' : 'Customers (owe me)', accent: '#C4883A' },
-            { id: 'suppliers', label: lang === 'am' ? 'አቅራቢዎች (ያለብኝ)' : 'Suppliers (I owe)', accent: '#dc2626' },
-          ].map((view) => {
-            const active = creditView === view.id;
-            return (
-              <button
-                key={view.id}
-                type="button"
-                onClick={() => setCreditView(view.id)}
-                className="flex-1 py-2 px-3 text-xs font-bold transition-all min-h-[40px] press-scale"
-                style={{ borderRadius: 'var(--radius-sm)', background: active ? '#fff' : 'transparent', color: active ? view.accent : '#6b7280', boxShadow: active ? '0 1px 2px rgba(0,0,0,0.05)' : 'none' }}
-              >
-                {view.label}
-              </button>
-            );
-          })}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 12, paddingBottom: 8,
+          borderBottom: '1px solid #f5f1ea',
+        }}>
+          <p style={{
+            fontSize: '0.82rem', fontWeight: 800, color: '#1a1a1a',
+          }}>
+            {creditView === 'customers'
+              ? (lang === 'am' ? 'ደንበኞች' : 'Customers')
+              : (lang === 'am' ? 'አቅራቢዎች' : 'Suppliers')}
+          </p>
+          <button
+            type="button"
+            onClick={() => setCreditView(creditView === 'customers' ? 'suppliers' : 'customers')}
+            className="press-scale"
+            style={{
+              fontSize: '0.68rem', fontWeight: 600, color: '#C4883A',
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: '4px 8px', borderRadius: 6,
+            }}
+          >
+            {creditView === 'customers'
+              ? (lang === 'am' ? 'አቅራቢዎች ይመልከቱ →' : 'See suppliers →')
+              : (lang === 'am' ? '← ደንበኞች' : '← Customers')}
+          </button>
         </div>
       )}
 
