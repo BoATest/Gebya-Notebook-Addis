@@ -80,6 +80,23 @@ export default function TodayTab({
           <div className="px-4 py-8 text-center">
             <p className="text-sm font-medium" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ገና ምንም ምዝገባ የለም' : 'No entries yet'}</p>
             <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>{lang === 'am' ? 'ለመጀመር ከላይ ይጫኑ' : 'Tap above to start'}</p>
+            {transactions.length === 0 && ledgerTransactions.length === 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('credit')}
+                className="press-scale"
+                style={{
+                  marginTop: 14,
+                  background: 'linear-gradient(135deg, #C4883A 0%, #9c6630 100%)',
+                  color: '#fff', border: 'none', borderRadius: 10,
+                  padding: '10px 20px', fontSize: '0.78rem', fontWeight: 700,
+                  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+                  boxShadow: '0 2px 8px rgba(196,136,58,0.25)',
+                }}
+              >
+                {lang === 'am' ? '📒 ደብተር ጀምር' : '📒 Start notebook'}
+              </button>
+            )}
           </div>
         ) : (
           <div className="divide-y" style={{ borderColor: 'rgba(0,0,0,0.06)' }}>

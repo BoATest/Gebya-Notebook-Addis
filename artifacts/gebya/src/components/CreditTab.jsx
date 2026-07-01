@@ -100,6 +100,10 @@ export default function CreditTab({
               onSelectCustomer={(c) => setSelectedCustomerId(c.id)}
               onAddCustomer={() => setShowCustomerForm(true)}
               onRemindCustomer={(c) => setReminderTarget(c)}
+              onQuickCredit={(c) => setCustomerTransactionModal({
+                mode: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+                customerId: c.id,
+              })}
               onBulkRemind={() => {
                 const queue = enrichedCustomerSummaries
                   .filter(c => c.has_overdue && (c.telegram_chat_id || c.telegram_username || c.phone_number))

@@ -86,13 +86,6 @@ function gradientFor(name) {
   return AVATAR_GRADIENTS[init[0]] || AVATAR_GRADIENTS.A;
 }
 
-// Telegram link state — three-way: linked (bot), manual (username only), none
-function telegramState(customer) {
-  if (customer?.telegram_chat_id) return 'linked';
-  if (customer?.telegram_username) return 'manual';
-  return 'none';
-}
-
 // Urgency color by overdue days / recency
 function urgencyColor(customer) {
   if (customer?.has_overdue) return '#dc2626';      // red
@@ -120,11 +113,12 @@ function CustomerList({
   onAddCustomer,
   onRemindCustomer,
   onBulkRemind,
+  onQuickCredit,
 }) {
   const { t, lang } = useLang();
   const { hidden, toggle: togglePrivacy } = usePrivacy();
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState('all'); // 'all' | 'overdue' | 'top' | 'telegram' | 'cleared'
+  const [filter, setFilter] = useState('all'); // 'all' | 'overdue' | 'top' | 'canRemind' | 'cleared'
 
   const trimmedQuery = query.trim();
   const hasQuery = trimmedQuery.length > 0;
@@ -133,14 +127,14 @@ function CustomerList({
   const counts = useMemo(() => {
     let all = customers.length;
     let overdue = 0;
-    let telegram = 0;
+    let canRemind = 0;
     let cleared = 0;
     for (const c of customers) {
       if (c.has_overdue) overdue++;
-      if (c.telegram_chat_id || c.telegram_username) telegram++;
+      if (c.phone_number || c.telegram_chat_id || c.telegram_username) canRemind++;
       if (Number(c.balance || 0) === 0) cleared++;
     }
-    return { all, overdue, telegram, cleared, top: topCustomers(customers).length };
+    return { all, overdue, canRemind, cleared, top: topCustomers(customers).length };
   }, [customers]);
 
   // ───── apply filter + search ─────
@@ -151,7 +145,7 @@ function CustomerList({
     } else {
       list = customers.filter((c) => {
         if (filter === 'overdue') return c.has_overdue;
-        if (filter === 'telegram') return c.telegram_chat_id || c.telegram_username;
+        if (filter === 'canRemind') return c.phone_number || c.telegram_chat_id || c.telegram_username;
         if (filter === 'cleared') return Number(c.balance || 0) === 0;
         return true; // 'all'
       });
@@ -261,13 +255,6 @@ function CustomerList({
   // ───── HERO CARD METRICS ─────
   const heroAmount = hidden ? '••••' : fmt(metrics.totalOwed || 0);
   const overdueAmount = hidden ? '••••' : fmt(metrics.overdueAmount || 0);
-  const monthlyAmount = hidden ? '••••' : fmt(metrics.monthlyCollected || 0);
-  const monthlyDeltaText = metrics.monthlyDelta !== null && metrics.monthlyDelta !== undefined
-    ? `${metrics.monthlyDelta >= 0 ? '+' : ''}${metrics.monthlyDelta}%`
-    : null;
-  const onTimePct = metrics.onTimeRate !== null && metrics.onTimeRate !== undefined
-    ? `${metrics.onTimeRate}%`
-    : '—';
   const streak = metrics.streak || 0;
 
   return (
@@ -345,36 +332,24 @@ function CustomerList({
           </div>
         </div>
 
-        {/* 3 stats row */}
+        {/* Compact stats — Total Owed + Overdue count + Customer count */}
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 8, marginTop: 12, paddingTop: 12,
+          display: 'flex', gap: 10, marginTop: 10, paddingTop: 10,
           borderTop: '1px dashed #ece6d6',
+          fontSize: '0.7rem', color: '#6b7280',
         }}>
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: '0.55rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              {lang === 'am' ? 'የዘገዩ' : 'Overdue'}
-            </p>
-            <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem', fontWeight: 700, color: hidden ? '#d1d5db' : '#dc2626', marginTop: 2 }}>
-              {overdueAmount}
-            </p>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: '0.55rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              {lang === 'am' ? 'የተሰበሰበ (በ30 ቀን)' : 'Collected (30d)'}
-            </p>
-            <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem', fontWeight: 700, color: hidden ? '#d1d5db' : '#047857', marginTop: 2 }}>
-              {monthlyDeltaText && !hidden ? `${monthlyDeltaText[0] === '+' ? '+' : ''}` : ''}{monthlyAmount}
-            </p>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: '0.55rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-              {lang === 'am' ? 'በወቅቱ የተከፈለ' : 'On-time'}
-            </p>
-            <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem', fontWeight: 700, color: '#1f2937', marginTop: 2 }}>
-              {onTimePct}
-            </p>
-          </div>
+          <span>
+            <strong style={{ color: '#1f2937', fontWeight: 700 }}>{customers.length}</strong>{' '}
+            {lang === 'am' ? 'ደንበኞች' : 'customers'}
+          </span>
+          {counts.overdue > 0 && (
+            <span style={{ color: '#dc2626', fontWeight: 700 }}>
+              {counts.overdue} {lang === 'am' ? 'የዘገዩ' : 'overdue'}
+            </span>
+          )}
+          {streak > 0 && (
+            <span>🔥 {streak}d</span>
+          )}
         </div>
       </div>
 
@@ -419,7 +394,7 @@ function CustomerList({
           { id: 'all',      label: lang === 'am' ? 'ሁሉም'     : 'All',     count: counts.all,      style: 'default' },
           { id: 'overdue',  label: lang === 'am' ? 'የዘገዩ'    : 'Overdue', count: counts.overdue,  style: 'overdue' },
           { id: 'top',      label: lang === 'am' ? '👑 ዋና'    : '👑 Top',  count: counts.top,      style: 'top' },
-          { id: 'telegram', label: lang === 'am' ? 'ቴሌግራም'  : 'Telegram', count: counts.telegram, style: 'default' },
+          { id: 'canRemind', label: lang === 'am' ? 'መታወቂያ አለ'  : 'Can remind', count: counts.canRemind, style: 'default' },
           { id: 'cleared',  label: lang === 'am' ? 'የተዘጋ'     : 'Cleared', count: counts.cleared,  style: 'default' },
         ].map((f) => {
           const active = filter === f.id;
@@ -514,10 +489,8 @@ function CustomerList({
           const isOverdue = customer.has_overdue;
           const isTop = filter === 'top'
             || (customer.on_time_eligible > 0 && customer.on_time_count === customer.on_time_eligible && customer.on_time_count >= 3);
-          const tg = telegramState(customer);
           const urg = urgencyColor(customer);
           const dot = statusDot(customer);
-          const lastReminded = daysAgoLabel(customer.last_reminded_at, lang);
           const initials = initialsOf(customer.display_name);
           const canRemind = hasBalance && (customer.telegram_chat_id || customer.telegram_username || customer.phone_number);
 
@@ -607,44 +580,26 @@ function CustomerList({
                     </span>
                   )}
                 </p>
-                <div style={{
+                <p style={{
                   fontSize: '0.68rem', color: '#6b7280',
                   marginTop: 2,
-                  display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
                 }}>
-                  <span>
-                    {(customer.transaction_count || 0)}{' '}
-                    {lang === 'am' ? 'መዝገቦች' : 'entries'}
-                  </span>
-                  {customer.last_activity_at && (
-                    <span>· {daysAgoLabel(customer.last_activity_at, lang)}</span>
-                  )}
-                  {tg === 'linked' && (
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 2,
-                      fontSize: '0.6rem', fontWeight: 800,
-                      padding: '1px 6px', borderRadius: 4,
-                      background: '#d1f4e0', color: '#047857',
-                    }}>
-                      ✓ {lang === 'am' ? 'ቦት' : 'Bot'}
+                  {isOverdue && canRemind && (
+                    <span style={{ color: '#dc2626', fontWeight: 600 }}>
+                      {lang === 'am' ? 'ያለፈ ጊዜ' : 'Overdue'}
                     </span>
                   )}
-                  {tg === 'manual' && (
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center',
-                      fontSize: '0.6rem', fontWeight: 700,
-                      padding: '1px 6px', borderRadius: 4,
-                      background: '#fef3c7', color: '#92400e',
-                    }}>
-                      {customer.telegram_username}
+                  {!isOverdue && hasBalance && canRemind && (
+                    <span style={{ color: '#047857' }}>
+                      {lang === 'am' ? 'መታወቂያ አለ' : 'Can remind'}
                     </span>
                   )}
-                  {lastReminded && hasBalance && (
-                    <span style={{ color: '#C4883A' }}>
-                      🔔 {lastReminded}
+                  {!hasBalance && (
+                    <span style={{ color: '#9ca3af' }}>
+                      {lang === 'am' ? 'የተፈተነ' : 'Settled'}
                     </span>
                   )}
-                </div>
+                </p>
               </div>
 
               {/* Inline 🔔 on overdue rows */}
@@ -666,19 +621,39 @@ function CustomerList({
                 </button>
               )}
 
-              {/* Right: balance */}
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <p style={{
-                  fontFamily: 'JetBrains Mono, monospace',
-                  fontSize: '0.95rem', fontWeight: 700,
-                  color: hidden ? '#d1d5db' : (isOverdue ? '#dc2626' : (hasBalance ? '#b8842c' : '#9ca3af')),
-                  fontVariantNumeric: 'tabular-nums',
-                }}>
-                  {hidden ? '••••' : fmt(balance)}
-                </p>
-                <p style={{ fontSize: '0.6rem', color: '#9ca3af', marginTop: 1 }}>
-                  {lang === 'am' ? 'ብር' : 'birr'}
-                </p>
+              {/* Right: balance + quick-add */}
+              <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                <div>
+                  <p style={{
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: '0.95rem', fontWeight: 700,
+                    color: hidden ? '#d1d5db' : (isOverdue ? '#dc2626' : (hasBalance ? '#b8842c' : '#9ca3af')),
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {hidden ? '••••' : fmt(balance)}
+                  </p>
+                  <p style={{ fontSize: '0.6rem', color: '#9ca3af', marginTop: 1 }}>
+                    {lang === 'am' ? 'ብር' : 'birr'}
+                  </p>
+                </div>
+                {hasBalance && onQuickCredit && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onQuickCredit(customer); }}
+                    className="press-scale"
+                    aria-label={lang === 'am' ? 'ፋስት ብድር ጨምር' : 'Quick add credit'}
+                    style={{
+                      width: 28, height: 20, borderRadius: 6,
+                      background: isOverdue ? '#dc2626' : '#047857',
+                      color: '#fff',
+                      border: 'none',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', fontSize: '0.7rem', fontWeight: 800,
+                    }}
+                  >
+                    +
+                  </button>
+                )}
               </div>
             </div>
           );

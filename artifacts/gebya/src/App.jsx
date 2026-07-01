@@ -3394,6 +3394,10 @@ function AppInner() {
                     onSelectCustomer={(customer) => setSelectedCustomerId(customer.id)}
                     onAddCustomer={() => setShowCustomerForm(true)}
                     onRemindCustomer={(customer) => setReminderTarget(customer)}
+                    onQuickCredit={(customer) => setCustomerTransactionModal({
+                      mode: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+                      customerId: customer.id,
+                    })}
                     onBulkRemind={() => {
                       // Build queue of overdue customers with at least one contact channel
                       const queue = enrichedCustomerSummaries

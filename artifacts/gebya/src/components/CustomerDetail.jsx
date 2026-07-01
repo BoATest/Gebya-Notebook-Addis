@@ -7,7 +7,7 @@
 //   4. 4-icon quick actions   · Credit · Payment · Mark paid · Remind
 //   5. History                · tagged rows with settlement breadcrumb badges
 //                               + 🧺 breakdown expander + long-press action sheet
-//   6. Trust line             · 🔒 Saved on this phone only
+//   6. Trust line             · 🔒 Backed up securely. Amounts auto-hide for privacy.
 //
 // Sizes locked: avatar 56px detail · action 48px min · history row ~64px ·
 // touch targets ≥44px primary / ≥32px secondary.
@@ -666,8 +666,8 @@ function CustomerDetail({
         padding: '8px 14px 4px',
       }}>
         🔒 {lang === 'am'
-          ? 'በዚህ ስልክ ብቻ ይቀመጣል። ለማንም አንልክም።'
-          : 'Saved on this phone only. We never send your numbers anywhere.'}
+          ? 'በደህንነት ይቀመጣል። መጠኖች በራስ ሰር ይደብቃሉ።'
+          : 'Backed up securely. Amounts auto-hide for privacy.'}
       </p>
 
       {/* ═══ ACTION SHEET (long-press) ══════════════════════════════════════════ */}
