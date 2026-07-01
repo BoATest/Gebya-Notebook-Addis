@@ -101,81 +101,6 @@ function parseItemInput(raw) {
 }
 
 
-function MerchantKeypad({ onChange, onDismiss }) {
-  const [display, setDisplay] = useState('')
-  const [entries, setEntries] = useState([])
-
-  const committedTotal = entries.reduce((sum, n) => sum + n, 0)
-
-  const handleDigit = (digit) => {
-    if (digit === '.' && display.includes('.')) return
-    if (digit === '0' && display === '0') return
-    setDisplay(prev => prev + digit)
-  }
-
-  const handleAdd = () => {
-    const val = parseFloat(display)
-    if (!display || isNaN(val) || val <= 0) return
-    setEntries(prev => [...prev, val])
-    setDisplay('')
-  }
-
-  const handleSubtract = () => {
-    setEntries(prev => prev.slice(0, -1))
-  }
-
-  const handleBackspace = () => {
-    setDisplay(prev => prev.slice(0, -1))
-  }
-
-  const handleDone = () => {
-    const val = parseFloat(display) || 0
-    const allEntries = val > 0 ? [...entries, val] : entries
-    const total = allEntries.reduce((sum, n) => sum + n, 0)
-    if (total <= 0) return
-    onChange(total % 1 === 0 ? String(total) : total.toFixed(2))
-    onDismiss()
-  }
-
-  return (
-    <div className="bg-white border-t border-gray-200 rounded-t-xl shadow-lg select-none">
-      <div className="px-4 py-2 bg-gray-50 rounded-t-xl flex items-center justify-between">
-        <span className="text-sm text-gray-500">Running total</span>
-        <span className="text-lg font-semibold text-gray-900">
-          {committedTotal > 0 ? `${committedTotal} ETB` : '—'}
-        </span>
-      </div>
-      <div className="px-4 py-1 text-right">
-        <span className="text-2xl font-medium text-gray-800">
-          {display || '0'}
-        </span>
-      </div>
-      <div className="grid grid-cols-3 gap-1 px-2 pb-1">
-        <button onPointerDown={(e) => { e.preventDefault(); handleAdd() }}
-          className="py-3 rounded-lg bg-blue-50 text-blue-700 text-xl font-semibold active:bg-blue-100">+</button>
-        <button onPointerDown={(e) => { e.preventDefault(); handleSubtract() }}
-          className="py-3 rounded-lg bg-gray-100 text-gray-700 text-xl font-semibold active:bg-gray-200">−</button>
-        <button onPointerDown={(e) => { e.preventDefault(); handleBackspace() }}
-          className="py-3 rounded-lg bg-gray-100 text-gray-600 text-lg active:bg-gray-200">⌫</button>
-      </div>
-      <div className="grid grid-cols-3 gap-1 px-2 pb-1">
-        {['7','8','9','4','5','6','1','2','3'].map(d => (
-          <button key={d} onPointerDown={(e) => { e.preventDefault(); handleDigit(d) }}
-            className="py-4 rounded-lg bg-white border border-gray-200 text-xl font-medium text-gray-900 active:bg-gray-100">{d}</button>
-        ))}
-      </div>
-      <div className="grid grid-cols-3 gap-1 px-2 pb-3">
-        <button onPointerDown={(e) => { e.preventDefault(); handleDigit('.') }}
-          className="py-4 rounded-lg bg-white border border-gray-200 text-xl text-gray-900 active:bg-gray-100">.</button>
-        <button onPointerDown={(e) => { e.preventDefault(); handleDigit('0') }}
-          className="py-4 rounded-lg bg-white border border-gray-200 text-xl font-medium text-gray-900 active:bg-gray-100">0</button>
-        <button onPointerDown={(e) => { e.preventDefault(); handleDone() }}
-          className="py-4 rounded-lg bg-blue-600 text-white text-base font-semibold active:bg-blue-700">Done</button>
-      </div>
-    </div>
-  )
-}
-
 function TransactionForm({
    type,
    onSave,
@@ -252,7 +177,6 @@ function TransactionForm({
   const [creditDirection, setCreditDirection] = useState('owes_me');
   const [customerMatch, setCustomerMatch] = useState(null);
   const [amountDisplay, setAmountDisplay] = useState('');
-  const [keypayVisible, setKeypayVisible] = useState(false);
   const [customerQuery, setCustomerQuery] = useState('');
   const [undoStack, setUndoStack] = useState(null);
   const [lineItems, setLineItems] = useState([]);
@@ -559,7 +483,6 @@ try {
 
   function resetFormInternal() {
     setAmountDisplay('')
-    setKeypayVisible(false)
     setSaleItems([])
     setSaleItemInput('')
     setPhotos([])
@@ -568,7 +491,6 @@ try {
     setParsedPreview(null)
     setTimeout(() => {
       amountInputRef.current?.focus()
-      setKeypayVisible(true)
     }, 50)
   }
 
@@ -860,27 +782,19 @@ try {
               </span>
             </div>
 <div className="px-3 pb-3">
-               <input
-                 type="text"
-                 inputMode="none"
-                 readOnly
-                 autoFocus
-                 value={fmtInput(amount)}
-                 onChange={event => {
-                   handleNumericInput(event, setAmount);
-                   setSaleAmountBasis('entered');
-                 }}
-                 onFocus={() => setKeypayVisible(true)}
-                 placeholder="0"
-                 className="w-full px-3 py-3 border-2 focus:outline-none text-2xl font-black"
-                 style={{ borderRadius: 'var(--radius-md)', borderColor: amount ? '#86efac' : '#d7e3da', color: amount ? '#14532d' : '#9ca3af' }}
-               />
-               {keypayVisible && (
-                 <MerchantKeypad
-                   onChange={(finalTotal) => { setAmount(finalTotal); setSaleAmountBasis('entered'); }}
-                   onDismiss={() => setKeypayVisible(false)}
-                 />
-               )}
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  autoFocus
+                  value={fmtInput(amount)}
+                  onChange={event => {
+                    handleNumericInput(event, setAmount);
+                    setSaleAmountBasis('entered');
+                  }}
+                  placeholder="0"
+                  className="w-full px-3 py-3 border-2 focus:outline-none text-2xl font-black"
+                  style={{ borderRadius: 'var(--radius-md)', borderColor: amount ? '#86efac' : '#d7e3da', color: amount ? '#14532d' : '#9ca3af' }}
+                />
              </div>
           </section>
 
@@ -1303,27 +1217,19 @@ try {
             {lang === 'am' ? 'መጠን' : 'AMOUNT'}
           </label>
           <div className="relative">
-            <input
-              ref={amountInputRef}
-              type="text"
-              inputMode="none"
-              readOnly
-              value={amountDisplay}
-              onFocus={() => setKeypayVisible(true)}
-              placeholder="0"
-              className="w-full py-3 pr-20 text-3xl sm:text-4xl font-bold text-center focus:outline-none"
-              style={{
-                borderBottom: `2px solid ${amountDisplay ? accentColor : '#e8e2d8'}`,
-                background: 'transparent',
-                color: amountDisplay ? accentColor : '#9ca3af',
-              }}
-            />
-            {keypayVisible && (
-              <MerchantKeypad
-                onChange={(finalTotal) => setAmountDisplay(finalTotal)}
-                onDismiss={() => setKeypayVisible(false)}
-              />
-            )}
+             <input
+               ref={amountInputRef}
+               type="text"
+               inputMode="decimal"
+               value={amountDisplay}
+               placeholder="0"
+               className="w-full py-3 pr-20 text-3xl sm:text-4xl font-bold text-center focus:outline-none"
+               style={{
+                 borderBottom: `2px solid ${amountDisplay ? accentColor : '#e8e2d8'}`,
+                 background: 'transparent',
+                 color: amountDisplay ? accentColor : '#9ca3af',
+               }}
+             />
             <span
               className="absolute right-2 top-1/2 -translate-y-1/2 text-base sm:text-lg font-semibold"
               style={{ color: '#9ca3af' }}

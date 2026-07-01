@@ -63,6 +63,23 @@ try {
   console.error("Helmet failed:", e);
 }
 
+// ---- CORS PREFLIGHT HANDLER ----
+// Vercel serverless intercepts OPTIONS before reaching cors middleware,
+// so we handle it explicitly BEFORE cors middleware to ensure it returns 200.
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    const origin = req.headers.origin;
+    const allowedOrigin = origin && isAllowedOrigin(origin) ? origin : "*";
+    res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Max-Age", "86400");
+    return res.status(200).end();
+  }
+  next();
+});
+
 // ---- CORS ----
 app.use(
   cors({
@@ -109,21 +126,6 @@ app.use((req, res, next) => {
       durationMs: Date.now() - startedAt,
     }));
   });
-  next();
-});
-
-// ---- CORS PREFLIGHT HANDLER ----
-// Vercel serverless intercepts OPTIONS before reaching cors middleware,
-// so we handle it explicitly here.
-app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    const origin = req.headers.origin;
-    res.setHeader("Access-Control-Allow-Origin", origin || "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
-    res.setHeader("Access-Control-Allow-Credentials", "true");
-    return res.status(200).end();
-  }
   next();
 });
 
