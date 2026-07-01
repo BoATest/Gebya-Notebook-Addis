@@ -404,8 +404,8 @@ function TransactionForm({
       is_credit: isCredit,
       customer_id: customerMatch?.id || null,
       customer_name: customerMatch?.display_name || customerMatch?.name || (isCredit ? item.trim() : null) || null,
-      customer_phone: isCredit ? fullPhone : null,
-      due_date: isCredit ? getEffectiveDueDate() : null,
+      customer_phone: (isCredit || isCreditSale) ? fullPhone : null,
+      due_date: (isCredit || isCreditSale) ? getEffectiveDueDate() : null,
       payment_type: isCredit ? null : (isCreditSale ? 'credit' : paymentType),
       payment_provider: (!isCredit && !isCreditSale && paymentType !== 'cash') ? paymentProvider || null : null,
       direction: isCredit ? creditDirection : null,
@@ -1792,7 +1792,7 @@ try {
         </div>
 
         {/* Customer selection (credit) */}
-        {isCredit && (
+        {(isCredit || isCreditSale) && (
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
               {lang === 'am' ? 'ደንበኛ' : 'CUSTOMER'}
@@ -1876,7 +1876,7 @@ try {
         )}
 
         {/* Phone (credit) */}
-        {isCredit && (
+        {(isCredit || isCreditSale) && (
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
               {lang === 'am' ? 'ስልክ (አማራጭ)' : 'PHONE (OPTIONAL)'}
@@ -1921,7 +1921,7 @@ try {
         )}
 
         {/* Due date (credit) */}
-        {isCredit && (
+        {(isCredit || isCreditSale) && (
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
               {lang === 'am' ? 'መቼ ይከፍላል?' : 'WHEN IS IT DUE?'} <span style={{ color: '#dc2626' }}>*</span>
