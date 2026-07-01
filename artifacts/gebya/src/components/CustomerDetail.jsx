@@ -595,7 +595,7 @@ function CustomerDetail({
               border: '1px solid #ece6d6',
             }}
           >
-            {lang === 'am' ? 'ለማስተካከል ⋮ ይንኩ' : '⋮ tap to edit / delete'}
+            {lang === 'am' ? 'ለማስተካከል ⋮ ይንኩ ወይም ይዘմልኩ' : '⋮ or long-press to edit'}
           </p>
         </div>
 

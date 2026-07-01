@@ -401,7 +401,7 @@ function CustomerList({
                 borderRadius: 999,
                 fontSize: '0.7rem', fontWeight: active ? 800 : 600,
                 background: active
-                  ? (isOverdue ? '#fef2f2' : isTop ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' : '#1a1a1a')
+                  ? (isOverdue ? '#fef2f2' : '#1a1a1a')
                   : '#fff',
                 color: active
                   ? (isOverdue ? '#dc2626' : '#fff')
@@ -432,9 +432,7 @@ function CustomerList({
         <span>
           {lang === 'am' ? 'ቅደም ተከተል፦' : 'Sort:'}{' '}
           <strong style={{ color: '#1f2937' }}>
-            {filter === 'top'
-              ? (lang === 'am' ? 'በወቅቱ የከፈሉ' : 'Most on-time')
-              : (lang === 'am' ? 'ከፍተኛ መዘግየት' : 'Most overdue')}
+            {lang === 'am' ? 'ከፍተኛ መዘግየት' : 'Most overdue'}
           </strong>
         </span>
         <span>
@@ -605,12 +603,12 @@ function CustomerList({
                     className="press-scale"
                     aria-label={lang === 'am' ? 'ፋስት ብድር ጨምር' : 'Quick add credit'}
                     style={{
-                      width: 28, height: 20, borderRadius: 6,
+                      width: 32, height: 32, borderRadius: 8,
                       background: isOverdue ? '#dc2626' : '#047857',
                       color: '#fff',
                       border: 'none',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', fontSize: '0.7rem', fontWeight: 800,
+                      cursor: 'pointer', fontSize: '0.85rem', fontWeight: 800,
                     }}
                   >
                     +

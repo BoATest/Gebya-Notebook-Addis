@@ -397,7 +397,7 @@ function SupplierDetail({
                 border: '1px solid #fecaca',
               }}
             >
-              {lang === 'am' ? 'ለማስተካከል ⋮ ይንኩ' : '⋮ tap to edit / delete'}
+              {lang === 'am' ? 'ለማስተካከል ⋮ ይንኩ ወይም ይዘমልኩ' : '⋮ or long-press to edit'}
             </span>
           )}
         </div>
