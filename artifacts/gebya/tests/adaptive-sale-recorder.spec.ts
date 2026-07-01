@@ -131,18 +131,6 @@ test('amount stays separate from optional item details and records mismatch basi
   ]));
 });
 
-test('calculator writes the amount field without permanently occupying the form', async ({ page }) => {
-  await startEnglishNotebook(page);
-
-  await page.getByRole('button', { name: /^sale$/i }).click();
-  await page.getByRole('button', { name: /calculator/i }).click();
-  await page.getByPlaceholder(/350 \+ 250/i).fill('350+250');
-  await page.getByRole('button', { name: /done .*600/i }).click();
-
-  await expect(page.getByPlaceholder('0')).toHaveValue('600');
-  await expect(page.getByPlaceholder(/350 \+ 250/i)).toHaveCount(0);
-});
-
 test('selecting the same suggested item twice merges quantity and updates save label', async ({ page }) => {
   await startEnglishNotebook(page);
   await seedCatalog(page);

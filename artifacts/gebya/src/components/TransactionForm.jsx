@@ -50,39 +50,6 @@ function handleNumericInput(e, setter) {
 
 const DEFAULT_QUICK_AMOUNTS = [50, 100, 200, 500, 1000];
 
-function safeMathTotal(input) {
-  const normalized = String(input || '')
-    .replace(/[×x]/gi, '*')
-    .replace(/÷/g, '/')
-    .replace(/\s+/g, '');
-  if (!normalized || !/^\d+(?:\.\d+)?(?:[+\-*/]\d+(?:\.\d+)?)*$/.test(normalized)) return null;
-
-  const tokens = normalized.match(/\d+(?:\.\d+)?|[+\-*/]/g);
-  if (!tokens || tokens.length === 0) return null;
-
-  const values = [Number(tokens[0])];
-  const ops = [];
-  for (let i = 1; i < tokens.length; i += 2) {
-    const op = tokens[i];
-    const next = Number(tokens[i + 1]);
-    if (!Number.isFinite(next)) return null;
-    if (op === '*') {
-      values[values.length - 1] *= next;
-    } else if (op === '/') {
-      if (next === 0) return null;
-      values[values.length - 1] /= next;
-    } else {
-      ops.push(op);
-      values.push(next);
-    }
-  }
-
-  const result = values.reduce((sum, value, index) => (
-    index === 0 ? value : (ops[index - 1] === '-' ? sum - value : sum + value)
-  ), 0);
-  return Number.isFinite(result) && result > 0 ? Math.round(result * 100) / 100 : null;
-}
-
 function parseItemDraft(input, catalogEntries = []) {
   const raw = String(input || '').trim();
   if (!raw) return { kind: 'empty', raw: '' };
@@ -296,7 +263,6 @@ function TransactionForm({
   const [parsedPreview, setParsedPreview] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedTransaction, setLastSavedTransaction] = useState(null);
-  const [showCalculator, setShowCalculator] = useState(false);
   const [customAmountValue, setCustomAmountValue] = useState('');
   const [showCustomAmount, setShowCustomAmount] = useState(false);
   const [newCatalogName, setNewCatalogName] = useState('');
