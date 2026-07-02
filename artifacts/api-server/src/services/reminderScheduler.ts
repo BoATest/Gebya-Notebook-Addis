@@ -157,7 +157,7 @@ export async function scheduleReminders(
       }
 
       // Check updatesEnabled
-      if (!session.updatesEnabled && !customer.updatesEnabled) {
+      if (!session.updatesEnabled || !customer.updatesEnabled) {
         stats.remindersSkipped++;
         continue;
       }

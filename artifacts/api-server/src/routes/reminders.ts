@@ -89,7 +89,6 @@ function getShopId(req: Request): number {
   * production cron jobs that don't pre-build the customer array.
   */
 router.post("/run",
-  requirePermission("can_add_records"),
   async (req: Request, res: Response) => {
     (req as any).rbacEntityType = "reminders_run";
   try {
