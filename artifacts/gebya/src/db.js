@@ -1,4 +1,5 @@
 import Dexie from 'dexie';
+import { startOfLocalDay } from './utils/reportSelectors';
 
 export const db = new Dexie('GebyaDB');
 
@@ -424,8 +425,8 @@ db.version(16).stores({
   analytics: 'key, value',
 });
 
-// Version 17: Add sync_version to all records for optimistic locking
-db.version(17).stores({
+// Version 18: Add daily_closings store for reconciliation / end-of-day records
+db.version(18).stores({
   transactions: '++id, type, amount, item_name, cost_price, quantity, profit, is_credit, customer_id, customer_name, created_at, ethiopian_date, payment_type, payment_provider, updated_at, source, raw_transcript, detected_total, was_edited, transcription_provider, parsing_confidence, voice_note, raw_audio_ref, actor_role, actor_staff_member_id, actor_name_snapshot, transaction_id, device_id',
   customers: '++id, display_name, note, phone_number, telegram_username, telegram_chat_id, telegram_notify_enabled, telegram_link_token, telegram_linked_at, telegram_link_requested_at, created_at, updated_at',
   customer_transactions: '++id, customer_id, type, amount, due_date, reference_code, telegram_delivery_state, telegram_delivery_error, telegram_delivery_attempted_at, created_at, updated_at, actor_role, actor_staff_member_id, actor_name_snapshot, transaction_id, device_id',
@@ -436,31 +437,9 @@ db.version(17).stores({
   sync_queue: '++id, kind, status, created_at, updated_at, next_attempt_at, record_table, record_id, transaction_id, &idempotency_key, record_type, device_id',
   credit_records: '++id, customer_id, customer_name, original_amount, paid_amount, remaining_amount, due_date, status, created_at, direction',
   credit_payment_logs: '++id, credit_record_id, amount, payment_method, paid_at',
+  daily_closings: '++id, closed_at, date_start, date_end, actor_role, actor_staff_member_id, actor_name_snapshot, finalized',
   settings: 'key, value',
   analytics: 'key, value',
-}).upgrade(async (tx) => {
-  const tables = [
-    'transactions', 'customers', 'customer_transactions',
-    'catalog_entries', 'suppliers', 'supplier_transactions', 'staff_members',
-  ];
-  for (const tableName of tables) {
-    const table = tx.table(tableName);
-    const records = await table.toArray();
-    for (const record of records) {
-      if (record.sync_version === undefined || record.sync_version === null) {
-        await table.update(record.id, { sync_version: 1 });
-      }
-    }
-  }
-  for (const tableName of ['settings', 'analytics']) {
-    const table = tx.table(tableName);
-    const records = await table.toArray();
-    for (const record of records) {
-      if (record.sync_version === undefined || record.sync_version === null) {
-        await table.update(record.key, { sync_version: 1 });
-      }
-    }
-  }
 });
 
 db.on('ready', async () => {
@@ -506,6 +485,43 @@ export async function getRole() {
 export async function getPermissions() {
   const ident = await db.identity.get('me');
   return ident?.permissions ?? {};
+}
+
+export async function saveDailyClosing(record) {
+  const now = Date.now();
+  const entry = {
+    closed_at: now,
+    date_start: record.date_start || startOfLocalDay(now),
+    date_end: record.date_end || now,
+    actor_role: record.actor_role || 'owner',
+    actor_staff_member_id: record.actor_staff_member_id || null,
+    actor_name_snapshot: record.actor_name_snapshot || null,
+    finalized: record.finalized ? 1 : 0,
+    recorded_sold: record.recorded_sold || 0,
+    recorded_spent: record.recorded_spent || 0,
+    recorded_collected: record.recorded_collected || 0,
+    recorded_cash: record.recorded_cash || 0,
+    recorded_transfer: record.recorded_transfer || 0,
+    actual_cash: record.actual_cash || 0,
+    actual_transfer: record.actual_transfer || 0,
+    cash_variance: (record.actual_cash || 0) - (record.recorded_cash || 0),
+    transfer_variance: (record.actual_transfer || 0) - (record.recorded_transfer || 0),
+    notes: record.notes || '',
+  };
+  const id = await db.daily_closings.add(entry);
+  return { id, ...entry };
+}
+
+export async function getDailyClosings(from = 0, to = Date.now() + 86400000) {
+  return db.daily_closings
+    .where('closed_at')
+    .between(from, to)
+    .reverse()
+    .sortBy('closed_at');
+}
+
+export async function getLatestDailyClosing() {
+  return db.daily_closings.orderBy('closed_at').last();
 }
 
 export async function canCreateEvent(eventType) {

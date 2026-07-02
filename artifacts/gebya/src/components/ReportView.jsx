@@ -621,7 +621,7 @@ export default function ReportView({
   selectedFlow = { cash: 0, transfer: 0 },
   todayStaffSalesRows = [],
   ownerAlertSettings = {},
-  scope = 'all',
+  scope = ALL_SCOPE,
 }) {
   const { hidden, toggle: togglePrivacy } = usePrivacy();
   const [timeRange, setTimeRange] = useState('today');
@@ -654,12 +654,25 @@ export default function ReportView({
     }
   }, [expandedSections]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const rows = await db.getDailyClosings();
+      if (!cancelled) setClosings(rows);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const [showFilters, setShowFilters] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [exportRange, setExportRange] = useState('month');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState(() => new Date().toISOString().slice(0, 10));
   const [customTo, setCustomTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [actualCash, setActualCash] = useState('');
+  const [actualTransfer, setActualTransfer] = useState('');
+  const [closings, setClosings] = useState([]);
+  const [closingMessage, setClosingMessage] = useState('');
 
   const searchRef = useRef(null);
   const staffRef = useRef(null);
@@ -692,6 +705,16 @@ export default function ReportView({
   const reportRows = useMemo(() => buildReportRows({ transactions, ledgerTransactions, customers, from, to, scope, viewerStaffId, filters }), [transactions, ledgerTransactions, customers, from, to, scope, viewerStaffId, filters]);
   const metrics = useMemo(() => computeReportMetrics(reportRows), [reportRows]);
   const staffRows = useMemo(() => buildStaffReportRows(reportRows), [reportRows]);
+
+  const selectedStats = useMemo(() => ({
+    sales: metrics.totalSold,
+    expenses: metrics.spentToday,
+  }), [metrics]);
+  const selectedCollected = metrics.creditCollected;
+  const selectedFlow = useMemo(() => ({
+    cash: metrics.cashExpected,
+    transfer: metrics.transferRecorded,
+  }), [metrics]);
 
   const rangeTransactions = useMemo(
     () => (transactions || []).filter(tx => inRange(tx.created_at, rangeBounds[0], rangeBounds[1])),
@@ -785,6 +808,7 @@ export default function ReportView({
     ownerAlerts: lang === 'am' ? 'የባለቤት ማሳወቂያ' : 'Owner Alerts',
     recent: lang === 'am' ? 'የቅርብ ግብይቶች' : 'Recent Transactions',
     fullHistory: lang === 'am' ? 'ሙሉ ታሪክ' : 'Full History',
+    loanGiven: lang === 'am' ? 'የተሰጠ ዱቤ' : 'Total Loan Given',
   };
 
   return (
@@ -942,6 +966,13 @@ export default function ReportView({
             tone={selectedFlow.transfer >= 0 ? 'good' : 'bad'}
             onClick={() => handleKPIClick({ id: 'transfer', title: labels.transferExpected, value: selectedFlow.transfer, tone: selectedFlow.transfer >= 0 ? 'good' : 'bad' })}
           />
+          <SummaryCard 
+            label={labels.loanGiven || (lang === 'am' ? 'የተሰጠ ዱቤ' : 'Total Loan Given')} 
+            value={metrics.totalLoanGiven || 0} 
+            hidden={hidden} 
+            tone="warn"
+            onClick={() => handleKPIClick({ id: 'loan', title: labels.loanGiven || (lang === 'am' ? 'የተሰጠ ዱቤ' : 'Total Loan Given'), value: metrics.totalLoanGiven || 0, tone: 'warn' })}
+          />
         </div>
 
         {/* Sticky Search Bar */}
@@ -1072,31 +1103,123 @@ export default function ReportView({
           <StaffSalesToday rows={todayStaffSalesRows} hidden={hidden} lang={lang} />
         </Section>
 
-        {/* Collapsible Owner Alerts Section */}
+        {!isStaffView && (
+          <Section
+            title={labels.ownerAlerts}
+            refProp={alertsRef}
+            action={overdueCustomers.length > 0 && (
+              <button
+                type="button"
+                onClick={onChaseOverdue}
+                className="press-scale"
+                style={{ border: 'none', background: 'transparent', color: '#92400e', fontSize: 12, fontWeight: 900, cursor: 'pointer' }}
+              >
+                {lang === 'am' ? 'ዱቤ' : 'Credit'}
+              </button>
+            )}
+            isCollapsible={true}
+            isExpanded={expandedSections.ownerAlerts}
+            onToggle={() => toggleSection('ownerAlerts')}
+          >
+            <OwnerAlerts
+              alerts={ownerAlerts}
+              overdueCustomers={overdueCustomers}
+              settings={ownerAlertSettings}
+              hidden={hidden}
+              lang={lang}
+            />
+          </Section>
+        )}
+
+        {/* Cash Closing Section */}
         <Section
-          title={labels.ownerAlerts}
-          refProp={alertsRef}
-          action={overdueCustomers.length > 0 && (
-            <button
-              type="button"
-              onClick={onChaseOverdue}
-              className="press-scale"
-              style={{ border: 'none', background: 'transparent', color: '#92400e', fontSize: 12, fontWeight: 900, cursor: 'pointer' }}
-            >
-              {lang === 'am' ? 'ዱቤ' : 'Credit'}
-            </button>
-          )}
+          data-report-section="closing"
+          title={lang === 'am' ? 'የዛሬ ማውጫ' : 'Cash Closing'}
           isCollapsible={true}
-          isExpanded={expandedSections.ownerAlerts}
-          onToggle={() => toggleSection('ownerAlerts')}
+          isExpanded={true}
         >
-          <OwnerAlerts
-            alerts={ownerAlerts}
-            overdueCustomers={overdueCustomers}
-            settings={ownerAlertSettings}
-            hidden={hidden}
-            lang={lang}
-          />
+          {isStaffView ? (
+            <p style={{ color: '#92400e', fontSize: 13, fontWeight: 700 }}>
+              {lang === 'am' ? 'የባለቤት የማውጫ መዝገብ ለሰራተኞች አይታይም' : 'Owner cash closing is not shown in staff view.'}
+            </p>
+          ) : timeRange !== 'today' ? (
+            <p style={{ color: '#92400e', fontSize: 13, fontWeight: 700 }}>
+              {lang === 'am' ? 'የማውጫ መዝገብ ዛሬ ብቻ ይታያል' : 'Cash closing is editable only for Today'}
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, color: '#374151', fontSize: 12, fontWeight: 850 }}>
+                  {lang === 'am' ? 'በእጅ ጥሬ ገንዘብ' : 'Actual cash counted'}
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={actualCash}
+                    onChange={(e) => setActualCash(e.target.value)}
+                    style={{ minHeight: 40, border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 10px', fontSize: 14 }}
+                    placeholder="0.00"
+                  />
+                </label>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, color: '#374151', fontSize: 12, fontWeight: 850 }}>
+                  {lang === 'am' ? 'ትራንስፈር' : 'Transfer counted'}
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={actualTransfer}
+                    onChange={(e) => setActualTransfer(e.target.value)}
+                    style={{ minHeight: 40, border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 10px', fontSize: 14 }}
+                    placeholder="0.00"
+                  />
+                </label>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  const actualCashVal = Number(actualCash) || 0;
+                  const actualTransferVal = Number(actualTransfer) || 0;
+                  const cashVariance = actualCashVal - metrics.cashExpected;
+                  const transferVariance = actualTransferVal - metrics.transferRecorded;
+                  await db.saveDailyClosing({
+                    recorded_sold: metrics.totalSold,
+                    recorded_spent: metrics.spentToday,
+                    recorded_collected: metrics.creditCollected,
+                    recorded_cash: metrics.cashExpected,
+                    recorded_transfer: metrics.transferRecorded,
+                    actual_cash: actualCashVal,
+                    actual_transfer: actualTransferVal,
+                    actor_name_snapshot: shopProfile?.name || 'Owner',
+                    actor_role: 'owner',
+                  });
+                  const all = await db.getDailyClosings();
+                  setClosings(all);
+                  setClosingMessage(lang === 'am' ? 'ተመጣጣኚ ሆኗል' : 'Saved as balanced');
+                  setActualCash('');
+                  setActualTransfer('');
+                }}
+                className="press-scale"
+                style={{ minHeight: 42, border: 'none', borderRadius: 8, background: '#1B4332', color: '#fff', fontSize: 13, fontWeight: 900, cursor: 'pointer' }}
+              >
+                {lang === 'am' ? 'ቀን አስገምጅ' : 'Mark day reviewed'}
+              </button>
+              {closingMessage && (
+                <p style={{ color: '#15803d', fontSize: 12, fontWeight: 800 }}>{closingMessage}</p>
+              )}
+              {closings.length === 0 && !closingMessage && (
+                <p style={{ color: '#9ca3af', fontSize: 13, fontWeight: 600 }}>{lang === 'am' ? 'እስካሁን የተጠናቀቁ ማውጫዎች የለም' : 'No saved closing reviews yet.'}</p>
+              )}
+              {closings.length > 0 && (
+                <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <p style={{ fontSize: 12, fontWeight: 800, color: '#6b7280' }}>{lang === 'am' ? 'የተጠናቀቁ ማውጫዎች' : 'Past closing reviews'}</p>
+                  {closings.slice(0, 5).map((c) => (
+                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 650, color: '#374151', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
+                      <span>{new Date(c.closed_at).toLocaleDateString()} {lang === 'am' ? 'ተጠናቀቀ' : 'reviewed'} {lang === 'am' ? 'በ' : 'by'} {(c.actor_name_snapshot || '')}</span>
+                      <span style={{ color: '#15803d' }}>{(c.actual_cash || 0) + (c.actual_transfer || 0) > 0 ? fmt((c.actual_cash || 0) + (c.actual_transfer || 0)) : ''}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </Section>
 
         {!searchQuery.trim() && (

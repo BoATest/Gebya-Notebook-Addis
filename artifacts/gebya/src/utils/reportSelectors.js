@@ -39,7 +39,7 @@ export function paymentLabel(row) {
 
 function matchesScope(row, scope, viewerStaffId) {
   if (viewerStaffId) return String(row.actor_staff_member_id || '') === String(viewerStaffId);
-  if (!scope) return true;
+  if (!scope || scope === ALL_SCOPE) return true;
   if (scope === OWNER_SCOPE) return !row.actor_staff_member_id;
   return String(row.actor_staff_member_id || '') === String(scope);
 }
@@ -116,6 +116,7 @@ export function computeReportMetrics(rows = []) {
     newDubie: sum(creditRows),
     creditCollected: sum(collectionRows),
     spentToday: sum(expenseRows),
+    totalLoanGiven: sum(manualCreditRows),
     saleRows,
     expenseRows,
     creditRows,
