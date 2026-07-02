@@ -34,6 +34,7 @@ function CustomerTransactionSheet({
   onDone,
   actorLabel,
   catalogEntries = [],
+  enabledProviders,
 }) {
   const { t, lang } = useLang();
   const isEditing = !!editingTransaction;
@@ -83,6 +84,16 @@ function CustomerTransactionSheet({
   const [photoLoading, setPhotoLoading] = useState(false);
   const [showCamera, setShowCamera] = useState(false); // B2: rear-camera capture modal
   const [replacePhotoId, setReplacePhotoId] = useState(null);
+
+  // Payment method state — only meaningful for PAYMENT mode
+  const initPaymentMethod = isEditing && editingTransaction?.payment_method
+    ? editingTransaction.payment_method
+    : 'cash';
+  const initPaymentProvider = isEditing && editingTransaction?.payment_provider
+    ? editingTransaction.payment_provider
+    : '';
+  const [paymentMethod, setPaymentMethod] = useState(initPaymentMethod);
+  const [paymentProvider, setPaymentProvider] = useState(initPaymentProvider);
 
   const handleCameraPhoto = (dataUrl) => {
     const proof = createPhotoProof(dataUrl);
@@ -185,6 +196,17 @@ function CustomerTransactionSheet({
     .filter(e => e && e.active !== false && e.name)
     .slice(0, 8);
 
+  // Payment method options — built from enabled providers in settings
+  const paymentOptions = useMemo(() => {
+    const banks = enabledProviders?.banks || [];
+    const wallets = enabledProviders?.wallets || [];
+    return [
+      { id: 'cash', label: 'Cash', emoji: '💵', type: 'cash', provider: '' },
+      ...banks.map(b => ({ id: `bank:${b}`, label: b, emoji: '🏦', type: 'bank', provider: b })),
+      ...wallets.map(w => ({ id: `wallet:${w}`, label: w, emoji: '📱', type: 'wallet', provider: w })),
+    ];
+  }, [enabledProviders]);
+
   const handleSave = async () => {
     if (!canSave) return;
     if (!isValidCustomerTransactionType(transactionType)) return;
@@ -221,6 +243,9 @@ function CustomerTransactionSheet({
         due_date: !isPayment && dueDate ? new Date(dueDate).getTime() : null,
         items: cleanedItems.length > 0 ? cleanedItems : null,  // multi-item breakdown
         ...photoFields,                                      // product proof photos
+        // Payment method — only for payment mode
+        payment_method: isPayment ? paymentMethod : null,
+        payment_provider: isPayment && paymentMethod !== 'cash' ? paymentProvider : null,
         editing_id: editingTransaction?.id || null,
       });
       if (didSave) onDone?.();
@@ -342,6 +367,41 @@ function CustomerTransactionSheet({
             </p>
           )}
         </div>
+
+        {/* Payment method chips — payment mode only. Lets the shopkeeper
+            record how they received the money (cash, bank transfer, wallet). */}
+        {isPayment && paymentOptions.length > 1 && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'የክፍያ ዘዴ' : 'Payment Method'}
+            </label>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {paymentOptions.map(opt => {
+                const selected = opt.type === 'cash'
+                  ? paymentMethod === 'cash'
+                  : paymentMethod === opt.type && paymentProvider === opt.provider;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => { setPaymentMethod(opt.type); setPaymentProvider(opt.provider); }}
+                    className="flex-shrink-0 flex items-center justify-center gap-1.5 py-2 px-3 border-2 text-xs font-bold transition-all min-h-[40px] press-scale"
+                    style={{
+                      borderRadius: 'var(--radius-sm)',
+                      borderColor: selected ? '#1B4332' : '#e8e2d8',
+                      background: selected ? 'rgba(27,67,50,0.08)' : '#fff',
+                      color: selected ? '#1B4332' : '#6b7280',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <span className="text-sm">{opt.emoji}</span>
+                    <span>{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Quantity (credit only) — Commit C.6.
             Descriptive: "I gave 5 sacks of sugar for 1500 birr total".

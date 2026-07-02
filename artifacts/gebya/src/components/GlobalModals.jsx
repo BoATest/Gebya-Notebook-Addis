@@ -149,6 +149,7 @@ handleResendCustomerTelegramUpdate,
             onSave={handleSaveCustomerTransaction}
             actorLabel={currentActorLabel}
             catalogEntries={activeCatalogEntries}
+            enabledProviders={enabledProviders}
             onDone={() => setCustomerTransactionModal(null)}
           />
         </Suspense>
@@ -163,6 +164,7 @@ handleResendCustomerTelegramUpdate,
             onSave={handleSaveCustomerTransaction}
             actorLabel={currentActorLabel}
             catalogEntries={activeCatalogEntries}
+            enabledProviders={enabledProviders}
             onDone={() => setCustomerTransactionEditTarget(null)}
           />
         </Suspense>

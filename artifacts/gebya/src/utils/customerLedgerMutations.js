@@ -41,5 +41,7 @@ export function normalizeCustomerTransactionDraft(payload = {}) {
     due_date: payload.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD
       ? normalizeTimestamp(payload.due_date)
       : null,
+    payment_method: normalizeOptionalText(payload.payment_method) || 'cash',
+    payment_provider: normalizeOptionalText(payload.payment_provider),
   };
 }

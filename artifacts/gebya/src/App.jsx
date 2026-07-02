@@ -3433,6 +3433,7 @@ function AppInner() {
             onSave={handleSaveCustomerTransaction}
             actorLabel={currentActorLabel}
             catalogEntries={activeCatalogEntries}
+            enabledProviders={enabledProviders}
             onDone={() => setCustomerTransactionModal(null)}
           />
         </Suspense>
@@ -3448,6 +3449,7 @@ function AppInner() {
             onSave={handleSaveCustomerTransaction}
             actorLabel={currentActorLabel}
             catalogEntries={activeCatalogEntries}
+            enabledProviders={enabledProviders}
             onDone={() => setCustomerTransactionEditTarget(null)}
           />
         </Suspense>
