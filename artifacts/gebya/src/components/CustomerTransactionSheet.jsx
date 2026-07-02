@@ -198,8 +198,8 @@ function CustomerTransactionSheet({
 
   // Payment method options — built from enabled providers in settings
   const paymentOptions = useMemo(() => {
-    const banks = enabledProviders?.banks || [];
-    const wallets = enabledProviders?.wallets || [];
+    const banks = enabledProviders?.banks || ['CBE', 'Dashen', 'Awash', 'Abyssinia'];
+    const wallets = enabledProviders?.wallets || ['telebirr', 'CBE Birr'];
     return [
       { id: 'cash', label: 'Cash', emoji: '💵', type: 'cash', provider: '' },
       ...banks.map(b => ({ id: `bank:${b}`, label: b, emoji: '🏦', type: 'bank', provider: b })),
