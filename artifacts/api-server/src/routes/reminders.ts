@@ -131,7 +131,7 @@ router.post("/run",
       // Slow path: compute from the ledger and enrich with Telegram data.
       try {
         const { db, getCustomerBalances, enrichWithTelegram } = await import("@workspace/db");
-        const { eq } = await import("drizzle-orm/expressions");
+        const { eq } = await import("drizzle-orm");
 
         const ledgerRows = await getCustomerBalances(db, { businessId: shopId, onlyPositiveBalance: true });
         const customerIds = ledgerRows.map((row) => row.customerId);
@@ -165,7 +165,7 @@ router.post("/run",
               createdAt: row.createdAt,
               chatId: customer.chatId,
               telegramUsername: customer.telegramUsername,
-              telegramNotifyEnabled: customer.telegramNotifyEnabled,
+              telegramNotifyEnabled: Boolean(customer.telegramNotifyEnabled),
             });
           })
           .filter((c): c is EligibleCustomer => c !== null);

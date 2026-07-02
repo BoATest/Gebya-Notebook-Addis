@@ -55,7 +55,7 @@ export interface CustomerBalanceOptions {
  * @returns Array of customers with their current balance
  */
 export async function getCustomerBalances(
-  db: { select: <T>(fields: SQL | SQLWrapper | SQL[], ...args: any[]) => Promise<T[]> },
+  db: any,
   options: CustomerBalanceOptions = {}
 ): Promise<CustomerBalanceRow[]> {
   const { onlyPositiveBalance = true } = options;
