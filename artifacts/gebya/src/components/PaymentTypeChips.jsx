@@ -9,8 +9,8 @@ export const DEFAULT_PROVIDERS = { banks: [...ALL_BANKS], wallets: [...ALL_WALLE
 function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChange, enabledProviders }) {
   const { t } = useLang();
 
-  const enabledBanks   = enabledProviders?.banks   || ALL_BANKS;
-  const enabledWallets = enabledProviders?.wallets || ALL_WALLETS;
+  const enabledBanks   = enabledProviders?.banks?.length   ? enabledProviders.banks   : ALL_BANKS;
+  const enabledWallets = enabledProviders?.wallets?.length ? enabledProviders.wallets : ALL_WALLETS;
 
   const options = [
     { id: 'cash', label: t.cash, emoji: '💵', type: 'cash', provider: '' },

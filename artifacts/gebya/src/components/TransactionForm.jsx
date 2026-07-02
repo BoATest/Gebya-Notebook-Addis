@@ -301,8 +301,8 @@ function TransactionForm({
     && saleItemsSubtotal > 0
     && Math.abs(sellingPrice - saleItemsSubtotal) >= 0.01;
   const salePaymentOptions = useMemo(() => {
-    const banks = enabledProviders?.banks || ['CBE', 'Dashen', 'Awash', 'Abyssinia'];
-    const wallets = enabledProviders?.wallets || ['telebirr', 'CBE Birr'];
+    const banks = enabledProviders?.banks?.length ? enabledProviders.banks : ['CBE', 'Dashen', 'Awash', 'Abyssinia'];
+    const wallets = enabledProviders?.wallets?.length ? enabledProviders.wallets : ['telebirr', 'CBE Birr'];
     return [
       { id: 'cash', label: 'Cash', paymentType: 'cash', provider: '' },
       ...wallets.map(provider => ({ id: `wallet:${provider}`, label: provider, paymentType: 'wallet', provider })),
