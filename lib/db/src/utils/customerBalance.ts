@@ -6,7 +6,8 @@
  * operate as a closed, self-sufficient pipeline.
  */
 
-import { customers, customerTransactions } from "../schema/customers.js";
+import { customers } from "../schema/customers.js";
+import { customerTransactions } from "../schema/customer_transactions.js";
 import { eq, sql, type SQL, type SQLWrapper } from "drizzle-orm";
 import type { EligibleCustomer } from "../../../../artifacts/api-server/src/types/reminders.js";
 
