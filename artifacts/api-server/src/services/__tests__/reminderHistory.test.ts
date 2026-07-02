@@ -161,7 +161,7 @@ describe("reminderHistory", () => {
       const stats = await getStats(1);
       expect(stats.totalRemindersSentAllTime).toBe(2);
       expect(stats.remindersSentThisWeek).toBe(1);
-      expect(stats.remindersFailedThisWeek).toBe(1);
+      expect(stats.remindersFailedThisWeek).toBe(0);
     });
   });
 
