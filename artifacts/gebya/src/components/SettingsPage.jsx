@@ -15,6 +15,8 @@ import BackupDataPanel from './settings/BackupDataPanel';
 import DisplayPrivacyPanel from './settings/DisplayPrivacyPanel';
 import ReadinessHero from './settings/ReadinessHero';
 import PaymentChannelsSection from './settings/PaymentChannelsSection';
+import AdminMetricsView from './AdminMetricsView';
+import CrossShopCurationQueue from './CrossShopCurationQueue';
 
 const PwaInstallPanel = lazy(() => import('./PwaInstallPanel.jsx'));
 
@@ -549,6 +551,21 @@ function SettingsPage({
           </div>
         </div>
       )}
+
+      {/* Admin section — metrics + curation queue */}
+      <SettingsSection
+        id="admin"
+        title={lang === 'am' ? '\u1218\u1295\u130D\u1295\u1233' : 'Admin'}
+        icon="\u{1F4CA}"
+        subtitle={lang === 'am' ? '\u1230\u1276\u128A\u1276 \u1233\u1276\u128B\u1276' : 'Metrics & curation'}
+        openSection={openSection}
+        setOpenSection={setOpenSection}
+      >
+        <div className="space-y-4">
+          <AdminMetricsView shopId={shopId} />
+          <CrossShopCurationQueue />
+        </div>
+      </SettingsSection>
     </div>
   );
 }

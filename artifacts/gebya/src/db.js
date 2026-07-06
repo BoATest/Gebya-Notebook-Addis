@@ -459,6 +459,42 @@ db.version(19).stores({
   analytics: 'key, value',
 });
 
+// Version 20: Add reversal_of index to customer_transactions for reversal entry lookups
+db.version(20).stores({
+  transactions: '++id, type, amount, item_name, cost_price, quantity, profit, is_credit, customer_id, customer_name, created_at, ethiopian_date, payment_type, payment_provider, updated_at, source, raw_transcript, detected_total, was_edited, transcription_provider, parsing_confidence, voice_note, raw_audio_ref, actor_role, actor_staff_member_id, actor_name_snapshot, transaction_id, device_id',
+  customers: '++id, display_name, note, phone_number, telegram_username, telegram_chat_id, telegram_notify_enabled, telegram_link_token, telegram_linked_at, telegram_link_requested_at, created_at, updated_at',
+  customer_transactions: '++id, customer_id, type, amount, due_date, payment_method, payment_provider, reference_code, telegram_delivery_state, telegram_delivery_error, telegram_delivery_attempted_at, created_at, updated_at, actor_role, actor_staff_member_id, actor_name_snapshot, transaction_id, device_id, reversal_of',
+  catalog_entries: '++id, name, kind, active, created_at, updated_at',
+  suppliers: '++id, display_name, phone_number, note, active, created_at, updated_at',
+  supplier_transactions: '++id, supplier_id, type, catalog_entry_id, created_at, updated_at, actor_role, actor_staff_member_id, actor_name_snapshot, transaction_id, device_id',
+  staff_members: '++id, display_name, role, active, created_at, updated_at, deactivated_at',
+  sync_queue: '++id, kind, status, created_at, updated_at, next_attempt_at, record_table, record_id, transaction_id, &idempotency_key, record_type, device_id',
+  credit_records: '++id, customer_id, customer_name, original_amount, paid_amount, remaining_amount, due_date, status, created_at, direction',
+  credit_payment_logs: '++id, credit_record_id, amount, payment_method, paid_at',
+  daily_closings: '++id, closed_at, date_start, date_end, actor_role, actor_staff_member_id, actor_name_snapshot, finalized',
+  settings: 'key, value',
+  analytics: 'key, value',
+});
+
+// Version 21: Learning loop — suggestion tracking, price clustering, cross-shop normalization
+db.version(21).stores({
+  transactions: '++id, type, amount, item_name, cost_price, quantity, profit, is_credit, customer_id, customer_name, created_at, ethiopian_date, payment_type, payment_provider, updated_at, source, raw_transcript, detected_total, was_edited, transcription_provider, parsing_confidence, voice_note, raw_audio_ref, actor_role, actor_staff_member_id, actor_name_snapshot, transaction_id, device_id',
+  customers: '++id, display_name, note, phone_number, telegram_username, telegram_chat_id, telegram_notify_enabled, telegram_link_token, telegram_linked_at, telegram_link_requested_at, created_at, updated_at',
+  customer_transactions: '++id, customer_id, type, amount, due_date, payment_method, payment_provider, reference_code, telegram_delivery_state, telegram_delivery_error, telegram_delivery_attempted_at, created_at, updated_at, actor_role, actor_staff_member_id, actor_name_snapshot, transaction_id, device_id, reversal_of',
+  catalog_entries: '++id, name, kind, active, created_at, updated_at, suggestion_shown_count, suggestion_accepted_count, suggestion_rejected_count, suggested_match_id, canonical_name_en',
+  suggestion_log: '++id, catalog_entry_id, shown_at, accepted, context_tod, context_day',
+  cross_shop_unmatched: '++id, shop_id, item_name, occurrence_count, last_seen_at, canonical_name_en, canonical_name_am, curated, created_at',
+  suppliers: '++id, display_name, phone_number, note, active, created_at, updated_at',
+  supplier_transactions: '++id, supplier_id, type, catalog_entry_id, created_at, updated_at, actor_role, actor_staff_member_id, actor_name_snapshot, transaction_id, device_id',
+  staff_members: '++id, display_name, role, active, created_at, updated_at, deactivated_at',
+  sync_queue: '++id, kind, status, created_at, updated_at, next_attempt_at, record_table, record_id, transaction_id, &idempotency_key, record_type, device_id',
+  credit_records: '++id, customer_id, customer_name, original_amount, paid_amount, remaining_amount, due_date, status, created_at, direction',
+  credit_payment_logs: '++id, credit_record_id, amount, payment_method, paid_at',
+  daily_closings: '++id, closed_at, date_start, date_end, actor_role, actor_staff_member_id, actor_name_snapshot, finalized',
+  settings: 'key, value',
+  analytics: 'key, value',
+});
+
 db.on('ready', async () => {
   const privacySetting = await db.settings.get('privacy_mode');
   if (!privacySetting) {

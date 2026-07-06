@@ -5,6 +5,7 @@ export default function OfflineStatusStrip({
   onRetryTelegram,
   retryingTelegram = false,
   conflictWarning = null,
+  conflictDetails = [],
 }) {
   let tone = null;
   let label = '';
@@ -58,16 +59,32 @@ export default function OfflineStatusStrip({
   }
 
   if (conflictWarning) {
+    const detailLines = (conflictDetails || []).slice(0, 3).map((d) => {
+      const changes = (d.changedFields || []).slice(0, 3).map((field) => {
+        const oldVal = d.localVersion?.[field];
+        const newVal = d.serverVersion?.[field];
+        const oldStr = oldVal == null ? '(empty)' : String(oldVal).substring(0, 30);
+        const newStr = newVal == null ? '(empty)' : String(newVal).substring(0, 30);
+        return `${field}: ${oldStr} → ${newStr}`;
+      });
+      const more = (d.changedFields || []).length > 3 ? ` +${(d.changedFields || []).length - 3} more` : '';
+      return `${d.table} #${d.recordId}: ${changes.join(', ')}${more}`;
+    });
     return (
       <div
         role="alert"
-        className="mt-2 flex items-center justify-between gap-2"
+        className="mt-2 flex flex-col gap-1"
         style={{ minHeight: 36, padding: '7px 9px', borderRadius: 8, background: '#fffbeb', border: '1px solid #fcd34d', color: '#92400e', fontSize: 12, fontWeight: 800 }}
       >
-        <span className="min-w-0 truncate">
-          ⚠️ {lang === 'am' ? 'ሁከት ተፈጠረ' : 'Sync conflict'}
-          <span style={{ fontWeight: 700 }}> · {conflictWarning}</span>
+        <span className="truncate">
+          ⚠️ {lang === 'am' ? 'ሁከት ተፈጠረ' : 'Sync conflict'} · {conflictWarning}
         </span>
+        {detailLines.length > 0 && (
+          <span style={{ fontWeight: 600, fontSize: 11, opacity: 0.85 }}>
+            {detailLines.join(' · ')}
+            {(conflictDetails || []).length > 3 && ` +${(conflictDetails || []).length - 3} more`}
+          </span>
+        )}
       </div>
     );
   }

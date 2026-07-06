@@ -87,10 +87,53 @@ class SyncEngine {
     } catch { /* ignore if store not initialized yet */ }
   }
 
-  _warnConflict(message) {
+  _warnConflict(message, details) {
     try {
       useSyncStore.getState().setConflictWarning(message);
+      if (details && details.length > 0) {
+        useSyncStore.getState().setConflictDetails(details);
+      }
+      // Log conflict event for frequency tracking (Section D)
+      this._logConflictEvent(message, details);
     } catch { /* ignore */ }
+  }
+
+  async _logConflictEvent(message, details) {
+    try {
+      const now = Date.now();
+      const day = new Date(now).toISOString().split('T')[0];
+      const existing = await db.settings.get(`conflict_log_${day}`);
+      const prev = existing?.value || { count: 0, events: [] };
+      await db.settings.put({
+        key: `conflict_log_${day}`,
+        value: {
+          count: (prev.count || 0) + 1,
+          events: [
+            ...(prev.events || []),
+            {
+              ts: now,
+              message,
+              table: details?.[0]?.table || 'unknown',
+              recordCount: details?.length || 0,
+              changedFields: details?.[0]?.changedFields || [],
+            },
+          ].slice(-50), // keep last 50 per day
+        },
+      });
+    } catch { /* non-critical */ }
+  }
+
+  _diffFields(local, remote, excludeKeys = ['id', 'sync_version', 'updated_at', 'created_at', 'device_id', 'transaction_id']) {
+    const changed = [];
+    for (const key of Object.keys(remote)) {
+      if (excludeKeys.includes(key)) continue;
+      const l = local?.[key];
+      const r = remote?.[key];
+      if (JSON.stringify(l) !== JSON.stringify(r)) {
+        changed.push(key);
+      }
+    }
+    return changed;
   }
 
   getState() {
@@ -373,6 +416,7 @@ class SyncEngine {
   async _resolveConflicts(conflicts, token) {
     // For each conflict, fetch the server record, merge with local, and re-push
     const conflictMap = {};
+    const resolveConflicts = []; // collect field-level diffs
 
     for (const conflict of conflicts) {
       if (!conflictMap[conflict.table]) conflictMap[conflict.table] = [];
@@ -397,6 +441,20 @@ class SyncEngine {
           const serverRecord = serverRows.find((r) => r.localId === localId || r.id === localId);
           if (!serverRecord) continue;
 
+          // Compute diff before resolving
+          const mappedServer = mapPullRow(serverRecord);
+          const changedFields = this._diffFields(localRecord, mappedServer);
+          if (changedFields.length > 0) {
+            resolveConflicts.push({
+              table: tableName,
+              recordId: localId,
+              transactionId: localRecord.transaction_id || null,
+              changedFields,
+              localVersion: localRecord,
+              serverVersion: mappedServer,
+            });
+          }
+
           // Merge: accept server version but bump local version so next push wins
           const merged = { ...localRecord };
           merged.sync_version = (serverRecord.syncVersion || 1) + 1;
@@ -411,6 +469,13 @@ class SyncEngine {
 
     // Re-push the merged records
     await this._pushAll(token);
+
+    // Surface push-conflict diffs to the user
+    if (resolveConflicts.length > 0) {
+      const count = resolveConflicts.length;
+      const summary = `${count} record${count > 1 ? 's' : ''} had conflicting edits. Your version was kept; here's what changed elsewhere:`;
+      this._warnConflict(summary, resolveConflicts);
+    }
   }
 
   async _pullAll(token) {
@@ -429,6 +494,7 @@ class SyncEngine {
     let hasMore = true;
     let cursor = this.lastSyncAt;
     let pulledAny = false;
+    const pullConflicts = []; // accumulate conflicts during pull
 
     // Paginated pull: keep pulling until no more pages
     while (hasMore) {
@@ -476,21 +542,40 @@ class SyncEngine {
                 continue;
               }
 
-              // Data tables: merge by id, with cross-device collision safety
-              const local = await table.get(mapped.id);
+              // Data tables: merge by transaction_id (UUID) for cross-device safety.
+              // Two devices can both generate localId=1, but never the same UUID.
+              let local = null;
+              if (mapped.transaction_id) {
+                local = await table.where('transaction_id').equals(mapped.transaction_id).first();
+              }
+              if (!local) {
+                // Fallback: match by integer id for legacy records without transaction_id
+                local = await table.get(mapped.id);
+              }
 
               if (!local) {
-                // New record — insert as-is
-                await table.put(mapped);
-              } else if (local.device_id === mapped.device_id) {
-                // Same device — safe merge by timestamp
+                // Brand new record from another device — assign a fresh local id
+                delete mapped.id;
+                await table.add(mapped);
+              } else if (local.transaction_id && mapped.transaction_id && local.transaction_id === mapped.transaction_id) {
+                // Same logical record (UUID match) — safe merge by timestamp
                 if ((local.updated_at || 0) >= (mapped.updated_at || 0)) continue;
-                await table.put(mapped);
+                // Collect conflict detail before overwriting
+                const changedFields = this._diffFields(local, mapped);
+                if (changedFields.length > 0) {
+                  pullConflicts.push({
+                    table: name,
+                    recordId: local.id,
+                    transactionId: mapped.transaction_id,
+                    changedFields,
+                    localVersion: local,
+                    serverVersion: mapped,
+                  });
+                }
+                await table.put({ ...mapped, id: local.id });
               } else {
-                // Different device with same local id — collision!
-                // We must preserve the local record. Assign the remote record
-                // a fresh local id via auto-increment.
-                delete mapped.id; // let Dexie auto-increment
+                // Different record sharing the same integer id (collision) — assign new local id
+                delete mapped.id;
                 await table.add(mapped);
               }
             }
@@ -514,6 +599,13 @@ class SyncEngine {
 
       // Safety: break if we've pulled too many pages
       if (!pulledAny && !hasMore) break;
+    }
+
+    // Surface pull conflicts to the user
+    if (pullConflicts.length > 0) {
+      const count = pullConflicts.length;
+      const summary = `${count} record${count > 1 ? 's' : ''} updated elsewhere. Local edits were preserved where possible.`;
+      this._warnConflict(summary, pullConflicts);
     }
   }
 

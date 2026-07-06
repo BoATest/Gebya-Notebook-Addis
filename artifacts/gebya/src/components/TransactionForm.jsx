@@ -40,6 +40,13 @@ import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { compressPhoto, photoSizeBytes } from '../utils/photoCapture';
 import { buildPhotoFields, createPhotoProof, MAX_PROOF_PHOTOS } from '../utils/photoProof';
 import { db } from '../db';
+import {
+  trackSuggestionShown,
+  trackSuggestionAccepted,
+  trackSuggestionRejected,
+  recordPriceObservation,
+  computeAcceptanceWeight,
+} from '../utils/learningEngine';
 
 function handleNumericInput(e, setter) {
   let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
@@ -234,12 +241,12 @@ function TransactionForm({
     : true;
 
   // Context-aware Quick Items ranking (spec §4.2)
-  // Considers: frequency, recency, time-of-day affinity, price memory
+  // Considers: frequency, recency, time-of-day affinity, price memory, acceptance rate
   const activeCatalogItems = useMemo(() => {
     const now = Date.now();
     const currentHour = new Date().getHours();
     return catalogEntries
-      .filter(e => e && e.is_active !== false && e.name)
+      .filter(e => e && e.active !== false && e.name)
       .slice()
       .sort((a, b) => {
         const freqA = Number(a.use_count || 0);
@@ -250,10 +257,13 @@ function TransactionForm({
         const todA = a.last_used_at ? (Math.abs(new Date(a.last_used_at).getHours() - currentHour) <= 2 ? 1 : 0) : 0;
         const todB = b.last_used_at ? (Math.abs(new Date(b.last_used_at).getHours() - currentHour) <= 2 ? 1 : 0) : 0;
         // Price memory boost: items with a remembered price rank higher
-        const priceA = (a.default_price || a.last_unit_price) ? 1 : 0;
-        const priceB = (b.default_price || b.last_unit_price) ? 1 : 0;
-        const scoreA = freqA * 10000000000000 + recencyA + todA * 1000000000000 + priceA * 100000000000;
-        const scoreB = freqB * 10000000000000 + recencyB + todB * 1000000000000 + priceB * 100000000000;
+        const priceA = (a.default_price || a.last_unit_price || a.last_price) ? 1 : 0;
+        const priceB = (b.default_price || b.last_unit_price || b.last_price) ? 1 : 0;
+        // Acceptance-adjusted weight: items rarely accepted when shown get downweighted
+        const acceptWeightA = computeAcceptanceWeight(a);
+        const acceptWeightB = computeAcceptanceWeight(b);
+        const scoreA = freqA * 10000000000000 * acceptWeightA + recencyA + todA * 1000000000000 + priceA * 100000000000;
+        const scoreB = freqB * 10000000000000 * acceptWeightB + recencyB + todB * 1000000000000 + priceB * 100000000000;
         return scoreB - scoreA;
       });
   }, [catalogEntries]);
@@ -440,20 +450,29 @@ try {
       if (!item.name) continue
       const existing = await db.catalogEntries
         .where('name').equalsIgnoreCase(item.name).first()
+      const now = Date.now()
       if (existing) {
         await db.catalogEntries.update(existing.id, {
           use_count: (existing.use_count || 0) + 1,
           last_unit_price: item.unitPrice ?? existing.last_unit_price,
-          last_used: new Date().toISOString()
+          last_price: item.unitPrice ?? existing.last_price,
+          last_used_at: now,
+          updated_at: now,
         })
+        if (item.unitPrice) recordPriceObservation(existing.id, item.unitPrice)
       } else if (item.unitPrice) {
         const newId = await db.catalogEntries.add({
           name: item.name,
-          unit_price: item.unitPrice,
+          default_price: item.unitPrice,
+          last_price: item.unitPrice,
+          last_unit_price: item.unitPrice,
           use_count: 1,
-          last_used: new Date().toISOString()
+          last_used_at: now,
+          created_at: now,
+          updated_at: now,
+          active: true,
         })
-        onSaveCatalogEntry?.({ id: newId, name: item.name, unit_price: item.unitPrice })
+        onSaveCatalogEntry?.({ id: newId, name: item.name, default_price: item.unitPrice })
       }
     }
   }
@@ -660,6 +679,7 @@ try {
     });
     setCatalogEntryId(String(entry?.id || ''));
     setItem(entry?.name || '');
+    if (entry?.id) trackSuggestionAccepted(entry.id);
   };
 
   const handleSaleAddItem = () => {

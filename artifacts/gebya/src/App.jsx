@@ -3,7 +3,7 @@ import {
   BookOpen, Users, Calendar, Settings, Trash2, Pencil, Share2, X,
   Plus, Minus, RotateCw, Wallet, Truck,
   MoreVertical, ChevronUp, ChevronDown,
-  CreditCard, BarChart3, MoreHorizontal,
+  CreditCard, BarChart3, MoreHorizontal, Bell,
 } from 'lucide-react';
 import db, { getDeviceToken, getIdentity, setIdentity } from './db';
 import identityApi from './api/identity';
@@ -11,6 +11,8 @@ import { PrivacyProvider, usePrivacy } from './context/PrivacyContext';
 import { LangProvider, useLang } from './context/LangContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProfitCard from './components/ProfitCard';
+import LearningInsights from './components/LearningInsights';
+import OverdueCustomerFlags from './components/OverdueCustomerFlags';
 import OnboardingScreen from './components/OnboardingScreen';
 import StaffJoinScreen from './components/StaffJoinScreen';
 import { ToastContainer, fireToast } from './components/Toast';
@@ -18,6 +20,7 @@ import PhotoAttachment from './components/PhotoAttachment';
 import { buildPhotoFields, normalizePhotos } from './utils/photoProof';
 import { getCurrentEthiopianDate, formatEthiopian } from './utils/ethiopianCalendar';
 import { fmt } from './utils/numformat';
+import { useSyncStore } from './stores/syncStore';
 import { buildCustomerSummaries, getCustomerBalance, insertCustomerTransaction, sortCustomerTransactions } from './utils/customerLedger';
 import { normalizeCustomerDraft, normalizeCustomerTransactionDraft } from './utils/customerLedgerMutations';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from './utils/customerTransactionTypes';
@@ -86,6 +89,7 @@ const importCustomerForm = () => import('./components/CustomerForm');
 const importCustomerTransactionSheet = () => import('./components/CustomerTransactionSheet');
 const importCustomerTelegramConnectSheet = () => import('./components/CustomerTelegramConnectSheet');
 const importHistoryView = () => import('./components/HistoryView');
+const importReminderHistory = () => import('./components/ReminderHistory');
 const importReportView = () => import('./components/ReportView');
 const importSettingsPage = () => import('./components/SettingsPage');
 const importDailySuggestions = () => import('./components/DailySuggestions');
@@ -104,7 +108,8 @@ const CustomerForm = lazyWithRetry(importCustomerForm, 'CustomerForm');
 const CustomerTransactionSheet = lazyWithRetry(importCustomerTransactionSheet, 'CustomerTransactionSheet');
 const CustomerTelegramConnectSheet = lazyWithRetry(importCustomerTelegramConnectSheet, 'CustomerTelegramConnectSheet');
 const HistoryView = lazyWithRetry(importHistoryView, 'HistoryView');
-const ReportView = lazyWithRetry(importReportView, 'ReportView');
+const ReminderHistory = lazyWithRetry(importReminderHistory, 'ReminderHistory');
+const ReportView = lazyWithRetry(importReportView, 'ReminderView');
 const SettingsPage = lazyWithRetry(importSettingsPage, 'SettingsPage');
 const DailySuggestions = lazyWithRetry(importDailySuggestions, 'DailySuggestions');
 const TransactionDetailSheet = lazyWithRetry(importTransactionDetailSheet, 'TransactionDetailSheet');
@@ -191,6 +196,8 @@ function OfflineStatusStrip({
   lang = 'en',
   onRetryTelegram,
   retryingTelegram = false,
+  conflictWarning = null,
+  conflictDetails = [],
 }) {
   let tone = null;
   let label = '';
@@ -256,6 +263,37 @@ function OfflineStatusStrip({
     tone = 'ready';
     label = lang === 'am' ? 'ከመስመር ውጭ ዝግጁ' : 'Offline ready';
     detail = lang === 'am' ? 'ያለ ኢንተርኔት ይሰራል' : 'works without internet';
+  }
+
+  if (conflictWarning) {
+    const detailLines = (conflictDetails || []).slice(0, 3).map((d) => {
+      const changes = (d.changedFields || []).slice(0, 3).map((field) => {
+        const oldVal = d.localVersion?.[field];
+        const newVal = d.serverVersion?.[field];
+        const oldStr = oldVal == null ? '(empty)' : String(oldVal).substring(0, 30);
+        const newStr = newVal == null ? '(empty)' : String(newVal).substring(0, 30);
+        return `${field}: ${oldStr} → ${newStr}`;
+      });
+      const more = (d.changedFields || []).length > 3 ? ` +${(d.changedFields || []).length - 3} more` : '';
+      return `${d.table} #${d.recordId}: ${changes.join(', ')}${more}`;
+    });
+    return (
+      <div
+        role="alert"
+        className="mt-2 flex flex-col gap-1"
+        style={{ minHeight: 36, padding: '7px 9px', borderRadius: 8, background: '#fffbeb', border: '1px solid #fcd34d', color: '#92400e', fontSize: 12, fontWeight: 800 }}
+      >
+        <span className="truncate">
+          ⚠️ {lang === 'am' ? 'ሁከት ተፈጠረ' : 'Sync conflict'} · {conflictWarning}
+        </span>
+        {detailLines.length > 0 && (
+          <span style={{ fontWeight: 600, fontSize: 11, opacity: 0.85 }}>
+            {detailLines.join(' · ')}
+            {(conflictDetails || []).length > 3 && ` +${(conflictDetails || []).length - 3} more`}
+          </span>
+        )}
+      </div>
+    );
   }
 
   if (!tone) return null;
@@ -608,6 +646,8 @@ function AppInner() {
   const { hidden } = usePrivacy();
   const { lang, toggleLang, t } = useLang();
   const pwa = usePwaInstall();
+  const syncConflictWarning = useSyncStore(s => s.conflictWarning);
+  const syncConflictDetails = useSyncStore(s => s.conflictDetails);
   const [transactions, setTransactions] = useState([]);
   const [ledgerCustomers, setLedgerCustomers] = useState([]);
   const [ledgerTransactions, setLedgerTransactions] = useState([]);
@@ -1061,6 +1101,7 @@ function AppInner() {
             updated_at: now,
           };
           if (price > 0) patch.last_price = price;
+          if (price > 0) patch.last_unit_price = price;
           if (existing.default_price == null && price > 0) patch.default_price = price;
           if (!existing.code && code) patch.code = code;
           await db.catalog_entries.update(existing.id, patch);
@@ -2207,28 +2248,46 @@ function AppInner() {
     }
   };
 
-  // DELETE handler · soft-undo via toast for 4 seconds, then permanent.
+  // DELETE handler · insert reversal entry instead of hard delete for audit trail integrity.
   const handleDeleteCustomerTransaction = async (tx) => {
     if (!tx?.id) return;
-    // Optimistic remove from state
-    setLedgerTransactions(prev => prev.filter(t2 => t2.id !== tx.id));
+    const reversalAmount = Math.abs(Number(tx.amount) || 0);
+    if (reversalAmount <= 0) return;
+    const reversalEntry = {
+      customer_id: tx.customer_id,
+      type: 'reversal',
+      amount: reversalAmount,
+      item_note: tx.item_note ? `Reversal of: ${tx.item_note}` : 'Reversal',
+      due_date: null,
+      reversal_of: tx.id,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    };
+    // Optimistic: add reversal to state, remove original from view
+    setLedgerTransactions(prev => {
+      const without = prev.filter(t2 => t2.id !== tx.id);
+      return [reversalEntry, ...without];
+    });
     try {
-      await db.customer_transactions.delete(tx.id);
+      await db.customer_transactions.add(reversalEntry);
     } catch (err) {
-      if (import.meta.env.DEV) console.error('Delete customer_transaction failed:', err);
-      // Roll back optimistic remove
+      if (import.meta.env.DEV) console.error('Reversal entry failed:', err);
+      // Roll back optimistic update
       setLedgerTransactions(prev => prev.find(t2 => t2.id === tx.id) ? prev : [tx, ...prev]);
-      fireToast(lang === 'am' ? 'ሰርዝ አልተሳካም' : 'Could not delete entry', 2400);
+      fireToast(lang === 'am' ? 'ሰርዝ አልተሳካም' : 'Could not reverse entry', 2400);
       return;
     }
-    // Undo toast — restores the row if user taps Undo within 4 seconds
-    const msg = lang === 'am' ? 'ተሰርዟል' : 'Entry deleted';
+    const msg = lang === 'am' ? 'ተሰርዟል' : 'Entry reversed';
     fireToast(msg, 4000, async () => {
       try {
+        // Undo: remove the reversal, restore the original
+        const reversals = await db.customer_transactions.where('reversal_of').equals(tx.id).toArray();
+        for (const r of reversals) {
+          await db.customer_transactions.delete(r.id);
+        }
         const restored = { ...tx, updated_at: Date.now() };
-        // Use put (not add) so the original id is preserved
         await db.customer_transactions.put(restored);
-        setLedgerTransactions(prev => insertCustomerTransaction(prev, restored));
+        setLedgerTransactions(prev => insertCustomerTransaction(prev.filter(t2 => !reversals.some(r => r.id === t2.id)), restored));
         fireToast(t.undone || 'Undone', 1800);
       } catch (err) {
         if (import.meta.env.DEV) console.error('Undo delete customer_transaction failed:', err);
@@ -2667,17 +2726,19 @@ function AppInner() {
 
   // Tab labels swap with language toggle (single language at a time, not stacked)
   const TAB_LABELS = {
-    today:    { en: 'Today',  am: 'የዛሬ' },
-    credit:   { en: 'Credit', am: 'ዱቤ' },
-    history:  { en: 'Report', am: 'ሪፖርት' },
-    settings: { en: 'More',   am: 'ተጨማሪ' },
+    today:     { en: 'Today',     am: 'የዛሬ' },
+    credit:    { en: 'Credit',    am: 'ዱቤ' },
+    history:   { en: 'Report',    am: 'ሪፖርት' },
+    reminders: { en: 'Reminders', am: 'ማስታወሻ' },
+    settings:  { en: 'More',      am: 'ተጨማሪ' },
   };
   // Tab IDs are UNCHANGED — only display labels and icons swap. activeTab logic stays intact.
   const tabs = [
-    { id: 'today',    label: TAB_LABELS.today[lang],    icon: BookOpen },
-    { id: 'credit',   label: TAB_LABELS.credit[lang],   icon: CreditCard },
-    { id: 'history',  label: TAB_LABELS.history[lang],  icon: BarChart3 },
-    { id: 'settings', label: TAB_LABELS.settings[lang], icon: MoreHorizontal },
+    { id: 'today',     label: TAB_LABELS.today[lang],     icon: BookOpen },
+    { id: 'credit',    label: TAB_LABELS.credit[lang],    icon: CreditCard },
+    { id: 'history',   label: TAB_LABELS.history[lang],   icon: BarChart3 },
+    { id: 'reminders', label: TAB_LABELS.reminders[lang], icon: Bell },
+    { id: 'settings',  label: TAB_LABELS.settings[lang],  icon: MoreHorizontal },
   ];
 
   const typeEmoji = { sale: '💰', expense: '🛒', credit: '👥' };
@@ -2776,6 +2837,8 @@ function AppInner() {
           lang={lang}
           onRetryTelegram={handleRetryQueuedTelegram}
           retryingTelegram={retryingTelegram}
+          conflictWarning={syncConflictWarning}
+          conflictDetails={syncConflictDetails}
         />
         {/* Sales/Spent chips REMOVED — TodaySummary below owns them now */}
       </header>
@@ -2853,6 +2916,8 @@ function AppInner() {
                 </div>
               );
             })()}
+
+            <LearningInsights />
 
             <Suspense fallback={<PanelFallback label={t.loading} />}>
               <DailySuggestions
@@ -2993,6 +3058,7 @@ function AppInner() {
                 </Suspense>
               ) : (
                 <Suspense fallback={<PanelFallback label={t.loading} />}>
+                  <OverdueCustomerFlags />
                   <CustomerList
                     customers={enrichedCustomerSummaries}
                     metrics={creditMetrics}
@@ -3123,9 +3189,18 @@ function AppInner() {
           </Suspense>
         )}
 
+        {activeTab === 'reminders' && (
+          <Suspense fallback={<PanelFallback label={t.loading} />}>
+            <ReminderHistory
+              shopId={shopProfile?.shop_id || shopProfile?.id}
+            />
+          </Suspense>
+        )}
+
         {activeTab === 'settings' && (
           <Suspense fallback={<PanelFallback label={t.loading} />}>
             <SettingsPage
+              shopId={shopProfile?.shop_id || shopProfile?.id}
               transactions={transactions}
               todayTransactions={todayTransactions}
               customerSummaries={customerSummaries}

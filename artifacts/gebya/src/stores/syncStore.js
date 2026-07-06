@@ -12,8 +12,10 @@ export const useSyncStore = create((set) => ({
   online: true,
   conflictWarning: null,
   lastConflicts: [],
+  conflictDetails: [], // { table, recordId, transactionId, localVersion, serverVersion, changedFields[] }
 
   setSyncState: (state) => set(state),
   setConflictWarning: (warning) => set({ conflictWarning: warning }),
   setLastConflicts: (conflicts) => set({ lastConflicts: conflicts }),
+  setConflictDetails: (details) => set({ conflictDetails: details }),
 }));

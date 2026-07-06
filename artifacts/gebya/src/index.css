@@ -215,6 +215,80 @@
   box-shadow: var(--shadow-xs);
 }
 
+@media (max-width: 480px) {
+  /* ── ReportView closing / reconciliation ────────────────────────── */
+
+  /* KPI metric cards: single column on narrow screens */
+  .report-kpi-grid {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+
+  /* Sticky time-range selector: 2 columns (not 4) */
+  .report-time-ranges {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    padding: 4px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Fixed action-bar below the report: single column stack */
+  .report-actions-grid {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+    padding: 5px !important;
+  }
+
+  /* Export range chips: 2 columns */
+  .report-export-ranges {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+  }
+
+  /* Cash Closing inputs: stack vertically so each field is full-width */
+  .closing-inputs-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* Past closing reviews list: reduce horizontal padding */
+  .closing-history-list {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .closing-history-list > div {
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+
+  /* KPIDetailSheet close button: meet the 44×44 minimum touch target */
+  .kpi-sheet-close-btn {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 22px !important;
+  }
+
+  /* ReportView page-level: halve side padding so content fits 320 px */
+  .report-page-wrap {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    gap: 8px !important;
+  }
+
+  /* SummaryCard touch target: guarantee full-width tap area */
+  .report-kpi-grid button {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+
+  /* Insight strip: reduce icon / divider sizing on very small screens */
+  .dashboard-insight-strip {
+    gap: 8px !important;
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+  }
+}
+
 .press-scale {
   transition: transform 0.1s ease;
 }

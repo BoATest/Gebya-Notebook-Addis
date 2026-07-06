@@ -317,4 +317,56 @@ router.get("/pull",
   return res.json({ ok: true, user_id: userId, business_id: businessId, since: sinceMs, pulled_at: Date.now(), tables, hasMore, nextCursor });
 });
 
+/**
+ * GET /api/sync/balance-check/:customerId
+ * Server-side integrity check: independently recomputes a customer's balance
+ * from the immutable transaction log. Used by the client to validate that
+ * the local balance matches the authoritative server-side computation.
+ */
+router.get("/balance-check/:customerId",
+  requirePermission("can_view_reports"),
+  async (req, res) => {
+    const userId = getUserIdFromRequest(req);
+    if (!userId) return res.status(401).json({ error: "Authorization required" });
+
+    const businessId = await getBusinessForUser(userId);
+    if (!businessId) return res.status(403).json({ error: "No business associated with this account" });
+
+    const customerId = Number(req.params.customerId);
+    if (!Number.isFinite(customerId) || customerId <= 0) {
+      return res.status(400).json({ error: "Invalid customer ID" });
+    }
+
+    // Fetch all customer transactions for this customer in this business
+    const rows = await db
+      .select({
+        type: customerTransactions.type,
+        amount: customerTransactions.amount,
+      })
+      .from(customerTransactions)
+      .where(
+        and(
+          eq(customerTransactions.customerId, customerId),
+          eq(customerTransactions.businessId, businessId)
+        )
+      );
+
+    // Recompute balance from immutable transaction log
+    let balance = 0;
+    for (const row of rows) {
+      if (row.type === "credit_add") balance += Number(row.amount) || 0;
+      if (row.type === "payment") balance -= Number(row.amount) || 0;
+      if (row.type === "reversal") balance -= Number(row.amount) || 0;
+    }
+
+    return res.json({
+      ok: true,
+      customer_id: customerId,
+      balance: Math.max(balance, 0),
+      transaction_count: rows.length,
+      computed_at: Date.now(),
+    });
+  }
+);
+
 export default router;

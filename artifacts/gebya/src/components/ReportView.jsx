@@ -325,7 +325,7 @@ function KPIDetailSheet({ kpi, isOpen, onClose, hidden, lang }) {
             <button
               type="button"
               onClick={onClose}
-              className="press-scale"
+              className="press-scale kpi-sheet-close-btn"
               style={{
                 border: 'none',
                 background: 'transparent',
@@ -363,9 +363,9 @@ function KPIDetailSheet({ kpi, isOpen, onClose, hidden, lang }) {
 }
 
 // Dashboard Insight Strip Component
-function DashboardInsightStrip({ stats, counts, lang }) {
+  function DashboardInsightStrip({ stats, counts, lang }) {
   return (
-    <div style={{
+    <div className="dashboard-insight-strip" style={{
       display: 'flex',
       alignItems: 'center',
       gap: 12,
@@ -819,7 +819,7 @@ export default function ReportView({
         lang={lang} 
       />
 
-      <div ref={scrollContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 120 }}>
+      <div ref={scrollContainerRef} className="report-page-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 12px 120px' }}>
         {/* Header - Fixed at top */}
         <div ref={headerRef} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '2px 2px 0' }}>
           <div style={{ minWidth: 0 }}>
@@ -868,7 +868,7 @@ export default function ReportView({
           paddingBottom: 8,
           boxShadow: 'rgba(0,0,0,0.06) 0 2px 4px',
         }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6, background: 'rgba(27,67,50,0.08)', borderRadius: 12, padding: 5 }}>
+          <div className="report-time-ranges" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6, background: 'rgba(27,67,50,0.08)', borderRadius: 12, padding: 5 }}>
             {[
               ['today', labels.today],
               ['week', labels.week],
@@ -926,8 +926,8 @@ export default function ReportView({
           <RangeChip timeRange={timeRange} customFrom={customFrom} customTo={customTo} lang={lang} />
         </div>
 
-        {/* Simplified KPI Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+         {/* Simplified KPI Cards */}
+        <div className="report-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
           <SummaryCard 
             label={labels.sold} 
             value={selectedStats.sales} 
@@ -1144,8 +1144,8 @@ export default function ReportView({
               {lang === 'am' ? 'የማውጫ መዝገብ ዛሬ ብቻ ይታያል' : 'Cash closing is editable only for Today'}
             </p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+            <div className="closing-section-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="closing-inputs-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 4, color: '#374151', fontSize: 12, fontWeight: 850 }}>
                   {lang === 'am' ? 'በእጅ ጥሬ ገንዘብ' : 'Actual cash counted'}
                   <input
@@ -1205,7 +1205,7 @@ export default function ReportView({
                 <p style={{ color: '#9ca3af', fontSize: 13, fontWeight: 600 }}>{lang === 'am' ? 'እስካሁን የተጠናቀቁ ማውጫዎች የለም' : 'No saved closing reviews yet.'}</p>
               )}
               {closings.length > 0 && (
-                <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div className="closing-history-list" style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <p style={{ fontSize: 12, fontWeight: 800, color: '#6b7280' }}>{lang === 'am' ? 'የተጠናቀቁ ማውጫዎች' : 'Past closing reviews'}</p>
                   {closings.slice(0, 5).map((c) => (
                     <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 650, color: '#374151', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
@@ -1288,7 +1288,7 @@ export default function ReportView({
 
         {showExport && (
           <Section title={lang === 'am' ? 'Export' : 'Export'}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 5, marginBottom: 9 }}>
+            <div className="report-export-ranges" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 5, marginBottom: 9 }}>
               {['today', 'week', 'month', 'all'].map(range => (
                 <button
                   key={range}
@@ -1334,7 +1334,7 @@ export default function ReportView({
       </div>
 
       {/* Fixed Action Bar above bottom navigation */}
-      <div style={{
+      <div className="report-actions-grid" style={{
         position: 'fixed',
         left: '50%',
         transform: 'translateX(-50%)',

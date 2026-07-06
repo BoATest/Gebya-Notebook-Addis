@@ -96,6 +96,55 @@ Expected result:
 - a Sentry event named `Gebya Sentry test error` appears in your Sentry project
 - the event uses the expected environment and release values if you set them
 
+## Phase 2 changes (this commit)
+
+### A. Voice removed
+- Deleted 5 orphaned voice components/hooks (VoiceRecordScreen, VoiceResultScreen, VoiceFixScreen, VoiceButton, useSpeechRecognition)
+- Deleted 2 voice test files
+- Removed ~130 voice i18n keys from LangContext.jsx (EN, Ge'ez, Amharic)
+- Removed `voice_note` fallback from staffEventSync.js
+- DB schema fields retained for historical compatibility (no new voice data collected)
+- `/api/transcribe` backend endpoint is soft-disabled (no API key → 503 stub). **Hard-remove pending** in api-server repo before funder demos.
+
+### B. Learning loop (the app learns your business)
+- **Bug fixes:** Fixed `is_active` vs `active` filter (was no-op), unified `last_unit_price`/`last_price` field naming, unified `last_used`/`last_used_at` naming
+- **Suggestion acceptance tracking:** Records shown/accepted/rejected per catalog entry. Items rarely accepted when shown get downweighted in ranking.
+- **Price clustering:** Stores last 50 price observations per item, computes typical price via IQR outlier detection. Damaged-goods sales don't override typical price.
+- **Cross-spelling normalization:** Bigram similarity (Dice coefficient, threshold 0.6) for Amharic/Latin/mixed script. "Injira"→"Injera" (0.60), "Injeara"→"Injera" (0.73), "Beyainetu"→"Beyaynetu" (0.75).
+- **Surfaced insights:** Dashboard strip shows "You sell X mostly in the morning" patterns based on time-of-day analysis.
+- **New files:** `learningEngine.js`, `LearningInsights.jsx`
+- **DB schema v21:** Added `suggestion_log` table, `cross_shop_unmatched` table, catalog_entries fields
+
+### C. Behavioral trust score
+- Two scores per shop: `data_integrity_score` (device consistency, edit frequency, photos, actor clarity) and `business_health_score` (repayment consistency 40%, credit health 30%, revenue stability 30%)
+- Repayment consistency is a real computed factor: checks if credit customers have paid >= 50% of their credit
+- Overdue customer flags: Customers with 60+ days overdue and no repayment pattern are flagged in the credit view
+- Weights are config-driven (stored in `settings` table, overridable without code deploy) with hardcoded defaults
+- Raw factor inputs stored for later recalibration
+- **New files:** `trustScore.js`, `OverdueCustomerFlags.jsx`
+
+### D. Sync conflict logging
+- Conflict events now logged to `settings` table (key: `conflict_log_YYYY-MM-DD`)
+- Stores timestamp, message, table name, record count, changed fields
+- Keeps last 50 events per day for frequency analysis
+
+### E. Monetization infrastructure
+- `plan_tier` field (free/plus) on shop record
+- `hasEntitlement()` check wired to plausible future-premium features
+- `computeImpactMetrics()` for grant/NBE/DFI conversations (shops onboarded, transaction volume, credit tracked, recovery rate)
+- No paywall, no payment gateway, no bank-facing API
+- **New files:** `entitlements.js`, `AdminMetricsView.jsx`
+
+### F. Analytics & Admin dashboard
+- Voice events removed from event schema
+- Learning loop events tracked in `suggestion_log` table
+- Cross-shop curation queue: `cross_shop_unmatched` table + `CrossShopCurationQueue.jsx` component
+- Admin section in Settings page with metrics and curation queue
+- **New files:** `CrossShopCurationQueue.jsx`
+
+### Pre-existing api-server typecheck errors
+87 errors across 7 test/route files — NONE introduced by this pass. All in files untouched by Phase 2.
+
 ## If Windows builds become required later
 
 The smallest repo fix would be to:

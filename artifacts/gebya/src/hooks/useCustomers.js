@@ -296,21 +296,40 @@ export function useCustomers() {
 
   const deleteCustomerTransaction = useCallback(async (tx) => {
     if (!tx?.id) return false;
-    setLedgerTransactions(prev => prev.filter(t2 => t2.id !== tx.id));
+    const reversalAmount = Math.abs(Number(tx.amount) || 0);
+    if (reversalAmount <= 0) return false;
+    const reversalEntry = {
+      customer_id: tx.customer_id,
+      type: 'reversal',
+      amount: reversalAmount,
+      item_note: tx.item_note ? `Reversal of: ${tx.item_note}` : 'Reversal',
+      due_date: null,
+      reversal_of: tx.id,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    };
+    setLedgerTransactions(prev => {
+      const without = prev.filter(t2 => t2.id !== tx.id);
+      return [reversalEntry, ...without];
+    });
     try {
-      await db.customer_transactions.delete(tx.id);
+      await db.customer_transactions.add(reversalEntry);
     } catch (err) {
-      if (import.meta.env.DEV) console.error('Delete customer_transaction failed:', err);
+      if (import.meta.env.DEV) console.error('Reversal entry failed:', err);
       setLedgerTransactions(prev => prev.find(t2 => t2.id === tx.id) ? prev : [tx, ...prev]);
-      fireToast(lang === 'am' ? 'ሰርዝ አልተሳካም' : 'Could not delete entry', 2400);
+      fireToast(lang === 'am' ? 'ሰርዝ አልተሳካም' : 'Could not reverse entry', 2400);
       return false;
     }
-    const msg = lang === 'am' ? 'ተሰርዟል' : 'Entry deleted';
+    const msg = lang === 'am' ? 'ተሰርዟል' : 'Entry reversed';
     fireToast(msg, 4000, async () => {
       try {
+        const reversals = await db.customer_transactions.where('reversal_of').equals(tx.id).toArray();
+        for (const r of reversals) {
+          await db.customer_transactions.delete(r.id);
+        }
         const restored = { ...tx, updated_at: Date.now() };
         await db.customer_transactions.put(restored);
-        setLedgerTransactions(prev => insertCustomerTransaction(prev, restored));
+        setLedgerTransactions(prev => insertCustomerTransaction(prev.filter(t2 => !reversals.some(r => r.id === t2.id)), restored));
         fireToast(t.undone || 'Undone', 1800);
       } catch (err) {
         if (import.meta.env.DEV) console.error('Undo delete customer_transaction failed:', err);

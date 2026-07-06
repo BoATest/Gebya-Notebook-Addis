@@ -20,6 +20,7 @@ export function getCustomerBalance(items = []) {
   return items.reduce((sum, item) => {
     if (item.type === 'credit_add') return sum + (item.amount || 0);
     if (item.type === 'payment') return sum - (item.amount || 0);
+    if (item.type === 'reversal') return sum - (item.amount || 0);
     return sum;
   }, 0);
 }
@@ -59,4 +60,34 @@ export function buildCustomerSummaries(customers = [], customerTransactions = []
       return String(a.display_name || '').localeCompare(String(b.display_name || ''))
         || compareNumericDesc(a.id, b.id);
     });
+}
+
+/**
+ * Server-side integrity check: validates that the local client-computed balance
+ * matches the authoritative server-side recomputation from the immutable
+ * transaction log. Returns { match, serverBalance, localBalance } or null on error.
+ */
+export async function validateBalanceIntegrity(customerId, localBalance) {
+  try {
+    const SYNC_API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
+    const tokenRow = await import('../db').then(m => m.default.settings.get('gebya_auth_token'));
+    const token = tokenRow?.value;
+    if (!token) return null;
+
+    const res = await fetch(`${SYNC_API_BASE}/sync/balance-check/${customerId}`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.ok) return null;
+
+    return {
+      match: Math.abs(data.balance - localBalance) < 0.01,
+      serverBalance: data.balance,
+      localBalance,
+      transactionCount: data.transaction_count,
+    };
+  } catch {
+    return null;
+  }
 }

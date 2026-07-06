@@ -14,5 +14,5 @@ export function fmtInput(str) {
 }
 
 export function parseInput(str) {
-  return String(str ?? '').replace(/,/g, '');
+  return String(str ?? '').replace(/,/g, '').replace(/^-/, '');
 }

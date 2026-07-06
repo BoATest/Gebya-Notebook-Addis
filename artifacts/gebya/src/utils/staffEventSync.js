@@ -45,7 +45,7 @@ function payloadFor({ eventType, record }) {
       item_name: textOrNull(record.item_name),
       item_code: textOrNull(record.item_code),
       customer_id: record.customer_id == null ? null : String(record.customer_id),
-      note: textOrNull(record.note || record.voice_note),
+      note: textOrNull(record.note),
     };
   }
 
