@@ -11,6 +11,8 @@
  *   POST /test/:customerId — Send manual test reminder
  *   POST /pause            — Pause all reminders
  *   POST /resume           — Resume all reminders
+ *   POST /manual           — Send manual SMS reminder
+ *   GET  /quota            — Get SMS quota info
  */
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
@@ -23,44 +25,65 @@ import {
   isRemindersEnabled,
 } from "../services/reminderConfiguration.js";
 import { runRemindersForShop } from "../services/reminderScheduler.js";
-import { queryHistory } from "../services/reminderSender.js";
+import { getHistoryByShop, getHistoryByCustomer } from "../services/reminderHistory.js";
 import { getTelegramLinkSession } from "../services/telegramStore.js";
 import { buildReminderMessage } from "../services/reminderMessageBuilder.js";
 import { sendTelegramTextMessage } from "../services/telegramBotService.js";
-import { requirePermission } from "./rbac.js";
+import { sendSms, isSmsEnabled } from "../services/smsSender.js";
+import { getQuotaInfo, canSendSms } from "../services/smsQuota.js";
+import { requirePermission, verifyShopOwnership } from "./rbac.js";
 import type {
-  ReminderFrequency,
   EligibleCustomer,
   ReminderLanguage,
-  ReminderBatchStats,
 } from "../types/reminders.js";
 
 const router = Router();
 
 // ─── validation schemas ────────────────────────────────────────────────
 
+const runSchema = z.object({
+  shopId: z.number(),
+  customers: z.array(z.object({
+    customerId: z.number(),
+    customerName: z.string(),
+    balance: z.number(),
+    dueDate: z.number().nullable().optional(),
+    customerCreatedAt: z.number(),
+    chatId: z.string(),
+    updatesEnabled: z.boolean().optional(),
+    telegramLanguage: z.enum(["am", "en"]).optional(),
+  })).optional(),
+  shopName: z.string().optional(),
+});
+
 const frequencySchema = z.object({
   frequency: z.enum(["daily", "weekly", "disabled"]),
 });
 
-const runSchema = z.object({
-  shopId: z.number().int().positive(),
-  customers: z.array(
-    z.object({
-      customerId: z.number().int().positive(),
-      customerName: z.string().min(1),
-      balance: z.number().finite(),
-      dueDate: z.number().nullable().optional(),
-      customerCreatedAt: z.number().positive(),
-      chatId: z.string().min(1),
-      updatesEnabled: z.boolean().optional(),
-      telegramLanguage: z.enum(["am", "en"]).optional(),
-    }),
-  ).optional(),
-  shopName: z.string().optional(),
-});
+// ─── secret verification ────────────────────────────────────────────────
 
-// ─── middleware: parse shopId from request ─────────────────────────────
+function verifyReminderCronSecret(req: Request, res: Response, next: Function) {
+  const expectedSecret = process.env.REMINDER_CRON_SECRET?.trim();
+  if (!expectedSecret) {
+    console.error("[security] REMINDER_CRON_SECRET is not set — refusing cron-triggered /run and /test requests");
+    return res.status(500).json({
+      error: "Server misconfigured: REMINDER_CRON_SECRET environment variable is not set",
+    });
+  }
+
+  const receivedSecret =
+    (req.headers["x-reminder-cron-secret"] as string | undefined) ||
+    (req.query?.secret as string | undefined) ||
+    null;
+
+  if (!receivedSecret || receivedSecret !== expectedSecret) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+
+  return next();
+}
+
+// ─── validation schemas ────────────────────────────────────────────────
 
 function getShopId(req: Request): number {
   // Try from body, then query, then header
@@ -89,6 +112,7 @@ function getShopId(req: Request): number {
   * production cron jobs that don't pre-build the customer array.
   */
 router.post("/run",
+  verifyReminderCronSecret,
   async (req: Request, res: Response) => {
     (req as any).rbacEntityType = "reminders_run";
   try {
@@ -129,14 +153,12 @@ router.post("/run",
     } else {
       // Slow path: compute from the ledger and enrich with Telegram data.
       try {
-        const { db, getCustomerBalances, enrichWithTelegram } = await import("@workspace/db");
-        const { eq } = await import("drizzle-orm");
+        const { db } = await import("@workspace/db");
+        const { eq, and } = await import("drizzle-orm");
+        const { customers: customersTable, customerTransactions } = await import("@workspace/db");
 
-        const ledgerRows = await getCustomerBalances(db, { businessId: shopId, onlyPositiveBalance: true });
-        const customerIds = ledgerRows.map((row) => row.customerId);
-
-        // Enrich with Telegram data from the customers table.
-        const { customers: customersTable } = await import("@workspace/db");
+        // Query customers with outstanding balance
+        // This queries the transaction ledger to compute balance
         const shopCustomers = await db
           .select({
             customerId: customersTable.id,
@@ -144,30 +166,77 @@ router.post("/run",
             chatId: customersTable.telegramChatId,
             telegramUsername: customersTable.telegramUsername,
             telegramNotifyEnabled: customersTable.telegramNotifyEnabled,
+            createdAt: customersTable.createdAt,
           })
           .from(customersTable)
-          .where(eq(customersTable.businessId, shopId));
+          .where(
+            and(
+              eq(customersTable.businessId, shopId),
+              // Only customers with Telegram linked
+              // @ts-ignore
+              customersTable.telegramChatId !== null
+            )
+          );
 
-        const customerMap = new Map(
-          shopCustomers.map((c) => [c.customerId, c]),
-        );
+        // For each customer, compute balance from transaction ledger
+        const eligibleList: EligibleCustomer[] = [];
+        
+        for (const customer of shopCustomers) {
+          if (!customer.chatId) continue;
 
-        eligibleCustomers = ledgerRows
-          .map((row) => {
-            const customer = customerMap.get(row.customerId);
-            if (!customer) return null;
-            return enrichWithTelegram(row, {
+          // Query transactions for this customer
+          const transactions = await db
+            .select()
+            .from(customerTransactions)
+            .where(
+              and(
+                eq(customerTransactions.customerId, customer.customerId),
+                eq(customerTransactions.businessId, shopId)
+              )
+            );
+
+          // Calculate balance from transactions
+          let balance = 0;
+          let latestDueDate: number | null = null;
+
+          for (const tx of transactions) {
+            if (tx.type === "credit") {
+              balance += Number(tx.amount);
+              if (tx.dueDate) {
+                latestDueDate = new Date(tx.dueDate).getTime();
+              }
+            } else if (tx.type === "payment") {
+              balance -= Number(tx.amount);
+            }
+          }
+
+          // Only include customers with positive balance
+          if (balance > 0) {
+            eligibleList.push({
               customerId: customer.customerId,
-              name: customer.name,
-              balance: row.balance,
-              dueDate: row.dueDate,
-              createdAt: row.createdAt,
+              customerName: customer.name || "Customer",
+              balance,
+              dueDate: latestDueDate,
+              customerCreatedAt: customer.createdAt ? new Date(customer.createdAt).getTime() : Date.now(),
               chatId: customer.chatId,
-              telegramUsername: customer.telegramUsername,
-              telegramNotifyEnabled: Boolean(customer.telegramNotifyEnabled),
+              updatesEnabled: Boolean(customer.telegramNotifyEnabled),
+              telegramLanguage: "en", // Default, will be detected from session
+              reminderConfig: {
+                id: `${shopId}-${customer.customerId}-cfg`,
+                shopId,
+                customerId: customer.customerId,
+                frequency: "daily",
+                lastReminderSentAt: null,
+                enabled: true,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              },
             });
-          })
-          .filter((c): c is EligibleCustomer => c !== null);
+          }
+        }
+
+        eligibleCustomers = eligibleList;
+
       } catch (dbError) {
         console.error("[reminders:run:db]", {
           error: dbError instanceof Error ? dbError.message : String(dbError),
@@ -178,6 +247,8 @@ router.post("/run",
         });
       }
     }
+
+    console.log(`[reminders:run] Processing ${eligibleCustomers.length} eligible customers for shop ${shopId}`);
 
     const stats = await runRemindersForShop(shopId, eligibleCustomers, shopName);
 
@@ -208,7 +279,9 @@ router.post("/run",
  * GET /config — Get shop default reminder frequency.
  * Query: ?shopId=123
  */
-router.get("/config", async (req: Request, res: Response) => {
+router.get("/config",
+  verifyShopOwnership,
+  async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const frequency = await getShopDefault(shopId);
@@ -228,6 +301,7 @@ router.get("/config", async (req: Request, res: Response) => {
  */
 router.post("/config",
   requirePermission("can_edit_settings"),
+  verifyShopOwnership,
   async (req: Request, res: Response) => {
     (req as any).rbacEntityType = "reminders_settings";
   try {
@@ -256,7 +330,9 @@ router.post("/config",
 /**
  * GET /config/:customerId — Get customer-specific frequency override.
  */
-router.get("/config/:customerId", async (req: Request, res: Response) => {
+router.get("/config/:customerId",
+  verifyShopOwnership,
+  async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const customerId = parseInt(String(req.params.customerId), 10);
@@ -286,6 +362,7 @@ router.get("/config/:customerId", async (req: Request, res: Response) => {
  */
 router.post("/config/:customerId",
   requirePermission("can_edit_settings"),
+  verifyShopOwnership,
   async (req: Request, res: Response) => {
     (req as any).rbacEntityType = "reminders_customer_config";
   try {
@@ -322,6 +399,7 @@ router.post("/config/:customerId",
  */
 router.delete("/config/:customerId",
   requirePermission("can_edit_settings"),
+  verifyShopOwnership,
   async (req: Request, res: Response) => {
     (req as any).rbacEntityType = "reminders_customer_config";
   try {
@@ -351,6 +429,7 @@ router.delete("/config/:customerId",
  */
 router.get("/history",
   requirePermission("can_view_reports"),
+  verifyShopOwnership,
   async (req: Request, res: Response) => {
     (req as any).rbacEntityType = "reminders_history";
   try {
@@ -360,12 +439,32 @@ router.get("/history",
     const customerId = req.query?.customerId
       ? parseInt(String(req.query.customerId), 10)
       : undefined;
+    const fromDate = req.query?.fromDate
+      ? parseInt(String(req.query.fromDate), 10)
+      : undefined;
+    const toDate = req.query?.toDate
+      ? parseInt(String(req.query.toDate), 10)
+      : undefined;
 
-    const result = await queryHistory(shopId, {
-      limit: Math.min(Math.max(limit, 1), 200),
-      offset: Math.max(offset, 0),
-      customerId: customerId && customerId > 0 ? customerId : undefined,
-    });
+    let result: { total: number; entries: import("../types/reminders.js").ReminderHistoryEntry[] };
+
+    if (customerId && customerId > 0) {
+      const historyResult = await getHistoryByCustomer(shopId, customerId, {
+        limit: Math.min(Math.max(limit, 1), 200),
+        offset: Math.max(offset, 0),
+        fromDate: fromDate && Number.isFinite(fromDate) ? fromDate : undefined,
+        toDate: toDate && Number.isFinite(toDate) ? toDate : undefined,
+      });
+      result = { total: historyResult.total, entries: historyResult.entries };
+    } else {
+      const historyResult = await getHistoryByShop(shopId, {
+        limit: Math.min(Math.max(limit, 1), 200),
+        offset: Math.max(offset, 0),
+        fromDate: fromDate && Number.isFinite(fromDate) ? fromDate : undefined,
+        toDate: toDate && Number.isFinite(toDate) ? toDate : undefined,
+      });
+      result = { total: historyResult.total, entries: historyResult.entries };
+    }
 
     return res.json(result);
   } catch (error) {
@@ -379,7 +478,10 @@ router.get("/history",
  * POST /test/:customerId — Send a manual test reminder to a customer.
  * Body: { shopId, balance, dueDate?, language? }
  */
-router.post("/test/:customerId", async (req: Request, res: Response) => {
+router.post("/test/:customerId",
+  verifyReminderCronSecret,
+  verifyShopOwnership,
+  async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const customerId = parseInt(String(req.params.customerId), 10);
@@ -451,6 +553,7 @@ router.post("/test/:customerId", async (req: Request, res: Response) => {
  */
 router.post("/pause",
   requirePermission("can_edit_settings"),
+  verifyShopOwnership,
   async (req: Request, res: Response) => {
     (req as any).rbacEntityType = "reminders_settings";
   try {
@@ -476,6 +579,7 @@ router.post("/pause",
  */
 router.post("/resume",
   requirePermission("can_edit_settings"),
+  verifyShopOwnership,
   async (req: Request, res: Response) => {
     (req as any).rbacEntityType = "reminders_settings";
   try {
@@ -493,5 +597,91 @@ router.post("/resume",
     });
   }
 });
+
+/**
+ * POST /manual — Send manual SMS reminder to a customer.
+ * Body: { shopId, phone, message, language? }
+ *
+ * This endpoint is for manual SMS sends from the shop owner.
+ * Note: Manual sends are NOT quota-tracked (owner sends from their phone).
+ * This endpoint is for server-side SMS sending when owner clicks SMS button.
+ */
+router.post("/manual",
+  requirePermission("can_edit_settings"),
+  verifyShopOwnership,
+  async (req: Request, res: Response) => {
+    (req as any).rbacEntityType = "reminders_manual";
+    try {
+      const shopId = getShopId(req);
+      const { phone, message, language = "en" } = req.body || {};
+
+      if (!phone || !message) {
+        return res.status(400).json({
+          error: "Missing required fields: phone, message",
+        });
+      }
+
+      // Check if SMS is enabled
+      if (!isSmsEnabled()) {
+        return res.status(503).json({
+          error: "SMS sending is not enabled or configured",
+        });
+      }
+
+      // Send SMS
+      const result = await sendSms(phone, message, {
+        shopId,
+      });
+
+      if (result.success) {
+        return res.json({
+          ok: true,
+          sent: true,
+          messageId: result.messageId,
+          provider: result.provider,
+        });
+      } else {
+        return res.status(502).json({
+          ok: false,
+          sent: false,
+          error: result.error,
+          errorClass: result.errorClass,
+          provider: result.provider,
+        });
+      }
+    } catch (error) {
+      return res.status(500).json({
+        error: error instanceof Error ? error.message : "Internal server error",
+      });
+    }
+  }
+);
+
+/**
+ * GET /quota — Get SMS quota info for a shop.
+ * Query: ?shopId=123
+ *
+ * Returns current month's SMS usage and remaining quota.
+ */
+router.get("/quota",
+  requirePermission("can_view_reports"),
+  verifyShopOwnership,
+  async (req: Request, res: Response) => {
+    (req as any).rbacEntityType = "reminders_quota";
+    try {
+      const shopId = getShopId(req);
+      const quotaInfo = await getQuotaInfo(shopId);
+
+      return res.json({
+        ok: true,
+        quota: quotaInfo,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        error: error instanceof Error ? error.message : "Internal server error",
+      });
+    }
+  }
+);
 
 export default router;

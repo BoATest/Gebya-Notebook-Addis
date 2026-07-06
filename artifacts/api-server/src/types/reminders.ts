@@ -157,6 +157,9 @@ export interface EligibleCustomer {
 
   /** Current reminder configuration for this customer */
   reminderConfig: ReminderConfiguration;
+
+  /** Optional: customer phone number for SMS fallback */
+  phoneNumber?: string;
 }
 
 /**
@@ -201,6 +204,9 @@ export interface QueuedReminder {
 
   /** Optional: shop name for message context */
   shopName?: string;
+
+  /** Optional: customer phone number for SMS fallback */
+  phoneNumber?: string;
 }
 
 /**

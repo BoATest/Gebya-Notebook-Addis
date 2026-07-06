@@ -91,10 +91,10 @@ function appendPayLink({ baseMessage, payUrl, lang }) {
   return `${trimmed}\n\n${ctaLabel} ${payUrl}`;
 }
 
-function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent }) {
+function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defaultChannel }) {
   const { lang, t } = useLang();
   const [template, setTemplate] = useState('gentle');
-  const [channel, setChannel] = useState(null);
+  const [channel, setChannel] = useState(defaultChannel || null);
   const [customMessage, setCustomMessage] = useState(null); // null = use generated text
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);

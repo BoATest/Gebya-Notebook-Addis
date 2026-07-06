@@ -12,9 +12,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, MessageCircle, Pencil, Phone, Plus, Wallet, X,
+  ArrowLeft, MessageCircle, MessageSquare, Pencil, Phone, Plus, Wallet, X,
 } from 'lucide-react';
 import { fmt } from '../utils/numformat';
+import { toTelUrl, isValidEthiopianPhone } from '../utils/phoneNumber';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
 import { useLang } from '../context/LangContext';
@@ -81,6 +82,7 @@ function CustomerDetail({
   onOpenTelegramConnect,
   onResendTelegramUpdate,
   onRemind,
+  onSmsCustomer,                // NEW · open ReminderSheet with SMS pre-selected
   onEditCustomer,              // Commit C.2 · Edit customer (name/phone/Telegram/photo)
   onSelectTransaction,         // NEW · tap transaction row → open detail sheet
   isOnline = true,
@@ -352,6 +354,55 @@ function CustomerDetail({
               : (lang === 'am' ? '+ አገናኝ' : '+ Link')}
           </span>
         </button>
+      )}
+
+      {/* ═══ 2b. QUICK ACTIONS · Call + SMS (only when phone exists) ═══ */}
+      {isValidEthiopianPhone(customer.phone_number) && (
+        <div style={{ display: 'flex', gap: 8 }}>
+          {/* Call button */}
+          <a
+            href={toTelUrl(customer.phone_number)}
+            className="press-scale"
+            style={{
+              flex: 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              background: '#f0fdf4',
+              border: '1px solid #a3e9c1',
+              borderRadius: 10,
+              padding: '10px 0',
+              color: '#047857',
+              fontWeight: 700,
+              fontSize: '0.78rem',
+              textDecoration: 'none',
+              minHeight: 44,
+            }}
+          >
+            <Phone className="w-4 h-4" />
+            {lang === 'am' ? 'ጥሪ' : 'Call'}
+          </a>
+          {/* SMS button — opens ReminderSheet with SMS pre-selected */}
+          <button
+            type="button"
+            onClick={() => onSmsCustomer?.(customer)}
+            className="press-scale"
+            style={{
+              flex: 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: 10,
+              padding: '10px 0',
+              color: '#1d4ed8',
+              fontWeight: 700,
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              minHeight: 44,
+            }}
+          >
+            <MessageSquare className="w-4 h-4" />
+            SMS
+          </button>
+        </div>
       )}
 
       {/* ═══ 3. BALANCE BLOCK ══════════════════════════════════════════ */}

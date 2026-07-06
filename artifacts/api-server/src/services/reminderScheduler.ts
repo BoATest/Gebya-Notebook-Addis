@@ -9,7 +9,7 @@
  * - Passes eligible reminders to ReminderSender for delivery
  */
 import { getSessionByChatId, getTelegramLinkSession } from "./telegramStore.js";
-import { getCustomerFrequency, isRemindersEnabled } from "./reminderConfiguration.js";
+import { getCustomerFrequency, isRemindersEnabled, setLastReminderSentAt } from "./reminderConfiguration.js";
 import type {
   EligibleCustomer,
   QueuedReminder,
@@ -149,17 +149,27 @@ export async function scheduleReminders(
       }
       stats.customersWithBalance++;
 
-      // Check Telegram session
-      const session = await getSessionByChatId(customer.chatId);
-      if (!session) {
+      // Check if customer has Telegram session OR phone number for SMS fallback
+      const hasTelegram = !!customer.chatId;
+      const hasPhone = !!customer.phoneNumber;
+
+      // Skip if no way to reach customer
+      if (!hasTelegram && !hasPhone) {
         stats.remindersSkipped++;
         continue;
       }
 
-      // Check updatesEnabled
-      if (!session.updatesEnabled || !customer.updatesEnabled) {
-        stats.remindersSkipped++;
-        continue;
+      // For Telegram: check session and updatesEnabled
+      let session = null;
+      if (hasTelegram) {
+        session = await getSessionByChatId(customer.chatId);
+        if (session && (!session.updatesEnabled || !customer.updatesEnabled)) {
+          // Telegram disabled, but might still have phone for SMS
+          if (!hasPhone) {
+            stats.remindersSkipped++;
+            continue;
+          }
+        }
       }
 
       // Check frequency settings
@@ -178,17 +188,17 @@ export async function scheduleReminders(
 
       // Determine language
       const language = customer.telegramLanguage
-        ?? detectLanguage(session.telegramUsername);
+        ?? (session ? detectLanguage(session.telegramUsername) : "en");
 
       // Calculate days held
       const heldDays = daysSince(customer.customerCreatedAt);
 
-      // Queue the reminder
+      // Queue the reminder (with phone number for SMS fallback)
       const queuedReminder: QueuedReminder = {
         id: `${shopId}-${customer.customerId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         shopId,
         customerId: customer.customerId,
-        chatId: customer.chatId,
+        chatId: customer.chatId || "",  // Empty string if no Telegram
         balance: customer.balance,
         dueDate: customer.dueDate,
         daysHeld: heldDays,
@@ -197,6 +207,7 @@ export async function scheduleReminders(
         priority: 0,
         customerName: customer.customerName,
         shopName: shopName,
+        phoneNumber: customer.phoneNumber,
       };
 
       queueReminder(queuedReminder);
@@ -236,9 +247,31 @@ export async function runRemindersForShop(
   // Send the queued reminders
   if (queueSize() > 0) {
     const { sendBatchReminders } = await import("./reminderSender.js");
-    const results = await sendBatchReminders(drainQueue());
+    const reminderItems = drainQueue();
+    const results = await sendBatchReminders(reminderItems);
     stats.remindersSent = results.sent;
     stats.remindersFailed = results.failed;
+
+    // Persist lastReminderSentAt for successfully sent reminders
+    const now = Date.now();
+    for (let i = 0; i < results.results.length; i++) {
+      const result = results.results[i];
+      if (result.success) {
+        const reminder = reminderItems[i];
+        try {
+          await setLastReminderSentAt(reminder.shopId, reminder.customerId, now);
+        } catch (error) {
+          console.error(
+            `[ReminderScheduler] Failed to update lastReminderSentAt for shop=${reminder.shopId}, customer=${reminder.customerId}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          stats.errors.push({
+            customerId: reminder.customerId,
+            shopId: reminder.shopId,
+            error: `Failed to persist lastReminderSentAt: ${error instanceof Error ? error.message : String(error)}`,
+          });
+        }
+      }
+    }
   }
 
   console.log(

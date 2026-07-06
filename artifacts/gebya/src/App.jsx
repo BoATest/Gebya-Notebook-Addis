@@ -668,6 +668,7 @@ function AppInner() {
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [customerTransactionModal, setCustomerTransactionModal] = useState(null);
   const [reminderTarget, setReminderTarget] = useState(null);
+  const [reminderDefaultChannel, setReminderDefaultChannel] = useState(null);
   // Bulk reminder · queue of customer ids to remind in sequence
   const [bulkReminderQueue, setBulkReminderQueue] = useState([]);
   // Edit a single customer_transaction · opens CustomerTransactionSheet pre-filled
@@ -3052,6 +3053,7 @@ function AppInner() {
                     onOpenTelegramConnect={() => setTelegramConnectCustomerId(selectedCustomer.id)}
                     onResendTelegramUpdate={() => handleResendCustomerTelegramUpdate(selectedCustomer)}
                     onRemind={(c) => setReminderTarget(c)}
+                    onSmsCustomer={(c) => { setReminderDefaultChannel('sms'); setReminderTarget(c); }}
                     onEditCustomer={(c) => setCustomerEditTarget(c)}
                     onSelectTransaction={(tx) => setSelectedTransaction(tx)}
                   />
@@ -3636,7 +3638,8 @@ function AppInner() {
             customer={reminderTarget}
             shopName={shopProfile?.name}
             shopProfile={shopProfile}
-            onClose={() => setReminderTarget(null)}
+            defaultChannel={reminderDefaultChannel}
+            onClose={() => { setReminderTarget(null); setReminderDefaultChannel(null); }}
             onSent={handleCustomerReminderSent}
           />
         </Suspense>
