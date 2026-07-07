@@ -1,3 +1,4 @@
+// @ts-ignore — web-push has no bundled types
 import webPush from "web-push";
 import { db } from "@workspace/db";
 import { pushSubscriptions } from "@workspace/db/schema";
