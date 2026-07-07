@@ -39,6 +39,8 @@ import {
   deriveLegacyFromChannels,
   normalizeChannelsForSave,
 } from './utils/paymentChannels';
+import { usePushNotifications } from './hooks/usePushNotifications';
+import { useNotificationsStore } from './stores/notificationsStore';
 
 const DEFAULT_PROVIDERS = {
   banks: [],
@@ -94,6 +96,7 @@ const importReportView = () => import('./components/ReportView');
 const importSettingsPage = () => import('./components/SettingsPage');
 const importDailySuggestions = () => import('./components/DailySuggestions');
 const importTransactionDetailSheet = () => import('./components/TransactionDetailSheet');
+const importNotificationsTab = () => import('./components/NotificationsTab');
 
 const TransactionForm = lazyWithRetry(importTransactionForm, 'TransactionForm');
 const EditTransactionSheet = lazyWithRetry(importEditTransactionSheet, 'EditTransactionSheet');
@@ -113,6 +116,7 @@ const ReportView = lazyWithRetry(importReportView, 'ReminderView');
 const SettingsPage = lazyWithRetry(importSettingsPage, 'SettingsPage');
 const DailySuggestions = lazyWithRetry(importDailySuggestions, 'DailySuggestions');
 const TransactionDetailSheet = lazyWithRetry(importTransactionDetailSheet, 'TransactionDetailSheet');
+const NotificationsTab = lazyWithRetry(importNotificationsTab, 'NotificationsTab');
 
 const P = {
   bg: 'var(--color-bg)',
@@ -646,6 +650,9 @@ function AppInner() {
   const { hidden } = usePrivacy();
   const { lang, toggleLang, t } = useLang();
   const pwa = usePwaInstall();
+  const pushNotifications = usePushNotifications();
+  const unreadNotifCount = useNotificationsStore(s => s.unreadCount);
+  const fetchUnreadNotifCount = useNotificationsStore(s => s.fetchUnreadCount);
   const syncConflictWarning = useSyncStore(s => s.conflictWarning);
   const syncConflictDetails = useSyncStore(s => s.conflictDetails);
   const [transactions, setTransactions] = useState([]);
@@ -1071,6 +1078,17 @@ function AppInner() {
     window.addEventListener('online', handleOnline);
     return () => window.removeEventListener('online', handleOnline);
   }, []);
+
+  // Poll unread notification count every 30s when app is visible
+  useEffect(() => {
+    fetchUnreadNotifCount();
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchUnreadNotifCount();
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchUnreadNotifCount]);
 
   const rememberSaleItemsInCatalog = async (sale) => {
     const items = Array.isArray(sale?.items) ? sale.items : [];
@@ -2731,6 +2749,7 @@ function AppInner() {
     credit:    { en: 'Credit',    am: 'ዱቤ' },
     history:   { en: 'Report',    am: 'ሪፖርት' },
     reminders: { en: 'Reminders', am: 'ማስታወሻ' },
+    notifications: { en: 'Alerts', am: 'ማስጠንቂ' },
     settings:  { en: 'More',      am: 'ተጨማሪ' },
   };
   // Tab IDs are UNCHANGED — only display labels and icons swap. activeTab logic stays intact.
@@ -2739,6 +2758,7 @@ function AppInner() {
     { id: 'credit',    label: TAB_LABELS.credit[lang],    icon: CreditCard },
     { id: 'history',   label: TAB_LABELS.history[lang],   icon: BarChart3 },
     { id: 'reminders', label: TAB_LABELS.reminders[lang], icon: Bell },
+    { id: 'notifications', label: TAB_LABELS.notifications[lang], icon: Bell },
     { id: 'settings',  label: TAB_LABELS.settings[lang],  icon: MoreHorizontal },
   ];
 
@@ -3199,6 +3219,12 @@ function AppInner() {
           </Suspense>
         )}
 
+        {activeTab === 'notifications' && (
+          <Suspense fallback={<PanelFallback label={t.loading} />}>
+            <NotificationsTab />
+          </Suspense>
+        )}
+
         {activeTab === 'settings' && (
           <Suspense fallback={<PanelFallback label={t.loading} />}>
             <SettingsPage
@@ -3458,6 +3484,19 @@ function AppInner() {
                       border: '1.5px solid #fff',
                     }}>
                       {creditMetrics.overdueCount}
+                    </span>
+                  )}
+                  {tab.id === 'notifications' && unreadNotifCount > 0 && (
+                    <span style={{
+                      position: 'absolute', top: -4, right: -8,
+                      minWidth: 16, height: 16, borderRadius: 999,
+                      background: '#1B4332', color: '#fff',
+                      fontSize: '0.55rem', fontWeight: 800,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '0 4px',
+                      border: '1.5px solid #fff',
+                    }}>
+                      {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
                     </span>
                   )}
                 </div>

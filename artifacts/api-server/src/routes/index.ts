@@ -9,6 +9,8 @@ import businessRouter from "./business.js";
 import remindersRouter from "./reminders.js";
 import identityRouter from "./identity.js";
 import auditRouter from "./audit.js";
+import pushSubscriptionsRouter from "./pushSubscriptions.js";
+import notificationsRouter from "./notifications.js";
 
 const router: IRouter = Router();
 
@@ -26,5 +28,9 @@ router.use("/telegram/reminders", remindersRouter);
 router.use("/", identityRouter);
 // Audit routes: owner violation log
 router.use("/audit", auditRouter);
+// Push notification subscription management
+router.use("/push", pushSubscriptionsRouter);
+// Notification list and read status
+router.use("/notifications", notificationsRouter);
 
 export default router;

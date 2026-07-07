@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { businesses, businessMembers, invites, users } from "@workspace/db/schema";
+import { businesses, businessMembers, invites, users, notifications } from "@workspace/db/schema";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { requireRole } from "../middlewares/requireRole.js";
 import { verifyJwt } from "./auth.js";
 import { requirePermission } from "./rbac.js";
 import { isTelegramBotConfigured, sendTelegramTextMessage } from "../services/telegramBotService.js";
+import { sendPushToOwner } from "../services/pushNotificationSender.js";
 
 const router = Router();
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://gebya.app";
@@ -188,6 +189,40 @@ router.post("/invites/:inviteId/accept", async (req, res) => {
   if (result.kind === 'declined') return res.status(410).json({ error: 'Invite already declined' });
   if (result.kind === 'expired') return res.status(410).json({ error: 'Invite has expired' });
   if (result.kind === 'different_business') return res.status(409).json({ error: 'You already belong to a different business' });
+
+  // Notify owner when a new staff member joins
+  if (result.kind === 'joined' && result.businessName) {
+    try {
+      const invRow = await db.select({ businessId: invites.businessId, staffName: invites.staffName })
+        .from(invites).where(eq(invites.id, inviteId)).limit(1);
+      if (invRow.length > 0) {
+        const ownerRows = await db
+          .select({ userId: businessMembers.userId })
+          .from(businessMembers)
+          .where(and(eq(businessMembers.businessId, invRow[0].businessId), eq(businessMembers.role, "owner"), eq(businessMembers.active, true)))
+          .limit(1);
+        const ownerUserId = ownerRows[0]?.userId;
+        if (ownerUserId) {
+          const staffName = invRow[0].staffName || "Staff";
+          const [createdNotif] = await db.insert(notifications).values({
+            businessId: invRow[0].businessId,
+            ownerUserId,
+            type: "staff_joined",
+            title: "Staff joined",
+            body: `${staffName} joined ${result.businessName} as ${result.role}`,
+            entityType: "staff_members",
+            entityId: String(inviteId),
+            actorName: staffName,
+            read: false,
+          }).returning({ id: notifications.id, type: notifications.type, title: notifications.title, body: notifications.body });
+          sendPushToOwner(invRow[0].businessId, { title: createdNotif.title, body: createdNotif.body, type: createdNotif.type, id: createdNotif.id }).catch(() => {});
+        }
+      }
+    } catch (notifErr) {
+      console.error("[business] notification creation failed:", notifErr);
+    }
+  }
+
   return res.json({ ok: true, joined: true, business_name: result.businessName });
 });
 

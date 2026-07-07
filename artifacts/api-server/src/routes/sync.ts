@@ -3,12 +3,13 @@ import { db } from "@workspace/db";
 import {
   transactions, customers, customerTransactions, catalogEntries,
   suppliers, supplierTransactions, staffMembers, settings, analytics,
-  devices, businessMembers, auditLog,
+  devices, businessMembers, auditLog, notifications,
 } from "@workspace/db/schema";
 import { eq, and, gt, inArray, asc, sql } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
 import { syncRateLimiter } from "../app.js";
 import { requirePermission } from "./rbac.js";
+import { sendPushToOwner } from "../services/pushNotificationSender.js";
 
 const MAX_ROWS_PER_TABLE_PUSH = 500;
 const DEFAULT_PULL_LIMIT = 200;
@@ -240,6 +241,65 @@ router.post("/push",
       details: `sync push via ${device_id}`,
     }));
     await db.insert(auditLog).values(auditRows as any);
+
+    // --- Create notifications for owner from financial + staff mutations ---
+    try {
+      const notifiableTypes: Record<string, { type: string; title: string }> = {
+        transactions: { type: "sale", title: "Sale recorded" },
+        customer_transactions: { type: "credit", title: "Credit activity" },
+        supplier_transactions: { type: "supplier_payment", title: "Supplier activity" },
+        staff_members: { type: "staff_joined", title: "Staff activity" },
+      };
+      const notifiable = allMutations.filter(
+        (m) => m.action === "CREATE" && notifiableTypes[m.entityType]
+      );
+      if (notifiable.length > 0) {
+        // Look up owner userId for this business
+        const ownerRows = await db
+          .select({ userId: businessMembers.userId })
+          .from(businessMembers)
+          .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.role, "owner"), eq(businessMembers.active, true)))
+          .limit(1);
+        const ownerUserId = ownerRows[0]?.userId;
+        if (ownerUserId && deviceResult.staffId) {
+          // Look up actor name from staff_members
+          const actorRows = await db
+            .select({ name: staffMembers.displayName })
+            .from(staffMembers)
+            .where(eq(staffMembers.id, deviceResult.staffId))
+            .limit(1);
+          const actorName = actorRows[0]?.name || "Staff";
+          const notifRows = notifiable.map((m) => {
+            const meta = notifiableTypes[m.entityType];
+            let body = `${actorName} recorded activity`;
+            if (m.entityType === "transactions") body = `${actorName} recorded a sale`;
+            else if (m.entityType === "customer_transactions") body = `${actorName} recorded credit activity`;
+            else if (m.entityType === "supplier_transactions") body = `${actorName} recorded supplier activity`;
+            else if (m.entityType === "staff_members") body = `${actorName} joined the shop`;
+            return {
+              businessId,
+              ownerUserId,
+              type: meta.type,
+              title: meta.title,
+              body,
+              entityType: m.entityType,
+              entityId: m.entityId,
+              actorName,
+              amount: null,
+              read: false,
+            };
+          });
+          const createdNotifs = await db.insert(notifications).values(notifRows as any).returning({ id: notifications.id, type: notifications.type, title: notifications.title, body: notifications.body });
+          // Send push for each notification (fire-and-forget)
+          for (const notif of createdNotifs) {
+            sendPushToOwner(businessId, { title: notif.title, body: notif.body, type: notif.type, id: notif.id }).catch(() => {});
+          }
+        }
+      }
+    } catch (notifErr) {
+      // Don't let notification failures break sync
+      console.error("[sync] notification creation failed:", notifErr);
+    }
   }
 
   const tableKeys = ["transactions", "customers", "customer_transactions", "catalog_entries", "suppliers", "supplier_transactions", "staff_members"];

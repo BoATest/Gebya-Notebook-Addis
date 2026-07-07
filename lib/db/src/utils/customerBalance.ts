@@ -9,7 +9,28 @@
 import { customers } from "../schema/customers.js";
 import { customerTransactions } from "../schema/customer_transactions.js";
 import { eq, sql, type SQL, type SQLWrapper } from "drizzle-orm";
-import type { EligibleCustomer } from "../../../../artifacts/api-server/src/types/reminders.js";
+
+// Inline EligibleCustomer to avoid circular dependency with api-server
+export interface EligibleCustomer {
+  customerId: number;
+  customerName: string;
+  balance: number;
+  dueDate: number | null;
+  customerCreatedAt: number;
+  chatId: string;
+  updatesEnabled: boolean;
+  telegramLanguage: "am" | "en";
+  reminderConfig: {
+    id: string;
+    shopId: number;
+    customerId: number;
+    frequency: "daily" | "weekly" | "disabled";
+    lastReminderSentAt: number | null;
+    enabled: boolean;
+    createdAt: number;
+    updatedAt: number;
+  };
+}
 
 /**
  * Raw balance row calculated from the transaction ledger.
