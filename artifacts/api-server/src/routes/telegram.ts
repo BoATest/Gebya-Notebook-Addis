@@ -17,33 +17,50 @@ import {
   sendTelegramTextMessage,
 } from "../services/telegramBotService.js";
 
-const router = Router();
-
 const linkSessionSchema = z.object({
-  token: z.string().min(6),
+  token: z.string(),
   customerId: z.union([z.string(), z.number()]),
-  customerName: z.string().min(1),
-  shopName: z.string().min(1),
+  customerName: z.string(),
+  shopName: z.string(),
   currentBalance: z.number().optional(),
   updatesEnabled: z.boolean().optional(),
 });
 
 const syncSchema = z.object({
-  token: z.string().min(6),
-  customerName: z.string().optional(),
-  shopName: z.string().optional(),
-  currentBalance: z.number().optional(),
-  updatesEnabled: z.boolean().optional(),
-  telegramUsername: z.string().nullable().optional(),
-  chatId: z.string().nullable().optional(),
+  token: z.string(),
+  customer_id: z.union([z.string(), z.number()]),
+  balance: z.number(),
+  last_transaction_at: z.number().optional(),
 });
 
 const sendSchema = z.object({
-  token: z.string().min(6),
+  token: z.string(),
+  chat_id: z.union([z.string(), z.number()]),
+  message: z.string(),
   currentBalance: z.number(),
-  message: z.string().min(1),
-  reference: z.string().min(1),
+  reference: z.string(),
 });
+
+const router = Router();
+
+// ─── secret verification ────────────────────────────────────────────────
+
+function verifyTelegramWebhookSecret(req: Request, res: Response, next: Function) {
+  const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+  if (!expectedSecret) {
+    console.error("[security] TELEGRAM_WEBHOOK_SECRET is not set — refusing unauthenticated Telegram webhook requests");
+    return res.status(500).json({
+      error: "Server misconfigured: TELEGRAM_WEBHOOK_SECRET environment variable is not set",
+    });
+  }
+
+  const receivedSecret = req.headers["x-telegram-bot-api-secret-token"] as string | undefined | null;
+  if (!receivedSecret || receivedSecret !== expectedSecret) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+
+  return next();
+}
 
 function getPublicApiBase(req: Request) {
   const configured = process.env.GEBYA_PUBLIC_API_BASE_URL?.trim();
@@ -430,7 +447,9 @@ router.get("/link-sessions/:token", async (req: Request, res: Response) => {
   });
 });
 
-router.post("/customers/sync", async (req: Request, res: Response) => {
+router.post("/customers/sync",
+  verifyTelegramWebhookSecret,
+  async (req: Request, res: Response) => {
   const parsed = syncSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: "Invalid sync payload" });
