@@ -47,7 +47,7 @@ export default function AdminMetricsView({ shopId }) {
     { label: lang === 'am' ? '\u1233\u1228\u129B \u1230\u1276\u128A\u1276 (\u1265\u122A)' : 'Total expenses (birr)', value: `${fmtBirr(metrics.total_expenses_birr)} ETB` },
     { label: lang === 'am' ? '\u12AE\u1273\u1295 \u1230\u1276\u128A\u1276 (\u1265\u122A)' : 'Credit extended (birr)', value: `${fmtBirr(metrics.total_credit_extended_birr)} ETB` },
     { label: lang === 'am' ? '\u12AE\u1273\u1295 \u122A\u1275\u129B (\u1265\u122A)' : 'Credit repaid (birr)', value: `${fmtBirr(metrics.total_credit_repaid_birr)} ETB` },
-    { label: lang === 'am' ? '\u12AE\u1273\u1295 \u122A\u1275\u129B \u��ንveau' : 'Credit recovery rate', value: `${metrics.credit_recovery_rate}%` },
+    { label: lang === 'am' ? '\u12AE\u1273\u1295 \u122A\u1275\u129B \u1270\u12A8\u1295\u1295' : 'Credit recovery rate', value: `${metrics.credit_recovery_rate}%` },
     { label: lang === 'am' ? '\u12E8\u121A\u130D\u1295\u1233\u1295\u1289' : 'Unique customers', value: metrics.unique_customers },
     { label: lang === 'am' ? '\u1245\u1295\u1297\u1287\u1293 \u1270\u1268\u1276\u1295\u1233' : 'Active staff', value: metrics.active_staff },
   ];
