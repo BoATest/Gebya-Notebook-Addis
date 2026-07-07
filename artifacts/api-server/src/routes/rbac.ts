@@ -124,3 +124,39 @@ export function requireShopMatch(paramName = "shop_id") {
     next();
   };
 }
+
+/**
+ * Verify the shopId from body / query / x-shop-id header matches the
+ * authenticated user's businessId.  If req.deviceContext is already set
+ * (e.g. by requirePermission) it is used directly; otherwise the function
+ * calls requireDeviceContext to authenticate on-the-fly.
+ */
+export async function verifyShopOwnership(req: Request, res: Response, next: NextFunction): Promise<void> {
+  let ctx = (req as any).deviceContext as DeviceContext | undefined;
+
+  if (!ctx) {
+    ctx = await requireDeviceContext(req);
+    if (!ctx) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+  }
+
+  const shopId =
+    Number(req.body?.shopId) ||
+    Number(req.query?.shopId) ||
+    Number(req.headers?.["x-shop-id"]) ||
+    0;
+
+  if (!Number.isInteger(shopId) || shopId <= 0) {
+    res.status(400).json({ error: "Missing or invalid shopId" });
+    return;
+  }
+
+  if (shopId !== ctx.businessId) {
+    res.status(403).json({ error: "Forbidden: not authorized for this shop" });
+    return;
+  }
+
+  next();
+}

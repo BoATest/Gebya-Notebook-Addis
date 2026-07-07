@@ -233,6 +233,47 @@ export async function setCustomerFrequency(
 }
 
 /**
+ * Update the lastReminderSentAt timestamp for a customer.
+ * Creates a per-customer config if none exists, inheriting the shop default frequency.
+ */
+export async function setLastReminderSentAt(
+  shopId: number,
+  customerId: number,
+  sentAt: number
+): Promise<void> {
+  try {
+    validateId(shopId, 'shopId');
+    validateId(customerId, 'customerId');
+
+    const key = configKey(shopId, customerId);
+    const existing = await readConfig(key);
+
+    let frequency: ReminderFrequency;
+    if (existing) {
+      frequency = existing.frequency;
+    } else {
+      frequency = await getShopDefault(shopId);
+    }
+
+    const config: ReminderConfiguration = {
+      id: existing?.id ?? `${shopId}-${customerId}-${Date.now()}`,
+      shopId,
+      customerId,
+      frequency,
+      lastReminderSentAt: sentAt,
+      enabled: existing?.enabled ?? true,
+      createdAt: existing?.createdAt ?? Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    await writeConfig(key, config);
+  } catch (error) {
+    console.error(`[ReminderConfig] Error setting lastReminderSentAt for shop ${shopId}, customer ${customerId}: ${error}`);
+    throw new Error(`Failed to set lastReminderSentAt: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
  * Check if reminders are enabled for a customer
  * Returns false if frequency is 'disabled', true otherwise
  */
