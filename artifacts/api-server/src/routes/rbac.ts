@@ -132,7 +132,7 @@ export function requireShopMatch(paramName = "shop_id") {
  * calls requireDeviceContext to authenticate on-the-fly.
  */
 export async function verifyShopOwnership(req: Request, res: Response, next: NextFunction): Promise<void> {
-  let ctx = (req as any).deviceContext as DeviceContext | undefined;
+  let ctx = (req as any).deviceContext as DeviceContext | null;
 
   if (!ctx) {
     ctx = await requireDeviceContext(req);
