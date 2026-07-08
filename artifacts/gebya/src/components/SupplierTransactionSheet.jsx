@@ -11,8 +11,9 @@ import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { SUPPLIER_TRANSACTION_TYPES, isValidSupplierTransactionType } from '../utils/supplierLedger';
 import { useLang } from '../context/LangContext';
 import { photoSizeBytes } from '../utils/photoCapture';
-import { buildPhotoFields, createPhotoProof, MAX_PROOF_PHOTOS, normalizePhotos } from '../utils/photoProof';
+import { buildPhotoFields, createPhotoProof, normalizePhotos } from '../utils/photoProof';
 import CameraCapture from './CameraCapture';
+import InlineDatePicker from './InlineDatePicker';
 
 function handleNumericInput(e, setter) {
   let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
@@ -38,7 +39,14 @@ function SupplierTransactionSheet({
     return initialAmount != null && initialAmount > 0 ? String(initialAmount) : '';
   });
   const [itemName, setItemName] = useState(editing ? (editingTransaction.item_name || '') : '');
+  const [note, setNote] = useState(() => (editing ? (editingTransaction.note || '') : ''));
   const [saving, setSaving] = useState(false);
+  const [dueDate, setDueDate] = useState(() => {
+    if (editing && editingTransaction.due_date) {
+      return new Date(editingTransaction.due_date).toISOString().slice(0, 10);
+    }
+    return new Date().toISOString().slice(0, 10);
+  });
   // Product proof photos for purchases (base64 JPEG data URLs, max 3)
   const [photos, setPhotos] = useState(() => (editing ? normalizePhotos(editingTransaction) : []));
   const [photoError, setPhotoError] = useState(null);
@@ -108,7 +116,7 @@ function SupplierTransactionSheet({
     if (replacePhotoId) {
       setPhotos(prev => prev.map(entry => (entry.id === replacePhotoId ? proof : entry)));
     } else {
-      setPhotos(prev => [...prev, proof].slice(0, MAX_PROOF_PHOTOS));
+      setPhotos(prev => [...prev, proof]);
     }
     setReplacePhotoId(null);
     setShowCamera(false);
@@ -116,7 +124,6 @@ function SupplierTransactionSheet({
   };
 
   const openPhotoCapture = (photoId = null) => {
-    if (!photoId && photos.length >= MAX_PROOF_PHOTOS) return;
     setReplacePhotoId(photoId);
     setShowCamera(true);
   };
@@ -136,6 +143,8 @@ function SupplierTransactionSheet({
         type: transactionType,
         amount: parsedAmount,
         item_name: itemName.trim() || null,
+        note: note.trim() || null,
+        due_date: !isPayment && dueDate ? new Date(dueDate).getTime() : null,
         // Product proof photos (purchase only - payments stay photo-free)
         ...(!isPayment ? buildPhotoFields(photos) : { photos: [], photo: null, photo_taken_at: null }),
         // Payment method — only for payment mode
@@ -287,6 +296,21 @@ function SupplierTransactionSheet({
               {lang === 'am' ? 'ከዱቤ በላይ ነው' : 'Payment exceeds what is owed'}
             </p>
           )}
+
+          {/* Note (optional) — available for both payment and purchase */}
+          <div className="mt-3">
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'መልእክት (አማራጭ)' : 'Note (optional)'}
+            </label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder={lang === 'am' ? 'ለምሳሌ የትንዳገብ ወቅታዊ ሁኔታ' : 'e.g. current stock status'}
+              rows={2}
+              className="w-full p-3 border-2 focus:outline-none text-base resize-none"
+              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+            />
+          </div>
         </div>
 
         {/* Item / note + product photo (only for purchases — Commit D) */}
@@ -308,14 +332,14 @@ function SupplierTransactionSheet({
               <button
                 type="button"
                 onClick={() => openPhotoCapture(null)}
-                disabled={photos.length >= MAX_PROOF_PHOTOS || photoLoading}
+                disabled={photoLoading}
                 className="flex items-center justify-center press-scale cursor-pointer"
                 style={{
                   width: 56, height: 56,
                   borderRadius: 'var(--radius-md)',
                   border: '2px solid #e8e2d8',
                   background: photos.length > 0 ? '#f0fdf4' : '#fef2f2',
-                  opacity: photos.length >= MAX_PROOF_PHOTOS ? 0.55 : 1,
+                  opacity: photos.length > 0 ? 0.55 : 1,
                   flexShrink: 0,
                   position: 'relative',
                   padding: 0,
@@ -336,7 +360,7 @@ function SupplierTransactionSheet({
                     height: 20,
                     padding: '0 5px',
                     borderRadius: 999,
-                    background: photos.length >= MAX_PROOF_PHOTOS ? '#6b7280' : accentColor,
+                     background: accentColor,
                     color: '#fff',
                     border: '2px solid #fff',
                     fontSize: 10,
@@ -345,7 +369,7 @@ function SupplierTransactionSheet({
                     textAlign: 'center',
                   }}
                 >
-                  {photos.length >= MAX_PROOF_PHOTOS ? '0' : `+${MAX_PROOF_PHOTOS - photos.length}`}
+                  +1
                 </span>
               </button>
             </div>
@@ -356,7 +380,7 @@ function SupplierTransactionSheet({
                     {lang === 'am' ? '\u134E\u1276' : 'Proof photos'}
                   </p>
                   <p className="text-[10px] font-bold" style={{ color: '#6b7280' }}>
-                    {photos.length}/{MAX_PROOF_PHOTOS}
+                     {photos.length} {lang === 'am' ? 'ፎቶዎች' : 'photos'}
                   </p>
                 </div>
                 <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
@@ -400,6 +424,18 @@ function SupplierTransactionSheet({
             {photoError && (
               <p style={{ fontSize: '0.7rem', color: '#dc2626', marginTop: 4 }}>{photoError}</p>
             )}
+
+            {/* Due date — inline Gregorian picker (purchase only) */}
+            <div className="mt-3">
+              <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+                {lang === 'am' ? 'ቀን / የሚያሳስብ ቀን' : 'Due date (optional)'}
+              </label>
+              <InlineDatePicker
+                value={dueDate}
+                onChange={(iso) => setDueDate(iso)}
+                lang={lang}
+              />
+            </div>
           </div>
         )}
       </div>

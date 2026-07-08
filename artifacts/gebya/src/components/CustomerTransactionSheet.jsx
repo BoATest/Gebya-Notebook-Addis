@@ -16,7 +16,7 @@ import { getDueDateOptions } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from '../utils/customerTransactionTypes';
 import { useLang } from '../context/LangContext';
 import { photoSizeBytes } from '../utils/photoCapture';
-import { buildPhotoFields, createPhotoProof, MAX_PROOF_PHOTOS, normalizePhotos } from '../utils/photoProof';
+import { buildPhotoFields, createPhotoProof, normalizePhotos } from '../utils/photoProof';
 
 function handleNumericInput(e, setter) {
   let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
@@ -101,7 +101,7 @@ function CustomerTransactionSheet({
     if (replacePhotoId) {
       setPhotos(prev => prev.map(entry => (entry.id === replacePhotoId ? proof : entry)));
     } else {
-      setPhotos(prev => [...prev, proof].slice(0, MAX_PROOF_PHOTOS));
+      setPhotos(prev => [...prev, proof]);
     }
     setReplacePhotoId(null);
     setShowCamera(false);
@@ -109,7 +109,6 @@ function CustomerTransactionSheet({
   };
 
   const openPhotoCapture = (photoId = null) => {
-    if (!photoId && photos.length >= MAX_PROOF_PHOTOS) return;
     setReplacePhotoId(photoId);
     setShowCamera(true);
   };
@@ -494,14 +493,14 @@ function CustomerTransactionSheet({
               <button
                 type="button"
                 onClick={() => openPhotoCapture(null)}
-                disabled={photos.length >= MAX_PROOF_PHOTOS || photoLoading}
+                disabled={photoLoading}
                 className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
                 style={{
                   width: 56,
                   border: '2px solid #e8e2d8',
                   borderRadius: 'var(--radius-md)',
                   background: photos.length > 0 ? '#f0fdf4' : '#fafaf6',
-                  opacity: photos.length >= MAX_PROOF_PHOTOS ? 0.55 : 1,
+                  opacity: photos.length > 0 ? 0.55 : 1,
                   position: 'relative',
                 }}
                 aria-label={lang === 'am' ? '\u134E\u1276 \u12EB\u1295\u1231 \u12C8\u12ED\u121D \u12ED\u121D\u1228\u1321' : 'Take or choose photo'}
@@ -520,7 +519,7 @@ function CustomerTransactionSheet({
                     height: 20,
                     padding: '0 5px',
                     borderRadius: 999,
-                    background: photos.length >= MAX_PROOF_PHOTOS ? '#6b7280' : accentColor,
+                     background: accentColor,
                     color: '#fff',
                     border: '2px solid #fff',
                     fontSize: 10,
@@ -529,7 +528,7 @@ function CustomerTransactionSheet({
                     textAlign: 'center',
                   }}
                 >
-                  {photos.length >= MAX_PROOF_PHOTOS ? '0' : `+${MAX_PROOF_PHOTOS - photos.length}`}
+                  +1
                 </span>
               </button>
             )}
@@ -544,7 +543,7 @@ function CustomerTransactionSheet({
                   {lang === 'am' ? '\u134E\u1276' : 'Proof photos'}
                 </p>
                 <p className="text-[10px] font-bold" style={{ color: '#6b7280' }}>
-                  {photos.length}/{MAX_PROOF_PHOTOS}
+                  {photos.length} {lang === 'am' ? 'ፎቶዎች' : 'photos'}
                 </p>
               </div>
               <div className="flex gap-2 mt-2 overflow-x-auto pb-1">

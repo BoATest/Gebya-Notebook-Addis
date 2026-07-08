@@ -1,4 +1,4 @@
-export const MAX_PROOF_PHOTOS = 3;
+// Photo limit removed - users can upload unlimited photos
 
 export function createPhotoProof(dataUrl, takenAt = Date.now()) {
   if (!dataUrl) return null;
@@ -28,8 +28,7 @@ export function normalizePhotos(input) {
         taken_at: entry.taken_at || null,
       };
     })
-    .filter(Boolean)
-    .slice(0, MAX_PROOF_PHOTOS);
+    .filter(Boolean);
 
   if (photos.length > 0) return photos;
 
@@ -54,5 +53,5 @@ export function buildPhotoFields(photosInput) {
 }
 
 export function canAddPhoto(photosInput) {
-  return normalizePhotos(photosInput).length < MAX_PROOF_PHOTOS;
+  return normalizePhotos(photosInput).length < Infinity;
 }

@@ -5,7 +5,7 @@ import PaymentTypeChips from './PaymentTypeChips';
 import { getDueDateOptions } from '../utils/ethiopianCalendar';
 import { fmt, fmtInput } from '../utils/numformat';
 import { compressPhoto, photoSizeBytes } from '../utils/photoCapture';
-import { buildPhotoFields, createPhotoProof, MAX_PROOF_PHOTOS, normalizePhotos } from '../utils/photoProof';
+import { buildPhotoFields, createPhotoProof, normalizePhotos } from '../utils/photoProof';
 
 function handleNumericInput(e, setter) {
   let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
@@ -108,7 +108,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
           setPhotos(prev => prev.map(entry => (entry.id === replacePhotoId ? replacement : entry)));
         }
       } else {
-        setPhotos(prev => [...prev, ...cleanPhotos].slice(0, MAX_PROOF_PHOTOS));
+        setPhotos(prev => [...prev, ...cleanPhotos]);
       }
       setPhotoChanged(true);
     } catch (err) {
@@ -333,7 +333,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                     border: '2px solid #e8e2d8',
                     borderRadius: 'var(--radius-md)',
                     background: photos.length > 0 ? '#f0fdf4' : '#fafaf6',
-                    opacity: photos.length >= MAX_PROOF_PHOTOS ? 0.55 : 1,
+                     opacity: photos.length > 0 ? 0.55 : 1,
                     position: 'relative',
                   }}
                   aria-label={lang === 'am' ? '\u134E\u1276 \u12EB\u1295\u1231 \u12C8\u12ED\u121D \u12ED\u121D\u1228\u1321' : 'Take or choose photo'}
@@ -345,7 +345,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                     multiple
                     onChange={handlePhotoCapture}
                     className="hidden"
-                    disabled={photoLoading || photos.length >= MAX_PROOF_PHOTOS}
+                     disabled={photoLoading}
                   />
                   {photoLoading
                     ? <span className="text-sm">...</span>
@@ -361,7 +361,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                       height: 20,
                       padding: '0 5px',
                       borderRadius: 999,
-                      background: photos.length >= MAX_PROOF_PHOTOS ? '#6b7280' : accent.btn,
+                       background: accent.btn,
                       color: '#fff',
                       border: '2px solid #fff',
                       fontSize: 10,
@@ -370,7 +370,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                       textAlign: 'center',
                     }}
                   >
-                    {photos.length >= MAX_PROOF_PHOTOS ? '0' : `+${MAX_PROOF_PHOTOS - photos.length}`}
+                     +1
                   </span>
                 </label>
               )}
@@ -390,7 +390,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                     {lang === 'am' ? '\u134E\u1276' : 'Proof photos'}
                   </p>
                   <p className="text-[10px] font-bold" style={{ color: '#6b7280' }}>
-                    {photos.length}/{MAX_PROOF_PHOTOS}
+                    {photos.length} {lang === 'am' ? 'ፎቶዎች' : 'photos'}
                   </p>
                 </div>
                 <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
