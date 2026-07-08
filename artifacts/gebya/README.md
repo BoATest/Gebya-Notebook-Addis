@@ -155,3 +155,14 @@ The smallest repo fix would be to:
 4. rerun the Gebya build on Windows
 
 That is intentionally out of scope for the current beta path.
+
+## Next step: Field test with real shop owners
+
+The code is done. The next move is putting it in front of 5-10 real shop owners.
+
+See `FIELD_TEST_PROTOCOL.md` for the complete testing guide, including:
+- Who to pick (5-10 shops with specific criteria)
+- What to say when handing them the phone
+- What to watch for in week 1 (without biasing them)
+- The willingness-to-pay test at end of week 2
+- Success metrics and failure modes
