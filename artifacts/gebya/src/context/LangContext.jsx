@@ -352,10 +352,7 @@ const EN = {
   payMethodMobile: 'Mobile Money',
   paymentExceedsOwed: 'Amount cannot exceed what is owed',
 
-  voiceNotSupported: 'Voice not supported - use keyboard',
-  voiceInput: 'Voice input',
   tryAgain: 'Try again',
-  voiceMicBlocked: 'Microphone is blocked. Check browser settings.',
 
   close: 'Close',
 
@@ -768,10 +765,7 @@ const AM = {
   payMethodMobile: 'áˆžá‰£á‹­áˆ áŒˆáŠ•á‹˜á‰¥',
   paymentExceedsOwed: 'áˆ˜áŒ áŠ‘ áŠ¨áˆšáŒˆá‰£á‹ áˆ˜áŒ áŠ• áˆŠá‰ áˆáŒ¥ áŠ á‹­á‰½áˆáˆ',
 
-  voiceNotSupported: 'á‹µáˆáŒ½ áŠ á‹­á‹°áŒˆááˆ â€” á‹¨á‰áˆá áˆ°áˆŒá‹³ á‹­áŒ á‰€áˆ™',
-  voiceInput: 'á‹µáˆáŒ½',
-  tryAgain: 'áŠ¥áŠ•á‹°áŒˆáŠ“ áˆžáŠ­áˆ­',
-  voiceMicBlocked: 'áˆ›á‹­áŠ­áˆ®áŽáŠ‘ á‰³áŒá‹·áˆá¢ á‹¨áŠ áˆ³áˆ½ á‰…áŠ•á‰¥áˆ®á‰½áŠ• á‹­áˆ˜áˆáŠ¨á‰±á¢',
+  tryAgain: 'áŠ¥áŠ•á‹°áŒˆáŠ" áˆžáŠ­áˆ­',
 
   close: 'á‹áŒ‹',
 

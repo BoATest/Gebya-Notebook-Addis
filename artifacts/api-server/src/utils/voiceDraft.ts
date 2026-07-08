@@ -333,35 +333,6 @@ function extractExplicitTotal(text: string): number | null {
   return match ? parseNumber(match[1]) : null;
 }
 
-export function buildTranscriptionPrompt(context?: VoiceContext): string {
-  const parts = [
-    "Amharic and English mixed retail speech.",
-  ];
-
-  if (context?.business_type) {
-    parts.push(`Business type: ${context.business_type}.`);
-  }
-  if (context?.common_items?.length) {
-    parts.push(`Common items: ${context.common_items.slice(0, 12).join(", ")}.`);
-  }
-  if (context?.recent_customers?.length) {
-    parts.push(`Recent customers: ${context.recent_customers.slice(0, 10).join(", ")}.`);
-  }
-  if (context?.payment_providers?.length) {
-    parts.push(`Common payment providers: ${context.payment_providers.slice(0, 8).join(", ")}.`);
-  }
-  if (context?.customer_item_patterns && Object.keys(context.customer_item_patterns).length > 0) {
-    const summaries = Object.entries(context.customer_item_patterns)
-      .slice(0, 5)
-      .map(([customer, items]) => `${customer}: ${items.slice(0, 2).join(", ")}`);
-    if (summaries.length) {
-      parts.push(`Frequent customer-item patterns: ${summaries.join(" | ")}.`);
-    }
-  }
-
-  return parts.join(" ");
-}
-
 export function parseDraft(transcript: string, context?: VoiceContext): ParsedDraft {
   const normalized = normalizeTranscript(transcript);
   const intent = detectIntent(normalized);
