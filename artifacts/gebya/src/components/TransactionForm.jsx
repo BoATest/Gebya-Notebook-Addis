@@ -1412,10 +1412,9 @@ try {
           )}
         </div>
 
-         {/* Multi-item breakdown (sale/expense only) */}
-         {!isCredit && (
-           {!isExpense && (
-             <div>
+         {/* Multi-item breakdown (sale only) */}
+          {!isCredit && !isExpense && (
+            <div>
             <button
               type="button"
               onClick={() => setShowBreakdown(v => !v)}
@@ -2051,9 +2050,8 @@ try {
 
 
          {/* More options toggle (sale/expense) Ã¢â‚¬â€ collapses quantity + cost price */}
-         {!isCredit && (
-           {!isExpense && (
-             <div>
+          {!isCredit && !isExpense && (
+            <div>
             <button
               type="button"
               onClick={() => setShowAdvanced(v => !v)}
