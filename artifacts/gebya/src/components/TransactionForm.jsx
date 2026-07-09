@@ -280,6 +280,7 @@ function TransactionForm({
   const breakdownDelta = sellingPrice - lineItemsTotal; // +ve: items < total, -ve: items > total
 
   // Credit payment handling
+  const effectiveSellingPrice = type === 'sale' ? saleFinalAmount : sellingPrice;
   const creditAmount = !isCredit && paymentType === 'credit' ? effectiveSellingPrice : 0;
   const saleItemDraft = useMemo(
     () => parseItemDraft(saleItemInput, activeCatalogItems),
@@ -328,8 +329,6 @@ function TransactionForm({
   const activeSalePayment = salePaymentOptions.find(option => option.id === selectedSalePaymentId) || salePaymentOptions[0];
   const isCreditSale = paymentType === 'credit';
 
-  const effectiveSellingPrice = type === 'sale' ? saleFinalAmount : sellingPrice;
-
   // Item is OPTIONAL for sale/expense; REQUIRED (as customer name) for credit
   // For Credit payment mode, a customer is required.
    const canSave =
@@ -375,17 +374,12 @@ function TransactionForm({
     setSaleItems([{ id: 'new-0', name: '', code: '', amount: '', qty: '1', unit_price: '', line_total: '', catalog_entry_id: null, item_kind: 'item', photo_uri: null }]);
     setPhotos([]);
     setPhoneDigits('');
-    setPhoneEntered('');
-    setPhoneValid(false);
     setSelectedDue(null);
     setCustomDue('');
-    setItemNote('');
     setCatalogEntryId('');
     setShowBreakdown(false);
     setPhotoError(null);
     setPhotoLoading(false);
-    setReplacePhotoId(null);
-    setShowCamera(false);
     if (onDone) onDone();
   };
 
@@ -1634,11 +1628,10 @@ try {
                 )}
                </div>
              )}
-           </div>
-         )}
-       )}
-         
-         {/* ITEM / NAME + photo button (inline on same row, larger photo tap target) */}
+            </div>
+          )}
+
+          {/* ITEM / NAME + photo button (inline on same row, larger photo tap target) */}
         {/* When breakdown has items, this becomes an optional note since items provide their own names */}
         <div>
           <label className="block text-[10px] font-bold tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
@@ -2181,11 +2174,8 @@ try {
                   })()}
                 </div>
                </div>
-             )}
-           </div>
-         )}
-       )}
-       </div>
+              )}
+          )}
        
        {/* Sticky save button Ã‚Â· with a clear hint when something blocks saving.
            Surfaces "what's missing" so the user doesn't have to guess. */}
