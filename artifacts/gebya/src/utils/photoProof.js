@@ -1,4 +1,5 @@
 // Photo limit removed - users can upload unlimited photos
+export const MAX_PROOF_PHOTOS = Infinity;
 
 export function createPhotoProof(dataUrl, takenAt = Date.now()) {
   if (!dataUrl) return null;

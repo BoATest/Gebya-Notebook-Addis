@@ -97,6 +97,7 @@ const importSettingsPage = () => import('./components/SettingsPage');
 const importDailySuggestions = () => import('./components/DailySuggestions');
 const importTransactionDetailSheet = () => import('./components/TransactionDetailSheet');
 const importNotificationsTab = () => import('./components/NotificationsTab');
+const importItemizedSaleView = () => import('./components/smartSale/ItemizedSaleView');
 
 const TransactionForm = lazyWithRetry(importTransactionForm, 'TransactionForm');
 const EditTransactionSheet = lazyWithRetry(importEditTransactionSheet, 'EditTransactionSheet');
@@ -117,6 +118,7 @@ const SettingsPage = lazyWithRetry(importSettingsPage, 'SettingsPage');
 const DailySuggestions = lazyWithRetry(importDailySuggestions, 'DailySuggestions');
 const TransactionDetailSheet = lazyWithRetry(importTransactionDetailSheet, 'TransactionDetailSheet');
 const NotificationsTab = lazyWithRetry(importNotificationsTab, 'NotificationsTab');
+const ItemizedSaleView = lazyWithRetry(importItemizedSaleView, 'ItemizedSaleView');
 
 const P = {
   bg: 'var(--color-bg)',
@@ -670,6 +672,7 @@ function AppInner() {
   const [lastBackupAt, setLastBackupAt] = useState(undefined); // undefined = not loaded yet
   const [backupNudgeDismissed, setBackupNudgeDismissed] = useState(false);
   const [showForm, setShowForm] = useState(null);
+  const [showItemizedSale, setShowItemizedSale] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   const [telegramConnectCustomerId, setTelegramConnectCustomerId] = useState(null);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
@@ -3305,47 +3308,10 @@ function AppInner() {
           <div className="flex gap-1.5 sm:gap-2">
             {[
               { type: 'sale',    label: lang === 'am' ? 'ሽያጭ' : 'Sale',    color: '#16a34a', icon: Plus    },
+              { type: 'itemized', label: lang === 'am' ? 'አtems' : 'Items', color: '#C4883A', icon: Plus },
               { type: 'expense', label: lang === 'am' ? 'ወጪ'  : 'Expense', color: '#dc2626', icon: Minus   },
               { type: 'credit',  label: lang === 'am' ? 'ዱቤ'  : 'Credit',  color: '#2563eb', icon: RotateCw },
-              ...(todaySales.length > 0 ? [{
-                type: 'repeat',
-                label: lang === 'am' ? 'ድገም' : 'Repeat',
-                color: '#C4883A',
-                icon: RotateCw,
-              }] : []),
             ].map(b => {
-              if (b.type === 'repeat') {
-                const lastSale = todaySales[0];
-                return (
-                  <button
-                    key="repeat"
-                    onClick={() => {
-                      setShowForm('sale');
-                      // Pre-fill with last sale's amount and item
-                      setTimeout(() => {
-                        const event = new CustomEvent('gebya:repeat-sale', {
-                          detail: {
-                            amount: lastSale?.amount,
-                            item_name: lastSale?.item_name,
-                            payment_type: lastSale?.payment_type,
-                            payment_provider: lastSale?.payment_provider,
-                          },
-                        });
-                        window.dispatchEvent(event);
-                      }, 100);
-                    }}
-                    className="flex-1 py-2.5 sm:py-3 min-h-[44px] sm:min-h-[48px] flex items-center justify-center gap-1.5 sm:gap-2 transition-all min-w-0"
-                    style={{
-                      background: '#ffffff',
-                      border: '1.5px solid #C4883A',
-                      borderRadius: 'var(--radius-md)',
-                    }}
-                  >
-                    <RotateCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: '#C4883A', strokeWidth: 2.5 }} />
-                    <span className="font-bold text-xs sm:text-sm truncate" style={{ color: '#C4883A' }}>{b.label}</span>
-                  </button>
-                );
-              }
               const pressed = pressedBtn === b.type;
               const Icon = b.icon;
               return (
@@ -3354,11 +3320,13 @@ function AppInner() {
                   onClick={() => {
                     if (b.type === 'credit') {
                       setActiveTab('credit');
-                      // First-time onboarding: auto-open add-customer form only if list is empty.
-                      // Otherwise the user almost always wants to add credit to an existing customer.
                       if (!customerSummaries || customerSummaries.length === 0) {
                         setShowCustomerForm(true);
                       }
+                      return;
+                    }
+                    if (b.type === 'itemized') {
+                      setShowItemizedSale(true);
                       return;
                     }
                     setShowForm(b.type);
@@ -3558,6 +3526,21 @@ function AppInner() {
               bank:   lastPayment[showForm]?.bankProvider   || '',
               wallet: lastPayment[showForm]?.walletProvider || '',
             } : undefined}
+          />
+        </Suspense>
+      )}
+
+      {showItemizedSale && (
+        <Suspense fallback={<ModalFallback label={t.loading} />}>
+          <ItemizedSaleView
+            onSave={handleAddTransaction}
+            onDone={() => setShowItemizedSale(false)}
+            actorLabel={currentActorLabel}
+            enabledProviders={enabledProviders}
+            catalogEntries={activeCatalogEntries}
+            onSaveCatalogEntry={handleSaveCatalogEntry}
+            customers={customerSummaries}
+            transactions={todaySales}
           />
         </Suspense>
       )}
