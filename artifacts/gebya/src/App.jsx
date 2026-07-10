@@ -205,6 +205,7 @@ function OfflineStatusStrip({
   conflictWarning = null,
   conflictDetails = [],
 }) {
+  const { t } = useLang();
   let tone = null;
   let label = '';
   let detail = '';
@@ -212,11 +213,11 @@ function OfflineStatusStrip({
 
   if (!pwa?.isOnline) {
     tone = 'offline';
-    label = lang === 'am' ? 'ኔትወርክ የለም' : 'Offline';
-    detail = lang === 'am' ? 'በዚህ ስልክ ይቀመጣል' : 'saves on this phone';
+    label = t.offlineLabel;
+    detail = t.offlineDetail;
   } else if (pendingTelegramCount > 0) {
     tone = 'waiting';
-    label = lang === 'am' ? 'ቴሌግራም ይጠብቃል' : 'Telegram waiting';
+    label = t.telegramWaiting;
     detail = `${pendingTelegramCount}`;
     if (typeof onRetryTelegram === 'function') {
       action = (
@@ -238,14 +239,14 @@ function OfflineStatusStrip({
             cursor: retryingTelegram ? 'wait' : 'pointer',
           }}
         >
-          {retryingTelegram ? '...' : (lang === 'am' ? 'እንደገና' : 'Retry')}
+          {retryingTelegram ? '...' : t.telegramRetry}
         </button>
       );
     }
   } else if (pwa?.updateReady) {
     tone = 'update';
-    label = lang === 'am' ? 'አዲስ ስሪት ዝግጁ ነው' : 'Update ready';
-    detail = lang === 'am' ? 'ለማደስ ይጫኑ' : 'tap to refresh';
+    label = t.updateReady;
+    detail = t.updateTapRefresh;
     action = (
       <button
         type="button"
@@ -262,13 +263,13 @@ function OfflineStatusStrip({
           fontWeight: 800,
         }}
       >
-        {lang === 'am' ? 'አድስ' : 'Update'}
+        {t.updateButton}
       </button>
     );
   } else if (pwa?.offlineReady) {
     tone = 'ready';
-    label = lang === 'am' ? 'ከመስመር ውጭ ዝግጁ' : 'Offline ready';
-    detail = lang === 'am' ? 'ያለ ኢንተርኔት ይሰራል' : 'works without internet';
+    label = t.offlineReadyStatus;
+    detail = t.offlineReadyDetail;
   }
 
   if (conflictWarning) {
@@ -290,7 +291,7 @@ function OfflineStatusStrip({
         style={{ minHeight: 36, padding: '7px 9px', borderRadius: 8, background: '#fffbeb', border: '1px solid #fcd34d', color: '#92400e', fontSize: 12, fontWeight: 800 }}
       >
         <span className="truncate">
-          ⚠️ {lang === 'am' ? 'ሁከት ተፈጠረ' : 'Sync conflict'} · {conflictWarning}
+          ⚠️ {t.syncConflict} · {conflictWarning}
         </span>
         {detailLines.length > 0 && (
           <span style={{ fontWeight: 600, fontSize: 11, opacity: 0.85 }}>
@@ -533,13 +534,13 @@ function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
   const amountColor = isExpense ? '#dc2626' : isCredit ? '#2563eb' : '#16a34a';
   const sign = isExpense ? '−' : '+';
   const method = isCredit
-    ? (lang === 'am' ? 'ዱቤ' : 'credit')
+    ? t.txCredit
     : tx.payment_type === 'cash'
       ? 'cash'
       : (tx.payment_provider || tx.payment_type || 'cash');
   const time = new Date(tx.created_at).toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit' });
-  const editLabel = lang === 'am' ? 'አርትዕ' : 'Edit';
-  const deleteLabel = lang === 'am' ? 'ሰርዝ' : 'Delete';
+  const editLabel = t.txEdit;
+  const deleteLabel = t.txDelete;
 
   const hasBreakdown = Array.isArray(tx.items) && tx.items.length > 0;
 
@@ -551,7 +552,7 @@ function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
           className="flex-1 min-w-0 text-left flex items-baseline gap-2 press-scale"
         >
           <span className="font-bold text-sm flex-shrink-0" style={{ color: amountColor }}>
-            {isCredit && '↻ '}{sign}{fmt(tx.amount || 0)} {lang === 'am' ? 'ብር' : 'birr'}
+            {isCredit && '↻ '}{sign}{fmt(tx.amount || 0)} {t.birr}
           </span>
           <span className="text-sm text-gray-600 truncate min-w-0">
             {tx.item_name || '—'}
@@ -563,7 +564,7 @@ function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
             photo={tx.photo}
             photos={tx.photos}
             lang={lang}
-            label={lang === 'am' ? 'የግብይት ፎቶ ይመልከቱ' : 'View transaction photo'}
+            label={t.txViewPhoto}
           />
         )}
         {hasBreakdown && (
@@ -577,7 +578,7 @@ function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
               background: breakdownOpen ? 'rgba(27,67,50,0.08)' : '#fff',
               color: breakdownOpen ? '#1B4332' : '#6b7280',
             }}
-            aria-label={lang === 'am' ? 'እቃዎችን አሳይ' : 'Show items'}
+            aria-label={t.txShowItems}
           >
             🧺{tx.items.length}
             {breakdownOpen
@@ -591,7 +592,7 @@ function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="p-2 press-scale min-w-[36px] min-h-[36px] flex items-center justify-center"
-            aria-label={lang === 'am' ? 'ተጨማሪ' : 'More'}
+            aria-label={t.txMore}
           >
             <MoreVertical className="w-4 h-4 text-gray-400" />
           </button>
@@ -627,7 +628,7 @@ function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
             <div key={i} className="flex justify-between items-baseline text-xs">
               <span className="truncate min-w-0" style={{ color: '#374151' }}>• {it.name}</span>
               <span className="font-semibold flex-shrink-0 ml-2" style={{ color: amountColor }}>
-                {fmt(it.amount || 0)} {lang === 'am' ? 'ብር' : 'birr'}
+                {fmt(it.amount || 0)} {t.birr}
               </span>
             </div>
           ))}
@@ -637,8 +638,8 @@ function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
             if (Math.abs(delta) < 0.01) return null;
             return (
               <div className="flex justify-between items-baseline text-[10px] pt-1 mt-1" style={{ borderTop: '1px dashed rgba(0,0,0,0.08)', color: '#C4883A' }}>
-                <span>{delta > 0 ? (lang === 'am' ? 'ቀሪ' : 'Unaccounted') : (lang === 'am' ? 'በላይ' : 'Excess')}</span>
-                <span className="font-semibold">{fmt(Math.abs(delta))} {lang === 'am' ? 'ብር' : 'birr'}</span>
+                <span>{delta > 0 ? t.txUnaccounted : t.txExcess}</span>
+                <span className="font-semibold">{fmt(Math.abs(delta))} {t.birr}</span>
               </div>
             );
           })()}
@@ -1756,7 +1757,7 @@ function AppInner() {
         const updated = await db.customers.get(payload.id);
         setLedgerCustomers(prev => prev.map(c => (c.id === payload.id ? updated : c)));
         setShowCustomerForm(false);
-        fireToast(lang === 'am' ? 'ተስተካክሏል' : 'Customer updated', 1800);
+        fireToast(t.toastCustomerUpdated, 1800);
         return true;
       }
       const linkToken = createCustomerTelegramLinkToken();
@@ -1973,8 +1974,8 @@ function AppInner() {
         await db.suppliers.update(existing.supplier_id, { updated_at: now });
       });
       if (!updated) return false;
-      setSupplierTransactions(prev => prev.map(t => t.id === updated.id ? updated : t));
-      fireToast(lang === 'am' ? 'ተስተካክሏል' : 'Entry updated', 1800);
+      setSupplierTransactions(prev => prev.map(tx => tx.id === updated.id ? updated : tx));
+      fireToast(t.toastEntryUpdated, 1800);
       return true;
     }
 
@@ -2288,11 +2289,10 @@ function AppInner() {
       await db.customer_transactions.update(editingId, updates);
       const updated = await db.customer_transactions.get(editingId);
       setLedgerTransactions(prev => prev.map(t2 => (t2.id === editingId ? updated : t2)));
-      fireToast(lang === 'am' ? 'ተስተካክሏል' : 'Entry updated', 1800);
+      fireToast(t.toastEntryUpdated, 1800);
       return true;
-    } catch (err) {
-      if (import.meta.env.DEV) console.error('Edit customer_transaction failed:', err);
-      fireToast(lang === 'am' ? 'ማስተካከል አልተሳካም' : 'Could not update entry', 2400);
+    } catch {
+      fireToast(t.toastEntryUpdateFailed, 2400);
       return false;
     }
   };
@@ -2323,10 +2323,10 @@ function AppInner() {
       if (import.meta.env.DEV) console.error('Reversal entry failed:', err);
       // Roll back optimistic update
       setLedgerTransactions(prev => prev.find(t2 => t2.id === tx.id) ? prev : [tx, ...prev]);
-      fireToast(lang === 'am' ? 'ሰርዝ አልተሳካም' : 'Could not reverse entry', 2400);
+      fireToast(t.toastReverseFailed, 2400);
       return;
     }
-    const msg = lang === 'am' ? 'ተሰርዟል' : 'Entry reversed';
+    const msg = t.toastEntryReversed;
     fireToast(msg, 4000, async () => {
       try {
         // Undo: remove the reversal, restore the original
@@ -2671,9 +2671,9 @@ function AppInner() {
       `📊 ${shopProfile?.name || 'Shop'} — ${t.shareDailyReport}`,
       `📅 ${new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
       ``,
-      `💰 ${t.sales}:    ${fmt(todaySalesTotal)} ${lang === 'am' ? 'ብር' : 'birr'}`,
-      `🛒 ${t.spent}: ${fmt(todayExpensesTotal)} ${lang === 'am' ? 'ብር' : 'birr'}`,
-      `ðŸ“ˆ ${t.calcProfit}:   ${fmt(profit)} ${lang === 'am' ? 'ብር' : 'birr'}`,
+      `💰 ${t.sales}:    ${fmt(todaySalesTotal)} ${t.birr}`,
+      `🛒 ${t.spent}: ${fmt(todayExpensesTotal)} ${t.birr}`,
+      `ðŸ“ˆ ${t.calcProfit}:   ${fmt(profit)} ${t.birr}`,
       ``,
       `ðŸ† ${t.shareTopItems}:`,
       topStr,
@@ -2734,14 +2734,9 @@ function AppInner() {
 
   const getTimeGreeting = () => {
     const h = new Date().getHours();
-    if (lang === 'am') {
-      if (h < 12) return '👋 áŠ¥áŠ•áŠ³áŠ• á‹°áˆ…áŠ“ áˆ˜áŒ¡ — á‹›áˆ¬áŠ• áˆ½á‹«áŒ¥ á‹­á‰áŒ áˆ©';
-      if (h < 17) return '📌 áˆ²áˆ¸áŒ¡ á‹­á‰…á‹± — á‹áˆ­á‹áˆ­ á‰†á‹­á‰¶ áˆ›áˆµá‰°áŠ«áŠ¨áˆ á‹­á‰»áˆ‹áˆ';
-      return '🌙 á‹›áˆ¬áŠ• áˆ½á‹«áŒ¥ áŠ á‹­áˆ­áˆ± — áˆáˆ‰ á‹­á‰…á‹±';
-    }
-    if (h < 12) return '👋 Good morning — start tracking today\'s sales';
-    if (h < 17) return '📌 Keep going — record your sales as you sell';
-    return '🌙 Don\'t forget today\'s last sales';
+    if (h < 12) return t.greetingMorning;
+    if (h < 17) return t.greetingAfternoon;
+    return t.greetingEvening;
   };
 
   if (loading) {
@@ -2928,13 +2923,11 @@ function AppInner() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: '0.8rem', fontWeight: 800, color: neverBackedUp ? '#991b1b' : '#92400e' }}>
                       {neverBackedUp
-                        ? (lang === 'am' ? 'የማስታወሻ ደብተርዎን ያስቀምጡ' : 'Back up your notebook')
-                        : (lang === 'am' ? 'ደብተርዎን ለማስቀመጥ ጊዜው አልፏል' : 'Backup is overdue')}
+                        ? t.backupTitle
+                        : t.backupTitleStale}
                     </p>
                     <p style={{ fontSize: '0.68rem', color: '#6b7280', marginTop: 1, lineHeight: 1.35 }}>
-                      {lang === 'am'
-                        ? 'የእርስዎ መረጃ የሚገኘው በዚህ ስልክ ላይ ብቻ ነው። ስልክዎ ቢጠፋ መረጃዎ እንዳይጠፋ አሁኑኑ ያስቀምጡት።'
-                        : 'Your data lives only on this phone. Back it up so a lost phone doesn’t mean lost records.'}
+                      {t.backupBody}
                     </p>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
@@ -2950,7 +2943,7 @@ function AppInner() {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {lang === 'am' ? 'ያስቀምጡ' : 'Back up'}
+                      {t.backupAction}
                     </button>
                     <button
                       type="button"
@@ -2961,7 +2954,7 @@ function AppInner() {
                         cursor: 'pointer', padding: '2px',
                       }}
                     >
-                      {lang === 'am' ? 'በኋላ' : 'Later'}
+                      {t.backupLater}
                     </button>
                   </div>
                 </div>
@@ -2981,7 +2974,7 @@ function AppInner() {
             <div>
               <div className="flex items-center justify-between pb-1.5">
                 <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-500 font-sans">
-                  {lang === 'am' ? 'ምዝገባዎች' : 'ENTRIES'}
+                  {t.entriesHeader}
                   <span className="ml-2 text-[11px] font-semibold text-gray-400 tracking-normal normal-case">
                     {todayTransactions.length}
                   </span>
@@ -2989,7 +2982,7 @@ function AppInner() {
                 <button
                   onClick={handleShareReport}
                   className="p-1.5 press-scale"
-                  aria-label={lang === 'am' ? 'አጋራ' : 'Share'}
+                  aria-label={t.entriesShare}
                 >
                   <Share2 className="w-4 h-4 text-gray-400" />
                 </button>
@@ -2998,10 +2991,10 @@ function AppInner() {
               {todayTransactions.length === 0 ? (
                 <div className="px-4 py-8 text-center">
                   <p className="text-sm font-medium" style={{ color: '#6b7280' }}>
-                    {lang === 'am' ? 'ገና ምንም ምዝገባ የለም' : 'No entries yet'}
+                    {t.entriesEmpty}
                   </p>
                   <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>
-                    {lang === 'am' ? 'ለመጀመር ከላይ ይጫኑ' : 'Tap above to start'}
+                    {t.entriesEmptyHint}
                   </p>
                 </div>
               ) : (
@@ -3055,7 +3048,7 @@ function AppInner() {
                       color: creditView === 'customers' ? '#fff' : '#6b7280',
                     }}
                   >
-                    {lang === 'am' ? 'ደንበኞች' : 'Customers'}
+                    {t.customersLabel}
                   </button>
                   <button
                     type="button"
@@ -3072,7 +3065,7 @@ function AppInner() {
                       color: creditView === 'suppliers' ? '#fff' : '#6b7280',
                     }}
                   >
-                    {lang === 'am' ? 'አቅራቢዎች' : 'Suppliers'}
+                    {t.suppliersLabel}
                   </button>
                 </div>
               </div>
@@ -3307,10 +3300,10 @@ function AppInner() {
         >
           <div className="flex gap-1.5 sm:gap-2">
             {[
-              { type: 'sale',    label: lang === 'am' ? 'ሽያጭ' : 'Sale',    color: '#16a34a', icon: Plus    },
-              { type: 'itemized', label: lang === 'am' ? 'አtems' : 'Items', color: '#C4883A', icon: Plus },
-              { type: 'expense', label: lang === 'am' ? 'ወጪ'  : 'Expense', color: '#dc2626', icon: Minus   },
-              { type: 'credit',  label: lang === 'am' ? 'ዱቤ'  : 'Credit',  color: '#2563eb', icon: RotateCw },
+              { type: 'sale',    label: t.saleButton,    color: '#16a34a', icon: Plus    },
+              { type: 'itemized', label: t.itemsButton, color: '#C4883A', icon: Plus },
+              { type: 'expense', label: t.expenseButton,  color: '#dc2626', icon: Minus   },
+              { type: 'credit',  label: t.creditButton,  color: '#2563eb', icon: RotateCw },
             ].map(b => {
               const pressed = pressedBtn === b.type;
               const Icon = b.icon;
@@ -3371,7 +3364,7 @@ function AppInner() {
             >
               <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: '#ffffff', strokeWidth: 2.5 }} />
               <span className="font-bold text-xs sm:text-sm truncate" style={{ color: '#ffffff', textTransform: 'uppercase' }}>
-                {lang === 'am' ? 'ደንበኛ ጨምር' : '+ Add Customer'}
+                {t.addCustomer}
               </span>
             </button>
           ) : (
@@ -3387,7 +3380,7 @@ function AppInner() {
             >
               <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: '#ffffff', strokeWidth: 2.5 }} />
               <span className="font-bold text-xs sm:text-sm truncate" style={{ color: '#ffffff', textTransform: 'uppercase' }}>
-                {lang === 'am' ? 'አቅራቢ ጨምር' : '+ Add Supplier'}
+                {t.addSupplier}
               </span>
             </button>
           )}
@@ -3415,7 +3408,7 @@ function AppInner() {
             >
               <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: '#ffffff', strokeWidth: 2.5 }} />
               <span className="font-bold text-xs sm:text-sm truncate" style={{ color: '#1a1a1a' }}>
-                {lang === 'am' ? 'እቃ በዱቤ ሰጠሁ (-)' : 'YOU GAVE (Dubie)'}
+                {t.creditGave}
               </span>
             </button>
             <button
@@ -3434,7 +3427,7 @@ function AppInner() {
             >
               <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: '#ffffff', strokeWidth: 2.5 }} />
               <span className="font-bold text-xs sm:text-sm truncate" style={{ color: Number(selectedCustomer.balance) > 0 ? '#1a1a1a' : '#374151' }}>
-                {lang === 'am' ? 'ክፍያ ተቀበልኩ (+)' : 'YOU GOT (Paid)'}
+                {t.creditGot}
               </span>
             </button>
           </div>
@@ -3709,7 +3702,7 @@ function AppInner() {
             <div className="text-3xl text-center mb-3">{typeEmoji[deleteTarget.type]}</div>
             <h3 className="text-lg font-black text-gray-900 text-center mb-1 font-sans">{t.deleteEntry}</h3>
             <p className="text-sm text-gray-500 text-center mb-5" style={{ color: 'var(--color-text-muted)' }}>
-              "{deleteTarget.item_name}" Â· {fmt(deleteTarget.amount || 0)} {lang === 'am' ? 'ብር' : 'birr'}
+              "{deleteTarget.item_name}" · {fmt(deleteTarget.amount || 0)} {t.birr}
             </p>
             <div className="space-y-2">
               <button onClick={() => handleDeleteTransaction(deleteTarget.id)}

@@ -10,14 +10,6 @@ import router from "./routes/index.js";
 const app: Express = express();
 const isProduction = process.env.NODE_ENV === "production";
 
-// Fail-fast: refuse to start in production with a weak/missing JWT_SECRET
-const JWT_SECRET = process.env.JWT_SECRET || "";
-if (isProduction) {
-  if (!JWT_SECRET || JWT_SECRET === "gebya-dev-secret-change-me" || JWT_SECRET.length < 32) {
-    console.warn("[security] WARNING: JWT_SECRET is missing, default, or < 32 chars. Set a strong secret before deploying.");
-  }
-}
-
 function createRequestId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }

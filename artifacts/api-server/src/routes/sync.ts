@@ -68,9 +68,7 @@ function mapTx(body: any) {
     isCredit: body.is_credit, customerId: body.customer_id, customerName: body.customer_name,
     createdAt: body.created_at, updatedAt: body.updated_at, ethiopianDate: body.ethiopian_date,
     paymentType: body.payment_type, paymentProvider: body.payment_provider, source: body.source,
-    rawTranscript: body.raw_transcript, detectedTotal: body.detected_total, wasEdited: body.was_edited,
-    transcriptionProvider: body.transcription_provider, parsingConfidence: body.parsing_confidence,
-    voiceNote: body.voice_note, rawAudioRef: body.raw_audio_ref,
+    wasEdited: body.was_edited,
     actorRole: body.actor_role, actorStaffMemberId: body.actor_staff_member_id,
     actorNameSnapshot: body.actor_name_snapshot, schemaVersion: body.schema_version || 1, syncVersion: body.sync_version || 1,
   };

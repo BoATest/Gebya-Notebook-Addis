@@ -8,7 +8,13 @@ import { sendTelegramTextMessage } from "../services/telegramBotService.js";
 
 const router = Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || "gebya-dev-secret-change-me";
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    "[auth] FATAL: JWT_SECRET is not set. Refusing to start without a signing secret. " +
+    "Set JWT_SECRET in your environment before booting."
+  );
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = "30d";
 const OTP_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
 const OTP_MAX_ATTEMPTS = 5;

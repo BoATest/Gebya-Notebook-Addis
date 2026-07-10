@@ -106,8 +106,6 @@ function assertPayloadIsPrivacySafe(payload: any) {
     'token',
     'bank_account',
     'payment_provider',
-    'raw_transcript',
-    'raw_audio_ref',
     'item_name',
     'item_note',
     'note',

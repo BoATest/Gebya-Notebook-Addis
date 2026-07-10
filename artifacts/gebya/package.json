@@ -10,6 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:ledger": "node src/__tests__/ledger.test.js",
     "test:report": "node src/__tests__/reportSelectors.test.js",
+    "test:migration-v22": "node tests/db-migration-v22.test.mjs",
+    "test:permissions": "vitest run tests/permissions-store.spec.ts",
     "test:e2e": "playwright test",
     "test:design-smoke": "pnpm build && node scripts/run-playwright-isolated.mjs 4186 tests/design-regression-smoke.spec.ts --project=chromium",
     "test:staff-events": "pnpm build && node scripts/run-playwright-isolated.mjs 4184 tests/staff-event-sync.spec.ts --project=chromium",
@@ -28,6 +30,7 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
+    "fake-indexeddb": "^6.2.5",
     "lightningcss-win32-x64-msvc": "^1.32.0",
     "lucide-react": "catalog:",
     "react": "catalog:",
@@ -35,6 +38,7 @@
     "tailwindcss": "catalog:",
     "vite": "catalog:",
     "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^4.1.9",
     "zod": "catalog:"
   },
   "dependencies": {

@@ -854,6 +854,69 @@ const EN_OVERRIDES = {
   offlineReadyBody: 'Gebya can reopen even with weak connection, and your saved notebook stays on this phone.',
   typeSale: 'Type Sale',
   typeSaleLabel: 'Type Sale',
+
+  // OfflineStatusStrip
+  offlineLabel: 'Offline',
+  offlineDetail: 'saves on this phone',
+  telegramWaiting: 'Telegram waiting',
+  telegramRetry: 'Retry',
+  updateReady: 'Update ready',
+  updateTapRefresh: 'tap to refresh',
+  updateButton: 'Update',
+  offlineReadyStatus: 'Offline ready',
+  offlineReadyDetail: 'works without internet',
+  syncConflict: 'Sync conflict',
+
+  // TxRow
+  txCredit: 'credit',
+  txEdit: 'Edit',
+  txDelete: 'Delete',
+  txViewPhoto: 'View transaction photo',
+  txShowItems: 'Show items',
+  txMore: 'More',
+  txUnaccounted: 'Unaccounted',
+  txExcess: 'Excess',
+
+  // Handler toasts
+  toastCustomerUpdated: 'Customer updated',
+  toastEntryUpdated: 'Entry updated',
+  toastEntryUpdateFailed: 'Could not update entry',
+  toastReverseFailed: 'Could not reverse entry',
+  toastEntryReversed: 'Entry reversed',
+
+  // Greeting
+  greetingMorning: "Good morning — start tracking today's sales",
+  greetingAfternoon: 'Keep going — record your sales as you sell',
+  greetingEvening: "Don't forget today's last sales",
+
+  // Backup nudge
+  backupTitle: 'Back up your notebook',
+  backupTitleStale: 'Backup is overdue',
+  backupBody: "Your data lives only on this phone. Back it up so a lost phone doesn't mean lost records.",
+  backupAction: 'Back up',
+  backupLater: 'Later',
+
+  // Today entries
+  entriesHeader: 'ENTRIES',
+  entriesShare: 'Share',
+  entriesEmpty: 'No entries yet',
+  entriesEmptyHint: 'Tap above to start',
+
+  // Credit tab
+  customersLabel: 'Customers',
+  suppliersLabel: 'Suppliers',
+
+  // Action bar
+  saleButton: 'Sale',
+  itemsButton: 'Items',
+  expenseButton: 'Expense',
+  creditButton: 'Credit',
+
+  // Credit detail
+  addCustomer: '+ Add Customer',
+  addSupplier: '+ Add Supplier',
+  creditGave: 'YOU GAVE (Dubie)',
+  creditGot: 'YOU GOT (Paid)',
 };
 
 const AM_OVERRIDES = {
@@ -873,8 +936,8 @@ const AM_OVERRIDES = {
   settings: 'ቅንብሮች',
   close: 'ዝጋ',
   cancel: 'ሰርዝ',
-  add: 'አክል',
-  delete: 'ሰርዝ',
+  add: 'መዝግብ',
+  delete: 'ለማጥፋት',
   saved: 'ተቀምጧል',
   done: 'ተጠናቀቀ',
 
@@ -978,7 +1041,7 @@ const AM_OVERRIDES = {
   editSale: 'ሽያጭ አርትዕ',
   editExpense: 'ወጪ አርትዕ',
   editCredit: 'ዱቤ አርትዕ',
-  editEntry: 'ግቤት አርትዕ',
+  editEntry: 'ለማስተካክል',
   editEntryLabel: 'ግቤት አርትዕ',
   editedAt: 'ተስተካክሏል',
   deleteEntry: 'ይህንን ግቤት ይሰርዙ?',
@@ -1103,10 +1166,6 @@ const AM_OVERRIDES = {
   thu: 'ሐሙስ',
   fri: 'አርብ',
   sat: 'ቅዳሜ',
-
-  // Customer page
-  addCustomer: 'ደንበኛ ጨምር',
-  saveCustomer: 'ደንበኛ አስቀምጥ',
   customerSaved: 'ደንበኛ ተቀምጧል',
   customerSaveFailed: 'ደንበኛውን ማስቀመጥ አልተቻለም። እባክዎ ድጋሜ ይሞክሩ።',
   customerHelperText: 'በኋላ የሚያስታውሱትን ማንኛውም መለያ ይጠቀሙ።',
@@ -1285,6 +1344,68 @@ const AM_OVERRIDES = {
   introLetsStart: 'እንጀምር',
   introNext: 'ቀጣይ →',
   introSkip: 'ዝለል',
+
+  // OfflineStatusStrip
+  offlineLabel: 'ኔትወርክ የለም',
+  offlineDetail: 'በዚህ ስልክ ይቀመጣል',
+  telegramWaiting: 'ቴሌግራም ይጠብቃል',
+  telegramRetry: 'እንደገና',
+  updateReady: 'አዲስ ስሪት ዝግጁ ነው',
+  updateTapRefresh: 'ለማደስ ይጫኑ',
+  updateButton: 'አድስ',
+  offlineReadyStatus: 'ከመስመር ውጭ ዝግጁ',
+  offlineReadyDetail: 'ያለ ኢንተርኔት ይሰራል',
+  syncConflict: 'ሁከት ተፈጠረ',
+
+  // TxRow
+  txCredit: 'ዱቤ',
+  txEdit: 'አርትዕ',
+  txDelete: 'ሰርዝ',
+  txViewPhoto: 'የግብይት ፎቶ ይመልከቱ',
+  txShowItems: 'እቃዎችን አሳይ',
+  txMore: 'ተጨማሪ',
+  txUnaccounted: 'ቀሪ',
+  txExcess: 'በላይ',
+
+  // Handler toasts
+  toastCustomerUpdated: 'ተስተካክሏል',
+  toastEntryUpdated: 'ተስተካክሏል',
+  toastEntryUpdateFailed: 'ማስተካከል አልተሳካም',
+  toastReverseFailed: 'ሰርዝ አልተሳካም',
+  toastEntryReversed: 'ተሰርዟል',
+
+  // Greeting
+  greetingMorning: '👋 ዛሬ ዕለት — የዛሬ ሽያጮን ይመዝገቡ',
+  greetingAfternoon: '📌 ቀጥል — ሽያጮን በሚሸጡበት ጊዜ ይመዝገቡ',
+  greetingEvening: '🌙 የዛሬ የመጨረሻ ሽያጮን ያል⟿',
+
+  // Backup nudge
+  backupTitle: 'የማስታወሻ ደብተርዎን ያስቀምጡ',
+  backupTitleStale: 'ደብተርዎን ለማስቀመጥ ጊዜው አልፏል',
+  backupBody: 'የእርስዎ መረጃ የሚገኘው በዚህ ስልክ ላይ ብቻ ነው። ስልክዎ ቢጠፋ መረጃዎ እንዳይጠፋ አሁኑኑ ያስቀምጡት።',
+  backupAction: 'ያስቀምጡ',
+  backupLater: 'በኋላ',
+
+  // Today entries
+  entriesHeader: 'ምዝገባዎች',
+  entriesShare: 'አጋራ',
+  entriesEmpty: 'ገና ምንም ምዝገባ የለም',
+  entriesEmptyHint: 'ለመጀመር ከላይ ይጫኑ',
+
+  // Credit tab
+  customersLabel: 'ደንበኞች',
+  suppliersLabel: 'አቅራቢዎች',
+
+  // Action bar
+  saleButton: 'ሽያጭ',
+  itemsButton: 'አtems',
+  expenseButton: 'ወጪ',
+  creditButton: 'ዱቤ',
+
+  // Credit detail
+  addSupplier: 'አቅራቢ ጨምር',
+  creditGave: 'እቃ በዱቤ ሰጠሁ (-)',
+  creditGot: 'ክፍያ ተቀበልኩ (+)',
 };
 
 const LangContext = createContext(null);

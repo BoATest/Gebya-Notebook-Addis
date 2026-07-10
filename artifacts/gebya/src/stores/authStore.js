@@ -5,6 +5,8 @@ import { usePermissionsStore } from './permissionsStore';
 /**
  * Auth state: user identity, JWT token, login status, role, permissions.
  * Persists token to IndexedDB via syncEngine helpers.
+ * Role is passed to permissionsStore on every setPermissions call so the
+ * owner bypass is available synchronously at first render (from cache).
  */
 
 export const useAuthStore = create((set, get) => ({
@@ -30,9 +32,8 @@ export const useAuthStore = create((set, get) => ({
       const role = data.role || null;
       const rawPerms = data.permissions;
 
-      // Resolve permissions: if server returned null, default to full access (never lock out owner)
       const resolvedPerms = resolvePermissions(role, rawPerms);
-      usePermissionsStore.getState().setPermissions(resolvedPerms);
+      usePermissionsStore.getState().setPermissions(resolvedPerms, role);
 
       set({ user, checked: true, role, permissions: rawPerms });
     } catch (err) {
@@ -47,7 +48,7 @@ export const useAuthStore = create((set, get) => ({
     const { setAuthToken } = await import('../utils/syncEngine');
     await setAuthToken(token);
     const resolvedPerms = resolvePermissions(role, rawPermissions);
-    usePermissionsStore.getState().setPermissions(resolvedPerms);
+    usePermissionsStore.getState().setPermissions(resolvedPerms, role);
     set({ user, checked: true, role, permissions: rawPermissions });
   },
 

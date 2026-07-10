@@ -38,7 +38,7 @@ import EthiopianDatePicker from './EthiopianDatePicker';
 import { getDueDateOptions, formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { compressPhoto, photoSizeBytes } from '../utils/photoCapture';
-import { buildPhotoFields, createPhotoProof, MAX_PROOF_PHOTOS } from '../utils/photoProof';
+import { buildPhotoFields, createPhotoProof, MAX_PROOF_PHOTOS, photoCountLabel } from '../utils/photoProof';
 import { db } from '../db';
 import {
   trackSuggestionShown,
@@ -57,7 +57,7 @@ function handleNumericInput(e, setter) {
 
 const DEFAULT_QUICK_AMOUNTS = [50, 100, 200, 500, 1000];
 
-function parseItemDraft(input, catalogEntries = []) {
+export function parseItemDraft(input, catalogEntries = []) {
   const raw = String(input || '').trim();
   if (!raw) return { kind: 'empty', raw: '' };
   const query = raw.toLowerCase();
@@ -77,7 +77,7 @@ function parseItemDraft(input, catalogEntries = []) {
     }
   }
 
-  const itemAmountMatch = raw.match(/^(.+?)\s+(\d+(?:\.\d+)?)(?:\s*(?:etb|birr))?$/i);
+  const itemAmountMatch = raw.match(/^(.+?)\s+(\d+(?:\.\d+)?)(?:\s*(?:etb|birr|\u1265\u122d))?$/i);
   if (itemAmountMatch) {
     const unitPrice = Number(itemAmountMatch[2]);
     if (unitPrice > 0) return { kind: 'item', name: itemAmountMatch[1].trim(), qty: 1, unitPrice, raw };
@@ -86,11 +86,11 @@ function parseItemDraft(input, catalogEntries = []) {
   return { kind: 'item', name: raw, qty: 1, unitPrice: null, raw };
 }
 
-function parseItemInput(raw) {
+export function parseItemInput(raw) {
   const trimmed = raw.trim()
   if (!trimmed) return null
 
-  const namePrice = trimmed.match(/^(.+?)\s+(\d+(?:\.\d+)?)(?:\s*(?:etb|birr))?$/i)
+  const namePrice = trimmed.match(/^(.+?)\s+(\d+(?:\.\d+)?)(?:\s*(?:etb|birr|\u1265\u122d))?$/i)
   if (namePrice) {
     return { kind: 'item', name: namePrice[1].trim(), unitPrice: Number(namePrice[2]), qty: 1, raw }
   }
@@ -241,7 +241,6 @@ function TransactionForm({
     : true;
 
   // Context-aware Quick Items ranking (spec §4.2)
-  // Considers: frequency, recency, time-of-day affinity, price memory, acceptance rate
   const activeCatalogItems = useMemo(() => {
     const now = Date.now();
     const currentHour = new Date().getHours();
@@ -253,13 +252,10 @@ function TransactionForm({
         const freqB = Number(b.use_count || 0);
         const recencyA = Number(a.last_used_at || a.updated_at || 0);
         const recencyB = Number(b.last_used_at || b.updated_at || 0);
-        // Time-of-day boost: items used in the same 4-hour window rank higher
         const todA = a.last_used_at ? (Math.abs(new Date(a.last_used_at).getHours() - currentHour) <= 2 ? 1 : 0) : 0;
         const todB = b.last_used_at ? (Math.abs(new Date(b.last_used_at).getHours() - currentHour) <= 2 ? 1 : 0) : 0;
-        // Price memory boost: items with a remembered price rank higher
         const priceA = (a.default_price || a.last_unit_price || a.last_price) ? 1 : 0;
         const priceB = (b.default_price || b.last_unit_price || b.last_price) ? 1 : 0;
-        // Acceptance-adjusted weight: items rarely accepted when shown get downweighted
         const acceptWeightA = computeAcceptanceWeight(a);
         const acceptWeightB = computeAcceptanceWeight(b);
         const scoreA = freqA * 10000000000000 * acceptWeightA + recencyA + todA * 1000000000000 + priceA * 100000000000;
@@ -277,10 +273,8 @@ function TransactionForm({
   const validLineItems = lineItems.filter(
     l => l.name.trim() && parseFloat(parseInput(l.amount)) > 0
   );
-  const breakdownDelta = sellingPrice - lineItemsTotal; // +ve: items < total, -ve: items > total
+  const breakdownDelta = sellingPrice - lineItemsTotal;
 
-  // Credit payment handling
-  const creditAmount = !isCredit && paymentType === 'credit' ? effectiveSellingPrice : 0;
   const saleItemDraft = useMemo(
     () => parseItemDraft(saleItemInput, activeCatalogItems),
     [activeCatalogItems, saleItemInput]
@@ -291,11 +285,7 @@ function TransactionForm({
     return activeCatalogItems
       .filter(entry => {
         const haystack = [
-          entry.name,
-          entry.code,
-          entry.sku,
-          entry.item_code,
-          entry.note,
+          entry.name, entry.code, entry.sku, entry.item_code, entry.note,
         ].filter(Boolean).join(' ').toLowerCase();
         return haystack.includes(query);
       })
@@ -330,36 +320,48 @@ function TransactionForm({
 
   const effectiveSellingPrice = type === 'sale' ? saleFinalAmount : sellingPrice;
 
-  // Item is OPTIONAL for sale/expense; REQUIRED (as customer name) for credit
-  // For Credit payment mode, a customer is required.
-   const canSave =
+  const creditAmount = !isCredit && paymentType === 'credit' ? effectiveSellingPrice : 0;
+
+  const canSave =
      (type === 'sale' ? saleFinalAmount : sellingPrice) > 0
      && (isCredit ? item.trim() && hasDueDate : true)
      && (!phoneEntered || phoneValid)
      && !isSaving
      && (!isCreditSale || !!customerMatch);
-  // ─── Handlers ───────────────────────────────────────────────────────────
+
   const getEffectiveDueDate = () => {
     if (selectedDue === 'custom' && customDue) return new Date(customDue).getTime();
     return selectedDue;
   };
 
+  // ─── Photo handler — max 3 proof photos ─────────────────────────────
   const handlePhotoCapture = async (e) => {
-    const files = Array.from(e.target.files || []).slice(0, Math.max(0, MAX_PROOF_PHOTOS - photos.length));
+    const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+    const remaining = Math.max(0, MAX_PROOF_PHOTOS - photos.length);
+    if (remaining === 0) {
+      setPhotoError(lang === 'am' ? '3 ፎቶዎች ሙሉ በሙሉ ተያዝዋል' : 'You can attach up to 3 photos');
+      e.target.value = '';
+      return;
+    }
     setPhotoLoading(true);
     setPhotoError(null);
     try {
-      const nextPhotos = await Promise.all(files.map(async (file) => (
+      const slice = files.slice(0, remaining);
+      const nextPhotos = await Promise.all(slice.map(async (file) => (
         createPhotoProof(await compressPhoto(file))
       )));
       setPhotos(prev => [...prev, ...nextPhotos.filter(Boolean)].slice(0, MAX_PROOF_PHOTOS));
+      if (files.length > remaining) {
+        setPhotoError(lang === 'am' ? '3 ፎቶዎች ብቻ ማያያዝ ይችላሉ' : 'Only 3 photos can be attached');
+      } else {
+        setPhotoError(null);
+      }
     } catch (err) {
       setPhotoError(err.message || 'Photo capture failed');
     } finally {
       setPhotoLoading(false);
     }
-    // Reset the input so the same file can be picked again
     e.target.value = '';
   };
 
@@ -373,8 +375,6 @@ function TransactionForm({
     setIsSaving(true);
     const fullPhone = phoneEntered && phoneValid ? '+251' + phoneDigits : null;
 
-    // If breakdown has valid items, build a clean items array; let item_name
-    // derive from the items so the row is self-describing in History/Reports.
     const saleCleanedItems = saleItems.map(line => ({
       name: line.name,
       code: line.code || null,
@@ -388,17 +388,12 @@ function TransactionForm({
     }));
     const cleanedItems = type === 'sale'
       ? saleCleanedItems
-      : validLineItems.map(l => ({
-          name: l.name.trim(),
-          amount: parseFloat(parseInput(l.amount)),
-        }));
+      : validLineItems.map(l => ({ name: l.name.trim(), amount: parseFloat(parseInput(l.amount)) }));
     const itemNameForSave = (!isCredit && cleanedItems.length > 0)
       ? cleanedItems.map(li => li.name).join(', ').substring(0, 200)
       : item.trim();
 
-    // Cash actually received from this sale (drives Today's cash tally vs gross sales)
     const cashReceived = !isCredit && !isCreditSale ? effectiveSellingPrice : 0;
-
     const photoFields = buildPhotoFields(photos);
     const data = {
       type,
@@ -429,7 +424,7 @@ function TransactionForm({
       amount_basis: type === 'sale' ? saleAmountBasis : null,
       created_at: Date.now(),
     };
-try {
+    try {
       await onSave(data);
       setLastSavedTransaction(data);
       setUndoStack({
@@ -441,123 +436,86 @@ try {
       resetFormInternal();
     } catch (err) {
       setIsSaving(false);
-      // error surfaced via App.jsx
     }
   };
 
   async function updateLearning({ items }) {
     for (const item of items) {
-      if (!item.name) continue
-      const existing = await db.catalogEntries
-        .where('name').equalsIgnoreCase(item.name).first()
-      const now = Date.now()
+      if (!item.name) continue;
+      const existing = await db.catalogEntries.where('name').equalsIgnoreCase(item.name).first();
+      const now = Date.now();
       if (existing) {
         await db.catalogEntries.update(existing.id, {
           use_count: (existing.use_count || 0) + 1,
           last_unit_price: item.unitPrice ?? existing.last_unit_price,
           last_price: item.unitPrice ?? existing.last_price,
-          last_used_at: now,
-          updated_at: now,
-        })
-        if (item.unitPrice) recordPriceObservation(existing.id, item.unitPrice)
+          last_used_at: now, updated_at: now,
+        });
+        if (item.unitPrice) recordPriceObservation(existing.id, item.unitPrice);
       } else if (item.unitPrice) {
         const newId = await db.catalogEntries.add({
-          name: item.name,
-          default_price: item.unitPrice,
-          last_price: item.unitPrice,
-          last_unit_price: item.unitPrice,
-          use_count: 1,
-          last_used_at: now,
-          created_at: now,
-          updated_at: now,
-          active: true,
-        })
-        onSaveCatalogEntry?.({ id: newId, name: item.name, default_price: item.unitPrice })
+          name: item.name, default_price: item.unitPrice, last_price: item.unitPrice,
+          last_unit_price: item.unitPrice, use_count: 1, last_used_at: now,
+          created_at: now, updated_at: now, active: true,
+        });
+        onSaveCatalogEntry?.({ id: newId, name: item.name, default_price: item.unitPrice });
       }
     }
   }
 
   async function executeUndo(snapshot) {
     try {
-      const txn = await db.transactions.where('created_at').equals(snapshot.createdAt).first()
+      const txn = await db.transactions.where('created_at').equals(snapshot.createdAt).first();
       if (txn?.id) {
-        await db.transactions.delete(txn.id)
+        await db.transactions.delete(txn.id);
         if (txn.customer_id) {
-          await db.customer_transactions.where('source_transaction_id').equals(txn.id).delete()
+          await db.customer_transactions.where('source_transaction_id').equals(txn.id).delete();
         }
       }
       if (snapshot.customerCreated) {
-        const cust = await db.customers.get(snapshot.customerCreated)
-        if (cust && !cust.total_debt) {
-          await db.customers.delete(snapshot.customerCreated)
-        }
+        const cust = await db.customers.get(snapshot.customerCreated);
+        if (cust && !cust.total_debt) await db.customers.delete(snapshot.customerCreated);
       }
     } catch (err) {
-      console.error('Undo failed:', err)
+      console.error('Undo failed:', err);
     }
-    setUndoStack(null)
-    resetFormInternal()
-    onUndo?.()
+    setUndoStack(null);
+    resetFormInternal();
+    onUndo?.();
   }
 
   function resetFormInternal() {
-    setAmountDisplay('')
-    setSaleItems([])
-    setSaleItemInput('')
-    setPhotos([])
-    setCustomerQuery('')
-    setCustomerMatch(null)
-    setParsedPreview(null)
-    setTimeout(() => {
-      amountInputRef.current?.focus()
-    }, 50)
+    setAmountDisplay('');
+    setSaleItems([]);
+    setSaleItemInput('');
+    setPhotos([]);
+    setCustomerQuery('');
+    setCustomerMatch(null);
+    setParsedPreview(null);
+    setTimeout(() => { amountInputRef.current?.focus(); }, 50);
   }
 
-
-  // ─── Multi-item breakdown handlers ─────────────────────────────────────
+  // ─── Breakdown handlers ─────────────────────────────────────────
   const addLineItem = (preset = {}) => {
-    setLineItems(prev => [
-      ...prev,
-      {
-        id: Date.now() + Math.random(),
-        name: preset.name || '',
-        amount: preset.amount != null ? String(preset.amount) : '',
-      },
-    ]);
+    setLineItems(prev => [...prev, { id: Date.now() + Math.random(), name: preset.name || '', amount: preset.amount != null ? String(preset.amount) : '' }]);
     setShowBreakdown(true);
   };
-
-  const removeLineItem = (id) => {
-    setLineItems(prev => prev.filter(l => l.id !== id));
-  };
-
-  const updateLineItem = (id, field, value) => {
-    setLineItems(prev => prev.map(l => (l.id === id ? { ...l, [field]: value } : l)));
-  };
-
+  const removeLineItem = (id) => setLineItems(prev => prev.filter(l => l.id !== id));
+  const updateLineItem = (id, field, value) => setLineItems(prev => prev.map(l => (l.id === id ? { ...l, [field]: value } : l)));
   const handleLineItemAmount = (id, e) => {
     let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
     const parts = raw.split('.');
     if (parts.length > 2) raw = parts[0] + '.' + parts.slice(1).join('');
     updateLineItem(id, 'amount', raw);
   };
+  const addFromCatalogToBreakdown = (entry) => addLineItem({ name: entry.name, amount: entry.default_price });
+  const syncAmountToBreakdownSum = () => { if (lineItemsTotal > 0) setAmount(String(lineItemsTotal)); };
 
-  const addFromCatalogToBreakdown = (entry) => {
-    addLineItem({ name: entry.name, amount: entry.default_price });
-  };
-
-  // Sync total amount from breakdown sum (if user has items but no manual total)
-  const syncAmountToBreakdownSum = () => {
-    if (lineItemsTotal > 0) setAmount(String(lineItemsTotal));
-  };
-
-  // ─── Inline custom-amount add ──────────────────────────────────────────
   const applyCustomAmount = () => {
     const val = parseFloat(parseInput(customAmountValue));
     if (!val || val <= 0) return;
     const current = parseFloat(parseInput(amount)) || 0;
     setAmount(String(current + val));
-    // Persist the new chip so it's tappable next time
     if (onCustomQuickAmountsChange && !DEFAULT_QUICK_AMOUNTS.includes(val)) {
       onCustomQuickAmountsChange([...customQuickAmounts, val]);
     }
@@ -565,55 +523,28 @@ try {
     setShowCustomAmount(false);
   };
 
-  // ─── Inline catalog add ───────────────────────────────────────────────
   const submitNewCatalog = async () => {
     if (!newCatalogName.trim() || !onSaveCatalogEntry || catalogSaving) return;
     setCatalogSaving(true);
     try {
-      const saved = await onSaveCatalogEntry({
-        name: newCatalogName.trim(),
-        kind: 'item',
-        default_price: newCatalogPrice ? parseFloat(parseInput(newCatalogPrice)) : null,
-      });
+      const saved = await onSaveCatalogEntry({ name: newCatalogName.trim(), kind: 'item', default_price: newCatalogPrice ? parseFloat(parseInput(newCatalogPrice)) : null });
       if (saved) {
-        // Auto-fill the form with the new item
         setItem(saved.name);
-        if (saved.default_price != null && (!amount || parseFloat(parseInput(amount)) === 0)) {
-          setAmount(String(saved.default_price));
-        }
+        if (saved.default_price != null && (!amount || parseFloat(parseInput(amount)) === 0)) setAmount(String(saved.default_price));
         setCatalogEntryId(String(saved.id));
       }
-      setNewCatalogName('');
-      setNewCatalogPrice('');
-      setShowAddCatalog(false);
-    } catch (err) {
-      // surface via App.jsx
-    } finally {
-      setCatalogSaving(false);
-    }
+      setNewCatalogName(''); setNewCatalogPrice(''); setShowAddCatalog(false);
+    } catch {} finally { setCatalogSaving(false); }
   };
-
 
   const submitNewCatalogToBreakdown = async () => {
     if (!newCatalogName.trim() || !onSaveCatalogEntry || catalogSaving) return;
     setCatalogSaving(true);
     try {
-      const saved = await onSaveCatalogEntry({
-        name: newCatalogName.trim(),
-        kind: 'item',
-        default_price: newCatalogPrice ? parseFloat(parseInput(newCatalogPrice)) : null,
-      });
-      if (saved) {
-        addLineItem({ name: saved.name, amount: saved.default_price });
-      }
-      setNewCatalogName('');
-      setNewCatalogPrice('');
-      setShowAddCatalogBreakdown(false);
-    } catch (err) {
-      // surface via App.jsx
-    } finally {
-      setCatalogSaving(false);
-    }
+      const saved = await onSaveCatalogEntry({ name: newCatalogName.trim(), kind: 'item', default_price: newCatalogPrice ? parseFloat(parseInput(newCatalogPrice)) : null });
+      if (saved) addLineItem({ name: saved.name, amount: saved.default_price });
+      setNewCatalogName(''); setNewCatalogPrice(''); setShowAddCatalogBreakdown(false);
+    } catch {} finally { setCatalogSaving(false); }
   };
 
   const handleQuickItem = (entry) => {
@@ -630,14 +561,9 @@ try {
     const lineTotal = Math.round(qtyValue * unitPrice * 100) / 100;
     const nextItem = {
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      name: draft.name.trim(),
-      code: draft.code || '',
-      qty: qtyValue,
-      unit_price: unitPrice,
-      line_total: lineTotal,
-      catalog_entry_id: draft.catalog_entry_id || null,
-      item_kind: draft.item_kind || 'item',
-      photo_uri: photos[0]?.dataUrl || null,
+      name: draft.name.trim(), code: draft.code || '', qty: qtyValue, unit_price: unitPrice,
+      line_total: lineTotal, catalog_entry_id: draft.catalog_entry_id || null,
+      item_kind: draft.item_kind || 'item', photo_uri: photos[0]?.dataUrl || null,
     };
     setSaleItems(prev => {
       const matchKey = String(nextItem.catalog_entry_id || nextItem.code || nextItem.name).toLowerCase();
@@ -648,45 +574,26 @@ try {
           if (lineKey !== matchKey) return line;
           const nextQty = Number(line.qty || 1) + nextItem.qty;
           const nextUnitPrice = Number(line.unit_price || nextItem.unit_price || 0);
-          return {
-            ...line,
-            qty: nextQty,
-            unit_price: nextUnitPrice,
-            line_total: Math.round(nextQty * nextUnitPrice * 100) / 100,
-            photo_uri: line.photo_uri || nextItem.photo_uri || null,
-          };
+          return { ...line, qty: nextQty, unit_price: nextUnitPrice, line_total: Math.round(nextQty * nextUnitPrice * 100) / 100, photo_uri: line.photo_uri || nextItem.photo_uri || null };
         });
       }
       return [...prev, nextItem];
     });
-    if (!amount && lineTotal > 0) {
-      setAmount(String(lineTotal));
-      setSaleAmountBasis('items');
-    }
+    if (!amount && lineTotal > 0) { setAmount(String(lineTotal)); setSaleAmountBasis('items'); }
     setSaleItemInput('');
     navigator.vibrate?.(40);
   };
 
   const addSaleCatalogItem = (entry) => {
     const unitPrice = Number(entry?.default_price || entry?.last_price || 0);
-    addSaleItem({
-      name: entry?.name || '',
-      code: entry?.code || entry?.sku || entry?.item_code || '',
-      qty: 1,
-      unitPrice: unitPrice || (saleItems.length === 0 ? sellingPrice : 0),
-      catalog_entry_id: entry?.id || null,
-      item_kind: entry?.kind || 'item',
-    });
+    addSaleItem({ name: entry?.name || '', code: entry?.code || entry?.sku || entry?.item_code || '', qty: 1, unitPrice: unitPrice || (saleItems.length === 0 ? sellingPrice : 0), catalog_entry_id: entry?.id || null, item_kind: entry?.kind || 'item' });
     setCatalogEntryId(String(entry?.id || ''));
     setItem(entry?.name || '');
     if (entry?.id) trackSuggestionAccepted(entry.id);
   };
 
   const handleSaleAddItem = () => {
-    if (saleItemDraft.kind === 'catalog' && saleItemDraft.entry) {
-      addSaleCatalogItem(saleItemDraft.entry);
-      return;
-    }
+    if (saleItemDraft.kind === 'catalog' && saleItemDraft.entry) { addSaleCatalogItem(saleItemDraft.entry); return; }
     if (saleItemDraft.kind === 'item') {
       const fallbackUnitPrice = saleItemDraft.unitPrice ?? (saleItems.length === 0 ? sellingPrice : 0);
       addSaleItem({ ...saleItemDraft, unitPrice: fallbackUnitPrice });
@@ -704,41 +611,24 @@ try {
     setSaleAmountBasis(current => (current === 'items' ? 'items' : current));
   };
 
-  const removeSaleItem = (id) => {
-    setSaleItems(prev => prev.filter(line => line.id !== id));
-  };
+  const removeSaleItem = (id) => setSaleItems(prev => prev.filter(line => line.id !== id));
 
   const handleSalePaymentSelect = (option) => {
-    if (option.id === 'credit') {
-      setPaymentType('credit');
-      setPaymentProvider('');
-      return;
-    }
+    if (option.id === 'credit') { setPaymentType('credit'); setPaymentProvider(''); return; }
     setPaymentType(option.paymentType);
     setPaymentProvider(option.provider || '');
   };
 
-
   const buildSaleSaveLabel = () => {
     if (saleFinalAmount <= 0) return photos.length > 0 ? 'Add amount to save photo sale' : 'Save';
-    if (isCreditSale) {
-      return `Save Credit · ${fmt(saleFinalAmount)} ETB`;
-    }
-    if (saleItems.length > 0) {
-      const itemCount = saleUnitCount || saleItems.length;
-      return `Save ${itemCount} ${itemCount === 1 ? 'item' : 'items'} · ${fmt(saleFinalAmount)} ETB`;
-    }
+    if (isCreditSale) return `Save Credit · ${fmt(saleFinalAmount)} ETB`;
+    if (saleItems.length > 0) { const itemCount = saleUnitCount || saleItems.length; return `Save ${itemCount} ${itemCount === 1 ? 'item' : 'items'} · ${fmt(saleFinalAmount)} ETB`; }
     if (photos.length > 0) return `Save photo sale · ${fmt(saleFinalAmount)} ETB`;
     if (activeSalePayment.id !== 'cash') return `Save ${activeSalePayment.label} · ${fmt(saleFinalAmount)} ETB`;
     return `Save ${fmt(saleFinalAmount)} ETB`;
   };
 
-  const openAddRecurring = (demoName = '') => {
-    setPopupName(demoName);
-    setPopupAmount('');
-    setPopupFreq('monthly');
-    setShowAddRecurring(true);
-  };
+  const openAddRecurring = (demoName = '') => { setPopupName(demoName); setPopupAmount(''); setPopupFreq('monthly'); setShowAddRecurring(true); };
 
   const handleAddAndUse = async () => {
     const amt = parseFloat(parseInput(popupAmount));
@@ -749,126 +639,73 @@ try {
     await db.settings.put({ key: 'recurring_expenses', value: JSON.stringify(updated) });
     onRecurringChange?.(updated);
     setShowAddRecurring(false);
-    setItem(newItem.name);
-    setAmount(String(newItem.amount));
+    setItem(newItem.name); setAmount(String(newItem.amount));
     setAddRecurringHint(true);
     setTimeout(() => setAddRecurringHint(false), 4000);
   };
 
-  // ─── Main form ──────────────────────────────────────────────────────────
+  // ═══════════════════ SALE FORM ═══════════════════════════════════
   if (type === 'sale') {
     const saleSaveLabel = buildSaleSaveLabel();
     const canAddSaleItem = saleItemDraft.kind === 'item' || saleItemDraft.kind === 'catalog';
 
     return (
-      <div
-        className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col"
-        style={{ background: '#ffffff' }}
-      >
-        <div
-          className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between"
-          style={{ borderBottom: '1px solid #e8e2d8' }}
-        >
-          <button
-            onClick={onDone}
-            aria-label={lang === 'am' ? 'ተመለስ' : 'Back'}
-            className="press-scale flex items-center justify-center"
-            style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}
-          >
+      <div className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col" style={{ background: '#ffffff' }}>
+        {/* Header */}
+        <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e8e2d8' }}>
+          <button onClick={onDone} aria-label={lang === 'am' ? 'ተመለስ' : 'Back'} className="press-scale flex items-center justify-center" style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}>
             <ArrowLeft className="w-5 h-5" style={{ color: '#6b7280' }} />
           </button>
           <div className="text-center min-w-0">
             <h2 className="text-base font-bold" style={{ color: accentColor }}>{headerLabel}</h2>
-            {actorLabel && (
-              <p className="text-[11px] font-semibold truncate" style={{ color: '#6b7280', maxWidth: '220px' }}>
-                Recording as {actorLabel}
-              </p>
-            )}
+            {actorLabel && <p className="text-[11px] font-semibold truncate" style={{ color: '#6b7280', maxWidth: '220px' }}>Recording as {actorLabel}</p>}
           </div>
           <div style={{ width: '36px' }} />
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 pb-28 space-y-3">
+          {/* Total amount hero */}
           <section className="border" style={{ borderColor: '#d8eadf', borderRadius: 'var(--radius-md)', background: '#f7fcf8' }}>
             <div className="px-3 py-2.5 flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-bold" style={{ color: '#4b6855' }}>Total amount</p>
-                <p className="text-2xl font-black leading-tight" style={{ color: saleFinalAmount > 0 ? '#14532d' : '#9ca3af' }}>
-                  {fmt(saleFinalAmount)} ETB
-                </p>
+                <p className="text-2xl font-black leading-tight" style={{ color: saleFinalAmount > 0 ? '#14532d' : '#9ca3af' }}>{fmt(saleFinalAmount)} ETB</p>
               </div>
-              <span className="px-2.5 py-1.5 text-xs font-black border" style={{ borderColor: '#bbd7c5', borderRadius: 'var(--radius-sm)', background: '#fff', color: '#14532d' }}>
-                {activeSalePayment.label} ▾
-              </span>
+              <span className="px-2.5 py-1.5 text-xs font-black border" style={{ borderColor: '#bbd7c5', borderRadius: 'var(--radius-sm)', background: '#fff', color: '#14532d' }}>{activeSalePayment.label} ▾</span>
             </div>
-<div className="px-3 pb-3">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  autoFocus
-                  value={fmtInput(amount)}
-                  onChange={event => {
-                    handleNumericInput(event, setAmount);
-                    setSaleAmountBasis('entered');
-                  }}
-                  placeholder="0"
-                  className="w-full px-3 py-3 border-2 focus:outline-none text-2xl font-black"
-                  style={{ borderRadius: 'var(--radius-md)', borderColor: amount ? '#86efac' : '#d7e3da', color: amount ? '#14532d' : '#9ca3af' }}
-                />
-             </div>
+            <div className="px-3 pb-3">
+              <input type="text" inputMode="decimal" autoFocus value={fmtInput(amount)}
+                onChange={event => { handleNumericInput(event, setAmount); setSaleAmountBasis('entered'); }}
+                placeholder="0" className="w-full px-3 py-3 border-2 focus:outline-none text-2xl font-black"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: amount ? '#86efac' : '#d7e3da', color: amount ? '#14532d' : '#9ca3af' }} />
+            </div>
           </section>
 
+          {/* Item details section */}
           <section className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#6b7280' }}>
-                Item details - optional
-              </p>
-              {saleItems.length > 0 && (
-                <p className="text-[11px] font-bold" style={{ color: '#14532d' }}>
-                  {saleItems.length} {saleItems.length === 1 ? 'item' : 'items'}
-                </p>
-              )}
+              <p className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#6b7280' }}>Item details - optional</p>
+              {saleItems.length > 0 && <p className="text-[11px] font-bold" style={{ color: '#14532d' }}>{saleItems.length} {saleItems.length === 1 ? 'item' : 'items'}</p>}
             </div>
             <div className="flex gap-2 items-stretch">
-              <label
-                className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
+              {/* Photo button */}
+              <label className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
                 style={{ width: 48, minHeight: 48, border: '2px solid #d7e3da', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? '#f0fdf4' : '#fafaf6' }}
-                aria-label="Take or choose photo"
-              >
-                <input type="file" accept="image/*" multiple onChange={handlePhotoCapture} className="hidden" disabled={photoLoading || photos.length >= MAX_PROOF_PHOTOS} />
+                aria-label="Take or choose photo">
+                <input type="file" accept="image/*" multiple onChange={handlePhotoCapture} className="hidden" disabled={photoLoading} />
                 {photoLoading ? <span className="text-xs">...</span> : <Camera className="w-5 h-5" style={{ color: photos.length > 0 ? '#16a34a' : '#4b5563' }} />}
               </label>
-              <input
-                type="text"
-                inputMode="text"
-                value={saleItemInput}
-                onChange={(e) => {
-                  const val = e.target.value
-                  setSaleItemInput(val)
-                  setParsedPreview(parseItemInput(val))
-                }}
-                onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); } }}
+              <input type="text" value={saleItemInput}
+                onChange={(e) => { setSaleItemInput(e.target.value); setParsedPreview(parseItemInput(e.target.value)); }}
+                onKeyDown={event => { if (event.key === 'Enter') event.preventDefault(); }}
                 placeholder={lang === 'am' ? 'ንጥል ወይም "ስንዴ 40"' : 'Item  or  "Sugar 40"'}
                 className="flex-1 min-w-0 px-3 py-3 border-2 focus:outline-none text-base"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: saleItemInput ? '#86efac' : '#d7e3da' }}
-              />
-              {parsedPreview?.kind === 'item' && parsedPreview.unitPrice && (
-                <div className="text-xs text-gray-400 mt-1 px-1">
-                  → {parsedPreview.name} · {parsedPreview.unitPrice} ETB
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={handleSaleAddItem}
-                disabled={!canAddSaleItem}
+                style={{ borderRadius: 'var(--radius-md)', borderColor: saleItemInput ? '#86efac' : '#d7e3da' }} />
+              <button type="button" onClick={handleSaleAddItem} disabled={!canAddSaleItem}
                 className="px-3 py-2 text-sm font-black press-scale flex-shrink-0"
-                style={{ borderRadius: 'var(--radius-md)', background: canAddSaleItem ? '#14532d' : '#e5e7eb', color: canAddSaleItem ? '#fff' : '#6b7280', minWidth: 66 }}
-              >
-                Add Item
-              </button>
+                style={{ borderRadius: 'var(--radius-md)', background: canAddSaleItem ? '#14532d' : '#e5e7eb', color: canAddSaleItem ? '#fff' : '#6b7280', minWidth: 66 }}>Add Item</button>
             </div>
-            {/* Draft Item preview card (spec §3.3) — shows before adding so merchant
-                can correct the text or accept an autocomplete suggestion first. */}
+            {/* draft preview */}
             {saleItemInput.trim() && !canAddSaleItem && (
               <div className="p-2 border text-sm flex items-center justify-between" style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', background: '#faf9f7' }}>
                 <span style={{ color: '#374151' }}>"{saleItemInput.trim()}"</span>
@@ -884,37 +721,23 @@ try {
                   </div>
                   <p className="text-sm font-black flex-shrink-0" style={{ color: '#14532d' }}>{fmt((parsedPreview.qty || 1) * (parsedPreview.unitPrice || 0))} ETB</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSaleAddItem}
-                  className="mt-1.5 w-full py-1.5 text-xs font-black text-center press-scale"
-                  style={{ borderRadius: 'var(--radius-sm)', background: '#14532d', color: '#fff' }}
-                >
-                  Add Item
-                </button>
+                <button type="button" onClick={handleSaleAddItem} className="mt-1.5 w-full py-1.5 text-xs font-black text-center press-scale"
+                  style={{ borderRadius: 'var(--radius-sm)', background: '#14532d', color: '#fff' }}>Add Item</button>
               </div>
             )}
-{photos.length > 0 && (
-               <p className="text-xs font-black" style={{ color: '#14532d' }}>✓ {photos.length} photo attached</p>
-             )}
+            {photos.length > 0 && <p className="text-xs font-black" style={{ color: '#14532d' }}>✓ {photoCountLabel(photos.length, lang)}</p>}
             {photoError && <p className="text-xs font-semibold" style={{ color: '#dc2626' }}>{photoError}</p>}
           </section>
 
+          {/* Quick items */}
           <section className="space-y-1.5">
-<p className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#6b7280' }}>
-               Quick Items
-             </p>
+            <p className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#6b7280' }}>Quick Items</p>
             {saleItemInput.trim() ? (
               saleItemSuggestions.length > 0 ? (
                 <div className="space-y-1.5">
                   {saleItemSuggestions.map(entry => (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      onClick={() => addSaleCatalogItem(entry)}
-                      className="w-full p-2.5 border text-left press-scale flex items-center justify-between gap-2"
-                      style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', background: '#fff' }}
-                    >
+                    <button key={entry.id} type="button" onClick={() => addSaleCatalogItem(entry)} className="w-full p-2.5 border text-left press-scale flex items-center justify-between gap-2"
+                      style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', background: '#fff' }}>
                       <span className="min-w-0">
                         <span className="block text-sm font-black truncate" style={{ color: '#111827' }}>{entry.name}</span>
                         {(entry.code || entry.sku || entry.item_code) && <span className="block text-xs truncate" style={{ color: '#6b7280' }}>Code: {entry.code || entry.sku || entry.item_code}</span>}
@@ -924,46 +747,25 @@ try {
                   ))}
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const draft = parseItemInput(saleItemInput);
-                    if (draft?.kind === 'item') {
-                      addSaleItem({ name: draft.name, unitPrice: draft.unitPrice, qty: 1 });
-                    } else if (draft?.kind === 'amount') {
-                      setAmount(String(draft.value));
-                    }
-                  }}
-                  className="w-full p-2.5 border text-left press-scale"
-                  style={{ borderColor: '#1B4332', borderRadius: 'var(--radius-sm)', background: '#f7fcf8' }}
-                >
-                  <span className="text-sm font-bold" style={{ color: '#1B4332' }}>
-                    + Use "{saleItemInput.trim()}"
-                  </span>
-                </button>
+                <button type="button" onClick={() => { const draft = parseItemInput(saleItemInput); if (draft?.kind === 'item') addSaleItem({ name: draft.name, unitPrice: draft.unitPrice, qty: 1 }); else if (draft?.kind === 'amount') setAmount(String(draft.value)); }}
+                  className="w-full p-2.5 border text-left press-scale" style={{ borderColor: '#1B4332', borderRadius: 'var(--radius-sm)', background: '#f7fcf8' }}>
+                  <span className="text-sm font-bold" style={{ color: '#1B4332' }}>+ Use "{saleItemInput.trim()}"</span></button>
               )
             ) : topCatalogItems.length > 0 ? (
               <div className="flex gap-1.5 overflow-x-auto pb-1">
                 {topCatalogItems.map(entry => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => addSaleCatalogItem(entry)}
-                    className="flex-shrink-0 px-3 py-2 text-xs font-black border press-scale"
-                    style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', background: '#fff', color: '#14532d' }}
-                  >
-                    {entry.code || entry.sku || entry.item_code || entry.name}
-                  </button>
+                  <button key={entry.id} type="button" onClick={() => addSaleCatalogItem(entry)} className="flex-shrink-0 px-3 py-2 text-xs font-black border press-scale"
+                    style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', background: '#fff', color: '#14532d' }}>{entry.code || entry.sku || entry.item_code || entry.name}</button>
                 ))}
               </div>
             ) : (
               <div className="p-3 border text-sm" style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', color: '#6b7280' }}>
-                <p className="font-bold" style={{ color: '#374151' }}>No items yet</p>
-                <p>Saved items will appear here after you use them.</p>
+                <p className="font-bold" style={{ color: '#374151' }}>No items yet</p><p>Saved items will appear here after you use them.</p>
               </div>
             )}
           </section>
 
+          {/* Items in this sale */}
           {saleItems.length > 0 && (
             <section className="space-y-2">
               <p className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#6b7280' }}>Items in this sale</p>
@@ -993,80 +795,38 @@ try {
               </div>
               {saleHasMismatch && (
                 <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSaleAmountBasis('entered')}
-                    className="p-2 text-xs font-black border-2 press-scale"
-                    style={{ borderColor: saleAmountBasis === 'entered' ? '#14532d' : '#e8e2d8', borderRadius: 6, background: saleAmountBasis === 'entered' ? '#ecfdf3' : '#fff', color: '#14532d' }}
-                  >
-                    Use entered total {fmt(sellingPrice)}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSaleAmountBasis('items')}
-                    className="p-2 text-xs font-black border-2 press-scale"
-                    style={{ borderColor: saleAmountBasis === 'items' ? '#14532d' : '#e8e2d8', borderRadius: 6, background: saleAmountBasis === 'items' ? '#ecfdf3' : '#fff', color: '#14532d' }}
-                  >
-                    Use item subtotal {fmt(saleItemsSubtotal)}
-                  </button>
+                  <button type="button" onClick={() => setSaleAmountBasis('entered')} className="p-2 text-xs font-black border-2 press-scale"
+                    style={{ borderColor: saleAmountBasis === 'entered' ? '#14532d' : '#e8e2d8', borderRadius: 6, background: saleAmountBasis === 'entered' ? '#ecfdf3' : '#fff', color: '#14532d' }}>
+                    Use entered total {fmt(sellingPrice)}</button>
+                  <button type="button" onClick={() => setSaleAmountBasis('items')} className="p-2 text-xs font-black border-2 press-scale"
+                    style={{ borderColor: saleAmountBasis === 'items' ? '#14532d' : '#e8e2d8', borderRadius: 6, background: saleAmountBasis === 'items' ? '#ecfdf3' : '#fff', color: '#14532d' }}>
+                    Use item subtotal {fmt(saleItemsSubtotal)}</button>
                 </div>
               )}
             </section>
           )}
 
-<div className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar">
-          <button
-            onPointerDown={() => setPaymentType('cash')}
-            className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'cash' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}
-          >
-            {lang === 'am' ? 'ጥሬ' : 'Cash'}
-          </button>
-          {[
-            ...(enabledProviders?.banks || []),
-            ...(enabledProviders?.wallets || []),
-          ].map(provider => (
-            <button
-              key={provider}
-              onPointerDown={() => { setPaymentType('provider'); setPaymentProvider(provider); }}
-              className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'provider' && paymentProvider === provider ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}
-            >
-              {provider}
-            </button>
-          ))}
-          <button
-            onPointerDown={() => setPaymentType('credit')}
-            className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'credit' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}
-          >
-            {lang === 'am' ? 'ዱቤ' : 'Credit'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab?.('settings')}
-            className="shrink-0 px-3 py-2 rounded-full text-sm font-bold border-2 border-dashed press-scale"
-            style={{ borderColor: '#c9bfa8', background: '#faf9f7', color: '#9ca3af', whiteSpace: 'nowrap' }}
-            aria-label={lang === 'am' ? 'አክል' : 'Add provider'}
-          >
-            +
-          </button>
+          {/* Payment chips */}
+          <div className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar">
+            <button onPointerDown={() => setPaymentType('cash')} className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'cash' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}>{lang === 'am' ? 'ጥሬ' : 'Cash'}</button>
+            {[...(enabledProviders?.banks || []), ...(enabledProviders?.wallets || [])].map(provider => (
+              <button key={provider} onPointerDown={() => { setPaymentType('provider'); setPaymentProvider(provider); }} className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'provider' && paymentProvider === provider ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}>{provider}</button>
+            ))}
+            <button onPointerDown={() => setPaymentType('credit')} className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'credit' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}>{lang === 'am' ? 'ዱቤ' : 'Credit'}</button>
+            <button type="button" onClick={() => setActiveTab?.('settings')} className="shrink-0 px-3 py-2 rounded-full text-sm font-bold border-2 border-dashed press-scale" style={{ borderColor: '#c9bfa8', background: '#faf9f7', color: '#9ca3af', whiteSpace: 'nowrap' }} aria-label={lang === 'am' ? 'አክል' : 'Add provider'}>+</button>
+          </div>
         </div>
 
-        </div>
-
+        {/* Save button */}
         <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid #e8e2d8', background: '#fff' }}>
           {!canSave && saleFinalAmount > 0 && isCreditSale && <p className="text-xs font-semibold text-center mb-2" style={{ color: '#92400e' }}>Add or pick a customer above</p>}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={!canSave}
-            className="w-full p-3 font-black text-base flex items-center justify-center gap-2 transition-all press-scale"
-            style={{ background: canSave ? '#14532d' : '#e5e7eb', color: canSave ? '#fff' : '#9ca3af', cursor: canSave ? 'pointer' : 'not-allowed', borderRadius: 'var(--radius-md)' }}
-          >
-            <Save className="w-5 h-5" />
-            {saleSaveLabel}
-          </button>
+          <button type="button" onClick={handleSave} disabled={!canSave} className="w-full p-3 font-black text-base flex items-center justify-center gap-2 transition-all press-scale"
+            style={{ background: canSave ? '#14532d' : '#e5e7eb', color: canSave ? '#fff' : '#9ca3af', cursor: canSave ? 'pointer' : 'not-allowed', borderRadius: 'var(--radius-md)' }}>
+            <Save className="w-5 h-5" />{saleSaveLabel}</button>
           <p className="text-[11px] font-semibold text-center mt-1.5" style={{ color: '#6b7280' }}>Saved on this phone · Syncs later</p>
         </div>
 
+        {/* Undo bar */}
         {showUndo && (
           <div className="fixed bottom-16 left-0 right-0 mx-auto max-w-md px-3 z-50">
             <div className="bg-white border shadow-lg flex items-center justify-between px-4 py-3" style={{ borderColor: '#d7e3da', borderRadius: 'var(--radius-md)' }}>
@@ -1075,71 +835,33 @@ try {
             </div>
           </div>
         )}
-
       </div>
-      );
+    );
   }
 
+  // ═══════════════════ EXPENSE / CREDIT FORM ══════════════════════
   return (
-    <div
-      className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col"
-      style={{ background: '#ffffff' }}
-    >
-      {/* Header: back arrow + type label */}
-      <div
-        className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between"
-        style={{ borderBottom: '1px solid #e8e2d8' }}
-      >
-        <button
-          onClick={onDone}
-          aria-label={lang === 'am' ? 'ተመለስ' : 'Back'}
-          className="press-scale flex items-center justify-center"
-          style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}
-        >
+    <div className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col" style={{ background: '#ffffff' }}>
+      {/* Header */}
+      <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e8e2d8' }}>
+        <button onClick={onDone} aria-label={lang === 'am' ? 'ተመለስ' : 'Back'} className="press-scale flex items-center justify-center" style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}>
           <ArrowLeft className="w-5 h-5" style={{ color: '#6b7280' }} />
         </button>
         <h2 className="text-base font-bold" style={{ color: accentColor }}>{headerLabel}</h2>
         {actorLabel ? (
-          <span
-            className="text-[11px] font-semibold truncate"
-            style={{ color: '#6b4f1d', maxWidth: '100px', textAlign: 'right' }}
-            title={actorLabel}
-          >
-            {actorLabel}
-          </span>
-        ) : (
-          <div style={{ width: '36px' }} />
-        )}
+          <span className="text-[11px] font-semibold truncate" style={{ color: '#6b4f1d', maxWidth: '100px', textAlign: 'right' }} title={actorLabel}>{actorLabel}</span>
+        ) : <div style={{ width: '36px' }} />}
       </div>
 
-      {/* Scrollable body */}
+      {/* Body */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 pb-2 space-y-4">
-
-        {/* Credit direction picker */}
         {isCredit && (
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'አቅጣጫ' : 'DIRECTION'}
-            </label>
+            <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>{lang === 'am' ? 'አቅጣጫ' : 'DIRECTION'}</label>
             <div className="grid grid-cols-2 gap-2">
-              {[
-                { id: 'owes_me', label: lang === 'am' ? 'ያበደርኩት' : 'They owe me' },
-                { id: 'i_owe',   label: lang === 'am' ? 'የተበደርኩት' : 'I owe them' },
-              ].map(d => (
-                <button
-                  key={d.id}
-                  type="button"
-                  onClick={() => setCreditDirection(d.id)}
-                  className="p-3 border-2 text-center transition-all min-h-[48px] press-scale text-sm font-bold"
-                  style={{
-                    borderRadius: 'var(--radius-md)',
-                    borderColor: creditDirection === d.id ? accentColor : '#e8e2d8',
-                    background: creditDirection === d.id ? `${accentColor}10` : '#fff',
-                    color: creditDirection === d.id ? accentColor : '#6b7280',
-                  }}
-                >
-                  {d.label}
-                </button>
+              {[{ id: 'owes_me', label: lang === 'am' ? 'ያበደርኩት' : 'They owe me' }, { id: 'i_owe', label: lang === 'am' ? 'የተበደርኩት' : 'I owe them' }].map(d => (
+                <button key={d.id} type="button" onClick={() => setCreditDirection(d.id)} className="p-3 border-2 text-center transition-all min-h-[48px] press-scale text-sm font-bold"
+                  style={{ borderRadius: 'var(--radius-md)', borderColor: creditDirection === d.id ? accentColor : '#e8e2d8', background: creditDirection === d.id ? `${accentColor}10` : '#fff', color: creditDirection === d.id ? accentColor : '#6b7280' }}>{d.label}</button>
               ))}
             </div>
           </div>
@@ -1148,443 +870,106 @@ try {
         {/* Recurring quick-fill (expense only) */}
         {isExpense && recurringExpenses && recurringExpenses.length > 0 && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'ፈጣን ሙላ' : 'QUICK-FILL'}
-            </label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ፈጣን ሙላ' : 'QUICK-FILL'}</label>
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {recurringExpenses.map(re => (
-                <button
-                  key={re.id}
-                  type="button"
-                  onClick={() => { setItem(re.name); setAmount(String(re.amount)); }}
-                  className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale"
-                  style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff', color: '#1B4332' }}
-                >
-                  <div>{re.name}</div>
-                  <div className="font-normal text-[10px]" style={{ color: '#C4883A' }}>
-                    {fmt(re.amount)} {lang === 'am' ? 'ብር' : 'birr'}
-                  </div>
-                </button>
+                <button key={re.id} type="button" onClick={() => { setItem(re.name); setAmount(String(re.amount)); }} className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale"
+                  style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff', color: '#1B4332' }}>
+                  <div>{re.name}</div><div className="font-normal text-[10px]" style={{ color: '#C4883A' }}>{fmt(re.amount)} {lang === 'am' ? 'ብር' : 'birr'}</div></button>
               ))}
-              <button
-                type="button"
-                onClick={() => openAddRecurring('')}
-                className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale flex items-center justify-center"
-                style={{
-                  borderRadius: 'var(--radius-sm)',
-                  borderColor: '#c9bfa8',
-                  borderStyle: 'dashed',
-                  background: '#faf9f7',
-                  color: '#9ca3af',
-                  minWidth: '40px',
-                }}
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+              <button type="button" onClick={() => openAddRecurring('')} className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale flex items-center justify-center"
+                style={{ borderRadius: 'var(--radius-sm)', borderColor: '#c9bfa8', borderStyle: 'dashed', background: '#faf9f7', color: '#9ca3af', minWidth: '40px' }}><Plus className="w-4 h-4" /></button>
             </div>
-            {addRecurringHint && (
-              <p className="text-xs mt-1.5 font-medium" style={{ color: '#C4883A' }}>
-                {lang === 'am' ? 'በቅንብሮች ውስጥ ሌሎች ተደጋጋሚ ወጪዎችን ማከል ይችላሉ' : 'You can add more recurring expenses in Settings'}
-              </p>
-            )}
+            {addRecurringHint && <p className="text-xs mt-1.5 font-medium" style={{ color: '#C4883A' }}>{lang === 'am' ? 'በቅንብሮች ውስጥ ሌሎች ተደጋጋሚ ወጪዎችን ማከል ይችላሉ' : 'You can add more recurring expenses in Settings'}</p>}
           </div>
         )}
         {isExpense && (!recurringExpenses || recurringExpenses.length === 0) && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'ፈጣን ሙላ' : 'QUICK-FILL (EXAMPLES)'}
-            </label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ፈጣን ሙላ' : 'QUICK-FILL (EXAMPLES)'}</label>
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {[lang === 'am' ? 'ኪራይ' : 'Rent', lang === 'am' ? 'እቁብ' : 'እቁብ'].map(demoName => (
-                <button
-                  key={demoName}
-                  type="button"
-                  onClick={() => openAddRecurring(demoName)}
-                  className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale"
-                  style={{
-                    borderRadius: 'var(--radius-sm)',
-                    borderColor: '#c9bfa8',
-                    borderStyle: 'dashed',
-                    background: '#faf9f7',
-                    color: '#9ca3af',
-                  }}
-                >
-                  {demoName}
-                </button>
+                <button key={demoName} type="button" onClick={() => openAddRecurring(demoName)} className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale"
+                  style={{ borderRadius: 'var(--radius-sm)', borderColor: '#c9bfa8', borderStyle: 'dashed', background: '#faf9f7', color: '#9ca3af' }}>{demoName}</button>
               ))}
-              <button
-                type="button"
-                onClick={() => openAddRecurring('')}
-                className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale flex items-center justify-center"
-                style={{
-                  borderRadius: 'var(--radius-sm)',
-                  borderColor: '#c9bfa8',
-                  borderStyle: 'dashed',
-                  background: '#faf9f7',
-                  color: '#9ca3af',
-                  minWidth: '40px',
-                }}
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+              <button type="button" onClick={() => openAddRecurring('')} className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale flex items-center justify-center"
+                style={{ borderRadius: 'var(--radius-sm)', borderColor: '#c9bfa8', borderStyle: 'dashed', background: '#faf9f7', color: '#9ca3af', minWidth: '40px' }}><Plus className="w-4 h-4" /></button>
             </div>
           </div>
         )}
 
-        {/* AMOUNT — the hero */}
+        {/* AMOUNT */}
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
-            {lang === 'am' ? 'መጠን' : 'AMOUNT'}
-          </label>
+          <label className="block text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>{lang === 'am' ? 'መጠን' : 'AMOUNT'}</label>
           <div className="relative">
-             <input
-               ref={amountInputRef}
-               type="text"
-               inputMode="decimal"
-               value={amountDisplay}
-               placeholder="0"
-               className="w-full py-3 pr-20 text-3xl sm:text-4xl font-bold text-center focus:outline-none"
-               style={{
-                 borderBottom: `2px solid ${amountDisplay ? accentColor : '#e8e2d8'}`,
-                 background: 'transparent',
-                 color: amountDisplay ? accentColor : '#9ca3af',
-               }}
-             />
-            <span
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-base sm:text-lg font-semibold"
-              style={{ color: '#9ca3af' }}
-            >
-              {lang === 'am' ? 'ብር' : 'birr'}
-            </span>
+            <input ref={amountInputRef} type="text" inputMode="decimal" value={amountDisplay} placeholder="0"
+              className="w-full py-3 pr-20 text-3xl sm:text-4xl font-bold text-center focus:outline-none"
+              style={{ borderBottom: `2px solid ${amountDisplay ? accentColor : '#e8e2d8'}`, background: 'transparent', color: amountDisplay ? accentColor : '#9ca3af' }} />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-base sm:text-lg font-semibold" style={{ color: '#9ca3af' }}>{lang === 'am' ? 'ብር' : 'birr'}</span>
           </div>
-
-          {/* Quick-pick amount chips — ADDITIVE: tap to add to current amount.
-              Defaults + persisted user customs, sorted ascending. Full numbers (e.g. 1000 not 1K). */}
+          {/* Quick-pick chips */}
           <div className="flex gap-1.5 mt-3 overflow-x-auto pb-1 items-center">
-            {Array.from(new Set([...DEFAULT_QUICK_AMOUNTS, ...customQuickAmounts]))
-              .filter(n => typeof n === 'number' && n > 0)
-              .sort((a, b) => a - b)
-              .map(amt => {
-                const isCustom = !DEFAULT_QUICK_AMOUNTS.includes(amt);
-                return (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => {
-                      const current = parseFloat(parseInput(amount)) || 0;
-                      setAmount(String(current + amt));
-                    }}
-                    onContextMenu={isCustom ? (e) => {
-                      // Long-press / right-click: remove custom chip
-                      e.preventDefault();
-                      if (onCustomQuickAmountsChange) {
-                        onCustomQuickAmountsChange(customQuickAmounts.filter(n => n !== amt));
-                      }
-                    } : undefined}
-                    className="flex-shrink-0 px-3 py-1.5 text-xs font-bold border press-scale"
-                    style={{
-                      borderColor: isCustom ? '#C4883A' : '#e8e2d8',
-                      borderRadius: 'var(--radius-sm)',
-                      background: isCustom ? 'rgba(196,136,58,0.06)' : '#fff',
-                      color: isCustom ? '#6b4f1d' : '#374151',
-                      minWidth: '52px',
-                    }}
-                    title={isCustom ? (lang === 'am' ? 'ለማስወገድ ይያዙ' : 'Long-press to remove') : undefined}
-                  >
-                    +{amt}
-                  </button>
-                );
-              })}
-            {/* + custom amount toggle */}
-            <button
-              type="button"
-              onClick={() => setShowCustomAmount(v => !v)}
-              className="flex-shrink-0 px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center justify-center"
-              style={{
-                borderColor: showCustomAmount ? accentColor : '#c9bfa8',
-                borderStyle: 'dashed',
-                borderRadius: 'var(--radius-sm)',
-                background: showCustomAmount ? `${accentColor}10` : '#faf9f7',
-                color: showCustomAmount ? accentColor : '#6b7280',
-                minWidth: '40px',
-                minHeight: '32px',
-              }}
-              aria-label={lang === 'am' ? 'ሌላ መጠን' : 'Custom amount'}
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
+            {Array.from(new Set([...DEFAULT_QUICK_AMOUNTS, ...customQuickAmounts])).filter(n => typeof n === 'number' && n > 0).sort((a, b) => a - b).map(amt => {
+              const isCustom = !DEFAULT_QUICK_AMOUNTS.includes(amt);
+              return (
+                <button key={amt} type="button" onClick={() => { const current = parseFloat(parseInput(amount)) || 0; setAmount(String(current + amt)); }}
+                  onContextMenu={isCustom ? (e) => { e.preventDefault(); if (onCustomQuickAmountsChange) onCustomQuickAmountsChange(customQuickAmounts.filter(n => n !== amt)); } : undefined}
+                  className="flex-shrink-0 px-3 py-1.5 text-xs font-bold border press-scale"
+                  style={{ borderColor: isCustom ? '#C4883A' : '#e8e2d8', borderRadius: 'var(--radius-sm)', background: isCustom ? 'rgba(196,136,58,0.06)' : '#fff', color: isCustom ? '#6b4f1d' : '#374151', minWidth: '52px' }}
+                  title={isCustom ? (lang === 'am' ? 'ለማስወገድ ይያዙ' : 'Long-press to remove') : undefined}>+{amt}</button>
+              );
+            })}
+            <button type="button" onClick={() => setShowCustomAmount(v => !v)} className="flex-shrink-0 px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center justify-center"
+              style={{ borderColor: showCustomAmount ? accentColor : '#c9bfa8', borderStyle: 'dashed', borderRadius: 'var(--radius-sm)', background: showCustomAmount ? `${accentColor}10` : '#faf9f7', color: showCustomAmount ? accentColor : '#6b7280', minWidth: '40px', minHeight: '32px' }}><Plus className="w-3.5 h-3.5" /></button>
             {amount && (
-              <button
-                type="button"
-                onClick={() => setAmount('')}
-                className="flex-shrink-0 ml-auto px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center justify-center"
-                style={{
-                  borderColor: '#fecaca',
-                  borderRadius: 'var(--radius-sm)',
-                  background: '#fef2f2',
-                  color: '#dc2626',
-                  minWidth: '40px',
-                  minHeight: '32px',
-                }}
-                aria-label={lang === 'am' ? 'መጠን አጥፋ' : 'Clear amount'}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
+              <button type="button" onClick={() => setAmount('')} className="flex-shrink-0 ml-auto px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center justify-center"
+                style={{ borderColor: '#fecaca', borderRadius: 'var(--radius-sm)', background: '#fef2f2', color: '#dc2626', minWidth: '40px', minHeight: '32px' }}><X className="w-3.5 h-3.5" /></button>
             )}
           </div>
-
-          {/* Inline custom amount input */}
-          {showCustomAmount && (
-            <div className="flex gap-2 mt-2">
-              <input
-                type="text"
-                inputMode="decimal"
-                autoFocus
-                value={fmtInput(customAmountValue)}
-                onChange={e => handleNumericInput(e, setCustomAmountValue)}
-                onKeyDown={e => { if (e.key === 'Enter') applyCustomAmount(); }}
-                placeholder={lang === 'am' ? 'ሌላ መጠን' : 'Other amount'}
-                className="flex-1 p-2.5 border-2 focus:outline-none text-sm"
-                style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8' }}
-              />
-              <button
-                type="button"
-                onClick={applyCustomAmount}
-                disabled={!parseFloat(parseInput(customAmountValue))}
-                className="px-3 py-2 text-xs font-bold press-scale flex items-center gap-1"
-                style={{
-                  background: parseFloat(parseInput(customAmountValue)) ? accentColor : '#e5e7eb',
-                  color: parseFloat(parseInput(customAmountValue)) ? '#fff' : '#9ca3af',
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: parseFloat(parseInput(customAmountValue)) ? 'pointer' : 'not-allowed',
-                  minHeight: '40px',
-                }}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                {lang === 'am' ? 'ጨምር' : 'Add'}
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Multi-item breakdown (sale/expense only) */}
-        {!isCredit && (
+        {/* Multi-item breakdown — SALE ONLY (not expense) */}
+        {!isCredit && type !== 'expense' && (
           <div>
-            <button
-              type="button"
-              onClick={() => setShowBreakdown(v => !v)}
-              className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[36px]"
-              style={{ color: '#C4883A' }}
-            >
+            <button type="button" onClick={() => setShowBreakdown(v => !v)} className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[36px]" style={{ color: '#C4883A' }}>
               {showBreakdown ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               {validLineItems.length > 0
                 ? (lang === 'am' ? `🧺 ${validLineItems.length} ዕቃዎች` : `🧺 ${validLineItems.length} items`)
                 : (lang === 'am' ? '🧺 ብዙ ዕቃዎች ይከፋፍሉ' : '🧺 Break down into items')}
             </button>
-
             {showBreakdown && (
-              <div
-                className="mt-2 p-3 border space-y-3"
-                style={{ background: 'var(--color-bg)', borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)' }}
-              >
-                {/* Catalog quick-add chips (tap to add as line item, or + to create new) */}
+              <div className="mt-2 p-3 border space-y-3" style={{ background: 'var(--color-bg)', borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)' }}>
                 {(topCatalogItems.length > 0 || onSaveCatalogEntry) && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-                      {lang === 'am' ? 'ለማከል ይጫኑ' : 'Tap saved item to add'}
-                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ለማከል ይጫኑ' : 'Tap saved item to add'}</p>
                     <div className="flex gap-1.5 overflow-x-auto pb-1 items-center">
                       {topCatalogItems.map(entry => (
-                        <button
-                          key={entry.id}
-                          type="button"
-                          onClick={() => addFromCatalogToBreakdown(entry)}
-                          className="flex-shrink-0 px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center gap-1"
-                          style={{
-                            borderColor: '#e8e2d8',
-                            borderRadius: 'var(--radius-sm)',
-                            background: '#fff',
-                            color: '#374151',
-                          }}
-                        >
-                          <Plus className="w-3 h-3" />
-                          {entry.name}
-                          {entry.default_price != null && (
-                            <span className="ml-1 font-normal" style={{ color: '#9ca3af' }}>
-                              {fmt(entry.default_price)}
-                            </span>
-                          )}
+                        <button key={entry.id} type="button" onClick={() => addFromCatalogToBreakdown(entry)} className="flex-shrink-0 px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center gap-1"
+                          style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', background: '#fff', color: '#374151' }}>
+                          <Plus className="w-3 h-3" />{entry.name}{entry.default_price != null && <span className="ml-1 font-normal" style={{ color: '#9ca3af' }}>{fmt(entry.default_price)}</span>}
                         </button>
                       ))}
-                      {onSaveCatalogEntry && (
-                        <button
-                          type="button"
-                          onClick={() => setShowAddCatalogBreakdown(v => !v)}
-                          className="flex-shrink-0 px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center gap-1"
-                          style={{
-                            borderColor: showAddCatalogBreakdown ? accentColor : '#c9bfa8',
-                            borderStyle: 'dashed',
-                            borderRadius: 'var(--radius-sm)',
-                            background: showAddCatalogBreakdown ? `${accentColor}10` : '#faf9f7',
-                            color: showAddCatalogBreakdown ? accentColor : '#6b7280',
-                          }}
-                          aria-label={lang === 'am' ? 'አዲስ ዕቃ' : 'New item'}
-                        >
-                          <Plus className="w-3 h-3" />
-                          {topCatalogItems.length === 0
-                            ? (lang === 'am' ? 'አዲስ ዕቃ' : 'New item')
-                            : (lang === 'am' ? 'አዲስ' : 'New')}
-                        </button>
-                      )}
                     </div>
-
-                    {/* Inline new-catalog form (saves to catalog AND adds to basket) */}
-                    {showAddCatalogBreakdown && (
-                      <div className="mt-2 p-2.5 border space-y-2"
-                        style={{ background: '#fff', borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)' }}
-                      >
-                        <input
-                          type="text"
-                          autoFocus
-                          value={newCatalogName}
-                          onChange={e => setNewCatalogName(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') submitNewCatalogToBreakdown(); }}
-                          placeholder={lang === 'am' ? 'ስም' : 'Name'}
-                          className="w-full p-2 border focus:outline-none text-sm"
-                          style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8' }}
-                        />
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={fmtInput(newCatalogPrice)}
-                            onChange={e => handleNumericInput(e, setNewCatalogPrice)}
-                            onKeyDown={e => { if (e.key === 'Enter') submitNewCatalogToBreakdown(); }}
-                            placeholder={lang === 'am' ? 'ዋጋ' : 'Price'}
-                            className="flex-1 p-2 border focus:outline-none text-sm"
-                            style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8' }}
-                          />
-                          <button
-                            type="button"
-                            onClick={submitNewCatalogToBreakdown}
-                            disabled={!newCatalogName.trim() || catalogSaving}
-                            className="px-3 py-2 text-xs font-bold press-scale flex items-center gap-1"
-                            style={{
-                              background: newCatalogName.trim() ? accentColor : '#e5e7eb',
-                              color: newCatalogName.trim() ? '#fff' : '#9ca3af',
-                              borderRadius: 'var(--radius-sm)',
-                              cursor: newCatalogName.trim() ? 'pointer' : 'not-allowed',
-                              minHeight: '36px',
-                            }}
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            {lang === 'am' ? 'ጨምር' : 'Add'}
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
-
-                {/* Line items list */}
                 {lineItems.length > 0 && (
                   <div className="space-y-1.5">
                     {lineItems.map((line, idx) => (
                       <div key={line.id} className="flex items-center gap-1.5">
-                        <input
-                          type="text"
-                          value={line.name}
-                          onChange={e => updateLineItem(line.id, 'name', e.target.value)}
-                          placeholder={lang === 'am' ? `ዕቃ ${idx + 1}` : `item ${idx + 1}`}
-                          className="flex-1 min-w-0 px-2 py-2 border focus:outline-none text-sm"
-                          style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }}
-                        />
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={fmtInput(line.amount)}
-                          onChange={e => handleLineItemAmount(line.id, e)}
-                          placeholder="0"
-                          className="w-20 px-2 py-2 border focus:outline-none text-sm text-right font-bold"
-                          style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeLineItem(line.id)}
-                          className="press-scale flex items-center justify-center flex-shrink-0"
-                          style={{ minWidth: '32px', minHeight: '32px' }}
-                          aria-label={lang === 'am' ? 'አስወግድ' : 'Remove'}
-                        >
-                          <X className="w-4 h-4" style={{ color: '#9ca3af' }} />
-                        </button>
+                        <input type="text" value={line.name} onChange={e => updateLineItem(line.id, 'name', e.target.value)} placeholder={lang === 'am' ? `ዕቃ ${idx + 1}` : `item ${idx + 1}`}
+                          className="flex-1 min-w-0 px-2 py-2 border focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }} />
+                        <input type="text" inputMode="decimal" value={fmtInput(line.amount)} onChange={e => handleLineItemAmount(line.id, e)} placeholder="0"
+                          className="w-20 px-2 py-2 border focus:outline-none text-sm text-right font-bold" style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }} />
+                        <button type="button" onClick={() => removeLineItem(line.id)} className="press-scale flex items-center justify-center flex-shrink-0" style={{ minWidth: '32px', minHeight: '32px' }}><X className="w-4 h-4" style={{ color: '#9ca3af' }} /></button>
                       </div>
                     ))}
                   </div>
                 )}
-
-                {/* Add custom item button */}
-                <button
-                  type="button"
-                  onClick={() => addLineItem()}
-                  className="w-full py-2 text-xs font-bold border border-dashed press-scale flex items-center justify-center gap-1"
-                  style={{
-                    borderColor: '#c9bfa8',
-                    borderRadius: 'var(--radius-sm)',
-                    background: '#faf9f7',
-                    color: '#6b7280',
-                  }}
-                >
-                  <Plus className="w-4 h-4" />
-                  {lineItems.length === 0
-                    ? (lang === 'am' ? 'የመጀመሪያ ዕቃ ጨምር' : 'Add first item')
-                    : (lang === 'am' ? 'ሌላ ዕቃ ጨምር' : 'Add another item')}
-                </button>
-
-                {/* Totals + remaining hint */}
+                <button type="button" onClick={() => addLineItem()} className="w-full py-2 text-xs font-bold border border-dashed press-scale flex items-center justify-center gap-1"
+                  style={{ borderColor: '#c9bfa8', borderRadius: 'var(--radius-sm)', background: '#faf9f7', color: '#6b7280' }}>
+                  <Plus className="w-4 h-4" />{lineItems.length === 0 ? (lang === 'am' ? 'የመጀመሪያ ዕቃ ጨምር' : 'Add first item') : (lang === 'am' ? 'ሌላ ዕቃ ጨምር' : 'Add another item')}</button>
                 {validLineItems.length > 0 && (
                   <div className="text-xs pt-2 border-t space-y-1" style={{ borderColor: '#e8e2d8' }}>
-                    <div className="flex justify-between" style={{ color: '#374151' }}>
-                      <span>{lang === 'am' ? 'የዕቃዎች ድምር' : 'Items total'}:</span>
-                      <span className="font-bold">{fmt(lineItemsTotal)} {lang === 'am' ? 'ብር' : 'birr'}</span>
-                    </div>
-                    {sellingPrice > 0 && Math.abs(breakdownDelta) > 0.01 && (
-                      <button
-                        type="button"
-                        onClick={syncAmountToBreakdownSum}
-                        className="w-full flex justify-between items-center px-1.5 py-1 press-scale"
-                        style={{
-                          color: breakdownDelta > 0 ? '#C4883A' : '#dc2626',
-                          background: breakdownDelta > 0 ? 'rgba(196,136,58,0.08)' : 'rgba(220,38,38,0.06)',
-                          borderRadius: 'var(--radius-sm)',
-                        }}
-                        title={lang === 'am' ? 'መጠን ወደ ድምር አስተካክል' : 'Set total to items sum'}
-                      >
-                        <span>
-                          {breakdownDelta > 0
-                            ? (lang === 'am' ? 'ቀሪ (አልተመዘገበም)' : 'Unaccounted')
-                            : (lang === 'am' ? 'ድምር ከመጠን በላይ' : 'Items exceed total')}
-                          :
-                        </span>
-                        <span className="font-bold">
-                          {fmt(Math.abs(breakdownDelta))} {lang === 'am' ? 'ብር' : 'birr'} ⤴
-                        </span>
-                      </button>
-                    )}
-                    {(sellingPrice === 0 || sellingPrice === lineItemsTotal) && (
-                      <button
-                        type="button"
-                        onClick={syncAmountToBreakdownSum}
-                        className="w-full flex justify-between items-center px-1.5 py-1 press-scale"
-                        style={{
-                          color: '#16a34a',
-                          background: 'rgba(22,163,74,0.06)',
-                          borderRadius: 'var(--radius-sm)',
-                        }}
-                      >
-                        <span>{lang === 'am' ? 'መጠን ከድምር ጋር ይሞላ' : 'Use items sum as total'}</span>
-                        <span className="font-bold">⤴</span>
-                      </button>
-                    )}
+                    <div className="flex justify-between" style={{ color: '#374151' }}><span>{lang === 'am' ? 'የዕቃዎች ድምር' : 'Items total'}:</span><span className="font-bold">{fmt(lineItemsTotal)} {lang === 'am' ? 'ብር' : 'birr'}</span></div>
                   </div>
                 )}
               </div>
@@ -1592,543 +977,145 @@ try {
           </div>
         )}
 
-        {/* ITEM / NAME + photo button (inline on same row, larger photo tap target) */}
-        {/* When breakdown has items, this becomes an optional note since items provide their own names */}
+        {/* ITEM / NAME + photo button */}
         <div>
           <label className="block text-[10px] font-bold tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-            {validLineItems.length > 0 && !isCredit
-              ? (lang === 'am' ? 'ማስታወሻ (አማራጭ)' : 'NOTE (OPTIONAL)')
-              : itemLabel}
+            {validLineItems.length > 0 && !isCredit ? (lang === 'am' ? 'ማስታወሻ (አማራጭ)' : 'NOTE (OPTIONAL)') : itemLabel}
           </label>
-
           <div className="flex gap-2 items-stretch">
-            <input
-              type="text"
-              value={item}
-              onChange={e => setItem(e.target.value)}
-              placeholder={itemPlaceholder}
-              className="flex-1 min-w-0 p-3 border-2 focus:outline-none text-base"
-              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-            />
-
-            {/* Photo button - Sale/expense only. Camera/gallery chooser stays browser-controlled. */}
+            <input type="text" value={item} onChange={e => setItem(e.target.value)} placeholder={itemPlaceholder}
+              className="flex-1 min-w-0 p-3 border-2 focus:outline-none text-base" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
             {!isCredit && (
-              <label
-                className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
-                style={{
-                  width: '56px',
-                  border: '2px solid #e8e2d8',
-                  borderRadius: 'var(--radius-md)',
-                  background: photos.length > 0 ? '#f0fdf4' : '#fafaf6',
-                  opacity: photos.length >= MAX_PROOF_PHOTOS ? 0.55 : 1,
-                  position: 'relative',
-                }}
-                aria-label={lang === 'am' ? '\u134E\u1276 \u12EB\u1295\u1231 \u12C8\u12ED\u121D \u12ED\u121D\u1228\u1321' : 'Take or choose photo'}
-              >
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handlePhotoCapture}
-                  className="hidden"
-                  disabled={photoLoading || photos.length >= MAX_PROOF_PHOTOS}
-                />
-                {photoLoading
-                  ? <span className="text-sm">...</span>
-                  : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? '#16a34a' : '#6b7280' }} />
-                }
-                <span
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute',
-                    top: -7,
-                    right: -7,
-                    minWidth: 24,
-                    height: 20,
-                    padding: '0 5px',
-                    borderRadius: 999,
-                    background: photos.length >= MAX_PROOF_PHOTOS ? '#6b7280' : accentColor,
-                    color: '#fff',
-                    border: '2px solid #fff',
-                    fontSize: 10,
-                    fontWeight: 900,
-                    lineHeight: '16px',
-                    textAlign: 'center',
-                  }}
-                >
-                  {photos.length >= MAX_PROOF_PHOTOS ? '0' : `+${MAX_PROOF_PHOTOS - photos.length}`}
-                </span>
+              <label className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
+                style={{ width: '56px', border: '2px solid #e8e2d8', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? '#f0fdf4' : '#fafaf6', position: 'relative' }}>
+                <input type="file" accept="image/*" multiple onChange={handlePhotoCapture} className="hidden" disabled={photoLoading} />
+                {photoLoading ? <span className="text-sm">...</span> : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? '#16a34a' : '#6b7280' }} />}
+                <span aria-hidden="true" style={{ position: 'absolute', top: -7, right: -7, minWidth: 24, height: 20, padding: '0 5px', borderRadius: 999, background: '#16a34a', color: '#fff', border: '2px solid #fff', fontSize: 10, fontWeight: 900, lineHeight: '16px', textAlign: 'center' }}>+</span>
               </label>
             )}
           </div>
-
-          {photoError && (
-            <p className="text-xs mt-1 font-medium" style={{ color: '#dc2626' }}>
-              {photoError}
-            </p>
-          )}
-
           {photos.length > 0 && (
-          <div className="mt-2 p-2" style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold" style={{ color: '#1a1a1a' }}>
-                {lang === 'am' ? '\u134E\u1276' : 'Proof photos'}
-              </p>
-              <p className="text-[10px] font-bold" style={{ color: '#6b7280' }}>
-                {photos.length}/{MAX_PROOF_PHOTOS}
-              </p>
-            </div>
-            <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
-              {photos.map((entry, index) => (
-                <div key={entry.id} className="relative flex-shrink-0">
-                  <img src={entry.dataUrl} alt="" className="w-14 h-14 object-cover" style={{ borderRadius: 6 }} />
-                  <button
-                    type="button"
-                    onClick={() => handleRemovePhoto(entry.id)}
-                    className="press-scale flex items-center justify-center"
-                    style={{
-                      position: 'absolute',
-                      top: -6,
-                      right: -6,
-                      minWidth: 28,
-                      minHeight: 28,
-                      borderRadius: 999,
-                      border: '1px solid #e8e2d8',
-                      background: '#fff',
-                    }}
-                    aria-label={lang === 'am' ? '\u134E\u1276 \u12A0\u1235\u12C8\u130D\u12F5' : `Remove photo ${index + 1}`}
-                  >
-                    <X className="w-3.5 h-3.5" style={{ color: '#6b7280' }} />
-                  </button>
-                  <p className="text-[10px] text-center mt-1" style={{ color: '#9ca3af' }}>
-                    {Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-          )}
-
-          {/* Quick item chips from catalog (+ inline add new item) */}
-          {!isCredit && (
-            <div className="mt-2">
-              {(topCatalogItems.length > 0 || onSaveCatalogEntry) && (
-                <p className="text-[10px] font-medium mb-1" style={{ color: '#6b7280' }}>
-                  {lang === 'am' ? 'ፈጣን ዕቃዎች:' : 'Quick items:'}
-                </p>
-              )}
-              <div className="flex gap-1.5 overflow-x-auto pb-1 items-center">
-                {topCatalogItems.map(entry => (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    onClick={() => handleQuickItem(entry)}
-                    className="flex-shrink-0 px-3 py-1.5 text-xs font-bold border press-scale"
-                    style={{
-                      borderColor: '#e8e2d8',
-                      borderRadius: 'var(--radius-sm)',
-                      background: '#fff',
-                      color: '#374151',
-                    }}
-                  >
-                    {entry.name}
-                  </button>
-                ))}
-                {/* + inline add to catalog */}
-                {onSaveCatalogEntry && (
-                  <button
-                    type="button"
-                    onClick={() => setShowAddCatalog(v => !v)}
-                    className="flex-shrink-0 px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center gap-1"
-                    style={{
-                      borderColor: showAddCatalog ? accentColor : '#c9bfa8',
-                      borderStyle: 'dashed',
-                      borderRadius: 'var(--radius-sm)',
-                      background: showAddCatalog ? `${accentColor}10` : '#faf9f7',
-                      color: showAddCatalog ? accentColor : '#6b7280',
-                    }}
-                    aria-label={lang === 'am' ? 'አዲስ ዕቃ' : 'New item'}
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    {topCatalogItems.length === 0 && (
-                      <span>{lang === 'am' ? 'ዕቃ አስቀምጥ' : 'Save item'}</span>
-                    )}
-                  </button>
-                )}
+            <div className="mt-2 p-2" style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold" style={{ color: '#1a1a1a' }}>{lang === 'am' ? 'ፎቶ' : 'Proof photos'}</p>
+                <p className="text-[10px] font-bold" style={{ color: '#6b7280' }}>{photoCountLabel(photos.length, lang)}</p>
               </div>
-
-              {/* Inline new-catalog form */}
-              {showAddCatalog && (
-                <div className="mt-2 p-2.5 border space-y-2"
-                  style={{ background: '#faf9f7', borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)' }}
-                >
-                  <input
-                    type="text"
-                    autoFocus
-                    value={newCatalogName}
-                    onChange={e => setNewCatalogName(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') submitNewCatalog(); }}
-                    placeholder={lang === 'am' ? 'ስም (ለምሳሌ ዳቦ)' : 'Name (e.g. bread)'}
-                    className="w-full p-2 border focus:outline-none text-sm"
-                    style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }}
-                  />
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={fmtInput(newCatalogPrice)}
-                      onChange={e => handleNumericInput(e, setNewCatalogPrice)}
-                      onKeyDown={e => { if (e.key === 'Enter') submitNewCatalog(); }}
-                      placeholder={lang === 'am' ? 'ዋጋ (አማራጭ)' : 'Price (optional)'}
-                      className="flex-1 p-2 border focus:outline-none text-sm"
-                      style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={submitNewCatalog}
-                      disabled={!newCatalogName.trim() || catalogSaving}
-                      className="px-3 py-2 text-xs font-bold press-scale flex items-center gap-1"
-                      style={{
-                        background: newCatalogName.trim() ? accentColor : '#e5e7eb',
-                        color: newCatalogName.trim() ? '#fff' : '#9ca3af',
-                        borderRadius: 'var(--radius-sm)',
-                        cursor: newCatalogName.trim() ? 'pointer' : 'not-allowed',
-                        minHeight: '36px',
-                      }}
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      {lang === 'am' ? 'አስቀምጥ' : 'Save'}
-                    </button>
+              <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                {photos.map((entry, index) => (
+                  <div key={entry.id} className="relative flex-shrink-0">
+                    <img src={entry.dataUrl} alt="" className="w-14 h-14 object-cover" style={{ borderRadius: 6 }} />
+                    <button type="button" onClick={() => handleRemovePhoto(entry.id)} className="press-scale flex items-center justify-center"
+                      style={{ position: 'absolute', top: -6, right: -6, minWidth: 28, minHeight: 28, borderRadius: 999, border: '1px solid #e8e2d8', background: '#fff' }}>
+                      <X className="w-3.5 h-3.5" style={{ color: '#6b7280' }} /></button>
+                    <p className="text-[10px] text-center mt-1" style={{ color: '#9ca3af' }}>{Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB</p>
                   </div>
-                  <p className="text-[10px]" style={{ color: '#9ca3af' }}>
-                    {lang === 'am'
-                      ? 'ይህ ዕቃ ለፈጣን መድረሻ ይቀመጣል'
-                      : 'Saves for quick access next time'}
-                  </p>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Customer selection (credit) */}
+        {/* Customer */}
         {(isCredit || isCreditSale) && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'ደንበኛ' : 'CUSTOMER'}
-            </label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ደንበኛ' : 'CUSTOMER'}</label>
             <div className="relative">
-              <input
-                type="text"
-                value={customerQuery}
-                onChange={e => {
-                  setCustomerQuery(e.target.value);
-                  setCustomerMatch(null);
-                }}
-                placeholder={lang === 'am' ? 'ስም ይተይቡ...' : 'Type customer name...'}
-                className="w-full p-3 border-2 focus:outline-none text-base"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: customerQuery ? '#86efac' : '#e8e2d8' }}
-              />
+              <input type="text" value={customerQuery} onChange={e => { setCustomerQuery(e.target.value); setCustomerMatch(null); }} placeholder={lang === 'am' ? 'ስም ይተይቡ...' : 'Type customer name...'}
+                className="w-full p-3 border-2 focus:outline-none text-base" style={{ borderRadius: 'var(--radius-md)', borderColor: customerQuery ? '#86efac' : '#e8e2d8' }} />
               {customerQuery.trim() && (
                 <div className="absolute z-20 left-0 right-0 mt-1 bg-white border shadow-lg" style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)', maxHeight: '160px', overflowY: 'auto' }}>
-                  {customers.filter(c => {
-                    const q = customerQuery.trim().toLowerCase();
-                    return !q || (c.display_name || c.name || '').toLowerCase().includes(q);
-                  }).slice(0, 6).map(c => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => {
-                        setCustomerMatch(c);
-                        setCustomerQuery(c.display_name || c.name || '');
-                      }}
-                      className="w-full px-3 py-2.5 text-left border-b press-scale flex items-center justify-between gap-2"
-                      style={{ borderColor: '#f3f4f6', background: '#fff' }}
-                    >
+                  {customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).slice(0, 6).map(c => (
+                    <button key={c.id} type="button" onClick={() => { setCustomerMatch(c); setCustomerQuery(c.display_name || c.name || ''); }}
+                      className="w-full px-3 py-2.5 text-left border-b press-scale flex items-center justify-between gap-2" style={{ borderColor: '#f3f4f6', background: '#fff' }}>
                       <span className="text-sm font-semibold truncate" style={{ color: '#111827' }}>{c.display_name || c.name}</span>
                       {c.balance > 0 && <span className="text-xs font-bold flex-shrink-0" style={{ color: '#C4883A' }}>{fmt(c.balance)} {lang === 'am' ? 'ብር' : 'ETB'}</span>}
                     </button>
                   ))}
-                  {onAddCustomerInline && (customers.filter(c => {
-                    const q = customerQuery.trim().toLowerCase();
-                    return !q || (c.display_name || c.name || '').toLowerCase().includes(q);
-                  }).length === 0) && (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const name = customerQuery.trim();
-                        if (!name) return;
-                        const saved = await onAddCustomerInline({ display_name: name });
-                        if (saved?.id) {
-                          setCustomerMatch(saved);
-                          setCustomerQuery(saved.display_name || saved.name || '');
-                        }
-                      }}
-                      className="w-full px-3 py-2.5 text-left text-sm font-bold press-scale flex items-center gap-2"
-                      style={{ background: '#f7fcf8', color: '#14532d' }}
-                    >
+                  {onAddCustomerInline && customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).length === 0 && (
+                    <button type="button" onClick={async () => { const name = customerQuery.trim(); if (!name) return; const saved = await onAddCustomerInline({ display_name: name }); if (saved?.id) { setCustomerMatch(saved); setCustomerQuery(saved.display_name || saved.name || ''); } }}
+                      className="w-full px-3 py-2.5 text-left text-sm font-bold press-scale flex items-center gap-2" style={{ background: '#f7fcf8', color: '#14532d' }}>
                       <Plus className="w-4 h-4" /> {lang === 'am' ? 'አዲስ ደንበኛ ይመልከቱ' : 'Add new customer'}: <span className="truncate" style={{ color: '#1B4332' }}>{customerQuery.trim()}</span>
                     </button>
                   )}
                 </div>
               )}
-              {customerMatch && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomerMatch(null);
-                    setCustomerQuery('');
-                  }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 press-scale"
-                  style={{ minWidth: '32px', minHeight: '32px', borderRadius: 999, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  aria-label={lang === 'am' ? 'አጥፋ' : 'Clear'}
-                >
-                  <X className="w-4 h-4" style={{ color: '#6b7280' }} />
-                </button>
-              )}
             </div>
-            {!customerMatch && customerQuery.trim() && (
-              <p className="text-xs mt-1.5 font-medium" style={{ color: '#C4883A' }}>
-                {lang === 'am' ? 'ደንበኛ ይምረጡ ወይም ይፍጠሩ' : 'Select or create a customer'}
-              </p>
-            )}
           </div>
         )}
 
-        {/* Phone (credit) */}
+        {/* Phone */}
         {(isCredit || isCreditSale) && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'ስልክ (አማራጭ)' : 'PHONE (OPTIONAL)'}
-            </label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ስልክ (አማራጭ)' : 'PHONE (OPTIONAL)'}</label>
             <div className="flex gap-0">
-              <div
-                className="flex items-center justify-center px-3 py-3 border-2 border-r-0 text-sm font-bold flex-shrink-0"
-                style={{
-                  background: 'rgba(27,67,50,0.06)',
-                  borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : '#e8e2d8',
-                  color: '#1B4332',
-                  minWidth: '60px',
-                  borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)',
-                }}
-              >
-                +251
-              </div>
-              <input
-                type="tel"
-                inputMode="numeric"
-                value={phoneDigits}
-                onChange={e => {
-                  const raw = e.target.value.replace(/\D/g, '');
-                  if (raw.length <= 9) setPhoneDigits(raw);
-                }}
-                onBlur={() => setPhoneTouched(true)}
-                placeholder="9XXXXXXXX"
-                maxLength={9}
-                className="flex-1 p-3 border-2 text-base focus:outline-none"
-                style={{
-                  borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
-                  borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : (phoneEntered && phoneValid ? '#1B4332' : '#e8e2d8'),
-                }}
-              />
+              <div className="flex items-center justify-center px-3 py-3 border-2 border-r-0 text-sm font-bold flex-shrink-0"
+                style={{ background: 'rgba(27,67,50,0.06)', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : '#e8e2d8', color: '#1B4332', minWidth: '60px', borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)' }}>+251</div>
+              <input type="tel" inputMode="numeric" value={phoneDigits} onChange={e => { const raw = e.target.value.replace(/\D/g, ''); if (raw.length <= 9) setPhoneDigits(raw); }}
+                placeholder="9XXXXXXXX" maxLength={9} className="flex-1 p-3 border-2 text-base focus:outline-none"
+                style={{ borderRadius: '0 var(--radius-sm) var(--radius-sm) 0', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : (phoneEntered && phoneValid ? '#1B4332' : '#e8e2d8') }} />
             </div>
-            {phoneTouched && phoneEntered && !phoneValid && (
-              <p className="text-xs text-red-500 mt-1 font-medium">
-                {lang === 'am' ? '9 አሃዞች፣ ከ7 ወይም 9 ይጀምሩ' : '9 digits starting with 7 or 9'}
-              </p>
-            )}
           </div>
         )}
 
-        {/* Due date (credit) */}
+        {/* Due date */}
         {(isCredit || isCreditSale) && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'መቼ ይከፍላል?' : 'WHEN IS IT DUE?'} <span style={{ color: '#dc2626' }}>*</span>
-            </label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'መቼ ይከፍላል?' : 'WHEN IS IT DUE?'} <span style={{ color: '#dc2626' }}>*</span></label>
             <div className="grid grid-cols-3 gap-2 mb-2">
               {dueDateOptions.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setSelectedDue(opt.value)}
-                  className="p-2.5 border-2 text-xs font-bold transition-all min-h-[48px] press-scale"
-                  style={{
-                    borderRadius: 'var(--radius-sm)',
-                    borderColor: selectedDue === opt.value ? accentColor : '#e8e2d8',
-                    background: selectedDue === opt.value ? `${accentColor}10` : '#fff',
-                    color: selectedDue === opt.value ? accentColor : '#374151',
-                  }}
-                >
-                  <div className="font-bold">{opt.label.split(' ')[0]}</div>
-                  <div className="text-[10px] opacity-70">{opt.display}</div>
-                </button>
+                <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)} className="p-2.5 border-2 text-xs font-bold transition-all min-h-[48px] press-scale"
+                  style={{ borderRadius: 'var(--radius-sm)', borderColor: selectedDue === opt.value ? accentColor : '#e8e2d8', background: selectedDue === opt.value ? `${accentColor}10` : '#fff', color: selectedDue === opt.value ? accentColor : '#374151' }}>
+                  <div className="font-bold">{opt.label.split(' ')[0]}</div><div className="text-[10px] opacity-70">{opt.display}</div></button>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedDue('custom');
-                setShowDatePicker(true);
-              }}
-              className="w-full p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale flex items-center justify-center gap-2"
-              style={{
-                borderRadius: 'var(--radius-sm)',
-                borderColor: selectedDue === 'custom' ? accentColor : '#e8e2d8',
-                background: selectedDue === 'custom' ? `${accentColor}10` : '#fff',
-                color: selectedDue === 'custom' ? accentColor : '#374151',
-              }}
-            >
-              📅 {selectedDue === 'custom' && customDue
-                ? formatEthiopian(new Date(`${customDue}T12:00:00`))
-                : (lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date')}
-            </button>
-            {!hasDueDate && (
-              <p className="text-xs mt-1.5 font-medium" style={{ color: '#C4883A' }}>
-                {lang === 'am' ? 'የመክፍያ ቀን ይምረጡ' : 'Please select a due date'}
-              </p>
-            )}
+            <button type="button" onClick={() => { setSelectedDue('custom'); setShowDatePicker(true); }} className="w-full p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale flex items-center justify-center gap-2"
+              style={{ borderRadius: 'var(--radius-sm)', borderColor: selectedDue === 'custom' ? accentColor : '#e8e2d8', background: selectedDue === 'custom' ? `${accentColor}10` : '#fff', color: selectedDue === 'custom' ? accentColor : '#374151' }}>
+              📅 {selectedDue === 'custom' && customDue ? formatEthiopian(new Date(`${customDue}T12:00:00`)) : (lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date')}</button>
+            {!hasDueDate && <p className="text-xs mt-1.5 font-medium" style={{ color: '#C4883A' }}>{lang === 'am' ? 'የመክፍያ ቀን ይምረጡ' : 'Please select a due date'}</p>}
           </div>
         )}
 
-        {/* Commit P: Ethiopian calendar picker modal for sale/expense form */}
-        <EthiopianDatePicker
-          open={showDatePicker}
-          value={customDue}
-          onChange={(iso) => { setCustomDue(iso); setSelectedDue('custom'); }}
-          onClose={() => setShowDatePicker(false)}
-          lang={lang}
-        />
+        <EthiopianDatePicker open={showDatePicker} value={customDue} onChange={(iso) => { setCustomDue(iso); setSelectedDue('custom'); }} onClose={() => setShowDatePicker(false)} lang={lang} />
 
-
-
-
-        {/* More options toggle (sale/expense) — collapses quantity + cost price */}
+        {/* More options */}
         {!isCredit && (
           <div>
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(v => !v)}
-              className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[36px]"
-              style={{ color: '#C4883A' }}
-            >
+            <button type="button" onClick={() => setShowAdvanced(v => !v)} className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[36px]" style={{ color: '#C4883A' }}>
               {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              {lang === 'am'
-                ? `ተጨማሪ (ብዛት፣ ዋጋ) ${qty > 1 ? `• ×${qty}` : ''}`
-                : `More options (qty, cost) ${qty > 1 ? `• ×${qty}` : ''}`}
+              {lang === 'am' ? `ተጨማሪ (ብዛት፣ ዋጋ) ${qty > 1 ? `• ×${qty}` : ''}` : `More options (qty, cost) ${qty > 1 ? `• ×${qty}` : ''}`}
             </button>
-
             {showAdvanced && (
-              <div
-                className="mt-2 p-3 border space-y-3"
-                style={{ background: 'var(--color-bg)', borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)' }}
-              >
-                {/* Quantity */}
+              <div className="mt-2 p-3 border space-y-3" style={{ background: 'var(--color-bg)', borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)' }}>
                 <div>
-                  <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>
-                    {lang === 'am' ? 'ብዛት' : 'Quantity'}{' '}
-                    <span style={{ color: '#9ca3af' }}>{lang === 'am' ? '(በነባሪ 1)' : '(default 1)'}</span>
-                  </label>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>{lang === 'am' ? 'ብዛት' : 'Quantity'} <span style={{ color: '#9ca3af' }}>{lang === 'am' ? '(በነባሪ 1)' : '(default 1)'}</span></label>
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setQuantity(String(Math.max(1, qty - 1)))}
-                      className="flex items-center justify-center press-scale"
-                      style={{
-                        minWidth: '44px',
-                        minHeight: '44px',
-                        border: '2px solid #e8e2d8',
-                        borderRadius: 'var(--radius-md)',
-                        background: '#fff',
-                      }}
-                      aria-label={lang === 'am' ? 'ቀንስ' : 'Decrease'}
-                    >
-                      <Minus className="w-4 h-4" style={{ color: '#374151' }} />
-                    </button>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      value={quantity}
-                      onChange={e => {
-                        const raw = e.target.value;
-                        if (raw === '') { setQuantity(''); return; }
-                        const v = parseInt(raw);
-                        if (!isNaN(v) && v >= 1) setQuantity(String(v));
-                      }}
-                      onBlur={e => {
-                        const v = parseInt(e.target.value);
-                        setQuantity(isNaN(v) || v < 1 ? '1' : String(v));
-                      }}
-                      min="1"
-                      className="flex-1 p-2.5 border-2 focus:outline-none text-base text-center font-bold"
-                      style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setQuantity(String(qty + 1))}
-                      className="flex items-center justify-center press-scale"
-                      style={{
-                        minWidth: '44px',
-                        minHeight: '44px',
-                        border: '2px solid #e8e2d8',
-                        borderRadius: 'var(--radius-md)',
-                        background: '#fff',
-                      }}
-                      aria-label={lang === 'am' ? 'ጨምር' : 'Increase'}
-                    >
-                      <Plus className="w-4 h-4" style={{ color: '#374151' }} />
-                    </button>
+                    <button type="button" onClick={() => setQuantity(String(Math.max(1, qty - 1)))} className="flex items-center justify-center press-scale" style={{ minWidth: '44px', minHeight: '44px', border: '2px solid #e8e2d8', borderRadius: 'var(--radius-md)', background: '#fff' }}><Minus className="w-4 h-4" style={{ color: '#374151' }} /></button>
+                    <input type="number" inputMode="numeric" value={quantity} onChange={e => { const raw = e.target.value; if (raw === '') { setQuantity(''); return; } const v = parseInt(raw); if (!isNaN(v) && v >= 1) setQuantity(String(v)); }} onBlur={e => { const v = parseInt(e.target.value); setQuantity(isNaN(v) || v < 1 ? '1' : String(v)); }} min="1"
+                      className="flex-1 p-2.5 border-2 focus:outline-none text-base text-center font-bold" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
+                    <button type="button" onClick={() => setQuantity(String(qty + 1))} className="flex items-center justify-center press-scale" style={{ minWidth: '44px', minHeight: '44px', border: '2px solid #e8e2d8', borderRadius: 'var(--radius-md)', background: '#fff' }}><Plus className="w-4 h-4" style={{ color: '#374151' }} /></button>
                   </div>
                 </div>
-
-                {/* Cost price */}
                 <div>
-                  <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>
-                    {lang === 'am' ? 'ለዚህ ምን ከፈሉ?' : 'What did you pay for this?'}{' '}
-                    <span style={{ color: '#9ca3af' }}>{lang === 'am' ? '(በአንድ)' : '(per unit)'}</span>
-                  </label>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: '#374151' }}>{lang === 'am' ? 'ለዚህ ምን ከፈሉ?' : 'What did you pay for this?'} <span style={{ color: '#9ca3af' }}>{lang === 'am' ? '(በአንድ)' : '(per unit)'}</span></label>
                   <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={fmtInput(costPrice)}
-                      onChange={e => handleNumericInput(e, setCostPrice)}
-                      placeholder="0"
-                      className="w-full p-3 pr-14 border-2 focus:outline-none text-base"
-                      style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: '#9ca3af' }}>
-                      {lang === 'am' ? 'ብር' : 'birr'}
-                    </span>
+                    <input type="text" inputMode="decimal" value={fmtInput(costPrice)} onChange={e => handleNumericInput(e, setCostPrice)} placeholder="0" className="w-full p-3 pr-14 border-2 focus:outline-none text-base" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: '#9ca3af' }}>{lang === 'am' ? 'ብር' : 'birr'}</span>
                   </div>
-                  <p className="text-xs mt-1.5" style={{ color: '#9ca3af' }}>
-                    {lang === 'am' ? 'አማራጭ — ትክክለኛውን ትርፍ ለማየት ይረዳል' : 'Optional — helps you see your true profit'}
-                  </p>
-
                   {belowCost && (
                     <div className="mt-2 flex items-start gap-2 p-2.5" style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)' }}>
                       <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#d97706' }} />
-                      <p className="text-xs" style={{ color: '#92400e' }}>
-                        {lang === 'am' ? 'ከዋጋ በታች እየሸጡ ነው።' : 'You are selling below cost.'}
-                      </p>
+                      <p className="text-xs" style={{ color: '#92400e' }}>{lang === 'am' ? 'ከዋጋ በታች እየሸጡ ነው።' : 'You are selling below cost.'}</p>
                     </div>
                   )}
                   {cost > 0 && !belowCost && sellingPrice > 0 && (() => {
-                    // Reclaimed from the deprecated ProfitCalculatorModal.jsx —
-                    // live profit + margin% indicator. Margin colored by health:
-                    // ≥30% green, 15-30% amber, <15% red. Helps shopkeepers price.
                     const profit = sellingPrice - cost * qty;
                     const margin = sellingPrice > 0 ? (profit / sellingPrice) * 100 : 0;
                     const marginColor = margin >= 30 ? '#16a34a' : margin >= 15 ? '#C4883A' : '#dc2626';
                     return (
                       <div className="mt-2 p-2.5 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', borderRadius: 'var(--radius-sm)' }}>
                         <div className="flex items-baseline justify-between gap-2">
-                          <p className="text-xs font-semibold" style={{ color: '#166534' }}>
-                            {lang === 'am' ? 'ትርፍ' : 'Profit'}: {fmt(profit)} {lang === 'am' ? 'ብር' : 'birr'}
-                          </p>
-                          <p className="text-xs font-bold flex-shrink-0" style={{ color: marginColor }}>
-                            {Math.round(margin * 10) / 10}% {lang === 'am' ? 'ህዳግ' : 'margin'}
-                          </p>
+                          <p className="text-xs font-semibold" style={{ color: '#166534' }}>{lang === 'am' ? 'ትርፍ' : 'Profit'}: {fmt(profit)} {lang === 'am' ? 'ብር' : 'birr'}</p>
+                          <p className="text-xs font-bold flex-shrink-0" style={{ color: marginColor }}>{Math.round(margin * 10) / 10}% {lang === 'am' ? 'ህዳግ' : 'margin'}</p>
                         </div>
                       </div>
                     );
@@ -2140,165 +1127,66 @@ try {
         )}
       </div>
 
-      {/* Sticky save button · with a clear hint when something blocks saving.
-          Surfaces "what's missing" so the user doesn't have to guess. */}
+      {/* Save button */}
       <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid #e8e2d8' }}>
         {!canSave && sellingPrice > 0 && (() => {
-          // Identify the blocker, in priority order
           let blocker = null;
-          if (isCredit && !item.trim()) {
-            blocker = lang === 'am' ? '↑ ስም ይተይቡ' : '↑ Enter customer name';
-          } else if (isCredit && !hasDueDate) {
-            blocker = lang === 'am' ? '↑ የመክፈያ ቀን ይምረጡ' : '↑ Pick due date';
-          } else if (phoneEntered && !phoneValid) {
-            blocker = lang === 'am' ? '↑ ስልክ ስህተት' : '↑ Phone format invalid';
-          }
+          if (isCredit && !item.trim()) blocker = lang === 'am' ? '↑ ስም ይተይቡ' : '↑ Enter customer name';
+          else if (isCredit && !hasDueDate) blocker = lang === 'am' ? '↑ የመክፈያ ቀን ይምረጡ' : '↑ Pick due date';
+          else if (phoneEntered && !phoneValid) blocker = lang === 'am' ? '↑ ስልክ ስህተት' : '↑ Phone format invalid';
           if (!blocker) return null;
-          return (
-            <p style={{
-              fontSize: '0.78rem',
-              color: '#92400e',
-              background: '#fef3c7',
-              border: '1px solid #fde68a',
-              borderRadius: 8,
-              padding: '8px 10px',
-              marginBottom: 8,
-              fontWeight: 600,
-              textAlign: 'center',
-            }}>
-              {blocker}
-            </p>
-          );
+          return <p style={{ fontSize: '0.78rem', color: '#92400e', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 10px', marginBottom: 8, fontWeight: 600, textAlign: 'center' }}>{blocker}</p>;
         })()}
-        <button
-          onClick={handleSave}
-          disabled={!canSave}
-          className="w-full p-3 font-bold text-white text-base flex items-center justify-center gap-2 transition-all press-scale"
-          style={{
-            background: canSave ? accentColor : '#e5e7eb',
-            color: canSave ? '#fff' : '#9ca3af',
-            cursor: canSave ? 'pointer' : 'not-allowed',
-            borderRadius: 'var(--radius-md)',
-          }}
-        >
-          <Save className="w-5 h-5" />
-          {saveButtonText}
-        </button>
+        <button onClick={handleSave} disabled={!canSave} className="w-full p-3 font-bold text-white text-base flex items-center justify-center gap-2 transition-all press-scale"
+          style={{ background: canSave ? accentColor : '#e5e7eb', color: canSave ? '#fff' : '#9ca3af', cursor: canSave ? 'pointer' : 'not-allowed', borderRadius: 'var(--radius-md)' }}>
+          <Save className="w-5 h-5" />{saveButtonText}</button>
       </div>
 
-      {/* Recurring expense popup */}
+      {/* Recurring popup */}
       {showAddRecurring && (
-        <div
-          className="fixed inset-0 flex items-end sm:items-center justify-center"
-          style={{ zIndex: 60, background: 'rgba(0,0,0,0.4)' }}
-        >
-          <div
-            className="bg-white w-full max-w-md p-5 sm:p-6"
-            style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0' }}
-          >
+        <div className="fixed inset-0 flex items-end sm:items-center justify-center" style={{ zIndex: 60, background: 'rgba(0,0,0,0.4)' }}>
+          <div className="bg-white w-full max-w-md p-5 sm:p-6" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0' }}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-bold" style={{ color: '#1a1a1a' }}>
-                {lang === 'am' ? 'ተደጋጋሚ ወጪ አክል' : 'Add recurring expense'}
-              </h3>
-              <button
-                onClick={() => setShowAddRecurring(false)}
-                className="press-scale flex items-center justify-center"
-                style={{ minWidth: '36px', minHeight: '36px' }}
-                aria-label={lang === 'am' ? 'ዝጋ' : 'Close'}
-              >
-                <X className="w-4 h-4" style={{ color: '#6b7280' }} />
-              </button>
+              <h3 className="text-base font-bold" style={{ color: '#1a1a1a' }}>{lang === 'am' ? 'ተደጋጋሚ ወጪ አክል' : 'Add recurring expense'}</h3>
+              <button onClick={() => setShowAddRecurring(false)} className="press-scale flex items-center justify-center" style={{ minWidth: '36px', minHeight: '36px' }}><X className="w-4 h-4" style={{ color: '#6b7280' }} /></button>
             </div>
-            <p className="text-xs mb-4" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'ይህን ወጪ ለሚቀጥሉ ጊዜያት አስቀምጥ' : 'Save this as a recurring expense to reuse it anytime'}
-            </p>
+            <p className="text-xs mb-4" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ይህን ወጪ ለሚቀጥሉ ጊዜያት አስቀምጥ' : 'Save this as a recurring expense to reuse it anytime'}</p>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>
-                  {lang === 'am' ? 'ምን ላይ ወጪ?' : 'What did you spend on?'}
-                </label>
-                <input
-                  type="text"
-                  value={popupName}
-                  onChange={e => setPopupName(e.target.value)}
-                  placeholder={lang === 'am' ? 'ዝርዝሩን ይመዝቡ...' : 'Add details...'}
-                  className="w-full p-2.5 border-2 focus:outline-none text-sm"
-                  style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-                />
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>{lang === 'am' ? 'ምን ላይ ወጪ?' : 'What did you spend on?'}</label>
+                <input type="text" value={popupName} onChange={e => setPopupName(e.target.value)} placeholder={lang === 'am' ? 'ዝርዝሩን ይመዝቡ...' : 'Add details...'}
+                  className="w-full p-2.5 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>
-                  {lang === 'am' ? 'ጠቅላላ ስንት?' : 'How much total?'}
-                </label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>{lang === 'am' ? 'ጠቅላላ ስንት?' : 'How much total?'}</label>
                 <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={fmtInput(popupAmount)}
-                    onChange={e => handleNumericInput(e, setPopupAmount)}
-                    placeholder="0"
-                    className="w-full p-2.5 pr-12 border-2 focus:outline-none text-sm"
-                    style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: '#9ca3af' }}>
-                    {lang === 'am' ? 'ብር' : 'birr'}
-                  </span>
+                  <input type="text" inputMode="decimal" value={fmtInput(popupAmount)} onChange={e => handleNumericInput(e, setPopupAmount)} placeholder="0"
+                    className="w-full p-2.5 pr-12 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: '#9ca3af' }}>{lang === 'am' ? 'ብር' : 'birr'}</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>
-                  {lang === 'am' ? 'ድግግሞሽ' : 'Frequency'}
-                </label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>{lang === 'am' ? 'ድግግሞሽ' : 'Frequency'}</label>
                 <div className="flex gap-2">
-                  {[
-                    { id: 'daily',   label: lang === 'am' ? 'ዕለታዊ' : 'Daily' },
-                    { id: 'weekly',  label: lang === 'am' ? 'ሳምንታዊ' : 'Weekly' },
-                    { id: 'monthly', label: lang === 'am' ? 'ወርሃዊ' : 'Monthly' },
-                  ].map(f => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => setPopupFreq(f.id)}
-                      className="flex-1 py-2 text-xs font-bold border-2 press-scale"
-                      style={{
-                        borderRadius: 'var(--radius-sm)',
-                        borderColor: popupFreq === f.id ? '#D4654A' : '#e8e2d8',
-                        background: popupFreq === f.id ? 'rgba(212,101,74,0.08)' : '#fff',
-                        color: popupFreq === f.id ? '#D4654A' : '#6b7280',
-                      }}
-                    >
-                      {f.label}
-                    </button>
+                  {[{ id: 'daily', label: lang === 'am' ? 'ዕለታዊ' : 'Daily' }, { id: 'weekly', label: lang === 'am' ? 'ሳምንታዊ' : 'Weekly' }, { id: 'monthly', label: lang === 'am' ? 'ወርሃዊ' : 'Monthly' }].map(f => (
+                    <button key={f.id} type="button" onClick={() => setPopupFreq(f.id)} className="flex-1 py-2 text-xs font-bold border-2 press-scale"
+                      style={{ borderRadius: 'var(--radius-sm)', borderColor: popupFreq === f.id ? '#D4654A' : '#e8e2d8', background: popupFreq === f.id ? 'rgba(212,101,74,0.08)' : '#fff', color: popupFreq === f.id ? '#D4654A' : '#6b7280' }}>{f.label}</button>
                   ))}
                 </div>
               </div>
             </div>
-            <button
-              onClick={handleAddAndUse}
-              disabled={!popupName.trim() || !parseFloat(parseInput(popupAmount))}
-              className="w-full mt-4 p-3 font-bold text-base flex items-center justify-center gap-2 press-scale"
-              style={{
-                borderRadius: 'var(--radius-md)',
-                background: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#D4654A' : '#e5e7eb',
-                color: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#fff' : '#9ca3af',
-                cursor: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? 'pointer' : 'not-allowed',
-              }}
-            >
-              <Plus className="w-5 h-5" />
-              {lang === 'am' ? 'አስቀምጥ እና ተጠቀም' : 'Add & Use'}
-            </button>
+            <button onClick={handleAddAndUse} disabled={!popupName.trim() || !parseFloat(parseInput(popupAmount))} className="w-full mt-4 p-3 font-bold text-base flex items-center justify-center gap-2 press-scale"
+              style={{ borderRadius: 'var(--radius-md)', background: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#D4654A' : '#e5e7eb', color: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#fff' : '#9ca3af' }}>
+              <Plus className="w-5 h-5" />{lang === 'am' ? 'አስቀምጥ እና ተጠቀም' : 'Add & Use'}</button>
           </div>
         </div>
       )}
+
+      {/* Undo bar */}
       {undoStack && (
         <div className="fixed bottom-16 left-4 right-4 bg-gray-900 text-white rounded-xl px-4 py-3 flex items-center justify-between z-40">
           <span className="text-sm text-gray-300">Sale saved</span>
-          <button
-            onPointerDown={() => executeUndo(undoStack)}
-            className="text-sm font-bold text-yellow-400 tracking-wide"
-          >
-            UNDO
-          </button>
+          <button onPointerDown={() => executeUndo(undoStack)} className="text-sm font-bold text-yellow-400 tracking-wide">UNDO</button>
         </div>
       )}
     </div>
