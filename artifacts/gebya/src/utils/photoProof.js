@@ -1,5 +1,5 @@
-// Photo limit removed - users can upload unlimited photos
-export const MAX_PROOF_PHOTOS = Infinity;
+// Users can attach up to 3 proof photos per transaction.
+export const MAX_PROOF_PHOTOS = 3;
 
 export function createPhotoProof(dataUrl, takenAt = Date.now()) {
   if (!dataUrl) return null;
@@ -53,6 +53,15 @@ export function buildPhotoFields(photosInput) {
   };
 }
 
+/** Whether more photos can be added (max 3) */
 export function canAddPhoto(photosInput) {
-  return normalizePhotos(photosInput).length < Infinity;
+  const count = Array.isArray(photosInput) ? photosInput.length : 0;
+  return count < MAX_PROOF_PHOTOS;
+}
+
+/** Human-friendly label for photo count badge. Supports English and Amharic. */
+export function photoCountLabel(count, lang = 'en') {
+  if (count === 0) return '';
+  if (lang === 'am') return `${count} ፎቶ${count === 1 ? '' : 'ዎች'}`;
+  return `${count} photo${count === 1 ? '' : 's'}`;
 }
