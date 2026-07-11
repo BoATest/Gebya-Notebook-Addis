@@ -62,8 +62,8 @@ export default function PaymentChannelsSection({ channels, shopPhone, enabledCou
         </div>
         <p className="text-[11px] leading-snug" style={{ color: '#047857' }}>
           {lang === 'am'
-            ? 'መንገድ ይምረጡ — በሽያጭ መመዝገብ ጊዜ እና ለደንበኞች በሚላክ የመክፈያ አገናኝ ላይ ይታያል።'
-            : 'Enable channels — they appear when you record a sale AND on the Pay-it-now link for customers.'}
+            ? 'መንገድ ይምረጡ — በሽያጭ መመዝገብ ጊዜ ይታያል።'
+            : 'Enable channels — they appear when you record a sale.'}
         </p>
       </div>
 
