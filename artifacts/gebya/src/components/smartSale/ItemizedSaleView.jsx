@@ -181,6 +181,7 @@ export default function ItemizedSaleView({
   };
 
   // --- Save ---
+  const isCredit = paymentType === 'credit';
   const canSave = filledRows.length > 0 && totalAmount > 0 && !isSaving && (!isCredit || !!creditCustomerId);
 
   const handleSave = async () => {
@@ -314,9 +315,6 @@ export default function ItemizedSaleView({
       () => undoDelete()
     );
   }, [undoStack, lang, undoDelete]);
-
-  // --- Credit state ---
-  const isCredit = paymentType === 'credit';
 
   // --- Save button label ---
   const saveLabel = (() => {
