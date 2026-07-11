@@ -47,7 +47,6 @@ function TransactionForm({
    type,
    onSave,
    onDone,
-   onUndo,
    actorLabel,
    enabledProviders,
    catalogEntries = [],
@@ -116,7 +115,6 @@ function TransactionForm({
   const [customerMatch, setCustomerMatch] = useState(null);
   const [amountDisplay, setAmountDisplay] = useState('');
   const [customerQuery, setCustomerQuery] = useState('');
-  const [undoStack, setUndoStack] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [popupName, setPopupName] = useState('');
@@ -124,26 +122,11 @@ function TransactionForm({
   const [popupFreq, setPopupFreq] = useState('monthly');
   const [showAddRecurring, setShowAddRecurring] = useState(false);
   const [addRecurringHint, setAddRecurringHint] = useState(false);
-  const [showUndo, setShowUndo] = useState(false);
   const amountInputRef = useRef(null);
   const justSavedTimerRef = useRef(null);
 
   // Clear any pending "Saved ✓" flash timer on unmount to avoid setState-after-unmount.
   useEffect(() => () => { if (justSavedTimerRef.current) clearTimeout(justSavedTimerRef.current); }, []);
-
-  const handleUndo = () => {
-    if (undoStack) executeUndo(undoStack);
-  };
-
-  useEffect(() => {
-    if (!undoStack) {
-      setShowUndo(false);
-      return;
-    }
-    setShowUndo(true);
-    const timer = setTimeout(() => setUndoStack(null), 5000);
-    return () => clearTimeout(timer);
-  }, [undoStack]);
 
   // ─── Derived ────────────────────────────────────────────────────────────
   const dueDateOptions = getDueDateOptions();
@@ -243,10 +226,6 @@ function TransactionForm({
     };
     try {
       await onSave(data);
-      setUndoStack({
-        createdAt: data.created_at,
-        customerCreated: data.customer_id || null,
-      });
       resetFormInternal();
       // Seamless flow: re-enable saving immediately and show a brief "Saved ✓" flash
       // so fast back-to-back entries need no navigation. Ref-held timer is cleared on
@@ -260,27 +239,6 @@ function TransactionForm({
       fireToast(t.saveFailed || 'Could not save. Please try again.', 3500);
     }
   };
-
-  async function executeUndo(snapshot) {
-    try {
-      const txn = await db.transactions.where('created_at').equals(snapshot.createdAt).first();
-      if (txn?.id) {
-        await db.transactions.delete(txn.id);
-        if (txn.customer_id) {
-          await db.customer_transactions.where('source_transaction_id').equals(txn.id).delete();
-        }
-      }
-      if (snapshot.customerCreated) {
-        const cust = await db.customers.get(snapshot.customerCreated);
-        if (cust && !cust.total_debt) await db.customers.delete(snapshot.customerCreated);
-      }
-    } catch (err) {
-      console.error('Undo failed:', err);
-    }
-    setUndoStack(null);
-    resetFormInternal();
-    onUndo?.();
-  }
 
   function resetFormInternal() {
     setAmount('');
@@ -404,16 +362,6 @@ function TransactionForm({
               : <><Save className="w-5 h-5" />{saleSaveLabel}</>}</button>
           <p className="text-[11px] font-semibold text-center mt-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'በዚህ ስልክ ተቀምጧል · በኋላ ይመሳሰላል' : 'Saved on this phone · Syncs later'}</p>
         </div>
-
-        {/* Undo bar */}
-        {showUndo && (
-          <div className="fixed bottom-16 left-0 right-0 mx-auto max-w-md px-3 z-50">
-            <div className="bg-white border shadow-lg flex items-center justify-between px-4 py-3" style={{ borderColor: '#d7e3da', borderRadius: 'var(--radius-md)' }}>
-              <span className="text-sm font-bold" style={{ color: '#14532d' }}>{lang === 'am' ? 'ሽያጭ ተቀምጧል' : 'Sale saved'}</span>
-              <button type="button" onClick={handleUndo} className="text-sm font-black" style={{ color: '#dc2626' }}>{lang === 'am' ? 'ቀልብስ' : 'UNDO'}</button>
-            </div>
-          </div>
-        )}
 
         {/* Camera capture modal (was missing from the sale branch) */}
         <CameraCapture
@@ -648,23 +596,15 @@ function TransactionForm({
                 <div className="flex gap-2">
                   {[{ id: 'daily', label: lang === 'am' ? 'ዕለታዊ' : 'Daily' }, { id: 'weekly', label: lang === 'am' ? 'ሳምንታዊ' : 'Weekly' }, { id: 'monthly', label: lang === 'am' ? 'ወርሃዊ' : 'Monthly' }].map(f => (
                     <button key={f.id} type="button" onClick={() => setPopupFreq(f.id)} className="flex-1 py-2 text-xs font-bold border-2 press-scale"
-                      style={{ borderRadius: 'var(--radius-sm)', borderColor: popupFreq === f.id ? '#D4654A' : '#e8e2d8', background: popupFreq === f.id ? 'rgba(212,101,74,0.08)' : '#fff', color: popupFreq === f.id ? '#D4654A' : '#6b7280' }}>{f.label}</button>
+                      style={{ borderRadius: 'var(--radius-sm)', borderColor: popupFreq === f.id ? '#dc2626' : '#e8e2d8', background: popupFreq === f.id ? 'rgba(220,38,38,0.08)' : '#fff', color: popupFreq === f.id ? '#dc2626' : '#6b7280' }}>{f.label}</button>
                   ))}
                 </div>
               </div>
             </div>
             <button onClick={handleAddAndUse} disabled={!popupName.trim() || !parseFloat(parseInput(popupAmount))} className="w-full mt-4 p-3 font-bold text-base flex items-center justify-center gap-2 press-scale"
-              style={{ borderRadius: 'var(--radius-md)', background: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#D4654A' : '#e5e7eb', color: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#fff' : '#9ca3af' }}>
+              style={{ borderRadius: 'var(--radius-md)', background: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#dc2626' : '#e5e7eb', color: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#fff' : '#9ca3af' }}>
               <Plus className="w-5 h-5" />{lang === 'am' ? 'አስቀምጥ እና ተጠቀም' : 'Add & Use'}</button>
           </div>
-        </div>
-      )}
-
-      {/* Undo bar */}
-      {undoStack && (
-        <div className="fixed bottom-16 left-4 right-4 bg-gray-900 text-white rounded-xl px-4 py-3 flex items-center justify-between z-40">
-          <span className="text-sm text-gray-300">Sale saved</span>
-          <button onPointerDown={() => executeUndo(undoStack)} className="text-sm font-bold text-yellow-400 tracking-wide">UNDO</button>
         </div>
       )}
 

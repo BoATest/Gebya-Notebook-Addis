@@ -17,7 +17,7 @@ function handleNumericInput(e, setter) {
 
 const ACCENT = {
   sale:    { btn: '#2d6a4f', shadow: '#1B4332' },
-  expense: { btn: '#D4654A', shadow: '#a84c37' },
+  expense: { btn: '#dc2626', shadow: '#b91c1c' },
   credit:  { btn: '#C4883A', shadow: '#96662b' },
 };
 
