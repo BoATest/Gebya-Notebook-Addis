@@ -535,56 +535,61 @@ export default function ItemizedSaleView({
         {/* Credit fields — customer search + due date + phone */}
         {isCredit && (
           <div className="px-2 py-1.5 space-y-1.5">
-            <div className="relative">
-              <input
-                type="text"
-                value={creditCustomerSearch}
-                onChange={e => setCreditCustomerSearch(e.target.value)}
-                placeholder={lang === 'am' ? 'ደንበኛ ፈልግ...' : 'Search customer...'}
-                className="w-full p-1.5 text-[10px] border font-bold"
-                style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '36px' }}
-              />
-              {creditCustomerSearch && !creditCustomerId && filteredCustomers.length > 0 && (
-                <div className="absolute z-10 top-full left-0 right-0 bg-white border shadow-sm max-h-[140px] overflow-y-auto" style={{ borderColor: '#edeae5', borderRadius: '0 0 var(--radius-sm) var(--radius-sm)' }}>
-                  {filteredCustomers.slice(0, 6).map(c => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => {
-                        setCreditCustomerId(c.id);
-                        setCreditCustomerName(c.name);
-                        setCreditCustomerPhone(c.phone || '');
-                        setCreditCustomerSearch(c.name);
-                      }}
-                      className="w-full px-2 py-1.5 text-left text-[10px] font-bold border-b flex items-center gap-2"
-                      style={{ borderColor: '#f3f4f6', minHeight: '36px' }}
-                    >
-                      <span>{c.name}</span>
-                      {c.phone && <span className="text-[9px]" style={{ color: '#9ca3af' }}>{c.phone}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {creditCustomerSearch.trim() && !creditCustomerId && filteredCustomers.length === 0 && onAddCustomerInline && (
+            <div className="flex gap-1">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={creditCustomerSearch}
+                  onChange={e => setCreditCustomerSearch(e.target.value)}
+                  placeholder={lang === 'am' ? 'ደንበኛ ፈልግ...' : 'Search customer...'}
+                  className="w-full p-1.5 text-[10px] border font-bold"
+                  style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '36px' }}
+                />
+                {creditCustomerSearch && !creditCustomerId && filteredCustomers.length > 0 && (
+                  <div className="absolute z-10 top-full left-0 right-0 bg-white border shadow-sm max-h-[140px] overflow-y-auto" style={{ borderColor: '#edeae5', borderRadius: '0 0 var(--radius-sm) var(--radius-sm)' }}>
+                    {filteredCustomers.slice(0, 6).map(c => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setCreditCustomerId(c.id);
+                          setCreditCustomerName(c.name);
+                          setCreditCustomerPhone(c.phone || '');
+                          setCreditCustomerSearch(c.name);
+                        }}
+                        className="w-full px-2 py-1.5 text-left text-[10px] font-bold border-b flex items-center gap-2"
+                        style={{ borderColor: '#f3f4f6', minHeight: '36px' }}
+                      >
+                        <span>{c.name}</span>
+                        {c.phone && <span className="text-[9px]" style={{ color: '#9ca3af' }}>{c.phone}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={async () => {
                   const name = creditCustomerSearch.trim();
-                  if (!name) return;
-                  const saved = await onAddCustomerInline({ display_name: name });
+                  if (!name && !creditCustomerId) {
+                    const input = document.querySelector('input[placeholder*="Search"]');
+                    input?.focus();
+                    return;
+                  }
+                  if (!onAddCustomerInline) return;
+                  const saved = await onAddCustomerInline({ display_name: name, phone: creditCustomerPhone || null });
                   if (saved?.id) {
                     setCreditCustomerId(saved.id);
                     setCreditCustomerName(saved.display_name || saved.name || name);
                     setCreditCustomerSearch(saved.display_name || saved.name || name);
                   }
                 }}
-                className="w-full text-left px-2 py-1.5 text-[10px] font-bold border-2 border-dashed press-scale"
-                style={{ borderColor: '#16a34a', color: '#16a34a', borderRadius: 'var(--radius-sm)', minHeight: '36px' }}
+                className="flex-shrink-0 px-2 text-[10px] font-bold border press-scale"
+                style={{ borderColor: '#16a34a', color: '#16a34a', borderRadius: 'var(--radius-sm)', minHeight: '36px', background: 'rgba(22,163,74,0.06)' }}
               >
-                + {lang === 'am' ? 'እንደ አዲስ ደንበኛ አክል' : 'Add as new customer'}
+                <span className="text-[13px] mr-0.5">+</span>{lang === 'am' ? 'አክል' : 'Add'}
               </button>
-            )}
+            </div>
             <div className="grid grid-cols-2 gap-1.5">
               <input
                 type="date"
