@@ -1,12 +1,16 @@
 import { useRef, useState, useEffect } from 'react';
 import { useLang } from '../../context/LangContext';
-import { fmt, fmtInput, parseInput } from '../../utils/numformat';
+import { fmt, fmtInput } from '../../utils/numformat';
 import MerchantMemoryAutocomplete from './MerchantMemoryAutocomplete';
+
+const ROW_H = '26px';
 
 export default function ItemRow({
   row,
   index,
   catalogEntries = [],
+  sessionRecentIds = new Set(),
+  lastSaleItems = [],
   onUpdate,
   onDelete,
   onRemember,
@@ -31,12 +35,9 @@ export default function ItemRow({
   const handleItemKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      // If autocomplete is showing and an item is highlighted, let it handle Enter
       if (showAutocomplete) return;
-      // Otherwise move to qty
       qtyRef.current?.focus();
     } else if (e.key === 'Backspace' && !row.name) {
-      // Empty row + backspace = instant delete
       if (isLastRow && index > 0) {
         onDelete(row.id);
       }
@@ -56,7 +57,6 @@ export default function ItemRow({
       if (isLastRow) {
         onEnterLastRow();
       } else {
-        // Move to next row's item input
         const nextRow = document.querySelector(`[data-row-id="${row.id}"] + [data-row-id] input[data-field="item"]`);
         if (nextRow) nextRow.focus();
       }
@@ -68,11 +68,9 @@ export default function ItemRow({
     onUpdate(row.id, 'code', entry.code || '');
     onUpdate(row.id, 'catalogEntryId', entry.id);
     onUpdate(row.id, 'itemKind', entry.kind || 'item');
-    if (entry.default_price || entry.last_price) {
-      onUpdate(row.id, 'price', String(entry.default_price || entry.last_price));
-    }
     setShowAutocomplete(false);
     qtyRef.current?.focus();
+    qtyRef.current?.select();
   };
 
   const handleRemember = (name) => {
@@ -80,9 +78,13 @@ export default function ItemRow({
     onUpdate(row.id, 'name', name);
     setShowAutocomplete(false);
     qtyRef.current?.focus();
+    qtyRef.current?.select();
   };
 
-  // Swipe-to-delete handlers
+  const handleQtyFocus = () => {
+    qtyRef.current?.select();
+  };
+
   const handleTouchStart = (e) => {
     setTouchStart(e.touches[0].clientX);
   };
@@ -108,6 +110,12 @@ export default function ItemRow({
     ? catalogEntries.find(e => e.id === row.catalogEntryId)?.last_price
     : null;
 
+  const handleLastPriceTap = () => {
+    if (lastPrice > 0) {
+      onUpdate(row.id, 'price', String(lastPrice));
+    }
+  };
+
   return (
     <div
       data-row-id={row.id}
@@ -116,7 +124,6 @@ export default function ItemRow({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Swipe-delete reveal */}
       <div
         className="absolute inset-y-0 right-0 flex items-center"
         style={{ width: '80px', background: '#dc2626' }}
@@ -131,17 +138,18 @@ export default function ItemRow({
         </button>
       </div>
 
-      {/* Main row content */}
       <div
-        className="flex gap-2 items-start relative"
+        className="flex gap-1 items-center relative"
         style={{
+          minHeight: ROW_H,
           transform: swiped ? 'translateX(-80px)' : 'translateX(0)',
           transition: swiped ? 'transform 0.2s ease' : 'none',
           background: '#fff',
+          borderBottom: '1px solid #edeae5',
+          padding: '0',
         }}
       >
-        {/* Item input */}
-        <div className="flex-1 min-w-0 relative">
+        <div className="relative" style={{ flex: '5 1 0%', minWidth: 0 }}>
           <input
             ref={itemRef}
             type="text"
@@ -155,12 +163,8 @@ export default function ItemRow({
             onFocus={() => { if (row.name.trim()) setShowAutocomplete(true); }}
             onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
             placeholder={lang === 'am' ? 'ንጥል...' : 'Item...'}
-            className="w-full px-2 py-2 border-2 text-sm focus:outline-none"
-            style={{
-              borderRadius: 'var(--radius-sm)',
-              borderColor: row.name ? '#86efac' : '#e8e2d8',
-              minHeight: '40px',
-            }}
+            className="w-full px-1 text-xs bg-transparent focus:outline-none"
+            style={{ minHeight: ROW_H, border: 'none' }}
             autoComplete="off"
           />
           {showAutocomplete && (
@@ -168,20 +172,16 @@ export default function ItemRow({
               <MerchantMemoryAutocomplete
                 query={row.name}
                 catalogEntries={catalogEntries}
+                sessionRecentIds={sessionRecentIds}
+                lastSaleItems={lastSaleItems}
                 onSelect={handleSelect}
                 onRemember={handleRemember}
               />
             </div>
           )}
-          {lastPrice > 0 && !row.price && (
-            <span className="text-[10px] absolute -bottom-3 left-0" style={{ color: '#9ca3af' }}>
-              {lang === 'am' ? 'Last Sold' : 'Last Sold'}: {fmt(lastPrice)}
-            </span>
-          )}
         </div>
 
-        {/* Qty input */}
-        <div style={{ width: '52px' }}>
+        <div style={{ width: '40px', flexShrink: 0 }}>
           <input
             ref={qtyRef}
             type="text"
@@ -192,18 +192,14 @@ export default function ItemRow({
               const v = e.target.value.replace(/[^\d]/g, '');
               onUpdate(row.id, 'qty', v || '1');
             }}
+            onFocus={handleQtyFocus}
             onKeyDown={handleQtyKeyDown}
-            className="w-full px-1 py-2 border-2 text-sm text-center font-bold focus:outline-none"
-            style={{
-              borderRadius: 'var(--radius-sm)',
-              borderColor: '#e8e2d8',
-              minHeight: '40px',
-            }}
+            className="w-full px-0.5 text-xs text-center font-bold bg-transparent focus:outline-none"
+            style={{ minHeight: ROW_H, border: 'none' }}
           />
         </div>
 
-        {/* Price input */}
-        <div style={{ width: '72px' }}>
+        <div style={{ width: '64px', flexShrink: 0 }}>
           <input
             ref={priceRef}
             type="text"
@@ -216,23 +212,30 @@ export default function ItemRow({
             }}
             onKeyDown={handlePriceKeyDown}
             placeholder="0"
-            className="w-full px-1 py-2 border-2 text-sm text-right font-bold focus:outline-none"
-            style={{
-              borderRadius: 'var(--radius-sm)',
-              borderColor: row.price ? '#86efac' : '#e8e2d8',
-              minHeight: '40px',
-            }}
+            className="w-full px-0.5 text-xs text-right font-bold bg-transparent focus:outline-none"
+            style={{ minHeight: ROW_H, border: 'none' }}
           />
         </div>
 
-        {/* Line total */}
         <div
-          className="flex items-center justify-end text-sm font-black flex-shrink-0"
-          style={{ width: '68px', minHeight: '40px', color: row.lineTotal > 0 ? '#14532d' : '#d1d5db' }}
+          className="flex items-center justify-end text-xs font-black flex-shrink-0"
+          style={{ width: '58px', color: row.lineTotal > 0 ? '#14532d' : '#d1d5db' }}
         >
           {row.lineTotal > 0 ? fmt(row.lineTotal) : '—'}
         </div>
       </div>
+
+      {lastPrice > 0 && (
+        <div className="flex justify-end pr-1 leading-none" style={{ marginTop: '0', marginBottom: '0', height: '12px' }}>
+          <span
+            onClick={handleLastPriceTap}
+            className="text-[9px] cursor-pointer"
+            style={{ color: '#c4b9a8' }}
+          >
+            {fmt(lastPrice)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

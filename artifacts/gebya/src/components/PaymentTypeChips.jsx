@@ -4,8 +4,6 @@ export const ALL_BANKS = ['CBE', 'Dashen', 'Awash', 'Abyssinia'];
 export const ALL_WALLETS = ['telebirr', 'CBE Birr'];
 export const DEFAULT_PROVIDERS = { banks: [...ALL_BANKS], wallets: [...ALL_WALLETS] };
 
-// Flat list: Cash + each enabled bank + each enabled wallet, all in one scrollable row.
-// Tap any chip → sets both paymentType + paymentProvider in one shot.
 function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChange, enabledProviders }) {
   const { t } = useLang();
 
@@ -28,10 +26,12 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
       type: 'wallet',
       provider: w,
     })),
+    { id: 'credit', label: t.credit || 'Credit', emoji: '📒', type: 'credit', provider: '' },
   ];
 
   const isSelected = (opt) => {
     if (opt.type === 'cash') return paymentType === 'cash';
+    if (opt.type === 'credit') return paymentType === 'credit';
     return paymentType === opt.type && provider === opt.provider;
   };
 
@@ -42,13 +42,7 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
 
   return (
     <div>
-      <label
-        className="block text-[10px] font-bold uppercase tracking-widest mb-1.5"
-        style={{ color: '#6b7280' }}
-      >
-        {t.paymentType}
-      </label>
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <div className="flex gap-1 overflow-x-auto pb-0.5">
         {options.map(opt => {
           const selected = isSelected(opt);
           return (
@@ -56,16 +50,19 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
               key={opt.id}
               type="button"
               onClick={() => handlePick(opt)}
-              className="flex-shrink-0 flex items-center justify-center gap-1.5 py-2 px-3 border-2 text-xs font-bold transition-all min-h-[40px] press-scale"
+              className="flex items-center justify-center gap-0.5 px-1.5 border text-[10px] font-bold transition-all press-scale"
               style={{
-                borderRadius: 'var(--radius-sm)',
-                borderColor: selected ? '#1B4332' : '#e8e2d8',
-                background: selected ? 'rgba(27,67,50,0.08)' : '#fff',
-                color: selected ? '#1B4332' : '#6b7280',
+                flex: '1 0 auto',
+                minWidth: '52px',
+                minHeight: '32px',
+                borderRadius: '2px',
+                borderColor: selected ? '#1B4332' : '#edeae5',
+                background: selected ? 'rgba(27,67,50,0.06)' : '#fff',
+                color: selected ? '#1B4332' : '#9ca3af',
                 whiteSpace: 'nowrap',
               }}
             >
-              <span className="text-sm">{opt.emoji}</span>
+              <span className="text-[11px]">{opt.emoji}</span>
               <span>{opt.label}</span>
             </button>
           );

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   BookOpen, Users, Calendar, Settings, Trash2, Pencil, Share2, X,
-  Plus, Minus, RotateCw, Wallet, Truck,
+  Plus, Minus, RotateCw, Wallet, Truck, ShoppingBag,
   MoreVertical, ChevronUp, ChevronDown,
   CreditCard, BarChart3, MoreHorizontal, Bell,
 } from 'lucide-react';
@@ -3303,9 +3303,10 @@ function AppInner() {
         >
           <div className="flex gap-1.5 sm:gap-2">
             {[
-              { type: 'sale',    label: t.saleButton,    color: '#16a34a', icon: Plus    },
-              { type: 'expense', label: t.expenseButton,  color: '#dc2626', icon: Minus   },
-              { type: 'credit',  label: t.creditButton,  color: '#2563eb', icon: RotateCw },
+              { type: 'sale',    label: t.saleButton,    color: '#16a34a', icon: Plus        },
+              { type: 'simple',  label: t.itemsButton,   color: '#d97706', icon: ShoppingBag },
+              { type: 'expense', label: t.expenseButton,  color: '#dc2626', icon: Minus       },
+              { type: 'credit',  label: t.creditButton,  color: '#2563eb', icon: RotateCw     },
             ].map(b => {
               const pressed = pressedBtn === b.type;
               const Icon = b.icon;
@@ -3322,6 +3323,10 @@ function AppInner() {
                     }
                     if (b.type === 'sale') {
                       setShowItemizedSale(true);
+                      return;
+                    }
+                    if (b.type === 'simple') {
+                      setShowForm('sale');
                       return;
                     }
                     setShowForm(b.type);
@@ -3534,6 +3539,7 @@ function AppInner() {
             enabledProviders={enabledProviders}
             catalogEntries={activeCatalogEntries}
             onSaveCatalogEntry={handleSaveCatalogEntry}
+            onAddCustomerInline={handleAddCustomerInline}
             customers={customerSummaries}
             transactions={todaySales}
             onHistory={() => { setShowItemizedSale(false); setActiveTab('report'); }}

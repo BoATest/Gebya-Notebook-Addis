@@ -18,10 +18,13 @@ function createBlankRow() {
 
 const UNDO_DURATION = 5000;
 
-export function useSmartSaleRows(initialCount = 3) {
-  const [rows, setRows] = useState(() =>
-    Array.from({ length: initialCount }, () => createBlankRow())
-  );
+export function useSmartSaleRows(initialCount = 3, savedRows = null) {
+  const [rows, setRows] = useState(() => {
+    if (savedRows && Array.isArray(savedRows) && savedRows.length > 0) {
+      return savedRows.map(r => ({ ...createBlankRow(), ...r }));
+    }
+    return Array.from({ length: initialCount }, () => createBlankRow());
+  });
   const [undoStack, setUndoStack] = useState(null);
   const undoTimerRef = useRef(null);
 
@@ -36,16 +39,25 @@ export function useSmartSaleRows(initialCount = 3) {
   }, []);
 
   const updateRow = useCallback((id, field, value) => {
-    setRows(prev => prev.map(row => {
-      if (row.id !== id) return row;
-      const updated = { ...row, [field]: value };
-      if (field === 'qty' || field === 'price') {
-        const q = parseFloat(updated.qty) || 0;
-        const p = parseFloat(updated.price) || 0;
-        updated.lineTotal = Math.round(q * p * 100) / 100;
+    setRows(prev => {
+      const isLastRow = prev[prev.length - 1]?.id === id;
+      const wasEmpty = !prev.find(r => r.id === id)?.name?.trim();
+      const updated = prev.map(row => {
+        if (row.id !== id) return row;
+        const r = { ...row, [field]: value };
+        if (field === 'qty' || field === 'price') {
+          const q = parseFloat(r.qty) || 0;
+          const p = parseFloat(r.price) || 0;
+          r.lineTotal = Math.round(q * p * 100) / 100;
+        }
+        return r;
+      });
+      // Auto-create empty row when merchant starts typing in last row
+      if (isLastRow && field === 'name' && wasEmpty && value.trim()) {
+        return [...updated, createBlankRow()];
       }
       return updated;
-    }));
+    });
   }, []);
 
   const deleteRow = useCallback((id) => {
@@ -73,6 +85,10 @@ export function useSmartSaleRows(initialCount = 3) {
     setUndoStack(null);
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
   }, [undoStack]);
+
+  const addEmptyRows = useCallback((n = 3) => {
+    setRows(prev => [...prev, ...Array.from({ length: n }, () => createBlankRow())]);
+  }, []);
 
   const clearRows = useCallback(() => {
     setRows(Array.from({ length: initialCount }, () => createBlankRow()));
@@ -103,6 +119,7 @@ export function useSmartSaleRows(initialCount = 3) {
     undoDelete,
     undoStack,
     clearRows,
+    addEmptyRows,
     ensureEmptyRow,
     filledRows,
     totalQty,

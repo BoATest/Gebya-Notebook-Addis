@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Search } from 'lucide-react';
+import { ArrowLeft, Search, Share2 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { fmt } from '../../utils/numformat';
-import { formatEthiopian } from '../../utils/ethiopianCalendar';
 
 function groupByDay(transactions) {
   const groups = {};
@@ -31,45 +30,53 @@ function formatDateLabel(ts, lang) {
   return date.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-export default function RecentSalesSheet({ transactions = [], onClose, onPreview }) {
+export default function RecentSalesSheet({ transactions = [], onClose, onHistory }) {
   const { lang } = useLang();
   const [search, setSearch] = useState('');
 
-  const sales = useMemo(() => {
-    const filtered = transactions
-      .filter(tx => tx.type === 'sale')
-      .filter(tx => {
-        if (!search.trim()) return true;
-        const q = search.toLowerCase();
-        return (tx.item_name || '').toLowerCase().includes(q)
-          || (tx.payment_type || '').toLowerCase().includes(q)
-          || String(tx.amount || '').includes(q);
-      })
+  const todayDateStr = new Date().toDateString();
+  const todaySales = useMemo(() => {
+    return transactions
+      .filter(tx => tx.type === 'sale' && new Date(tx.created_at).toDateString() === todayDateStr)
       .slice(0, 20);
-    return groupByDay(filtered);
-  }, [transactions, search]);
+  }, [transactions, todayDateStr]);
 
-  const recentSales = transactions.filter(tx => tx.type === 'sale').slice(0, 20);
+  const sales = useMemo(() => {
+    const filtered = todaySales.filter(tx => {
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (tx.item_name || '').toLowerCase().includes(q)
+        || (tx.payment_type || '').toLowerCase().includes(q)
+        || (tx.customer_name || '').toLowerCase().includes(q)
+        || String(tx.amount || '').includes(q);
+    });
+    return groupByDay(filtered);
+  }, [todaySales, search]);
+
+  const handleShareAgain = async (tx) => {
+    const text = `Gebya Sale: ${tx.item_name || 'Sale'} — ${fmt(tx.amount)} ETB (${tx.payment_type || 'cash'})`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Gebya Sale', text });
+      } else {
+        await navigator.clipboard.writeText(text);
+        alert(lang === 'am' ? 'ተገልብጧል' : 'Copied to clipboard');
+      }
+    } catch {}
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col" style={{ maxWidth: '28rem', margin: '0 auto' }}>
       {/* Header */}
-      <div
-        className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center gap-3"
-        style={{ borderBottom: '1px solid #e8e2d8' }}
-      >
-        <button
-          onClick={onClose}
-          className="press-scale flex items-center justify-center"
-          style={{ minWidth: '44px', minHeight: '44px' }}
-        >
+      <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center gap-3" style={{ borderBottom: '1px solid #e8e2d8' }}>
+        <button onClick={onClose} className="press-scale flex items-center justify-center" style={{ minWidth: '44px', minHeight: '44px' }}>
           <ArrowLeft className="w-5 h-5" style={{ color: '#6b7280' }} />
         </button>
         <h2 className="text-base font-bold flex-1" style={{ color: '#111827' }}>
-          {lang === 'am' ? 'የቅርብ ሽያጭ' : 'Recent Sales'}
+          {lang === 'am' ? 'የዛሬ ሽያጭ' : "Today's Sales"}
         </h2>
         <span className="text-xs font-bold" style={{ color: '#9ca3af' }}>
-          {recentSales.length}
+          {todaySales.length}
         </span>
       </div>
 
@@ -93,55 +100,75 @@ export default function RecentSalesSheet({ transactions = [], onClose, onPreview
         {sales.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-sm font-bold" style={{ color: '#374151' }}>
-              {lang === 'am' ? 'የቅርብ ሽያጭ የለም' : 'No recent sales'}
-            </p>
-            <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>
               {search.trim()
                 ? (lang === 'am' ? 'ለፍለጋውምንም ውጤት የለም' : 'No matching sales')
-                : (lang === 'am' ? 'የተቀመጡ ሽያጮች እዚህ ይታያሉ' : 'Saved sales will appear here')}
+                : (lang === 'am' ? 'ዛሬ ሽያጭ የለም' : 'No sales today')}
             </p>
           </div>
         ) : (
           sales.map(group => (
-            <div key={group.date} className="mb-4">
-              <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#6b7280' }}>
+            <div key={group.date} className="mb-3">
+              <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: '#6b7280' }}>
                 {formatDateLabel(group.date, lang)}
               </p>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {group.transactions.map(tx => {
                   const paymentLabel = tx.payment_type === 'cash' ? '💵 Cash'
                     : tx.payment_type === 'credit' ? '👥 Credit'
                     : tx.payment_provider || tx.payment_type || '—';
                   return (
-                    <button
+                    <div
                       key={tx.id}
-                      onClick={() => onPreview?.(tx)}
-                      className="w-full p-3 border text-left flex items-center justify-between gap-2 press-scale"
-                      style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', background: '#fff', minHeight: '48px' }}
+                      className="p-2.5 border text-left"
+                      style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', background: '#fff' }}
                     >
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold truncate" style={{ color: '#111827' }}>
-                          {tx.item_name || (lang === 'am' ? 'ሽያጭ' : 'Sale')}
-                        </p>
-                        <p className="text-xs" style={{ color: '#6b7280' }}>
-                          {paymentLabel} · {formatTime(tx.created_at)}
-                        </p>
-                        {tx.items && tx.items.length > 1 && (
-                          <p className="text-[10px]" style={{ color: '#9ca3af' }}>
-                            {tx.items.length} {lang === 'am' ? 'ንጥሎች' : 'items'}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold truncate" style={{ color: '#111827' }}>
+                            {tx.item_name || (lang === 'am' ? 'ሽያጭ' : 'Sale')}
                           </p>
-                        )}
+                          <p className="text-[11px] truncate" style={{ color: '#6b7280' }}>
+                            {tx.customer_name && <span>{tx.customer_name} · </span>}
+                            {paymentLabel} · {formatTime(tx.created_at)}
+                          </p>
+                          {tx.items && tx.items.length > 1 && (
+                            <p className="text-[10px]" style={{ color: '#9ca3af' }}>
+                              {tx.items.length} {lang === 'am' ? 'ንጥሎች' : 'items'}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-sm font-black" style={{ color: '#14532d' }}>
+                            {fmt(tx.amount)} ETB
+                          </span>
+                          <button
+                            onClick={() => handleShareAgain(tx)}
+                            className="flex items-center justify-center press-scale"
+                            style={{ minWidth: '36px', minHeight: '36px' }}
+                            aria-label={lang === 'am' ? 'አጋራ' : 'Share'}
+                          >
+                            <Share2 className="w-3.5 h-3.5" style={{ color: '#6b7280' }} />
+                          </button>
+                        </div>
                       </div>
-                      <span className="text-sm font-black flex-shrink-0" style={{ color: '#14532d' }}>
-                        {fmt(tx.amount)} ETB
-                      </span>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
             </div>
           ))
         )}
+
+        {/* See All History */}
+        <div className="py-3 text-center">
+          <button
+            onClick={onHistory}
+            className="text-xs font-bold underline press-scale"
+            style={{ color: '#6b7280' }}
+          >
+            {lang === 'am' ? 'ሁሉንም ታሪክ ይመልከቱ' : 'See All History'}
+          </button>
+        </div>
       </div>
     </div>
   );
