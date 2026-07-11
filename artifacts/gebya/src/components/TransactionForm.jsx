@@ -49,17 +49,14 @@ function TransactionForm({
    onDone,
    actorLabel,
    enabledProviders,
-   catalogEntries = [],
    recurringExpenses,
    onRecurringChange,
-    onSaveCatalogEntry,
    customers = [],
    onAddCustomerInline,
    initialPaymentType,
    initialPaymentProvider,
    lastPaymentHistory,
    setActiveTab,
-   editingTransaction,  // Seamless editing (§8) — prefills all fields for edit
  }) {
   const { lang, t } = useLang();
 
@@ -97,7 +94,6 @@ function TransactionForm({
 
   // ─── State ──────────────────────────────────────────────────────────────
   const [item, setItem] = useState('');
-  const [catalogEntryId, setCatalogEntryId] = useState('');
   const [amount, setAmount] = useState('');
   const [photos, setPhotos] = useState([]);
   const [photoError, setPhotoError] = useState(null);
@@ -130,8 +126,6 @@ function TransactionForm({
 
   // ─── Derived ────────────────────────────────────────────────────────────
   const dueDateOptions = getDueDateOptions();
-  const selectedCatalogEntry =
-    catalogEntries.find(entry => String(entry.id) === String(catalogEntryId)) || null;
   const sellingPrice = parseFloat(parseInput(amountDisplay || amount)) || 0;
 
   const phoneValid = !phoneDigits || /^[79]\d{8}$/.test(phoneDigits);
@@ -200,8 +194,8 @@ function TransactionForm({
     const data = {
       type,
       item_name: itemNameForSave,
-      catalog_entry_id: type === 'sale' ? null : (catalogEntryId ? Number(catalogEntryId) : null),
-      item_kind: type === 'sale' ? null : (selectedCatalogEntry?.kind || null),
+      catalog_entry_id: null,
+      item_kind: null,
       quantity: 1,
       amount: sellingPrice,
       cost_price: 0,
@@ -268,8 +262,11 @@ function TransactionForm({
 
   // ═══════════════════ SALE FORM (simplified: amount + optional note/photo + payment) ═══
   if (type === 'sale') {
+    const currency = lang === 'am' ? 'ብር' : 'ETB';
     const saleSaveLabel = sellingPrice > 0
-      ? (isCreditSale ? `Save Credit · ${fmt(sellingPrice)} ETB` : `Save ${fmt(sellingPrice)} ETB`)
+      ? (isCreditSale
+          ? (lang === 'am' ? `ዱቤ አስቀምጥ · ${fmt(sellingPrice)} ${currency}` : `Save Credit · ${fmt(sellingPrice)} ETB`)
+          : (lang === 'am' ? `አስቀምጥ · ${fmt(sellingPrice)} ${currency}` : `Save ${fmt(sellingPrice)} ETB`))
       : (photos.length > 0 ? (lang === 'am' ? 'ለፎቶ ሽያጭ መጠን ያክሉ' : 'Add amount to save photo sale') : (lang === 'am' ? 'አስቀምጥ' : 'Save'));
 
     return (
@@ -358,7 +355,7 @@ function TransactionForm({
           <button type="button" onClick={handleSave} disabled={!canSave} className="w-full p-3 font-black text-base flex items-center justify-center gap-2 transition-all press-scale"
             style={{ background: (justSaved && !canSave) ? '#16a34a' : (canSave ? '#14532d' : '#e5e7eb'), color: ((justSaved && !canSave) || canSave) ? '#fff' : '#9ca3af', cursor: canSave ? 'pointer' : 'default', borderRadius: 'var(--radius-md)' }}>
             {(justSaved && !canSave)
-              ? <><Check className="w-5 h-5" />{lang === 'am' ? 'ተቀምጧል ✓' : 'Saved ✓'}</>
+              ? <><Check className="w-5 h-5" />{lang === 'am' ? 'ተቀምጧል' : 'Saved'}</>
               : <><Save className="w-5 h-5" />{saleSaveLabel}</>}</button>
           <p className="text-[11px] font-semibold text-center mt-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'በዚህ ስልክ ተቀምጧል · በኋላ ይመሳሰላል' : 'Saved on this phone · Syncs later'}</p>
         </div>
@@ -522,6 +519,7 @@ function TransactionForm({
               <div className="flex items-center justify-center px-3 py-3 border-2 border-r-0 text-sm font-bold flex-shrink-0"
                 style={{ background: 'rgba(27,67,50,0.06)', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : '#e8e2d8', color: '#1B4332', minWidth: '60px', borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)' }}>+251</div>
               <input type="tel" inputMode="numeric" value={phoneDigits} onChange={e => { const raw = e.target.value.replace(/\D/g, ''); if (raw.length <= 9) setPhoneDigits(raw); }}
+                onBlur={() => setPhoneTouched(true)}
                 placeholder="9XXXXXXXX" maxLength={9} className="flex-1 p-3 border-2 text-base focus:outline-none"
                 style={{ borderRadius: '0 var(--radius-sm) var(--radius-sm) 0', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : (phoneEntered && phoneValid ? '#1B4332' : '#e8e2d8') }} />
             </div>
@@ -564,7 +562,7 @@ function TransactionForm({
         <button onClick={handleSave} disabled={!canSave} className="w-full p-3 font-bold text-white text-base flex items-center justify-center gap-2 transition-all press-scale"
           style={{ background: (justSaved && !canSave) ? '#16a34a' : (canSave ? accentColor : '#e5e7eb'), color: ((justSaved && !canSave) || canSave) ? '#fff' : '#9ca3af', cursor: canSave ? 'pointer' : 'default', borderRadius: 'var(--radius-md)' }}>
           {(justSaved && !canSave)
-            ? <><Check className="w-5 h-5" />{lang === 'am' ? 'ተቀምጧል ✓' : 'Saved ✓'}</>
+            ? <><Check className="w-5 h-5" />{lang === 'am' ? 'ተቀምጧል' : 'Saved'}</>
             : <><Save className="w-5 h-5" />{saveButtonText}</>}</button>
       </div>
 

@@ -1348,13 +1348,10 @@ function AppInner() {
 
       const toastMsg = { sale: t.saleSaved, expense: t.expenseSaved }[transaction.type] || 'Saved';
       const safeToastMsg = buildSavedOnDeviceMessage(toastMsg, isOnlineNow);
-      fireToast(safeToastMsg, isOnlineNow ? 4000 : 4500, async () => {
-        try {
-          await db.transactions.delete(id);
-          setTransactions(prev => prev.filter(t2 => t2.id !== id));
-          fireToast(t.undone, 2000);
-        } catch { /* non-critical */ }
-      });
+      // Non-destructive confirmation only. Corrections are made by tapping the
+      // transaction row (Today/History) → edit/delete, which unwinds related
+      // records (customer credit, Telegram, cloud-proof) via the proper paths.
+      fireToast(safeToastMsg, isOnlineNow ? 4000 : 4500);
     } catch (err) {
       if (import.meta.env.DEV) console.error('Failed to save:', err);
       fireToast(t.saveFailed || 'Could not save. Please try again.', 3500);
