@@ -75,6 +75,7 @@ export default function ItemizedSaleView({
   const [customDueIso, setCustomDueIso] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const fileInputRef = useRef(null);
+  const creditSearchRef = useRef(null);
   const filteredCustomers = customers.filter(c =>
     c.name?.toLowerCase().includes(creditCustomerSearch.toLowerCase())
   );
@@ -546,17 +547,18 @@ export default function ItemizedSaleView({
 
         {/* Credit fields — customer search + recent chips + due date + phone */}
         {isCredit && (
-          <div className="px-2 py-1.5 space-y-1.5">
-            {/* Search + Add button — always visible */}
-            <div className="flex gap-1">
+          <div className="px-2 py-2 space-y-2">
+            {/* Search + Add button */}
+            <div className="flex gap-1.5">
               <div className="relative flex-1">
                 <input
+                  ref={creditSearchRef}
                   type="text"
                   value={creditCustomerSearch}
                   onChange={e => setCreditCustomerSearch(e.target.value)}
-                  placeholder={lang === 'am' ? 'ደንበኛ ፈልግ...' : 'Search customer...'}
-                  className="w-full p-1.5 text-[10px] border font-bold"
-                  style={{ borderColor: creditCustomerId ? '#16a34a' : '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '36px' }}
+                  placeholder={lang === 'am' ? 'ደንበኛ ፈልግ...' : 'Customer name...'}
+                  className="w-full px-2 py-1.5 text-[11px] border font-bold"
+                  style={{ borderColor: creditCustomerId ? '#16a34a' : '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '38px' }}
                 />
                 {creditCustomerSearch && !creditCustomerId && (
                   <div className="absolute z-10 top-full left-0 right-0 bg-white border shadow-sm max-h-[160px] overflow-y-auto" style={{ borderColor: '#edeae5', borderRadius: '0 0 var(--radius-sm) var(--radius-sm)' }}>
@@ -572,11 +574,11 @@ export default function ItemizedSaleView({
                               setCreditCustomerPhone(c.phone || '');
                               setCreditCustomerSearch(c.name);
                             }}
-                            className="w-full px-2 py-1.5 text-left text-[10px] font-bold border-b flex items-center gap-2"
-                            style={{ borderColor: '#f3f4f6', minHeight: '36px' }}
+                            className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-b flex items-center gap-2"
+                            style={{ borderColor: '#f3f4f6', minHeight: '40px' }}
                           >
-                            <span>👤 {c.name}</span>
-                            {c.phone && <span className="text-[9px]" style={{ color: '#9ca3af' }}>{c.phone}</span>}
+                            <span>{c.name}</span>
+                            {c.phone && <span className="text-[10px]" style={{ color: '#9ca3af' }}>{c.phone}</span>}
                           </button>
                         ))}
                         {onAddCustomerInline && (
@@ -592,15 +594,15 @@ export default function ItemizedSaleView({
                                 setCreditCustomerSearch(saved.display_name || saved.name || name);
                               }
                             }}
-                            className="w-full px-2 py-1.5 text-left text-[10px] font-bold border-t border-dashed flex items-center gap-1"
-                            style={{ borderColor: '#16a34a', color: '#16a34a', minHeight: '36px' }}
+                            className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-t border-dashed"
+                            style={{ borderColor: '#16a34a', color: '#16a34a', minHeight: '40px' }}
                           >
                             + {lang === 'am' ? 'እንደ አዲስ ደንበኛ አክል' : 'Add as new customer'}
                           </button>
                         )}
                       </>
                     ) : (
-                      <div className="px-2 py-2 text-[10px]" style={{ color: '#9ca3af' }}>
+                      <div className="px-2.5 py-2.5 text-[11px]" style={{ color: '#9ca3af' }}>
                         {lang === 'am' ? 'ደንበኛ አልተገኘም' : 'No customer found'}
                       </div>
                     )}
@@ -612,8 +614,7 @@ export default function ItemizedSaleView({
                 onClick={async () => {
                   const name = creditCustomerSearch.trim();
                   if (!name) {
-                    const input = document.querySelector('input[placeholder*="Search"]');
-                    input?.focus();
+                    creditSearchRef.current?.focus();
                     return;
                   }
                   if (!onAddCustomerInline) return;
@@ -624,16 +625,16 @@ export default function ItemizedSaleView({
                     setCreditCustomerSearch(saved.display_name || saved.name || name);
                   }
                 }}
-                className="flex-shrink-0 px-2 text-[10px] font-bold border press-scale"
-                style={{ borderColor: '#16a34a', color: '#16a34a', borderRadius: 'var(--radius-sm)', minHeight: '36px', background: 'rgba(22,163,74,0.06)' }}
+                className="flex-shrink-0 px-3 text-[11px] font-bold border press-scale"
+                style={{ borderColor: '#16a34a', color: '#16a34a', borderRadius: 'var(--radius-sm)', minHeight: '38px', background: 'rgba(22,163,74,0.06)' }}
               >
-                <span className="text-[13px] mr-0.5">+</span>{lang === 'am' ? 'አክል' : 'Add'}
+                <span className="text-[14px] mr-1">+</span>{lang === 'am' ? 'አክል' : 'Add'}
               </button>
             </div>
 
-            {/* Recent credit customers — quick-select chips */}
+            {/* Recent credit customers — quick-select chips, name only */}
             {!creditCustomerSearch && !creditCustomerId && recentCreditCustomers.length > 0 && (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1.5">
                 {recentCreditCustomers.map(c => (
                   <button
                     key={c.id}
@@ -644,23 +645,20 @@ export default function ItemizedSaleView({
                       setCreditCustomerPhone(c.phone || '');
                       setCreditCustomerSearch(c.name);
                     }}
-                    className="flex items-center gap-1 px-1.5 py-1 text-[9px] font-bold border press-scale"
-                    style={{ borderColor: '#edeae5', borderRadius: '2px', minHeight: '28px', background: '#fff' }}
+                    className="px-2.5 py-1.5 text-[11px] font-bold border press-scale"
+                    style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: '#fff' }}
                   >
-                    <span>👤</span>
-                    <span>{c.name}</span>
-                    {c.phone && <span className="text-[8px]" style={{ color: '#9ca3af' }}>{c.phone}</span>}
+                    {c.name}
                   </button>
                 ))}
               </div>
             )}
 
-            {/* Customer summary chip — compact when selected */}
+            {/* Customer summary when selected */}
             {creditCustomerId && (
-              <div className="flex items-center gap-1 px-1.5 py-1" style={{ background: 'rgba(22,163,74,0.06)', borderRadius: '2px', minHeight: '28px' }}>
-                <span className="text-[10px]">👤</span>
-                <span className="text-[10px] font-bold flex-1">{creditCustomerName}</span>
-                {creditCustomerPhone && <span className="text-[9px]" style={{ color: '#6b7280' }}>{creditCustomerPhone}</span>}
+              <div className="flex items-center gap-2 px-2.5 py-1.5" style={{ background: 'rgba(22,163,74,0.06)', borderRadius: 'var(--radius-sm)', minHeight: '34px' }}>
+                <span className="text-[13px] font-bold flex-1">{creditCustomerName}</span>
+                {creditCustomerPhone && <span className="text-[10px]" style={{ color: '#6b7280' }}>{creditCustomerPhone}</span>}
                 <button
                   type="button"
                   onClick={() => {
@@ -671,65 +669,66 @@ export default function ItemizedSaleView({
                     setSelectedDueTs(null);
                     setCustomDueIso('');
                   }}
-                  className="ml-1 text-[10px] font-bold press-scale" style={{ color: '#9ca3af' }}
+                  className="text-[12px] font-bold press-scale px-1" style={{ color: '#9ca3af', minHeight: '30px' }}
                 >
                   ✕
                 </button>
               </div>
             )}
 
-            {/* Due date quick presets + phone */}
-            <div className="space-y-1">
-              <div className="text-[9px] font-bold uppercase tracking-wider" style={{ color: '#9ca3af' }}>
-                {lang === 'am' ? 'መክፈያ ቀን' : 'Due date'}
-              </div>
-              <div className="flex gap-1 flex-wrap">
-                {dueDateOptions.map(opt => (
+            {/* Due date presets row + phone row */}
+            <div className="flex gap-2 items-start">
+              <div className="flex-1 space-y-1">
+                <div className="text-[9px] font-bold uppercase tracking-wider" style={{ color: '#9ca3af' }}>
+                  {lang === 'am' ? 'መክፈያ ቀን' : 'Due date'}
+                </div>
+                <div className="flex gap-1 flex-wrap">
+                  {dueDateOptions.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => { setSelectedDueTs(opt.value); setCustomDueIso(''); }}
+                      className="px-2 py-1 text-[10px] font-bold border press-scale"
+                      style={{
+                        borderColor: selectedDueTs === opt.value && !customDueIso ? '#16a34a' : '#edeae5',
+                        background: selectedDueTs === opt.value && !customDueIso ? 'rgba(22,163,74,0.06)' : '#fff',
+                        color: selectedDueTs === opt.value && !customDueIso ? '#16a34a' : '#374151',
+                        borderRadius: 'var(--radius-sm)', minHeight: '34px',
+                      }}
+                    >
+                      {opt.label.split('(')[0].trim()}
+                    </button>
+                  ))}
                   <button
-                    key={opt.value}
                     type="button"
-                    onClick={() => { setSelectedDueTs(opt.value); setCustomDueIso(''); }}
-                    className="px-1.5 py-1 text-[9px] font-bold border press-scale"
+                    onClick={() => setShowDatePicker(true)}
+                    className="px-2 py-1 text-[10px] font-bold border press-scale"
                     style={{
-                      borderColor: selectedDueTs === opt.value && !customDueIso ? '#16a34a' : '#edeae5',
-                      background: selectedDueTs === opt.value && !customDueIso ? 'rgba(22,163,74,0.06)' : '#fff',
-                      color: selectedDueTs === opt.value && !customDueIso ? '#16a34a' : '#374151',
-                      borderRadius: '2px', minHeight: '28px',
+                      borderColor: customDueIso ? '#16a34a' : '#edeae5',
+                      background: customDueIso ? 'rgba(22,163,74,0.06)' : '#fff',
+                      color: customDueIso ? '#16a34a' : '#374151',
+                      borderRadius: 'var(--radius-sm)', minHeight: '34px',
                     }}
                   >
-                    {opt.label.split('(')[0].trim()}
-                    <span className="ml-0.5 text-[8px]" style={{ opacity: 0.6 }}>{opt.display}</span>
+                    {customDueIso
+                      ? formatEthiopian(new Date(`${customDueIso}T12:00:00`))
+                      : (lang === 'am' ? '📅 ቀን ምረጥ' : '📅 Custom')}
                   </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => setShowDatePicker(true)}
-                  className="px-1.5 py-1 text-[9px] font-bold border press-scale"
-                  style={{
-                    borderColor: customDueIso ? '#16a34a' : '#edeae5',
-                    background: customDueIso ? 'rgba(22,163,74,0.06)' : '#fff',
-                    color: customDueIso ? '#16a34a' : '#374151',
-                    borderRadius: '2px', minHeight: '28px',
-                  }}
-                >
-                  📅 {customDueIso ? formatEthiopian(new Date(`${customDueIso}T12:00:00`)) : (lang === 'am' ? 'ቀን ምረጥ' : 'Pick date')}
-                </button>
+                </div>
               </div>
-            </div>
-
-            {/* Phone */}
-            <div>
-              <div className="text-[9px] font-bold uppercase tracking-wider mb-0.5" style={{ color: '#9ca3af' }}>
-                {lang === 'am' ? 'ስልክ ቁጥር' : 'Phone'}
+              <div className="w-1/3 min-w-[110px]">
+                <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#9ca3af' }}>
+                  {lang === 'am' ? 'ስልክ' : 'Phone'}
+                </div>
+                <input
+                  type="tel"
+                  value={creditCustomerPhone}
+                  onChange={e => setCreditCustomerPhone(e.target.value)}
+                  placeholder="+251 9XX XXX XXX"
+                  className="w-full px-2 py-1.5 text-[11px] border font-bold"
+                  style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px' }}
+                />
               </div>
-              <input
-                type="tel"
-                value={creditCustomerPhone}
-                onChange={e => setCreditCustomerPhone(e.target.value)}
-                placeholder={lang === 'am' ? '+251 9XX XXX XXX' : '+251 9XX XXX XXX'}
-                className="w-full p-1.5 text-[10px] border font-bold"
-                style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '36px' }}
-              />
             </div>
 
             <EthiopianDatePicker
