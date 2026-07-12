@@ -241,6 +241,10 @@ function TransactionForm({
     setPhotos([]);
     setCustomerQuery('');
     setCustomerMatch(null);
+    setPhoneDigits('');
+    setPhoneTouched(false);
+    setSelectedDue(null);
+    setCustomDue('');
     setTimeout(() => { amountInputRef.current?.focus(); }, 50);
   }
 
@@ -347,6 +351,70 @@ function TransactionForm({
             <button onPointerDown={() => setPaymentType('credit')} className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'credit' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}>{lang === 'am' ? 'ዱቤ' : 'Credit'}</button>
             <button type="button" onClick={() => setActiveTab?.('settings')} className="shrink-0 px-3 py-2 rounded-full text-sm font-bold border-2 border-dashed press-scale" style={{ borderColor: '#c9bfa8', background: '#faf9f7', color: '#9ca3af', whiteSpace: 'nowrap' }} aria-label={lang === 'am' ? 'አክል' : 'Add provider'}>+</button>
           </div>
+
+          {/* Credit details — customer, phone, due date (sale on credit).
+              Mirrors the expense/credit branch + ItemizedSaleView: the Credit chip
+              sets isCreditSale, this block makes canSave reachable, and handleSave
+              already persists customer/phone/due as a credit sale. */}
+          {isCreditSale && (
+            <>
+              {/* Customer */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ደንበኛ' : 'CUSTOMER'}</label>
+                <div className="relative">
+                  <input type="text" value={customerQuery} onChange={e => { setCustomerQuery(e.target.value); setCustomerMatch(null); }} placeholder={lang === 'am' ? 'ስም ይተይቡ...' : 'Type customer name...'}
+                    className="w-full p-3 border-2 focus:outline-none text-base" style={{ borderRadius: 'var(--radius-md)', borderColor: customerQuery ? '#86efac' : '#e8e2d8' }} />
+                  {customerQuery.trim() && (
+                    <div className="absolute z-20 left-0 right-0 mt-1 bg-white border shadow-lg" style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)', maxHeight: '160px', overflowY: 'auto' }}>
+                      {customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).slice(0, 6).map(c => (
+                        <button key={c.id} type="button" onClick={() => { setCustomerMatch(c); setCustomerQuery(c.display_name || c.name || ''); }}
+                          className="w-full px-3 py-2.5 text-left border-b press-scale flex items-center justify-between gap-2" style={{ borderColor: '#f3f4f6', background: '#fff' }}>
+                          <span className="text-sm font-semibold truncate" style={{ color: '#111827' }}>{c.display_name || c.name}</span>
+                          {c.balance > 0 && <span className="text-xs font-bold flex-shrink-0" style={{ color: '#C4883A' }}>{fmt(c.balance)} {lang === 'am' ? 'ብር' : 'ETB'}</span>}
+                        </button>
+                      ))}
+                      {onAddCustomerInline && customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).length === 0 && (
+                        <button type="button" onClick={async () => { const name = customerQuery.trim(); if (!name) return; const saved = await onAddCustomerInline({ display_name: name }); if (saved?.id) { setCustomerMatch(saved); setCustomerQuery(saved.display_name || saved.name || ''); } }}
+                          className="w-full px-3 py-2.5 text-left text-sm font-bold press-scale flex items-center gap-2" style={{ background: '#f7fcf8', color: '#14532d' }}>
+                          <Plus className="w-4 h-4" /> {lang === 'am' ? 'አዲስ ደንበኛ ይመልከቱ' : 'Add new customer'}: <span className="truncate" style={{ color: '#1B4332' }}>{customerQuery.trim()}</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Phone */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ስልክ (አማራጭ)' : 'PHONE (OPTIONAL)'}</label>
+                <div className="flex gap-0">
+                  <div className="flex items-center justify-center px-3 py-3 border-2 border-r-0 text-sm font-bold flex-shrink-0"
+                    style={{ background: 'rgba(27,67,50,0.06)', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : '#e8e2d8', color: '#1B4332', minWidth: '60px', borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)' }}>+251</div>
+                  <input type="tel" inputMode="numeric" value={phoneDigits} onChange={e => { const raw = e.target.value.replace(/\D/g, ''); if (raw.length <= 9) setPhoneDigits(raw); }}
+                    onBlur={() => setPhoneTouched(true)}
+                    placeholder="9XXXXXXXX" maxLength={9} className="flex-1 p-3 border-2 text-base focus:outline-none"
+                    style={{ borderRadius: '0 var(--radius-sm) var(--radius-sm) 0', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : (phoneEntered && phoneValid ? '#1B4332' : '#e8e2d8') }} />
+                </div>
+              </div>
+
+              {/* Due date (optional, consistent with ItemizedSaleView) */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'መቼ ይከፍላል?' : 'WHEN IS IT DUE?'} <span style={{ color: '#9ca3af', fontWeight: 600 }}>({lang === 'am' ? 'አማራጭ' : 'optional'})</span></label>
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  {dueDateOptions.map(opt => (
+                    <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)} className="p-2.5 border-2 text-xs font-bold transition-all min-h-[48px] press-scale"
+                      style={{ borderRadius: 'var(--radius-sm)', borderColor: selectedDue === opt.value ? accentColor : '#e8e2d8', background: selectedDue === opt.value ? `${accentColor}10` : '#fff', color: selectedDue === opt.value ? accentColor : '#374151' }}>
+                      <div className="font-bold">{opt.label.split(' ')[0]}</div><div className="text-[10px] opacity-70">{opt.display}</div></button>
+                  ))}
+                </div>
+                <button type="button" onClick={() => { setSelectedDue('custom'); setShowDatePicker(true); }} className="w-full p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale flex items-center justify-center gap-2"
+                  style={{ borderRadius: 'var(--radius-sm)', borderColor: selectedDue === 'custom' ? accentColor : '#e8e2d8', background: selectedDue === 'custom' ? `${accentColor}10` : '#fff', color: selectedDue === 'custom' ? accentColor : '#374151' }}>
+                  📅 {selectedDue === 'custom' && customDue ? formatEthiopian(new Date(`${customDue}T12:00:00`)) : (lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date')}</button>
+              </div>
+
+              <EthiopianDatePicker open={showDatePicker} value={customDue} onChange={(iso) => { setCustomDue(iso); setSelectedDue('custom'); }} onClose={() => setShowDatePicker(false)} lang={lang} />
+            </>
+          )}
         </div>
 
         {/* Save button */}
