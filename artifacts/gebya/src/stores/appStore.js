@@ -87,7 +87,7 @@ export const useAppStore = create((set, get) => ({
   },
 
   // ─── Backup nudge ───
-  lastBackupAt: null,
+  lastBackupAt: undefined, // undefined = not loaded yet, null = loaded + no backup
   setLastBackupAt: (v) => set({ lastBackupAt: v }),
   backupNudgeDismissed: false,
   setBackupNudgeDismissed: (v) => set({ backupNudgeDismissed: v }),

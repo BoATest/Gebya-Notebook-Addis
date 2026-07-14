@@ -1,50 +1,49 @@
 import { Suspense } from 'react';
 import { useLang } from '../context/LangContext';
 import { useAppStore } from '../stores/appStore';
-import { useAuthStore } from '../stores/authStore';
 import { useShopStore } from '../stores/shopStore';
 import { ModalFallback } from './Fallbacks';
 import ShareModal from './ShareModal';
-import { fmt } from '../utils/numformat';
-import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
 import {
   TransactionForm, EditTransactionSheet, ReminderSheet,
   CustomerForm, CustomerTransactionSheet, CustomerTelegramConnectSheet,
   SupplierForm, SupplierTransactionSheet,
+  ItemizedSaleView, NotificationPanel,
 } from '../utils/lazyImports';
-import { getSyncEngine } from '../utils/syncEngine';
+import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
 
 export default function GlobalModals({
-  // data
   enrichedCustomerSummaries,
   customerSummaries,
   supplierSummaries,
   activeCatalogEntries,
   recurringExpenses,
+  setRecurringExpenses,
   currentActorLabel,
   enabledProviders,
   lastPayment,
-  // handlers
+  todaySales,
+  reminderDefaultChannel,
+  setReminderDefaultChannel,
+  setSelectedSupplierId,
+  showItemizedSale,
+  setShowItemizedSale,
+  showNotificationPanel,
+  setShowNotificationPanel,
   handleAddTransaction,
   handleSaveCustomerTransaction,
-  handleDeleteCustomerTransaction,
   handleAddCustomer,
   handleSaveSupplier,
   handleSaveSupplierTransaction,
-  handleCustomerReminderSent,
-  handleToggleCustomerTelegramNotify,
   handleConfirmCustomerTelegramConnection,
-handleResendCustomerTelegramUpdate,
-   handleSaveCatalogEntry,
-   handleCustomQuickAmountsChange,
-   handleAddCustomerInline,
-   handleUndo,
-   setRecurringExpenses,
+  handleResendCustomerTelegramUpdate,
+  handleUpdateTransaction,
+  handleCustomerReminderSent,
+  handleSaveCatalogEntry,
+  handleAddCustomerInline,
 }) {
-  const { lang, t } = useLang();
+  const { t } = useLang();
   const shopProfile = useShopStore(s => s.shopProfile);
-  const customQuickAmounts = useShopStore(s => s.customQuickAmounts);
-  const setAuthUser = useAuthStore(s => s.setUser);
 
   const showForm = useAppStore(s => s.showForm);
   const setShowForm = useAppStore(s => s.setShowForm);
@@ -66,61 +65,77 @@ handleResendCustomerTelegramUpdate,
   const setSupplierTransactionModal = useAppStore(s => s.setSupplierTransactionModal);
   const supplierTransactionEditTarget = useAppStore(s => s.supplierTransactionEditTarget);
   const setSupplierTransactionEditTarget = useAppStore(s => s.setSupplierTransactionEditTarget);
-  const selectedSupplierId = useAppStore(s => s.setSelectedSupplierId);
-  const setSelectedSupplierId = useAppStore(s => s.setSelectedSupplierId);
+  const editTarget = useAppStore(s => s.editTarget);
+  const setEditTarget = useAppStore(s => s.setEditTarget);
   const reminderTarget = useAppStore(s => s.reminderTarget);
   const setReminderTarget = useAppStore(s => s.setReminderTarget);
-  const bulkReminderQueue = useAppStore(s => s.bulkReminderQueue);
-  const setBulkReminderQueue = useAppStore(s => s.setBulkReminderQueue);
   const showShareModal = useAppStore(s => s.showShareModal);
   const setShowShareModal = useAppStore(s => s.setShowShareModal);
   const shareText = useAppStore(s => s.shareText);
-  const editTarget = useAppStore(s => s.editTarget);
-  const setEditTarget = useAppStore(s => s.setEditTarget);
-  const deleteTarget = useAppStore(s => s.deleteTarget);
-  const setDeleteTarget = useAppStore(s => s.setDeleteTarget);
-  const authChecked = useAuthStore(s => s.checked);
-  const authUser = useAuthStore(s => s.user);
+  const setActiveTab = useAppStore(s => s.setActiveTab);
 
-  const activeCustomerTransactionModal = customerTransactionModal
+  const telegramConnectCustomer = telegramConnectCustomerId
+    ? customerSummaries.find(c => c.id === telegramConnectCustomerId) || null
+    : null;
+
+  const activeCustomerTransactionModal = customerTransactionModal?.customerId
     ? enrichedCustomerSummaries.find(c => c.id === customerTransactionModal.customerId) || null
     : null;
-  const activeSupplierTransactionModal = supplierTransactionModal
+
+  const activeSupplierTransactionModal = supplierTransactionModal?.supplierId
     ? supplierSummaries.find(s => s.id === supplierTransactionModal.supplierId) || null
     : null;
-  const telegramConnectCustomer = telegramConnectCustomerId
-    ? enrichedCustomerSummaries.find(c => c.id === telegramConnectCustomerId) || null
-    : null;
-
-  const typeEmoji = { sale: '💰', expense: '🛒', credit: '👥' };
 
   return (
     <>
       {showForm && (
         <Suspense fallback={<ModalFallback label={t.loading} />}>
-<TransactionForm
-             type={showForm}
-             onSave={handleAddTransaction}
-             onDone={() => setShowForm(null)}
-             onUndo={handleUndo}
-             actorLabel={currentActorLabel}
-             enabledProviders={enabledProviders}
-             catalogEntries={activeCatalogEntries}
-             recurringExpenses={recurringExpenses}
-             onRecurringChange={setRecurringExpenses}
-             onSaveCatalogEntry={handleSaveCatalogEntry}
-             customers={customerSummaries}
-             onAddCustomerInline={handleAddCustomerInline}
-             initialPaymentType={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.type : undefined}
-             initialPaymentProvider={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.provider : undefined}
-             lastPaymentHistory={(showForm === 'sale' || showForm === 'expense') ? { bank: lastPayment[showForm]?.bankProvider || '', wallet: lastPayment[showForm]?.walletProvider || '' } : undefined}
-           />
+          <TransactionForm
+            type={showForm}
+            onSave={handleAddTransaction}
+            onDone={() => setShowForm(null)}
+            actorLabel={currentActorLabel}
+            enabledProviders={enabledProviders}
+            catalogEntries={activeCatalogEntries}
+            recurringExpenses={recurringExpenses}
+            onRecurringChange={setRecurringExpenses}
+            onSaveCatalogEntry={handleSaveCatalogEntry}
+            customers={customerSummaries}
+            onAddCustomerInline={handleAddCustomerInline}
+            initialPaymentType={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.type : undefined}
+            initialPaymentProvider={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.provider : undefined}
+            lastPaymentHistory={(showForm === 'sale' || showForm === 'expense') ? {
+              bank:   lastPayment[showForm]?.bankProvider   || '',
+              wallet: lastPayment[showForm]?.walletProvider || '',
+            } : undefined}
+          />
+        </Suspense>
+      )}
+
+      {showItemizedSale && (
+        <Suspense fallback={<ModalFallback label={t.loading} />}>
+          <ItemizedSaleView
+            onSave={handleAddTransaction}
+            onDone={() => setShowItemizedSale(false)}
+            actorLabel={currentActorLabel}
+            shopProfile={shopProfile}
+            enabledProviders={enabledProviders}
+            catalogEntries={activeCatalogEntries}
+            onSaveCatalogEntry={handleSaveCatalogEntry}
+            onAddCustomerInline={handleAddCustomerInline}
+            customers={customerSummaries}
+            transactions={todaySales}
+            onHistory={() => { setShowItemizedSale(false); setActiveTab('report'); }}
+          />
         </Suspense>
       )}
 
       {showCustomerForm && (
         <Suspense fallback={<ModalFallback label={t.loading} />}>
-          <CustomerForm onSave={handleAddCustomer} onDone={() => setShowCustomerForm(false)} />
+          <CustomerForm
+            onSave={handleAddCustomer}
+            onDone={() => setShowCustomerForm(false)}
+          />
         </Suspense>
       )}
 
@@ -172,7 +187,10 @@ handleResendCustomerTelegramUpdate,
         <Suspense fallback={<ModalFallback label={t.loading} />}>
           <SupplierForm
             onSave={handleSaveSupplier}
-            onDone={(saved) => { setShowSupplierForm(false); if (saved?.id) setSelectedSupplierId(saved.id); }}
+            onDone={(saved) => {
+              setShowSupplierForm(false);
+              if (saved && saved.id) setSelectedSupplierId(saved.id);
+            }}
           />
         </Suspense>
       )}
@@ -231,60 +249,46 @@ handleResendCustomerTelegramUpdate,
         </Suspense>
       )}
 
+      {editTarget && (
+        <Suspense fallback={<ModalFallback label={t.loading} />}>
+          <EditTransactionSheet
+            transaction={editTarget}
+            enabledProviders={enabledProviders}
+            onUpdate={handleUpdateTransaction}
+            onClose={() => setEditTarget(null)}
+          />
+        </Suspense>
+      )}
+
       {reminderTarget && (
         <Suspense fallback={<ModalFallback label={t.loading} />}>
           <ReminderSheet
             customer={reminderTarget}
             shopName={shopProfile?.name}
             shopProfile={shopProfile}
-            onClose={() => setReminderTarget(null)}
+            defaultChannel={reminderDefaultChannel}
+            onClose={() => { setReminderTarget(null); setReminderDefaultChannel(null); }}
             onSent={handleCustomerReminderSent}
           />
         </Suspense>
       )}
 
-      {editTarget && (
+      {showNotificationPanel && (
         <Suspense fallback={<ModalFallback label={t.loading} />}>
-          <EditTransactionSheet
-            transaction={editTarget}
-            enabledProviders={enabledProviders}
-            onUpdate={async (id, updates) => {
-              // delegated to parent via prop or handled inside EditTransactionSheet
-              setEditTarget(null);
-            }}
-            onClose={() => setEditTarget(null)}
+          <NotificationPanel
+            onClose={() => setShowNotificationPanel(false)}
           />
         </Suspense>
       )}
 
-      {deleteTarget && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-6 animate-fade">
-          <div className="bg-white p-6 w-full max-w-sm animate-elastic" style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)' }}>
-            <div className="text-3xl text-center mb-3">{typeEmoji[deleteTarget.type]}</div>
-            <h3 className="text-lg font-black text-gray-900 text-center mb-1 font-sans">{t.deleteEntry}</h3>
-            <p className="text-sm text-gray-500 text-center mb-5" style={{ color: 'var(--color-text-muted)' }}>
-              "{deleteTarget.item_name}" · {fmt(deleteTarget.amount || 0)} {lang === 'am' ? 'ብር' : 'birr'}
-            </p>
-            <div className="space-y-2">
-              <button
-                onClick={() => { /* handled in AppInner via prop */ setDeleteTarget(null); }}
-                className="w-full p-4 bg-red-500 text-white font-black min-h-[52px] press-scale"
-                style={{ borderRadius: 'var(--radius-md)' }}
-              >
-                {t.delete}
-              </button>
-              <button onClick={() => setDeleteTarget(null)} className="w-full p-4 font-bold min-h-[52px] press-scale" style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text)', borderRadius: 'var(--radius-md)' }}>
-                {t.cancel}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {showShareModal && (
-        <ShareModal summary={shareText} telegram={shopProfile?.telegram} onClose={() => setShowShareModal(false)} t={t} />
+        <ShareModal
+          summary={shareText}
+          telegram={shopProfile?.telegram}
+          onClose={() => setShowShareModal(false)}
+          t={t}
+        />
       )}
-
     </>
   );
 }

@@ -535,6 +535,12 @@ db.version(23).stores({
   transactions: '++id, type, created_at, updated_at, transaction_id',
 });
 
+// Version 24: Add identity store for shop/device identity (PR 1A).
+db.version(24).stores({
+  transactions: '++id, type, created_at, updated_at, transaction_id',
+  identity: 'key',
+});
+
 db.on('ready', async () => {
   const privacySetting = await db.settings.get('privacy_mode');
   if (!privacySetting) {

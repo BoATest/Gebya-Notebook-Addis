@@ -523,6 +523,7 @@ function TransactionForm({
               className="flex-1 min-w-0 p-3 border-2 focus:outline-none text-base" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
             {!isCredit && (
               <button type="button" onClick={() => setShowCamera(true)}
+                aria-label={lang === 'am' ? 'ፎቶ አክል' : 'Take or choose photo'}
                 className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
                 style={{ width: '56px', border: '2px solid #e8e2d8', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? '#f0fdf4' : '#fafaf6', position: 'relative' }}>
                 {photoLoading ? <span className="text-sm">...</span> : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? '#16a34a' : '#6b7280' }} />}

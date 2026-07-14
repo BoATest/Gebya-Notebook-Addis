@@ -8,9 +8,13 @@ export default function HistoryTab({
   ledgerTransactions,
   enrichedCustomerSummaries,
   customerSummaries,
-  staffMembers,
-  currentActorLabel,
-  activeCatalogEntries,
+  supplierSummaries,
+  customers,
+  suppliers,
+  shopProfile,
+  onEdit,
+  onChaseOverdue,
+  onShareReport,
 }) {
   const { t } = useLang();
   return (
@@ -20,9 +24,13 @@ export default function HistoryTab({
         ledgerTransactions={ledgerTransactions}
         enrichedCustomerSummaries={enrichedCustomerSummaries}
         customerSummaries={customerSummaries}
-        staffMembers={staffMembers}
-        actorLabel={currentActorLabel}
-        catalogEntries={activeCatalogEntries}
+        supplierSummaries={supplierSummaries}
+        customers={customers}
+        suppliers={suppliers}
+        shopProfile={shopProfile}
+        onEdit={onEdit}
+        onChaseOverdue={onChaseOverdue}
+        onShareReport={onShareReport}
       />
     </Suspense>
   );

@@ -79,7 +79,7 @@ export default function ItemizedSaleView({
   const [pendingSharePhone, setPendingSharePhone] = useState('');
   const creditSearchRef = useRef(null);
   const filteredCustomers = customers.filter(c =>
-    c.name?.toLowerCase().includes(creditCustomerSearch.toLowerCase())
+    (c.display_name || c.name || '').toLowerCase().includes(creditCustomerSearch.toLowerCase())
   );
   const recentCreditCustomers = useMemo(() =>
     customers
@@ -395,6 +395,7 @@ export default function ItemizedSaleView({
         <div className="flex items-center gap-1">
           <button
             onClick={() => setShowCamera(true)}
+            aria-label={lang === 'am' ? 'ፎቶ አክል' : 'Take or choose photo'}
             className="press-scale flex items-center justify-center relative"
             style={{ minWidth: '40px', minHeight: '40px' }}
             disabled={photoLoading}
@@ -566,15 +567,16 @@ export default function ItemizedSaleView({
                             key={c.id}
                             type="button"
                             onClick={() => {
+                              const cname = c.display_name || c.name || '';
                               setCreditCustomerId(c.id);
-                              setCreditCustomerName(c.name);
+                              setCreditCustomerName(cname);
                               setCreditCustomerPhone(c.phone || '');
-                              setCreditCustomerSearch(c.name);
+                              setCreditCustomerSearch(cname);
                             }}
                             className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-b flex items-center gap-2"
                             style={{ borderColor: '#f3f4f6', minHeight: '40px' }}
                           >
-                            <span>{c.name}</span>
+                            <span>{c.display_name || c.name}</span>
                             {c.phone && <span className="text-[10px]" style={{ color: '#9ca3af' }}>{c.phone}</span>}
                           </button>
                         ))}
@@ -637,15 +639,16 @@ export default function ItemizedSaleView({
                     key={c.id}
                     type="button"
                     onClick={() => {
+                      const cname = c.display_name || c.name || '';
                       setCreditCustomerId(c.id);
-                      setCreditCustomerName(c.name);
+                      setCreditCustomerName(cname);
                       setCreditCustomerPhone(c.phone || '');
-                      setCreditCustomerSearch(c.name);
+                      setCreditCustomerSearch(cname);
                     }}
                     className="px-2.5 py-1.5 text-[11px] font-bold border press-scale"
                     style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: '#fff' }}
                   >
-                    {c.name}
+                    {c.display_name || c.name}
                   </button>
                 ))}
               </div>
