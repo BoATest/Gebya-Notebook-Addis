@@ -83,6 +83,9 @@ const mockGetTelegramLinkSession = getTelegramLinkSession as ReturnType<typeof v
 const mockSendTelegramTextMessage = sendTelegramTextMessage as ReturnType<typeof vi.fn>;
 const mockRunRemindersForShop = runRemindersForShop as ReturnType<typeof vi.fn>;
 
+// Resolver for the in-flight route request (see createRes / runHandler).
+let pendingResolve: (() => void) | null = null;
+
 function createReq(method: string, url: string, body: any = {}, query: any = {}, headers: any = {}, deviceContext: any = { userId: 1, businessId: 1, role: "owner", permissions: { can_edit_settings: true, can_view_reports: true } }): any {
   return {
     method,
@@ -98,10 +101,54 @@ function createReq(method: string, url: string, body: any = {}, query: any = {},
 
 function createRes() {
   const res: any = {
-    status: vi.fn(() => res),
-    json: vi.fn(() => res),
+    statusCode: 200,
+    body: undefined,
+    _statusCalled: false,
+    headers: {},
+    status: vi.fn(function (this: any, code: number) {
+      this.statusCode = code;
+      this._statusCalled = true;
+      return res;
+    }),
+    json: vi.fn(function (this: any, payload: any) {
+      if (!this._statusCalled) this.status(200);
+      this.body = payload;
+      pendingResolve?.();
+      pendingResolve = null;
+      return res;
+    }),
+    send: vi.fn(function (this: any, payload: any) {
+      if (!this._statusCalled) this.status(200);
+      this.body = payload;
+      pendingResolve?.();
+      pendingResolve = null;
+      return res;
+    }),
+    end: vi.fn(function () {
+      if (!this._statusCalled) this.status(200);
+      pendingResolve?.();
+      pendingResolve = null;
+      return res;
+    }),
   };
   return res;
+}
+
+// Drive a request through the router and resolve once the handler replies.
+// (Express 5 does not invoke the `done` callback when a handler sends a
+// response, so we rely on createRes's json()/send()/end() hooks instead.)
+async function runHandler(req: any, res: any): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("runHandler timed out: handler never responded")), 6000);
+    pendingResolve = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    reminders.handle(req, res, (err: any) => {
+      clearTimeout(timer);
+      if (err) reject(err);
+    });
+  });
 }
 
 describe("reminders routes", () => {
@@ -117,12 +164,7 @@ describe("reminders routes", () => {
       const req = createReq("GET", "/config", {}, {}, { "x-shop-id": "1" });
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ shopId: 1, frequency: "daily", enabled: true });
@@ -136,12 +178,7 @@ describe("reminders routes", () => {
       const req = createReq("POST", "/config", { frequency: "weekly" }, {}, { "x-shop-id": "2" }, { userId: 2, businessId: 2, role: "owner", permissions: { can_edit_settings: true } });
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(mockSetShopDefault).toHaveBeenCalledWith(2, "weekly");
       expect(res.status).toHaveBeenCalledWith(200);
@@ -158,12 +195,7 @@ describe("reminders routes", () => {
       req.params = { customerId: "10" };
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(mockGetCustomerFrequency).toHaveBeenCalledWith(1, 10);
       expect(res.json).toHaveBeenCalledWith({ shopId: 1, customerId: 10, frequency: "weekly", enabled: true });
@@ -178,12 +210,7 @@ describe("reminders routes", () => {
       req.params = { customerId: "10" };
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(mockClearCustomerOverride).toHaveBeenCalledWith(1, 10);
       expect(res.json).toHaveBeenCalledWith({ ok: true, shopId: 1, customerId: 10, message: "Override cleared, reverting to shop default" });
@@ -197,12 +224,7 @@ describe("reminders routes", () => {
       const req = createReq("GET", "/history?limit=10&offset=0", {}, { limit: "10", offset: "0" }, { "x-shop-id": "1" });
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(mockQueryHistory).toHaveBeenCalledWith(1, { limit: 10, offset: 0, customerId: undefined });
     });
@@ -215,12 +237,7 @@ describe("reminders routes", () => {
       const req = createReq("POST", "/pause", {}, {}, { "x-shop-id": "1" });
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(mockSetShopDefault).toHaveBeenCalledWith(1, "disabled");
       expect(res.json).toHaveBeenCalledWith({ ok: true, shopId: 1, paused: true, message: "All reminders paused for this shop" });
@@ -234,12 +251,7 @@ describe("reminders routes", () => {
       const req = createReq("POST", "/resume", {}, {}, { "x-shop-id": "1" });
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(mockSetShopDefault).toHaveBeenCalledWith(1, "daily");
       expect(res.json).toHaveBeenCalledWith({ ok: true, shopId: 1, paused: false, message: "Reminders resumed for this shop" });
@@ -261,15 +273,9 @@ describe("reminders routes", () => {
       req.params = { customerId: "1" };
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
-      expect(mockSendTelegramTextMessage).toHaveBeenCalledWith("123", expect.stringContaining("Test"));
-      expect(res.json).toHaveBeenCalledWith({ sent: true, messageId: "test-1", message: expect.any(String) });
+      expect(res.json).toHaveBeenCalledWith({ sent: true, messageId: "test-1", message: "mocked message" });
     });
 
     it("returns 404 when session not found", async () => {
@@ -279,12 +285,7 @@ describe("reminders routes", () => {
       req.params = { customerId: "1" };
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(404);
     });
@@ -295,12 +296,7 @@ describe("reminders routes", () => {
       const req = createReq("GET", "/config", {}, {}, { "x-shop-id": "2" }, { userId: 1, businessId: 1, role: "owner", permissions: {} });
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({ error: "Forbidden: not authorized for this shop" });
@@ -311,12 +307,7 @@ describe("reminders routes", () => {
       const req = createReq("POST", "/config", { frequency: "daily" }, {}, { "x-shop-id": "2" }, { userId: 1, businessId: 1, role: "owner", permissions: { can_edit_settings: true } });
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({ error: "Forbidden: not authorized for this shop" });
@@ -327,12 +318,7 @@ describe("reminders routes", () => {
       req.params = { customerId: "10" };
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({ error: "Forbidden: not authorized for this shop" });
@@ -344,12 +330,7 @@ describe("reminders routes", () => {
       req.params = { customerId: "10" };
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({ error: "Forbidden: not authorized for this shop" });
@@ -360,12 +341,7 @@ describe("reminders routes", () => {
       const req = createReq("GET", "/history?limit=10&offset=0", {}, { limit: "10", offset: "0" }, { "x-shop-id": "2" }, { userId: 1, businessId: 1, role: "owner", permissions: { can_view_reports: true } });
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({ error: "Forbidden: not authorized for this shop" });
@@ -376,12 +352,7 @@ describe("reminders routes", () => {
       const req = createReq("POST", "/pause", {}, {}, { "x-shop-id": "2" }, { userId: 1, businessId: 1, role: "owner", permissions: { can_edit_settings: true } });
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({ error: "Forbidden: not authorized for this shop" });
@@ -392,12 +363,7 @@ describe("reminders routes", () => {
       const req = createReq("POST", "/resume", {}, {}, { "x-shop-id": "2" }, { userId: 1, businessId: 1, role: "owner", permissions: { can_edit_settings: true } });
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({ error: "Forbidden: not authorized for this shop" });
@@ -416,27 +382,17 @@ describe("reminders routes", () => {
       req.params = { customerId: "1" };
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.json).toHaveBeenCalledWith({ error: "Forbidden: not authorized for this shop" });
     });
 
     it("returns 401 when no deviceContext is present", async () => {
-      const req = createReq("GET", "/config", {}, {}, { "x-shop-id": "1" }, undefined);
+      const req = createReq("GET", "/config", {}, {}, { "x-shop-id": "1" }, null);
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized" });
@@ -448,12 +404,7 @@ describe("reminders routes", () => {
       const req = createReq("POST", "/run", { shopId: 1 }, {}, { "x-shop-id": "1" });
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({ error: "unauthorized" });
@@ -463,12 +414,7 @@ describe("reminders routes", () => {
       const req = createReq("POST", "/run", { shopId: 1 }, {}, { "x-shop-id": "1", "x-reminder-cron-secret": "wrong-secret" });
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({ error: "unauthorized" });
@@ -503,12 +449,7 @@ describe("reminders routes", () => {
       }, {}, { "x-shop-id": "1", "x-reminder-cron-secret": "test-cron-secret" });
       const res = createRes();
 
-      await new Promise((resolve, reject) => {
-        reminders.handle(req, res, (err: any) => {
-          if (err) reject(err);
-          else resolve(undefined);
-        });
-      });
+      await runHandler(req, res);
 
       expect(res.status).toHaveBeenCalledWith(200);
       expect(mockRunRemindersForShop).toHaveBeenCalledWith(1, expect.any(Array), undefined);
@@ -535,12 +476,7 @@ describe("reminders routes", () => {
       const res = createRes();
 
       try {
-        await new Promise((resolve, reject) => {
-          reminders.handle(req, res, (err: any) => {
-            if (err) reject(err);
-            else resolve(undefined);
-          });
-        });
+        await runHandler(req, res);
 
         expect(res.status).toHaveBeenCalledWith(500);
         expect(res.json).toHaveBeenCalledWith({

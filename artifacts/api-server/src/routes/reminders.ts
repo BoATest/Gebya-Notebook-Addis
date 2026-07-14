@@ -224,7 +224,7 @@ router.post("/run",
               customerCreatedAt: customer.createdAt ? new Date(customer.createdAt).getTime() : Date.now(),
               chatId: customer.chatId,
               updatesEnabled: Boolean(customer.telegramNotifyEnabled),
-              telegramLanguage: "en", // Default, will be detected from session
+              telegramLanguage: "en",
               reminderConfig: {
                 id: `${shopId}-${customer.customerId}-cfg`,
                 shopId,
