@@ -1,35 +1,46 @@
-import { useMemo, useRef, useState, useEffect } from 'react';
-import {
-  ChevronDown,
-  ChevronRight,
-  Download,
-  Eye,
-  EyeOff,
-  Filter,
-  Search,
-  X,
-  Clock,
-} from 'lucide-react';
-import db from '../db';
+// ReportView.jsx — The Owner's Desk
+//
+// Thin orchestrator. Computes data, renders chapters.
+// Each chapter answers ONE question.
+// Progressive disclosure: summary → inline expand → dedicated page.
+
+import { useMemo, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { getCurrentEthiopianDate } from '../utils/ethiopianCalendar';
-import { fmt } from '../utils/numformat';
 import {
   ALL_SCOPE,
-  OWNER_SCOPE,
-  actorName,
   amountOf,
   buildReportRows,
   buildStaffReportRows,
   computeReportMetrics,
-  paymentLabel,
-  reportRowSearchText,
   startOfLocalDay,
 } from '../utils/reportSelectors';
-import { hasEntitlement } from '../utils/entitlements';
+import {
+  computeShopStory,
+  computeMoneySummary,
+  computeSalesSummary,
+  computeCreditSummary,
+  computeStaffSummary,
+  computeAttentionItems,
+  computeTimeline,
+  computeShopDiary,
+} from '../utils/shopStory';
+
+// Chapter components
+import StoryCard from './report/StoryCard';
+import MoneySection from './report/MoneySection';
+import SalesSection from './report/SalesSection';
+import CreditSection from './report/CreditSection';
+import StaffSection from './report/StaffSection';
+import ClosingSection from './report/ClosingSection';
+import AttentionSection from './report/AttentionSection';
+import TimelineSection from './report/TimelineSection';
+import HistorySection from './report/HistorySection';
+import DiarySection from './report/DiarySection';
+import ErrorBoundary from './report/ErrorBoundary';
 
 const DAY_MS = 86400000;
-const EMPTY_FILTERS = { type: '', payment: '', status: '' };
 
 function startOfWeek(ms = Date.now()) {
   const d = new Date(ms);
@@ -53,602 +64,17 @@ function endOfMonth(ms = Date.now()) {
   return d.getTime();
 }
 
-function displayDate(ms) {
-  return new Date(ms).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-}
-
-function displayTime(ms) {
-  return ms ? new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-}
-
-function displayPeriod(timeRange, from, to) {
-  if (timeRange === 'today') return 'Today';
-  if (timeRange === 'week') return 'This week';
-  if (timeRange === 'month') return 'This month';
-  return `${displayDate(from)} - ${displayDate(to - 1)}`;
-}
-
-function titleOf(row) {
-  return row.title || row.item_name || row.item_note || row.customer_name || row.note || 'Record';
-}
-
-function csvEscape(value) {
-  if (value == null) return '';
-  const text = String(value);
-  if (text.includes(',') || text.includes('"') || text.includes('\n')) return `"${text.replace(/"/g, '""')}"`;
-  return text;
-}
-
-function buildCSV(rows) {
-  const header = ['date', 'type', 'amount', 'item_or_person', 'payment', 'status', 'entered_by'];
-  return [
-    header.join(','),
-    ...rows.map(row => [
-      row.created_at ? new Date(row.created_at).toISOString() : '',
-      row.report_kind || row.type,
-      amountOf(row),
-      csvEscape(titleOf(row)),
-      csvEscape(paymentLabel(row)),
-      csvEscape(row.status || 'recorded'),
-      csvEscape(actorName(row)),
-    ].join(',')),
-  ].join('\n');
-}
-
-function downloadBlob(content, filename, mimeType) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-function actorKey(tx) {
-  return tx.actor_staff_member_id ? String(tx.actor_staff_member_id) : '__owner__';
-}
-
-function matchesActor(tx, actorFilter) {
-  if (!actorFilter) return true;
-  if (actorFilter === '__owner__') return !tx.actor_staff_member_id;
-  return String(tx.actor_staff_member_id || '') === String(actorFilter);
-}
-
-function buildActorOptions(transactions) {
-  const byActor = new Map();
-  for (const tx of transactions || []) {
-    const key = actorKey(tx);
-    if (!byActor.has(key)) byActor.set(key, { id: key, label: actorName(tx) });
+function computeExpenseBreakdown(rows = []) {
+  const byCategory = new Map();
+  for (const row of rows) {
+    if (row.report_kind !== 'expense') continue;
+    const category = row.item_note || row.item_name || row.note || 'Other';
+    const existing = byCategory.get(category) || { category, total: 0 };
+    existing.total += amountOf(row);
+    byCategory.set(category, existing);
   }
-  return Array.from(byActor.values()).sort((a, b) => {
-    if (a.id === '__owner__') return -1;
-    if (b.id === '__owner__') return 1;
-    return String(a.label || '').localeCompare(String(b.label || ''));
-  });
+  return Array.from(byCategory.values()).sort((a, b) => b.total - a.total);
 }
-
-function displayItem(tx, lang) {
-  return tx.item_note || tx.item_name || tx.note || (lang === 'am' ? 'መዝገብ' : 'Record');
-}
-
-function inRange(ts, from, to) {
-  if (!ts) return false;
-  return ts >= from && ts < to;
-}
-
-function matchesSearch(tx, query) {
-  if (!query) return true;
-  const q = query.toLowerCase();
-  return (
-    String(amountOf(tx) || '').includes(q) ||
-    String(tx.item_name || '').toLowerCase().includes(q) ||
-    String(tx.item_note || '').toLowerCase().includes(q) ||
-    String(tx.customer_name || '').toLowerCase().includes(q) ||
-    String(tx.note || '').toLowerCase().includes(q) ||
-    String(tx.report_kind || tx.type || '').toLowerCase().includes(q) ||
-    String(actorName(tx) || '').toLowerCase().includes(q)
-  );
-}
-
-// Collapsible Section Component
-function Section({ title, action, children, refProp, isCollapsible = false, isExpanded = false, onToggle = null }) {
-  return (
-    <section ref={refProp} style={{
-      background: '#fff',
-      border: '1px solid var(--color-border, #ece6d6)',
-      borderRadius: 'var(--radius-md, 12px)',
-      boxShadow: 'var(--shadow-xs, 0 2px 8px -4px rgba(0,0,0,0.08))',
-      padding: 12,
-    }}>
-      <button
-        type="button"
-        onClick={onToggle}
-        disabled={!isCollapsible}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 10,
-          marginBottom: isExpanded ? 8 : 0,
-          border: 'none',
-          background: 'transparent',
-          cursor: isCollapsible ? 'pointer' : 'default',
-          padding: 0,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
-          <h3 style={{
-            color: '#374151',
-            fontSize: 12,
-            fontWeight: 900,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-          }}>
-            {title}
-          </h3>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {action}
-          {isCollapsible && (
-            <ChevronDown className="w-4 h-4" style={{
-              color: '#d1d5db',
-              transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-              transition: 'transform 0.2s ease-in-out',
-            }} />
-          )}
-        </div>
-      </button>
-      {isExpanded && children}
-    </section>
-  );
-}
-
-function Amount({ value, hidden, tone = 'default', suffix = true }) {
-  const colors = {
-    default: '#1f2937',
-    good: '#15803d',
-    bad: '#dc2626',
-    warn: '#92400e',
-  };
-  return (
-    <span style={{
-      color: colors[tone] || colors.default,
-      fontFamily: 'Manrope, system-ui, sans-serif',
-      fontVariantNumeric: 'tabular-nums',
-      fontWeight: 900,
-    }}>
-      {hidden ? '••••' : fmt(value || 0)}{suffix && !hidden ? ' birr' : ''}
-    </span>
-  );
-}
-
-// Simplified KPI Card with clickable chevron
-function SummaryCard({ label, value, hidden, tone, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="press-scale"
-      style={{
-        minWidth: 0,
-        padding: '12px 10px',
-        background: '#fafaf5',
-        border: '1px solid #ece6d6',
-        borderRadius: 10,
-        cursor: 'pointer',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: 6,
-        textAlign: 'left',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-        <div style={{ width: 16 }} />
-        <ChevronRight className="w-3.5 h-3.5" style={{ color: '#d1d5db' }} />
-      </div>
-      <div>
-        <p style={{ color: '#6b7280', fontSize: 10, fontWeight: 800, lineHeight: 1.2 }}>
-          {label}
-        </p>
-        <p style={{ marginTop: 4, fontSize: 16, lineHeight: 1.1, fontWeight: 900 }}>
-          <Amount value={value} hidden={hidden} tone={tone} suffix={false} />
-        </p>
-      </div>
-    </button>
-  );
-}
-
-// KPI Detail Sheet Component  
-function KPIDetailSheet({ kpi, isOpen, onClose, hidden, lang }) {
-  if (!isOpen || !kpi) return null;
-
-  const getDetailContent = (kpiType) => {
-    const contents = {
-      sold: lang === 'am' ? 'ሁሉም የተጠናቀቁ ግብይቶች ከወደሚመረጡ ጊዜ ውስጥ የሸያጭ ድምር።' : 'Total sales amount from all completed transactions during the selected period.',
-      spent: lang === 'am' ? 'ሁሉም ተመዝግበው ደገፉ ወጪ ብዙ ወጪዎን እና ግዥዎን ያካትታል።' : 'Total expenses recorded including operational costs and purchases.',
-      collected: lang === 'am' ? 'ከደንበኞች ተሰብስቧል ዱቤ ክሬዲት ከእዚህ ጊዜ ውስጥ ለአስተዋወቅ።' : 'Total credit payments collected from customers during this period.',
-      cash: lang === 'am' ? 'አጠቅላይ ጥሬ ገንዘብ ተከታትል - ወጪ እና ዝውውር።' : 'Expected cash based on sales minus expenses and transfers.',
-      transfer: lang === 'am' ? 'ድምር ሞባይል ገንዘብ ወይም ባንክ ዝውውር ተጠብቋል።' : 'Total mobile money or bank transfers expected.',
-    };
-    return contents[kpiType] || '';
-  };
-
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.4)',
-          zIndex: 40,
-          opacity: isOpen ? 1 : 0,
-          pointerEvents: isOpen ? 'auto' : 'none',
-          transition: 'opacity 0.2s ease-in-out',
-        }}
-      />
-
-      {/* Sheet */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: '#fff',
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          zIndex: 50,
-          maxHeight: '85vh',
-          overflowY: 'auto',
-          boxShadow: '0 -4px 12px rgba(0,0,0,0.12)',
-          transform: isOpen ? 'translateY(0)' : 'translateY(100%)',
-          transition: 'transform 0.3s ease-in-out',
-        }}
-      >
-        <div style={{ padding: '16px 16px 32px' }}>
-          {/* Handle bar */}
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-            <div style={{ width: 40, height: 4, background: '#e5e7eb', borderRadius: 2 }} />
-          </div>
-
-          {/* Header with close button */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 900, color: '#1f2937' }}>
-              {kpi.title}
-            </h3>
-            <button
-              type="button"
-              onClick={onClose}
-              className="press-scale kpi-sheet-close-btn"
-              style={{
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                padding: 4,
-              }}
-            >
-              <X className="w-5 h-5" style={{ color: '#9ca3af' }} />
-            </button>
-          </div>
-
-          {/* Value */}
-          <div style={{ marginBottom: 20, padding: '12px 0', borderBottom: '1px solid #f3f4f6' }}>
-            <p style={{ color: '#6b7280', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
-              {lang === 'am' ? 'ዋጋ' : 'Value'}
-            </p>
-            <p style={{ fontSize: 28, fontWeight: 900, color: kpi.tone === 'bad' ? '#dc2626' : kpi.tone === 'good' ? '#15803d' : '#1f2937' }}>
-              <Amount value={kpi.value} hidden={hidden} tone={kpi.tone} suffix={true} />
-            </p>
-          </div>
-
-          {/* Description */}
-          <div>
-            <p style={{ color: '#6b7280', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
-              {lang === 'am' ? 'ትርጓሜ' : 'What is this?'}
-            </p>
-            <p style={{ color: '#4b5563', fontSize: 13, lineHeight: 1.6, fontWeight: 500 }}>
-              {getDetailContent(kpi.id)}
-            </p>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-// Dashboard Insight Strip Component
-  function DashboardInsightStrip({ stats, counts, lang }) {
-  return (
-    <div className="dashboard-insight-strip" style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 12,
-      padding: '8px 12px',
-      background: 'linear-gradient(135deg, rgba(27,67,50,0.05) 0%, rgba(27,67,50,0.02) 100%)',
-      borderRadius: 10,
-      border: '1px solid rgba(27,67,50,0.1)',
-      fontSize: 12,
-      fontWeight: 700,
-      color: '#4b5563',
-      overflowX: 'auto',
-      whiteSpace: 'nowrap',
-    }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-        <Clock className="w-3.5 h-3.5" style={{ color: '#1B4332' }} />
-        <span>{lang === 'am' ? 'ዛሬ' : 'Today'}</span>
-      </span>
-      <span style={{ width: 1, height: 16, background: '#d1d5db', opacity: 0.5 }} />
-      <span style={{ flexShrink: 0 }}>
-        {lang === 'am' ? 'ሰራተኞች' : 'Staff'}: <strong>{counts.staffCount || 0}</strong>
-      </span>
-      <span style={{ width: 1, height: 16, background: '#d1d5db', opacity: 0.5 }} />
-      <span style={{ flexShrink: 0 }}>
-        {lang === 'am' ? 'ሽያጮች' : 'Sales'}: <strong>{counts.salesCount || 0}</strong>
-      </span>
-      <span style={{ width: 1, height: 16, background: '#d1d5db', opacity: 0.5 }} />
-      <span style={{ flexShrink: 0 }}>
-        {lang === 'am' ? 'ክሬዲት' : 'Credits'}: <strong>{counts.creditCount || 0}</strong>
-      </span>
-      <span style={{ width: 1, height: 16, background: '#d1d5db', opacity: 0.5 }} />
-      <span style={{ flexShrink: 0 }}>
-        {lang === 'am' ? 'ልውውጥ' : 'Transfers'}: <strong>{counts.transferCount || 0}</strong>
-      </span>
-      <span style={{ width: 1, height: 16, background: '#d1d5db', opacity: 0.5 }} />
-      <span style={{ flexShrink: 0 }}>
-        {lang === 'am' ? 'ልዩነት' : 'Differences'}: <strong>{counts.diffCount || 0}</strong>
-      </span>
-    </div>
-  );
-}
-
-function RangeChip({ timeRange, customFrom, customTo, lang }) {
-  const label = (() => {
-    if (timeRange === 'week') return lang === 'am' ? 'የዚህ ሳምንት' : 'This week';
-    if (timeRange === 'month') return lang === 'am' ? 'የዚህ ወር' : 'This month';
-    if (timeRange === 'custom') return `${customFrom || '...'} - ${customTo || '...'}`;
-    return lang === 'am' ? 'ዛሬ' : 'Today';
-  })();
-
-  return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      minHeight: 24,
-      padding: '4px 8px',
-      borderRadius: 999,
-      background: '#f3f4f6',
-      color: '#6b7280',
-      fontSize: 11,
-      fontWeight: 850,
-      whiteSpace: 'nowrap',
-    }}>
-      {label}
-    </span>
-  );
-}
-
-function StaffSalesToday({ rows, hidden, lang }) {
-  const visibleRows = (rows || []).slice(0, 4);
-  if (!visibleRows.length) {
-    return (
-      <p style={{ color: '#9ca3af', fontSize: 13, fontWeight: 650 }}>
-        {lang === 'am' ? 'ዛሬ የሰራተኛ ሽያጭ የለም።' : 'No staff sales yet today.'}
-      </p>
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-      {visibleRows.map(row => (
-        <div key={row.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ color: '#111827', fontSize: 14, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {row.name}
-            </p>
-            <p style={{ color: '#6b7280', fontSize: 12, fontWeight: 650 }}>
-              {row.count} {row.count === 1 ? 'sale' : 'sales'}
-            </p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0 }}>
-            <span style={{ fontSize: 14 }}>
-              <Amount value={row.total} hidden={hidden} tone="good" suffix />
-            </span>
-            <ChevronRight className="w-4 h-4" style={{ color: '#d1d5db' }} />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function OwnerAlerts({ alerts, overdueCustomers, settings, hidden, lang }) {
-  const saleAlerts = (alerts || []).slice(0, 2).map(alert => ({
-    id: `sale-${alert.id}`,
-    label: alert.item_name || (lang === 'am' ? 'ትልቅ ሽያጭ' : 'High-value sale'),
-    detail: `${alert.actor_name_snapshot || 'Owner'} · ${displayTime(alert.created_at)}`,
-    amount: Number(alert.amount || 0),
-  }));
-  const creditAlerts = (overdueCustomers || []).slice(0, Math.max(0, 2 - saleAlerts.length)).map(customer => ({
-    id: `credit-${customer.id}`,
-    label: lang === 'am' ? 'የዱቤ ቀን አልፏል' : 'Credit due',
-    detail: customer.display_name || customer.name || (lang === 'am' ? 'ደንበኛ' : 'Customer'),
-    amount: Math.max(Number(customer.balance || 0), 0),
-  }));
-  const visibleAlerts = [...saleAlerts, ...creditAlerts].slice(0, 2);
-
-  if (!visibleAlerts.length) {
-    return (
-      <p style={{ color: '#9ca3af', fontSize: 13, fontWeight: 650 }}>
-        {lang === 'am' ? 'አሁን አስፈላጊ ማሳወቂያ የለም።' : 'No important owner alerts right now.'}
-      </p>
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-      {settings?.threshold_amount > 0 && (
-        <p style={{ color: '#92400e', fontSize: 11, fontWeight: 800 }}>
-          {lang === 'am' ? 'ትልቅ ሽያጭ' : 'High-value'}: {fmt(settings.threshold_amount)}+
-        </p>
-      )}
-      {visibleAlerts.map(alert => (
-        <div key={alert.id} style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          background: '#fffbeb',
-          border: '1px solid #fde68a',
-          borderRadius: 10,
-          padding: '9px 10px',
-        }}>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ color: '#1f2937', fontSize: 14, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {alert.label}
-            </p>
-            <p style={{ color: '#92400e', fontSize: 12, fontWeight: 650, marginTop: 2 }}>
-              {alert.detail}
-            </p>
-          </div>
-          <span style={{ fontSize: 14, flexShrink: 0 }}>
-            <Amount value={alert.amount} hidden={hidden} tone="warn" suffix={false} />
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function RecordRow({ row, hidden, onEdit }) {
-  const isOut = row.report_kind === 'expense';
-  return (
-    <button
-      type="button"
-      onClick={() => onEdit?.(row)}
-      style={{ width: '100%', border: 'none', borderTop: '1px solid #f3f4f6', background: '#fff', padding: '10px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, textAlign: 'left' }}
-    >
-      <div style={{ minWidth: 0 }}>
-        <p style={{ color: '#1f2937', fontSize: 13, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{titleOf(row)}</p>
-        <p style={{ color: '#6b7280', fontSize: 11, fontWeight: 700, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {paymentLabel(row)} · {actorName(row)} · {displayTime(row.created_at)}
-        </p>
-      </div>
-      <span style={{ fontSize: 14, flexShrink: 0 }}>
-        <Amount value={amountOf(row)} hidden={hidden} tone={isOut ? 'bad' : 'good'} />
-      </span>
-    </button>
-  );
-}
-
-function Sheet({ title, children, onClose }) {
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(17,24,39,0.28)', display: 'flex', alignItems: 'flex-end' }}>
-      <div style={{ width: '100%', maxHeight: '82vh', overflowY: 'auto', background: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 0px))', boxShadow: '0 -18px 48px rgba(0,0,0,0.18)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12 }}>
-          <h3 style={{ color: '#1f2937', fontSize: 18, fontWeight: 950 }}>{title}</h3>
-          <button type="button" onClick={onClose} aria-label="Close" style={{ width: 36, height: 36, borderRadius: 18, border: '1px solid #e5e7eb', background: '#fff', display: 'grid', placeItems: 'center' }}>
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function SelectRow({ label, value, onChange, options }) {
-  return (
-    <label style={{ display: 'grid', gap: 5, color: '#667085', fontSize: 12, fontWeight: 850 }}>
-      {label}
-      <select value={value} onChange={event => onChange(event.target.value)} style={{ minHeight: 42, border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', padding: '8px 10px', color: '#1f2937', fontSize: 14 }}>
-        {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
-    </label>
-  );
-}
-
-function EmptyText({ children }) {
-  return (
-    <p style={{ color: '#9ca3af', fontSize: 13, fontWeight: 600, textAlign: 'center', padding: '12px 0' }}>
-      {children}
-    </p>
-  );
-}
-
-function getExportBounds(range) {
-  const now = Date.now();
-  const today = startOfLocalDay(now);
-  if (range === 'today') return [today, today + DAY_MS];
-  if (range === 'week') return [startOfWeek(now), startOfWeek(now) + 7 * DAY_MS];
-  if (range === 'month') return [startOfMonth(now), endOfMonth(now)];
-  return [0, now + DAY_MS];
-}
-
-function buildJSON({ transactions, ledgerTransactions, customers, suppliers }, from, to) {
-  return JSON.stringify({ exported_at: new Date().toISOString(), period: { from, to }, transactions, ledgerTransactions, customers, suppliers }, null, 2);
-}
-
-function ReminderSummaryCard({ overdueCustomers, hidden, lang }) {
-  if (!overdueCustomers || overdueCustomers.length === 0) return null;
-  const totalOverdue = overdueCustomers.reduce((sum, c) => sum + Number(c.balance || 0), 0);
-  const remindedCount = overdueCustomers.filter(c => c.last_reminded_at).length;
-  const lastReminded = overdueCustomers
-    .filter(c => c.last_reminded_at)
-    .sort((a, b) => (b.last_reminded_at || 0) - (a.last_reminded_at || 0))[0]?.last_reminded_at;
-  const lastRemindedLabel = lastReminded
-    ? new Date(lastReminded).toLocaleDateString(lang === 'am' ? 'am-ET' : 'en-US', { month: 'short', day: 'numeric' })
-    : null;
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
-      <div style={{ background: '#fff', border: '1px solid #ece6d6', borderRadius: 10, padding: '10px 12px' }}>
-        <p style={{ fontSize: 10, fontWeight: 800, color: '#9ca3af', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          {lang === 'am' ? 'የዘገዩ' : 'Overdue'}
-        </p>
-        <p style={{ fontSize: 18, fontWeight: 900, color: '#dc2626', marginTop: 2 }}>
-          {overdueCustomers.length}
-        </p>
-      </div>
-      <div style={{ background: '#fff', border: '1px solid #ece6d6', borderRadius: 10, padding: '10px 12px' }}>
-        <p style={{ fontSize: 10, fontWeight: 800, color: '#9ca3af', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          {lang === 'am' ? 'ጠቅላላ ዱቤ' : 'Total owed'}
-        </p>
-        <p style={{ fontSize: 18, fontWeight: 900, color: '#b8842c', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
-          {hidden ? '••••' : totalOverdue.toLocaleString()}
-        </p>
-      </div>
-      <div style={{ background: '#fff', border: '1px solid #ece6d6', borderRadius: 10, padding: '10px 12px' }}>
-        <p style={{ fontSize: 10, fontWeight: 800, color: '#9ca3af', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          {lang === 'am' ? 'ያስታወሰ' : 'Reminded'}
-        </p>
-        <p style={{ fontSize: 18, fontWeight: 900, color: '#166534', marginTop: 2 }}>
-          {remindedCount}
-          {lastRemindedLabel && (
-            <span style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af', marginLeft: 4 }}>
-              · {lastRemindedLabel}
-            </span>
-          )}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-const HistoryView = ({ transactions, onEdit }) => (
-  <div>
-    {transactions.map(tx => (
-      <RecordRow key={tx.id} row={tx} hidden={false} onEdit={onEdit} />
-    ))}
-    {transactions.length === 0 && <EmptyText>No transactions found.</EmptyText>}
-  </div>
-);
 
 export default function ReportView({
   transactions = [],
@@ -668,80 +94,25 @@ export default function ReportView({
   scope = ALL_SCOPE,
 }) {
   const { hidden, toggle: togglePrivacy } = usePrivacy();
-  const [hasAdvancedReports, setHasAdvancedReports] = useState(true);
-  const [timeRange, setTimeRange] = useState('today');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [actorFilter, setActorFilter] = useState('');
-  const [searchLimit, setSearchLimit] = useState(6);
-
-  // State for new features
-  const [selectedKPI, setSelectedKPI] = useState(null);
-  const [kpiSheetOpen, setKpiSheetOpen] = useState(false);
-  const [expandedSections, setExpandedSections] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem('gebya_expanded_sections');
-      return saved ? JSON.parse(saved) : { staffSales: true, ownerAlerts: true, recent: true, history: false };
-    } catch {
-      return { staffSales: true, ownerAlerts: true, recent: true, history: false };
-    }
+  const [timeRange, _setTimeRange] = useState(() => {
+    try { return localStorage.getItem('gebya_report_time_range') || 'today'; } catch { return 'today'; }
   });
-
-  useEffect(() => {
-    setSearchLimit(6);
-  }, [searchQuery]);
-
-  // Persist section expansion state
-  useEffect(() => {
-    try {
-      sessionStorage.setItem('gebya_expanded_sections', JSON.stringify(expandedSections));
-    } catch {
-      // Silently ignore storage errors
-    }
-  }, [expandedSections]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const rows = await db.getDailyClosings();
-      if (!cancelled) setClosings(rows);
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    hasEntitlement('advanced_reports').then((ok) => {
-      if (!cancelled) setHasAdvancedReports(ok);
-    }).catch(() => {});
-    return () => { cancelled = true; };
-  }, []);
-
-  const [showFilters, setShowFilters] = useState(false);
-  const [showExport, setShowExport] = useState(false);
-  const [exportRange, setExportRange] = useState('month');
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const setTimeRange = (value) => {
+    _setTimeRange(value);
+    try { localStorage.setItem('gebya_report_time_range', value); } catch {}
+  };
+  const [searchQuery, setSearchQuery] = useState('');
   const [customFrom, setCustomFrom] = useState(() => new Date().toISOString().slice(0, 10));
   const [customTo, setCustomTo] = useState(() => new Date().toISOString().slice(0, 10));
-  const [actualCash, setActualCash] = useState('');
-  const [actualTransfer, setActualTransfer] = useState('');
-  const [closings, setClosings] = useState([]);
-  const [closingMessage, setClosingMessage] = useState('');
-
-  const searchRef = useRef(null);
-  const staffRef = useRef(null);
-  const alertsRef = useRef(null);
-  const recentRef = useRef(null);
-  const historyRef = useRef(null);
-  const scrollContainerRef = useRef(null);
-  const headerRef = useRef(null);
+  const [closingState, setClosingState] = useState({ done: false, cashVariance: 0 });
 
   const now = Date.now();
   const todayStart = startOfLocalDay(now);
-  const activeStaff = staffMembers.find(member => String(member.id) === String(activeStaffMemberId));
   const isStaffView = Boolean(activeStaffMemberId);
   const viewerStaffId = isStaffView ? activeStaffMemberId : null;
-  const filters = actorFilter ? { actor: actorFilter } : EMPTY_FILTERS;
-  const rangeBounds = (() => {
+
+  // Compute time range bounds
+  const rangeBounds = useMemo(() => {
     if (timeRange === 'week') return [startOfWeek(now), startOfWeek(now) + 7 * DAY_MS];
     if (timeRange === 'month') return [startOfMonth(now), endOfMonth(now)];
     if (timeRange === 'custom') {
@@ -751,695 +122,401 @@ export default function ReportView({
       return [start, endDate.getTime()];
     }
     return [todayStart, todayStart + DAY_MS];
-  })();
+  }, [timeRange, customFrom, customTo]);
 
   const [from, to] = rangeBounds;
 
-  const reportRows = useMemo(() => buildReportRows({ transactions, ledgerTransactions, customers, from, to, scope, viewerStaffId, filters }), [transactions, ledgerTransactions, customers, from, to, scope, viewerStaffId, filters]);
+  // Build report rows (the expensive computation)
+  const reportRows = useMemo(
+    () => buildReportRows({ transactions, ledgerTransactions, customers, from, to, scope, viewerStaffId, filters: {} }),
+    [transactions, ledgerTransactions, customers, from, to, scope, viewerStaffId]
+  );
+
+  // Compute metrics
   const metrics = useMemo(() => computeReportMetrics(reportRows), [reportRows]);
+
+  // Compute staff summary
   const staffRows = useMemo(() => buildStaffReportRows(reportRows), [reportRows]);
+  const staffSummary = useMemo(() => computeStaffSummary(staffRows, lang), [staffRows, lang]);
 
-  const selectedStats = useMemo(() => ({
-    sales: metrics.totalSold,
-    expenses: metrics.spentToday,
-  }), [metrics]);
-  const selectedCollected = metrics.creditCollected;
-  const selectedFlow = useMemo(() => ({
-    cash: metrics.cashExpected,
-    transfer: metrics.transferRecorded,
-  }), [metrics]);
-
-  const rangeTransactions = useMemo(
-    () => (transactions || []).filter(tx => inRange(tx.created_at, rangeBounds[0], rangeBounds[1])),
-    [transactions, rangeBounds]
-  );
-  const actorOptions = useMemo(() => buildActorOptions(rangeTransactions), [rangeTransactions]);
-  const filteredTransactions = useMemo(
-    () => rangeTransactions.filter(tx => matchesSearch(tx, searchQuery) && matchesActor(tx, actorFilter)),
-    [rangeTransactions, searchQuery, actorFilter]
-  );
-  const recentTransactions = useMemo(
-    () => filteredTransactions.slice().sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0)).slice(0, 3),
-    [filteredTransactions]
-  );
-  const searchResults = useMemo(
-    () => searchQuery.trim()
-      ? filteredTransactions.slice().sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0)).slice(0, searchLimit)
-      : [],
-    [filteredTransactions, searchQuery, searchLimit]
-  );
-  const overdueCustomers = useMemo(
-    () => (enrichedCustomerSummaries || []).filter(customer => customer.has_overdue && Number(customer.balance || 0) > 0),
-    [enrichedCustomerSummaries]
+  // Compute credit summary
+  const creditSummary = useMemo(
+    () => computeCreditSummary(enrichedCustomerSummaries, lang),
+    [enrichedCustomerSummaries, lang]
   );
 
-  // Calculate insight counts
-  const insightCounts = useMemo(() => {
-    const uniqueStaff = new Set();
-    let salesCount = 0;
-    let creditCount = 0;
-    let transferCount = 0;
+  // Compute expense breakdown
+  const expenseBreakdown = useMemo(() => computeExpenseBreakdown(reportRows), [reportRows]);
 
-    for (const tx of rangeTransactions) {
-      if (tx.actor_staff_member_id) uniqueStaff.add(tx.actor_staff_member_id);
-      if (tx.type === 'sale') salesCount++;
-      if (tx.payment_type && tx.payment_type !== 'cash') transferCount++;
+  // Compute prior period metrics for comparison
+  const priorMetrics = useMemo(() => {
+    if (timeRange !== 'today') return null;
+    const yesterdayStart = todayStart - DAY_MS;
+    const priorRows = buildReportRows({
+      transactions, ledgerTransactions, customers,
+      from: yesterdayStart, to: todayStart,
+      scope, viewerStaffId, filters: {},
+    });
+    return computeReportMetrics(priorRows);
+  }, [transactions, ledgerTransactions, customers, todayStart, scope, viewerStaffId, timeRange]);
+
+  // Compute 7-day averages in a single pass (not 7 separate queries)
+  const { avgSalesCount, avgExpenses } = useMemo(() => {
+    if (timeRange !== 'today') return { avgSalesCount: 0, avgExpenses: 0 };
+
+    // Single pass: group transactions by day for last 7 days
+    const dayStart7 = todayStart - (7 * DAY_MS);
+    const salesByDay = new Map();
+    const expensesByDay = new Map();
+
+    for (const tx of transactions || []) {
+      const ts = tx.created_at || 0;
+      if (ts < dayStart7 || ts >= todayStart) continue;
+      if (tx.type !== 'sale' && tx.type !== 'expense') continue;
+      const dayKey = Math.floor(ts / DAY_MS);
+      if (tx.type === 'sale') {
+        salesByDay.set(dayKey, (salesByDay.get(dayKey) || 0) + 1);
+      } else {
+        expensesByDay.set(dayKey, (expensesByDay.get(dayKey) || 0) + (Number(tx.amount) || 0));
+      }
     }
 
-    creditCount = (ledgerTransactions || []).filter(tx => inRange(tx.created_at, rangeBounds[0], rangeBounds[1])).length;
-    
+    // Also count credit transactions from ledger
+    for (const entry of ledgerTransactions || []) {
+      const ts = entry.created_at || 0;
+      if (ts < dayStart7 || ts >= todayStart) continue;
+      const isCredit = entry.type === 'credit_add' || entry.type === 'sale_credit';
+      if (isCredit) {
+        const dayKey = Math.floor(ts / DAY_MS);
+        // Credit adds count as sales for anomaly detection
+      }
+    }
+
+    const totalSales = Array.from(salesByDay.values()).reduce((s, v) => s + v, 0);
+    const totalExpenses = Array.from(expensesByDay.values()).reduce((s, v) => s + v, 0);
+    const daysWithSales = salesByDay.size || 1;
+
     return {
-      staffCount: uniqueStaff.size + 1,
-      salesCount,
-      creditCount,
-      transferCount,
-      diffCount: 0,
+      avgSalesCount: Math.round(totalSales / 7),
+      avgExpenses: Math.round(totalExpenses / 7),
     };
-  }, [rangeTransactions, ledgerTransactions, rangeBounds]);
+  }, [transactions, ledgerTransactions, todayStart, timeRange]);
 
-  const handleExportJSON = () => {
-    const [exportFrom, exportTo] = getExportBounds(exportRange);
-    const json = buildJSON({ transactions, ledgerTransactions, customers, suppliers }, exportFrom, exportTo);
-    const stamp = new Date().toISOString().slice(0, 10);
-    downloadBlob(json, `gebya-${exportRange}-${stamp}.json`, 'application/json');
+  // Compute shop story
+  const story = useMemo(() => {
+    const overdueRatio = creditSummary.totalCount > 0 ? creditSummary.overdueCount / creditSummary.totalCount : 0;
+
+    return computeShopStory({
+      metrics,
+      priorMetrics,
+      overdueCount: creditSummary.overdueCount,
+      overdueRatio,
+      closingDone: closingState.done,
+      cashVariance: closingState.cashVariance,
+      lang,
+    });
+  }, [metrics, priorMetrics, creditSummary, closingState, lang]);
+
+  // Compute money summary
+  const money = useMemo(() => computeMoneySummary(metrics, lang), [metrics, lang]);
+
+  // Compute sales summary
+  const sales = useMemo(() => computeSalesSummary(metrics, lang), [metrics, lang]);
+
+  // Compute attention items
+  const attentionItems = useMemo(() => {
+    const largestOverdueDays = creditSummary.overdue.length > 0 ? (creditSummary.overdue[0].overdue_days || 0) : 0;
+
+    return computeAttentionItems({
+      closingDone: closingState.done,
+      cashExpected: metrics.cashExpected,
+      cashVariance: closingState.cashVariance,
+      overdueCount: creditSummary.overdueCount,
+      overdueAmount: creditSummary.overdueAmount,
+      largestOverdueDays,
+      salesCount: metrics.saleRows?.length || 0,
+      avgSalesCount,
+      expenses: metrics.spentToday,
+      avgExpenses,
+      lang,
+    });
+  }, [metrics, creditSummary, closingState, avgSalesCount, avgExpenses, lang]);
+
+  // Compute timeline
+  const timeline = useMemo(() => computeTimeline(reportRows, lang), [reportRows, lang]);
+
+  // Compute diary
+  const diary = useMemo(() => {
+    const topItem = sales.topItems?.length > 0 ? sales.topItems[0] : null;
+    return computeShopDiary({
+      metrics,
+      topItem,
+      overdueCount: creditSummary.overdueCount,
+      closingDone: closingState.done,
+      cashMismatch: closingState.done && Math.abs(closingState.cashVariance) > (metrics.cashExpected || 1) * 0.05,
+      staffSummary,
+      lang,
+    });
+  }, [metrics, sales, creditSummary, staffSummary, closingState, lang]);
+
+  // Filtered transactions for history
+  const filteredTransactions = useMemo(() => {
+    if (!searchQuery.trim()) return reportRows;
+    const q = searchQuery.toLowerCase();
+    return reportRows.filter(row =>
+      (row.title || '').toLowerCase().includes(q) ||
+      (row.item_name || '').toLowerCase().includes(q) ||
+      (row.customer_name || '').toLowerCase().includes(q) ||
+      String(row.amount || '').includes(q)
+    );
+  }, [reportRows, searchQuery]);
+
+  // CSV export function
+  const handleExport = () => {
+    const header = ['date', 'type', 'amount', 'item_or_person', 'payment', 'status'];
+    const csvEscape = (v) => {
+      if (v == null) return '';
+      const s = String(v);
+      return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = filteredTransactions.map(row => [
+      row.created_at ? new Date(row.created_at).toISOString() : '',
+      row.report_kind || row.type,
+      row.amount || 0,
+      csvEscape(row.title || row.item_name || row.customer_name || ''),
+      csvEscape(row.payment_type || 'Cash'),
+      csvEscape(row.status || 'recorded'),
+    ].join(','));
+    const csv = [header.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gebya-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
-  const handleExportCSV = () => {
-    if (isStaffView) return;
-    const stamp = new Date().toISOString().slice(0, 10);
-    downloadBlob(buildCSV(reportRows), `gebya-report-${stamp}.csv`, 'text/csv;charset=utf-8');
+  // Filter handler (placeholder — shows alert for now)
+  const handleFilter = () => {
+    // TODO: implement filter sheet
+    alert(lang === 'am' ? 'ማጣሪያ ገና አልተዘረዘረም' : 'Filter coming soon');
   };
 
-  const handleFullHistory = () => {
-    setHistoryOpen(prev => !prev);
-  };
-
-  const handleKPIClick = (kpiData) => {
-    setSelectedKPI(kpiData);
-    setKpiSheetOpen(true);
-  };
-
-  const toggleSection = (section) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
-  };
-
-  const labels = {
-    title: lang === 'am' ? 'የሱቅ ቼክ' : 'Shop Check',
-    today: lang === 'am' ? 'ዛሬ' : 'Today',
-    week: lang === 'am' ? 'ሳምንት' : 'Week',
-    month: lang === 'am' ? 'ወር' : 'Month',
-    custom: lang === 'am' ? 'Custom' : 'Custom',
-    sold: lang === 'am' ? 'ሽያጭ' : 'Sold',
-    spent: lang === 'am' ? 'ወጪ' : 'Spent',
-    collected: lang === 'am' ? 'ተሰብስቧል' : 'Collected',
-    cashToExpect: lang === 'am' ? 'የሚጠበቅ ጥሬ ገንዘብ' : 'Cash to Expect',
-    transferExpected: lang === 'am' ? 'የሚጠበቅ ትራንስፈር' : 'Transfer Expected',
-    staffSales: lang === 'am' ? 'የዛሬ የሰራተኛ ሽያጭ' : 'Staff Sales Today',
-    ownerAlerts: lang === 'am' ? 'የባለቤት ማሳወቂያ' : 'Owner Alerts',
-    recent: lang === 'am' ? 'የቅርብ ግብይቶች' : 'Recent Transactions',
-    fullHistory: lang === 'am' ? 'ሙሉ ታሪክ' : 'Full History',
-    loanGiven: lang === 'am' ? 'የተሰጠ ዱቤ' : 'Total Loan Given',
-  };
+  // Build story with metrics attached for expanded view
+  const storyWithMetrics = useMemo(() => ({
+    ...story,
+    metrics,
+  }), [story, metrics]);
 
   return (
-    <>
-      {/* KPI Detail Sheet */}
-      <KPIDetailSheet 
-        kpi={selectedKPI} 
-        isOpen={kpiSheetOpen} 
-        onClose={() => setKpiSheetOpen(false)} 
-        hidden={hidden} 
-        lang={lang} 
-      />
-
-      <div ref={scrollContainerRef} className="report-page-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '0 12px 120px' }}>
-        {/* Header - Fixed at top */}
-        <div ref={headerRef} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '2px 2px 0' }}>
-          <div style={{ minWidth: 0 }}>
-            <h2 style={{ color: '#1B4332', fontSize: 22, fontWeight: 950, lineHeight: 1.05 }}>
-              {labels.title}
-            </h2>
-            <p style={{ color: '#6b7280', fontSize: 12, fontWeight: 650, marginTop: 3 }}>
-              {shopProfile?.name || (lang === 'am' ? 'በዚህ ስልክ' : 'Staff on this phone')} · {getCurrentEthiopianDate()}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={togglePrivacy}
-            aria-label={hidden ? 'Show amounts' : 'Hide amounts'}
-            className="press-scale"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              minHeight: 36,
-              padding: '7px 10px',
-              borderRadius: 999,
-              border: hidden ? '1px solid #fde68a' : '1px solid #e5e7eb',
-              background: hidden ? 'rgba(196,136,58,0.10)' : '#fff',
-              color: hidden ? '#92400e' : '#6b7280',
-              fontSize: 12,
-              fontWeight: 900,
-              cursor: 'pointer',
-            }}
-          >
-            {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            {hidden ? 'Show' : 'Hide'}
-          </button>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 0,
+      padding: '0 12px 120px',
+    }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 10,
+        padding: '4px 4px 12px',
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 950, color: '#1B4332', lineHeight: 1.05 }}>
+            {lang === 'am' ? 'የሱቅ ሁኔታ' : 'Shop Status'}
+          </h1>
+          <p style={{ fontSize: 12, color: '#6b7280', fontWeight: 650, marginTop: 3 }}>
+            {shopProfile?.name || (lang === 'am' ? 'በዚህ ስልክ' : 'Your shop')} · {getCurrentEthiopianDate()}
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={togglePrivacy}
+          aria-label={hidden ? 'Show amounts' : 'Hide amounts'}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            minHeight: 36,
+            padding: '7px 10px',
+            borderRadius: 999,
+            border: hidden ? '1px solid #fde68a' : '1px solid #e5e7eb',
+            background: hidden ? 'rgba(196,136,58,0.10)' : '#fff',
+            color: hidden ? '#92400e' : '#6b7280',
+            fontSize: 12,
+            fontWeight: 900,
+            cursor: 'pointer',
+          }}
+        >
+          {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          {hidden ? (lang === 'am' ? 'አሳይ' : 'Show') : (lang === 'am' ? 'ደብቅ' : 'Hide')}
+        </button>
+      </div>
 
-        {/* Dashboard Insight Strip */}
-        <DashboardInsightStrip stats={selectedStats} counts={insightCounts} lang={lang} />
-
-        {/* Sticky Time Range Controls */}
+      {/* Time Range — sticky utility bar */}
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 30,
+        background: '#fafaf5',
+        paddingTop: 4,
+        paddingBottom: 8,
+      }}>
         <div style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 30,
-          background: '#fff',
-          paddingTop: 8,
-          paddingBottom: 8,
-          boxShadow: 'rgba(0,0,0,0.06) 0 2px 4px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: 4,
+          background: 'rgba(27,67,50,0.08)',
+          borderRadius: 12,
+          padding: 4,
         }}>
-          <div className="report-time-ranges" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 6, background: 'rgba(27,67,50,0.08)', borderRadius: 12, padding: 5 }}>
-            {[
-              ['today', labels.today],
-              ['week', labels.week],
-              ['month', labels.month],
-              ['custom', labels.custom],
-            ].map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTimeRange(id)}
-                className="press-scale"
-                style={{
-                  minHeight: 34,
-                  border: 'none',
-                  borderRadius: 9,
-                  background: timeRange === id ? '#1B4332' : 'transparent',
-                  color: timeRange === id ? '#fff' : '#6b7280',
-                  fontSize: 12,
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {timeRange === 'custom' && (
-          <Section title={lang === 'am' ? 'ጊዜ ክልል' : 'Date Range'}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, color: '#6b7280', fontSize: 11, fontWeight: 850 }}>
-                {lang === 'am' ? 'ከ' : 'From'}
-                <input
-                  type="date"
-                  value={customFrom}
-                  onChange={e => setCustomFrom(e.target.value)}
-                  style={{ minHeight: 38, border: '1px solid #e5e7eb', borderRadius: 9, padding: '6px 8px', fontSize: 13 }}
-                />
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4, color: '#6b7280', fontSize: 11, fontWeight: 850 }}>
-                {lang === 'am' ? 'ወደ' : 'To'}
-                <input
-                  type="date"
-                  value={customTo}
-                  onChange={e => setCustomTo(e.target.value)}
-                  style={{ minHeight: 38, border: '1px solid #e5e7eb', borderRadius: 9, padding: '6px 8px', fontSize: 13 }}
-                />
-              </label>
-            </div>
-          </Section>
-        )}
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '-2px 2px' }}>
-          <RangeChip timeRange={timeRange} customFrom={customFrom} customTo={customTo} lang={lang} />
-        </div>
-
-         {/* Simplified KPI Cards */}
-        <div className="report-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
-          <SummaryCard 
-            label={labels.sold} 
-            value={selectedStats.sales} 
-            hidden={hidden} 
-            tone="good"
-            onClick={() => handleKPIClick({ id: 'sold', title: labels.sold, value: selectedStats.sales, tone: 'good' })}
-          />
-          <SummaryCard 
-            label={labels.spent} 
-            value={selectedStats.expenses} 
-            hidden={hidden} 
-            tone="bad"
-            onClick={() => handleKPIClick({ id: 'spent', title: labels.spent, value: selectedStats.expenses, tone: 'bad' })}
-          />
-          <SummaryCard 
-            label={labels.collected} 
-            value={selectedCollected} 
-            hidden={hidden} 
-            tone="warn"
-            onClick={() => handleKPIClick({ id: 'collected', title: labels.collected, value: selectedCollected, tone: 'warn' })}
-          />
-          <SummaryCard 
-            label={labels.cashToExpect} 
-            value={selectedFlow.cash} 
-            hidden={hidden} 
-            tone={selectedFlow.cash >= 0 ? 'good' : 'bad'}
-            onClick={() => handleKPIClick({ id: 'cash', title: labels.cashToExpect, value: selectedFlow.cash, tone: selectedFlow.cash >= 0 ? 'good' : 'bad' })}
-          />
-          <SummaryCard 
-            label={labels.transferExpected} 
-            value={selectedFlow.transfer} 
-            hidden={hidden} 
-            tone={selectedFlow.transfer >= 0 ? 'good' : 'bad'}
-            onClick={() => handleKPIClick({ id: 'transfer', title: labels.transferExpected, value: selectedFlow.transfer, tone: selectedFlow.transfer >= 0 ? 'good' : 'bad' })}
-          />
-          <SummaryCard 
-            label={labels.loanGiven || (lang === 'am' ? 'የተሰጠ ዱቤ' : 'Total Loan Given')} 
-            value={metrics.totalLoanGiven || 0} 
-            hidden={hidden} 
-            tone="warn"
-            onClick={() => handleKPIClick({ id: 'loan', title: labels.loanGiven || (lang === 'am' ? 'የተሰጠ ዱቤ' : 'Total Loan Given'), value: metrics.totalLoanGiven || 0, tone: 'warn' })}
-          />
-        </div>
-
-        {/* Sticky Search Bar */}
-        <div style={{
-          position: 'sticky',
-          top: 52,
-          zIndex: 29,
-          background: '#fff',
-          paddingBottom: 8,
-        }}>
-          <div style={{ position: 'relative' }}>
-            <Search className="w-4 h-4" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
-            <input
-              ref={searchRef}
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search item, code, amount, staff, or date"
-              style={{
-                width: '100%',
-                minHeight: 44,
-                padding: '10px 42px 10px 36px',
-                background: '#fff',
-                border: `1px solid ${searchQuery.trim() ? '#1B4332' : 'var(--color-border, #e5e7eb)'}`,
-                borderRadius: 12,
-                boxShadow: 'var(--shadow-xs, 0 2px 8px -4px rgba(0,0,0,0.08))',
-                color: '#374151',
-                fontSize: 14,
-                outline: 'none',
-              }}
-            />
-            {searchQuery.trim() ? (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                aria-label="Clear search"
-                className="press-scale"
-                style={{ position: 'absolute', right: 38, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer' }}
-              >
-                <X className="w-4 h-4" style={{ color: '#9ca3af' }} />
-              </button>
-            ) : null}
+          {[
+            ['today', lang === 'am' ? 'ዛሬ' : 'Today'],
+            ['week', lang === 'am' ? 'ሳምንት' : 'Week'],
+            ['month', lang === 'am' ? 'ወር' : 'Month'],
+            ['custom', lang === 'am' ? 'Custom' : 'Custom'],
+          ].map(([id, label]) => (
             <button
+              key={id}
               type="button"
-              onClick={() => setShowFilters(value => !value)}
-              aria-label="Filter report"
-              className="press-scale"
-              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', border: 'none', background: 'transparent', cursor: 'pointer', padding: 5 }}
-            >
-              <Filter className="w-4 h-4" style={{ color: actorFilter ? '#1B4332' : '#9ca3af' }} />
-            </button>
-          </div>
-        </div>
-
-        {showFilters && (
-          <Section title={lang === 'am' ? 'ፈልግ' : 'Filter'}>
-            <label style={{ display: 'block', color: '#6b7280', fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
-              {lang === 'am' ? 'ሻጭ' : 'Seller'}
-            </label>
-            <select
-              value={actorFilter}
-              onChange={e => setActorFilter(e.target.value)}
+              onClick={() => setTimeRange(id)}
               style={{
-                width: '100%',
-                minHeight: 42,
-                border: `1px solid ${actorFilter ? '#1B4332' : '#e5e7eb'}`,
-                borderRadius: 10,
-                padding: '8px 10px',
-                background: '#fff',
-                color: '#374151',
-                fontSize: 14,
-                outline: 'none',
-              }}
-            >
-              <option value="">{lang === 'am' ? 'ሁሉም ሻጮች' : 'All sellers'}</option>
-              {actorOptions.map(actor => (
-                <option key={actor.id} value={actor.id}>{actor.label}</option>
-              ))}
-            </select>
-          </Section>
-        )}
-
-        {searchQuery.trim() && (
-          <Section title={lang === 'am' ? 'የፍለጋ ውጤት' : 'Search Results'}>
-            {searchResults.length ? (
-              <>
-                <div>
-                  {searchResults.map(tx => (
-                    <RecordRow key={tx.id} row={tx} hidden={hidden} onEdit={onEdit} />
-                  ))}
-                </div>
-                {filteredTransactions.length > searchLimit && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchLimit(prev => prev + 10)}
-                    className="press-scale"
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      marginTop: 8,
-                      fontWeight: 900,
-                      fontSize: 12,
-                      border: '1px solid #C4883A',
-                      borderRadius: 12,
-                      color: '#6b4f1d',
-                      background: 'rgba(196,136,58,0.04)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {lang === 'am' ? 'ተጨማሪ ውጤቶች አሳይ' : 'Load more results'}
-                  </button>
-                )}
-              </>
-            ) : (
-              <EmptyText>{lang === 'am' ? 'ምንም ውጤት የለም።' : `No results for "${searchQuery}".`}</EmptyText>
-            )}
-          </Section>
-        )}
-
-        {/* Collapsible Staff Sales Section */}
-        <Section 
-          title={labels.staffSales} 
-          refProp={staffRef}
-          isCollapsible={true}
-          isExpanded={expandedSections.staffSales}
-          onToggle={() => toggleSection('staffSales')}
-        >
-          <StaffSalesToday rows={todayStaffSalesRows} hidden={hidden} lang={lang} />
-        </Section>
-
-        {!isStaffView && (
-          <Section
-            title={labels.ownerAlerts}
-            refProp={alertsRef}
-            action={overdueCustomers.length > 0 && (
-              <button
-                type="button"
-                onClick={onChaseOverdue}
-                className="press-scale"
-                style={{ border: 'none', background: 'transparent', color: '#92400e', fontSize: 12, fontWeight: 900, cursor: 'pointer' }}
-              >
-                {lang === 'am' ? 'ዱቤ' : 'Credit'}
-              </button>
-            )}
-            isCollapsible={true}
-            isExpanded={expandedSections.ownerAlerts}
-            onToggle={() => toggleSection('ownerAlerts')}
-          >
-            <OwnerAlerts
-              alerts={ownerAlerts}
-              overdueCustomers={overdueCustomers}
-              settings={ownerAlertSettings}
-              hidden={hidden}
-              lang={lang}
-            />
-          </Section>
-        )}
-
-        {/* Reminder Summary — replaces the deleted Reminders tab for global view */}
-        {!isStaffView && overdueCustomers.length > 0 && (
-          <Section
-            title={lang === 'am' ? 'ማስታወሻ ማጠቃለያ' : 'Reminder Summary'}
-            isCollapsible={false}
-          >
-            <ReminderSummaryCard overdueCustomers={overdueCustomers} hidden={hidden} lang={lang} />
-          </Section>
-        )}
-
-        {/* Cash Closing Section */}
-        <Section
-          data-report-section="closing"
-          title={lang === 'am' ? 'የዛሬ ማውጫ' : 'Cash Closing'}
-          isCollapsible={true}
-          isExpanded={true}
-        >
-          {isStaffView ? (
-            <p style={{ color: '#92400e', fontSize: 13, fontWeight: 700 }}>
-              {lang === 'am' ? 'የባለቤት የማውጫ መዝገብ ለሰራተኞች አይታይም' : 'Owner cash closing is not shown in staff view.'}
-            </p>
-          ) : timeRange !== 'today' ? (
-            <p style={{ color: '#92400e', fontSize: 13, fontWeight: 700 }}>
-              {lang === 'am' ? 'የማውጫ መዝገብ ዛሬ ብቻ ይታያል' : 'Cash closing is editable only for Today'}
-            </p>
-          ) : (
-            <div className="closing-section-wrap" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div className="closing-inputs-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, color: '#374151', fontSize: 12, fontWeight: 850 }}>
-                  {lang === 'am' ? 'በእጅ ጥሬ ገንዘብ' : 'Actual cash counted'}
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={actualCash}
-                    onChange={(e) => setActualCash(e.target.value)}
-                    style={{ minHeight: 40, border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 10px', fontSize: 14 }}
-                    placeholder="0.00"
-                  />
-                </label>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, color: '#374151', fontSize: 12, fontWeight: 850 }}>
-                  {lang === 'am' ? 'ትራንስፈር' : 'Transfer counted'}
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={actualTransfer}
-                    onChange={(e) => setActualTransfer(e.target.value)}
-                    style={{ minHeight: 40, border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 10px', fontSize: 14 }}
-                    placeholder="0.00"
-                  />
-                </label>
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  const actualCashVal = Number(actualCash) || 0;
-                  const actualTransferVal = Number(actualTransfer) || 0;
-                  const cashVariance = actualCashVal - metrics.cashExpected;
-                  const transferVariance = actualTransferVal - metrics.transferRecorded;
-                  await db.saveDailyClosing({
-                    recorded_sold: metrics.totalSold,
-                    recorded_spent: metrics.spentToday,
-                    recorded_collected: metrics.creditCollected,
-                    recorded_cash: metrics.cashExpected,
-                    recorded_transfer: metrics.transferRecorded,
-                    actual_cash: actualCashVal,
-                    actual_transfer: actualTransferVal,
-                    actor_name_snapshot: shopProfile?.name || 'Owner',
-                    actor_role: 'owner',
-                  });
-                  const all = await db.getDailyClosings();
-                  setClosings(all);
-                  setClosingMessage(lang === 'am' ? 'ተመጣጣኚ ሆኗል' : 'Saved as balanced');
-                  setActualCash('');
-                  setActualTransfer('');
-                }}
-                className="press-scale"
-                style={{ minHeight: 42, border: 'none', borderRadius: 8, background: '#1B4332', color: '#fff', fontSize: 13, fontWeight: 900, cursor: 'pointer' }}
-              >
-                {lang === 'am' ? 'ቀን አስገምጅ' : 'Mark day reviewed'}
-              </button>
-              {closingMessage && (
-                <p style={{ color: '#15803d', fontSize: 12, fontWeight: 800 }}>{closingMessage}</p>
-              )}
-              {closings.length === 0 && !closingMessage && (
-                <p style={{ color: '#9ca3af', fontSize: 13, fontWeight: 600 }}>{lang === 'am' ? 'እስካሁን የተጠናቀቁ ማውጫዎች የለም' : 'No saved closing reviews yet.'}</p>
-              )}
-              {closings.length > 0 && (
-                <div className="closing-history-list" style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <p style={{ fontSize: 12, fontWeight: 800, color: '#6b7280' }}>{lang === 'am' ? 'የተጠናቀቁ ማውጫዎች' : 'Past closing reviews'}</p>
-                  {closings.slice(0, 5).map((c) => (
-                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 650, color: '#374151', padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
-                      <span>{new Date(c.closed_at).toLocaleDateString()} {lang === 'am' ? 'ተጠናቀቀ' : 'reviewed'} {lang === 'am' ? 'በ' : 'by'} {(c.actor_name_snapshot || '')}</span>
-                      <span style={{ color: '#15803d' }}>{(c.actual_cash || 0) + (c.actual_transfer || 0) > 0 ? fmt((c.actual_cash || 0) + (c.actual_transfer || 0)) : ''}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </Section>
-
-        {!searchQuery.trim() && (
-          <Section 
-            title={labels.recent} 
-            refProp={recentRef}
-            isCollapsible={true}
-            isExpanded={expandedSections.recent}
-            onToggle={() => toggleSection('recent')}
-          >
-            {recentTransactions.length ? (
-              <div>
-                {recentTransactions.map(tx => (
-                  <RecordRow key={tx.id} row={tx} hidden={hidden} onEdit={onEdit} />
-                ))}
-              </div>
-            ) : (
-              <EmptyText>{lang === 'am' ? 'ለዚህ ጊዜ መዝገብ የለም።' : 'No transactions in this period yet.'}</EmptyText>
-            )}
-          </Section>
-        )}
-
-        {/* Collapsible History Section */}
-        <Section
-          title={labels.fullHistory}
-          refProp={historyRef}
-          action={(
-            <button
-              type="button"
-              onClick={() => setHistoryOpen(value => !value)}
-              className="press-scale"
-              style={{ border: 'none', background: 'transparent', color: '#1B4332', fontSize: 12, fontWeight: 900, cursor: 'pointer' }}
-            >
-              {historyOpen ? (lang === 'am' ? 'ዝጋ' : 'Hide') : (lang === 'am' ? 'ክፈት' : 'Open')}
-            </button>
-          )}
-          isCollapsible={true}
-          isExpanded={expandedSections.history}
-          onToggle={() => toggleSection('history')}
-        >
-          {historyOpen ? (
-            <HistoryView transactions={filteredTransactions} onEdit={onEdit} />
-          ) : (
-            <button
-              type="button"
-              onClick={handleFullHistory}
-              className="press-scale"
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                border: '1px solid #e5e7eb',
-                background: '#fafaf5',
-                borderRadius: 10,
-                padding: '11px 12px',
-                color: '#374151',
-                fontSize: 14,
-                fontWeight: 850,
+                minHeight: 34,
+                border: 'none',
+                borderRadius: 9,
+                background: timeRange === id ? '#1B4332' : 'transparent',
+                color: timeRange === id ? '#fff' : '#6b7280',
+                fontSize: 12,
+                fontWeight: 900,
                 cursor: 'pointer',
               }}
             >
-              <span>{filteredTransactions.length} {lang === 'am' ? 'መዝገቦች' : 'transactions'}</span>
-              <ChevronRight className="w-4 h-4" style={{ color: '#9ca3af' }} />
+              {label}
             </button>
-          )}
-        </Section>
-
-        {showExport && (
-          <Section title={lang === 'am' ? 'Export' : 'Export'}>
-            <div className="report-export-ranges" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 5, marginBottom: 9 }}>
-              {['today', 'week', 'month', 'all'].map(range => (
-                <button
-                  key={range}
-                  type="button"
-                  onClick={() => setExportRange(range)}
-                  className="press-scale"
-                  style={{
-                    minHeight: 32,
-                    border: 'none',
-                    borderRadius: 8,
-                    background: exportRange === range ? '#1B4332' : '#f3f4f6',
-                    color: exportRange === range ? '#fff' : '#6b7280',
-                    fontSize: 12,
-                    fontWeight: 900,
-                    textTransform: 'capitalize',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {range}
-                </button>
-              ))}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
-              <button
-                type="button"
-                onClick={handleExportCSV}
-                className="press-scale"
-                style={{ minHeight: 40, border: '1px solid #1B4332', borderRadius: 10, background: '#fff', color: '#1B4332', fontWeight: 950, cursor: 'pointer' }}
-              >
-                CSV
-              </button>
-            </div>
-          </Section>
-        )}
+          ))}
+        </div>
       </div>
 
-      {/* Fixed Action Bar above bottom navigation */}
-      <div className="report-actions-grid" style={{
-        position: 'fixed',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        bottom: 68,
-        width: 'calc(100% - 24px)',
-        maxWidth: 424,
-        zIndex: 25,
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-        gap: 6,
-        background: 'rgba(250,250,245,0.96)',
-        border: '1px solid #e5e7eb',
-        borderRadius: 12,
-        padding: 6,
-        backdropFilter: 'blur(8px)',
-        boxShadow: '0 10px 30px rgba(15,23,42,0.12)',
-      }}>
-        <button
-          type="button"
-          onClick={() => setShowFilters(value => !value)}
-          className="press-scale"
-          style={{ minHeight: 38, border: 'none', borderRadius: 9, background: showFilters ? '#1B4332' : '#fff', color: showFilters ? '#fff' : '#374151', fontSize: 12, fontWeight: 950, cursor: 'pointer' }}
-        >
-          <Filter className="w-4 h-4 inline-block mr-1" /> Filter
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (!hasAdvancedReports) return;
-            setShowExport(value => !value);
-          }}
-          className="press-scale"
-          title={!hasAdvancedReports ? (lang === 'am' ? 'ለPlus ደንበኞች ብቻ' : 'Plus plan only') : undefined}
-          style={{ minHeight: 38, border: 'none', borderRadius: 9, background: showExport ? '#1B4332' : '#fff', color: showExport ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 950, cursor: hasAdvancedReports ? 'pointer' : 'not-allowed', opacity: hasAdvancedReports ? 1 : 0.5 }}
-        >
-          <Download className="w-4 h-4" style={{ display: 'inline-block', marginRight: 4 }} /> Export
-          {!hasAdvancedReports && <span style={{ fontSize: 9, marginLeft: 4 }}>🔒</span>}
-        </button>
-        <button
-          type="button"
-          onClick={handleFullHistory}
-          className="press-scale"
-          style={{ minHeight: 38, border: 'none', borderRadius: 9, background: historyOpen ? '#1B4332' : '#fff', color: historyOpen ? '#fff' : '#374151', fontSize: 12, fontWeight: 950, cursor: 'pointer' }}
-        >
-          <Clock className="w-4 h-4" style={{ display: 'inline-block', marginRight: 4 }} /> History
-        </button>
-      </div>
-    </>
+      {/* Custom date range */}
+      {timeRange === 'custom' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280' }}>
+              {lang === 'am' ? 'ከ' : 'From'}
+            </span>
+            <input
+              type="date"
+              value={customFrom}
+              onChange={e => setCustomFrom(e.target.value)}
+              style={{ minHeight: 38, border: '1px solid #e5e7eb', borderRadius: 9, padding: '6px 8px', fontSize: 13 }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280' }}>
+              {lang === 'am' ? 'ወደ' : 'To'}
+            </span>
+            <input
+              type="date"
+              value={customTo}
+              onChange={e => setCustomTo(e.target.value)}
+              style={{ minHeight: 38, border: '1px solid #e5e7eb', borderRadius: 9, padding: '6px 8px', fontSize: 13 }}
+            />
+          </label>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════ */}
+      {/* THE 10 SECTIONS — Each answers ONE question       */}
+      {/* ═══════════════════════════════════════════════════ */}
+
+      {/* 1. Shop Story — "Is my shop okay?" */}
+      <ErrorBoundary>
+        <StoryCard story={storyWithMetrics} hidden={hidden} lang={lang} />
+      </ErrorBoundary>
+
+      {/* 2. Money — "Where is my money?" */}
+      <ErrorBoundary>
+        <MoneySection money={money} expenseBreakdown={expenseBreakdown} hidden={hidden} lang={lang} />
+      </ErrorBoundary>
+
+      {/* 3. Sales Summary — "What did we sell?" */}
+      <ErrorBoundary>
+        <SalesSection sales={sales} hidden={hidden} lang={lang} />
+      </ErrorBoundary>
+
+      {/* 4. Credit & Customers — "Who owes me?" */}
+      {!isStaffView && (
+        <ErrorBoundary>
+          <CreditSection credit={creditSummary} hidden={hidden} lang={lang} />
+        </ErrorBoundary>
+      )}
+
+      {/* 5. Staff — "How is everyone doing?" */}
+      {!isStaffView && staffSummary && (
+        <ErrorBoundary>
+          <StaffSection staffSummary={staffSummary} hidden={hidden} lang={lang} />
+        </ErrorBoundary>
+      )}
+
+      {/* 6. Shop Closing — "Can I close today?" */}
+      <ErrorBoundary>
+        <ClosingSection
+          metrics={metrics}
+          isStaffView={isStaffView}
+          timeRange={timeRange}
+          shopProfile={shopProfile}
+          lang={lang}
+          onClosingChange={setClosingState}
+        />
+      </ErrorBoundary>
+
+      {/* 7. Attention — "What needs me?" (only if items exist) */}
+      {!isStaffView && attentionItems.length > 0 && (
+        <ErrorBoundary>
+          <AttentionSection
+            items={attentionItems}
+            lang={lang}
+            onAction={(item) => {
+              if (item.type === 'cash_pending') {
+                document.querySelector('[data-report-section="closing"]')?.scrollIntoView({ behavior: 'smooth' });
+              } else if (item.type === 'overdue_customers') {
+                window.dispatchEvent(new CustomEvent('gebya:navigate', { detail: { tab: 'credit' } }));
+              }
+            }}
+          />
+        </ErrorBoundary>
+      )}
+
+      {/* 8. Timeline — "What happened today?" */}
+      <ErrorBoundary>
+        <TimelineSection timeline={timeline} hidden={hidden} lang={lang} onAction={onEdit} />
+      </ErrorBoundary>
+
+      {/* 9. History & Reports — "What if I need old records?" */}
+      <ErrorBoundary>
+        <HistorySection
+          transactions={filteredTransactions}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onEdit={onEdit}
+          onExport={handleExport}
+          onFilter={handleFilter}
+          hidden={hidden}
+          lang={lang}
+        />
+      </ErrorBoundary>
+
+      {/* 10. Shop Diary — "What should I remember?" */}
+      {!isStaffView && timeRange === 'today' && (
+        <ErrorBoundary>
+          <DiarySection diary={diary} lang={lang} />
+        </ErrorBoundary>
+      )}
+    </div>
   );
 }
