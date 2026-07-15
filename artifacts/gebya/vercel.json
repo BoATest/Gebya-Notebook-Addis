@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm install --legacy-peer-deps",
+  "installCommand": "corepack enable && pnpm install --no-frozen-lockfile",
   "headers": [
     {
       "source": "/assets/(.*)",
