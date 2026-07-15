@@ -28,10 +28,12 @@ import { buildSupplierSummaries, getSupplierBalance, isValidSupplierTransactionT
 import { enrichCustomerSummaries, buildCreditMetrics } from '../utils/customerMetrics';
 import { usePwaInstall } from '../hooks/usePwaInstall.js';
 import { resendLatestTelegramUpdate, syncTelegramCustomerState } from '../utils/telegramBotClient';
-import { countPendingTelegramSync, drainTelegramSyncQueue, enqueueTelegramLedgerUpdate } from '../utils/syncQueue';
+import { countPendingTelegramSync, drainTelegramSyncQueue, drainCloudProofQueue, enqueueTelegramLedgerUpdate } from '../utils/syncQueue';
 import { createCloudProofFields, enqueueCloudProofUpsert } from '../utils/cloudProof';
 import { enqueueStaffEventSync, processStaffEventQueue } from '../utils/staffEventSync';
 import { normalizeStaffDraft, resolveActorSnapshot, getActorDisplayLabel } from '../utils/staffMembers';
+import { computeAndStoreTrustScores } from '../utils/trustScore';
+import { getCurrentEntitlements } from '../utils/entitlements';
 import {
   buildDefaultChannels,
   migrateLegacyToChannels,
@@ -42,6 +44,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useNotificationsStore } from '../stores/notificationsStore';
 import { useAppStore } from '../stores/appStore';
 import { useShopStore } from '../stores/shopStore';
+import { initSyncEngine, destroySyncEngine } from '../utils/syncEngine';
 
 const DEFAULT_PROVIDERS = {
   banks: [],
@@ -697,6 +700,23 @@ export default function AppShell() {
 
   useEffect(() => {
     if (loading) return undefined;
+    let destroyed = false;
+    runAfterFirstPaint(async () => {
+      if (destroyed) return;
+      try {
+        await initSyncEngine();
+      } catch (err) {
+        if (import.meta.env.DEV) console.error('Sync engine init failed:', err);
+      }
+    });
+    return () => {
+      destroyed = true;
+      destroySyncEngine();
+    };
+  }, [loading]);
+
+  useEffect(() => {
+    if (loading) return undefined;
     return runAfterFirstPaint(() => {
       [
         importCustomerList,
@@ -934,6 +954,27 @@ export default function AppShell() {
 
   const handleAddTransaction = async (transaction) => {
     try {
+      // Enforce max_transactions_per_month entitlement
+      const { entitlements } = await getCurrentEntitlements();
+      if (entitlements.max_transactions_per_month !== Infinity) {
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+        const monthCount = await db.transactions
+          .where('created_at')
+          .between(monthStart, monthEnd, true, true)
+          .count();
+        if (monthCount >= entitlements.max_transactions_per_month) {
+          fireToast({
+            type: 'error',
+            message: lang === 'am'
+              ? `ouis በዚህ ወር ${entitlements.max_transactions_per_month} ግብይቶች በቂ ናቸው። Plus ወደ አድሶ ያዝ።`
+              : `You've reached the ${entitlements.max_transactions_per_month} transaction limit this month. Upgrade to Plus to continue.`,
+          });
+          return;
+        }
+      }
+
       const isOnlineNow = isBrowserOnline();
       const now = new Date(transaction.created_at);
       const cloudProofFields = await createCloudProofFields();
@@ -956,6 +997,7 @@ export default function AppShell() {
           recordType: transactionRecordType,
           record: saved,
         });
+        if (isOnlineNow) drainCloudProofQueue({ limit: 3 }).catch(() => {});
       }
       if (saved?.type === 'sale') {
         await rememberSaleItemsInCatalog(saved);
@@ -965,6 +1007,8 @@ export default function AppShell() {
           eventType: 'sale',
         });
         if (isOnlineNow) processStaffEventQueue({ limit: 3 }).catch(() => {});
+        // Recompute trust scores after sales (non-blocking)
+        if (isOnlineNow) computeAndStoreTrustScores(shopProfile?.shop_id || shopProfile?.id).catch(() => {});
       }
       await rememberLastSave({
         type: transaction.type,
@@ -1818,6 +1862,7 @@ export default function AppShell() {
       recordType: getSupplierCloudProofRecordType(saved),
       record: saved,
     });
+    if (isOnlineNow) drainCloudProofQueue({ limit: 3 }).catch(() => {});
     return true;
   };
 
@@ -2220,6 +2265,7 @@ export default function AppShell() {
       recordType: getCustomerCloudProofRecordType(saved),
       record: saved,
     });
+    if (isOnlineNow) drainCloudProofQueue({ limit: 3 }).catch(() => {});
     await enqueueStaffEventSync({
       recordTable: 'customer_transactions',
       record: saved,
@@ -2245,6 +2291,11 @@ export default function AppShell() {
         await db.analytics.put({ key: 'feature_counts', value: JSON.stringify(fc) });
         setUsageStats(prev => prev ? { ...prev, featureCounts: fc } : prev);
       } catch { /* non-critical */ }
+    }
+
+    // Recompute trust scores after credit changes (non-blocking)
+    if (isOnlineNow) {
+      computeAndStoreTrustScores(shopProfile?.shop_id || shopProfile?.id).catch(() => {});
     }
 
     if (settledFullBalance) {
@@ -2565,6 +2616,7 @@ export default function AppShell() {
             enrichedCustomerSummaries={enrichedCustomerSummaries}
             creditMetrics={creditMetrics}
             supplierSummaries={supplierSummaries}
+            customerTransactions={ledgerTransactions}
             onToggleTelegramNotify={handleToggleCustomerTelegramNotify}
             onResendTelegramUpdate={handleResendCustomerTelegramUpdate}
             onSelectTransaction={setSelectedTransaction}

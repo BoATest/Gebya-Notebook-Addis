@@ -13,6 +13,7 @@ import CatalogPanel from './settings/CatalogPanel';
 import RecurringExpensesPanel from './settings/RecurringExpensesPanel';
 import BackupDataPanel from './settings/BackupDataPanel';
 import DisplayPrivacyPanel from './settings/DisplayPrivacyPanel';
+import BankDataSharing from './BankDataSharing';
 import ReadinessHero from './settings/ReadinessHero';
 import PaymentChannelsSection from './settings/PaymentChannelsSection';
 import AdminMetricsView from './AdminMetricsView';
@@ -475,6 +476,22 @@ function SettingsPage({
           transactions={transactions}
           customerSummaries={customerSummaries}
           supplierSummaries={supplierSummaries}
+        />
+      </SettingsSection>
+
+      <GroupLabel>{lang === 'am' ? 'ባንክ እና ኪንstants' : 'Bank & Consent'}</GroupLabel>
+      <SettingsSection
+        id="bank_sharing"
+        title={lang === 'am' ? 'የባንክ ውሂብ ማጋራት' : 'Bank Data Sharing'}
+        icon="🏦"
+        subtitle={lang === 'am' ? 'ንግድ መረጃዎን ከባንኮች ጋር ያጋሩ' : 'Share business data with banks for credit scoring'}
+        statusTone="neutral"
+        openSection={openSection}
+        setOpenSection={setOpenSection}
+      >
+        <BankDataSharing
+          shopId={shopId}
+          lang={lang}
         />
       </SettingsSection>
 

@@ -10,6 +10,7 @@ import identityRouter from "./identity.js";
 import auditRouter from "./audit.js";
 import pushSubscriptionsRouter from "./pushSubscriptions.js";
 import notificationsRouter from "./notifications.js";
+import analyticsRouter from "./analytics.js";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,7 @@ router.use("/audit", auditRouter);
 router.use("/push", pushSubscriptionsRouter);
 // Notification list and read status
 router.use("/notifications", notificationsRouter);
+// Bank analytics — merchant consent + bank-facing reports + NBE aggregation
+router.use("/analytics", analyticsRouter);
 
 export default router;

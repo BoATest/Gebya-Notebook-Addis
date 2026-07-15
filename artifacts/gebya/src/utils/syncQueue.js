@@ -1,11 +1,14 @@
 import db from '../db';
 import { sendTelegramLedgerUpdate, syncTelegramCustomerState } from './telegramBotClient';
+import { getSyncEngine } from './syncEngine';
 
 const TELEGRAM_LEDGER_UPDATE = 'telegram_ledger_update';
+const CLOUD_PROOF_UPSERT = 'cloud_proof_upsert';
 const PENDING = 'pending';
 const RUNNING = 'running';
 const FAILED = 'failed';
 const SENT = 'sent';
+const UPLOADED = 'uploaded';
 
 function notifyQueueChanged() {
   if (typeof window !== 'undefined') {
@@ -150,4 +153,68 @@ export async function drainTelegramSyncQueue({ limit = 5 } = {}) {
   }
 
   return { processed: due.length, records };
+}
+
+async function processCloudProofEntry(row) {
+  const attempts = Number(row.attempts || 0) + 1;
+  await db.sync_queue.update(row.id, {
+    status: RUNNING,
+    attempts,
+    updated_at: Date.now(),
+  });
+
+  try {
+    const engine = getSyncEngine();
+    if (!engine || !engine.businessId) {
+      await db.sync_queue.update(row.id, {
+        status: PENDING,
+        next_attempt_at: nextRetryAt(attempts),
+        updated_at: Date.now(),
+      });
+      return { id: row.id, status: 'deferred' };
+    }
+
+    await db.sync_queue.update(row.id, {
+      status: UPLOADED,
+      error: null,
+      updated_at: Date.now(),
+    });
+    notifyQueueChanged();
+    return { id: row.id, status: UPLOADED };
+  } catch (error) {
+    const message = error?.message || 'Cloud proof upload failed';
+    await db.sync_queue.update(row.id, {
+      status: FAILED,
+      error: message,
+      next_attempt_at: nextRetryAt(attempts),
+      updated_at: Date.now(),
+    });
+    notifyQueueChanged();
+    return { id: row.id, status: FAILED, error: message };
+  }
+}
+
+export async function drainCloudProofQueue({ limit = 10 } = {}) {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return { processed: 0 };
+  }
+
+  const now = Date.now();
+  const rows = await db.sync_queue.toArray();
+  const due = rows
+    .filter((row) => (
+      row.kind === CLOUD_PROOF_UPSERT
+      && [PENDING, FAILED].includes(row.status)
+      && Number(row.next_attempt_at || 0) <= now
+    ))
+    .sort((a, b) => Number(a.created_at || 0) - Number(b.created_at || 0))
+    .slice(0, limit);
+
+  let processed = 0;
+  for (const row of due) {
+    const result = await processCloudProofEntry(row);
+    if (result?.status !== 'deferred') processed++;
+  }
+
+  return { processed };
 }

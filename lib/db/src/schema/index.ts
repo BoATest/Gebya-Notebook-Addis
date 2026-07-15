@@ -18,3 +18,4 @@ export * from "./notifications";
 export * from "./permissions";
 export * from "./store";
 export * from "./phone";
+export * from "./bank_analytics";

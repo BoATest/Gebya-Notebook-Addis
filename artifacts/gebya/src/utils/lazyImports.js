@@ -44,6 +44,7 @@ export const importHistoryView = () => import('../components/HistoryView');
 export const importReportView = () => import('../components/ReportView');
 export const importSettingsPage = () => import('../components/SettingsPage');
 export const importDailySuggestions = () => import('../components/DailySuggestions');
+export const importLearningInsights = () => import('../components/LearningInsights');
 export const importTransactionDetailSheet = () => import('../components/TransactionDetailSheet');
 export const importInlineDatePicker = () => import('../components/InlineDatePicker');
 
@@ -65,6 +66,7 @@ export const HistoryView = lazyWithRetry(importHistoryView, 'HistoryView');
 export const ReportView = lazyWithRetry(importReportView, 'ReportView');
 export const SettingsPage = lazyWithRetry(importSettingsPage, 'SettingsPage');
 export const DailySuggestions = lazyWithRetry(importDailySuggestions, 'DailySuggestions');
+export const LearningInsights = lazyWithRetry(importLearningInsights, 'LearningInsights');
 export const TransactionDetailSheet = lazyWithRetry(importTransactionDetailSheet, 'TransactionDetailSheet');
 export const InlineDatePicker = lazyWithRetry(importInlineDatePicker, 'InlineDatePicker');
 

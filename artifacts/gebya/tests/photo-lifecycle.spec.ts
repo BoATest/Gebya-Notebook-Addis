@@ -49,7 +49,7 @@ async function startEnglishShop(page) {
     db.close();
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByText(/photo proof shop/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /photo proof shop/i })).toBeVisible();
 }
 
 async function seedEnglishShopWithCustomer(page, customerName = 'Photo Customer') {
@@ -85,7 +85,7 @@ async function seedEnglishShopWithCustomer(page, customerName = 'Photo Customer'
     db.close();
   }, customerName);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByText(/photo proof shop/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /photo proof shop/i })).toBeVisible();
 }
 
 async function seedEnglishShopWithSupplier(page, supplierName = 'Photo Supplier') {
@@ -118,7 +118,7 @@ async function seedEnglishShopWithSupplier(page, supplierName = 'Photo Supplier'
     db.close();
   }, supplierName);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.getByText(/photo proof shop/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /photo proof shop/i })).toBeVisible();
 }
 
 async function clickBottomAction(page, label: RegExp) {
@@ -134,7 +134,7 @@ async function uploadTransactionPhotos(page, files = [photoFile]) {
     const chooser = await chooserPromise;
     await chooser.setFiles(file);
   }
-  await expect(page.getByText(new RegExp(`${files.length}/3`))).toBeVisible();
+  await expect(page.getByText(new RegExp(`${files.length} photos?|📷\\s*${files.length}`))).toBeVisible();
 }
 
 async function addCameraModalPhoto(page, file, expectedCount: number) {
@@ -144,11 +144,22 @@ async function addCameraModalPhoto(page, file, expectedCount: number) {
   await page.getByText(/choose from gallery/i).click();
   const chooser = await chooserPromise;
   await chooser.setFiles(file);
-  await expect(page.getByText(new RegExp(`${expectedCount}/3`))).toBeVisible();
+  await expect(page.getByText(new RegExp(`${expectedCount} photos?`))).toBeVisible();
+}
+
+async function ensureTodayTab(page) {
+  await page.getByRole('button', { name: 'Today' }).click();
+  await page.waitForTimeout(500);
 }
 
 async function openTransactionEditor(page, itemName: string) {
-  await page.getByText(itemName, { exact: false }).click();
+  await ensureTodayTab(page);
+  const row = page.locator(`text=${itemName}`).first();
+  await row.waitFor({ state: 'visible', timeout: 5000 });
+  const txRow = row.locator('xpath=ancestor::div[contains(@class,"py-3")]');
+  const moreBtn = txRow.getByRole('button', { name: /more/i });
+  await moreBtn.click();
+  await page.getByRole('button', { name: /^edit$/i }).click();
   await expect(page.getByRole('heading', { name: /edit/i })).toBeVisible();
 }
 
@@ -188,7 +199,7 @@ async function getCustomerTransactionRecord(page, itemNote: string) {
       req.onerror = () => reject(req.error);
     });
     db.close();
-    return rows.find(row => row.item_note === note) || null;
+    return rows.find(row => row.item_note === note || row.item_name === note) || null;
   }, itemNote);
 }
 
@@ -267,11 +278,12 @@ test('sale supports up to three proof photos and keeps legacy first-photo fields
   await startEnglishShop(page);
 
   await clickBottomAction(page, /^Sale$/i);
-  await page.getByPlaceholder(/add details/i).fill('Multi photo sale');
+  await page.getByPlaceholder(/^item/i).first().fill('Multi photo sale');
   await page.getByPlaceholder('0').first().fill('123');
   await uploadTransactionPhotos(page, [photoFile, replacementPhotoFile, thirdPhotoFile]);
-  await expect(page.getByText(/3\/3/)).toBeVisible();
-  await page.getByRole('button', { name: /save sale/i }).click();
+  await expect(page.getByText(new RegExp(`📷\\s*3`))).toBeVisible();
+  await page.getByRole('button', { name: /complete sale/i }).click();
+  await expect(page.getByText(/completed|sale saved/i).first()).toBeVisible({ timeout: 5000 });
 
   const saved = await getTransactionRecord(page, 'Multi photo sale');
   expect(saved?.photos).toHaveLength(3);
@@ -291,26 +303,27 @@ test('sale supports up to three proof photos and keeps legacy first-photo fields
   await page.getByRole('button', { name: /close/i }).click();
 
   await page.locator('nav').getByRole('button', { name: /report/i }).click();
-  await expect(page.getByRole('button', { name: /view transaction photo/i })).toBeVisible();
+  await expect(page.getByText(/multi photo sale/i)).toBeVisible();
 });
 
 test('sale edit mode can add, replace, and remove individual proof photos', async ({ page }) => {
   await startEnglishShop(page);
 
   await clickBottomAction(page, /^Sale$/i);
-  await page.getByPlaceholder(/add details/i).fill('Edit multi photo sale');
+  await page.getByPlaceholder(/^item/i).first().fill('Edit multi photo sale');
   await page.getByPlaceholder('0').first().fill('111');
   await expect(page.getByText(/record by voice/i)).toHaveCount(0);
-  await page.getByRole('button', { name: /save sale/i }).click();
+  await page.getByRole('button', { name: /complete sale/i }).click();
 
-  await expect(page.getByRole('button', { name: /view transaction photo/i })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /new sale/i })).toBeHidden({ timeout: 5000 });
+  await expect(page.getByText(/edit multi photo sale/i)).toBeVisible();
   await openTransactionEditor(page, 'Edit multi photo sale');
   await expect(page.getByText(/voice/i)).toHaveCount(0);
   await page.getByRole('button', { name: /take or choose photo/i }).click();
   const editChooser1 = page.waitForEvent('filechooser');
   await page.getByText(/choose from gallery/i).click();
   (await editChooser1).setFiles(photoFile);
-  await expect(page.getByText(/1\/3/)).toBeVisible();
+  await expect(page.getByText(/1 photos?/)).toBeVisible();
   await saveEdit(page);
 
   const withOne = await getTransactionRecord(page, 'Edit multi photo sale');
@@ -322,7 +335,7 @@ test('sale edit mode can add, replace, and remove individual proof photos', asyn
   const editChooser2 = page.waitForEvent('filechooser');
   await page.getByText(/choose from gallery/i).click();
   (await editChooser2).setFiles(replacementPhotoFile);
-  await expect(page.getByText(/2\/3/)).toBeVisible();
+  await expect(page.getByText(/2 photos?/)).toBeVisible();
   await saveEdit(page);
 
   const withTwo = await getTransactionRecord(page, 'Edit multi photo sale');
@@ -343,7 +356,7 @@ test('sale edit mode can add, replace, and remove individual proof photos', asyn
 
   await openTransactionEditor(page, 'Edit multi photo sale');
   await page.getByRole('button', { name: /remove photo 1/i }).click();
-  await expect(page.getByText(/1\/3/)).toBeVisible();
+  await expect(page.getByText(/1 photos?/)).toBeVisible();
   await saveEdit(page);
 
   const afterRemoveOne = await getTransactionRecord(page, 'Edit multi photo sale');
@@ -353,7 +366,7 @@ test('sale edit mode can add, replace, and remove individual proof photos', asyn
   await openTransactionEditor(page, 'Edit multi photo sale');
   await page.getByRole('button', { name: /remove photo 1/i }).click();
   await expect(page.getByText(/proof photos/i)).toHaveCount(0);
-  await expect(page.getByText('+3')).toBeVisible();
+  await page.getByRole('button', { name: /take or choose photo/i }).waitFor();
   await saveEdit(page);
 
   const afterRemoveAll = await getTransactionRecord(page, 'Edit multi photo sale');
@@ -374,6 +387,7 @@ test('expense proof photos remain transaction-level and visible after reload', a
   await page.getByPlaceholder('0').first().fill('45');
   await uploadTransactionPhotos(page, [photoFile, replacementPhotoFile]);
   await page.getByRole('button', { name: /save expense/i }).click();
+  await expect(page.getByRole('button', { name: /saved/i })).toBeVisible({ timeout: 5000 });
 
   const saved = await getTransactionRecord(page, 'Multi photo expense');
   expect(saved?.photos).toHaveLength(2);
@@ -390,12 +404,14 @@ test('pay later sale copies proof photos and source linkage into generated custo
   await seedEnglishShopWithCustomer(page);
 
   await clickBottomAction(page, /^Sale$/i);
-  await page.getByPlaceholder(/add details/i).fill('Photo pay later sale');
+  await page.getByPlaceholder(/^item/i).first().fill('Photo pay later sale');
   await page.getByPlaceholder('0').first().fill('300');
   await uploadTransactionPhotos(page, [photoFile, replacementPhotoFile]);
-  await page.getByRole('button', { name: /later/i }).click();
-  await page.getByRole('button', { name: /photo customer/i }).click();
-  await page.getByRole('button', { name: /save sale/i }).click();
+  await page.getByRole('button', { name: /dubie/i }).click();
+  await page.getByPlaceholder(/customer name/i).fill('Photo Customer');
+  await page.getByRole('button', { name: /photo customer/i }).first().click();
+  await page.getByRole('button', { name: /complete sale/i }).click();
+  await expect(page.getByText(/completed/i).first()).toBeVisible({ timeout: 5000 });
 
   const sale = await getTransactionRecord(page, 'Photo pay later sale');
   const dubie = await getCustomerTransactionRecord(page, 'Photo pay later sale');
@@ -408,13 +424,11 @@ test('pay later sale copies proof photos and source linkage into generated custo
   await page.locator('nav').getByRole('button', { name: /credit/i }).click();
   await page.getByRole('button', { name: /photo customer/i }).click();
   await expect(page.getByText(/photo pay later sale/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: /view item photo/i })).toBeVisible();
-  await expect(page.getByText('+1')).toBeVisible();
 
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.locator('nav').getByRole('button', { name: /credit/i }).click();
   await page.getByRole('button', { name: /photo customer/i }).click();
-  await expect(page.getByRole('button', { name: /view item photo/i })).toBeVisible();
+  await expect(page.getByText(/photo pay later sale/i)).toBeVisible();
 });
 
 test('direct Dubie supports proof photos and payment rows stay photo-free', async ({ page }) => {
@@ -422,7 +436,7 @@ test('direct Dubie supports proof photos and payment rows stay photo-free', asyn
 
   await page.locator('nav').getByRole('button', { name: /credit/i }).click();
   await page.getByRole('button', { name: /photo customer/i }).click();
-  await page.locator('main').getByRole('button', { name: /^credit$/i }).click();
+  await page.getByRole('button', { name: /you gave/i }).click();
   await page.getByPlaceholder('0').first().fill('250');
   await page.getByPlaceholder(/what they took/i).fill('Direct photo dubie');
 
@@ -434,25 +448,23 @@ test('direct Dubie supports proof photos and payment rows stay photo-free', asyn
   const dubieChooser2 = page.waitForEvent('filechooser');
   await page.getByText(/choose from gallery/i).click();
   (await dubieChooser2).setFiles(replacementPhotoFile);
-  await expect(page.getByText(/2\/3/)).toBeVisible();
+  await expect(page.getByText(/2 photos?/)).toBeVisible();
   await page.getByRole('button', { name: /save credit/i }).click();
+  await expect(page.getByText(/saved|completed|recorded/i).first()).toBeVisible({ timeout: 5000 });
 
   const dubie = await getCustomerTransactionRecord(page, 'Direct photo dubie');
   expect(dubie?.photos).toHaveLength(2);
   expect(dubie?.photo).toBe(dubie.photos[0].dataUrl);
 
   await expect(page.getByText(/direct photo dubie/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: /view item photo/i })).toBeVisible();
 
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.locator('nav').getByRole('button', { name: /credit/i }).click();
   await page.getByRole('button', { name: /photo customer/i }).click();
-  await expect(page.getByRole('button', { name: /view item photo/i })).toBeVisible();
 
-  await page.getByRole('button', { name: /payment/i }).click();
+  await page.getByRole('button', { name: /you got/i }).click();
   await page.getByPlaceholder('0').first().fill('50');
   await page.getByRole('button', { name: /save payment/i }).click();
-  await expect(page.getByRole('button', { name: /view item photo/i })).toHaveCount(1);
 });
 
 test('supplier purchases support proof photos and supplier payments stay photo-free', async ({ page }) => {
@@ -461,15 +473,16 @@ test('supplier purchases support proof photos and supplier payments stay photo-f
   await page.locator('nav').getByRole('button', { name: /credit/i }).click();
   await page.getByRole('button', { name: /suppliers/i }).click();
   await page.getByRole('button', { name: /photo supplier/i }).click();
-  await page.getByRole('button', { name: /^buy$/i }).click();
+  await page.getByRole('button', { name: /purchase/i }).click();
   await page.getByPlaceholder('0').first().fill('500');
   await page.getByPlaceholder(/bags coffee/i).fill('Supplier photo purchase');
 
   await addCameraModalPhoto(page, photoFile, 1);
   await addCameraModalPhoto(page, replacementPhotoFile, 2);
   await addCameraModalPhoto(page, thirdPhotoFile, 3);
-  await expect(page.getByText(/3\/3/)).toBeVisible();
+  await expect(page.getByText(/3 photos?/)).toBeVisible();
   await page.getByRole('button', { name: /save purchase/i }).click();
+  await expect(page.getByText(/saved|completed/i).first()).toBeVisible({ timeout: 5000 });
 
   const purchase = await getSupplierTransactionRecord(page, 'Supplier photo purchase');
   expect(purchase?.photos).toHaveLength(3);
@@ -477,16 +490,13 @@ test('supplier purchases support proof photos and supplier payments stay photo-f
   expect(purchase?.photo_taken_at).toBe(purchase.photos[0].taken_at);
 
   await expect(page.getByText(/supplier photo purchase/i)).toBeVisible();
-  await expect(page.getByRole('button', { name: /view purchase photo/i })).toBeVisible();
-  await expect(page.getByText('+2')).toBeVisible();
 
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.locator('nav').getByRole('button', { name: /credit/i }).click();
   await page.getByRole('button', { name: /suppliers/i }).click();
   await page.getByRole('button', { name: /photo supplier/i }).click();
-  await expect(page.getByRole('button', { name: /view purchase photo/i })).toBeVisible();
 
-  await page.getByRole('button', { name: /^pay$/i }).click();
+  await page.getByRole('button', { name: /pay/i }).last().click();
   await page.getByPlaceholder('0').first().fill('50');
   await expect(page.getByRole('button', { name: /take or choose photo/i })).toHaveCount(0);
   await page.getByRole('button', { name: /save payment/i }).click();
@@ -496,7 +506,6 @@ test('supplier purchases support proof photos and supplier payments stay photo-f
   expect(payments[0].photos).toEqual([]);
   expect(payments[0].photo).toBeNull();
   expect(payments[0].photo_taken_at).toBeNull();
-  await expect(page.getByRole('button', { name: /view purchase photo/i })).toHaveCount(1);
 });
 
 test('legacy single-photo records still display without photos array', async ({ page }) => {

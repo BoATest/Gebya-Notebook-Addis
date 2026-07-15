@@ -26,6 +26,7 @@ import {
   reportRowSearchText,
   startOfLocalDay,
 } from '../utils/reportSelectors';
+import { hasEntitlement } from '../utils/entitlements';
 
 const DAY_MS = 86400000;
 const EMPTY_FILTERS = { type: '', payment: '', status: '' };
@@ -667,6 +668,7 @@ export default function ReportView({
   scope = ALL_SCOPE,
 }) {
   const { hidden, toggle: togglePrivacy } = usePrivacy();
+  const [hasAdvancedReports, setHasAdvancedReports] = useState(true);
   const [timeRange, setTimeRange] = useState('today');
   const [searchQuery, setSearchQuery] = useState('');
   const [actorFilter, setActorFilter] = useState('');
@@ -703,6 +705,14 @@ export default function ReportView({
       const rows = await db.getDailyClosings();
       if (!cancelled) setClosings(rows);
     })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    hasEntitlement('advanced_reports').then((ok) => {
+      if (!cancelled) setHasAdvancedReports(ok);
+    }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
@@ -1376,14 +1386,6 @@ export default function ReportView({
               >
                 CSV
               </button>
-              <button
-                type="button"
-                onClick={handleExportJSON}
-                className="press-scale"
-                style={{ minHeight: 40, border: '1px solid #1B4332', borderRadius: 10, background: '#fff', color: '#1B4332', fontWeight: 950, cursor: 'pointer' }}
-              >
-                JSON
-              </button>
             </div>
           </Section>
         )}
@@ -1418,11 +1420,16 @@ export default function ReportView({
         </button>
         <button
           type="button"
-          onClick={() => setShowExport(value => !value)}
+          onClick={() => {
+            if (!hasAdvancedReports) return;
+            setShowExport(value => !value);
+          }}
           className="press-scale"
-          style={{ minHeight: 38, border: 'none', borderRadius: 9, background: showExport ? '#1B4332' : '#fff', color: showExport ? '#fff' : '#374151', fontSize: 12, fontWeight: 950, cursor: 'pointer' }}
+          title={!hasAdvancedReports ? (lang === 'am' ? 'ለPlus ደንበኞች ብቻ' : 'Plus plan only') : undefined}
+          style={{ minHeight: 38, border: 'none', borderRadius: 9, background: showExport ? '#1B4332' : '#fff', color: showExport ? '#fff' : '#6b7280', fontSize: 12, fontWeight: 950, cursor: hasAdvancedReports ? 'pointer' : 'not-allowed', opacity: hasAdvancedReports ? 1 : 0.5 }}
         >
           <Download className="w-4 h-4" style={{ display: 'inline-block', marginRight: 4 }} /> Export
+          {!hasAdvancedReports && <span style={{ fontSize: 9, marginLeft: 4 }}>🔒</span>}
         </button>
         <button
           type="button"

@@ -5,7 +5,7 @@ import { useAppStore } from '../stores/appStore';
 import ProfitCard from './ProfitCard';
 import TxRow from './TxRow';
 import { PanelFallback } from './Fallbacks';
-import { DailySuggestions } from '../utils/lazyImports';
+import { DailySuggestions, LearningInsights } from '../utils/lazyImports';
 import { fmt } from '../utils/numformat';
 
 export default function TodayTab({
@@ -62,6 +62,10 @@ export default function TodayTab({
 
       <Suspense fallback={<PanelFallback label={t.loading} />}>
         <DailySuggestions todayTransactions={todayTransactions} onAction={(type) => setShowForm(type)} />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <LearningInsights />
       </Suspense>
 
       {/* Today entries */}

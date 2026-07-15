@@ -5,6 +5,7 @@ import { useShopStore } from '../stores/shopStore';
 import { usePermissionsStore } from '../stores/permissionsStore';
 import { fireToast } from './Toast';
 import { getAuthToken } from '../utils/syncEngine';
+import { getCurrentEntitlements } from '../utils/entitlements';
 
 const API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
 
@@ -331,6 +332,15 @@ export default function TeamPage({
 
   const handleInvite = async () => {
     if (!phone.trim() || !staffName.trim()) return;
+    // Check staff entitlement limit
+    try {
+      const { entitlements } = await getCurrentEntitlements();
+      const activeStaff = (staffMembers || []).filter(m => m.active !== false).length;
+      if (activeStaff >= entitlements.max_staff) {
+        fireToast(lang === 'am' ? 'የሰራተኛ ገደብ ተReach አልተሳካም' : `Staff limit reached (${entitlements.max_staff}). Upgrade to add more.`, 3000);
+        return;
+      }
+    } catch { /* entitlement check non-critical */ }
     setInviting(true);
     try {
       const data = await apiFetch('/business/invite', {
@@ -371,6 +381,15 @@ export default function TeamPage({
 
   const handleAddLocalStaff = async () => {
     if (!staffName.trim()) return;
+    // Check staff entitlement limit
+    try {
+      const { entitlements } = await getCurrentEntitlements();
+      const activeStaff = (staffMembers || []).filter(m => m.active !== false).length;
+      if (activeStaff >= entitlements.max_staff) {
+        fireToast(lang === 'am' ? 'የሰራተኛ ገደብ ተReach አልተሳካም' : `Staff limit reached (${entitlements.max_staff}). Upgrade to add more.`, 3000);
+        return;
+      }
+    } catch { /* entitlement check non-critical */ }
     await onSaveStaffMember?.({ display_name: staffName.trim(), role: 'staff', active: true });
     setStaffName('');
   };

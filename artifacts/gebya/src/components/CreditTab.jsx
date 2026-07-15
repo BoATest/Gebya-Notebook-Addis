@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { useLang } from '../context/LangContext';
 import { useAppStore } from '../stores/appStore';
 import { PanelFallback } from './Fallbacks';
@@ -6,6 +6,7 @@ import OverdueCustomerFlags from './OverdueCustomerFlags';
 import { CustomerList, CustomerDetail, SupplierList, SupplierDetail } from '../utils/lazyImports';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
 import { SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger';
+import { buildCreditReport, exportCreditReportCsv, exportCreditReportPdf } from '../utils/customerMetrics';
 
 export default function CreditTab({
   selectedCustomer,
@@ -14,13 +15,14 @@ export default function CreditTab({
   enrichedCustomerSummaries,
   creditMetrics,
   supplierSummaries,
+  customerTransactions,
   onToggleTelegramNotify,
   onResendTelegramUpdate,
   onSelectTransaction,
   onSelectSupplierTransaction,
   onSetReminderDefaultChannel,
 }) {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const creditView = useAppStore(s => s.creditView);
   const setCreditView = useAppStore(s => s.setCreditView);
   const setSelectedCustomerId = useAppStore(s => s.setSelectedCustomerId);
@@ -84,6 +86,68 @@ export default function CreditTab({
               {t.suppliersLabel}
             </button>
           </div>
+          {creditView === 'customers' && enrichedCustomerSummaries?.length > 0 && (
+            <>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const report = buildCreditReport({
+                    shopName: shopProfile?.name || 'Shop',
+                    shopPhone: shopProfile?.phone || '',
+                    enrichedSummaries: enrichedCustomerSummaries,
+                    customerTransactions: customerTransactions || [],
+                  });
+                  exportCreditReportCsv(report);
+                } catch (err) {
+                  if (import.meta.env.DEV) console.error('CSV Export failed:', err);
+                }
+              }}
+              className="press-scale"
+              style={{
+                padding: '6px 12px',
+                borderRadius: 999,
+                fontSize: '0.7rem', fontWeight: 600,
+                border: '1px solid #e5e7eb',
+                cursor: 'pointer',
+                background: '#fff',
+                color: '#6b7280',
+                marginLeft: 8,
+              }}
+            >
+              CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const report = buildCreditReport({
+                    shopName: shopProfile?.name || 'Shop',
+                    shopPhone: shopProfile?.phone || '',
+                    enrichedSummaries: enrichedCustomerSummaries,
+                    customerTransactions: customerTransactions || [],
+                  });
+                  exportCreditReportPdf(report, lang);
+                } catch (err) {
+                  if (import.meta.env.DEV) console.error('PDF Export failed:', err);
+                }
+              }}
+              className="press-scale"
+              style={{
+                padding: '6px 12px',
+                borderRadius: 999,
+                fontSize: '0.7rem', fontWeight: 600,
+                border: '1px solid #e5e7eb',
+                cursor: 'pointer',
+                background: '#fff',
+                color: '#6b7280',
+                marginLeft: 4,
+              }}
+            >
+              PDF
+            </button>
+            </>
+          )}
         </div>
       )}
 

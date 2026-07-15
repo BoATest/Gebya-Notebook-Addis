@@ -288,3 +288,274 @@ export function buildCreditMetrics({
     topCustomer: topCustomer(enrichedSummaries),
   };
 }
+
+/**
+ * Build a credit report JSON suitable for export/sharing.
+ * Returns a structured object with shop info, metrics, and customer details.
+ */
+export function buildCreditReport({
+  shopName = 'Shop',
+  shopPhone = '',
+  enrichedSummaries = [],
+  customerTransactions = [],
+  referenceMs = Date.now(),
+}) {
+  const metrics = buildCreditMetrics({
+    enrichedSummaries,
+    customerTransactions,
+    globalTimestamps: customerTransactions.map((t) => t.created_at),
+    referenceMs,
+  });
+
+  const customers = enrichedSummaries
+    .filter((c) => (Number(c.balance) || 0) > 0 || c.has_overdue)
+    .map((c) => ({
+      name: c.display_name,
+      phone: c.phone_number || null,
+      outstanding_birr: Number(c.balance) || 0,
+      on_time_rate: c.on_time_rate,
+      overdue_days: c.overdue_days || 0,
+      overdue_amount: c.overdue_amount || 0,
+      avg_pay_days: c.avg_pay_days,
+    }))
+    .sort((a, b) => b.outstanding_birr - a.outstanding_birr);
+
+  return {
+    report_type: 'credit_report',
+    generated_at: new Date(referenceMs).toISOString(),
+    shop: {
+      name: shopName,
+      phone: shopPhone || null,
+    },
+    summary: {
+      total_owed_birr: metrics.totalOwed,
+      overdue_amount_birr: metrics.overdueAmount,
+      overdue_customers: metrics.overdueCount,
+      on_time_rate_percent: metrics.onTimeRate,
+      monthly_collected_birr: metrics.monthlyCollected,
+      monthly_delta_percent: metrics.monthlyDelta,
+      top_customer: metrics.topCustomer?.display_name || null,
+    },
+    customers,
+  };
+}
+
+/**
+ * Trigger a download or share of the credit report.
+ * Uses Web Share API if available, otherwise falls back to file download.
+ */
+export async function exportCreditReport(report, filename = 'credit-report') {
+  const json = JSON.stringify(report, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const ts = new Date().toISOString().split('T')[0];
+  const file = `${filename}-${ts}.json`;
+
+  if (navigator.share && navigator.canShare) {
+    const fileObj = new File([blob], file, { type: 'application/json' });
+    if (navigator.canShare({ files: [fileObj] })) {
+      await navigator.share({
+        title: `Credit Report - ${report.shop?.name || 'Shop'}`,
+        text: `Credit report for ${report.shop?.name || 'Shop'} generated on ${ts}`,
+        files: [fileObj],
+      });
+      return 'shared';
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = file;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  return 'downloaded';
+}
+
+/**
+ * Export credit report as CSV (Excel-compatible).
+ * Opens in a new tab for download.
+ */
+export function exportCreditReportCsv(report, filename = 'credit-report') {
+  const lines = [];
+  lines.push('Credit Report');
+  lines.push(`Shop,${report.shop?.name || 'Unknown'}`);
+  lines.push(`Generated,${report.generated_at}`);
+  lines.push('');
+
+  // Summary
+  const s = report.summary || {};
+  lines.push('Summary');
+  lines.push(`Total Outstanding (birr),${s.total_outstanding_birr || 0}`);
+  lines.push(`Total Loan Given (birr),${s.total_loan_given_birr || 0}`);
+  lines.push(`Customers with Credit,${s.customers_with_credit || 0}`);
+  lines.push('');
+
+  // Per-customer breakdown
+  const customers = report.customers || [];
+  if (customers.length > 0) {
+    lines.push('Customer Details');
+    lines.push('Customer,Outstanding (birr),Total Credit (birr),Total Paid (birr),Payment Count,Status');
+    for (const c of customers) {
+      const status = c.outstanding_birr > 0 ? 'Active' : 'Settled';
+      lines.push(`"${(c.display_name || '').replace(/"/g, '""')}",${c.outstanding_birr || 0},${c.total_credit_birr || 0},${c.total_paid_birr || 0},${c.payment_count || 0},${status}`);
+    }
+  }
+
+  const csv = lines.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const ts = new Date().toISOString().split('T')[0];
+  const file = `${filename}-${ts}.csv`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = file;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  return 'downloaded';
+}
+
+// --- Credit Score Badge ---
+
+/**
+ * Compute a simple credit score grade (A/B/C/D) from report metrics.
+ */
+export function computeCreditGrade(report) {
+  const s = report?.summary || {};
+  const totalOwed = s.total_owed_birr || 0;
+  const overdue = s.overdue_amount_birr || 0;
+  const onTimeRate = s.on_time_rate_percent ?? 100;
+
+  if (totalOwed === 0) return { grade: 'A', label: 'Excellent', labelAm: 'ተሻшли', color: '#16a34a' };
+
+  let score = 100;
+  if (onTimeRate < 50) score -= 30;
+  else if (onTimeRate < 75) score -= 15;
+  else if (onTimeRate < 90) score -= 5;
+
+  if (overdue > 0 && totalOwed > 0) {
+    const overdueRatio = overdue / totalOwed;
+    if (overdueRatio > 0.5) score -= 30;
+    else if (overdueRatio > 0.25) score -= 15;
+    else if (overdueRatio > 0.1) score -= 5;
+  }
+
+  if (score >= 85) return { grade: 'A', label: 'Excellent', labelAm: 'ተሻшли', color: '#16a34a' };
+  if (score >= 65) return { grade: 'B', label: 'Good', labelAm: 'ጥሩ', color: '#2563eb' };
+  if (score >= 40) return { grade: 'C', label: 'Fair', labelAm: 'መካከለኛ', color: '#d97706' };
+  return { grade: 'D', label: 'Poor', labelAm: 'እንከስ', color: '#dc2626' };
+}
+
+// --- PDF Export ---
+
+/**
+ * Export credit report as a printable PDF.
+ * Opens styled HTML and triggers browser print dialog.
+ */
+export function exportCreditReportPdf(report, lang = 'en') {
+  const s = report?.summary || {};
+  const customers = report?.customers || [];
+  const shop = report?.shop || {};
+  const score = computeCreditGrade(report);
+  const ts = report?.generated_at ? new Date(report.generated_at).toLocaleDateString() : new Date().toLocaleDateString();
+  const isAm = lang === 'am';
+
+  const html = `<!DOCTYPE html>
+<html lang="${isAm ? 'am' : 'en'}">
+<head>
+<meta charset="UTF-8">
+<title>${isAm ? 'የክፍያ ሪፖርት' : 'Credit Report'} - ${shop.name || ''}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1f2937; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.5; }
+  .header { text-align: center; margin-bottom: 32px; border-bottom: 2px solid #1B4332; padding-bottom: 20px; }
+  .shop-name { font-size: 24px; font-weight: 800; color: #1B4332; }
+  .shop-phone { font-size: 14px; color: #6b7280; margin-top: 4px; }
+  .report-date { font-size: 12px; color: #9ca3af; margin-top: 8px; }
+  .title { font-size: 18px; font-weight: 700; color: #374151; margin-bottom: 20px; text-align: center; }
+  .score-section { text-align: center; margin: 24px 0; }
+  .score-badge { display: inline-block; width: 80px; height: 80px; border-radius: 50%; background: ${score.color}; color: #fff; font-size: 36px; font-weight: 900; line-height: 80px; text-align: center; }
+  .score-label { font-size: 14px; color: ${score.color}; font-weight: 700; margin-top: 8px; }
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 24px 0; }
+  .summary-card { padding: 16px; border-radius: 10px; background: #f9fafb; border: 1px solid #e5e7eb; }
+  .summary-card .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+  .summary-card .value { font-size: 20px; font-weight: 800; color: #374151; margin-top: 4px; }
+  .summary-card .value.red { color: #dc2626; }
+  .summary-card .value.green { color: #16a34a; }
+  .section-title { font-size: 14px; font-weight: 700; color: #374151; margin: 24px 0 12px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f3f4f6; padding: 10px 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; }
+  td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; }
+  .text-right { text-align: right; }
+  .text-red { color: #dc2626; font-weight: 700; }
+  .text-green { color: #16a34a; font-weight: 700; }
+  .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 11px; color: #9ca3af; }
+  @media print { body { padding: 20px; } .score-badge, .summary-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="shop-name">${shop.name || 'Shop'}</div>
+  ${shop.phone ? `<div class="shop-phone">${shop.phone}</div>` : ''}
+  <div class="report-date">${isAm ? 'የተዘረዘረበት ቀን' : 'Generated'}: ${ts}</div>
+</div>
+<div class="score-section">
+  <div class="score-badge">${score.grade}</div>
+  <div class="score-label">${isAm ? score.labelAm : score.label}</div>
+</div>
+<div class="title">${isAm ? 'የክፍያ ሪፖርት' : 'Credit Report'}</div>
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="label">${isAm ? 'ጠቅላላ የተገዛ' : 'Total Owed'}</div>
+    <div class="value">${fmtBirr(s.total_owed_birr || 0)}</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">${isAm ? 'የሚታገዝ' : 'Collected'}</div>
+    <div class="value green">${fmtBirr(s.monthly_collected_birr || 0)}</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">${isAm ? 'የጊዜ ተeming' : 'On-Time Rate'}</div>
+    <div class="value">${s.on_time_rate_percent ?? 0}%</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">${isAm ? 'በ孙悟 የሚገኝ' : 'Overdue'}</div>
+    <div class="value ${s.overdue_amount_birr > 0 ? 'red' : ''}">${fmtBirr(s.overdue_amount_birr || 0)}</div>
+  </div>
+</div>
+${customers.length > 0 ? `
+<div class="section-title">${isAm ? 'የደንበኛ መረጃ' : 'Customer Details'} (${customers.length})</div>
+<table>
+  <thead><tr>
+    <th>${isAm ? 'ስም' : 'Name'}</th>
+    <th class="text-right">${isAm ? 'የተገዛ' : 'Outstanding'}</th>
+    <th class="text-right">${isAm ? 'ጊዜ ተeming' : 'On-Time'}</th>
+    <th class="text-right">${isAm ? '孙悟 ቀን' : 'Overdue Days'}</th>
+  </tr></thead>
+  <tbody>${customers.map(c => `
+    <tr>
+      <td>${c.name || 'Customer'}</td>
+      <td class="text-right ${c.outstanding_birr > 0 ? 'text-red' : 'text-green'}">${fmtBirr(c.outstanding_birr || 0)}</td>
+      <td class="text-right">${c.on_time_rate ?? 0}%</td>
+      <td class="text-right">${c.overdue_days || 0}</td>
+    </tr>`).join('')}
+  </tbody>
+</table>` : `<p style="text-align:center;color:#9ca3af;margin-top:24px;">${isAm ? 'ምንም የክፍያ መረጃ የለም' : 'No credit data'}</p>`}
+<div class="footer">
+  <div>Gebya - ${isAm ? 'የንግድ ታሪክ' : 'Business Notebook'}</div>
+</div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) return 'blocked';
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => { win.print(); }, 500);
+  return 'opened';
+}
+
+function fmtBirr(n) {
+  return 'birr ' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}

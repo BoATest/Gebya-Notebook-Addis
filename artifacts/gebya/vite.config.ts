@@ -148,6 +148,12 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
     sourcemap: sentrySourceMaps,
+    rollupOptions: {
+      input: {
+        main: path.resolve(import.meta.dirname, "index.html"),
+        bank: path.resolve(import.meta.dirname, "bank.html"),
+      },
+    },
   },
   server: {
     port,
