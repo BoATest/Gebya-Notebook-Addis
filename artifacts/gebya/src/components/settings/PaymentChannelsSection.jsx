@@ -23,9 +23,10 @@ export default function PaymentChannelsSection({ channels, shopPhone, enabledCou
     onChange?.(updateChannel(channels, channelId, { [field]: value }));
   };
   const handleToggleSameAsShop = (channelId, isSame) => {
+    const channel = channels.find(c => c.id === channelId);
     onChange?.(updateChannel(channels, channelId, {
       usePhoneFromShop: isSame,
-      phone: isSame ? '' : '',
+      phone: isSame ? '' : (channel?.phone || ''),
     }));
   };
   const handleRemove = (channelId) => {

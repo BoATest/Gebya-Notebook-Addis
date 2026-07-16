@@ -21,31 +21,6 @@ import CrossShopCurationQueue from './CrossShopCurationQueue';
 
 const PwaInstallPanel = lazy(() => import('./PwaInstallPanel.jsx'));
 
-const FREQ_LABELS_EN = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
-const FREQ_LABELS_AM = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
-const BUSINESS_TYPE_OPTIONS_EN = [
-  { value: 'retail-shop', label: 'Retail shop' },
-  { value: 'shoe-market', label: 'Shoe market' },
-  { value: 'flower-shop', label: 'Flower shop' },
-  { value: 'women-dress-shop', label: "Women's clothing" },
-  { value: 'supermarket', label: 'Supermarket / Minimarket' },
-  { value: 'grocery', label: 'Grocery (liquor)' },
-  { value: 'electronics', label: 'Electronics / accessories' },
-  { value: 'pharmacy', label: 'Pharmacy / cosmetics' },
-  { value: 'other', label: 'Other' },
-];
-const BUSINESS_TYPE_OPTIONS_AM = [
-  { value: 'retail-shop', label: 'የችርቻሮ ሱቅ' },
-  { value: 'shoe-market', label: 'የጫማ መሸጫ' },
-  { value: 'flower-shop', label: 'የአበባ ሱቅ' },
-  { value: 'women-dress-shop', label: 'የሴቶች ልብስ ሱቅ' },
-  { value: 'supermarket', label: 'ሱፐርማርኬት / ሚኒማርኬት' },
-  { value: 'grocery', label: 'ግሮሰሪ' },
-  { value: 'electronics', label: 'ኤሌክትሮኒክስ / መለዋወጫዎች' },
-  { value: 'pharmacy', label: 'ፋርማሲ / መዋቢያ' },
-  { value: 'other', label: 'ሌላ' },
-];
-
 function SettingsSection({
   id, title, openSection, setOpenSection, children,
   defaultOpen = false,
@@ -570,20 +545,21 @@ function SettingsPage({
         </div>
       )}
 
-      {/* Admin section — metrics + curation queue */}
-      <SettingsSection
-        id="admin"
-        title={lang === 'am' ? '\u1218\u1295\u130D\u1295\u1233' : 'Admin'}
-        icon="\u{1F4CA}"
-        subtitle={lang === 'am' ? '\u1230\u1276\u128A\u1276 \u1233\u1276\u128B\u1276' : 'Metrics & curation'}
-        openSection={openSection}
-        setOpenSection={setOpenSection}
-      >
-        <div className="space-y-4">
-          <AdminMetricsView shopId={shopId} />
-          <CrossShopCurationQueue />
-        </div>
-      </SettingsSection>
+      {devModeRevealed && (
+        <SettingsSection
+          id="admin"
+          title={lang === 'am' ? '\u1218\u1295\u130D\u1295\u1233' : 'Admin'}
+          icon="📊"
+          subtitle={lang === 'am' ? '\u1230\u1276\u128A\u1276 \u1233\u1276\u128B\u1276' : 'Metrics & curation'}
+          openSection={openSection}
+          setOpenSection={setOpenSection}
+        >
+          <div className="space-y-4">
+            <AdminMetricsView shopId={shopId} />
+            <CrossShopCurationQueue />
+          </div>
+        </SettingsSection>
+      )}
     </div>
   );
 }

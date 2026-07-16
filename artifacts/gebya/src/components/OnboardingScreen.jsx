@@ -8,27 +8,7 @@ function isValidPhone(digits) {
   return /^[79]\d{8}$/.test(digits);
 }
 
-const BUSINESS_TYPE_OPTIONS_EN = [
-  { value: 'retail-shop', label: 'Retail shop' },
-  { value: 'shoe-market', label: 'Shoe market' },
-  { value: 'flower-shop', label: 'Flower shop' },
-  { value: 'women-dress-shop', label: 'Women dress shop' },
-  { value: 'grocery', label: 'Grocery / minimarket' },
-  { value: 'electronics', label: 'Electronics / accessories' },
-  { value: 'pharmacy', label: 'Pharmacy / cosmetics' },
-  { value: 'other', label: 'Other' },
-];
-
-const BUSINESS_TYPE_OPTIONS_AM = [
-  { value: 'retail-shop', label: 'የችርቻሮ ሱቅ' },
-  { value: 'shoe-market', label: 'የጫማ መሸጫ' },
-  { value: 'flower-shop', label: 'የአበባ ሱቅ' },
-  { value: 'women-dress-shop', label: 'የሴቶች ልብስ ሱቅ' },
-  { value: 'grocery', label: 'ግሮሰሪ / ሚኒማርኬት' },
-  { value: 'electronics', label: 'ኤሌክትሮኒክስ / መለዋወጫ' },
-  { value: 'pharmacy', label: 'ፋርማሲ / መዋቢያ' },
-  { value: 'other', label: 'ሌላ' },
-];
+import { BUSINESS_TYPE_OPTIONS_EN, BUSINESS_TYPE_OPTIONS_AM } from '../constants/settings';
 
 function OnboardingScreen({ onComplete }) {
   const { t, lang, toggleLang } = useLang();

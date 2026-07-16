@@ -3,8 +3,7 @@ import { RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { fmt } from '../../utils/numformat';
 
-const FREQ_LABELS_EN = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
-const FREQ_LABELS_AM = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly' };
+import { FREQ_LABELS_EN, FREQ_LABELS_AM } from '../../constants/settings';
 
 export default function RecurringExpensesPanel({ recurring, onRecurringChange }) {
   const { lang, t } = useLang();
