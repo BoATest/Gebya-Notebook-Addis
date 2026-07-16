@@ -259,6 +259,9 @@ export default function ReportView({
     });
   }, [metrics, sales, creditSummary, staffSummary, closingState, lang]);
 
+  // Check if this is an empty state (no transactions yet)
+  const isEmpty = reportRows.length === 0 && (ledgerTransactions || []).length === 0 && timeRange === 'today';
+
   // Filtered transactions for history
   const filteredTransactions = useMemo(() => {
     if (!searchQuery.trim()) return reportRows;
@@ -433,6 +436,63 @@ export default function ReportView({
       {/* ═══════════════════════════════════════════════════ */}
       {/* THE 10 SECTIONS — Each answers ONE question       */}
       {/* ═══════════════════════════════════════════════════ */}
+
+      {/* Empty state — no transactions yet */}
+      {isEmpty && (
+        <div style={{
+          background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+          border: '1px solid #bbf7d0',
+          borderRadius: 16,
+          padding: 24,
+          marginTop: 8,
+          textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📒</div>
+          <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1B4332', marginBottom: 8 }}>
+            {lang === 'am' ? 'ወደ ሱቅ ታሪክ እንኳን በደህና መጡ' : 'Welcome to your shop'}
+          </h2>
+          <p style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.6, marginBottom: 16, maxWidth: 320, margin: '0 auto 16px' }}>
+            {lang === 'am'
+              ? 'ዝግጁ ሲሆን ሽያጭ ወይም ወጪ መዝግብ። ሱቅዎ ሁኔታ ይሄ በፈጣን ይዘርጋል።'
+              : 'Record a sale or expense to get started. Your shop status will appear here.'
+            }
+          </p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'sale' } }))}
+              style={{
+                padding: '10px 20px',
+                borderRadius: 10,
+                border: 'none',
+                background: '#1B4332',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              {lang === 'am' ? '🛒 ሽያጭ መዝግብ' : 'Record a Sale'}
+            </button>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'expense' } }))}
+              style={{
+                padding: '10px 20px',
+                borderRadius: 10,
+                border: '1px solid #1B4332',
+                background: '#fff',
+                color: '#1B4332',
+                fontSize: 13,
+                fontWeight: 800,
+                cursor: 'pointer',
+              }}
+            >
+              {lang === 'am' ? '📤 ወጪ መዝግብ' : 'Record Expense'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 1. Shop Story — "Is my shop okay?" */}
       <ErrorBoundary>
