@@ -85,21 +85,36 @@ export default function TodayTab({
             <p className="text-sm font-medium" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ገና ምንም ምዝገባ የለም' : 'No entries yet'}</p>
             <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>{lang === 'am' ? 'ለመጀመር ከላይ ይጫኑ' : 'Tap above to start'}</p>
             {transactions.length === 0 && ledgerTransactions.length === 0 && (
-              <button
-                type="button"
-                onClick={() => setActiveTab('credit')}
-                className="press-scale"
-                style={{
-                  marginTop: 14,
-                  background: 'linear-gradient(135deg, #C4883A 0%, #9c6630 100%)',
-                  color: '#fff', border: 'none', borderRadius: 10,
-                  padding: '10px 20px', fontSize: '0.78rem', fontWeight: 700,
-                  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
-                  boxShadow: '0 2px 8px rgba(196,136,58,0.25)',
-                }}
-              >
-                {lang === 'am' ? '📒 ደብተር ጀምር' : '📒 Start notebook'}
-              </button>
+              <div style={{
+                marginTop: 16,
+                padding: 16,
+                background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+                border: '1px solid #bbf7d0',
+                borderRadius: 12,
+              }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#1B4332', marginBottom: 12 }}>
+                  {lang === 'am' ? '📒 ደብተርዎን ጀምር' : '📒 Start your notebook'}
+                </p>
+                <p style={{ fontSize: 11, color: '#4b5563', marginBottom: 12, lineHeight: 1.5 }}>
+                  {lang === 'am'
+                    ? 'ሽያጭ ወይም ወጪ መዝግብ። ሁሉም መረጃ በዚህ ስልክ ላይ ይቀመጣል።'
+                    : 'Record sales and expenses. All data stays on this phone.'
+                  }
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('credit')}
+                  className="press-scale"
+                  style={{
+                    background: '#1B4332',
+                    color: '#fff', border: 'none', borderRadius: 8,
+                    padding: '8px 16px', fontSize: 12, fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {lang === 'am' ? 'ተጨማሪ ይያዩ' : 'View Credit Page'} →
+                </button>
+              </div>
             )}
           </div>
         ) : (
