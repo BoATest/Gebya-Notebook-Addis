@@ -8,16 +8,17 @@ const PERIOD_ICONS = {
 };
 
 export default function ShopPulse({
-  greeting,
   shopName,
-  period,
+  period = 'morning',
+  greeting,
   observations = [],
   focusItems = [],
-  lang = 'en',
 }) {
+  const { lang } = useLang();
+
   const greetingText = lang === 'am'
-    ? `${greeting.am || 'እንደምን አደርክ'}${shopName ? `፣ ${shopName}` : ''}`
-    : `${greeting.en || 'Good morning'}${shopName ? `, ${shopName}` : ''}`;
+    ? `${greeting?.am || 'እንደምን አደርክ'}${shopName ? `፣ ${shopName}` : ''}`
+    : `${greeting?.en || 'Good morning'}${shopName ? `, ${shopName}` : ''}`;
 
   return (
     <div
@@ -28,7 +29,7 @@ export default function ShopPulse({
         padding: '18px 20px',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: observations.length > 0 ? 10 : 0 }}>
         <span style={{ fontSize: 22 }}>{PERIOD_ICONS[period] || '☀️'}</span>
         <p style={{ fontSize: 15, fontWeight: 900, color: '#1f2937', lineHeight: 1.3 }}>
           {greetingText}
@@ -37,23 +38,20 @@ export default function ShopPulse({
 
       {observations.length > 0 && (
         <div style={{ marginBottom: focusItems.length > 0 ? 14 : 0 }}>
-          {observations.map((obs, i) => {
-            const isFirst = i === 0;
-            return (
-              <p
-                key={i}
-                style={{
-                  fontSize: isFirst ? 13 : 12,
-                  fontWeight: isFirst ? 700 : 500,
-                  color: '#4b5563',
-                  lineHeight: 1.5,
-                  marginTop: i === 0 ? 0 : 3,
-                }}
-              >
-                {obs}
-              </p>
-            );
-          })}
+          {observations.map((obs, i) => (
+            <p
+              key={i}
+              style={{
+                fontSize: i === 0 ? 13 : 12,
+                fontWeight: i === 0 ? 700 : 500,
+                color: '#4b5563',
+                lineHeight: 1.5,
+                marginTop: i === 0 ? 0 : 3,
+              }}
+            >
+              {obs}
+            </p>
+          ))}
         </div>
       )}
 

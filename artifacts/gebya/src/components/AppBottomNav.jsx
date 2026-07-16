@@ -1,9 +1,10 @@
-import { BookOpen, CreditCard, BarChart3, MoreHorizontal } from 'lucide-react';
+import { BookOpen, CreditCard, BarChart3, Search, MoreHorizontal } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 
 const TAB_LABELS = {
   today:    { en: 'Today',     am: 'የዛሬ' },
   credit:   { en: 'Credit',    am: 'ዱቤ' },
+  search:   { en: 'Search',    am: 'ፈልግ' },
   history:  { en: 'Report',    am: 'ሪፖርት' },
   settings: { en: 'More',      am: 'ተጨማሪ' },
 };
@@ -11,6 +12,7 @@ const TAB_LABELS = {
 const TAB_ICONS = {
   today:    BookOpen,
   credit:   CreditCard,
+  search:   Search,
   history:  BarChart3,
   settings: MoreHorizontal,
 };
@@ -29,7 +31,7 @@ export default function AppBottomNav({
       style={{ background: '#ffffff', borderColor: '#e5e7eb' }}
     >
       <div className="flex">
-        {['today', 'credit', 'history', 'settings'].map(tabId => {
+          {['today', 'credit', 'search', 'history', 'settings'].map(tabId => {
           const Icon = TAB_ICONS[tabId];
           const isActive = activeTab === tabId;
           return (

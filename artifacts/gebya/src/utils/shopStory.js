@@ -30,51 +30,18 @@ export function computeShopStory({
   cashVariance = 0,
   lang = 'en',
 }) {
-  const net = metrics.totalSold - metrics.spentToday;
-  const hasProfit = net > 0;
-  const hasLoss = net < 0;
   const hasOverdue = overdueCount > 0;
   const cashMismatch = closingDone && Math.abs(cashVariance) > (metrics.cashExpected || 1) * 0.05;
   const salesCrash = priorMetrics && priorMetrics.totalSold > 0 && metrics.totalSold < priorMetrics.totalSold * 0.5;
 
-  // Count problems
-  let problems = 0;
-  if (hasLoss) problems++;
-  if (cashMismatch) problems++;
-  if (overdueRatio > 0.3) problems++;
-  if (salesCrash) problems++;
-
-  // Determine status
-  let status, emoji, headline;
-
-  if (problems === 0) {
-    status = 'healthy';
-    emoji = '😊';
-    headline = lang === 'am' ? 'ሱቅዎ በቃና በእርግጥ ነው' : 'Your shop is running smoothly';
-  } else if (problems <= 1) {
-    status = 'warning';
-    emoji = '😐';
-    headline = lang === 'am' ? 'ዛሬ ትኩረት ይፈልጋል' : 'Today needs some attention';
-  } else {
-    status = 'urgent';
-    emoji = '🔴';
-    headline = lang === 'am' ? 'አስፈላጊ ችግሮች ተገኙ' : 'Urgent issues found';
-  }
-
-  // Build observations
+  // Build observations — plain sentences, no judgments
   const observations = [];
 
   // Sales count
   const salesCount = metrics.saleRows?.length || 0;
-  if (salesCount > 0) {
+  if (salesCount === 0) {
     observations.push(
-      lang === 'am'
-        ? `${salesCount} ሽያጭ ተመዝግሧል`
-        : `${salesCount} sale${salesCount !== 1 ? 's' : ''} recorded`
-    );
-  } else {
-    observations.push(
-      lang === 'am' ? 'ዛሬ ምንም ሽያጭ የለም' : 'No sales recorded today'
+      lang === 'am' ? 'ዛሬ ምንም ሽያጅ አልተመዘገበም' : 'No sales recorded today'
     );
   }
 
@@ -82,8 +49,8 @@ export function computeShopStory({
   if (hasOverdue) {
     observations.push(
       lang === 'am'
-        ? `${overdueCount} ደንበኛ ይሄዳቸዋል`
-        : `${overdueCount} customer${overdueCount !== 1 ? 's' : ''} still owe you`
+        ? `${overdueCount} ደንበኛ ዕዳ አለባቸው`
+        : `${overdueCount} customer${overdueCount !== 1 ? 's' : ''} still owe`
     );
   }
 
@@ -91,16 +58,16 @@ export function computeShopStory({
   if (closingDone) {
     if (cashMismatch) {
       observations.push(
-        lang === 'am' ? 'ገንዘብ አይዛመድም' : 'Cash does not match records'
+        lang === 'am' ? 'ገንዘብ ከመዝገብ ጋር አይጣጣምም' : 'Cash does not match records'
       );
     } else {
       observations.push(
-        lang === 'am' ? 'ገንዘብ ተመሳ菟ል ነው' : 'Cash matches your records'
+        lang === 'am' ? 'ገንዘብ ከመዝገብ ጋር ይጣጣማል' : 'Cash matches records'
       );
     }
   }
 
-  return { status, emoji, headline, observations, net, problems };
+  return { observations };
 }
 
 // ─── MONEY SUMMARY ───────────────────────────────────────────
@@ -114,13 +81,6 @@ export function computeMoneySummary(metrics, lang = 'en') {
   const expenses = metrics.spentToday || 0;
   const sales = metrics.totalSold || 0;
 
-  // Profit is only meaningful if we have cost data
-  const saleRows = metrics.saleRows || [];
-  const hasCostData = saleRows.some(row => Number(row.cost_price) > 0 && Number(row.quantity) > 0);
-  const totalProfit = hasCostData
-    ? saleRows.reduce((sum, row) => sum + (Number(row.profit) || 0), 0)
-    : null;
-
   return {
     sales,
     expenses,
@@ -128,8 +88,6 @@ export function computeMoneySummary(metrics, lang = 'en') {
     transferRecorded,
     creditExtended,
     creditCollected,
-    totalProfit, // null if incomplete cost data
-    hasCostData,
   };
 }
 
@@ -348,38 +306,35 @@ export function computeShopDiary({
 }) {
   const salesCount = metrics.saleRows?.length || 0;
   const totalSold = metrics.totalSold || 0;
-  const totalSpent = metrics.spentToday || 0;
-  const net = totalSold - totalSpent;
 
   if (lang === 'am') {
-    // Amharic diary
     const parts = [];
 
     if (salesCount === 0) {
-      parts.push('ዛሬ ምንም ሽያጭ የለም');
+      parts.push('ዛሬ ምንም ሽያጭ አልተከናወነም');
     } else if (salesCount <= 5) {
-      parts.push('ጸhores ቀን ነበር');
+      parts.push('ዛሬ ጥቂት ሽያጮች ተመዝግበዋል');
     } else if (salesCount <= 15) {
-      parts.push('ተጨማሪ ቀን ነበር');
+      parts.push('ዛሬ መጠነኛ ሥራ ነበር');
     } else {
-      parts.push('ትልቅ ቀን ነበር');
+      parts.push('ዛሬ ሥራ የበዛበት ቀን ነበር');
     }
 
     if (topItem) {
-      parts.push(`${topItem.name} ብዙም ተjualan`);
+      parts.push(`${topItem.name} በብዛት ተሽጧል`);
     }
 
     if (closingDone && !cashMismatch) {
-      parts.push('ገንዘብ ተመሳ菟ል ነው');
+      parts.push('ገንዘብ በትክክል ተጣጥሟል');
     } else if (closingDone && cashMismatch) {
-      parts.push('ገንዘብ አይዛመድም');
+      parts.push('ገንዘብ አልተጣጣመም');
     }
 
     if (overdueCount > 0) {
-      parts.push(`${overdueCount} ደንበኛ ይሄዳቸዋል`);
+      parts.push(`${overdueCount} ደንበኞች ዕዳ አለባቸው`);
     }
 
-    return parts.join('· ') + '።';
+    return parts.join('። ') + '።';
   }
 
   // English diary
@@ -399,10 +354,6 @@ export function computeShopDiary({
     parts.push(`${topItem.name} sold the most`);
   }
 
-  if (net > 0) {
-    parts.push(`Profit was ${fmt(net)} ETB`);
-  }
-
   if (closingDone && !cashMismatch) {
     parts.push('Cash matched perfectly');
   } else if (closingDone && cashMismatch) {
@@ -410,11 +361,11 @@ export function computeShopDiary({
   }
 
   if (overdueCount > 0) {
-    parts.push(`${overdueCount} customer${overdueCount !== 1 ? 's' : ''} still owe you money`);
+    parts.push(`${overdueCount} customer${overdueCount !== 1 ? 's' : ''} still owe`);
   }
 
   if (staffSummary && staffSummary.count > 0) {
-    parts.push(`${staffSummary.count} staff members working today`);
+    parts.push(`${staffSummary.count} staff member${staffSummary.count !== 1 ? 's' : ''} on duty`);
   }
 
   return parts.join('. ') + '.';

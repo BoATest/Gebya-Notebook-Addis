@@ -15,6 +15,7 @@ import AppActionBar from './AppActionBar';
 import AppBottomNav from './AppBottomNav';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import GlobalModals from './GlobalModals';
+import SearchSheet from './SearchSheet';
 import { ToastContainer, fireToast } from './Toast';
 import { buildPhotoFields, normalizePhotos } from '../utils/photoProof';
 import { getCurrentEthiopianDate, formatEthiopian } from '../utils/ethiopianCalendar';
@@ -576,6 +577,7 @@ export default function AppShell() {
   const [showItemizedSale, setShowItemizedSale] = useState(false);
   const [reminderDefaultChannel, setReminderDefaultChannel] = useState(null);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
+  const [showSearchSheet, setShowSearchSheet] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [selectedSupplierTransaction, setSelectedSupplierTransaction] = useState(null);
   const [lastPayment, setLastPayment] = useState({
@@ -2940,6 +2942,10 @@ export default function AppShell() {
       <AppBottomNav
         activeTab={activeTab}
         onTabChange={(tabId) => {
+          if (tabId === 'search') {
+            setShowSearchSheet(true);
+            return;
+          }
           setShowForm(null);
           setShowItemizedSale(false);
           setShowCustomerForm(false);
@@ -2993,6 +2999,17 @@ export default function AppShell() {
         onConfirm={(id) => handleDeleteTransaction(id)}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {showSearchSheet && (
+        <SearchSheet
+          transactions={transactions}
+          ledgerTransactions={ledgerTransactions}
+          customers={ledgerCustomers}
+          catalogEntries={activeCatalogEntries}
+          lang={lang}
+          onClose={() => setShowSearchSheet(false)}
+        />
+      )}
 
       <ToastContainer />
     </div>
