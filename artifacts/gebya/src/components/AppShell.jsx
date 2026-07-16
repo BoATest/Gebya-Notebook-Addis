@@ -45,6 +45,8 @@ import { useNotificationsStore } from '../stores/notificationsStore';
 import { useAppStore } from '../stores/appStore';
 import { useShopStore } from '../stores/shopStore';
 import { initSyncEngine, destroySyncEngine } from '../utils/syncEngine';
+import AskNotebookFAB from './AskNotebookFAB';
+import SearchSheet from './SearchSheet';
 
 const DEFAULT_PROVIDERS = {
   banks: [],
@@ -429,6 +431,7 @@ export default function AppShell() {
   const [showItemizedSale, setShowItemizedSale] = useState(false);
   const [reminderDefaultChannel, setReminderDefaultChannel] = useState(null);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
+  const [showSearchSheet, setShowSearchSheet] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [selectedSupplierTransaction, setSelectedSupplierTransaction] = useState(null);
   const [lastPayment, setLastPayment] = useState({
@@ -750,9 +753,20 @@ export default function AppShell() {
     };
     window.addEventListener('gebya:sync-queue-changed', handleQueueChanged);
     window.addEventListener('online', handleQueueChanged);
+    const handleNavigate = (e) => {
+      if (e.detail.tab) setActiveTab(e.detail.tab);
+      if (e.detail.customerId) setSelectedCustomerId(e.detail.customerId);
+    };
+    const handleOpenForm = (e) => {
+      if (e.detail.type) setShowForm(e.detail.type);
+    };
+    window.addEventListener('gebya:navigate', handleNavigate);
+    window.addEventListener('gebya:open-form', handleOpenForm);
     return () => {
       window.removeEventListener('gebya:sync-queue-changed', handleQueueChanged);
       window.removeEventListener('online', handleQueueChanged);
+      window.removeEventListener('gebya:navigate', handleNavigate);
+      window.removeEventListener('gebya:open-form', handleOpenForm);
     };
   }, [loading, refreshPendingTelegramCount]);
 
@@ -2605,6 +2619,10 @@ export default function AppShell() {
             lastSavedSnapshot={lastSavedSnapshot}
             lastBackupAt={lastBackupAt}
             onShareReport={handleShareReport}
+            customerSummaries={customerSummaries}
+            shopProfile={shopProfile}
+            ledgerCustomers={ledgerCustomers}
+            catalogEntries={activeCatalogEntries}
           />
         )}
 
@@ -2733,6 +2751,21 @@ export default function AppShell() {
           </Suspense>
         )}
       </main>
+
+      {activeTab === 'today' && !showForm && !showItemizedSale && (
+        <AskNotebookFAB onClick={() => setShowSearchSheet(true)} />
+      )}
+
+      {showSearchSheet && (
+        <SearchSheet
+          transactions={transactions}
+          ledgerTransactions={ledgerTransactions}
+          customers={ledgerCustomers}
+          catalogEntries={activeCatalogEntries}
+          lang={lang}
+          onClose={() => setShowSearchSheet(false)}
+        />
+      )}
 
       {!showForm && !showCustomerForm && !showItemizedSale && !customerEditTarget && !customerTransactionModal && !customerTransactionEditTarget && !showSupplierForm && !supplierEditTarget && !supplierTransactionModal && !supplierTransactionEditTarget && (
         <AppActionBar
