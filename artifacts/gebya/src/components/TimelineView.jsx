@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Search, X } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
+import { fmt } from '../utils/numformat';
 
 const FILTERS = ['all', 'sale', 'expense', 'collection', 'credit'];
 
@@ -169,7 +170,7 @@ export default function TimelineView({
                 color: row.report_kind === 'expense' ? '#dc2626' : '#059669',
                 flexShrink: 0,
               }}>
-                {hidden ? '••••' : `${(row.amount || 0).toLocaleString()} ETB`}
+                {hidden ? '••••' : `${fmt(row.amount || 0)} ETB`}
               </span>
             </div>
           ))}

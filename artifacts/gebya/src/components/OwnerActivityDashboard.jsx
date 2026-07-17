@@ -4,6 +4,7 @@ import { useLang } from '../context/LangContext';
 import { usePermissionsStore } from '../stores/permissionsStore';
 import { getAuthToken } from '../utils/syncEngine';
 import { useSyncStore } from '../stores/syncStore';
+import { fmt } from '../utils/numformat';
 
 const API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
 
@@ -239,7 +240,7 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
                 </div>
                 <div className="text-right">
                   <div className="text-xs font-bold text-gray-700">
-                    {row.transactions} {lang === 'am' ? 'ሪኮርዶች' : 'records'} · {row.amount.toLocaleString()} {lang === 'am' ? 'ብር' : 'birr'}
+                    {row.transactions} {lang === 'am' ? 'ሪኮርዶች' : 'records'} · {fmt(row.amount)} {lang === 'am' ? 'ብር' : 'birr'}
                   </div>
                 </div>
               </div>
@@ -369,7 +370,7 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
                   </div>
                   {typeof amount === 'number' && (
                     <div className="mt-0.5 pl-8 text-xs font-bold text-gray-600">
-                      {amount.toLocaleString()} {lang === 'am' ? 'ብር' : 'birr'}
+                      {fmt(amount)} {lang === 'am' ? 'ብር' : 'birr'}
                     </div>
                   )}
                 </div>

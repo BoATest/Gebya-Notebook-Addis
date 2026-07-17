@@ -362,6 +362,8 @@ export default function ItemizedSaleView({
 
   return (
     <div className="fixed inset-x-0 top-0 bottom-[60px] max-w-md mx-auto flex flex-col" style={{ background: '#fff' }}>
+      {/* Responsive: hide Total column on screens <360px */}
+      <style>{`@media (max-width: 359px) { .total-col { display: none !important; } }`}</style>
       {/* Draft recovery banner */}
       {showDraftBanner && draft && (
         <div className="flex-shrink-0 px-2 py-1.5 flex items-center justify-between" style={{ background: '#fef3c7' }}>
@@ -384,8 +386,9 @@ export default function ItemizedSaleView({
         <button
           onClick={handleBack}
           aria-label={lang === 'am' ? 'ተመለስ' : 'Back'}
+          title={lang === 'am' ? 'ተመለስ' : 'Back'}
           className="press-scale flex items-center justify-center"
-          style={{ minWidth: '40px', minHeight: '40px' }}
+          style={{ minWidth: '44px', minHeight: '44px' }}
         >
           <ArrowLeft className="w-4 h-4" style={{ color: '#6b7280' }} />
         </button>
@@ -396,8 +399,9 @@ export default function ItemizedSaleView({
           <button
             onClick={() => setShowCamera(true)}
             aria-label={lang === 'am' ? 'ፎቶ አክል' : 'Take or choose photo'}
+            title={lang === 'am' ? 'ፎቶ አክል' : 'Take photo'}
             className="press-scale flex items-center justify-center relative"
-            style={{ minWidth: '40px', minHeight: '40px' }}
+            style={{ minWidth: '44px', minHeight: '44px' }}
             disabled={photoLoading}
           >
             {photoLoading ? (
@@ -414,8 +418,9 @@ export default function ItemizedSaleView({
           <button
             onClick={() => setShowRecentSales(true)}
             className="press-scale flex items-center justify-center"
-            style={{ minWidth: '36px', minHeight: '36px' }}
+            style={{ minWidth: '44px', minHeight: '44px' }}
             aria-label={lang === 'am' ? 'የዛሬ ሽያጭ' : "Today's Sales"}
+            title={lang === 'am' ? 'የዛሬ ሽያጭ' : "Today's Sales"}
           >
             <span className="text-base">📋</span>
           </button>
@@ -442,17 +447,17 @@ export default function ItemizedSaleView({
       )}
 
       {/* Column headers — like notebook column labels */}
-      <div className="flex-shrink-0 px-2 flex gap-1 items-center" style={{ borderBottom: '1px solid #edeae5' }}>
-        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ flex: '5 1 0%', color: '#bbb0a0' }}>
+      <div className="flex-shrink-0 px-2 flex gap-0.5 items-center" style={{ borderBottom: '1px solid #edeae5' }}>
+        <span className="text-[10px] font-bold uppercase tracking-widest truncate" style={{ flex: '55 0 0%', color: '#bbb0a0', minWidth: 0 }}>
           {lang === 'am' ? 'ንጥል' : 'Item'}
         </span>
-        <span className="text-[10px] font-bold text-center uppercase tracking-widest" style={{ width: '40px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-center uppercase tracking-widest flex-shrink-0" style={{ width: '44px', color: '#bbb0a0' }}>
           {lang === 'am' ? 'ብዛት' : 'Qty'}
         </span>
-        <span className="text-[10px] font-bold text-right uppercase tracking-widest" style={{ width: '64px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0" style={{ width: '60px', color: '#bbb0a0' }}>
           {lang === 'am' ? 'ዋጋ' : 'Price'}
         </span>
-        <span className="text-[10px] font-bold text-right uppercase tracking-widest" style={{ width: '58px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0 total-col" style={{ width: '64px', color: '#bbb0a0' }}>
           {lang === 'am' ? 'ጠቅላላ' : 'Total'}
         </span>
       </div>
@@ -479,13 +484,14 @@ export default function ItemizedSaleView({
         ))}
         {/* Add 3 Rows — always visible when merchant has started writing */}
         {filledRows.length >= 1 && (
-          <div className="py-1">
+          <div className="py-1.5 px-1">
             <button
               onClick={() => addEmptyRows(3)}
-              className="w-full py-1.5 text-[10px] font-bold press-scale"
-              style={{ color: '#bbb0a0' }}
+              className="w-full py-2 text-[11px] font-bold press-scale flex items-center justify-center gap-1"
+              style={{ color: '#6b7280', border: '1px dashed #d1d5db', borderRadius: '4px', minHeight: '40px', background: '#fafafa' }}
             >
-              + {lang === 'am' ? '3 ተጨማሪ ረድፎች' : 'Add 3 Rows'}
+              <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span>
+              <span>{lang === 'am' ? '3 ተጨማሪ ረድፎች' : 'Add 3 Rows'}</span>
             </button>
           </div>
         )}
@@ -494,7 +500,7 @@ export default function ItemizedSaleView({
       {/* Bottom bar — no borders, like the bottom margin of a notebook page */}
       <div className="flex-shrink-0" style={{ background: '#fff' }}>
         {/* Running Summary — compact, no internal borders */}
-        <div className="px-2 py-1.5 space-y-0.5">
+        <div className="px-2 py-1 space-y-0.5">
           <div className="flex justify-between items-center text-[11px]">
             <span style={{ color: '#9ca3af' }}>
               {lang === 'am' ? 'እቃዎች' : 'Items'}: <span className="font-bold" style={{ color: '#374151' }}>{filledRows.length}</span>
@@ -529,8 +535,8 @@ export default function ItemizedSaleView({
           {!showDiscount && totalAmount > 0 && (
             <button
               onClick={() => setShowDiscount(true)}
-              className="text-[9px] font-bold"
-              style={{ color: '#c4b9a8' }}
+              className="text-[11px] font-bold press-scale"
+              style={{ color: '#6b7280', border: '1px solid #e8e2d8', borderRadius: '3px', padding: '4px 10px', minHeight: '34px' }}
             >
               + {lang === 'am' ? 'ቅናሽ' : 'Discount'}
             </button>
@@ -545,7 +551,7 @@ export default function ItemizedSaleView({
 
         {/* Credit fields — customer search + recent chips + due date + phone */}
         {isCredit && (
-          <div className="px-2 py-2 space-y-2">
+          <div className="px-2 py-1.5 space-y-1.5">
             {/* Search + Add button */}
             <div className="flex gap-1.5">
               <div className="relative flex-1">
@@ -756,16 +762,16 @@ export default function ItemizedSaleView({
         </div>
 
         {/* Share toggle + Preview + Complete — single row */}
-        <div className="px-2 pb-1.5 flex items-center gap-2">
-          <label className="flex items-center gap-1 text-[10px] font-bold cursor-pointer select-none" style={{ color: shareAuto ? '#16a34a' : '#9ca3af', whiteSpace: 'nowrap' }}>
+        <div className="px-2 pb-1 flex items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none press-scale" style={{ color: shareAuto ? '#16a34a' : '#9ca3af', whiteSpace: 'nowrap', minHeight: '44px', padding: '0 2px' }}>
             <input
               type="checkbox"
               checked={shareAuto}
               onChange={(e) => setShareAuto(e.target.checked)}
               className="sr-only"
             />
-            <div className="relative w-6 h-3.5 rounded-full transition-colors" style={{ background: shareAuto ? '#16a34a' : '#d1d5db' }}>
-              <div className="absolute top-[1px] left-[1px] w-2.5 h-2.5 rounded-full bg-white transition-transform" style={{ transform: shareAuto ? 'translateX(10px)' : 'translateX(0)' }} />
+            <div className="relative w-7 h-4 rounded-full transition-colors flex-shrink-0" style={{ background: shareAuto ? '#16a34a' : '#d1d5db' }}>
+              <div className="absolute top-[2px] left-[2px] w-3 h-3 rounded-full bg-white transition-transform" style={{ transform: shareAuto ? 'translateX(12px)' : 'translateX(0)' }} />
             </div>
             {lang === 'am' ? 'አጋራ' : 'Share'}
           </label>
@@ -818,11 +824,13 @@ export default function ItemizedSaleView({
             type="button"
             onClick={() => setShowReceipt(true)}
             disabled={!canSave}
-            className="px-2 py-1.5 text-[10px] font-bold press-scale"
-            style={{ color: canSave ? '#6b7280' : '#d1d5db', cursor: canSave ? 'pointer' : 'not-allowed' }}
+            className="px-2.5 py-1.5 text-[11px] font-bold press-scale"
+            style={{ color: canSave ? '#6b7280' : '#d1d5db', cursor: canSave ? 'pointer' : 'not-allowed', minHeight: '36px' }}
           >
             📄 {lang === 'am' ? 'ቅድመ-እይታ' : 'Preview'}
           </button>
+
+          <span className="text-[16px]" style={{ color: '#e5e7eb' }}>·</span>
 
           <button
             type="button"

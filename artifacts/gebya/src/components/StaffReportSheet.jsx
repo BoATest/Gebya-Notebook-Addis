@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { usePrivacy } from '../context/PrivacyContext';
+import { fmt } from '../utils/numformat';
 
 export default function StaffReportSheet({
   staffRows,
@@ -77,15 +78,15 @@ export default function StaffReportSheet({
               <div style={{ fontSize: 11, fontWeight: 700, color: '#059669' }}>
                 ✅ {lang === 'am' ? 'ተረጋግጧል' : 'Confirmed'} —
                 {lang === 'am'
-                  ? ` ጥሬ፦ ${closingState.staffReports[staff.id].cashReceived?.toLocaleString()} · ዲጂ፦ ${closingState.staffReports[staff.id].digitalReceived?.toLocaleString()}`
-                  : ` Cash: ${closingState.staffReports[staff.id].cashReceived?.toLocaleString()} · Digital: ${closingState.staffReports[staff.id].digitalReceived?.toLocaleString()}`}
+                ? ` ጥሬ፦ ${fmt(closingState.staffReports[staff.id].cashReceived)} · ዲጂ፦ ${fmt(closingState.staffReports[staff.id].digitalReceived)}`
+                : ` Cash: ${fmt(closingState.staffReports[staff.id].cashReceived)} · Digital: ${fmt(closingState.staffReports[staff.id].digitalReceived)}`}
               </div>
             ) : (
               <>
                 <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>
                   {lang === 'am'
-                    ? `ጥሬ ይጠበቃል፦ ${(staff.cash || 0).toLocaleString()} ETB · ዲጂ፦ ${(staff.transfer || 0).toLocaleString()} ETB`
-                    : `Cash expected: ${(staff.cash || 0).toLocaleString()} ETB · Digital: ${(staff.transfer || 0).toLocaleString()} ETB`}
+                    ? `ጥሬ ይጠበቃል፦ ${fmt(staff.cash || 0)} ETB · ዲጂ፦ ${fmt(staff.transfer || 0)} ETB`
+                    : `Cash expected: ${fmt(staff.cash || 0)} ETB · Digital: ${fmt(staff.transfer || 0)} ETB`}
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <input
@@ -134,8 +135,8 @@ export default function StaffReportSheet({
         fontSize: 11, fontWeight: 700, color: '#4b5563',
       }}>
         {lang === 'am'
-          ? `📊 ጠቅላላ ከሰራተኞች፦ ጥሬ ${totalCashConfirmed.toLocaleString()} / ${totalCashExpected.toLocaleString()} · ዲጂ ${totalDigitalConfirmed.toLocaleString()} / ${totalDigitalExpected.toLocaleString()}`
-          : `📊 Total from staff: Cash ${totalCashConfirmed.toLocaleString()} / ${totalCashExpected.toLocaleString()} · Digital ${totalDigitalConfirmed.toLocaleString()} / ${totalDigitalExpected.toLocaleString()}`}
+          ? `📊 ጠቅላላ ከሰራተኞች፦ ጥሬ ${fmt(totalCashConfirmed)} / ${fmt(totalCashExpected)} · ዲጂ ${fmt(totalDigitalConfirmed)} / ${fmt(totalDigitalExpected)}`
+          : `📊 Total from staff: Cash ${fmt(totalCashConfirmed)} / ${fmt(totalCashExpected)} · Digital ${fmt(totalDigitalConfirmed)} / ${fmt(totalDigitalExpected)}`}
       </div>
     </div>
   );

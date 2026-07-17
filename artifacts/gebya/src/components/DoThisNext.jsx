@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { fmt } from '../utils/numformat';
 
 const URGENT_ICON = '🔥';
 const WARNING_ICON = '⚠';
@@ -127,7 +128,7 @@ function buildActionItems({
       urgency: 'urgent',
       icon: '💰',
       message: lang === 'am' ? 'ገንዘብ ገና አልተቆጠረም' : 'Cash not counted yet',
-      detail: lang === 'am' ? `${cashExpected.toLocaleString()} ETB ይጠበቃል` : `${cashExpected.toLocaleString()} ETB expected`,
+      detail: lang === 'am' ? `${fmt(cashExpected)} ETB ይጠበቃል` : `${fmt(cashExpected)} ETB expected`,
       cta: lang === 'am' ? '💰 ቆጥር' : '💰 Count Cash →',
       actionType: 'count_cash',
     });
@@ -139,8 +140,8 @@ function buildActionItems({
       icon: '⚠️',
       message: lang === 'am' ? 'ገንዘብ አይዛመድም' : 'Cash does not match',
       detail: lang === 'am'
-        ? `${Math.abs(cashVariance).toLocaleString()} ETB ልዩነት`
-        : `${Math.abs(cashVariance).toLocaleString()} ETB variance`,
+        ? `${fmt(Math.abs(cashVariance))} ETB ልዩነት`
+        : `${fmt(Math.abs(cashVariance))} ETB variance`,
       cta: lang === 'am' ? '📋 መርምር' : '📋 Review',
       actionType: 'review',
     });
@@ -154,8 +155,8 @@ function buildActionItems({
         ? `${overdueCount} ሰው ዕዳ አለባቸው`
         : `${overdueCount} people still owe you`,
       detail: lang === 'am'
-        ? `${overdueAmount.toLocaleString()} ETB · አንጋፋው ${largestOverdueDays} ቀን`
-        : `${overdueAmount.toLocaleString()} ETB · Oldest: ${largestOverdueDays} days`,
+        ? `${fmt(overdueAmount)} ETB · አንጋፋው ${largestOverdueDays} ቀን`
+        : `${fmt(overdueAmount)} ETB · Oldest: ${largestOverdueDays} days`,
       cta: lang === 'am' ? '🔔 ሁሉን አስታውስ' : '🔔 Remind All →',
       actionType: 'overdue',
     });
@@ -180,8 +181,8 @@ function buildActionItems({
       icon: '📤',
       message: lang === 'am' ? 'ወጪ ከፍተኛ ነው' : 'Expenses are higher than usual',
       detail: lang === 'am'
-        ? `በተለምዶ ${avgExpenses.toLocaleString()} ETB · ዛሬ ${expenses.toLocaleString()} ETB`
-        : `Usually ${avgExpenses.toLocaleString()} ETB · Today ${expenses.toLocaleString()} ETB`,
+        ? `በተለምዶ ${fmt(avgExpenses)} ETB · ዛሬ ${fmt(expenses)} ETB`
+        : `Usually ${fmt(avgExpenses)} ETB · Today ${fmt(expenses)} ETB`,
       cta: null,
       actionType: null,
     });

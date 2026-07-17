@@ -224,7 +224,7 @@ export function computeAttentionItems({
       type: 'cash_mismatch',
       severity: 'urgent',
       message: lang === 'am' ? 'ገንዘብ አይዛመድም' : 'Cash does not match',
-      detail: `${Math.abs(cashVariance).toLocaleString()} ETB ${direction}`,
+      detail: `${fmt(Math.abs(cashVariance))} ETB ${direction}`,
       action: lang === 'am' ? '_firestore' : 'Review',
       actionType: 'secondary',
     });
@@ -239,8 +239,8 @@ export function computeAttentionItems({
         ? `${overdueCount} ደንበኛ ይሄዳቸዋል`
         : `${overdueCount} customer${overdueCount !== 1 ? 's' : ''} owe you`,
       detail: lang === 'am'
-        ? `ጠቅላላ: ${overdueAmount.toLocaleString()} ETB`
-        : `Total: ${overdueAmount.toLocaleString()} ETB · Oldest: ${largestOverdueDays} days`,
+        ? `ጠቅላላ: ${fmt(overdueAmount)} ETB`
+        : `Total: ${fmt(overdueAmount)} ETB · Oldest: ${largestOverdueDays} days`,
       action: lang === 'am' ? 'ያስታውሱ' : 'Remind',
       actionType: 'secondary',
     });
@@ -373,7 +373,7 @@ export function computeShopDiary({
 
 // Helper: format number (inline to avoid circular dependency)
 function fmt(n) {
-  return Number(n || 0).toLocaleString();
+  return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // ─── HERO STATUS ──────────────────────────────────────────────
@@ -415,8 +415,8 @@ export function computeHeroStatus({
   if (cashMismatch) {
     return {
       sentence: lang === 'am'
-        ? `ገንዘብ አይዛመድም፦ ልዩነቱ ${Math.abs(cashVariance).toLocaleString()} ETB`
-        : `Cash doesn\'t match — off by ${Math.abs(cashVariance).toLocaleString()} ETB.`,
+        ? `ገንዘብ አይዛመድም፦ ልዩነቱ ${fmt(Math.abs(cashVariance))} ETB`
+        : `Cash doesn\'t match — off by ${fmt(Math.abs(cashVariance))} ETB.`,
       cta: lang === 'am' ? '📋 መረምር' : '📋 Review',
       actionType: 'review',
     };

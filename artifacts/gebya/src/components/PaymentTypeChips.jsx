@@ -53,8 +53,8 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
               className="flex items-center justify-center gap-0.5 px-1.5 border text-[10px] font-bold transition-all press-scale"
               style={{
                 flex: '1 0 auto',
-                minWidth: '52px',
-                minHeight: '32px',
+                minWidth: '56px',
+                minHeight: '38px',
                 borderRadius: '2px',
                 borderColor: selected ? '#1B4332' : '#edeae5',
                 background: selected ? 'rgba(27,67,50,0.06)' : '#fff',

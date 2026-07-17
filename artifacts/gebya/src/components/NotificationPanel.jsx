@@ -8,6 +8,7 @@ import { useEffect, useCallback, useState } from 'react';
 import { X } from 'lucide-react';
 import { useNotificationsStore } from '../stores/notificationsStore';
 import { useAppStore } from '../stores/appStore';
+import { fmt } from '../utils/numformat';
 import { useLang } from '../context/LangContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import db from '../db';
@@ -320,7 +321,7 @@ export default function NotificationPanel({ onClose }) {
                       <div className="flex items-center gap-2 mt-1">
                         {notif.amount != null && (
                           <span className="text-[11px] font-bold" style={{ color: TYPE_TEXT[notif.type] || '#6b7280' }}>
-                            {Number(notif.amount).toLocaleString()} {lang === 'am' ? 'ብር' : 'birr'}
+                            {fmt(notif.amount)} {lang === 'am' ? 'ብር' : 'birr'}
                           </span>
                         )}
                         <span className="text-[10px]" style={{ color: '#9ca3af' }}>

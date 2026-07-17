@@ -6,6 +6,7 @@
  * shops that have granted them data access.
  */
 import { useState, useEffect, useCallback } from 'react';
+import { fmt } from '../utils/numformat';
 
 const API_BASE = (import.meta.env.VITE_API_BASE ?? '/api').replace(/\/$/, '');
 
@@ -290,8 +291,8 @@ function ShopReport({ token, businessId, onBack }) {
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
         {[
-          { label: 'Total Sales', value: ` birr${m.total_sales_birr.toLocaleString()}`, color: '#1B4332' },
-          { label: 'Outstanding Credit', value: ` birr${s.total_outstanding_birr.toLocaleString()}`, color: '#dc2626' },
+          { label: 'Total Sales', value: ` birr${fmt(m.total_sales_birr)}`, color: '#1B4332' },
+          { label: 'Outstanding Credit', value: ` birr${fmt(s.total_outstanding_birr)}`, color: '#dc2626' },
           { label: 'Recovery Rate', value: `${s.average_repayment_rate}%`, color: '#2563eb' },
           { label: 'Customers with Credit', value: s.total_customers_with_credit, color: '#7c3aed' },
         ].map((kpi) => (
@@ -316,7 +317,7 @@ function ShopReport({ token, businessId, onBack }) {
             }}>
               <span style={{ color: '#374151', fontWeight: 600 }}>{m.month}</span>
               <span style={{ color: '#6b7280' }}>
-                Sales: birr{m.total_sales_birr.toLocaleString()} · Credit: birr{m.credit_extended_birr.toLocaleString()}
+                Sales: birr{fmt(m.total_sales_birr)} · Credit: birr{fmt(m.credit_extended_birr)}
               </span>
             </div>
           ))}
@@ -340,7 +341,7 @@ function ShopReport({ token, businessId, onBack }) {
                     {c.display_name || `Customer ${c.customer_id}`}
                   </span>
                   <span style={{ color: c.outstanding_balance > 0 ? '#dc2626' : '#16a34a', fontWeight: 700 }}>
-                    birr{c.outstanding_balance.toLocaleString()} outstanding
+                    birr{fmt(c.outstanding_balance)} outstanding
                   </span>
                 </div>
                 <div style={{ color: '#6b7280', fontSize: '0.7rem' }}>

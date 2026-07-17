@@ -3,7 +3,7 @@ import { useLang } from '../../context/LangContext';
 import { fmt, fmtInput } from '../../utils/numformat';
 import MerchantMemoryAutocomplete from './MerchantMemoryAutocomplete';
 
-const ROW_H = '26px';
+const ROW_H = '34px';
 
 export default function ItemRow({
   row,
@@ -116,6 +116,8 @@ export default function ItemRow({
     }
   };
 
+  const isPlaceholder = !row.name.trim() && !row.price;
+
   return (
     <div
       data-row-id={row.id}
@@ -144,12 +146,13 @@ export default function ItemRow({
           minHeight: ROW_H,
           transform: swiped ? 'translateX(-80px)' : 'translateX(0)',
           transition: swiped ? 'transform 0.2s ease' : 'none',
-          background: '#fff',
-          borderBottom: '1px solid #edeae5',
+          background: isPlaceholder ? 'rgba(249,250,251,0.6)' : '#fff',
+          borderBottom: isPlaceholder ? '1px dashed #e5e7eb' : '1px solid #edeae5',
           padding: '0',
+          opacity: isPlaceholder ? 0.75 : 1,
         }}
       >
-        <div className="relative" style={{ flex: '5 1 0%', minWidth: 0 }}>
+        <div className="relative" style={{ flex: '55 0 0%', minWidth: 0 }}>
           <input
             ref={itemRef}
             type="text"
@@ -163,8 +166,8 @@ export default function ItemRow({
             onFocus={() => { if (row.name.trim()) setShowAutocomplete(true); }}
             onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
             placeholder={lang === 'am' ? 'ንጥል...' : 'Item...'}
-            className="w-full px-1 text-[13px] font-medium bg-transparent focus:outline-none"
-            style={{ minHeight: ROW_H, border: 'none' }}
+            className="w-full px-1 text-[13px] font-medium bg-transparent focus:outline-none truncate"
+            style={{ minHeight: ROW_H, border: 'none', overflow: 'hidden' }}
             autoComplete="off"
           />
           {showAutocomplete && (
@@ -181,7 +184,7 @@ export default function ItemRow({
           )}
         </div>
 
-        <div style={{ width: '40px', flexShrink: 0 }}>
+        <div style={{ width: '44px', flexShrink: 0, overflow: 'hidden' }}>
           <input
             ref={qtyRef}
             type="text"
@@ -195,11 +198,11 @@ export default function ItemRow({
             onFocus={handleQtyFocus}
             onKeyDown={handleQtyKeyDown}
             className="w-full px-0.5 text-xs text-center font-bold bg-transparent focus:outline-none"
-            style={{ minHeight: ROW_H, border: 'none' }}
+            style={{ minHeight: ROW_H, border: 'none', color: isPlaceholder ? '#d1d5db' : '#111827' }}
           />
         </div>
 
-        <div style={{ width: '64px', flexShrink: 0 }}>
+        <div style={{ width: '60px', flexShrink: 0, overflow: 'hidden' }}>
           <input
             ref={priceRef}
             type="text"
@@ -213,13 +216,13 @@ export default function ItemRow({
             onKeyDown={handlePriceKeyDown}
             placeholder="0"
             className="w-full px-0.5 text-xs text-right font-bold bg-transparent focus:outline-none"
-            style={{ minHeight: ROW_H, border: 'none' }}
+            style={{ minHeight: ROW_H, border: 'none', color: isPlaceholder ? '#d1d5db' : '#111827' }}
           />
         </div>
 
         <div
-          className="flex items-center justify-end text-[13px] font-black flex-shrink-0"
-          style={{ width: '58px', color: row.lineTotal > 0 ? '#14532d' : '#d1d5db' }}
+          className="flex items-center justify-end text-[13px] font-black flex-shrink-0 total-col"
+          style={{ width: '64px', color: row.lineTotal > 0 ? '#14532d' : '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
         >
           {row.lineTotal > 0 ? fmt(row.lineTotal) : '—'}
         </div>

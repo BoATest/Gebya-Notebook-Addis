@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
+import { fmt } from '../utils/numformat';
 
 export default function TodayBusiness({
   metrics,
@@ -22,7 +23,7 @@ export default function TodayBusiness({
   const cashYouShouldHave = cashExpected + collections - expenses;
   const diff = closingState.done ? (cashYouShouldHave - (closingState.cashInHand || 0)) : null;
 
-  const H = v => hidden ? '••••' : v?.toLocaleString();
+  const H = v => hidden ? '••••' : fmt(v);
 
   return (
     <div style={{
@@ -133,7 +134,7 @@ function Row({ label, value, hidden, color, bold }) {
         fontWeight: bold ? 800 : 700,
         color: color || '#1f2937',
       }}>
-        {hidden ? '••••' : `ETB ${(value || 0).toLocaleString()}`}
+        {hidden ? '••••' : `ETB ${fmt(value || 0)}`}
       </span>
     </div>
   );
