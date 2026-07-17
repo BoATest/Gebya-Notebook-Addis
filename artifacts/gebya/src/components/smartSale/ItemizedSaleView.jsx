@@ -457,16 +457,16 @@ export default function ItemizedSaleView({
 
       {/* Column headers — like notebook column labels */}
       <div className="flex-shrink-0 px-2 flex gap-1 items-center" style={{ borderBottom: '1px solid #edeae5' }}>
-        <span className="text-[10px] font-bold uppercase tracking-widest truncate" style={{ flex: '50 0 0%', color: '#bbb0a0', minWidth: 0 }}>
+        <span className="text-[10px] font-bold uppercase tracking-widest truncate" style={{ flex: '40 0 0%', color: '#bbb0a0', minWidth: 0 }}>
           {lang === 'am' ? 'ንጥል' : 'Item'}
         </span>
-        <span className="text-[10px] font-bold text-center uppercase tracking-widest flex-shrink-0" style={{ width: '48px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-center uppercase tracking-widest flex-shrink-0" style={{ width: '56px', color: '#bbb0a0' }}>
           {lang === 'am' ? 'ብዛት' : 'Qty'}
         </span>
-        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0" style={{ width: '72px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0" style={{ width: '80px', color: '#bbb0a0' }}>
           {lang === 'am' ? 'ዋጋ' : 'Price'}
         </span>
-        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0 total-col" style={{ width: '72px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0 total-col" style={{ width: '80px', color: '#bbb0a0' }}>
           {lang === 'am' ? 'ጠቅላላ' : 'Total'}
         </span>
       </div>
