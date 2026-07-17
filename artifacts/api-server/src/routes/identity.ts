@@ -11,6 +11,7 @@
 
 import { Router, type Request, type Response } from "express";
 import { createHash } from "node:crypto";
+import jwt from "jsonwebtoken";
 import { z, ZodError } from "zod";
 import {
   store,
@@ -30,8 +31,18 @@ import {
   type JoinShopBodyT,
 } from "@workspace/api-zod/identity";
 import { normalizePhone } from "@workspace/db/schema";
+import { db } from "@workspace/db";
+import { users as pgUsers, businesses, businessMembers } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
 
 const router = Router();
+
+const JWT_SECRET = process.env.JWT_SECRET || "";
+const JWT_EXPIRES_IN = "30d";
+
+function signJwt(userId: number) {
+  return jwt.sign({ userId, type: "access" }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+}
 
 /** Pull the bearer token from the Authorization header. */
 function getToken(req: Request): string | null {
@@ -82,7 +93,7 @@ function parseBody<T>(schema: z.ZodType<T>, body: unknown, res: Response): T | n
 // ---------------------------------------------------------------------------
 // POST /api/shops — owner creates a shop
 // ---------------------------------------------------------------------------
-router.post("/shops", (req: Request, res: Response) => {
+router.post("/shops", async (req: Request, res: Response) => {
   const body = parseBody<CreateShopBodyT>(CreateShopBody, req.body, res);
   if (!body) return;
 
@@ -111,6 +122,35 @@ router.post("/shops", (req: Request, res: Response) => {
   });
 
   const permissions = permissionsFor(ownerStaff);
+
+  // When a phone is provided, also create a Postgres user and issue a JWT
+  // so the sync engine can authenticate without a separate OTP flow.
+  let auth_token: string | null = null;
+  const phoneNormalized = body.phone ? normalizePhone(body.phone) : null;
+  if (phoneNormalized) {
+    try {
+      // Get or create Postgres user (same logic as OTP auth /api/auth/verify)
+      let pgUserRows = await db.select().from(pgUsers).where(eq(pgUsers.phoneNumber, phoneNormalized)).limit(1);
+      let pgUser = pgUserRows[0];
+      if (!pgUser) {
+        const inserted = await db.insert(pgUsers).values({ phoneNumber: phoneNormalized, active: true }).returning();
+        pgUser = inserted[0];
+      }
+      // Create a business + membership so the sync engine's getBusinessForUser works
+      const existingMember = await db.select({ businessId: businessMembers.businessId })
+        .from(businessMembers)
+        .where(eq(businessMembers.userId, pgUser.id))
+        .limit(1);
+      if (existingMember.length === 0) {
+        const [biz] = await db.insert(businesses).values({ ownerUserId: pgUser.id, name: shop.name }).returning({ id: businesses.id });
+        await db.insert(businessMembers).values({ businessId: biz.id, userId: pgUser.id, role: "owner", joinedAt: new Date(), active: true });
+      }
+      auth_token = signJwt(pgUser.id);
+    } catch {
+      // Non-critical — sync will be unauthenticated but the app still works locally
+    }
+  }
+
   res.status(201).json({
     shop_id: shop.id,
     shop_name: shop.name,
@@ -122,6 +162,7 @@ router.post("/shops", (req: Request, res: Response) => {
     role: "owner",
     permissions,
     device_token: token,
+    auth_token,
     device_status: device.deviceStatus,
     phone_required: shop.phoneRequired,
     approval_required: shop.approvalRequired,
@@ -131,7 +172,7 @@ router.post("/shops", (req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 // POST /api/shops/join — staff joins an existing shop
 // ---------------------------------------------------------------------------
-router.post("/shops/join", (req: Request, res: Response) => {
+router.post("/shops/join", async (req: Request, res: Response) => {
   const body = parseBody<JoinShopBodyT>(JoinShopBody, req.body, res);
   if (!body) return;
 
@@ -217,6 +258,33 @@ router.post("/shops/join", (req: Request, res: Response) => {
   });
 
   const permissions = permissionsFor(staff);
+
+  // When a phone is provided, also create a Postgres user and issue a JWT
+  // so the sync engine can authenticate without a separate OTP flow.
+  let auth_token: string | null = null;
+  if (phoneNormalized) {
+    try {
+      let pgUserRows = await db.select().from(pgUsers).where(eq(pgUsers.phoneNumber, phoneNormalized)).limit(1);
+      let pgUser = pgUserRows[0];
+      if (!pgUser) {
+        const inserted = await db.insert(pgUsers).values({ phoneNumber: phoneNormalized, active: true }).returning();
+        pgUser = inserted[0];
+      }
+      // Ensure the user has a business membership for the sync engine
+      const existingMember = await db.select({ businessId: businessMembers.businessId })
+        .from(businessMembers)
+        .where(eq(businessMembers.userId, pgUser.id))
+        .limit(1);
+      if (existingMember.length === 0) {
+        const [biz] = await db.insert(businesses).values({ ownerUserId: pgUser.id, name: shop.name }).returning({ id: businesses.id });
+        await db.insert(businessMembers).values({ businessId: biz.id, userId: pgUser.id, role: staff.role === "owner" ? "owner" : "member", joinedAt: new Date(), active: true });
+      }
+      auth_token = signJwt(pgUser.id);
+    } catch {
+      // Non-critical — sync will be unauthenticated but the app still works locally
+    }
+  }
+
   res.status(201).json({
     staff_id: staff.id,
     user_id: user.id,
@@ -226,6 +294,7 @@ router.post("/shops/join", (req: Request, res: Response) => {
     permissions,
     device_id: device.id,
     device_token: token,
+    auth_token,
     device_status: device.deviceStatus,
     rejoined,
     previous_devices: rejoined ? previousDevices : undefined,

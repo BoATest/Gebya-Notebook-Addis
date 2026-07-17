@@ -3,7 +3,6 @@ import { useLang } from '../context/LangContext';
 import { fireToast } from './Toast';
 import db, { setIdentity } from '../db';
 import { identityApi } from '../api/identity';
-import { requestOtp, verifyOtp } from '../utils/authClient';
 import { setAuthToken } from '../utils/syncEngine';
 
 function isValidPhone(digits) {
@@ -95,13 +94,6 @@ function OnboardingScreen({ onComplete }) {
   const [businessType, setBusinessType] = useState('retail-shop');
   const [saving, setSaving] = useState(false);
   const [touched, setTouched] = useState({ name: false, phone: false });
-  // OTP verification step (shown after shop creation when phone was provided)
-  const [otpStep, setOtpStep] = useState(false);
-  const [otpDigits, setOtpDigits] = useState('');
-  const [otpError, setOtpError] = useState(null);
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [createdIdentity, setCreatedIdentity] = useState(null);
-  const [createdProfile, setCreatedProfile] = useState(null);
 
   const nameValid = name.trim().length > 0;
   const phoneEntered = phoneDigits.length > 0;
@@ -144,6 +136,10 @@ function OnboardingScreen({ onComplete }) {
       await db.settings.put({ key: 'shop_name', value: identity.shop_name });
       await db.settings.put({ key: 'shop_phone', value: fullPhone });
       await db.settings.put({ key: 'shop_business_type', value: businessType });
+      // Save JWT from backend so sync engine can authenticate
+      if (result.auth_token) {
+        await setAuthToken(result.auth_token);
+      }
       onComplete({
         id: result.shop_id,
         shop_id: result.shop_id,

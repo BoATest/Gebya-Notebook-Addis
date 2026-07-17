@@ -154,6 +154,10 @@ class SyncEngine {
     };
   }
 
+  onAuthRequired(cb) {
+    this._onAuthRequired = cb;
+  }
+
   async init() {
     this.deviceId = await getOrCreateCloudProofDeviceId();
 
@@ -283,8 +287,13 @@ class SyncEngine {
       this.status = 'idle';
     } catch (err) {
       if (err.message?.includes('401') || err.message?.includes('403')) {
+        // Token is invalid/expired — clear it and notify the UI
         this.status = 'unauthenticated';
         await clearAuthToken();
+        // Notify listeners that re-authentication is needed
+        if (this._onAuthRequired) {
+          try { this._onAuthRequired(); } catch { /* listener error */ }
+        }
       } else {
         this.status = 'error';
         this.error = err.message || 'Sync failed';
@@ -328,6 +337,9 @@ class SyncEngine {
       if (err.message?.includes('401') || err.message?.includes('403')) {
         this.status = 'unauthenticated';
         await clearAuthToken();
+        if (this._onAuthRequired) {
+          try { this._onAuthRequired(); } catch { /* listener error */ }
+        }
       } else {
         this.status = 'error';
         this.error = err.message || 'Sync failed';
@@ -617,9 +629,10 @@ class SyncEngine {
   }
 }
 
-export async function initSyncEngine() {
+export async function initSyncEngine(onAuthRequired) {
   if (syncEngineInstance) return syncEngineInstance;
   syncEngineInstance = new SyncEngine();
+  if (onAuthRequired) syncEngineInstance.onAuthRequired(onAuthRequired);
   await syncEngineInstance.init();
   return syncEngineInstance;
 }

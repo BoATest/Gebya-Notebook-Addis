@@ -4,6 +4,7 @@ import { useLang } from '../context/LangContext';
 import { identityApi } from '../api/identity';
 import { setIdentity } from '../db';
 import db from '../db';
+import { setAuthToken } from '../utils/syncEngine';
 
 const BANK_COPY = 'Gebya is a notebook, not a bank. Gebya does not connect to your bank. Gebya cannot withdraw money. Never enter PIN, OTP, or password. Payment method is only a label like Cash, CBE, Telebirr, or Bank Transfer. Staff phone number is for identity/contact only, not bank/payment.';
 
@@ -111,6 +112,10 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
       // Active immediately
       await persistIdentity(result);
       setJoinResult(result);
+      // Save JWT from backend so sync engine can authenticate
+      if (result.auth_token) {
+        await setAuthToken(result.auth_token);
+      }
       if (onJoined) onJoined(result);
     } catch (err) {
       if (err.status === 404) {
@@ -161,6 +166,11 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
         setStep(STEP_PENDING);
       } else {
         await persistIdentity(result);
+        setJoinResult(result);
+        // Save JWT from backend so sync engine can authenticate
+        if (result.auth_token) {
+          await setAuthToken(result.auth_token);
+        }
         if (onJoined) onJoined(result);
       }
     } catch (err) {
