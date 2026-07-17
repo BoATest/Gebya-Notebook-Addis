@@ -52,17 +52,31 @@ export default function ReadinessHero({ shopProfile, paymentChannels = [], catal
   if (allDone) {
     return (
       <div
-        className="rounded-2xl px-4 py-3.5 flex items-center gap-3 cursor-pointer"
+        className="rounded-2xl overflow-hidden"
         style={{ background: '#d1fae5', color: '#065f46' }}
-        onClick={() => setExpanded(!expanded)}
       >
-        <div style={{ fontSize: '1.2rem' }}>✓</div>
-        <div className="text-sm font-bold">
-          {lang === 'am' ? 'ሁሉም ተዋቅሯል' : 'All set up'}
+        <div
+          className="px-4 py-3.5 flex items-center gap-3 cursor-pointer"
+          onClick={() => setExpanded(!expanded)}
+        >
+          <div style={{ fontSize: '1.2rem' }}>✓</div>
+          <div className="text-sm font-bold">
+            {lang === 'am' ? 'ሁሉም ተዋቅሯል' : 'All set up'}
+          </div>
+          <div className="text-xs ml-auto opacity-70">
+            {lang === 'am' ? 'ተጨማሪ' : 'Details'} ›
+          </div>
         </div>
-        <div className="text-xs ml-auto opacity-70">
-          {lang === 'am' ? 'ተጨማሪ' : 'Details'} ›
-        </div>
+        {expanded && (
+          <div className="px-4 pb-3 space-y-1.5">
+            {checks.map((check, idx) => (
+              <div key={`done-${check.key}-${idx}`} className="flex items-center gap-2 text-xs font-bold" style={{ color: '#065f46' }}>
+                <span style={{ fontSize: '0.8rem' }}>✓</span>
+                <span className="flex-1">{check.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

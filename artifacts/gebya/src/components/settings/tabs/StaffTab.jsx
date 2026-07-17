@@ -4,22 +4,34 @@ import { useLang } from '../../../context/LangContext';
 
 function StaffActivityFeed() {
   const { lang } = useLang();
+  const [filter, setFilter] = useState('all');
+
+  const filters = [
+    { key: 'all', label: lang === 'am' ? 'ሁሉም' : 'All' },
+    { key: 'sale', label: lang === 'am' ? 'ሽያጭ' : 'Sales' },
+    { key: 'customer_payment', label: lang === 'am' ? 'ክፍያ' : 'Payments' },
+    { key: 'customer_credit', label: lang === 'am' ? 'ዱቤ' : 'Dubie' },
+  ];
 
   return (
     <div className="px-4 py-4 space-y-3">
       <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {['all', 'sale', 'customer_payment', 'customer_credit'].map(f => (
-          <button
-            key={f}
-            className="px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap"
-            style={{ background: '#f3f4f6', color: '#6b7280' }}
-          >
-            {f === 'all' ? (lang === 'am' ? 'ሁሉም' : 'All') :
-             f === 'sale' ? (lang === 'am' ? 'ሽያጭ' : 'Sales') :
-             f === 'customer_payment' ? (lang === 'am' ? 'ክፍያ' : 'Payments') :
-             (lang === 'am' ? 'ዱቤ' : 'Dubie')}
-          </button>
-        ))}
+        {filters.map(f => {
+          const active = filter === f.key;
+          return (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className="px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap"
+              style={{
+                background: active ? '#1B4332' : '#f3f4f6',
+                color: active ? '#fff' : '#6b7280',
+              }}
+            >
+              {f.label}
+            </button>
+          );
+        })}
       </div>
       <p className="text-xs text-gray-400 text-center py-6">
         {lang === 'am' ? 'የሰራተኞች እንቅስቃሴ እዚህ ይታያል' : 'Staff activity will appear here as team members record sales, payments, and Dubie.'}

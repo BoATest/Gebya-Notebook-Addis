@@ -4,7 +4,7 @@ import { fireToast } from '../../Toast';
 import { getSyncEngine } from '../../../utils/syncEngine';
 import { useSyncStore } from '../../../stores/syncStore';
 import { uploadSnapshot, listSnapshots, restoreSnapshot } from '../../../utils/backupRestore';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Cloud, AlertTriangle, CheckCircle2, CloudOff } from 'lucide-react';
 
 /**
  * Cloud-sync status row + cloud backup / restore controls.
@@ -86,8 +86,11 @@ export default function CloudSyncSection({ lastBackupAt, setLastBackupAt }) {
       {/* Sync status row */}
       <div className="px-5 py-3" style={{ background: '#f0f9ff', borderTop: '1px solid rgba(0,0,0,0.04)', borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
         <div className="flex items-center gap-2">
-          <span style={{ fontSize: '0.95rem' }}>
-            {syncStatus === 'syncing' ? '🔄' : syncStatus === 'error' ? '⚠️' : syncLastSyncAt ? '✅' : '☁️'}
+          <span style={{ display: 'flex' }}>
+            {syncStatus === 'syncing' ? <RefreshCw className="w-4 h-4 animate-spin" style={{ color: '#1B4332' }} /> :
+             syncStatus === 'error' ? <AlertTriangle className="w-4 h-4" style={{ color: '#dc2626' }} /> :
+             syncLastSyncAt ? <CheckCircle2 className="w-4 h-4" style={{ color: '#16a34a' }} /> :
+             <Cloud className="w-4 h-4" style={{ color: '#6b7280' }} />}
           </span>
           <div className="flex-1">
             <p className="text-xs font-bold" style={{ color: syncStatus === 'error' ? '#991b1b' : '#065f46' }}>

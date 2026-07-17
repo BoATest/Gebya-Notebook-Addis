@@ -291,7 +291,8 @@ export default function TeamPage({
   const canManageTeam = usePermissionsStore(s => s.hasPermission('can_manage_team'));
 
   const [phone, setPhone] = useState('');
-  const [staffName, setStaffName] = useState('');
+  const [inviteName, setInviteName] = useState('');
+  const [localStaffName, setLocalStaffName] = useState('');
   const [role, setRole] = useState('cashier');
   const [inviting, setInviting] = useState(false);
   const [inviteLink, setInviteLink] = useState(null);
@@ -331,13 +332,13 @@ export default function TeamPage({
   useEffect(() => { loadMembers(); loadPending(); }, [loadMembers, loadPending]);
 
   const handleInvite = async () => {
-    if (!phone.trim() || !staffName.trim()) return;
+    if (!phone.trim() || !inviteName.trim()) return;
     // Check staff entitlement limit
     try {
       const { entitlements } = await getCurrentEntitlements();
       const activeStaff = (staffMembers || []).filter(m => m.active !== false).length;
       if (activeStaff >= entitlements.max_staff) {
-        fireToast(lang === 'am' ? 'የሰራተኛ ገደብ ተReach አልተሳካም' : `Staff limit reached (${entitlements.max_staff}). Upgrade to add more.`, 3000);
+        fireToast(lang === 'am' ? 'የሰራተኛ ገደብ ደረሰዋል' : `Staff limit reached (${entitlements.max_staff}). Upgrade to add more.`, 3000);
         return;
       }
     } catch { /* entitlement check non-critical */ }
@@ -345,11 +346,11 @@ export default function TeamPage({
     try {
       const data = await apiFetch('/business/invite', {
         method: 'POST',
-        body: JSON.stringify({ phone_number: phone.trim(), role, staff_name: staffName.trim() }),
+        body: JSON.stringify({ phone_number: phone.trim(), role, staff_name: inviteName.trim() }),
       });
       setInviteLink(data.invite_link);
       setPhone('');
-      setStaffName('');
+      setInviteName('');
       fireToast(lang === 'am' ? '✓ ጥሪ ተፈጠረ' : '✓ Invite created', 2000);
       loadMembers();
       loadPending();
@@ -380,18 +381,18 @@ export default function TeamPage({
   };
 
   const handleAddLocalStaff = async () => {
-    if (!staffName.trim()) return;
+    if (!localStaffName.trim()) return;
     // Check staff entitlement limit
     try {
       const { entitlements } = await getCurrentEntitlements();
       const activeStaff = (staffMembers || []).filter(m => m.active !== false).length;
       if (activeStaff >= entitlements.max_staff) {
-        fireToast(lang === 'am' ? 'የሰራተኛ ገደብ ተReach አልተሳካም' : `Staff limit reached (${entitlements.max_staff}). Upgrade to add more.`, 3000);
+        fireToast(lang === 'am' ? 'የሰራተኛ ገደብ ደረሰዋል' : `Staff limit reached (${entitlements.max_staff}). Upgrade to add more.`, 3000);
         return;
       }
     } catch { /* entitlement check non-critical */ }
-    await onSaveStaffMember?.({ display_name: staffName.trim(), role: 'staff', active: true });
-    setStaffName('');
+    await onSaveStaffMember?.({ display_name: localStaffName.trim(), role: 'staff', active: true });
+    setLocalStaffName('');
   };
 
   return (
@@ -426,11 +427,11 @@ export default function TeamPage({
             <div className="flex gap-2">
               <input
                 type="text"
-                value={staffName}
-                onChange={e => setStaffName(e.target.value)}
+                value={inviteName}
+                onChange={e => setInviteName(e.target.value)}
                 placeholder={lang === 'am' ? 'የሰራተኛ ስም' : 'Staff name'}
                 className="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-                style={{ borderColor: staffName.trim() ? '#C4883A' : '#e8e2d8' }}
+                style={{ borderColor: inviteName.trim() ? '#C4883A' : '#e8e2d8' }}
               />
               <input
                 type="tel"
@@ -452,9 +453,9 @@ export default function TeamPage({
             </div>
             <button
               type="submit"
-              disabled={!phone.trim() || !staffName.trim() || inviting}
+              disabled={!phone.trim() || !inviteName.trim() || inviting}
               className="w-full py-2.5 rounded-xl text-sm font-bold min-h-[44px]"
-              style={{ background: (phone.trim() && staffName.trim()) ? '#1B4332' : '#e5e7eb', color: (phone.trim() && staffName.trim()) ? '#fff' : '#9ca3af' }}
+              style={{ background: (phone.trim() && inviteName.trim()) ? '#1B4332' : '#e5e7eb', color: (phone.trim() && inviteName.trim()) ? '#fff' : '#9ca3af' }}
             >
               {inviting ? '...' : (lang === 'am' ? 'ጥሪ ፍጠር' : 'Invite')}
             </button>
@@ -581,21 +582,21 @@ export default function TeamPage({
         </div>
         <div className="px-4 py-3 space-y-2">
           <div className="flex gap-2">
-            <input
+             <input
               type="text"
-              value={staffName}
-              onChange={e => setStaffName(e.target.value)}
+              value={localStaffName}
+              onChange={e => setLocalStaffName(e.target.value)}
               placeholder={lang === 'am' ? 'የሰራተኛ ስም' : 'Staff name'}
               className="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-              style={{ borderColor: staffName.trim() ? '#C4883A' : '#e8e2d8' }}
+              style={{ borderColor: localStaffName.trim() ? '#C4883A' : '#e8e2d8' }}
               onKeyDown={e => e.key === 'Enter' && handleAddLocalStaff()}
             />
             <button
               type="button"
               onClick={handleAddLocalStaff}
-              disabled={!staffName.trim()}
+              disabled={!localStaffName.trim()}
               className="px-4 py-2.5 rounded-xl text-sm font-bold min-h-[44px]"
-              style={{ background: staffName.trim() ? '#1B4332' : '#e5e7eb', color: staffName.trim() ? '#fff' : '#9ca3af' }}
+              style={{ background: localStaffName.trim() ? '#1B4332' : '#e5e7eb', color: localStaffName.trim() ? '#fff' : '#9ca3af' }}
             >
               {lang === 'am' ? 'ጨምር' : 'Add'}
             </button>

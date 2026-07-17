@@ -10,17 +10,11 @@ export function PrivacyProvider({ children }) {
     db.settings.get('privacy_mode').then(s => {
       if (!s) {
         db.settings.put({ key: 'privacy_mode', value: 'visible' });
+        setHidden(false);
+      } else {
+        setHidden(s.value === 'hidden');
       }
-      setHidden(false);
     });
-  }, []);
-
-  useEffect(() => {
-    const onVisibilityChange = () => {
-      if (document.hidden) setHidden(true);
-    };
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
   }, []);
 
   const toggle = async () => {

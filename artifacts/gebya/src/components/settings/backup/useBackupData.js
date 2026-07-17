@@ -261,6 +261,12 @@ export const restoreFromJSON = async (data, setLastBackupAt) => {
     db.suppliers, db.supplier_transactions, db.staff_members, db.settings, db.analytics,
     db.suggestion_log, db.cross_shop_unmatched, db.credit_records, db.credit_payment_logs, db.daily_closings,
     async () => {
+      // Preserve device/session-bound settings before wiping.
+      const preserved = {};
+      for (const key of ['gebya_auth_token', 'privacy_mode', 'gebya_device_id']) {
+        const row = await db.settings.get(key).catch(() => null);
+        if (row) preserved[key] = row;
+      }
       await Promise.all([
         db.transactions.clear(), db.customers.clear(),
         db.customer_transactions.clear(), db.catalog_entries.clear(),
@@ -273,6 +279,7 @@ export const restoreFromJSON = async (data, setLastBackupAt) => {
         db.credit_payment_logs?.clear?.() || Promise.resolve(),
         db.daily_closings?.clear?.() || Promise.resolve(),
       ]);
+      if (Object.keys(preserved).length) await db.settings.bulkPut(Object.values(preserved));
       if (Array.isArray(tables.customers))             await db.customers.bulkAdd(tables.customers);
       if (Array.isArray(tables.suppliers))             await db.suppliers.bulkAdd(tables.suppliers);
       if (Array.isArray(tables.catalog_entries))       await db.catalog_entries.bulkAdd(tables.catalog_entries);

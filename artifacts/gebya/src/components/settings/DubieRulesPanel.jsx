@@ -31,7 +31,7 @@ export default function DubieRulesPanel({ onChange }) {
             {lang === 'am' ? 'ዱቤ ጊዜ ማብቂያ (ቀናት)' : 'Dubie overdue threshold (days)'}
           </label>
           <div className="flex gap-2">
-            {[3, 7, 14, 30].map(d => (
+            {[0, 3, 7, 14, 30].map(d => (
               <button
                 key={d}
                 onClick={() => { setOverdueDays(d); setDirty(true); }}
@@ -42,7 +42,7 @@ export default function DubieRulesPanel({ onChange }) {
                   color: overdueDays === d ? '#fff' : '#6b7280',
                 }}
               >
-                {d} {lang === 'am' ? 'ቀን' : 'days'}
+                {d === 0 ? (lang === 'am' ? 'ምንም' : 'None') : `${d} ${lang === 'am' ? 'ቀን' : 'days'}`}
               </button>
             ))}
           </div>

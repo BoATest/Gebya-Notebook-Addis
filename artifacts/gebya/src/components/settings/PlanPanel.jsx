@@ -1,7 +1,7 @@
 import { Sparkles } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 
-export default function PlanPanel({ tier, entitlements, staffCount, transactionCount }) {
+export default function PlanPanel({ tier, entitlements, staffCount, transactionCount, onUpgrade }) {
   const { lang } = useLang();
 
   if (tier === 'plus') {
@@ -30,8 +30,8 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
           ★
         </div>
         <div className="flex-1">
-          <div className="text-sm font-black text-gray-800">{lang === 'am' ? 'ጌብያ ፕላስ' : 'Gebya Plus'}</div>
-          <div className="text-xs text-gray-500">{lang === 'am' ? 'ያልተገደበ ሰራተኞች፣ የላቀ ሪፖርት' : 'Unlimited staff, advanced reports, priority credit scoring'}</div>
+          <div className="text-sm font-black text-gray-800">{lang === 'am' ? 'ነፃ ፕላን' : 'Free Plan'}</div>
+          <div className="text-xs text-gray-500">{lang === 'am' ? 'የሰራተኞች እና የሪፖርት ገደቦች አሉ' : 'Limited staff and reports'}</div>
         </div>
       </div>
 
@@ -42,7 +42,7 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
             <span style={{ color: '#374151' }}>{staffCount}/{entitlements.max_staff}</span>
           </div>
           <div className="h-1.5 rounded-full" style={{ background: '#f3f4f6' }}>
-            <div className="h-full rounded-full" style={{ width: `${Math.min(staffPct, 100)}%`, background: staffPct >= 100 ? '#ef4444' : '#fbbf24' }} />
+            <div className="h-full rounded-full" style={{ width: `${Math.min(staffPct || 0, 100)}%`, background: (staffPct || 0) >= 100 ? '#ef4444' : '#fbbf24' }} />
           </div>
         </div>
       )}
@@ -54,7 +54,7 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
             <span style={{ color: '#374151' }}>{transactionCount}/{entitlements.max_transactions_per_month}</span>
           </div>
           <div className="h-1.5 rounded-full" style={{ background: '#f3f4f6' }}>
-            <div className="h-full rounded-full" style={{ width: `${Math.min(txPct, 100)}%`, background: txPct >= 100 ? '#ef4444' : '#fbbf24' }} />
+            <div className="h-full rounded-full" style={{ width: `${Math.min(txPct || 0, 100)}%`, background: (txPct || 0) >= 100 ? '#ef4444' : '#fbbf24' }} />
           </div>
         </div>
       )}
@@ -62,7 +62,7 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
       <button
         className="w-full py-2.5 rounded-xl text-sm font-bold text-white min-h-[44px]"
         style={{ background: '#1B4332' }}
-        onClick={() => {/* future upgrade flow */}}
+        onClick={() => onUpgrade?.() || (lang === 'am' ? 'በቅርቡ ይመጣል' : 'Coming soon')}
       >
         {lang === 'am' ? 'አሁን ያሻሽሉ' : 'Upgrade'}
       </button>

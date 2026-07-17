@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import db from '../../../db';
 import BackupDataPanel from '../BackupDataPanel';
 import DisplayPrivacyPanel from '../DisplayPrivacyPanel';
 import ExportPanel from '../ExportPanel';
@@ -21,6 +22,18 @@ export default function DataTab({
   const dataTone = totalEntries > 0 ? 'ok' : 'neutral';
 
   const aboutTapHint = lang === 'am' ? 'ስሪት 1.0' : 'Version 1.0';
+
+  const [dailyReminder, setDailyReminder] = useState(false);
+  useEffect(() => {
+    db.settings.get('daily_reminder').then(row => {
+      if (row?.value != null) setDailyReminder(Boolean(row.value));
+    }).catch(() => {});
+  }, []);
+  const handleReminderChange = async (e) => {
+    const next = e.target.checked;
+    setDailyReminder(next);
+    try { await db.settings.put({ key: 'daily_reminder', value: next }); } catch { /* ignore */ }
+  };
 
   return (
     <div>
@@ -78,7 +91,7 @@ export default function DataTab({
               {lang === 'am' ? 'በምሽቱ 8 ሰዓት ማሳሰቢያ ይድረስ' : 'Get a push at 8:00 PM'}
             </div>
             <label className="switch">
-              <input type="checkbox" />
+              <input type="checkbox" checked={dailyReminder} onChange={handleReminderChange} />
               <span className="slider" />
             </label>
           </label>

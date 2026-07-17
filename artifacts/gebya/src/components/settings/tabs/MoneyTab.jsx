@@ -16,6 +16,7 @@ export default function MoneyTab({
   staffCount,
   transactionCount,
   pendingCardId,
+  onUpgrade,
 }) {
   const [openCards, setOpenCards] = useState(() => {
     const init = new Set();
@@ -52,6 +53,7 @@ export default function MoneyTab({
           entitlements={entitlements}
           staffCount={staffCount}
           transactionCount={transactionCount}
+          onUpgrade={onUpgrade}
         />
       </div>
 
@@ -76,15 +78,23 @@ export default function MoneyTab({
       </TabCard>
 
       <TabCard
+        id="bank"
         icon="🏦"
         title={lang === 'am' ? 'የባንክ ውሂብ ማጋራት' : 'Bank Data Sharing'}
         subtitle={lang === 'am' ? 'ንግድ መረጃዎን ከባንኮች ጋር ያጋሩ' : 'Share business data with banks for credit scoring'}
         badgeTone="neutral"
       >
-        <BankDataSharing shopId={shopId} lang={lang} />
+        {import.meta.env.VITE_BANK_SHARING === 'on' ? (
+          <BankDataSharing shopId={shopId} lang={lang} />
+        ) : (
+          <div className="px-5 pb-4 text-xs text-gray-400">
+            {lang === 'am' ? 'በቅርቡ ይመጣል' : 'Coming soon — requires bank partnerships'}
+          </div>
+        )}
       </TabCard>
 
       <TabCard
+        id="dubie"
         icon="📋"
         title={lang === 'am' ? 'የዱቤ ህጎች' : 'Dubie Rules'}
         subtitle={lang === 'am' ? 'ከተወሰነ ቀን በኋላ ዱቤ ምልክት ያድርጉ' : 'Auto-flag overdue after set days'}

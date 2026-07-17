@@ -56,6 +56,7 @@ function SettingsPage({
   staffCount,
   transactionCount,
   shopId,
+  onUpgrade,
 }) {
   const { theme, setTheme } = useTheme();
   const { hidden, toggle } = usePrivacy();
@@ -187,6 +188,7 @@ function SettingsPage({
               staffCount={staffCount}
               transactionCount={transactionCount}
               pendingCardId={pendingCardId}
+              onUpgrade={onUpgrade}
             />
           )}
           {activeTab === 'staff' && (
