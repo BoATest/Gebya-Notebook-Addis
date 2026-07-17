@@ -126,6 +126,7 @@ export default function GlobalModals({
             customers={customerSummaries}
             transactions={todaySales}
             onHistory={() => { setShowItemizedSale(false); setActiveTab('report'); }}
+            onViewTransaction={(tx) => setEditTarget(tx)}
           />
         </Suspense>
       )}

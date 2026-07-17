@@ -45,6 +45,7 @@ export default function ItemizedSaleView({
   transactions = [],
   actorLabel = '',
   onHistory,
+  onViewTransaction,
   shopProfile = {},
 }) {
   const { lang, t } = useLang();
@@ -954,6 +955,7 @@ export default function ItemizedSaleView({
           transactions={transactions}
           onClose={() => setShowRecentSales(false)}
           onHistory={onHistory}
+          onViewTransaction={onViewTransaction}
         />
       )}
 

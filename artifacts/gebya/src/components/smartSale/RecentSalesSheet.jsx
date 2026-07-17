@@ -30,7 +30,7 @@ function formatDateLabel(ts, lang) {
   return date.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-export default function RecentSalesSheet({ transactions = [], onClose, onHistory }) {
+export default function RecentSalesSheet({ transactions = [], onClose, onHistory, onViewTransaction }) {
   const { lang } = useLang();
   const [search, setSearch] = useState('');
 
@@ -120,7 +120,8 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
                     <div
                       key={tx.id}
                       className="p-2.5 border text-left"
-                      style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', background: '#fff' }}
+                      style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', background: '#fff', cursor: 'pointer' }}
+                      onClick={() => onViewTransaction?.(tx)}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0 flex-1">
@@ -147,7 +148,7 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
                             style={{ minWidth: '36px', minHeight: '36px' }}
                             aria-label={lang === 'am' ? 'አጋራ' : 'Share'}
                           >
-                            <Share2 className="w-3.5 h-3.5" style={{ color: '#6b7280' }} />
+                            <Share2 className="w-3.5 h-3.5" style={{ color: '#6b7280' }} onClick={(e) => { e.stopPropagation(); handleShareAgain(tx); }} />
                           </button>
                         </div>
                       </div>
