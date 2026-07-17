@@ -55,11 +55,7 @@ export default function TimelineView({
   };
 
   return (
-    <div style={{ marginTop: 14 }}>
-      <h3 style={{ fontSize: 12, fontWeight: 900, color: '#1f2937', marginBottom: 8, letterSpacing: '0.03em' }}>
-        {lang === 'am' ? 'የዛሬ እንቅስቃሴ' : "TODAY'S ENTRIES"}
-      </h3>
-
+    <div style={{ marginTop: 4 }}>
       {/* Search bar */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
         <div style={{ flex: 1, position: 'relative' }}>

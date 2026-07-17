@@ -50,6 +50,24 @@ function endOfMonth(ms = Date.now()) {
   return d.getTime();
 }
 
+function SectionHeading({ label }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8,
+      marginTop: 14, marginBottom: 6,
+    }}>
+      <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
+      <span style={{
+        fontSize: 11, fontWeight: 900, color: '#9ca3af',
+        letterSpacing: '0.06em', whiteSpace: 'nowrap',
+      }}>
+        {label}
+      </span>
+      <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
+    </div>
+  );
+}
+
 export default function ReportView({
   transactions = [],
   ledgerTransactions = [],
@@ -87,6 +105,7 @@ export default function ReportView({
   useEffect(() => {
     try { localStorage.setItem(closingKey, JSON.stringify(closingState)); } catch {}
   }, [closingKey, closingState]);
+
   const isStaffView = Boolean(activeStaffMemberId);
   const viewerStaffId = isStaffView ? activeStaffMemberId : null;
   const { period } = useTimeOfDay();
@@ -214,20 +233,23 @@ export default function ReportView({
     }));
   };
 
+  const timeRangeLabel = isToday
+    ? (lang === 'am' ? 'ዛሬ' : 'Today')
+    : timeRange === 'week'
+      ? (lang === 'am' ? 'ሳምንት' : 'This Week')
+      : timeRange === 'month'
+        ? (lang === 'am' ? 'ወር' : 'This Month')
+        : (lang === 'am' ? 'ብጁ ክልል' : 'Custom Range');
+
   return (
     <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 0,
+      display: 'flex', flexDirection: 'column', gap: 0,
       padding: '0 12px 120px',
     }}>
-      {/* Header — title + date + privacy toggle only (no search icon) */}
+      {/* ── Header ── */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 10,
-        padding: '4px 4px 12px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 10, padding: '4px 4px 10px',
       }}>
         <div style={{ minWidth: 0 }}>
           <h1 style={{ fontSize: 22, fontWeight: 950, color: '#1B4332', lineHeight: 1.05 }}>
@@ -245,30 +267,24 @@ export default function ReportView({
             )}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button
-            type="button"
-            onClick={togglePrivacy}
-            aria-label={hidden ? 'Show amounts' : 'Hide amounts'}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 36,
-              minWidth: 36,
-              borderRadius: 999,
-              border: hidden ? '1px solid #fde68a' : '1px solid #e5e7eb',
-              background: hidden ? 'rgba(196,136,58,0.10)' : '#fff',
-              color: hidden ? '#92400e' : '#6b7280',
-              cursor: 'pointer',
-            }}
-          >
-            {hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={togglePrivacy}
+          aria-label={hidden ? 'Show amounts' : 'Hide amounts'}
+          style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            minHeight: 36, minWidth: 36, borderRadius: 999,
+            border: hidden ? '1px solid #fde68a' : '1px solid #e5e7eb',
+            background: hidden ? 'rgba(196,136,58,0.10)' : '#fff',
+            color: hidden ? '#92400e' : '#6b7280',
+            cursor: 'pointer',
+          }}
+        >
+          {hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
       </div>
 
-      {/* Time Range — sticky */}
+      {/* ── Time Range Tabs ── */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 30,
         background: '#fafaf5', paddingTop: 4, paddingBottom: 8,
@@ -300,35 +316,26 @@ export default function ReportView({
         </div>
       </div>
 
-      {/* Custom date range */}
       {timeRange === 'custom' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280' }}>
               {lang === 'am' ? 'ከ' : 'From'}
             </span>
-            <input
-              type="date"
-              value={customFrom}
-              onChange={e => setCustomFrom(e.target.value)}
-              style={{ minHeight: 38, border: '1px solid #e5e7eb', borderRadius: 9, padding: '6px 8px', fontSize: 13 }}
-            />
+            <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+              style={{ minHeight: 38, border: '1px solid #e5e7eb', borderRadius: 9, padding: '6px 8px', fontSize: 13 }} />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280' }}>
               {lang === 'am' ? 'ወደ' : 'To'}
             </span>
-            <input
-              type="date"
-              value={customTo}
-              onChange={e => setCustomTo(e.target.value)}
-              style={{ minHeight: 38, border: '1px solid #e5e7eb', borderRadius: 9, padding: '6px 8px', fontSize: 13 }}
-            />
+            <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+              style={{ minHeight: 38, border: '1px solid #e5e7eb', borderRadius: 9, padding: '6px 8px', fontSize: 13 }} />
           </label>
         </div>
       )}
 
-      {/* Empty state */}
+      {/* ── Empty State ── */}
       {isEmpty && (
         <div style={{
           background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
@@ -340,24 +347,16 @@ export default function ReportView({
             {lang === 'am' ? 'ወደ ሱቅ ታሪክ እንኳን በደህና መጡ' : 'Welcome to your shop'}
           </h2>
           <p style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.6, marginBottom: 16, maxWidth: 320, margin: '0 auto 16px' }}>
-            {lang === 'am'
-              ? 'ዝግጁ ሲሆን ሽያጭ ወይም ወጪ መዝግብ። ሱቅዎ ሁኔታ ይሄ በፈጣን ይዘርጋል።'
-              : 'Record a sale or expense to get started. Your report will appear here.'}
+            {lang === 'am' ? 'ዝግጁ ሲሆን ሽያጭ ወይም ወጪ መዝግብ። ሱቅዎ ሁኔታ ይሄ በፈጣን ይዘርጋል።' : 'Record a sale or expense to get started.'}
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'sale' } }))}
-              style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#1B4332', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
-            >
-              {lang === 'am' ? '🛒 ሽያጭ መዝግብ' : 'Record a Sale'}
+            <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'sale' } }))}
+              style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#1B4332', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
+              🛒 {lang === 'am' ? 'ሽያጭ መዝግብ' : 'Record a Sale'}
             </button>
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'expense' } }))}
-              style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #1B4332', background: '#fff', color: '#1B4332', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
-            >
-              {lang === 'am' ? '📤 ወጪ መዝግብ' : 'Record Expense'}
+            <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'expense' } }))}
+              style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #1B4332', background: '#fff', color: '#1B4332', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
+              📤 {lang === 'am' ? 'ወጪ መዝግብ' : 'Record Expense'}
             </button>
           </div>
         </div>
@@ -365,116 +364,142 @@ export default function ReportView({
 
       {!isEmpty && (
         <>
-          {/* 1. Hero Status — "Am I okay?" + one CTA */}
-          {!isStaffView && (
-            <ErrorBoundary>
-              <h3 style={{ fontSize: 12, fontWeight: 900, color: '#1f2937', marginBottom: 6, marginTop: 6, letterSpacing: '0.03em' }}>
-                {lang === 'am' ? 'የሱቅ ሁኔታ' : 'SHOP STATUS'}
-              </h3>
-              <HeroStatus
-                metrics={metrics}
-                closingDone={closingState.done}
-                cashVariance={closingState.cashVariance}
-                overdueCount={creditSummary.overdueCount}
-                staffRows={staffReconciliation}
-                period={period}
-                lang={lang}
-                onAction={handleAction}
-                isPast={!isToday}
-              />
-            </ErrorBoundary>
+          {/* ════════════════════════════════════════════ */}
+          {/* TODAY VIEW — full 7-section layout           */}
+          {/* ════════════════════════════════════════════ */}
+          {isToday ? (
+            <>
+              {/* 1. Hero Status */}
+              {!isStaffView && (
+                <>
+                  <SectionHeading label={lang === 'am' ? 'የሱቅ ሁኔታ' : 'SHOP STATUS'} />
+                  <ErrorBoundary>
+                    <HeroStatus
+                      metrics={metrics}
+                      closingDone={closingState.done}
+                      cashVariance={closingState.cashVariance}
+                      overdueCount={creditSummary.overdueCount}
+                      staffRows={staffReconciliation}
+                      period={period}
+                      lang={lang}
+                      onAction={handleAction}
+                    />
+                  </ErrorBoundary>
+                </>
+              )}
+
+              {/* 2. Today's Business */}
+              <SectionHeading label={lang === 'am' ? 'የዛሬ ንግድ' : "TODAY'S BUSINESS"} />
+              <div id="today-business">
+                <ErrorBoundary>
+                  <TodayBusiness metrics={metrics} closingState={closingState} lang={lang} onClose={handleClose} />
+                </ErrorBoundary>
+              </div>
+
+              {/* 3. Do This Next */}
+              {!isStaffView && (
+                <>
+                  <SectionHeading label={lang === 'am' ? 'በመቀጠል ይህን አድርግ' : 'DO THIS NEXT'} />
+                  <ErrorBoundary>
+                    <DoThisNext
+                      closingDone={closingState.done}
+                      cashExpected={metrics.cashExpected}
+                      cashVariance={closingState.cashVariance}
+                      overdueCount={creditSummary.overdueCount}
+                      overdueAmount={creditSummary.overdueAmount}
+                      largestOverdueDays={creditSummary.overdue[0]?.overdue_days || 0}
+                      unconfirmedStaff={unconfirmedStaffCount}
+                      salesCount={metrics.saleRows?.length || 0}
+                      avgSalesCount={avgSalesCount}
+                      expenses={metrics.spentToday}
+                      avgExpenses={avgExpenses}
+                      lang={lang}
+                      onAction={handleAction}
+                      staffReportContent={
+                        <StaffReportSheet staffRows={staffRows} closingState={closingState} lang={lang} onStaffConfirm={handleStaffConfirm} />
+                      }
+                    />
+                  </ErrorBoundary>
+                </>
+              )}
+
+              {/* 4. What I Noticed */}
+              {!isStaffView && (
+                <>
+                  <SectionHeading label={lang === 'am' ? 'ያስተዋልኩት' : 'WHAT I NOTICED'} />
+                  <ErrorBoundary>
+                    <WhatINoticed
+                      metrics={metrics} priorMetrics={priorMetrics} staffSummary={staffSummary}
+                      overdueCount={creditSummary.overdueCount} closingDone={closingState.done}
+                      creditCollected={metrics.creditCollected} lang={lang}
+                    />
+                  </ErrorBoundary>
+                </>
+              )}
+
+              {/* 5. Today's Story */}
+              {!isStaffView && (
+                <>
+                  <SectionHeading label={lang === 'am' ? 'የዛሬ ታሪክ' : "TODAY'S STORY"} />
+                  <ErrorBoundary>
+                    <TodayStory
+                      metrics={metrics} staffSummary={staffSummary}
+                      overdueCount={creditSummary.overdueCount} overdueAmount={creditSummary.overdueAmount}
+                      closingDone={closingState.done} cashVariance={closingState.cashVariance}
+                      creditCollected={metrics.creditCollected} expenseCount={metrics.expenseRows?.length || 0} lang={lang}
+                    />
+                  </ErrorBoundary>
+                </>
+              )}
+            </>
+          ) : (
+            /* ════════════════════════════════════════════ */
+            /* COMPACT VIEW — for Week / Month / Custom    */
+            /* ════════════════════════════════════════════ */
+            <>
+              {/* Hero Status for past days (retro close) */}
+              {!isStaffView && (
+                <>
+                  <SectionHeading label={lang === 'am' ? 'ማጠቃለያ' : 'SUMMARY'} />
+                  <ErrorBoundary>
+                    <HeroStatus
+                      metrics={metrics}
+                      closingDone={closingState.done}
+                      cashVariance={closingState.cashVariance}
+                      overdueCount={creditSummary.overdueCount}
+                      staffRows={staffReconciliation}
+                      period={period}
+                      lang={lang}
+                      onAction={handleAction}
+                      isPast
+                    />
+                  </ErrorBoundary>
+                </>
+              )}
+
+              {/* Business Summary */}
+              <SectionHeading label={lang === 'am' ? 'የንግድ ማጠቃለያ' : 'BUSINESS SUMMARY'} />
+              <ErrorBoundary>
+                <TodayBusiness metrics={metrics} closingState={closingState} lang={lang} onClose={handleClose} />
+              </ErrorBoundary>
+            </>
           )}
 
-          {/* 2. Today's Business — expandable money card */}
-          <h3 style={{ fontSize: 12, fontWeight: 900, color: '#1f2937', marginBottom: 6, marginTop: 6, letterSpacing: '0.03em' }}>
-            {lang === 'am' ? 'የዛሬ ንግድ' : "TODAY'S BUSINESS"}
-          </h3>
-          <div id="today-business">
-            <ErrorBoundary>
-              <TodayBusiness
-                metrics={metrics}
-                closingState={closingState}
-                lang={lang}
-                onClose={handleClose}
-              />
-            </ErrorBoundary>
-          </div>
-
-          {/* 3. Do This Next — urgency action cards */}
-          {isToday && !isStaffView && (
-            <ErrorBoundary>
-              <DoThisNext
-                closingDone={closingState.done}
-                cashExpected={metrics.cashExpected}
-                cashVariance={closingState.cashVariance}
-                overdueCount={creditSummary.overdueCount}
-                overdueAmount={creditSummary.overdueAmount}
-                largestOverdueDays={creditSummary.overdue[0]?.overdue_days || 0}
-                unconfirmedStaff={unconfirmedStaffCount}
-                salesCount={metrics.saleRows?.length || 0}
-                avgSalesCount={avgSalesCount}
-                expenses={metrics.spentToday}
-                avgExpenses={avgExpenses}
-                lang={lang}
-                onAction={handleAction}
-                staffReportContent={
-                  <StaffReportSheet
-                    staffRows={staffRows}
-                    closingState={closingState}
-                    lang={lang}
-                    onStaffConfirm={handleStaffConfirm}
-                  />
-                }
-              />
-            </ErrorBoundary>
-          )}
-
-          {/* 4. What I Noticed — recommendations */}
-          {isToday && !isStaffView && (
-            <ErrorBoundary>
-              <WhatINoticed
-                metrics={metrics}
-                priorMetrics={priorMetrics}
-                staffSummary={staffSummary}
-                overdueCount={creditSummary.overdueCount}
-                closingDone={closingState.done}
-                creditCollected={metrics.creditCollected}
-                lang={lang}
-              />
-            </ErrorBoundary>
-          )}
-
-          {/* 5. Today's Story — narrative paragraph */}
-          {isToday && !isStaffView && (
-            <ErrorBoundary>
-              <TodayStory
-                metrics={metrics}
-                staffSummary={staffSummary}
-                overdueCount={creditSummary.overdueCount}
-                overdueAmount={creditSummary.overdueAmount}
-                closingDone={closingState.done}
-                cashVariance={closingState.cashVariance}
-                creditCollected={metrics.creditCollected}
-                expenseCount={metrics.expenseRows?.length || 0}
-                lang={lang}
-              />
-            </ErrorBoundary>
-          )}
-
-          {/* 6. Today's Entries — search + filter + timeline */}
+          {/* 6. Today's Entries — always shown */}
+          <SectionHeading label={
+            isToday
+              ? (lang === 'am' ? 'የዛሬ እንቅስቃሴ' : "TODAY'S ENTRIES")
+              : (lang === 'am' ? 'እንቅስቃሴዎች' : 'ENTRIES')
+          } />
           <ErrorBoundary>
-            <TimelineView
-              reportRows={reportRows}
-              lang={lang}
-              handleExport={handleExport}
-              onEdit={onEdit}
-            />
+            <TimelineView reportRows={reportRows} lang={lang} handleExport={handleExport} onEdit={onEdit} />
           </ErrorBoundary>
 
-          {/* Footer — time range links + export */}
+          {/* ── Footer ── */}
           <div style={{
             display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center',
-            marginTop: 20, padding: '10px 0',
+            marginTop: 20, padding: '12px 0',
+            borderTop: '1px solid #f3f4f6',
           }}>
             {[
               ['today', lang === 'am' ? 'ዛሬ' : 'Today'],
@@ -482,29 +507,22 @@ export default function ReportView({
               ['month', lang === 'am' ? 'ወር' : 'This Month'],
               ['custom', lang === 'am' ? 'ብጁ' : 'Custom Range'],
             ].map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTimeRange(id)}
+              <button key={id} type="button" onClick={() => setTimeRange(id)}
                 style={{
                   padding: '4px 10px', borderRadius: 999, border: 'none',
                   background: timeRange === id ? '#1B4332' : '#f3f4f6',
                   color: timeRange === id ? '#fff' : '#6b7280',
                   fontSize: 11, fontWeight: 800, cursor: 'pointer',
-                }}
-              >
+                }}>
                 {label}
               </button>
             ))}
-            <button
-              type="button"
-              onClick={handleExport}
+            <button type="button" onClick={handleExport}
               style={{
                 padding: '4px 10px', borderRadius: 999, border: 'none',
                 background: '#f3f4f6', color: '#374151',
                 fontSize: 11, fontWeight: 800, cursor: 'pointer',
-              }}
-            >
+              }}>
               {lang === 'am' ? 'ላክ CSV' : 'Export CSV'}
             </button>
           </div>

@@ -27,14 +27,8 @@ export default function TodayStory({
       borderRadius: 12,
       border: '1px solid #ece6d6',
       padding: '14px 16px',
-      marginTop: 14,
+      marginTop: 4,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ fontSize: 14 }}>📖</span>
-        <h3 style={{ fontSize: 12, fontWeight: 900, color: '#1f2937', letterSpacing: '0.03em' }}>
-          {lang === 'am' ? 'የዛሬ ታሪክ' : 'TODAY\'S STORY'}
-        </h3>
-      </div>
       <p style={{
         fontSize: 13,
         fontWeight: 500,

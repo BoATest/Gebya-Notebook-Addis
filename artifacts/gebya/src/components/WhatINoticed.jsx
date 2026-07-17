@@ -17,10 +17,7 @@ export default function WhatINoticed({
   if (recs.length === 0) return null;
 
   return (
-    <div style={{ marginTop: 14 }}>
-      <h3 style={{ fontSize: 12, fontWeight: 900, color: '#1f2937', marginBottom: 6, letterSpacing: '0.03em' }}>
-        {lang === 'am' ? 'ያስተዋልኩት' : 'WHAT I NOTICED'}
-      </h3>
+    <div style={{ marginTop: 10 }}>
       {recs.map((rec, i) => (
         <div key={i} style={{
           display: 'flex',

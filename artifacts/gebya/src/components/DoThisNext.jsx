@@ -30,9 +30,6 @@ export default function DoThisNext({
 
   return (
     <div style={{ marginTop: 10 }}>
-      <h3 style={{ fontSize: 12, fontWeight: 900, color: '#1f2937', marginBottom: 6, letterSpacing: '0.03em' }}>
-        {lang === 'am' ? 'በመቀጠል ይህን አድርግ' : 'DO THIS NEXT'}
-      </h3>
       {items.map((item, i) => (
         <ActionCard key={i} item={item} lang={lang} onAction={onAction} />
       ))}
