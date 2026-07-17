@@ -63,6 +63,7 @@ export default function ItemizedSaleView({
   const hasUnsavedChanges = useRef(false);
   const [discount, setDiscount] = useState(draft?.discount || 0);
   const [showDiscount, setShowDiscount] = useState(draft?.showDiscount || false);
+  const discountRef = useRef(null);
   const [sessionRecentIds, setSessionRecentIds] = useState(new Set());
   const [lastSaleItems, setLastSaleItems] = useState([]);
   const [showCamera, setShowCamera] = useState(false);
@@ -128,6 +129,14 @@ export default function ItemizedSaleView({
     setDiscount(0);
     setShowDiscount(false);
   };
+
+  // Auto-focus discount input when shown
+  useEffect(() => {
+    if (showDiscount) {
+      discountRef.current?.focus();
+      discountRef.current?.select();
+    }
+  }, [showDiscount]);
 
   // Auto-save draft on changes
   const draftRef = useRef({ rows: [], paymentType, paymentProvider, shareAuto, photos, discount, showDiscount });
@@ -447,17 +456,17 @@ export default function ItemizedSaleView({
       )}
 
       {/* Column headers — like notebook column labels */}
-      <div className="flex-shrink-0 px-2 flex gap-0.5 items-center" style={{ borderBottom: '1px solid #edeae5' }}>
-        <span className="text-[10px] font-bold uppercase tracking-widest truncate" style={{ flex: '55 0 0%', color: '#bbb0a0', minWidth: 0 }}>
+      <div className="flex-shrink-0 px-2 flex gap-1 items-center" style={{ borderBottom: '1px solid #edeae5' }}>
+        <span className="text-[10px] font-bold uppercase tracking-widest truncate" style={{ flex: '50 0 0%', color: '#bbb0a0', minWidth: 0 }}>
           {lang === 'am' ? 'ንጥል' : 'Item'}
         </span>
-        <span className="text-[10px] font-bold text-center uppercase tracking-widest flex-shrink-0" style={{ width: '44px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-center uppercase tracking-widest flex-shrink-0" style={{ width: '48px', color: '#bbb0a0' }}>
           {lang === 'am' ? 'ብዛት' : 'Qty'}
         </span>
-        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0" style={{ width: '60px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0" style={{ width: '72px', color: '#bbb0a0' }}>
           {lang === 'am' ? 'ዋጋ' : 'Price'}
         </span>
-        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0 total-col" style={{ width: '64px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0 total-col" style={{ width: '72px', color: '#bbb0a0' }}>
           {lang === 'am' ? 'ጠቅላላ' : 'Total'}
         </span>
       </div>
@@ -513,11 +522,12 @@ export default function ItemizedSaleView({
             </span>
           </div>
           {showDiscount && (
-            <div className="flex justify-between items-center">
-              <span className="text-[11px]" style={{ color: '#9ca3af' }}>{lang === 'am' ? 'ቅናሽ' : 'Discount'}</span>
+            <div className="flex justify-between items-center" style={{ background: '#fef3c7', borderRadius: '3px', padding: '2px 6px', border: '1px solid #fcd34d' }}>
+              <span className="text-[11px]" style={{ color: '#92400e' }}>{lang === 'am' ? 'ቅናሽ' : 'Discount'}</span>
               <div className="flex items-center gap-1">
                 <span className="text-[11px]" style={{ color: '#dc2626' }}>−</span>
                 <input
+                  ref={discountRef}
                   type="text"
                   inputMode="decimal"
                   value={fmtInput(String(discount))}
@@ -526,6 +536,7 @@ export default function ItemizedSaleView({
                     const val = parseFloat(raw) || 0;
                     setDiscount(Math.min(val, totalAmount));
                   }}
+                  onBlur={(e) => { setTimeout(() => { if (!e.currentTarget.contains(document.activeElement)) setShowDiscount(false); }, 100); }}
                   className="w-14 text-right text-[11px] font-bold px-0.5"
                   style={{ border: 'none', borderBottom: '1px solid #e8e2d8', borderRadius: '0', minHeight: '20px', background: 'transparent' }}
                 />
