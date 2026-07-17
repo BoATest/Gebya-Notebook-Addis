@@ -184,7 +184,7 @@ export default function ItemRow({
           )}
         </div>
 
-        <div style={{ width: '56px', flexShrink: 0, overflow: 'hidden' }}>
+        <div style={{ width: '60px', flexShrink: 0, overflow: 'hidden' }}>
           <input
             ref={qtyRef}
             type="text"
@@ -202,7 +202,7 @@ export default function ItemRow({
           />
         </div>
 
-        <div style={{ width: '80px', flexShrink: 0, overflow: 'hidden' }}>
+        <div style={{ width: '76px', flexShrink: 0, overflow: 'hidden' }}>
           <input
             ref={priceRef}
             type="text"

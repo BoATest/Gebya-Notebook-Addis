@@ -460,10 +460,10 @@ export default function ItemizedSaleView({
         <span className="text-[10px] font-bold uppercase tracking-widest truncate" style={{ flex: '40 0 0%', color: '#bbb0a0', minWidth: 0 }}>
           {lang === 'am' ? 'ንጥል' : 'Item'}
         </span>
-        <span className="text-[10px] font-bold text-center uppercase tracking-widest flex-shrink-0" style={{ width: '56px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-center uppercase tracking-widest flex-shrink-0" style={{ width: '60px', color: '#bbb0a0' }}>
           {lang === 'am' ? 'ብዛት' : 'Qty'}
         </span>
-        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0" style={{ width: '80px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0" style={{ width: '76px', color: '#bbb0a0' }}>
           {lang === 'am' ? 'ዋጋ' : 'Price'}
         </span>
         <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0 total-col" style={{ width: '80px', color: '#bbb0a0' }}>
