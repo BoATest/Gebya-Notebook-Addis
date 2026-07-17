@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { usePrivacy } from '../context/PrivacyContext';
@@ -78,10 +78,22 @@ export default function ReportView({
   };
   const [customFrom, setCustomFrom] = useState(() => new Date().toISOString().slice(0, 10));
   const [customTo, setCustomTo] = useState(() => new Date().toISOString().slice(0, 10));
-  const [closingState, setClosingState] = useState({ done: false, cashVariance: 0, cashInHand: 0, staffReports: {} });
 
   const now = Date.now();
   const todayStart = startOfLocalDay(now);
+
+  const closingKey = `gebya_closing_${todayStart}`;
+  const [closingState, setClosingState] = useState(() => {
+    try {
+      const saved = localStorage.getItem(closingKey);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return { done: false, cashVariance: 0, cashInHand: 0, staffReports: {} };
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(closingKey, JSON.stringify(closingState)); } catch {}
+  }, [closingKey, closingState]);
   const isStaffView = Boolean(activeStaffMemberId);
   const viewerStaffId = isStaffView ? activeStaffMemberId : null;
   const { period } = useTimeOfDay();
@@ -186,6 +198,9 @@ export default function ReportView({
     if (actionType === 'count_cash') {
       const el = document.getElementById('today-business');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
+    } else if (actionType === 'retro_close') {
+      const cashYouShouldHave = (metrics.cashExpected || 0) + (metrics.creditCollected || 0) - (metrics.spentToday || 0);
+      handleClose({ cashInHand: cashYouShouldHave, cashVariance: 0 });
     } else if (actionType === 'overdue') {
       window.dispatchEvent(new CustomEvent('gebya:navigate', { detail: { tab: 'credit' } }));
     } else if (actionType === 'sale') {
@@ -350,7 +365,7 @@ export default function ReportView({
       {!isEmpty && (
         <>
           {/* 1. Hero Status — "Am I okay?" + one CTA */}
-          {isToday && !isStaffView && (
+          {!isStaffView && (
             <ErrorBoundary>
               <h3 style={{ fontSize: 12, fontWeight: 900, color: '#1f2937', marginBottom: 6, marginTop: 6, letterSpacing: '0.03em' }}>
                 {lang === 'am' ? 'የሱቅ ሁኔታ' : 'SHOP STATUS'}
@@ -364,6 +379,7 @@ export default function ReportView({
                 period={period}
                 lang={lang}
                 onAction={handleAction}
+                isPast={!isToday}
               />
             </ErrorBoundary>
           )}

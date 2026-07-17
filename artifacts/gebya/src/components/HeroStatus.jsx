@@ -11,12 +11,24 @@ export default function HeroStatus({
   period,
   lang,
   onAction,
+  isPast,
 }) {
   const { hidden } = usePrivacy();
 
-  const status = useMemo(() => computeHeroStatus({
-    metrics, closingDone, cashVariance, overdueCount, staffRows, period, lang,
-  }), [metrics, closingDone, cashVariance, overdueCount, staffRows, period, lang]);
+  const status = useMemo(() => {
+    if (isPast && !closingDone) {
+      return {
+        sentence: lang === 'am'
+          ? 'ይህ ቀን ገና አልተዘጋም'
+          : 'This day hasn\'t been closed yet.',
+        cta: lang === 'am' ? '✅ ዝጋ' : '✅ Close this day',
+        actionType: 'retro_close',
+      };
+    }
+    return computeHeroStatus({
+      metrics, closingDone, cashVariance, overdueCount, staffRows, period, lang,
+    });
+  }, [metrics, closingDone, cashVariance, overdueCount, staffRows, period, lang, isPast]);
 
   return (
     <div style={{
