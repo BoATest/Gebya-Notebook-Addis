@@ -1,5 +1,4 @@
 {
-  "rootDirectory": ".",
   "installCommand": "corepack enable && pnpm install --no-frozen-lockfile",
   "headers": [
     {
