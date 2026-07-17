@@ -152,7 +152,7 @@ export default function ItemRow({
           opacity: isPlaceholder ? 0.75 : 1,
         }}
       >
-        <div className="relative" style={{ flex: '40 0 0%', minWidth: 0 }}>
+        <div className="relative" style={{ flex: '34 0 0%', minWidth: 0 }}>
           <input
             ref={itemRef}
             type="text"
@@ -184,7 +184,7 @@ export default function ItemRow({
           )}
         </div>
 
-        <div style={{ width: '60px', flexShrink: 0, overflow: 'hidden' }}>
+        <div style={{ width: '64px', flexShrink: 0, overflow: 'hidden' }}>
           <input
             ref={qtyRef}
             type="text"
@@ -202,7 +202,7 @@ export default function ItemRow({
           />
         </div>
 
-        <div style={{ width: '76px', flexShrink: 0, overflow: 'hidden' }}>
+        <div style={{ width: '84px', flexShrink: 0, overflow: 'hidden' }}>
           <input
             ref={priceRef}
             type="text"
@@ -222,7 +222,7 @@ export default function ItemRow({
 
         <div
           className="flex items-center justify-end text-[13px] font-black flex-shrink-0 total-col"
-          style={{ width: '80px', color: row.lineTotal > 0 ? '#14532d' : '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          style={{ width: '88px', color: row.lineTotal > 0 ? '#14532d' : '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
         >
           {row.lineTotal > 0 ? fmt(row.lineTotal) : '—'}
         </div>
