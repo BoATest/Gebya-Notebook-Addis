@@ -375,3 +375,265 @@ export function computeShopDiary({
 function fmt(n) {
   return Number(n || 0).toLocaleString();
 }
+
+// ─── HERO STATUS ──────────────────────────────────────────────
+// "Am I okay?" — single sentence + one CTA button
+
+export function computeHeroStatus({
+  metrics,
+  closingDone = false,
+  cashVariance = 0,
+  overdueCount = 0,
+  staffRows = [],
+  period = 'day',
+  lang = 'en',
+}) {
+  const salesCount = metrics.saleRows?.length || 0;
+  const cashExpected = metrics.cashExpected || 0;
+  const hasOverdue = overdueCount > 0;
+  const unconfirmedStaff = staffRows.filter(s => !s.confirmed);
+  const cashMismatch = closingDone && Math.abs(cashVariance) > (cashExpected || 1) * 0.05;
+
+  if (!closingDone && (period === 'evening' || period === 'night')) {
+    return {
+      sentence: lang === 'am'
+        ? 'አንድ ቀሪ ሥራ፦ ገንዘብህን ቆጥር'
+        : 'One thing left: Count your cash.',
+      cta: lang === 'am' ? '💰 ገንዘብ ቆጠራ' : '💰 Count Cash →',
+      actionType: 'count_cash',
+    };
+  }
+  if (!closingDone) {
+    return {
+      sentence: lang === 'am'
+        ? 'ዛሬ የሱቅህ ቀን አሁንም አልተዘጋም'
+        : 'Your day isn\'t closed yet.',
+      cta: lang === 'am' ? '💰 ገንዘብ ቆጠራ' : '💰 Count Cash →',
+      actionType: 'count_cash',
+    };
+  }
+  if (cashMismatch) {
+    return {
+      sentence: lang === 'am'
+        ? `ገንዘብ አይዛመድም፦ ልዩነቱ ${Math.abs(cashVariance).toLocaleString()} ETB`
+        : `Cash doesn\'t match — off by ${Math.abs(cashVariance).toLocaleString()} ETB.`,
+      cta: lang === 'am' ? '📋 መረምር' : '📋 Review',
+      actionType: 'review',
+    };
+  }
+  if (unconfirmedStaff.length > 0) {
+    return {
+      sentence: lang === 'am'
+        ? `${unconfirmedStaff.length} ሰራተኛ ገንዘብ አላስረከበም`
+        : `${unconfirmedStaff.length} staff haven\'t reported cash.`,
+      cta: lang === 'am' ? '👥 ሰብስብ' : '👥 Collect →',
+      actionType: 'collect_staff',
+    };
+  }
+  if (hasOverdue) {
+    return {
+      sentence: lang === 'am'
+        ? `${overdueCount} ደንበኛ ዕዳ አለባቸው`
+        : `${overdueCount} customer${overdueCount !== 1 ? 's' : ''} still owe you.`,
+      cta: lang === 'am' ? '🔔 አስታውስ' : '🔔 Remind →',
+      actionType: 'overdue',
+    };
+  }
+  if (salesCount === 0) {
+    return {
+      sentence: lang === 'am'
+        ? 'ዛሬ ገና ምንም ሽያጭ የለም'
+        : 'No sales yet today.',
+      cta: lang === 'am' ? '🛒 ሽያጭ መዝግብ' : '🛒 Record Sale →',
+      actionType: 'sale',
+    };
+  }
+  return {
+    sentence: lang === 'am'
+      ? `ሁሉም ደህና ነው፦ ${salesCount} ሽያጮች፣ ${fmt(cashExpected)} ETB ጥሬ ገንዘብ`
+      : `All good — ${salesCount} sale${salesCount !== 1 ? 's' : ''}, ${fmt(cashExpected)} ETB cash.`,
+    cta: lang === 'am' ? '📒 ዝርዝር ይመልከቱ' : '📒 View Details',
+    actionType: 'view_details',
+  };
+}
+
+// ─── TODAY'S STORY ────────────────────────────────────────────
+// "What should I remember?" — narrative paragraph (3-5 sentences)
+
+export function computeTodayStory({
+  metrics,
+  staffSummary = null,
+  overdueCount = 0,
+  overdueAmount = 0,
+  closingDone = false,
+  cashVariance = 0,
+  creditCollected = 0,
+  expenseCount = 0,
+  lang = 'en',
+}) {
+  const salesCount = metrics.saleRows?.length || 0;
+  const totalSold = metrics.totalSold || 0;
+  const cashExpected = metrics.cashExpected || 0;
+  const cashMismatch = closingDone && Math.abs(cashVariance) > (cashExpected || 1) * 0.05;
+
+  const parts = [];
+
+  if (lang === 'am') {
+    if (salesCount === 0) {
+      parts.push('ዛሬ ምንም ሽያጭ አልተከናወነም');
+    } else if (salesCount <= 5) {
+      parts.push(`ዛሬ ${salesCount} ሽያጮች ተመዝግበዋል፣ ${fmt(totalSold)} ETB`);
+    } else {
+      parts.push(`ዛሬ ${salesCount} ሽያጮች፣ ${fmt(totalSold)} ETB`);
+    }
+
+    if (staffSummary?.staff?.length > 0) {
+      const names = staffSummary.staff.map(s => s.name).join('፣ ');
+      parts.push(`${names} ሸጠዋል`);
+    }
+
+    if (creditCollected > 0) {
+      parts.push(`${fmt(creditCollected)} ETB ዕዳ ተሰብስቧል`);
+    }
+
+    if (closingDone && !cashMismatch) {
+      parts.push('ገንዘብ በትክክል ተጣጥሟል');
+    } else if (closingDone && cashMismatch) {
+      parts.push(`ገንዘብ አልተጣጣመም፦ ልዩነቱ ${fmt(Math.abs(cashVariance))} ETB`);
+    }
+
+    if (expenseCount > 0) {
+      parts.push(`${fmt(metrics.spentToday || 0)} ETB ወጪ ተደርጓል`);
+    }
+
+    return parts.join('። ') + '።';
+  }
+
+  if (salesCount === 0) {
+    parts.push('You opened but no sales were recorded today.');
+  } else if (salesCount <= 5) {
+    parts.push(`You recorded ${salesCount} sale${salesCount !== 1 ? 's' : ''} worth ${fmt(totalSold)} ETB today.`);
+  } else {
+    parts.push(`${salesCount} sale${salesCount !== 1 ? 's' : ''} today totalling ${fmt(totalSold)} ETB.`);
+  }
+
+  if (staffSummary?.staff?.length > 0) {
+    const names = staffSummary.staff.map(s => s.name).join(', ');
+    parts.push(`${names} handled sales.`);
+  }
+
+  if (creditCollected > 0) {
+    parts.push(`${fmt(creditCollected)} ETB in old debts was collected.`);
+  }
+
+  if (closingDone && !cashMismatch) {
+    parts.push('Cash balanced perfectly at closing.');
+  } else if (closingDone && cashMismatch) {
+    parts.push(`Cash was off by ${fmt(Math.abs(cashVariance))} ETB at closing.`);
+  }
+
+  if (overdueCount > 0) {
+    parts.push(`${overdueCount} customer${overdueCount !== 1 ? 's' : ''} still owe ${fmt(overdueAmount)} ETB.`);
+  }
+
+  if (expenseCount > 0) {
+    parts.push(`${fmt(metrics.spentToday || 0)} ETB in expenses.`);
+  }
+
+  return parts.join(' ') + (parts.length > 0 ? '' : 'A quiet day with nothing recorded.');
+}
+
+// ─── RECOMMENDATIONS ──────────────────────────────────────────
+// "What should I know?" — 4 insight sentences
+
+export function computeRecommendations({
+  metrics,
+  priorMetrics = null,
+  staffSummary = null,
+  overdueCount = 0,
+  closingDone = false,
+  creditCollected = 0,
+  lang = 'en',
+}) {
+  const recs = [];
+  const totalSold = metrics.totalSold || 0;
+
+  // Sales trend
+  if (priorMetrics && priorMetrics.totalSold > 0) {
+    const diff = totalSold - priorMetrics.totalSold;
+    const pct = Math.round((diff / priorMetrics.totalSold) * 100);
+    if (pct > 20) {
+      recs.push(lang === 'am'
+        ? `ሽያጭ ከትናንት ${pct}% ጨምሯል`
+        : `Sales are ${pct}% higher than yesterday.`);
+    } else if (pct < -20) {
+      recs.push(lang === 'am'
+        ? `ሽያጭ ከትናንት ${Math.abs(pct)}% ቀንሷል`
+        : `Sales are ${Math.abs(pct)}% lower than yesterday.`);
+    } else {
+      recs.push(lang === 'am'
+        ? `ሽያጭ ከትናንት ጋር ሲነጻጸር የተረጋጋ ነው`
+        : `Sales are stable compared to yesterday.`);
+    }
+  }
+
+  // Top selling item
+  const saleRows = metrics.saleRows || [];
+  const byItem = new Map();
+  for (const row of saleRows) {
+    const name = row.item_name || row.item_note || 'Other';
+    byItem.set(name, (byItem.get(name) || 0) + amountOf(row));
+  }
+  const topItems = Array.from(byItem.entries()).sort((a, b) => b[1] - a[1]);
+  if (topItems.length > 0) {
+    const [topName, topAmount] = topItems[0];
+    recs.push(lang === 'am'
+      ? `${topName} በብዛት ተሽጧል፦ ${fmt(topAmount)} ETB`
+      : `${topName} sold the most: ${fmt(topAmount)} ETB.`);
+  }
+
+  // Staff insight
+  if (staffSummary?.staff?.length > 1) {
+    const top = staffSummary.staff[0];
+    recs.push(lang === 'am'
+      ? `${top.name} ${top.sold} ETB ሸጠዋል — ከፍተኛ ሻጭ`
+      : `${top.name} sold ${fmt(top.sold)} ETB — top seller today.`);
+  }
+
+  // Debt collection insight
+  if (creditCollected > 0) {
+    recs.push(lang === 'am'
+      ? `${fmt(creditCollected)} ETB ዕዳ ሰብስበሃል`
+      : `You collected ${fmt(creditCollected)} ETB in old debts. Good job!`);
+  } else if (overdueCount > 0) {
+    recs.push(lang === 'am'
+      ? `${overdueCount} ደንበኛ ዕዳ አለባቸው — ማስታወስ ያስፈልጋል`
+      : `${overdueCount} customer${overdueCount !== 1 ? 's' : ''} still owe — send reminders.`);
+  }
+
+  // Pad to at least 2
+  if (recs.length === 0) {
+    recs.push(lang === 'am'
+      ? 'ዛሬ ምንም ልዩ ነገር አልተስተዋለም'
+      : 'Nothing unusual to report today.');
+  }
+
+  return recs.slice(0, 4);
+}
+
+// ─── STAFF RECONCILIATION ────────────────────────────────────
+// Per-staff cash expected for multi-staff reconciliation
+
+export function computeStaffReconciliation(staffRows = [], closingState = {}) {
+  return staffRows.map(s => ({
+    id: s.id,
+    name: s.name,
+    records: s.records || 0,
+    cashExpected: s.cash || 0,
+    digitalExpected: s.transfer || 0,
+    sold: s.sold || 0,
+    cashReceived: closingState.staffReports?.[s.id]?.cashReceived ?? null,
+    digitalReceived: closingState.staffReports?.[s.id]?.digitalReceived ?? null,
+    confirmed: Boolean(closingState.staffReports?.[s.id]?.confirmed),
+  }));
+}
