@@ -349,14 +349,18 @@ export default function ReportView({
           <p style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.6, marginBottom: 16, maxWidth: 320, margin: '0 auto 16px' }}>
             {lang === 'am' ? 'ዝግጁ ሲሆን ሽያጭ ወይም ወጪ መዝግብ። ሱቅዎ ሁኔታ ይሄ በፈጣን ይዘርጋል።' : 'Record a sale or expense to get started.'}
           </p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'sale' } }))}
-              style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#1B4332', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
-              🛒 {lang === 'am' ? 'ሽያጭ መዝግብ' : 'Record a Sale'}
+              style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #1B4332', background: '#1B4332', color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+              🛒 {lang === 'am' ? 'ሽያጭ' : 'Sale'}
+            </button>
+            <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'credit' } }))}
+              style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #d97706', background: '#fff', color: '#d97706', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+              📝 {lang === 'am' ? 'ዱቤ' : 'Credit'}
             </button>
             <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'expense' } }))}
-              style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #1B4332', background: '#fff', color: '#1B4332', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
-              📤 {lang === 'am' ? 'ወጪ መዝግብ' : 'Record Expense'}
+              style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #dc2626', background: '#fff', color: '#dc2626', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+              📤 {lang === 'am' ? 'ወጪ' : 'Expense'}
             </button>
           </div>
         </div>
