@@ -6,7 +6,6 @@ import { getCurrentEthiopianDate } from '../utils/ethiopianCalendar';
 import { useTimeOfDay } from '../hooks/useTimeOfDay';
 import {
   ALL_SCOPE,
-  amountOf,
   buildReportRows,
   buildStaffReportRows,
   computeReportMetrics,
@@ -191,7 +190,7 @@ export default function ReportView({
       window.dispatchEvent(new CustomEvent('gebya:navigate', { detail: { tab: 'credit' } }));
     } else if (actionType === 'sale') {
       window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'sale' } }));
-    } else if (actionType === 'view_details') {
+    } else if (actionType === 'view_details' || actionType === 'review') {
       document.getElementById('today-business')?.scrollIntoView({ behavior: 'smooth' });
     }
   };
@@ -351,11 +350,11 @@ export default function ReportView({
       {!isEmpty && (
         <>
           {/* 1. Hero Status — "Am I okay?" + one CTA */}
-          <h3 style={{ fontSize: 12, fontWeight: 900, color: '#1f2937', marginBottom: 6, marginTop: 6, letterSpacing: '0.03em' }}>
-            {lang === 'am' ? 'የሱቅ ሁኔታ' : 'SHOP STATUS'}
-          </h3>
           {isToday && !isStaffView && (
             <ErrorBoundary>
+              <h3 style={{ fontSize: 12, fontWeight: 900, color: '#1f2937', marginBottom: 6, marginTop: 6, letterSpacing: '0.03em' }}>
+                {lang === 'am' ? 'የሱቅ ሁኔታ' : 'SHOP STATUS'}
+              </h3>
               <HeroStatus
                 metrics={metrics}
                 closingDone={closingState.done}
@@ -385,7 +384,7 @@ export default function ReportView({
           </div>
 
           {/* 3. Do This Next — urgency action cards */}
-          {!isStaffView && (
+          {isToday && !isStaffView && (
             <ErrorBoundary>
               <DoThisNext
                 closingDone={closingState.done}

@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { computeHeroStatus } from '../utils/shopStory';
 
