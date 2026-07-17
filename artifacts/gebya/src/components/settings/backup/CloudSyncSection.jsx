@@ -5,6 +5,7 @@ import { getSyncEngine } from '../../../utils/syncEngine';
 import { useSyncStore } from '../../../stores/syncStore';
 import { uploadSnapshot, listSnapshots, restoreSnapshot } from '../../../utils/backupRestore';
 import { RefreshCw, Cloud, AlertTriangle, CheckCircle2, CloudOff } from 'lucide-react';
+import ConfirmDialog from '../../ConfirmDialog';
 
 /**
  * Cloud-sync status row + cloud backup / restore controls.
@@ -23,6 +24,7 @@ export default function CloudSyncSection({ lastBackupAt, setLastBackupAt }) {
   const [showCloudRestore, setShowCloudRestore] = useState(false);
   const [cloudBackupLoading, setCloudBackupLoading] = useState(false);
   const [cloudRestoreLoading, setCloudRestoreLoading] = useState(false);
+  const [pendingRestoreId, setPendingRestoreId] = useState(null);
 
   const syncStatusLabel = useMemo(() => {
     if (syncStatus === 'syncing') return lang === 'am' ? 'በመቀነስ ላይ…' : 'Syncing…';
@@ -67,7 +69,13 @@ export default function CloudSyncSection({ lastBackupAt, setLastBackupAt }) {
   };
 
   const handleCloudRestore = async (snapshotId) => {
-    if (!window.confirm(lang === 'am' ? 'ይህ ሁሉንም ውሂብ ይተካል። እርግጠኛ ነዎት?' : 'This will replace all data on this phone. Are you sure?')) return;
+    setPendingRestoreId(snapshotId);
+  };
+
+  const confirmCloudRestore = async () => {
+    const snapshotId = pendingRestoreId;
+    setPendingRestoreId(null);
+    if (!snapshotId) return;
     setCloudRestoreLoading(true);
     try {
       await restoreSnapshot(snapshotId);
@@ -196,6 +204,17 @@ export default function CloudSyncSection({ lastBackupAt, setLastBackupAt }) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingRestoreId != null}
+        tone="danger"
+        title={lang === 'am' ? 'ከደመና ይመለሱ?' : 'Restore from cloud?'}
+        message={lang === 'am' ? 'ይህ ሁሉንም ውሂብ ይተካል። እርግጠኛ ነዎት?' : 'This will replace all data on this phone. Are you sure?'}
+        confirmLabel={lang === 'am' ? 'አረጋግጥ' : 'Restore'}
+        cancelLabel={lang === 'am' ? 'ሰርዝ' : 'Cancel'}
+        onConfirm={confirmCloudRestore}
+        onCancel={() => setPendingRestoreId(null)}
+      />
     </>
   );
 }

@@ -40,7 +40,17 @@ export default function TabCard({ icon, title, subtitle, badge, badgeTone, child
           ›
         </span>
       </button>
-      {open && <div className="px-1 pb-2">{children}</div>}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateRows: open ? '1fr' : '0fr',
+          transition: 'grid-template-rows 0.22s ease',
+        }}
+      >
+        <div style={{ overflow: 'hidden' }}>
+          <div className="px-1 pb-2">{children}</div>
+        </div>
+      </div>
     </div>
   );
 }

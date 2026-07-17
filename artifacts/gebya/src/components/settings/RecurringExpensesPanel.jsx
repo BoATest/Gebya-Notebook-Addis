@@ -17,7 +17,10 @@ export default function RecurringExpensesPanel({ recurring, onRecurringChange })
   const addRecurring = async () => {
     const amt = parseFloat(reAmount);
     if (!reName.trim() || !amt) return;
-    const newItem = { id: Date.now(), name: reName.trim(), amount: amt, freq: reFreq };
+    const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `re_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const newItem = { id, name: reName.trim(), amount: amt, freq: reFreq };
     const updated = [...(recurring || []), newItem];
     onRecurringChange?.(updated);
     setReName('');

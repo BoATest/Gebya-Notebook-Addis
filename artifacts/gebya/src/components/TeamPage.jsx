@@ -4,6 +4,7 @@ import { useLang } from '../context/LangContext';
 import { useShopStore } from '../stores/shopStore';
 import { usePermissionsStore } from '../stores/permissionsStore';
 import { fireToast } from './Toast';
+import ConfirmDialog from './ConfirmDialog';
 import { getAuthToken } from '../utils/syncEngine';
 import { getCurrentEntitlements } from '../utils/entitlements';
 
@@ -98,24 +99,11 @@ function PermissionToggle({ keyName, value, onChange, lang }) {
 function MemberPermissionPanel({ member, onUpdatePermission, lang }) {
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pendingNoPerms, setPendingNoPerms] = useState(null);
   const perms = member.resolved_permissions || {};
   const isOwnerRole = member.role === 'owner';
 
-  const handleToggle = async (key, nextValue) => {
-    if (saving) return;
-    if (isOwnerRole) {
-      fireToast(lang === 'am' ? 'የባለቤት ፍቃዶች አይቀየርም' : 'Owner permissions cannot be edited', 2200);
-      return;
-    }
-
-    const next = { ...perms, [key]: nextValue };
-    const hasAny = Object.values(next).some(v => v === true);
-    if (!hasAny && window.confirm(lang === 'am' ? 'ሁሉም ፍቃዶች ይቺርዳሉ። ይህ ሰራተኛ በቀላሉ ምንም አይችልም። ሙሉ?' : 'This staff member will not be able to do anything in the app. Proceed?')) {
-      // proceed
-    } else if (!hasAny) {
-      return;
-    }
-
+  const applyToggle = async (key, nextValue) => {
     setSaving(true);
     try {
       await apiFetch(`/business/members/${member.userId}/permissions`, {
@@ -131,6 +119,22 @@ function MemberPermissionPanel({ member, onUpdatePermission, lang }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleToggle = async (key, nextValue) => {
+    if (saving) return;
+    if (isOwnerRole) {
+      fireToast(lang === 'am' ? 'የባለቤት ፍቃዶች አይቀየርም' : 'Owner permissions cannot be edited', 2200);
+      return;
+    }
+
+    const next = { ...perms, [key]: nextValue };
+    const hasAny = Object.values(next).some(v => v === true);
+    if (!hasAny) {
+      setPendingNoPerms({ key, nextValue });
+      return;
+    }
+    await applyToggle(key, nextValue);
   };
 
   return (
@@ -180,6 +184,17 @@ function MemberPermissionPanel({ member, onUpdatePermission, lang }) {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingNoPerms != null}
+        tone="danger"
+        title={lang === 'am' ? 'ሁሉም ፍቃዶች ይቺርዳሉ?' : 'Remove all permissions?'}
+        message={lang === 'am' ? 'ይህ ሰራተኛ በቀላሉ ምንም አይችልም። ሙሉ?' : 'This staff member will not be able to do anything in the app. Proceed?'}
+        confirmLabel={lang === 'am' ? 'ሙሉ' : 'Proceed'}
+        cancelLabel={lang === 'am' ? 'ሰርዝ' : 'Cancel'}
+        onConfirm={() => { const p = pendingNoPerms; setPendingNoPerms(null); if (p) applyToggle(p.key, p.nextValue); }}
+        onCancel={() => setPendingNoPerms(null)}
+      />
     </div>
   );
 }

@@ -27,7 +27,11 @@ export function ThemeProvider({ children }) {
     let active = true;
     db.settings.get('theme_mode').then((row) => {
       if (!active || !row?.value) return;
-      setThemeState(row.value === 'dark' ? 'dark' : 'light');
+      // Only fall back to the stored DB value if localStorage has no preference
+      // (avoids overriding the already-applied theme and causing a flash).
+      if (typeof localStorage !== 'undefined' && !localStorage.getItem(STORAGE_KEY)) {
+        setThemeState(row.value === 'dark' ? 'dark' : 'light');
+      }
     }).catch(() => {});
     return () => {
       active = false;

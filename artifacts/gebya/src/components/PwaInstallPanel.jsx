@@ -120,7 +120,24 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
     // Already installed → render nothing at the top of Settings.
     // Not installed → one clean "add to home screen" prompt, no status noise.
     if (pwa.isStandalone) {
-      return <InstallGuideModal pwa={pwa} />;
+      return (
+        <section>
+          <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden" style={{ background: 'var(--color-surface)' }}>
+            <div className="px-5 py-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#d1fae5' }}>
+                <Smartphone className="w-5 h-5" style={{ color: '#16a34a' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-gray-800">{t.installAlreadyInstalled}</div>
+                <div className="text-xs text-gray-500 mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                  {lang === 'am' ? 'ጌብያ በስልክዎ ላይ ተጭኗል' : 'Gebya is installed on this device'}
+                </div>
+              </div>
+            </div>
+          </div>
+          <InstallGuideModal pwa={pwa} />
+        </section>
+      );
     }
     return (
       <>

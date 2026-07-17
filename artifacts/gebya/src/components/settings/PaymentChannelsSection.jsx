@@ -7,11 +7,13 @@ import {
   addCustomChannel,
 } from '../../utils/paymentChannels';
 import { extractSubscriberDigits } from '../../utils/phoneNumber';
+import ConfirmDialog from '../ConfirmDialog';
 
 export default function PaymentChannelsSection({ channels, shopPhone, enabledCount, configuredCount, onChange, lang }) {
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [addKind, setAddKind] = useState('bank');
   const [addName, setAddName] = useState('');
+  const [pendingRemoveId, setPendingRemoveId] = useState(null);
 
   const wallets = channels.filter(c => c.kind === 'wallet');
   const banks = channels.filter(c => c.kind === 'bank');
@@ -30,7 +32,13 @@ export default function PaymentChannelsSection({ channels, shopPhone, enabledCou
     }));
   };
   const handleRemove = (channelId) => {
-    if (!window.confirm(lang === 'am' ? 'ይህን መንገድ ይሰርዙ?' : 'Remove this channel?')) return;
+    setPendingRemoveId(channelId);
+  };
+
+  const confirmRemove = () => {
+    const channelId = pendingRemoveId;
+    setPendingRemoveId(null);
+    if (!channelId) return;
     onChange?.(removeChannel(channels, channelId));
   };
   const handleAddCustom = () => {
@@ -185,6 +193,17 @@ export default function PaymentChannelsSection({ channels, shopPhone, enabledCou
             : 'Stored on this phone only. Gebya never touches the money — customers pay you direct.'}
         </p>
       </div>
+
+      <ConfirmDialog
+        open={pendingRemoveId != null}
+        tone="danger"
+        title={lang === 'am' ? 'ይህን መንገድ ይሰርዙ?' : 'Remove this channel?'}
+        message={lang === 'am' ? 'ይህ መንገድ ከዝርዝርዎ ይወገዳል።' : 'This channel will be removed from your list.'}
+        confirmLabel={lang === 'am' ? 'አስወግድ' : 'Remove'}
+        cancelLabel={lang === 'am' ? 'ሰርዝ' : 'Cancel'}
+        onConfirm={confirmRemove}
+        onCancel={() => setPendingRemoveId(null)}
+      />
     </div>
   );
 }

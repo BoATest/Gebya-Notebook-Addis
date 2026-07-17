@@ -1,10 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import TeamPage from '../../TeamPage';
 import { useLang } from '../../../context/LangContext';
+import { loadStaffActivityFeed } from '../../../utils/staffActivityFeed';
+import TabCard from '../TabCard';
 
 function StaffActivityFeed() {
   const { lang } = useLang();
   const [filter, setFilter] = useState('all');
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    loadStaffActivityFeed()
+      .then(res => { if (!cancelled) setActivities(res.activities || []); })
+      .catch(() => { if (!cancelled) setActivities([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   const filters = [
     { key: 'all', label: lang === 'am' ? 'ሁሉም' : 'All' },
@@ -12,6 +26,11 @@ function StaffActivityFeed() {
     { key: 'customer_payment', label: lang === 'am' ? 'ክፍያ' : 'Payments' },
     { key: 'customer_credit', label: lang === 'am' ? 'ዱቤ' : 'Dubie' },
   ];
+
+  const visible = useMemo(
+    () => filter === 'all' ? activities : activities.filter(a => a.event_type === filter),
+    [activities, filter]
+  );
 
   return (
     <div className="px-4 py-4 space-y-3">
@@ -33,9 +52,42 @@ function StaffActivityFeed() {
           );
         })}
       </div>
-      <p className="text-xs text-gray-400 text-center py-6">
-        {lang === 'am' ? 'የሰራተኞች እንቅስቃሴ እዚህ ይታያል' : 'Staff activity will appear here as team members record sales, payments, and Dubie.'}
-      </p>
+
+      {loading ? (
+        <p className="text-xs text-gray-400 text-center py-6">
+          {lang === 'am' ? 'በመጫን ላይ…' : 'Loading…'}
+        </p>
+      ) : visible.length === 0 ? (
+        <p className="text-xs text-gray-400 text-center py-6">
+          {lang === 'am' ? 'የሰራተኞች እንቅስቃሴ እዚህ ይታያል' : 'Staff activity will appear here as team members record sales, payments, and Dubie.'}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {visible.map(a => (
+            <div key={a.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0" style={{ background: '#f3f4f6', color: '#6b7280' }}>
+                {(a.staff_name || 'S').slice(0, 1).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold text-gray-800 truncate">
+                  {a.staff_name}
+                  <span style={{ color: '#9ca3af', fontWeight: 400 }}> · {a.summary || a.event_type}</span>
+                </div>
+                {a.amount != null && (
+                  <div className="text-[11px]" style={{ color: '#6b7280' }}>
+                    {a.amount.toLocaleString()} birr
+                  </div>
+                )}
+              </div>
+              {a.sync_state === 'needs_retry' && (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#fef2f2', color: '#dc2626' }}>
+                  {lang === 'am' ? 'እንደገና' : 'Retry'}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -74,57 +126,31 @@ export default function StaffTab(props) {
         />
       </div>
 
-      <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden mb-2.5">
-        <button
-          type="button"
-          onClick={() => setActivityOpen(!activityOpen)}
-          className="w-full text-left px-4 py-3.5 flex items-center gap-3"
-        >
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base" style={{ background: '#fafaf5' }}>
-            📋
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-black text-gray-900 truncate">
-              {lang === 'am' ? 'የሰራተኞች እንቅስቃሴ' : 'Staff Activity'}
-            </div>
-            <div className="text-[11px] mt-0.5 truncate" style={{ color: '#9ca3af' }}>
-              {lang === 'am' ? `${activeCount} ንቁ ሰራተኞች` : `${activeCount} active staff`}
-            </div>
-          </div>
-          <span style={{ color: '#9ca3af', fontSize: '1.1rem', flexShrink: 0, transition: 'transform 0.2s', transform: activityOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-            ›
-          </span>
-        </button>
-        {activityOpen && <StaffActivityFeed />}
-      </div>
+      <TabCard
+        id="activity"
+        icon="📋"
+        title={lang === 'am' ? 'የሰራተኞች እንቅስቃሴ' : 'Staff Activity'}
+        subtitle={lang === 'am' ? `${activeCount} ንቁ ሰራተኞች` : `${activeCount} active staff`}
+        badgeTone="neutral"
+        open={activityOpen}
+        onToggle={() => setActivityOpen(!activityOpen)}
+      >
+        <StaffActivityFeed />
+      </TabCard>
 
-      <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden mb-2.5">
-        <button
-          type="button"
-          onClick={() => setDeviceOpen(!deviceOpen)}
-          className="w-full text-left px-4 py-3.5 flex items-center gap-3"
-        >
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base" style={{ background: '#fafaf5' }}>
-            📱
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-black text-gray-900 truncate">
-              {lang === 'am' ? 'የመሳሪያ አስተዳደር' : 'Device Management'}
-            </div>
-            <div className="text-[11px] mt-0.5 truncate" style={{ color: '#9ca3af' }}>
-              {lang === 'am' ? 'የተፈቀዱ መሳሪዎችን ያስተዳድሩ' : 'Manage approved devices'}
-            </div>
-          </div>
-          <span style={{ color: '#9ca3af', fontSize: '1.1rem', flexShrink: 0, transition: 'transform 0.2s', transform: deviceOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>
-            ›
-          </span>
-        </button>
-        {deviceOpen && (
-          <div className="px-4 pb-4 text-sm text-gray-500">
-            {lang === 'am' ? 'የመሳሪያ አስተዳደር እዚህ ይታያል' : 'Device management will appear here.'}
-          </div>
-        )}
-      </div>
+      <TabCard
+        id="devices"
+        icon="📱"
+        title={lang === 'am' ? 'የመሳሪያ አስተዳደር' : 'Device Management'}
+        subtitle={lang === 'am' ? 'የተፈቀዱ መሳሪዎችን ያስተዳድሩ' : 'Manage approved devices'}
+        badgeTone="neutral"
+        open={deviceOpen}
+        onToggle={() => setDeviceOpen(!deviceOpen)}
+      >
+        <div className="px-4 pb-4 text-sm text-gray-500">
+          {lang === 'am' ? 'የመሳሪያ አስተዳደር እዚህ ይታያል' : 'Device management will appear here.'}
+        </div>
+      </TabCard>
     </div>
   );
 }
