@@ -2761,16 +2761,18 @@ export default function AppShell() {
         />
       )}
 
-      <AppHeader
-        shopProfile={shopProfile}
-        currentActorLabel={currentActorLabel}
-        pwa={pwa}
-        unreadNotifCount={unreadNotifCount}
-        conflictWarning={syncConflictWarning}
-        conflictDetails={syncConflictDetails}
-        onOpenNotifications={() => setShowNotificationPanel(true)}
-        onRetryTelegram={handleRetryQueuedTelegram}
-      />
+      {activeTab !== 'settings' && (
+        <AppHeader
+          shopProfile={shopProfile}
+          currentActorLabel={currentActorLabel}
+          pwa={pwa}
+          unreadNotifCount={unreadNotifCount}
+          conflictWarning={syncConflictWarning}
+          conflictDetails={syncConflictDetails}
+          onOpenNotifications={() => setShowNotificationPanel(true)}
+          onRetryTelegram={handleRetryQueuedTelegram}
+        />
+      )}
 
       <main className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 pb-36">
         {activeTab === 'today' && (

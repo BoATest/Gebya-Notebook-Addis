@@ -146,7 +146,8 @@ router.post("/shops", async (req: Request, res: Response) => {
         await db.insert(businessMembers).values({ businessId: biz.id, userId: pgUser.id, role: "owner", joinedAt: new Date(), active: true });
       }
       auth_token = signJwt(pgUser.id);
-    } catch {
+    } catch (err) {
+      console.error("[identity] Failed to create Postgres user/JWT:", err);
       // Non-critical — sync will be unauthenticated but the app still works locally
     }
   }
@@ -280,7 +281,8 @@ router.post("/shops/join", async (req: Request, res: Response) => {
         await db.insert(businessMembers).values({ businessId: biz.id, userId: pgUser.id, role: staff.role === "owner" ? "owner" : "member", joinedAt: new Date(), active: true });
       }
       auth_token = signJwt(pgUser.id);
-    } catch {
+    } catch (err) {
+      console.error("[identity] Failed to create Postgres user/JWT:", err);
       // Non-critical — sync will be unauthenticated but the app still works locally
     }
   }
