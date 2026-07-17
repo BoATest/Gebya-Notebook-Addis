@@ -2761,7 +2761,7 @@ export default function AppShell() {
         />
       )}
 
-      {activeTab !== 'settings' && (
+      {activeTab !== 'settings' && activeTab !== 'history' && (
         <AppHeader
           shopProfile={shopProfile}
           currentActorLabel={currentActorLabel}

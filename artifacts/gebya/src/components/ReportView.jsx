@@ -495,37 +495,7 @@ export default function ReportView({
             <TimelineView reportRows={reportRows} lang={lang} handleExport={handleExport} onEdit={onEdit} />
           </ErrorBoundary>
 
-          {/* ── Footer ── */}
-          <div style={{
-            display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center',
-            marginTop: 20, padding: '12px 0',
-            borderTop: '1px solid #f3f4f6',
-          }}>
-            {[
-              ['today', lang === 'am' ? 'ዛሬ' : 'Today'],
-              ['week', lang === 'am' ? 'ሳምንት' : 'This Week'],
-              ['month', lang === 'am' ? 'ወር' : 'This Month'],
-              ['custom', lang === 'am' ? 'ብጁ' : 'Custom Range'],
-            ].map(([id, label]) => (
-              <button key={id} type="button" onClick={() => setTimeRange(id)}
-                style={{
-                  padding: '4px 10px', borderRadius: 999, border: 'none',
-                  background: timeRange === id ? '#1B4332' : '#f3f4f6',
-                  color: timeRange === id ? '#fff' : '#6b7280',
-                  fontSize: 11, fontWeight: 800, cursor: 'pointer',
-                }}>
-                {label}
-              </button>
-            ))}
-            <button type="button" onClick={handleExport}
-              style={{
-                padding: '4px 10px', borderRadius: 999, border: 'none',
-                background: '#f3f4f6', color: '#374151',
-                fontSize: 11, fontWeight: 800, cursor: 'pointer',
-              }}>
-              {lang === 'am' ? 'ላክ CSV' : 'Export CSV'}
-            </button>
-          </div>
+
         </>
       )}
     </div>
