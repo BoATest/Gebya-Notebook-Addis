@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
-import { fmt } from '../../utils/numformat';
+import { fmt, fmtInput, parseInput } from '../../utils/numformat';
 
 import { FREQ_LABELS_EN, FREQ_LABELS_AM } from '../../constants/settings';
 
@@ -15,7 +15,7 @@ export default function RecurringExpensesPanel({ recurring, onRecurringChange })
   const [showReForm, setShowReForm] = useState(false);
 
   const addRecurring = async () => {
-    const amt = parseFloat(reAmount);
+    const amt = parseFloat(parseInput(reAmount));
     if (!reName.trim() || !amt) return;
     const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
       ? crypto.randomUUID()
@@ -80,10 +80,15 @@ export default function RecurringExpensesPanel({ recurring, onRecurringChange })
             />
             <div className="relative">
               <input
-                type="number"
+                type="text"
                 inputMode="decimal"
-                value={reAmount}
-                onChange={e => setReAmount(e.target.value)}
+                value={fmtInput(reAmount)}
+                onChange={e => {
+                  let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
+                  const parts = raw.split('.');
+                  if (parts.length > 2) raw = parts[0] + '.' + parts.slice(1).join('');
+                  setReAmount(raw);
+                }}
                 placeholder={t.amount}
                 className="w-full px-3 py-2.5 pr-14 border-2 rounded-xl text-sm focus:outline-none"
                 style={{ borderColor: '#e8e2d8' }}
@@ -116,7 +121,7 @@ export default function RecurringExpensesPanel({ recurring, onRecurringChange })
               </button>
               <button
                 onClick={addRecurring}
-                disabled={!reName.trim() || !parseFloat(reAmount)}
+                disabled={!reName.trim() || !parseFloat(parseInput(reAmount))}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 min-h-[44px]"
                 style={{ background: '#C4883A' }}
               >

@@ -505,7 +505,7 @@ function TransactionForm({
         <div>
           <label className="block text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>{lang === 'am' ? 'መጠን' : 'AMOUNT'}</label>
           <div className="relative">
-            <input ref={amountInputRef} type="text" inputMode="decimal" value={amountDisplay}
+            <input ref={amountInputRef} type="text" inputMode="decimal" value={fmtInput(amountDisplay || amount)}
               onChange={e => { let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, ''); const parts = raw.split('.'); if (parts.length > 2) raw = parts[0] + '.' + parts.slice(1).join(''); setAmountDisplay(raw); setAmount(raw); }}
               placeholder="0"
               className="w-full py-3 pr-20 text-3xl sm:text-4xl font-bold text-center focus:outline-none"
