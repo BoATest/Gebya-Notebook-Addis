@@ -66,6 +66,13 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+
+  // Remove source files to prevent Vercel's Node.js builder from
+  // compiling them and creating conflicting ESM modules at runtime.
+  // The bundle is self-contained.
+  const srcDir = path.resolve(__dirname, "src");
+  await rm(srcDir, { recursive: true, force: true });
+  console.log("source removed");
 }
 
 buildAll().catch((err) => {

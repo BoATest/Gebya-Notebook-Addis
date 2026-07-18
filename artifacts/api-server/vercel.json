@@ -3,7 +3,7 @@
     "api/healthz.ts": {
       "maxDuration": 10
     },
-    "api/[...route].ts": {
+    "api/[...route].cjs": {
       "maxDuration": 60
     }
   },
