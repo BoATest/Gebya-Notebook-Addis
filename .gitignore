@@ -1,13 +1,11 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
-# Build outputs
-dist/
+# Build outputs (ignore specific dist dirs, NOT api-server which Vercel needs)
+/dist/
+/lib/*/dist/
 out-tsc/
 tmp/
 output/
-
-# Keep api-server dist for Vercel deployment
-!artifacts/api-server/dist/
 
 # Dependencies
 node_modules/
