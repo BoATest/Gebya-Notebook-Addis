@@ -92,6 +92,79 @@ function StaffActivityFeed() {
   );
 }
 
+function DeviceManagement({ staffMembers, onApproveDevice, onRejectDevice, lang }) {
+  const [busyId, setBusyId] = useState(null);
+  const [rejectId, setRejectId] = useState(null);
+
+  const rows = useMemo(() => {
+    const out = [];
+    for (const m of (staffMembers || [])) {
+      for (const d of (m.devices || [])) {
+        out.push({ ...d, staffName: m.display_name });
+      }
+    }
+    return out;
+  }, [staffMembers]);
+
+  if (rows.length === 0) {
+    return (
+      <div className="px-4 pb-4 text-sm text-gray-500">
+        {lang === 'am' ? 'መሳሪያዎች እዚህ ይታያሉ' : 'Connected devices will appear here.'}
+      </div>
+    );
+  }
+
+  const handleApprove = async (deviceId) => {
+    setBusyId(deviceId);
+    try { await onApproveDevice?.(deviceId); } finally { setBusyId(null); }
+  };
+  const handleReject = async (deviceId) => {
+    setBusyId(deviceId);
+    try { await onRejectDevice?.(deviceId); } finally { setBusyId(null); setRejectId(null); }
+  };
+
+  return (
+    <div className="px-4 pb-4 space-y-2">
+      {rows.map(d => {
+        const isPending = d.device_status === 'pending' || d.pending;
+        return (
+          <div key={d.id} className="flex items-center justify-between rounded-xl border px-3 py-2.5" style={{ borderColor: isPending ? '#fde68a' : '#e8e2d8', background: isPending ? '#fffbeb' : '#fff' }}>
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-gray-900 truncate">{d.device_label || 'Device'}</div>
+              <div className="text-xs text-gray-500">
+                {d.staffName || 'Staff'}
+                {isPending ? ` · ${lang === 'am' ? 'በመጠባበቅ ላይ' : 'pending approval'}` : ` · ${lang === 'am' ? 'ንቁ' : 'active'}`}
+              </div>
+            </div>
+            {isPending && (
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  type="button"
+                  disabled={busyId === d.id}
+                  onClick={() => handleApprove(d.id)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-50"
+                  style={{ background: '#1B4332' }}
+                >
+                  {lang === 'am' ? 'አረጋግጥ' : 'Approve'}
+                </button>
+                <button
+                  type="button"
+                  disabled={busyId === d.id}
+                  onClick={() => (rejectId === d.id ? handleReject(d.id) : setRejectId(d.id))}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold"
+                  style={{ background: '#fef2f2', color: '#b91c1c' }}
+                >
+                  {rejectId === d.id ? (lang === 'am' ? 'እርግጥ' : 'Confirm') : (lang === 'am' ? 'አቁም' : 'Reject')}
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function StaffTab(props) {
   const {
     staffMembers,
@@ -110,6 +183,18 @@ export default function StaffTab(props) {
   const [activityOpen, setActivityOpen] = useState(false);
   const [deviceOpen, setDeviceOpen] = useState(false);
   const activeCount = (staffMembers || []).filter(m => m.active !== false).length;
+
+  const pendingDevices = useMemo(() => {
+    const out = [];
+    for (const m of (staffMembers || [])) {
+      for (const d of (m.devices || [])) {
+        if (d.device_status === 'pending' || d.pending) {
+          out.push({ ...d, staffName: m.display_name, staffId: m.id });
+        }
+      }
+    }
+    return out;
+  }, [staffMembers]);
 
   return (
     <div>
@@ -143,13 +228,17 @@ export default function StaffTab(props) {
         icon="📱"
         title={lang === 'am' ? 'የመሳሪያ አስተዳደር' : 'Device Management'}
         subtitle={lang === 'am' ? 'የተፈቀዱ መሳሪዎችን ያስተዳድሩ' : 'Manage approved devices'}
-        badgeTone="neutral"
+        badgeTone={pendingDevices.length > 0 ? 'warning' : 'neutral'}
+        badge={pendingDevices.length > 0 ? pendingDevices.length : undefined}
         open={deviceOpen}
         onToggle={() => setDeviceOpen(!deviceOpen)}
       >
-        <div className="px-4 pb-4 text-sm text-gray-500">
-          {lang === 'am' ? 'የመሳሪያ አስተዳደር እዚህ ይታያል' : 'Device management will appear here.'}
-        </div>
+        <DeviceManagement
+          staffMembers={staffMembers}
+          onApproveDevice={onApproveDevice}
+          onRejectDevice={onRejectDevice}
+          lang={lang}
+        />
       </TabCard>
     </div>
   );

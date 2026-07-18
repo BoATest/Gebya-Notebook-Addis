@@ -501,6 +501,55 @@ export default function TeamPage({
         </div>
       )}
 
+      {/* Join code — visible to owners: lets staff join by entering the code */}
+      {canManageTeam && (shopProfile?.join_code || shopProfile?.join_url) && (
+        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#e8e2d8', background: '#fff' }}>
+          <div className="px-4 py-3 border-b" style={{ borderColor: '#f0ece4', background: '#fcfbf8' }}>
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-amber-600" />
+              <span className="text-sm font-black text-gray-900">
+                {lang === 'am' ? 'የመቀላቀል ኮድ' : 'Join code'}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {lang === 'am'
+                ? 'ይህን ኮድ ሰራተኛዎት ሊጠቀሙ ይችላሉ — መቀላቀል ላይ ያስገቡት'
+                : 'Share this code so staff can join from the Join screen'}
+            </p>
+          </div>
+          <div className="px-4 py-3 space-y-2">
+            {shopProfile?.join_code && (
+              <div className="flex items-center gap-2">
+                <span className="flex-1 text-lg font-black tracking-[0.3em] font-mono select-all" style={{ color: '#1B4332' }}>
+                  {shopProfile.join_code}
+                </span>
+                <button
+                  type="button"
+                  onClick={async () => { try { await navigator.clipboard.writeText(shopProfile.join_code); fireToast(lang === 'am' ? '✓ ኮድ ተቀድሷል' : '✓ Code copied', 1500); } catch {} }}
+                  className="flex-shrink-0 px-2 py-1.5 rounded-lg text-xs font-bold press-scale"
+                  style={{ background: '#e8e2d8', color: '#374151' }}
+                >
+                  {lang === 'am' ? 'ኮድ ቅዳ' : 'Copy code'}
+                </button>
+              </div>
+            )}
+            {shopProfile?.join_url && (
+              <div className="flex items-center gap-2">
+                <span className="flex-1 text-xs font-mono text-gray-600 truncate">{shopProfile.join_url}</span>
+                <button
+                  type="button"
+                  onClick={async () => { try { await navigator.clipboard.writeText(shopProfile.join_url); fireToast(lang === 'am' ? '✓ ሊንክ ተቀድሷል' : '✓ Link copied', 1500); } catch {} }}
+                  className="flex-shrink-0 px-2 py-1.5 rounded-lg text-xs font-bold press-scale"
+                  style={{ background: '#f5f0e8', color: '#374151' }}
+                >
+                  {lang === 'am' ? 'ሊንክ ቅዳ' : 'Copy link'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Pending invites — visible to owners */}
       {canManageTeam && pendingInvites.length > 0 && (
         <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#e8e2d8', background: '#fff' }}>
