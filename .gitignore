@@ -6,6 +6,9 @@ out-tsc/
 tmp/
 output/
 
+# Keep api-server dist for Vercel deployment
+!artifacts/api-server/dist/
+
 # Dependencies
 node_modules/
 
