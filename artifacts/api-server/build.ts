@@ -1,45 +1,22 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import { build as esbuild } from "esbuild";
-import { rm, mkdir, copyFile, readFile } from "fs/promises";
+import { rm, readFile } from "fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// server deps to bundle to reduce openat(2) syscalls
-// which helps cold start times without risking some
-// packages that are not bundle compatible
 const allowlist = [
-  "@google/generative-ai",
-  "axios",
-  "connect-pg-simple",
-  "cors",
-  "date-fns",
-  "drizzle-orm",
-  "drizzle-zod",
-  "express",
-  "express-rate-limit",
-  "express-session",
-  "jsonwebtoken",
-  "memorystore",
-  "nanoid",
-  "nodemailer",
-  "passport",
-  "passport-local",
-  "pg",
-  "stripe",
-  "uuid",
-  "web-push",
-  "ws",
-  "xlsx",
-  "zod",
-  "zod-validation-error",
+  "@google/generative-ai", "axios", "connect-pg-simple",
+  "cors", "date-fns", "drizzle-orm", "drizzle-zod", "express",
+  "express-rate-limit", "express-session", "jsonwebtoken",
+  "memorystore", "nanoid", "nodemailer", "passport", "passport-local",
+  "pg", "stripe", "uuid", "web-push", "ws", "xlsx", "zod", "zod-validation-error",
 ];
 
 async function buildAll() {
   const distDir = path.resolve(__dirname, "dist");
   await rm(distDir, { recursive: true, force: true });
-  await mkdir(distDir, { recursive: true });
 
   console.log("building server...");
   const pkgPath = path.resolve(__dirname, "package.json");
@@ -54,13 +31,12 @@ async function buildAll() {
       !(pkg.dependencies?.[dep]?.startsWith("workspace:")),
   );
 
-  const outfile = path.resolve(distDir, "index.mjs");
   await esbuild({
     entryPoints: [path.resolve(__dirname, "src/index.ts")],
     platform: "node",
     bundle: true,
     format: "esm",
-    outfile,
+    outfile: path.resolve(distDir, "index.mjs"),
     define: {
       "process.env.NODE_ENV": '"production"',
     },
@@ -69,9 +45,10 @@ async function buildAll() {
     logLevel: "info",
   });
 
-  // Copy to root for Vercel Node.js Server detection
-  await copyFile(outfile, path.resolve(__dirname, "index.mjs"));
-
+  // Remove source files so Vercel has nothing extra to compile
+  const srcDir = path.resolve(__dirname, "src");
+  await rm(srcDir, { recursive: true, force: true });
+  console.log("source removed");
 }
 
 buildAll().catch((err) => {
