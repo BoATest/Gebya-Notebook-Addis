@@ -31,6 +31,10 @@ function formatDateLabel(ts, lang) {
 }
 
 export default function RecentSalesSheet({ transactions = [], onClose, onHistory, onViewTransaction }) {
+  const handleRowTap = (tx) => {
+    onClose?.();
+    onViewTransaction?.(tx);
+  };
   const { lang } = useLang();
   const [search, setSearch] = useState('');
 
@@ -121,7 +125,7 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
                       key={tx.id}
                       className="p-2.5 border text-left"
                       style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', background: '#fff', cursor: 'pointer' }}
-                      onClick={() => onViewTransaction?.(tx)}
+                      onClick={() => handleRowTap(tx)}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0 flex-1">
