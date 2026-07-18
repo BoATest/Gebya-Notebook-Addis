@@ -259,7 +259,7 @@ function TransactionForm({
     await db.settings.put({ key: 'recurring_expenses', value: JSON.stringify(updated) });
     onRecurringChange?.(updated);
     setShowAddRecurring(false);
-    setItem(newItem.name); setAmount(String(newItem.amount));
+    setItem(newItem.name); setAmount(String(newItem.amount)); setAmountDisplay(String(newItem.amount));
     setAddRecurringHint(true);
     setTimeout(() => setAddRecurringHint(false), 4000);
   };
@@ -477,7 +477,7 @@ function TransactionForm({
             <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ፈጣን ሙላ' : 'QUICK-FILL'}</label>
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {recurringExpenses.map(re => (
-                <button key={re.id} type="button" onClick={() => { setItem(re.name); setAmount(String(re.amount)); }} className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale"
+                <button key={re.id} type="button" onClick={() => { setItem(re.name); setAmount(String(re.amount)); setAmountDisplay(String(re.amount)); }} className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale"
                   style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff', color: '#1B4332' }}>
                   <div>{re.name}</div><div className="font-normal text-[10px]" style={{ color: '#C4883A' }}>{fmt(re.amount)} {lang === 'am' ? 'ብር' : 'birr'}</div></button>
               ))}
