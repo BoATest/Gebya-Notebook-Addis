@@ -1,8 +1,7 @@
-// Dynamic import to load the bundled app (CJS) in ESM context
 let app: any;
 try {
-  const mod = await import("../dist/index.cjs");
-  app = mod.default ?? mod;
+  // @ts-ignore
+  app = require("../dist/index.cjs");
 } catch (err: any) {
   console.error("[api] Failed to load app:", err?.stack || err?.message || err);
   app = (req: any, res: any) => {

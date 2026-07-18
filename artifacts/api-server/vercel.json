@@ -1,5 +1,4 @@
 {
-  "buildCommand": "cd ../.. && pnpm install --frozen-lockfile && cd artifacts/api-server && pnpm run build",
   "functions": {
     "api/healthz.ts": {
       "maxDuration": 10
