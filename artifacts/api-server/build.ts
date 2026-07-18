@@ -1,7 +1,7 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import { build as esbuild } from "esbuild";
-import { rm, readFile } from "fs/promises";
+import { rm, mkdir, copyFile, readFile } from "fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,6 +39,7 @@ const allowlist = [
 async function buildAll() {
   const distDir = path.resolve(__dirname, "dist");
   await rm(distDir, { recursive: true, force: true });
+  await mkdir(distDir, { recursive: true });
 
   console.log("building server...");
   const pkgPath = path.resolve(__dirname, "package.json");
@@ -53,12 +54,13 @@ async function buildAll() {
       !(pkg.dependencies?.[dep]?.startsWith("workspace:")),
   );
 
+  const outfile = path.resolve(distDir, "index.mjs");
   await esbuild({
     entryPoints: [path.resolve(__dirname, "src/index.ts")],
     platform: "node",
     bundle: true,
     format: "esm",
-    outfile: path.resolve(distDir, "index.mjs"),
+    outfile,
     define: {
       "process.env.NODE_ENV": '"production"',
     },
@@ -66,6 +68,9 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+
+  // Copy to root for Vercel Node.js Server detection
+  await copyFile(outfile, path.resolve(__dirname, "index.mjs"));
 
 }
 
