@@ -1,3 +1,2 @@
-// @ts-expect-error - dist/index.cjs is built separately
-import app from "../dist/index.cjs";
+import app from "../src/main.js";
 export default app;
