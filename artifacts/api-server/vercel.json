@@ -1,4 +1,10 @@
 {
+  "builds": [
+    {
+      "src": "api/**/*.ts",
+      "use": "@vercel/node"
+    }
+  ],
   "functions": {
     "api/healthz.ts": {
       "maxDuration": 10
