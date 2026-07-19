@@ -32,7 +32,7 @@ async function buildAll() {
   );
 
   await esbuild({
-    entryPoints: [path.resolve(__dirname, "src/index.ts")],
+    entryPoints: [path.resolve(__dirname, "src/entry.ts")],
     platform: "node",
     bundle: true,
     format: "esm",
