@@ -1,16 +1,15 @@
 /**
- * Migration test: v21 → v22 → v23.
+ * Migration test: v21 → v22 → v23 → v24.
  *
  * v22: voice-field removal.
  * v23: drop 17 unused indexes on transactions (data preserved, only indexes change).
+ * v24: add identity store for shop/device identity.
  *
- * Catches the critical bug where v22's .stores() only declared the
- * `transactions` table, which would cause Dexie to DROP all other
- * tables on upgrade — destroying customers, suppliers, credit records,
- * settings, sync queue, and everything else.
+ * Catches the critical bug where incomplete .stores() declarations
+ * would cause Dexie to DROP tables on upgrade.
  *
- * This test defines v21, v22, and v23 schemas inline (matching db.js
- * exactly) so it's runnable in pure Node without browser imports.
+ * This test defines v21–v24 schemas inline (matching db.js exactly)
+ * so it's runnable in pure Node without browser imports.
  *
  * Run: node tests/db-migration-v22.test.mjs
  */
@@ -79,6 +78,28 @@ const V23_STORES = {
   daily_closings: V22_STORES.daily_closings,
   settings: V22_STORES.settings,
   analytics: V22_STORES.analytics,
+};
+
+// ── v24 schema: add identity store ────────────────────────────────────
+// All existing tables MUST be re-declared or Dexie drops them.
+
+const V24_STORES = {
+  transactions: V23_STORES.transactions,
+  customers: V23_STORES.customers,
+  customer_transactions: V23_STORES.customer_transactions,
+  catalog_entries: V23_STORES.catalog_entries,
+  suggestion_log: V23_STORES.suggestion_log,
+  cross_shop_unmatched: V23_STORES.cross_shop_unmatched,
+  suppliers: V23_STORES.suppliers,
+  supplier_transactions: V23_STORES.supplier_transactions,
+  staff_members: V23_STORES.staff_members,
+  sync_queue: V23_STORES.sync_queue,
+  credit_records: V23_STORES.credit_records,
+  credit_payment_logs: V23_STORES.credit_payment_logs,
+  daily_closings: V23_STORES.daily_closings,
+  settings: V23_STORES.settings,
+  analytics: V23_STORES.analytics,
+  identity: 'key',
 };
 
 // ── Seed data: one record per table ────────────────────────────────────
@@ -307,6 +328,57 @@ assert(v23tx.amount === 500, `[v23] transactions: amount preserved (${v23tx.amou
 assert(v23tx.item_name === 'Test Item', '[v23] transactions: item_name preserved');
 assert(v23tx.transaction_id === 'txn_test_001', '[v23] transactions: transaction_id preserved');
 assert(!('raw_transcript' in v23tx), '[v23] transactions: raw_transcript still removed');
+
+// ── Step 5: Reopen with v24 schema (add identity store) ──────────────
+
+console.log('\n=== v23 → v24 Migration Test (identity store) ===\n');
+
+const v24 = new Dexie(DB_NAME);
+v24.version(21).stores(V21_STORES);
+v24.version(22).stores(V22_STORES).upgrade(async (tx) => {
+  await tx.table('transactions').toCollection().modify((record) => {
+    delete record.raw_transcript;
+    delete record.detected_total;
+    delete record.transcription_provider;
+    delete record.parsing_confidence;
+    delete record.voice_note;
+    delete record.raw_audio_ref;
+  });
+});
+v24.version(23).stores(V23_STORES);
+v24.version(24).stores(V24_STORES);
+await v24.open();
+
+// Verify ALL 15 original tables survived + identity was added
+for (const [table] of Object.entries(SEED)) {
+  const count = await v24.table(table).count();
+  assert(count === 1, `[v24] ${table}: survived upgrade (count=${count})`);
+}
+
+// Identity table should exist and be empty (no seed data for it)
+const identityCount = await v24.table('identity').count();
+assert(identityCount === 0, `[v24] identity: table exists (count=${identityCount})`);
+
+// Spot checks
+const v24tx = await v24.transactions.toCollection().first();
+assert(v24tx.amount === 500, `[v24] transactions: amount preserved (${v24tx.amount})`);
+
+const v24customer = await v24.customers.toCollection().first();
+assert(v24customer.display_name === 'Test Customer', '[v24] customers: display_name preserved');
+
+const v24supplier = await v24.suppliers.toCollection().first();
+assert(v24supplier.display_name === 'Test Supplier', '[v24] suppliers: display_name preserved');
+
+const v24credit = await v24.credit_records.toCollection().first();
+assert(v24credit.remaining_amount === 3000, '[v24] credit_records: remaining_amount preserved');
+
+const v24setting = await v24.settings.toCollection().first();
+assert(v24setting.key === 'privacy_mode', '[v24] settings: key preserved');
+
+const v24staff = await v24.staff_members.toCollection().first();
+assert(v24staff.display_name === 'Staff One', '[v24] staff_members: display_name preserved');
+
+await v24.close();
 
 // ── Summary ────────────────────────────────────────────────────────────
 
