@@ -35,8 +35,8 @@ async function buildAll() {
     entryPoints: [path.resolve(__dirname, "src/entry.ts")],
     platform: "node",
     bundle: true,
-    format: "esm",
-    outfile: path.resolve(distDir, "index.mjs"),
+    format: "cjs",
+    outfile: path.resolve(distDir, "index.js"),
     define: {
       "process.env.NODE_ENV": '"production"',
     },
