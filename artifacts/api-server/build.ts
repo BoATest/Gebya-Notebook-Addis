@@ -45,10 +45,7 @@ async function buildAll() {
     logLevel: "info",
   });
 
-  // Remove source files so Vercel has nothing extra to compile
-  const srcDir = path.resolve(__dirname, "src");
-  await rm(srcDir, { recursive: true, force: true });
-  console.log("source removed");
+  console.log("build done");
 }
 
 buildAll().catch((err) => {
