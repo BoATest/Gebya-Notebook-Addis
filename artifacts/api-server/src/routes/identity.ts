@@ -31,9 +31,6 @@ import {
   type JoinShopBodyT,
 } from "@workspace/api-zod/identity";
 import { normalizePhone } from "@workspace/db/schema";
-import { db } from "@workspace/db";
-import { users as pgUsers, businesses, businessMembers } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
 
 const router = Router();
 
@@ -42,6 +39,29 @@ const JWT_EXPIRES_IN = "30d";
 
 function signJwt(userId: number) {
   return jwt.sign({ userId, type: "access" }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+}
+
+// Lazy-loaded DB helpers — imported inside route handlers to avoid
+// crashing the entire app if @workspace/db fails to initialize.
+async function getDb() {
+  const { db } = await import("@workspace/db");
+  return db;
+}
+async function getPgUsers() {
+  const { users } = await import("@workspace/db/schema");
+  return users;
+}
+async function getBusinesses() {
+  const { businesses } = await import("@workspace/db/schema");
+  return businesses;
+}
+async function getBusinessMembers() {
+  const { businessMembers } = await import("@workspace/db/schema");
+  return businessMembers;
+}
+async function getEq() {
+  const { eq } = await import("drizzle-orm");
+  return eq;
 }
 
 /** Pull the bearer token from the Authorization header. */
@@ -129,14 +149,13 @@ router.post("/shops", async (req: Request, res: Response) => {
   const phoneNormalized = body.phone ? normalizePhone(body.phone) : null;
   if (phoneNormalized) {
     try {
-      // Get or create Postgres user (same logic as OTP auth /api/auth/verify)
+      const [db, pgUsers, businesses, businessMembers, eq] = await Promise.all([getDb(), getPgUsers(), getBusinesses(), getBusinessMembers(), getEq()]);
       let pgUserRows = await db.select().from(pgUsers).where(eq(pgUsers.phoneNumber, phoneNormalized)).limit(1);
       let pgUser = pgUserRows[0];
       if (!pgUser) {
         const inserted = await db.insert(pgUsers).values({ phoneNumber: phoneNormalized, active: true }).returning();
         pgUser = inserted[0];
       }
-      // Create a business + membership so the sync engine's getBusinessForUser works
       const existingMember = await db.select({ businessId: businessMembers.businessId })
         .from(businessMembers)
         .where(eq(businessMembers.userId, pgUser.id))
@@ -148,7 +167,6 @@ router.post("/shops", async (req: Request, res: Response) => {
       auth_token = signJwt(pgUser.id);
     } catch (err) {
       console.error("[identity] Failed to create Postgres user/JWT:", err);
-      // Non-critical — sync will be unauthenticated but the app still works locally
     }
   }
 
@@ -265,13 +283,13 @@ router.post("/shops/join", async (req: Request, res: Response) => {
   let auth_token: string | null = null;
   if (phoneNormalized) {
     try {
+      const [db, pgUsers, businesses, businessMembers, eq] = await Promise.all([getDb(), getPgUsers(), getBusinesses(), getBusinessMembers(), getEq()]);
       let pgUserRows = await db.select().from(pgUsers).where(eq(pgUsers.phoneNumber, phoneNormalized)).limit(1);
       let pgUser = pgUserRows[0];
       if (!pgUser) {
         const inserted = await db.insert(pgUsers).values({ phoneNumber: phoneNormalized, active: true }).returning();
         pgUser = inserted[0];
       }
-      // Ensure the user has a business membership for the sync engine
       const existingMember = await db.select({ businessId: businessMembers.businessId })
         .from(businessMembers)
         .where(eq(businessMembers.userId, pgUser.id))
@@ -283,7 +301,6 @@ router.post("/shops/join", async (req: Request, res: Response) => {
       auth_token = signJwt(pgUser.id);
     } catch (err) {
       console.error("[identity] Failed to create Postgres user/JWT:", err);
-      // Non-critical — sync will be unauthenticated but the app still works locally
     }
   }
 
