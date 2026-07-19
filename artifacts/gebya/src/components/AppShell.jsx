@@ -1137,7 +1137,7 @@ export default function AppShell() {
           fireToast({
             type: 'error',
             message: lang === 'am'
-              ? `ouis በዚህ ወር ${entitlements.max_transactions_per_month} ግብይቶች በቂ ናቸው። Plus ወደ አድሶ ያዝ።`
+              ? `በዚህ ወር ${entitlements.max_transactions_per_month} ግብይቶች በቂ ናቸው። Plus ወደ አድሶ ያዝ።`
               : `You've reached the ${entitlements.max_transactions_per_month} transaction limit this month. Upgrade to Plus to continue.`,
           });
           return;

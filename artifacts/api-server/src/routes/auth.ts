@@ -24,8 +24,8 @@ function hashOtp(plain: string) {
 }
 
 function generateOtp() {
-  // 6-digit numeric OTP
-  return String(Math.floor(100000 + Math.random() * 900000));
+  // 6-digit numeric OTP — use crypto for unpredictability
+  return String(crypto.randomInt(100000, 1000000));
 }
 
 function signJwt(userId: number) {

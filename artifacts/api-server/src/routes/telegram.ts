@@ -554,11 +554,15 @@ router.post("/resend-latest", async (req: Request, res: Response) => {
 });
 
 router.post("/webhook", async (req: Request, res: Response) => {
-  // Phase 5: Verify Telegram webhook secret token
+  // Phase 5: Verify Telegram webhook secret token — fail closed if not configured
   const expectedSecret = process.env.TELEGRAM_WEBHOOK_SECRET?.trim();
+  if (!expectedSecret) {
+    console.error("[security] TELEGRAM_WEBHOOK_SECRET is not configured — rejecting webhook request");
+    return res.status(500).json({ error: "Webhook not configured" });
+  }
   const receivedSecret = req.headers["x-telegram-bot-api-secret-token"] as string | undefined;
-  if (expectedSecret && receivedSecret !== expectedSecret) {
-    return res.status(403).json({ error: "Invalid webhook secret" });
+  if (receivedSecret !== expectedSecret) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
   const update = req.body ?? {};
