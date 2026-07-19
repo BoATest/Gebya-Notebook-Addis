@@ -1,3 +1,4 @@
 import "express";
-// @ts-expect-error - dist/index.mjs is built separately, all deps inlined
-export { default } from "../dist/index.js";
+// @ts-expect-error - dist/index.js is built separately, all deps inlined
+import app from "../dist/index.js";
+export default app;

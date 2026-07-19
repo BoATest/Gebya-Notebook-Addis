@@ -1,3 +1,5 @@
 import app from "./main.js";
 
-export default app;
+// Use module.exports to avoid esbuild's __toCommonJS wrapper
+// so dist/index.js exports the Express app directly.
+module.exports = app;
