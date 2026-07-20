@@ -146,6 +146,7 @@ router.post("/shops", async (req: Request, res: Response) => {
   // When a phone is provided, also create a Postgres user and issue a JWT
   // so the sync engine can authenticate without a separate OTP flow.
   let auth_token: string | null = null;
+  let auth_error: string | null = null;
   const phoneNormalized = body.phone ? normalizePhone(body.phone) : null;
   if (phoneNormalized) {
     try {
@@ -166,6 +167,7 @@ router.post("/shops", async (req: Request, res: Response) => {
       }
       auth_token = signJwt(pgUser.id);
     } catch (err) {
+      auth_error = err instanceof Error ? err.message : String(err);
       console.error("[identity] Failed to create Postgres user/JWT:", err);
     }
   }
@@ -182,6 +184,7 @@ router.post("/shops", async (req: Request, res: Response) => {
     permissions,
     device_token: token,
     auth_token,
+    auth_error,
     device_status: device.deviceStatus,
     phone_required: shop.phoneRequired,
     approval_required: shop.approvalRequired,
@@ -300,6 +303,7 @@ router.post("/shops/join", async (req: Request, res: Response) => {
       }
       auth_token = signJwt(pgUser.id);
     } catch (err) {
+      auth_error = err instanceof Error ? err.message : String(err);
       console.error("[identity] Failed to create Postgres user/JWT:", err);
     }
   }
@@ -314,6 +318,7 @@ router.post("/shops/join", async (req: Request, res: Response) => {
     device_id: device.id,
     device_token: token,
     auth_token,
+    auth_error,
     device_status: device.deviceStatus,
     rejoined,
     previous_devices: rejoined ? previousDevices : undefined,
