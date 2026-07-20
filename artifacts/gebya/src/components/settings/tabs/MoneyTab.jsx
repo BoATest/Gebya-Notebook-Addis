@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import PlanPanel from '../PlanPanel';
 import PaymentChannelsSection from '../PaymentChannelsSection';
-import BankDataSharing from '../../BankDataSharing';
+// import BankDataSharing from '../../BankDataSharing'; // hidden until bank partnerships ready
 import DubieRulesPanel from '../DubieRulesPanel';
 import TabCard from '../TabCard';
 
@@ -77,7 +77,9 @@ export default function MoneyTab({
         />
       </TabCard>
 
-      <TabCard
+      {/* Bank Data Sharing — hidden until bank partnerships are ready.
+          Restore: uncomment this TabCard and set VITE_BANK_SHARING=on in .env */}
+      {/* <TabCard
         id="bank"
         icon="🏦"
         title={lang === 'am' ? 'የባንክ ውሂብ ማጋራት' : 'Bank Data Sharing'}
@@ -91,7 +93,7 @@ export default function MoneyTab({
             {lang === 'am' ? 'በቅርቡ ይመጣል' : 'Coming soon — requires bank partnerships'}
           </div>
         )}
-      </TabCard>
+      </TabCard> */}
 
       <TabCard
         id="dubie"
