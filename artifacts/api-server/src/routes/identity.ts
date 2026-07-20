@@ -147,7 +147,9 @@ router.post("/shops", async (req: Request, res: Response) => {
   // so the sync engine can authenticate without a separate OTP flow.
   let auth_token: string | null = null;
   let auth_error: string | null = null;
+  let auth_debug: string | null = null;
   const phoneNormalized = body.phone ? normalizePhone(body.phone) : null;
+  auth_debug = `phone=${body.phone} normalized=${phoneNormalized} jwt_secret=${process.env.JWT_SECRET ? 'set' : 'MISSING'}`;
   if (phoneNormalized) {
     try {
       const [db, pgUsers, businesses, businessMembers, eq] = await Promise.all([getDb(), getPgUsers(), getBusinesses(), getBusinessMembers(), getEq()]);
@@ -185,6 +187,7 @@ router.post("/shops", async (req: Request, res: Response) => {
     device_token: token,
     auth_token,
     auth_error,
+    auth_debug,
     device_status: device.deviceStatus,
     phone_required: shop.phoneRequired,
     approval_required: shop.approvalRequired,
@@ -319,6 +322,7 @@ router.post("/shops/join", async (req: Request, res: Response) => {
     device_token: token,
     auth_token,
     auth_error,
+    auth_debug,
     device_status: device.deviceStatus,
     rejoined,
     previous_devices: rejoined ? previousDevices : undefined,
