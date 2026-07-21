@@ -287,6 +287,8 @@ router.post("/shops/join", async (req: Request, res: Response) => {
   // When a phone is provided, also create a Postgres user and issue a JWT
   // so the sync engine can authenticate without a separate OTP flow.
   let auth_token: string | null = null;
+  let auth_error: string | null = null;
+  let auth_debug: string | null = null;
   if (phoneNormalized) {
     try {
       const [db, pgUsers, businesses, businessMembers, eq] = await Promise.all([getDb(), getPgUsers(), getBusinesses(), getBusinessMembers(), getEq()]);

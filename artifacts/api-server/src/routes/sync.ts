@@ -51,7 +51,7 @@ async function validateAndLinkDevice(
   return { success: true, staffId: existing[0].staffId ?? null };
 }
 
-async function getBusinessForUser(userId: number): Promise<number | null> {
+export async function getBusinessForUser(userId: number): Promise<number | null> {
   const rows = await db
     .select({ businessId: businessMembers.businessId })
     .from(businessMembers)

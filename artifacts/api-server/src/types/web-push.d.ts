@@ -1,52 +1,46 @@
 declare module "web-push" {
   interface PushSubscription {
     endpoint: string;
-    keys?: {
-      p256dh: string;
+    keys: {
       auth: string;
+      p256dh: string;
     };
   }
 
-  interface SendNotificationOptions {
-    title?: string;
-    body?: string;
-    icon?: string;
-    badge?: string;
-    tag?: string;
-    renotify?: boolean;
-    data?: any;
-    TTL?: number;
-    urgency?: "very-low" | "low" | "normal" | "high";
-    topic?: string;
-  }
-
-  interface WebPushError extends Error {
-    statusCode?: number;
-    headers?: Record<string, string>;
-    body?: string;
-    endpoint?: string;
-  }
-
-  function setVapidDetails(
-    subject: string,
-    publicKey: string,
-    privateKey: string
-  ): void;
-
-  function sendNotification(
-    subscription: PushSubscription,
-    payload?: string | Buffer,
-    options?: SendNotificationOptions
-  ): Promise<void>;
-
-  function generateVAPIDKeys(): {
+  interface VapidKeys {
     publicKey: string;
     privateKey: string;
+  }
+
+  interface RequestOptions {
+    headers?: Record<string, string>;
+    vapidDetails?: {
+      subject: string;
+      publicKey: string;
+      privateKey: string;
+    };
+    TTL?: number;
+    contentEncoding?: string;
+    proxy?: string;
+  }
+
+  export function generateVAPIDKeys(): VapidKeys;
+  export function setVapidDetails(
+    subject: string,
+    publicKey: string,
+    privateKey: string,
+  ): void;
+  export function sendNotification(
+    subscription: PushSubscription,
+    payload?: string | Buffer,
+    options?: RequestOptions,
+  ): Promise<void>;
+
+  const webPush: {
+    generateVAPIDKeys: typeof generateVAPIDKeys;
+    setVapidDetails: typeof setVapidDetails;
+    sendNotification: typeof sendNotification;
   };
 
-  function setGCMAPIKey(key: string): void;
-
-  function setAutoDetectContentProxy(autoDetect: boolean): void;
-
-  function setProxyUri(uri: string): void;
+  export default webPush;
 }
