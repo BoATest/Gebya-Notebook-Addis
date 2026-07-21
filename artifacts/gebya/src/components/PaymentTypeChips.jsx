@@ -12,6 +12,8 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
 
   const options = [
     { id: 'cash', label: t.cash, emoji: '💵', type: 'cash', provider: '' },
+    { id: 'credit', label: t.credit || 'Credit', emoji: '⏳', type: 'credit', provider: '' },
+    { id: 'partial', label: t.partialPayment || 'Partial', emoji: '½', type: 'partial', provider: '' },
     ...enabledBanks.map(b => ({
       id: `bank:${b}`,
       label: b,
@@ -26,12 +28,12 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
       type: 'wallet',
       provider: w,
     })),
-    { id: 'credit', label: t.credit || 'Credit', emoji: '📒', type: 'credit', provider: '' },
   ];
 
   const isSelected = (opt) => {
     if (opt.type === 'cash') return paymentType === 'cash';
     if (opt.type === 'credit') return paymentType === 'credit';
+    if (opt.type === 'partial') return paymentType === 'partial';
     return paymentType === opt.type && provider === opt.provider;
   };
 

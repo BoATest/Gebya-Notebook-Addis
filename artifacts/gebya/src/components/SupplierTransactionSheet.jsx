@@ -151,6 +151,10 @@ function SupplierTransactionSheet({
         // Payment method — only for payment mode
         payment_method: isPayment ? paymentMethod : null,
         payment_provider: isPayment && paymentMethod !== 'cash' ? paymentProvider : null,
+        sale_settlement_mode: isPayment ? 'paid' : 'credit',
+        paid_amount: isPayment ? parsedAmount : 0,
+        remaining_amount: 0,
+        settlement_due_date: null,
       };
       if (editing) payload.editing_id = editingTransaction.id;
       const didSave = await onSave?.(payload);

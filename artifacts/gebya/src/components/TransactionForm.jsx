@@ -118,6 +118,7 @@ function TransactionForm({
   const [popupFreq, setPopupFreq] = useState('monthly');
   const [showAddRecurring, setShowAddRecurring] = useState(false);
   const [addRecurringHint, setAddRecurringHint] = useState(false);
+  const [partialReceived, setPartialReceived] = useState('');
   const amountInputRef = useRef(null);
   const justSavedTimerRef = useRef(null);
 
@@ -137,6 +138,11 @@ function TransactionForm({
     : true;
 
   const isCreditSale = paymentType === 'credit';
+  const isPartialSale = paymentType === 'partial';
+
+  const partialReceivedAmount = isPartialSale ? parseFloat(parseInput(partialReceived)) || 0 : 0;
+  const creditAmount = isPartialSale ? Math.max(0, sellingPrice - partialReceivedAmount) : 0;
+  const needsCustomerForPartial = isPartialSale && !customerMatch;
 
   // Display-only label for the amount hero badge (payment selector lives in the chips row).
   const paymentLabel = paymentType === 'cash'
@@ -150,7 +156,8 @@ function TransactionForm({
      && (isCredit ? item.trim() && hasDueDate : true)
      && (!phoneEntered || phoneValid)
      && !isSaving
-     && (!isCreditSale || !!customerMatch);
+     && (!isCreditSale || !!customerMatch)
+     && (!isPartialSale || (partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice && !!customerMatch));
 
   const getEffectiveDueDate = () => {
     if (selectedDue === 'custom' && customDue) return new Date(customDue).getTime();
@@ -203,16 +210,17 @@ function TransactionForm({
       is_credit: isCredit,
       customer_id: customerMatch?.id || null,
       customer_name: customerMatch?.display_name || customerMatch?.name || (isCredit ? item.trim() : null) || null,
-      customer_phone: (isCredit || isCreditSale) ? fullPhone : null,
-      due_date: (isCredit || isCreditSale) ? getEffectiveDueDate() : null,
-      payment_type: isCredit ? null : (isCreditSale ? 'credit' : paymentType),
-      payment_provider: (!isCredit && !isCreditSale && paymentType !== 'cash') ? paymentProvider || null : null,
+      customer_phone: (isCredit || isCreditSale || isPartialSale) ? fullPhone : null,
+      due_date: (isCredit || isCreditSale || isPartialSale) ? getEffectiveDueDate() : null,
+      payment_type: isCredit ? null : (isCreditSale ? 'credit' : (isPartialSale ? paymentType : paymentType)),
+      payment_provider: (!isCredit && !isCreditSale && !isPartialSale && paymentType !== 'cash') ? paymentProvider || null : null,
       direction: isCredit ? creditDirection : null,
       ...photoFields,
       items: null,
-      settlement_mode: isCreditSale ? 'credit' : 'paid',
-      cash_received: cashReceived,
-      credit_amount: isCreditSale ? sellingPrice : 0,
+      sale_settlement_mode: isCreditSale ? 'credit' : (isPartialSale ? 'partial' : 'paid'),
+      paid_amount: isCredit ? 0 : (isCreditSale ? 0 : (isPartialSale ? partialReceivedAmount : sellingPrice)),
+      remaining_amount: isPartialSale ? creditAmount : 0,
+      settlement_due_date: (isCreditSale || isPartialSale) ? getEffectiveDueDate() : null,
       entered_total: type === 'sale' && sellingPrice > 0 ? sellingPrice : null,
       items_subtotal: null,
       amount_basis: null,
@@ -349,6 +357,7 @@ function TransactionForm({
               <button key={provider} onPointerDown={() => { setPaymentType('provider'); setPaymentProvider(provider); }} className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'provider' && paymentProvider === provider ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}>{provider}</button>
             ))}
             <button onPointerDown={() => setPaymentType('credit')} className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'credit' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}>{lang === 'am' ? 'ዱቤ' : 'Credit'}</button>
+            <button onPointerDown={() => setPaymentType('partial')} className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'partial' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}>{lang === 'am' ? 'ከፊል' : 'Partial'}</button>
             <button type="button" onClick={() => setActiveTab?.('settings')} className="shrink-0 px-3 py-2 rounded-full text-sm font-bold border-2 border-dashed press-scale" style={{ borderColor: '#c9bfa8', background: '#faf9f7', color: '#9ca3af', whiteSpace: 'nowrap' }} aria-label={lang === 'am' ? 'አክል' : 'Add provider'}>+</button>
           </div>
 
@@ -413,6 +422,83 @@ function TransactionForm({
               </div>
 
               <EthiopianDatePicker open={showDatePicker} value={customDue} onChange={(iso) => { setCustomDue(iso); setSelectedDue('custom'); }} onClose={() => setShowDatePicker(false)} lang={lang} />
+            </>
+          )}
+
+          {/* Partial sale details — amount received, customer, due date */}
+          {isPartialSale && (
+            <>
+              {/* Amount received */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+                  {lang === 'am' ? 'የተቀበሉት መጠን' : 'Amount Received'} <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={fmtInput(partialReceived)}
+                    onChange={e => setPartialReceived(e.target.value.replace(/[^\d.]/g, ''))}
+                    placeholder="0"
+                    className="w-full p-3 pr-16 border-2 focus:outline-none text-base"
+                    style={{ borderRadius: 'var(--radius-md)', borderColor: partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice ? '#1B4332' : '#e8e2d8' }}
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-base font-semibold" style={{ color: '#9ca3af' }}>
+                    {lang === 'am' ? 'ብር' : 'birr'}
+                  </span>
+                </div>
+                {partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice && (
+                  <p className="text-xs mt-1.5 font-semibold" style={{ color: '#C4883A' }}>
+                    {lang === 'am' ? 'ቀሪ ዱቤ' : 'Credit owed'}: {fmt(creditAmount)} {lang === 'am' ? 'ብር' : 'birr'}
+                  </p>
+                )}
+                {partialReceivedAmount >= sellingPrice && sellingPrice > 0 && (
+                  <p className="text-xs mt-1.5 font-medium" style={{ color: '#dc2626' }}>
+                    {lang === 'am' ? 'የተቀበሉት ሙሉ ነው — "ሙሉ" ይምረጡ' : 'Amount received is the full sale — use "Paid" instead.'}
+                  </p>
+                )}
+              </div>
+
+              {/* Customer */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ደንበኛ' : 'CUSTOMER'}</label>
+                <div className="relative">
+                  <input type="text" value={customerQuery} onChange={e => { setCustomerQuery(e.target.value); setCustomerMatch(null); }} placeholder={lang === 'am' ? 'ስም ይተይቡ...' : 'Type customer name...'}
+                    className="w-full p-3 border-2 focus:outline-none text-base" style={{ borderRadius: 'var(--radius-md)', borderColor: customerQuery ? '#86efac' : '#e8e2d8' }} />
+                  {customerQuery.trim() && (
+                    <div className="absolute z-20 left-0 right-0 mt-1 bg-white border shadow-lg" style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)', maxHeight: '160px', overflowY: 'auto' }}>
+                      {customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).slice(0, 6).map(c => (
+                        <button key={c.id} type="button" onClick={() => { setCustomerMatch(c); setCustomerQuery(c.display_name || c.name || ''); }}
+                          className="w-full px-3 py-2.5 text-left border-b press-scale flex items-center justify-between gap-2" style={{ borderColor: '#f3f4f6', background: '#fff' }}>
+                          <span className="text-sm font-semibold truncate" style={{ color: '#111827' }}>{c.display_name || c.name}</span>
+                          {c.balance > 0 && <span className="text-xs font-bold flex-shrink-0" style={{ color: '#C4883A' }}>{fmt(c.balance)} {lang === 'am' ? 'ብር' : 'ETB'}</span>}
+                        </button>
+                      ))}
+                      {onAddCustomerInline && customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).length === 0 && (
+                        <button type="button" onClick={async () => { const name = customerQuery.trim(); if (!name) return; const saved = await onAddCustomerInline({ display_name: name }); if (saved?.id) { setCustomerMatch(saved); setCustomerQuery(saved.display_name || saved.name || ''); } }}
+                          className="w-full px-3 py-2.5 text-left text-sm font-bold press-scale flex items-center gap-2" style={{ background: '#f7fcf8', color: '#14532d' }}>
+                          <Plus className="w-4 h-4" /> {lang === 'am' ? 'አዲስ ደንበኛ ይመልከቱ' : 'Add new customer'}: <span className="truncate" style={{ color: '#1B4332' }}>{customerQuery.trim()}</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Due date */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'መቼ ይከፍላል?' : 'WHEN IS THE REST DUE?'} <span style={{ color: '#9ca3af', fontWeight: 600 }}>({lang === 'am' ? 'አማራጭ' : 'optional'})</span></label>
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  {dueDateOptions.map(opt => (
+                    <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)} className="p-2.5 border-2 text-xs font-bold transition-all min-h-[48px] press-scale"
+                      style={{ borderRadius: 'var(--radius-sm)', borderColor: selectedDue === opt.value ? accentColor : '#e8e2d8', background: selectedDue === opt.value ? `${accentColor}10` : '#fff', color: selectedDue === opt.value ? accentColor : '#374151' }}>
+                      <div className="font-bold">{opt.label.split(' ')[0]}</div><div className="text-[10px] opacity-70">{opt.display}</div></button>
+                  ))}
+                </div>
+                <button type="button" onClick={() => { setSelectedDue('custom'); setShowDatePicker(true); }} className="w-full p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale flex items-center justify-center gap-2"
+                  style={{ borderRadius: 'var(--radius-sm)', borderColor: selectedDue === 'custom' ? accentColor : '#e8e2d8', background: selectedDue === 'custom' ? `${accentColor}10` : '#fff', color: selectedDue === 'custom' ? accentColor : '#374151' }}>
+                  📅 {selectedDue === 'custom' && customDue ? formatEthiopian(new Date(`${customDue}T12:00:00`)) : (lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date')}</button>
+              </div>
             </>
           )}
         </div>

@@ -8,7 +8,7 @@
 // - Compact due-date pills
 // - Solid colored save button
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Save, X, Plus, Minus, Camera, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Save, X, Plus, Minus, Camera, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import InlineDatePicker from './InlineDatePicker';
 import CameraCapture from './CameraCapture';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
@@ -95,6 +95,14 @@ function CustomerTransactionSheet({
   const [paymentMethod, setPaymentMethod] = useState(initPaymentMethod);
   const [paymentProvider, setPaymentProvider] = useState(initPaymentProvider);
 
+  // Overpayment confirmation state
+  const [showOverpaymentConfirm, setShowOverpaymentConfirm] = useState(false);
+  const [pendingPaymentAmount, setPendingPaymentAmount] = useState(null);
+
+  // Multi-debt selection state
+  const [selectedDebtIds, setSelectedDebtIds] = useState([]);
+  const [payAllDebts, setPayAllDebts] = useState(false);
+
   const handleCameraPhoto = (dataUrl) => {
     if (replacePhotoId) {
       const proof = createPhotoProof(dataUrl);
@@ -138,7 +146,28 @@ function CustomerTransactionSheet({
     : currentBalance + parsedAmount;
   const dueDateOptions = useMemo(() => getDueDateOptions(), []);
   const overPayment = isPayment && !isEditing && parsedAmount > currentBalance;
-  const canSave = parsedAmount > 0 && !overPayment && hasCollectableBalance && !saving;
+
+  // Multi-debt selection state (must be before hasSelectedDebts/canSave)
+  const customerDebts = useMemo(() => {
+    if (!customer?.transactions) return [];
+    return customer.transactions
+      .filter(tx => tx.type === 'credit_add')
+      .filter(debt => (debt.remaining_amount || debt.amount) > 0)
+      .sort((a, b) => (b.due_date || 0) - (a.due_date || 0));
+  }, [customer]);
+
+  const effectiveSelectedDebtIds = payAllDebts
+    ? customerDebts.map(debt => debt.id)
+    : selectedDebtIds;
+
+  const totalSelectedDebtAmount = useMemo(() => {
+    return customerDebts
+      .filter(debt => effectiveSelectedDebtIds.includes(debt.id))
+      .reduce((sum, debt) => sum + (debt.remaining_amount || debt.amount), 0);
+  }, [customerDebts, effectiveSelectedDebtIds]);
+
+  const hasSelectedDebts = isPayment && (effectiveSelectedDebtIds.length > 0 || payAllDebts);
+  const canSave = parsedAmount > 0 && (!overPayment || hasSelectedDebts) && hasCollectableBalance && !saving;
 
   // ─── Multi-item breakdown · derived + handlers (credit_add only) ──────
   const lineItemsTotal = lineItems.reduce((sum, l) => {
@@ -177,6 +206,18 @@ function CustomerTransactionSheet({
     addLineItem({ name: entry.name, amount: entry.default_price });
   };
 
+  // ─── Multi-debt batch payment handlers ──────────────────────────────
+  const toggleDebtSelection = (debtId) => {
+    setSelectedDebtIds(prev =>
+      prev.includes(debtId) ? prev.filter(id => id !== debtId) : [...prev, debtId]
+    );
+  };
+
+  const handlePayAllToggle = () => {
+    setPayAllDebts(prev => !prev);
+    if (!payAllDebts) setSelectedDebtIds([]);
+  };
+
   // Color accent: credit-add (amber for liability) vs payment (green for settled)
   const accentColor = isPayment ? '#16a34a' : '#C4883A';
   const headerLabel = isEditing
@@ -210,6 +251,19 @@ function CustomerTransactionSheet({
   const handleSave = async () => {
     if (!canSave) return;
     if (!isValidCustomerTransactionType(transactionType)) return;
+
+    // Check for overpayment - but allow if user confirmed
+    const isConfirmedOverpayment = pendingPaymentAmount !== null && pendingPaymentAmount > 0;
+    if (isPayment && !isEditing && parsedAmount > currentBalance && !isConfirmedOverpayment) {
+      setPendingPaymentAmount(parsedAmount);
+      setShowOverpaymentConfirm(true);
+      return;
+    }
+
+    // Clear pending amount after using it
+    if (isConfirmedOverpayment) {
+      setPendingPaymentAmount(null);
+    }
 
     setSaving(true);
     try {
@@ -246,6 +300,10 @@ function CustomerTransactionSheet({
         // Payment method — only for payment mode
         payment_method: isPayment ? paymentMethod : null,
         payment_provider: isPayment && paymentMethod !== 'cash' ? paymentProvider : null,
+        sale_settlement_mode: isPayment ? 'paid' : null,
+        paid_amount: isPayment ? parsedAmount : null,
+        remaining_amount: 0,
+        settlement_due_date: null,
         editing_id: editingTransaction?.id || null,
       });
       if (didSave) onDone?.();
@@ -400,6 +458,70 @@ function CustomerTransactionSheet({
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Multi-debt batch payment selection — payment mode only */}
+        {isPayment && customerDebts.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+                {lang === 'am' ? 'የዱቤ ምርጫ' : 'Select Debts'}
+              </label>
+              <button
+                type="button"
+                onClick={handlePayAllToggle}
+                className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 border press-scale"
+                style={{
+                  borderRadius: 'var(--radius-sm)',
+                  borderColor: payAllDebts ? '#1B4332' : '#d1d5db',
+                  background: payAllDebts ? '#1B4332' : 'transparent',
+                  color: payAllDebts ? '#fff' : '#6b7280',
+                }}
+              >
+                {payAllDebts
+                  ? (lang === 'am' ? 'ሁሉን ምረጥ' : 'Deselect all')
+                  : (lang === 'am' ? 'ሁሉን ክፈል' : 'Pay all')}
+              </button>
+            </div>
+            <div className="space-y-1.5 max-h-40 overflow-y-auto border p-2" style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)' }}>
+              {customerDebts.map(debt => {
+                const isSelected = payAllDebts || selectedDebtIds.includes(debt.id);
+                const remaining = debt.remaining_amount || debt.amount;
+                return (
+                  <button
+                    key={debt.id}
+                    type="button"
+                    onClick={() => toggleDebtSelection(debt.id)}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2 border press-scale text-left"
+                    style={{
+                      borderColor: isSelected ? '#1B4332' : '#e8e2d8',
+                      background: isSelected ? 'rgba(27,67,50,0.06)' : '#fff',
+                      borderRadius: 'var(--radius-sm)',
+                    }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold truncate" style={{ color: '#111827' }}>
+                        {debt.item_name || debt.item_note || (lang === 'am' ? 'ዱቤ' : 'Debt')}
+                      </p>
+                      {debt.due_date && (
+                        <p className="text-[10px]" style={{ color: '#6b7280' }}>
+                          {new Date(debt.due_date).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-xs font-black flex-shrink-0" style={{ color: isSelected ? '#1B4332' : '#C4883A' }}>
+                      {fmt(remaining)} {lang === 'am' ? 'ብር' : 'birr'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {hasSelectedDebts && (
+              <p className="text-[10px] font-bold mt-1.5" style={{ color: '#1B4332' }}>
+                {lang === 'am' ? `የተመረጠ ድምር: ${fmt(totalSelectedDebtAmount)} ብር` : `Selected total: ${fmt(totalSelectedDebtAmount)} birr`}
+              </p>
+            )}
           </div>
         )}
 
@@ -849,6 +971,91 @@ function CustomerTransactionSheet({
           {saving ? t.saving : saveButtonText}
         </button>
       </div>
+
+      {/* Overpayment confirmation dialog */}
+      {showOverpaymentConfirm && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
+        >
+          <div
+            className="bg-white w-full max-w-sm mx-4 p-5"
+            style={{ borderRadius: 'var(--radius-xl)' }}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div
+                className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+                style={{ background: '#fef3c7' }}
+              >
+                <AlertTriangle className="w-5 h-5" style={{ color: '#d97706' }} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold" style={{ color: '#1f2937' }}>
+                  {lang === 'am' ? 'የጨረ ክፍያ' : 'Overpayment'}
+                </h3>
+                <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
+                  {lang === 'am'
+                    ? `እርስዎ ክፍያ ከዚህ በላይ ይኸውና የሚከፈለው መጠን ከ${fmt(currentBalance)} ዱቤ በላይ ነው።`
+                    : `Your payment exceeds the current balance of ${fmt(currentBalance)} birr.`}
+                </p>
+              </div>
+            </div>
+
+            <div
+              className="p-3 mb-4"
+              style={{
+                background: '#fffbeb',
+                border: '1px solid #fde68a',
+                borderRadius: 'var(--radius-md)',
+              }}
+            >
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs" style={{ color: '#6b7280' }}>
+                  {lang === 'am' ? 'የክፍያ መጠን' : 'Payment amount'}
+                </span>
+                <span className="text-sm font-bold" style={{ color: '#1f2937' }}>
+                  {fmt(parsedAmount)} {t.birr}
+                </span>
+              </div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs" style={{ color: '#6b7280' }}>
+                  {lang === 'am' ? 'የተከፈለ ድምር' : 'Current balance'}
+                </span>
+                <span className="text-sm font-bold" style={{ color: '#1f2937' }}>
+                  {fmt(currentBalance)} {t.birr}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold" style={{ color: '#d97706' }}>
+                  {lang === 'am' ? 'ትርፍ' : 'Excess'}
+                </span>
+                <span className="text-sm font-black" style={{ color: '#d97706' }}>
+                  {fmt(Math.max(0, parsedAmount - currentBalance))} {t.birr}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowOverpaymentConfirm(false); setPendingPaymentAmount(null); }}
+                className="flex-1 py-2.5 border-2 text-sm font-bold press-scale"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8', color: '#6b7280' }}
+              >
+                {lang === 'am' ? 'ሰርዝ' : 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowOverpaymentConfirm(false); }}
+                className="flex-1 py-2.5 border-2 text-sm font-black press-scale"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: '#1B4332', background: '#1B4332', color: '#fff' }}
+              >
+                {lang === 'am' ? 'ቀጥል' : 'Continue'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* B2: rear-camera capture modal (product photo) */}
       <CameraCapture

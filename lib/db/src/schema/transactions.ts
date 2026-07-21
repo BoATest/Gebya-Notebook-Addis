@@ -25,6 +25,11 @@ export const transactions = pgTable("transactions", {
   paymentType: varchar("payment_type", { length: 64 }),
   paymentProvider: varchar("payment_provider", { length: 64 }),
 
+  saleSettlementMode: varchar("sale_settlement_mode", { length: 32 }),
+  paidAmount: real("paid_amount"),
+  remainingAmount: real("remaining_amount"),
+  settlementDueDate: bigint("settlement_due_date", { mode: "number" }),
+
   source: varchar("source", { length: 32 }),
   wasEdited: boolean("was_edited").default(false),
 
@@ -60,6 +65,10 @@ export const insertTransactionSchema = z.object({
   ethiopianDate: z.string().nullable().optional(),
   paymentType: z.string().max(64).nullable().optional(),
   paymentProvider: z.string().max(64).nullable().optional(),
+  saleSettlementMode: z.string().max(32).nullable().optional(),
+  paidAmount: z.number().nullable().optional(),
+  remainingAmount: z.number().nullable().optional(),
+  settlementDueDate: z.number().nullable().optional(),
   source: z.string().max(32).nullable().optional(),
   wasEdited: z.boolean().optional(),
   actorRole: z.string().max(32).nullable().optional(),
