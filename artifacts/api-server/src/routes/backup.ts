@@ -111,7 +111,7 @@ router.get("/download/:id", async (req, res) => {
   const userId = getUserIdFromRequest(req);
   if (!userId) return res.status(401).json({ error: "Authorization required" });
 
-  const snapshotId = Number(req.params.id);
+    const snapshotId = Number(String(req.params.id));
   if (!Number.isFinite(snapshotId)) {
     return res.status(400).json({ error: "Invalid snapshot ID" });
   }
@@ -159,7 +159,7 @@ router.delete("/delete/:id", async (req, res) => {
   const userId = getUserIdFromRequest(req);
   if (!userId) return res.status(401).json({ error: "Authorization required" });
 
-  const snapshotId = Number(req.params.id);
+    const snapshotId = Number(String(req.params.id));
   if (!Number.isFinite(snapshotId)) {
     return res.status(400).json({ error: "Invalid snapshot ID" });
   }
