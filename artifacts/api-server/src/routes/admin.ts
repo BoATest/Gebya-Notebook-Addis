@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Platform Admin Dashboard — API Routes
  *

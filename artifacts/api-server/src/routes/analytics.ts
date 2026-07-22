@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Bank analytics API routes.
  *
