@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { X } from 'lucide-react';
-import db, { getDeviceToken, getIdentity, setIdentity } from '../db';
+import db, { getIdentity, setIdentity } from '../db';
+import { getAuthToken } from '../utils/syncEngine';
 import identityApi from '../api/identity';
 import { PrivacyProvider, usePrivacy } from '../context/PrivacyContext';
 import { LangProvider, useLang } from '../context/LangContext';
@@ -796,6 +797,9 @@ export default function AppShell() {
             approval_required: result.approval_required ?? false,
           };
           await setIdentity(identityForProfile);
+          if (result.auth_token) {
+            await setAuthToken(result.auth_token);
+          }
         } catch {
           identityForProfile = null;
         }
@@ -1490,7 +1494,7 @@ export default function AppShell() {
     if (!member) return false;
     if (member.staff_id) {
       try {
-        const token = await getDeviceToken();
+        const token = await getAuthToken();
         if (!token) return false;
         await identityApi.deactivateStaff(member.staff_id, token);
         await refreshStaffMembers();
@@ -1531,7 +1535,7 @@ export default function AppShell() {
   const refreshStaffMembers = useCallback(async () => {
     const shopId = shopProfile?.shop_id || shopProfile?.id;
     if (!shopId) return;
-    const token = await getDeviceToken();
+    const token = await getAuthToken();
     if (!token) return;
     const data = await identityApi.listStaff(shopId, token);
     if (!data?.staff) return;
@@ -1565,7 +1569,7 @@ export default function AppShell() {
 
   const handleRotateJoinCode = useCallback(async (shopId) => {
     try {
-      const token = await getDeviceToken();
+      const token = await getAuthToken();
       if (!token) return null;
       const result = await identityApi.rotateJoinCode(shopId, token);
       const current = useShopStore.getState().shopProfile;
@@ -1578,7 +1582,7 @@ export default function AppShell() {
 
   const handleUpdateShopSettings = useCallback(async (shopId, patch) => {
     try {
-      const token = await getDeviceToken();
+      const token = await getAuthToken();
       if (!token) return null;
       return identityApi.updateShopSettings(shopId, {
         phone_required: patch.require_phone_on_join,
@@ -1591,7 +1595,7 @@ export default function AppShell() {
 
   const handleApproveDevice = useCallback(async (deviceId) => {
     try {
-      const token = await getDeviceToken();
+      const token = await getAuthToken();
       if (!token) return null;
       const result = await identityApi.approveDevice(deviceId, token);
       await refreshStaffMembers();
@@ -1603,7 +1607,7 @@ export default function AppShell() {
 
   const handleRejectDevice = useCallback(async (deviceId, reason) => {
     try {
-      const token = await getDeviceToken();
+      const token = await getAuthToken();
       if (!token) return null;
       const result = await identityApi.rejectDevice(deviceId, { reason }, token);
       await refreshStaffMembers();

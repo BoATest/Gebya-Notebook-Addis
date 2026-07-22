@@ -336,38 +336,4 @@ router.get("/shops", async (req, res) => {
   return res.json({ shops: enriched });
 });
 
-// ── Admin / NBE aggregation ───────────────────────────────────────────────
-
-// GET /analytics/aggregate — cross-shop metrics (admin only)
-router.get("/aggregate", async (req, res) => {
-  const ctx = await requireDeviceContext(req);
-  if (!ctx) return res.status(401).json({ error: "Unauthorized" });
-  if (ctx.role !== "owner") return res.status(403).json({ error: "Admin only" });
-
-  // Aggregate across all shops
-  const allTx = await db.select().from(transactions);
-  const allCustTx = await db.select().from(customerTransactions);
-  const allCustomers = await db.select().from(customers);
-  const allBiz = await db.select().from(businesses);
-
-  const totalSales = allTx.filter((t) => t.type === "sale").reduce((s, t) => s + (Number(t.amount) || 0), 0);
-  const totalExpenses = allTx.filter((t) => t.type === "expense").reduce((s, t) => s + (Number(t.amount) || 0), 0);
-  const totalCredit = allCustTx.filter((t) => t.type === "credit_add").reduce((s, t) => s + (Number(t.amount) || 0), 0);
-  const totalRepaid = allCustTx.filter((t) => t.type === "payment").reduce((s, t) => s + (Number(t.amount) || 0), 0);
-
-  return res.json({
-    aggregate: {
-      shops_onboarded: allBiz.length,
-      total_transactions: allTx.length,
-      total_sales_birr: totalSales,
-      total_expenses_birr: totalExpenses,
-      total_credit_extended_birr: totalCredit,
-      total_credit_repaid_birr: totalRepaid,
-      credit_recovery_rate: totalCredit > 0 ? Math.round((totalRepaid / totalCredit) * 100) : 0,
-      unique_customers: new Set(allCustTx.map((t) => t.customerId).filter(Boolean)).size,
-      generated_at: new Date().toISOString(),
-    },
-  });
-});
-
 export default router;

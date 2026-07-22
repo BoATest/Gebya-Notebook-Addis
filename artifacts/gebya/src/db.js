@@ -570,6 +570,28 @@ db.version(24).stores({
   identity: 'key',
 });
 
+// Version 25: Add settlements table for per-staff settlement system.
+// IMPORTANT: Every table MUST be re-declared or Dexie will drop it.
+db.version(25).stores({
+  transactions: '++id, type, created_at, updated_at, transaction_id',
+  customers: '++id, display_name, note, phone_number, telegram_username, telegram_chat_id, telegram_notify_enabled, telegram_link_token, telegram_linked_at, telegram_link_requested_at, created_at, updated_at',
+  customer_transactions: '++id, customer_id, type, amount, due_date, payment_method, payment_provider, reference_code, telegram_delivery_state, telegram_delivery_error, telegram_delivery_attempted_at, created_at, updated_at, actor_role, actor_staff_member_id, actor_name_snapshot, transaction_id, device_id, reversal_of',
+  catalog_entries: '++id, name, kind, active, created_at, updated_at, suggestion_shown_count, suggestion_accepted_count, suggestion_rejected_count, suggested_match_id, canonical_name_en',
+  suggestion_log: '++id, catalog_entry_id, shown_at, accepted, context_tod, context_day',
+  cross_shop_unmatched: '++id, shop_id, item_name, occurrence_count, last_seen_at, canonical_name_en, canonical_name_am, curated, created_at',
+  suppliers: '++id, display_name, phone_number, note, active, created_at, updated_at',
+  supplier_transactions: '++id, supplier_id, type, catalog_entry_id, created_at, updated_at, actor_role, actor_staff_member_id, actor_name_snapshot, transaction_id, device_id',
+  staff_members: '++id, display_name, role, active, created_at, updated_at, deactivated_at',
+  sync_queue: '++id, kind, status, created_at, updated_at, next_attempt_at, record_table, record_id, transaction_id, &idempotency_key, record_type, device_id',
+  credit_records: '++id, customer_id, customer_name, original_amount, paid_amount, remaining_amount, due_date, status, created_at, direction',
+  credit_payment_logs: '++id, credit_record_id, amount, payment_method, paid_at',
+  daily_closings: '++id, closed_at, date_start, date_end, actor_role, actor_staff_member_id, actor_name_snapshot, finalized',
+  settlements: '++id, settlement_id, staff_id, status, settled_at, updated_at',
+  settings: 'key, value',
+  analytics: 'key, value',
+  identity: 'key',
+});
+
 db.on('ready', async () => {
   const privacySetting = await db.settings.get('privacy_mode');
   if (!privacySetting) {
@@ -590,6 +612,8 @@ export async function clearIdentity() {
   return db.identity.delete('me');
 }
 
+// @deprecated — use getAuthToken() (JWT) from syncEngine instead.
+// Returns the legacy device_token UUID from the identity store.
 export async function getDeviceToken() {
   const ident = await db.identity.get('me');
   return ident?.device_token ?? null;
@@ -613,6 +637,14 @@ export async function getRole() {
 export async function getPermissions() {
   const ident = await db.identity.get('me');
   return ident?.permissions ?? {};
+}
+
+export async function getBusinesses() {
+  return db.identity.get('businesses');
+}
+
+export async function setBusinesses(businessList) {
+  return db.identity.put({ key: 'businesses', list: businessList });
 }
 
 export async function saveDailyClosing(record) {
@@ -652,18 +684,82 @@ export async function getLatestDailyClosing() {
   return db.daily_closings.orderBy('closed_at').last();
 }
 
-export async function canCreateEvent(eventType) {
-  const perms = await getPermissions();
-  const map = {
-    sale: 'can_create_sale',
-    customer_payment: 'can_create_customer_payment',
-    customer_credit: 'can_create_customer_credit',
-    note: 'can_create_note',
-    expense: 'can_create_expense',
-    supplier_transaction: 'can_create_supplier_transaction',
+// ─── Settlement helpers ───
+
+export async function saveSettlement(record) {
+  const now = Date.now();
+  const entry = {
+    settlement_id: record.settlement_id,
+    staff_id: record.staff_id,
+    period_start: record.period_start,
+    period_end: record.period_end,
+    expected_cash: record.expected_cash || 0,
+    actual_cash: record.actual_cash || 0,
+    cash_variance: (record.actual_cash || 0) - (record.expected_cash || 0),
+    expected_transfer: record.expected_transfer || 0,
+    actual_transfer: record.actual_transfer || 0,
+    transfer_variance: (record.actual_transfer || 0) - (record.expected_transfer || 0),
+    expected_total: record.expected_total || 0,
+    actual_total: (record.actual_cash || 0) + (record.actual_transfer || 0),
+    total_variance: 0,
+    adjustments: record.adjustments || [],
+    final_expected_cash: record.final_expected_cash || 0,
+    final_expected_total: record.final_expected_total || 0,
+    final_variance: record.final_variance || 0,
+    status: record.status || 'checked',
+    notes: record.notes || null,
+    settled_at: record.settled_at || now,
+    settled_by: record.settled_by,
+    reconciled_at: record.reconciled_at || null,
+    reconciled_by: record.reconciled_by || null,
+    reconciliation_note: record.reconciliation_note || null,
+    created_at: record.created_at || now,
+    updated_at: now,
+    sync_version: record.sync_version || 1,
+    schema_version: record.schema_version || 1,
+    device_id: record.device_id || '',
   };
-  const key = map[eventType];
-  return key ? !!perms[key] : false;
+  entry.total_variance = entry.actual_total - (entry.final_expected_total || entry.expected_total);
+  const id = await db.settlements.add(entry);
+  return { id, ...entry };
+}
+
+export async function getSettlementsForStaff(staffId, from = 0, to = Date.now()) {
+  return db.settlements
+    .where('staff_id')
+    .equals(staffId)
+    .filter(s => s.settled_at >= from && s.settled_at <= to)
+    .reverse()
+    .sortBy('settled_at');
+}
+
+export async function getLatestSettlement(staffId) {
+  return db.settlements
+    .where('staff_id')
+    .equals(staffId)
+    .last();
+}
+
+export async function getAllSettlements(from = 0, to = Date.now()) {
+  return db.settlements
+    .where('settled_at')
+    .between(from, to)
+    .reverse()
+    .sortBy('settled_at');
+}
+
+export async function updateSettlement(id, changes) {
+  changes.updated_at = Date.now();
+  return db.settlements.update(id, changes);
+}
+
+export async function getUnsettledStaffIds(allStaffIds, cutoff = Date.now()) {
+  const settled = await db.settlements
+    .where('settled_at')
+    .above(cutoff - 90 * 86400000)
+    .toArray();
+  const settledIds = new Set(settled.map(s => String(s.staff_id)));
+  return allStaffIds.filter(id => !settledIds.has(String(id)));
 }
 
 export default db;

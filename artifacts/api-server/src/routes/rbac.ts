@@ -2,9 +2,10 @@ import { Request, Response, NextFunction } from "express";
 import { db } from "@workspace/db";
 import { businessMembers } from "@workspace/db/schema";
 import { auditLog } from "@workspace/db/schema/audit_log";
+import { resolvePermissions } from "@workspace/db/schema/permission-defaults";
 import { eq, and, sql } from "drizzle-orm";
 
-type PermissionKey = "can_add_records" | "can_delete_records" | "can_edit_settings" | "can_view_reports";
+type PermissionKey = "can_manage_team" | "can_delete_records" | "can_edit_settings" | "can_add_records" | "can_view_reports";
 
 export interface DeviceContext {
   userId: number;
@@ -28,6 +29,20 @@ export async function requireDeviceContext(req: Request): Promise<DeviceContext 
   const decoded = verifyJwt(token);
   if (!decoded || !decoded.userId) return null;
 
+  // Optional x-business-id header: if present, verify membership for that specific business.
+  // If absent, fall back to first active membership (backward compat for single-business clients).
+  const bizHeader = (req.headers as any)["x-business-id"] || (req.headers as any)["X-Business-Id"];
+  const requestedBizId = bizHeader ? Number(bizHeader) : null;
+
+  const filters: any[] = [
+    eq(businessMembers.userId, decoded.userId),
+    eq(businessMembers.active, true),
+  ];
+
+  if (requestedBizId && Number.isInteger(requestedBizId)) {
+    filters.push(eq(businessMembers.businessId, requestedBizId));
+  }
+
   const memberRows = await db
     .select({
       role: businessMembers.role,
@@ -35,29 +50,19 @@ export async function requireDeviceContext(req: Request): Promise<DeviceContext 
       businessId: businessMembers.businessId,
     })
     .from(businessMembers)
-    .where(and(
-      eq(businessMembers.userId, decoded.userId),
-      eq(businessMembers.active, true)
-    ))
+    .where(and(...filters))
     .limit(1);
 
   const member = memberRows[0];
   if (!member) return null;
 
-  const perms = member.permissions || {};
-  const defaults: Record<string, boolean> = {
-    can_manage_team: member.role === "owner",
-    can_delete_records: member.role === "owner",
-    can_edit_settings: member.role === "owner",
-    can_add_records: false,
-    can_view_reports: true,
-  };
+  const permissions = resolvePermissions(member.role, member.permissions);
 
   return {
     userId: decoded.userId,
     businessId: member.businessId,
     role: member.role,
-    permissions: { ...defaults, ...perms },
+    permissions,
   };
 }
 

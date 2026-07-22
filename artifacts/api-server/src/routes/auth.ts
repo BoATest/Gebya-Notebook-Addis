@@ -146,30 +146,39 @@ router.post("/verify", async (req, res) => {
       .values({ phoneNumber: normalizedPhone, active: true })
       .returning();
     user = inserted[0];
-
-    // Every new user gets their own business and becomes the owner
-    const [biz] = await db
-      .insert(businesses)
-      .values({ ownerUserId: user.id, name: "My Shop" })
-      .returning({ id: businesses.id });
-    await db.insert(businessMembers).values({
-      businessId: biz.id,
-      userId: user.id,
-      role: "owner",
-      joinedAt: new Date(),
-      active: true,
-    });
+    // Business is created via POST /api/shops (business-legacy bridge) during onboarding.
+    // No auto-creation here to avoid duplicate businesses for the same user.
   }
 
   const token = signJwt(user.id);
 
-  // Fetch membership info (role + permissions)
+  // Fetch all business memberships
   const memberRows = await db
-    .select({ role: businessMembers.role, permissions: businessMembers.permissions })
+    .select({
+      businessId: businessMembers.businessId,
+      role: businessMembers.role,
+      permissions: businessMembers.permissions,
+    })
     .from(businessMembers)
-    .where(eq(businessMembers.userId, user.id))
-    .limit(1);
-  const member = memberRows[0];
+    .where(eq(businessMembers.userId, user.id));
+  const primary = memberRows[0] || null;
+
+  // Enrich with business names
+  const businessList = await Promise.all(
+    memberRows.map(async (m) => {
+      const biz = await db
+        .select({ name: businesses.name })
+        .from(businesses)
+        .where(eq(businesses.id, m.businessId))
+        .limit(1);
+      return {
+        business_id: m.businessId,
+        name: biz[0]?.name || "Unknown",
+        role: m.role,
+        permissions: m.permissions,
+      };
+    })
+  );
 
   return res.json({
     ok: true,
@@ -180,8 +189,9 @@ router.post("/verify", async (req, res) => {
       preferred_lang: user.preferredLang,
       created_at: user.createdAt,
     },
-    role: member?.role || null,
-    permissions: member?.permissions || null,
+    role: primary?.role || null,
+    permissions: primary?.permissions || null,
+    businesses: businessList,
   });
 });
 
@@ -238,13 +248,33 @@ router.get("/me", async (req, res) => {
     return res.status(404).json({ error: "User not found" });
   }
 
-  // Fetch user's business membership (role + permissions)
+  // Fetch all business memberships
   const memberRows = await db
-    .select({ role: businessMembers.role, permissions: businessMembers.permissions })
+    .select({
+      businessId: businessMembers.businessId,
+      role: businessMembers.role,
+      permissions: businessMembers.permissions,
+    })
     .from(businessMembers)
-    .where(eq(businessMembers.userId, user.id))
-    .limit(1);
-  const member = memberRows[0];
+    .where(eq(businessMembers.userId, user.id));
+  const primary = memberRows[0] || null;
+
+  // Enrich with business names
+  const businessList = await Promise.all(
+    memberRows.map(async (m) => {
+      const biz = await db
+        .select({ name: businesses.name })
+        .from(businesses)
+        .where(eq(businesses.id, m.businessId))
+        .limit(1);
+      return {
+        business_id: m.businessId,
+        name: biz[0]?.name || "Unknown",
+        role: m.role,
+        permissions: m.permissions,
+      };
+    })
+  );
 
   return res.json({
     ok: true,
@@ -254,8 +284,9 @@ router.get("/me", async (req, res) => {
       preferred_lang: user.preferredLang,
       created_at: user.createdAt,
     },
-    role: member?.role || null,
-    permissions: member?.permissions || null,
+    role: primary?.role || null,
+    permissions: primary?.permissions || null,
+    businesses: businessList,
   });
 });
 

@@ -25,6 +25,8 @@ import WhatINoticed from './WhatINoticed';
 import TodayStory from './TodayStory';
 import TimelineView from './TimelineView';
 import ErrorBoundary from './report/ErrorBoundary';
+import SettlementSection from './report/SettlementSection';
+import SettlementAlertBanner from './report/SettlementAlertBanner';
 
 const DAY_MS = 86400000;
 
@@ -392,6 +394,18 @@ export default function ReportView({
                 </>
               )}
 
+              {/* Settlement alerts banner */}
+              {!isStaffView && (
+                <SettlementAlertBanner
+                  lang={lang}
+                  isStaffView={isStaffView}
+                  onFocus={() => {
+                    const el = document.getElementById('settlement-section');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                />
+              )}
+
               {/* 2. Today's Business */}
               <SectionHeading label={lang === 'am' ? 'የዛሬ ንግድ' : "TODAY'S BUSINESS"} />
               <div id="today-business">
@@ -455,6 +469,9 @@ export default function ReportView({
                   </ErrorBoundary>
                 </>
               )}
+
+              {/* 6. Staff Settlement */}
+              <SettlementSection lang={lang} isStaffView={isStaffView} />
             </>
           ) : (
             /* ════════════════════════════════════════════ */
@@ -486,10 +503,13 @@ export default function ReportView({
               <ErrorBoundary>
                 <TodayBusiness metrics={metrics} closingState={closingState} lang={lang} onClose={handleClose} />
               </ErrorBoundary>
+
+              {/* Staff Settlement (compact) */}
+              <SettlementSection lang={lang} isStaffView={isStaffView} />
             </>
           )}
 
-          {/* 6. Today's Entries — always shown */}
+          {/* 7. Today's Entries — always shown */}
           <SectionHeading label={
             isToday
               ? (lang === 'am' ? 'የዛሬ እንቅስቃሴ' : "TODAY'S ENTRIES")

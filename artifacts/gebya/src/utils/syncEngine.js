@@ -203,6 +203,7 @@ class SyncEngine {
       'suppliers',
       'supplier_transactions',
       'staff_members',
+      'settlements',
     ];
 
     tables.forEach((tableName) => {
@@ -358,6 +359,7 @@ class SyncEngine {
       'suppliers',
       'supplier_transactions',
       'staff_members',
+      'settlements',
     ];
     const payload = { device_id: this.deviceId, tables: {} };
 
@@ -499,6 +501,7 @@ class SyncEngine {
       'suppliers',
       'supplier_transactions',
       'staff_members',
+      'settlements',
     ];
     const kvTables = ['settings', 'analytics'];
     const allTables = [...tables, ...kvTables];
@@ -534,6 +537,7 @@ class SyncEngine {
         db.suppliers,
         db.supplier_transactions,
         db.staff_members,
+        db.settlements,
         db.settings,
         db.analytics,
         async () => {

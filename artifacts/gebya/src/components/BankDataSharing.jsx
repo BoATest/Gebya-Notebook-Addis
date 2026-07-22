@@ -3,7 +3,7 @@
  * Shows which banks have access, lets merchant grant/revoke.
  */
 import { useState, useEffect } from 'react';
-import { getDeviceToken } from '../db';
+import { getAuthToken } from '../utils/syncEngine';
 
 const API_BASE = (import.meta.env.VITE_API_BASE ?? '/api').replace(/\/$/, '');
 
@@ -37,7 +37,7 @@ export default function BankDataSharing({ shopId, lang }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getDeviceToken().then((t) => {
+    getAuthToken().then((t) => {
       setToken(t);
       if (!t) { setLoading(false); return; }
       apiFetch('/analytics/shares', t)

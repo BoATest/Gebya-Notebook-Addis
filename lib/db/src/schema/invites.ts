@@ -29,7 +29,7 @@ export const insertInviteSchema = z.object({
   invitedByUserId: z.number(),
   phoneNumber:     z.string(),
   staffName:       z.string().optional(),
-  role:            z.enum(["owner", "cashier", "viewer"]).default("cashier"),
+  role:            z.enum(["owner", "manager", "trusted_staff", "cashier", "viewer"]).default("cashier"),
   token:           z.string().max(128),
   expiresAt:       z.date(),
   notificationSent: z.boolean().optional(),

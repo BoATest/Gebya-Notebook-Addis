@@ -23,6 +23,8 @@ async function apiFetch(path, options = {}) {
 
 const ROLE_BADGE = {
   owner: { label: 'Owner', bg: '#fef3c7', color: '#92400e' },
+  manager: { label: 'Manager', bg: '#fef3c7', color: '#92400e' },
+  trusted_staff: { label: 'Trusted Staff', bg: '#e0f2fe', color: '#0369a1' },
   cashier: { label: 'Sales Staff', bg: '#f3f4f6', color: '#4b5563' },
   viewer: { label: 'Auditor', bg: '#f3f4f6', color: '#4b5563' },
 };
@@ -214,7 +216,7 @@ function parseCsvToInvites(csvText) {
     result.push({
       staff_name: name,
       phone_number: phone.replace(/^0+/, ''),
-      role: ['cashier', 'viewer', 'owner'].includes(role) ? role : 'cashier',
+      role: ['cashier', 'viewer', 'owner', 'manager', 'trusted_staff'].includes(role) ? role : 'cashier',
     });
   }
   return result;
@@ -462,6 +464,8 @@ export default function TeamPage({
                 className="px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none bg-white"
                 style={{ borderColor: '#e8e2d8' }}
               >
+                <option value="manager">{lang === 'am' ? 'ማኔጀር' : 'Manager'}</option>
+                <option value="trusted_staff">{lang === 'am' ? 'የታመነ ሰራተኛ' : 'Trusted Staff'}</option>
                 <option value="cashier">{lang === 'am' ? 'የሽያጭ ሠራተኛ' : 'Sales Staff'}</option>
                 <option value="viewer">{lang === 'am' ? 'ኦዲተር' : 'Auditor'}</option>
               </select>

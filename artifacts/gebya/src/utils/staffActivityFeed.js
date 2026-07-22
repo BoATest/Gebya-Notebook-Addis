@@ -1,4 +1,5 @@
-import db, { getIdentity } from '../db';
+import db from '../db';
+import { getAuthToken } from './syncEngine';
 import eventsApi from '../api/events';
 import { processStaffEventQueue, STAFF_EVENT_PUSH, STAFF_EVENT_STATUSES } from './staffEventSync';
 
@@ -122,15 +123,15 @@ function mergeActivities(serverRows, localRows) {
 }
 
 export async function loadStaffActivityFeed() {
-  const identity = await getIdentity();
+  const token = await getAuthToken();
   const localRows = await localActivityRows({ includeSynced: false });
 
-  if (!identity?.device_token) {
+  if (!token) {
     return {
       activities: localRows,
       source: 'local',
       persistence: 'in_memory_preview',
-      error: 'Owner identity is not available on this phone.',
+      error: 'Not logged in.',
     };
   }
 
@@ -144,7 +145,7 @@ export async function loadStaffActivityFeed() {
   }
 
   try {
-    const response = await eventsApi.listActivity(identity.device_token);
+    const response = await eventsApi.listActivity(token);
     const serverRows = (response?.activities || []).map(normalizeServerActivity);
     return {
       activities: mergeActivities(serverRows, localRows),

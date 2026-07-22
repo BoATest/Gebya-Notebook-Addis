@@ -92,9 +92,13 @@ export default function StaffInviteAcceptScreen({ onJoined, onDismiss }) {
   if (loading) return null;
   if (!activeInvite) return null;
 
-  const roleLabel = activeInvite.role === 'cashier' ? (lang === 'am' ? 'የሽያጭ ሠራተኛ' : 'Sales Staff')
-    : activeInvite.role === 'viewer' ? (lang === 'am' ? 'ኦዲተር' : 'Auditor')
-    : activeInvite.role;
+  const ROLE_LABELS = {
+    manager: lang === 'am' ? 'ማኔጀር' : 'Manager',
+    trusted_staff: lang === 'am' ? 'የታመነ ሰራተኛ' : 'Trusted Staff',
+    cashier: lang === 'am' ? 'የሽያጭ ሠራተኛ' : 'Sales Staff',
+    viewer: lang === 'am' ? 'ኦዲተር' : 'Auditor',
+  };
+  const roleLabel = ROLE_LABELS[activeInvite.role] || activeInvite.role;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center px-6" style={{ background: 'rgba(27, 67, 50, 0.85)' }}>

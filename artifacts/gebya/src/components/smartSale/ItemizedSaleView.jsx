@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ArrowLeft, Camera, Save, X } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { db } from '../../db';
-import { fmt, fmtInput } from '../../utils/numformat';
+import { fmt, fmtInput, parseInput } from '../../utils/numformat';
 import { buildPhotoFields, createPhotoProof } from '../../utils/photoProof';
 import CameraCapture from '../CameraCapture';
 import { fireToast } from '../Toast';
@@ -54,6 +54,7 @@ export default function ItemizedSaleView({
 
   const [paymentType, setPaymentType] = useState(draft?.paymentType || 'cash');
   const [paymentProvider, setPaymentProvider] = useState(draft?.paymentProvider || '');
+  const [partialReceived, setPartialReceived] = useState('');
   const [shareAuto, setShareAuto] = useState(draft?.shareAuto || false);
   const [photos, setPhotos] = useState(draft?.photos || []);
   const [photoLoading, setPhotoLoading] = useState(false);
@@ -127,6 +128,7 @@ export default function ItemizedSaleView({
     setPhotos([]);
     setPaymentType('cash');
     setPaymentProvider('');
+    setPartialReceived('');
     setDiscount(0);
     setShowDiscount(false);
   };
@@ -140,14 +142,14 @@ export default function ItemizedSaleView({
   }, [showDiscount]);
 
   // Auto-save draft on changes
-  const draftRef = useRef({ rows: [], paymentType, paymentProvider, shareAuto, photos, discount, showDiscount });
+  const draftRef = useRef({ rows: [], paymentType, paymentProvider, partialReceived, shareAuto, photos, discount, showDiscount });
   useEffect(() => {
-    draftRef.current = { rows, paymentType, paymentProvider, shareAuto, photos, discount, showDiscount };
+    draftRef.current = { rows, paymentType, paymentProvider, partialReceived, shareAuto, photos, discount, showDiscount };
     const timer = setTimeout(() => {
       saveDraft(draftRef.current);
     }, 500);
     return () => clearTimeout(timer);
-  }, [rows, paymentType, paymentProvider, shareAuto, photos, discount, showDiscount]);
+  }, [rows, paymentType, paymentProvider, partialReceived, shareAuto, photos, discount, showDiscount]);
 
   // Track unsaved changes
   useEffect(() => {
@@ -209,7 +211,15 @@ export default function ItemizedSaleView({
 
   // --- Save ---
   const isCredit = paymentType === 'credit';
-  const canSave = filledRows.length > 0 && totalAmount > 0 && !isSaving && (!isCredit || !!creditCustomerId);
+  const isPartial = paymentType === 'partial';
+  const grandTotal = Math.max(0, totalAmount - discount);
+  const partialReceivedAmount = isPartial ? parseFloat(parseInput(partialReceived)) || 0 : 0;
+  const remainingAmount = isPartial ? Math.max(0, grandTotal - partialReceivedAmount) : 0;
+  const canSave = filledRows.length > 0 && totalAmount > 0 && !isSaving && (
+    (!isCredit && !isPartial) ||
+    (isCredit && !!creditCustomerId) ||
+    (isPartial && partialReceivedAmount > 0 && partialReceivedAmount < grandTotal && !!creditCustomerId)
+  );
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -219,7 +229,6 @@ export default function ItemizedSaleView({
       const itemNameForSave = items.map(i => i.name).join(', ').substring(0, 200);
       const photoFields = buildPhotoFields(photos);
       const now = Date.now();
-      const grandTotal = Math.max(0, totalAmount - discount);
       const normalizePhone = (phone) => {
         if (!phone) return null;
         const digits = phone.replace(/\D/g, '');
@@ -236,18 +245,22 @@ export default function ItemizedSaleView({
         cost_price: 0,
         profit: null,
         is_credit: false,
-        customer_id: isCredit ? creditCustomerId : null,
-        customer_name: isCredit ? (creditCustomerName || creditCustomerSearch) : null,
-        customer_phone: isCredit ? normalizePhone(creditCustomerPhone) : null,
-        due_date: isCredit ? (customDueIso ? new Date(`${customDueIso}T12:00:00`).getTime() : selectedDueTs) : null,
+        customer_id: (isCredit || isPartial) ? creditCustomerId : null,
+        customer_name: (isCredit || isPartial) ? (creditCustomerName || creditCustomerSearch) : null,
+        customer_phone: (isCredit || isPartial) ? normalizePhone(creditCustomerPhone) : null,
+        due_date: (isCredit || isPartial) ? (customDueIso ? new Date(`${customDueIso}T12:00:00`).getTime() : selectedDueTs) : null,
         payment_type: paymentType === 'cash' ? 'cash' : paymentType,
         payment_provider: paymentType !== 'cash' ? paymentProvider || null : null,
         direction: null,
         ...photoFields,
         items,
-        settlement_mode: isCredit ? 'credit' : 'paid',
-        cash_received: paymentType === 'cash' ? grandTotal : 0,
-        credit_amount: isCredit ? grandTotal : 0,
+        settlement_mode: isCredit ? 'credit' : (isPartial ? 'partial' : 'paid'),
+        cash_received: isCredit ? 0 : (isPartial ? partialReceivedAmount : (paymentType === 'cash' ? grandTotal : 0)),
+        credit_amount: isPartial ? remainingAmount : (isCredit ? grandTotal : 0),
+        sale_settlement_mode: isCredit ? 'credit' : (isPartial ? 'partial' : 'paid'),
+        paid_amount: isCredit ? 0 : (isPartial ? partialReceivedAmount : grandTotal),
+        remaining_amount: isPartial ? remainingAmount : 0,
+        settlement_due_date: (isCredit || isPartial) ? (customDueIso ? new Date(`${customDueIso}T12:00:00`).getTime() : selectedDueTs) : null,
         entered_total: null,
         items_subtotal: totalAmount,
         discount: discount > 0 ? discount : null,
@@ -299,6 +312,7 @@ export default function ItemizedSaleView({
       setPhotos([]);
       setPaymentType('cash');
       setPaymentProvider('');
+      setPartialReceived('');
       setDiscount(0);
       setShowDiscount(false);
       hasUnsavedChanges.current = false;
@@ -367,8 +381,6 @@ export default function ItemizedSaleView({
     }
     return lang === 'am' ? 'ሽያጩን አጠናቅ' : 'Complete Sale';
   })();
-
-  const grandTotal = Math.max(0, totalAmount - discount);
 
   return (
     <div className="fixed inset-x-0 top-0 bottom-[60px] max-w-md mx-auto flex flex-col" style={{ background: '#fff' }}>
@@ -561,8 +573,8 @@ export default function ItemizedSaleView({
           </div>
         </div>
 
-        {/* Credit fields — customer search + recent chips + due date + phone */}
-        {isCredit && (
+        {/* Credit/Partial fields — customer search + recent chips + due date + phone */}
+        {(isCredit || isPartial) && (
           <div className="px-2 py-1.5 space-y-1.5">
             {/* Search + Add button */}
             <div className="flex gap-1.5">
@@ -697,7 +709,7 @@ export default function ItemizedSaleView({
             {/* Due date presets row + phone row */}
             <div className="flex gap-2 items-start">
               <div className="flex-1 space-y-1">
-                <div className="text-[9px] font-bold uppercase tracking-wider" style={{ color: '#9ca3af' }}>
+                <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#9ca3af' }}>
                   {lang === 'am' ? 'መክፈያ ቀን' : 'Due date'}
                 </div>
                 <div className="flex gap-1 flex-wrap">
@@ -759,7 +771,38 @@ export default function ItemizedSaleView({
           </div>
         )}
 
-        {/* Payment chips — no label, more compact */}
+        {/* Partial amount received — partial mode only */}
+        {isPartial && (
+          <div className="px-2 py-1.5">
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'የተቀበሉት መጠን' : 'Amount Received'} <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={fmtInput(partialReceived)}
+                onChange={e => setPartialReceived(e.target.value.replace(/[^\d.]/g, ''))}
+                placeholder="0"
+                className="w-full p-3 pr-16 border-2 focus:outline-none text-base"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: partialReceivedAmount > 0 && partialReceivedAmount < grandTotal ? '#1B4332' : '#e8e2d8' }}
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-base font-semibold" style={{ color: '#9ca3af' }}>
+                {lang === 'am' ? 'ብር' : 'birr'}
+              </span>
+            </div>
+            {partialReceivedAmount > 0 && partialReceivedAmount < grandTotal && (
+              <p className="text-xs mt-1.5 font-semibold" style={{ color: '#C4883A' }}>
+                {lang === 'am' ? 'ቀሪ ዱቤ' : 'Credit owed'}: {fmt(remainingAmount)} {lang === 'am' ? 'ብር' : 'birr'}
+              </p>
+            )}
+            {partialReceivedAmount >= grandTotal && grandTotal > 0 && (
+              <p className="text-xs mt-1.5 font-medium" style={{ color: '#dc2626' }}>
+                {lang === 'am' ? 'የተቀበሉት ሙሉ ነው — "ጥሬ" ይምረጡ' : 'Amount received is the full sale — use Cash instead.'}
+              </p>
+            )}
+          </div>
+        )}
         <div className="px-2 py-1">
           <PaymentTypeChips
             paymentType={paymentType}

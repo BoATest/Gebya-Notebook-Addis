@@ -6,12 +6,13 @@ import authRouter from "./auth.js";
 import backupRouter from "./backup.js";
 import businessRouter from "./business.js";
 import remindersRouter from "./reminders.js";
-import identityRouter from "./identity.js";
+import legacyBridgeRouter from "./business-legacy.js";
 import auditRouter from "./audit.js";
 import pushSubscriptionsRouter from "./pushSubscriptions.js";
 import notificationsRouter from "./notifications.js";
 import analyticsRouter from "./analytics.js";
 import adminRouter from "./admin.js";
+import eventsRouter from "./events.js";
 
 const router: IRouter = Router();
 
@@ -23,9 +24,10 @@ router.use("/auth", authRouter);
 router.use("/backup", backupRouter);
 router.use("/business", businessRouter);
 router.use("/telegram/reminders", remindersRouter);
-// Identity routes: defines /shops, /shops/join, /shops/:shop_id/staff etc.
-// Mounted at root so full paths become /api/shops, /api/shops/join etc.
-router.use("/", identityRouter);
+// Legacy identity bridge: Postgres-backed replacements for /shops, /shops/join etc.
+// Maintains the same response shapes as the old identity.ts so the frontend
+// identityApi.js continues to work without changes.
+router.use("/", legacyBridgeRouter);
 // Audit routes: owner violation log
 router.use("/audit", auditRouter);
 // Push notification subscription management
@@ -36,5 +38,7 @@ router.use("/notifications", notificationsRouter);
 router.use("/analytics", analyticsRouter);
 // Platform admin dashboard
 router.use("/admin", adminRouter);
+// Staff activity events (Phase 2 — Postgres-backed)
+router.use("/", eventsRouter);
 
 export default router;

@@ -1,7 +1,9 @@
 import { Bell, Settings } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { useAppStore } from '../stores/appStore';
+import { useAuthStore } from '../stores/authStore';
 import OfflineStatusStrip from './OfflineStatusStrip';
+import BusinessSelector from './BusinessSelector';
 
 export default function AppHeader({
   shopProfile,
@@ -17,6 +19,7 @@ export default function AppHeader({
   const setActiveTab = useAppStore(s => s.setActiveTab);
   const pendingTelegramCount = useAppStore(s => s.pendingTelegramCount);
   const retryingTelegram = useAppStore(s => s.retryingTelegram);
+  const currentBusinessId = useAuthStore(s => s.currentBusinessId);
 
   return (
     <header
@@ -38,7 +41,7 @@ export default function AppHeader({
 
         <div className="flex-1 min-w-0">
           <h1 className="text-sm sm:text-base font-bold tracking-tight leading-tight truncate" style={{ color: '#1a1a1a' }}>
-            {shopProfile.name}
+            <BusinessSelector shopProfile={shopProfile} currentBusinessId={currentBusinessId} />
           </h1>
           <p className="text-[10px] sm:text-xs font-medium mt-0.5 truncate" style={{ color: '#6b7280' }}>
             Recording as {currentActorLabel || 'Owner'} · {String(shopProfile.role || 'owner').replace(/_/g, ' ')}

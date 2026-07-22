@@ -1,4 +1,5 @@
 import db, { getIdentity } from '../db';
+import { getAuthToken } from './syncEngine';
 import eventsApi from '../api/events';
 
 export const STAFF_EVENT_PUSH = 'staff_event_push';
@@ -124,9 +125,10 @@ export async function enqueueStaffEventSync({ recordTable, record, eventType }) 
     }
 
     const identity = await getIdentity();
+    const token = await getAuthToken();
     const envelope = buildStaffEventEnvelope({ identity, recordTable, record, eventType });
     const now = Date.now();
-    if (!envelope || !identity?.device_token) {
+    if (!envelope || !token) {
       const fallbackClientId = record?.transaction_id
         ? `${record?.device_id || 'local-device'}:${record.transaction_id}`
         : `${recordTable}:${record?.id || now}`;
@@ -141,7 +143,7 @@ export async function enqueueStaffEventSync({ recordTable, record, eventType }) 
         record_type: eventTypeFor({ recordTable, record }) || eventType || null,
         payload: envelope,
         attempts: 0,
-        error: 'Missing shop identity; event kept local only.',
+        error: token ? 'Missing shop identity; event kept local only.' : 'Authentication required; event kept local only.',
         created_at: now,
         updated_at: now,
         next_attempt_at: null,
@@ -227,6 +229,21 @@ async function processRow(row, token) {
     return { id: row.id, status: STAFF_EVENT_STATUSES.failed, error: result?.error };
   } catch (error) {
     const message = error?.message || 'Staff event sync failed';
+
+    // JWT expired or invalid — downgrade to localOnly so we don't keep retrying
+    if (error?.status === 401) {
+      await db.sync_queue.update(row.id, {
+        status: STAFF_EVENT_STATUSES.localOnly,
+        error: 'Authentication expired. Please log in again.',
+        updated_at: Date.now(),
+        next_attempt_at: null,
+      });
+      const { clearAuthToken } = await import('./syncEngine');
+      await clearAuthToken();
+      notifyQueueChanged();
+      return { id: row.id, status: STAFF_EVENT_STATUSES.localOnly, error: message };
+    }
+
     await markFailed(row, attempts, message);
     notifyQueueChanged();
     return { id: row.id, status: STAFF_EVENT_STATUSES.failed, error: message };
@@ -238,8 +255,8 @@ export async function processStaffEventQueue({ limit = 5 } = {}) {
     return { processed: 0, results: [] };
   }
 
-  const identity = await getIdentity();
-  if (!identity?.device_token) return { processed: 0, results: [] };
+  const token = await getAuthToken();
+  if (!token) return { processed: 0, results: [] };
 
   const now = Date.now();
   const due = (await db.sync_queue.toArray())
@@ -253,7 +270,7 @@ export async function processStaffEventQueue({ limit = 5 } = {}) {
 
   const results = [];
   for (const row of due) {
-    results.push(await processRow(row, identity.device_token));
+    results.push(await processRow(row, token));
   }
   return { processed: due.length, results };
 }

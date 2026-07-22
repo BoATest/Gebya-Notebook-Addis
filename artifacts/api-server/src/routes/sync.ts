@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import {
   transactions, customers, customerTransactions, catalogEntries,
   suppliers, supplierTransactions, staffMembers, settings, analytics,
-  devices, businessMembers, auditLog, notifications,
+  devices, businessMembers, auditLog, notifications, settlements,
 } from "@workspace/db/schema";
 import { eq, and, gt, inArray, asc, sql } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
@@ -51,11 +51,13 @@ async function validateAndLinkDevice(
   return { success: true, staffId: existing[0].staffId ?? null };
 }
 
-export async function getBusinessForUser(userId: number): Promise<number | null> {
+export async function getBusinessForUser(userId: number, businessId?: number): Promise<number | null> {
+  const filters: any[] = [eq(businessMembers.userId, userId)];
+  if (businessId) filters.push(eq(businessMembers.businessId, businessId));
   const rows = await db
     .select({ businessId: businessMembers.businessId })
     .from(businessMembers)
-    .where(eq(businessMembers.userId, userId))
+    .where(and(...filters))
     .limit(1);
   return rows.length > 0 ? rows[0].businessId : null;
 }
@@ -140,9 +142,25 @@ function mapSetting(body: any, deviceId: string) {
 function mapAnalytics(body: any, deviceId: string) {
   return { deviceId, key: body.key, value: body.value, numericValue: body.numeric_value, count: body.count, lastSeenAt: body.last_seen_at, createdAt: body.created_at, updatedAt: body.updated_at, schemaVersion: body.schema_version || 1, syncVersion: body.sync_version || 1 };
 }
+function mapSettlement(body: any) {
+  return {
+    localId: body.id, deviceId: body.device_id, settlementId: body.settlement_id,
+    staffId: body.staff_id,
+    periodStart: body.period_start, periodEnd: body.period_end,
+    expectedCash: body.expected_cash, actualCash: body.actual_cash, cashVariance: body.cash_variance,
+    expectedTransfer: body.expected_transfer, actualTransfer: body.actual_transfer, transferVariance: body.transfer_variance,
+    expectedTotal: body.expected_total, actualTotal: body.actual_total, totalVariance: body.total_variance,
+    adjustments: body.adjustments || [],
+    finalExpectedCash: body.final_expected_cash, finalExpectedTotal: body.final_expected_total, finalVariance: body.final_variance,
+    status: body.status || "checked", notes: body.notes || null,
+    settledAt: body.settled_at, settledBy: body.settled_by,
+    reconciledAt: body.reconciled_at || null, reconciledBy: body.reconciled_by || null, reconciliationNote: body.reconciliation_note || null,
+    createdAt: body.created_at, updatedAt: body.updated_at, schemaVersion: body.schema_version || 1, syncVersion: body.sync_version || 1,
+  };
+}
 
 interface ConflictRecord { table: string; localId: number; serverRecord: any; }
-interface MutationRecord { action: "CREATE" | "UPDATE" | "DELETE"; entityType: string; entityId: string; }
+interface MutationRecord { action: "CREATE" | "UPDATE" | "DELETE"; entityType: string; entityId: string; details?: string; }
 
 async function pushTable(
   key: string, table: any, conflictTarget: any[], deviceId: string, rows: any[],
@@ -173,14 +191,19 @@ async function pushTable(
       const storedActive = typeof stored.active === "boolean" ? stored.active : true;
       const isSoftDelete = incomingActive === false && storedActive === true;
 
+      const isSettlementReconcile = key === "settlements" && data.status === "reconciled" && stored.status !== "reconciled";
+      const reconcileNote = isSettlementReconcile && data.reconciliationNote ? data.reconciliationNote : null;
+
       if (incomingVersion > storedVersion) {
         await db.update(table).set({ ...data, syncVersion: incomingVersion + 1 }).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId)));
         count++;
-        mutations.push({ action: isSoftDelete ? "DELETE" : "UPDATE", entityType: key, entityId: String(data.localId) });
+        const detail = reconcileNote ? `settlement reconciled: ${reconcileNote}` : undefined;
+        mutations.push({ action: isSoftDelete ? "DELETE" : "UPDATE", entityType: key, entityId: String(data.localId), details: detail });
       } else if (incomingVersion === storedVersion && incomingUpdatedAt > storedUpdatedAt) {
         await db.update(table).set({ ...data, syncVersion: storedVersion + 1 }).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId)));
         count++;
-        mutations.push({ action: isSoftDelete ? "DELETE" : "UPDATE", entityType: key, entityId: String(data.localId) });
+        const detail = reconcileNote ? `settlement reconciled: ${reconcileNote}` : undefined;
+        mutations.push({ action: isSoftDelete ? "DELETE" : "UPDATE", entityType: key, entityId: String(data.localId), details: detail });
       } else {
         conflicts.push({ table: key, localId: data.localId, serverRecord: stored });
       }
@@ -214,7 +237,8 @@ router.post("/push",
     return res.status(400).json({ error: "tables must be an object" });
   }
 
-  const businessId = await getBusinessForUser(userId);
+  const requestedBizId = Number(req.headers["x-business-id"]) || undefined;
+  const businessId = await getBusinessForUser(userId, requestedBizId);
   if (!businessId) return res.status(403).json({ error: "No business associated with this account" });
 
   const results: Record<string, { count: number; conflicts: number }> = {};
@@ -228,6 +252,7 @@ router.post("/push",
     pushTable("suppliers", suppliers, [suppliers.deviceId, suppliers.localId], device_id, tables?.suppliers, mapSupplier, suppliers.localId, suppliers.deviceId, suppliers.syncVersion, suppliers.updatedAt, businessId, deviceResult.staffId),
     pushTable("supplier_transactions", supplierTransactions, [supplierTransactions.deviceId, supplierTransactions.localId], device_id, tables?.supplier_transactions, mapSupplierTx, supplierTransactions.localId, supplierTransactions.deviceId, supplierTransactions.syncVersion, supplierTransactions.updatedAt, businessId, deviceResult.staffId),
     pushTable("staff_members", staffMembers, [staffMembers.deviceId, staffMembers.localId], device_id, tables?.staff_members, mapStaff, staffMembers.localId, staffMembers.deviceId, staffMembers.syncVersion, staffMembers.updatedAt, businessId, deviceResult.staffId),
+    pushTable("settlements", settlements, [settlements.deviceId, settlements.localId], device_id, tables?.settlements, mapSettlement, settlements.localId, settlements.deviceId, settlements.syncVersion, settlements.updatedAt, businessId, deviceResult.staffId),
   ]);
 
   const allMutations: MutationRecord[] = [];
@@ -241,7 +266,7 @@ router.post("/push",
       action: m.action,
       entityType: m.entityType,
       entityId: m.entityId,
-      details: `sync push via ${device_id}`,
+      details: m.details || `sync push via ${device_id}`,
     }));
     await db.insert(auditLog).values(auditRows as any);
 
@@ -252,6 +277,7 @@ router.post("/push",
         customer_transactions: { type: "credit", title: "Credit activity" },
         supplier_transactions: { type: "supplier_payment", title: "Supplier activity" },
         staff_members: { type: "staff_joined", title: "Staff activity" },
+        settlements: { type: "settlement", title: "Staff settlement" },
       };
       const notifiable = allMutations.filter(
         (m) => m.action === "CREATE" && notifiableTypes[m.entityType]
@@ -279,6 +305,12 @@ router.post("/push",
             else if (m.entityType === "customer_transactions") body = `${actorName} recorded credit activity`;
             else if (m.entityType === "supplier_transactions") body = `${actorName} recorded supplier activity`;
             else if (m.entityType === "staff_members") body = `${actorName} joined the shop`;
+            else if (m.entityType === "settlements") {
+              const isReconcile = m.details?.startsWith("settlement reconciled");
+              body = isReconcile
+                ? `${actorName} reconciled a settlement`
+                : `${actorName} completed a settlement`;
+            }
             return {
               businessId,
               ownerUserId,
@@ -305,7 +337,7 @@ router.post("/push",
     }
   }
 
-  const tableKeys = ["transactions", "customers", "customer_transactions", "catalog_entries", "suppliers", "supplier_transactions", "staff_members"];
+  const tableKeys = ["transactions", "customers", "customer_transactions", "catalog_entries", "suppliers", "supplier_transactions", "staff_members", "settlements"];
   for (let i = 0; i < tableKeys.length; i++) {
     const key = tableKeys[i];
     const result = pushResults[i];
@@ -346,7 +378,8 @@ router.get("/pull",
   const sinceMs = since ? Number(since) : 0;
   const pullLimit = Math.min(Math.max(Number(limit) || DEFAULT_PULL_LIMIT, 1), MAX_PULL_LIMIT);
 
-  const businessId = await getBusinessForUser(userId);
+  const requestedBizId = Number(req.headers["x-business-id"]) || undefined;
+  const businessId = await getBusinessForUser(userId, requestedBizId);
   if (!businessId) return res.status(403).json({ error: "No business associated with this account" });
 
   async function pullTable(table: any, businessIdCol: any, updatedAtCol: any) {
@@ -357,7 +390,7 @@ router.get("/pull",
     return { rows: returnedRows, hasMore, nextCursor };
   }
 
-  const [txResult, custResult, custTxResult, catResult, supResult, supTxResult, staffResult, setResult, anaResult] = await Promise.all([
+  const [txResult, custResult, custTxResult, catResult, supResult, supTxResult, staffResult, settleResult, setResult, anaResult] = await Promise.all([
     pullTable(transactions, transactions.businessId, transactions.updatedAt),
     pullTable(customers, customers.businessId, customers.updatedAt),
     pullTable(customerTransactions, customerTransactions.businessId, customerTransactions.updatedAt),
@@ -365,17 +398,18 @@ router.get("/pull",
     pullTable(suppliers, suppliers.businessId, suppliers.updatedAt),
     pullTable(supplierTransactions, supplierTransactions.businessId, supplierTransactions.updatedAt),
     pullTable(staffMembers, staffMembers.businessId, staffMembers.updatedAt),
+    pullTable(settlements, settlements.businessId, settlements.updatedAt),
     pullTable(settings, settings.businessId, settings.updatedAt),
     pullTable(analytics, analytics.businessId, analytics.updatedAt),
   ]);
 
   const tables = {
     transactions: txResult.rows, customers: custResult.rows, customer_transactions: custTxResult.rows,
-    catalog_entries: catResult.rows, suppliers: supResult.rows, supplier_transactions: supTxResult.rows, staff_members: staffResult.rows, settings: setResult.rows, analytics: anaResult.rows,
+    catalog_entries: catResult.rows, suppliers: supResult.rows, supplier_transactions: supTxResult.rows, staff_members: staffResult.rows, settlements: settleResult.rows, settings: setResult.rows, analytics: anaResult.rows,
   };
 
-  const hasMore = txResult.hasMore || custResult.hasMore || custTxResult.hasMore || catResult.hasMore || supResult.hasMore || supTxResult.hasMore || staffResult.hasMore || setResult.hasMore || anaResult.hasMore;
-  const nextCursor = hasMore ? Math.max(txResult.nextCursor || 0, custResult.nextCursor || 0, custTxResult.nextCursor || 0, catResult.nextCursor || 0, supResult.nextCursor || 0, supTxResult.nextCursor || 0, staffResult.nextCursor || 0, setResult.nextCursor || 0, anaResult.nextCursor || 0) : null;
+  const hasMore = txResult.hasMore || custResult.hasMore || custTxResult.hasMore || catResult.hasMore || supResult.hasMore || supTxResult.hasMore || staffResult.hasMore || settleResult.hasMore || setResult.hasMore || anaResult.hasMore;
+  const nextCursor = hasMore ? Math.max(txResult.nextCursor || 0, custResult.nextCursor || 0, custTxResult.nextCursor || 0, catResult.nextCursor || 0, supResult.nextCursor || 0, supTxResult.nextCursor || 0, staffResult.nextCursor || 0, settleResult.nextCursor || 0, setResult.nextCursor || 0, anaResult.nextCursor || 0) : null;
 
   return res.json({ ok: true, user_id: userId, business_id: businessId, since: sinceMs, pulled_at: Date.now(), tables, hasMore, nextCursor });
 });
@@ -392,7 +426,8 @@ router.get("/balance-check/:customerId",
     const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: "Authorization required" });
 
-    const businessId = await getBusinessForUser(userId);
+  const requestedBizId = Number(req.headers["x-business-id"]) || undefined;
+  const businessId = await getBusinessForUser(userId, requestedBizId);
     if (!businessId) return res.status(403).json({ error: "No business associated with this account" });
 
     const customerId = Number(req.params.customerId);

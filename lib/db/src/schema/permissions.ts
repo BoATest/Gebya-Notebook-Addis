@@ -1,4 +1,7 @@
-// Shop Sync v1 permission resolver.
+// @deprecated — Legacy Shop Sync v1 permission resolver (17-capability model).
+// New code should use @workspace/db/schema/permission-defaults instead (5-key model).
+// Kept for backward compat with events.ts (in-memory event system).
+// TODO(phase2): remove when events.ts is rewritten to Postgres.
 //
 // Permissions are role defaults + per-staff overrides. The role drives
 // most capabilities; the owner can override `can_create_customer_credit`

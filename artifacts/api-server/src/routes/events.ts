@@ -1,35 +1,11 @@
-// PR 1B1 staff event push route.
-//
-// Persistence note: this route intentionally uses the same in-memory store as
-// the PR 1A identity routes. It verifies the sync contract and permissions, but
-// it is not production-ready multi-device persistence until swapped for
-// Drizzle/Postgres event writes.
-
 import { Router, type Request, type Response } from "express";
-import { createHash } from "node:crypto";
-import { PushEventsBody, type PushEventsBodyT, type SyncEventEnvelopeT } from "@workspace/api-zod/events";
-import { canCreateEvent, permissionsFor, store, type StoredStaffEvent } from "@workspace/db/schema";
+import { db } from "@workspace/db";
+import { staffEvents } from "@workspace/db/schema/staff_events";
+import { and, eq, desc, sql } from "drizzle-orm";
+import { PushEventsBody, type SyncEventEnvelopeT, type PushEventsBodyT } from "@workspace/api-zod/events";
+import { requireDeviceContext } from "./rbac.js";
 
 const router = Router();
-
-function getToken(req: Request): string | null {
-  const h = req.header("authorization") || req.header("Authorization");
-  if (!h) return null;
-  const m = /^Bearer\s+(.+)$/i.exec(h);
-  return m ? m[1].trim() : null;
-}
-
-function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
-
-function iso(d: Date | null | undefined): string | undefined {
-  return d ? d.toISOString() : undefined;
-}
-
-function isoRequired(d: Date): string {
-  return d.toISOString();
-}
 
 function parsePushEventsBody(body: unknown, res: Response): PushEventsBodyT | null {
   const result = PushEventsBody.safeParse(body);
@@ -82,143 +58,129 @@ function textOrNull(value: unknown): string | null {
   return text || null;
 }
 
-function activitySummary(event: StoredStaffEvent): string | null {
-  const payload = event.payload || {};
-  if (event.eventType === "sale") {
-    return textOrNull(payload.item_name) || textOrNull(payload.item_code) || "Sale";
+function activitySummary(payload: Record<string, unknown> | null | undefined, eventType: string): string | null {
+  const p = payload || {};
+  if (eventType === "sale") {
+    return textOrNull(p.item_name) || textOrNull(p.item_code) || "Sale";
   }
-  if (event.eventType === "customer_payment") {
-    return textOrNull(payload.customer_name) || textOrNull(payload.customer_id) || "Customer payment";
+  if (eventType === "customer_payment") {
+    return textOrNull(p.customer_name) || textOrNull(p.customer_id) || "Customer payment";
   }
-  if (event.eventType === "customer_credit") {
-    return textOrNull(payload.item_name) || textOrNull(payload.customer_name) || textOrNull(payload.customer_id) || "Dubie";
+  if (eventType === "customer_credit") {
+    return textOrNull(p.item_name) || textOrNull(p.customer_name) || textOrNull(p.customer_id) || "Dubie";
   }
   return null;
 }
 
-function toActivity(event: StoredStaffEvent) {
-  const payload = event.payload || {};
-  return {
-    id: event.eventId,
-    client_event_id: event.clientEventId,
-    event_type: event.eventType,
-    staff_name: event.actorNameSnapshot,
-    staff_role: event.actorRoleAtEvent,
-    amount: numberOrNull(payload.amount),
-    summary: activitySummary(event),
-    note: textOrNull(payload.note),
-    payment_method_label: textOrNull(payload.payment_method_label),
-    occurred_at_device: isoRequired(event.occurredAtDevice),
-    created_at_server: isoRequired(event.createdAtServer),
-    sync_state: "synced" as const,
-  };
-}
-
-router.get("/events/activity", (req: Request, res: Response) => {
-  const token = getToken(req);
-  if (!token) {
-    res.status(401).json({ error: "Missing bearer token." });
+router.post("/events/push", async (req: Request, res: Response) => {
+  const ctx = await requireDeviceContext(req);
+  if (!ctx) {
+    res.status(401).json({ error: "Authorization required" });
     return;
   }
 
-  const device = store.findDeviceByTokenHash(hashToken(token));
-  if (!device || device.deviceStatus !== "active") {
-    res.status(401).json({ error: "Device is not active." });
-    return;
-  }
-
-  const staff = store.findStaffById(device.staffId);
-  if (!staff || staff.staffStatus !== "active") {
-    res.status(401).json({ error: "Staff no longer active." });
-    return;
-  }
-
-  const perms = permissionsFor(staff);
-  if (!perms.can_view_staff_feed) {
-    res.status(403).json({ error: "Owner access required." });
-    return;
-  }
-
-  const activities = store.listEventsForShop(staff.shopId)
-    .filter((event) => ["sale", "customer_payment", "customer_credit"].includes(event.eventType))
-    .sort((a, b) => (
-      b.occurredAtDevice.getTime() - a.occurredAtDevice.getTime()
-      || b.createdAtServer.getTime() - a.createdAtServer.getTime()
-    ))
-    .map(toActivity);
-
-  res.json({
-    activities,
-    persistence: "in_memory_preview",
-  });
-});
-
-router.post("/events/push", (req: Request, res: Response) => {
-  const token = getToken(req);
-  if (!token) {
-    res.status(401).json({ error: "Missing bearer token." });
-    return;
-  }
-
-  const device = store.findDeviceByTokenHash(hashToken(token));
-  if (!device || device.deviceStatus !== "active") {
-    res.status(401).json({ error: "Device is not active." });
-    return;
-  }
-
-  const staff = store.findStaffById(device.staffId);
-  if (!staff || staff.staffStatus !== "active") {
-    res.status(401).json({ error: "Staff no longer active." });
+  if (!ctx.permissions.can_add_records) {
+    res.status(403).json({ error: "Permission denied", missing_permission: "can_add_records", hint: "Contact your shop owner to grant access" });
     return;
   }
 
   const body = parsePushEventsBody(req.body, res);
   if (!body) return;
 
-  const perms = permissionsFor(staff);
-  const results = body.events.map((event) => {
-    if (event.shop_id !== device.shopId || staff.shopId !== event.shop_id) {
-      return reject(event, "Event is not for this shop.");
-    }
+  const results = await Promise.all(
+    body.events.map(async (event) => {
+      if (payloadHasForbiddenStaffPhone(event.payload)) {
+        return reject(event, "Staff phone number must not be included in event payload.");
+      }
 
-    if (event.device_id !== device.id) {
-      return reject(event, "Event device does not match authenticated device.");
-    }
+      if (!["sale", "customer_payment", "customer_credit"].includes(event.event_type)) {
+        return reject(event, "Unsupported event type.");
+      }
 
-    const permission = canCreateEvent(perms, event.event_type);
-    if (!permission.ok) {
-      return reject(event, permission.capability
-        ? `Missing permission: ${permission.capability}`
-        : "Unsupported event type.");
-    }
+      // Idempotency check: reject duplicate (businessId + clientEventId)
+      const existing = await db
+        .select({ id: staffEvents.id })
+        .from(staffEvents)
+        .where(
+          and(
+            eq(staffEvents.businessId, ctx.businessId),
+            eq(staffEvents.clientEventId, event.client_event_id)
+          )
+        )
+        .limit(1);
 
-    if (payloadHasForbiddenStaffPhone(event.payload)) {
-      return reject(event, "Staff phone number must not be included in event payload.");
-    }
+      if (existing.length > 0) {
+        return {
+          client_event_id: event.client_event_id,
+          status: "duplicate" as const,
+          event_id: String(existing[0].id),
+        };
+      }
 
-    const stored = store.pushStaffEvent({
-      clientEventId: event.client_event_id,
-      recordId: event.record_id,
-      shopId: event.shop_id,
-      deviceId: event.device_id,
-      actorStaffMemberId: event.actor_staff_member_id ?? staff.id,
-      actorNameSnapshot: event.actor_name_snapshot,
-      actorRoleAtEvent: event.actor_role_at_event,
-      eventType: event.event_type,
-      occurredAtDevice: new Date(event.occurred_at_device),
-      payload: event.payload ?? {},
-      schemaVersion: event.schema_version,
-    });
+      const [inserted] = await db.insert(staffEvents).values({
+        businessId: ctx.businessId,
+        userId: ctx.userId,
+        clientEventId: event.client_event_id,
+        recordId: event.record_id,
+        actorNameSnapshot: event.actor_name_snapshot,
+        actorRoleAtEvent: event.actor_role_at_event,
+        eventType: event.event_type,
+        occurredAtDevice: new Date(event.occurred_at_device),
+        payload: (event.payload as Record<string, unknown>) ?? {},
+      }).returning({ id: staffEvents.id, createdAt: staffEvents.createdAt });
 
-    return {
-      client_event_id: event.client_event_id,
-      status: stored.status,
-      event_id: stored.event.eventId,
-      created_at_server: iso(stored.event.createdAtServer),
-    };
-  });
+      return {
+        client_event_id: event.client_event_id,
+        status: "accepted" as const,
+        event_id: String(inserted.id),
+        created_at_server: inserted.createdAt?.toISOString(),
+      };
+    })
+  );
 
   res.json({ results });
+});
+
+router.get("/events/activity", async (req: Request, res: Response) => {
+  const ctx = await requireDeviceContext(req);
+  if (!ctx) {
+    res.status(401).json({ error: "Authorization required" });
+    return;
+  }
+
+  if (!ctx.permissions.can_manage_team && ctx.role !== "owner") {
+    res.status(403).json({ error: "Owner or manager access required." });
+    return;
+  }
+
+  const rows = await db
+    .select()
+    .from(staffEvents)
+    .where(
+      and(
+        eq(staffEvents.businessId, ctx.businessId),
+        sql`${staffEvents.eventType} IN ('sale', 'customer_payment', 'customer_credit')`
+      )
+    )
+    .orderBy(desc(staffEvents.occurredAtDevice))
+    .limit(200);
+
+  const activities = rows.map((row) => ({
+    id: String(row.id),
+    client_event_id: row.clientEventId,
+    event_type: row.eventType,
+    staff_name: row.actorNameSnapshot || "",
+    staff_role: row.actorRoleAtEvent || "",
+    amount: numberOrNull((row.payload as Record<string, unknown> | null)?.amount),
+    summary: activitySummary(row.payload as Record<string, unknown> | null, row.eventType),
+    note: textOrNull((row.payload as Record<string, unknown> | null)?.note),
+    payment_method_label: textOrNull((row.payload as Record<string, unknown> | null)?.payment_method_label),
+    occurred_at_device: row.occurredAtDevice?.toISOString() || "",
+    created_at_server: row.createdAt?.toISOString() || "",
+    sync_state: "synced" as const,
+  }));
+
+  res.json({ activities });
 });
 
 export default router;
