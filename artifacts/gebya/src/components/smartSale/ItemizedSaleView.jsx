@@ -74,7 +74,6 @@ export default function ItemizedSaleView({
   const [creditCustomerSearch, setCreditCustomerSearch] = useState('');
   const [creditCustomerId, setCreditCustomerId] = useState(null);
   const [creditCustomerName, setCreditCustomerName] = useState('');
-  const [creditCustomerPhone, setCreditCustomerPhone] = useState('');
   const [selectedDueTs, setSelectedDueTs] = useState(null);
   const [customDueIso, setCustomDueIso] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -84,6 +83,8 @@ export default function ItemizedSaleView({
   const filteredCustomers = customers.filter(c =>
     (c.display_name || c.name || '').toLowerCase().includes(creditCustomerSearch.toLowerCase())
   );
+  const selectedCustomerRecord = customers.find(c => c.id === creditCustomerId);
+  const creditCustomerBalance = selectedCustomerRecord ? (selectedCustomerRecord.balance || 0) : 0;
   const recentCreditCustomers = useMemo(() =>
     customers
       .filter(c => c.last_activity_at)
@@ -748,16 +749,14 @@ export default function ItemizedSaleView({
               </div>
               <div className="w-1/3 min-w-[110px]">
                 <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#9ca3af' }}>
-                  {lang === 'am' ? 'ስልክ' : 'Phone'}
+                  {lang === 'am' ? 'የቀድሞ ዱቤ' : 'Previous balance'}
                 </div>
-                <input
-                  type="tel"
-                  value={creditCustomerPhone}
-                  onChange={e => setCreditCustomerPhone(e.target.value)}
-                  placeholder="+251 9XX XXX XXX"
-                  className="w-full px-2 py-1.5 text-[11px] border font-bold"
-                  style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px' }}
-                />
+                <div className="w-full px-2 py-1.5 text-[11px] border font-bold flex items-center"
+                  style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: '#fff', color: '#374151' }}>
+                  {creditCustomerId
+                    ? fmt(customers.find(c => c.id === creditCustomerId)?.balance || 0)
+                    : (lang === 'am' ? '0 ወይም አዲስ' : '0 / New')}
+                </div>
               </div>
             </div>
 
