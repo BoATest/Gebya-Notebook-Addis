@@ -17,7 +17,7 @@
 // Preserves all existing handlers, save data shape, success screen, recurring popup.
 // NEW: photo capture (B-009) — base64 stored on transaction record.
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   X,
   Check,
@@ -27,7 +27,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { useLang } from '../context/LangContext';
-import EthiopianDatePicker from './EthiopianDatePicker';
+import InlineDatePicker from './InlineDatePicker';
 import { getDueDateOptions, formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { photoSizeBytes } from '../utils/photoCapture';
@@ -143,6 +143,13 @@ function TransactionForm({
   const partialReceivedAmount = isPartialSale ? parseFloat(parseInput(partialReceived)) || 0 : 0;
   const creditAmount = isPartialSale ? Math.max(0, sellingPrice - partialReceivedAmount) : 0;
   const needsCustomerForPartial = isPartialSale && !customerMatch;
+  const recentCreditCustomers = useMemo(() =>
+    customers
+      .filter(c => c.last_activity_at)
+      .sort((a, b) => (b.last_activity_at || 0) - (a.last_activity_at || 0))
+      .slice(0, 4),
+    [customers]
+  );
 
   // Display-only label for the amount hero badge (payment selector lives in the chips row).
   const paymentLabel = paymentType === 'cash'
@@ -393,6 +400,50 @@ function TransactionForm({
                 </div>
               </div>
 
+
+            {/* Recent credit customers — quick-select chips (matches ItemizedSaleView) */}
+            {!customerQuery && !customerMatch && recentCreditCustomers.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {recentCreditCustomers.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => { setCustomerMatch(c); setCustomerQuery(c.display_name || c.name || ''); }}
+                    className="px-2.5 py-1.5 text-[11px] font-bold border press-scale"
+                    style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: '#fff' }}
+                  >
+                    {c.display_name || c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Customer summary when selected (matches ItemizedSaleView) */}
+            {customerMatch && (
+              <div className="flex items-center gap-2 px-2.5 py-1.5 mt-1.5" style={{ background: 'rgba(22,163,74,0.06)', borderRadius: 'var(--radius-sm)', minHeight: '34px' }}>
+                <span className="text-[13px] font-bold flex-1">{customerMatch.display_name || customerMatch.name}</span>
+                {customerMatch.phone && <span className="text-[10px]" style={{ color: '#6b7280' }}>{customerMatch.phone}</span>}
+                <button
+                  type="button"
+                  onClick={() => { setCustomerMatch(null); setCustomerQuery(''); }}
+                  className="text-[12px] font-bold press-scale px-1" style={{ color: '#9ca3af', minHeight: '30px' }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Previous balance (matches ItemizedSaleView) */}
+            {customerMatch && (
+              <div className="mt-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+                  {lang === 'am' ? 'የቀድሞ ዱቤ' : 'Previous balance'}
+                </span>
+                <div className="text-[11px] font-bold" style={{ color: '#C4883A' }}>
+                  {fmt(customerMatch.balance || 0)} {lang === 'am' ? 'ብር' : 'birr'}
+                </div>
+              </div>
+            )}
               {/* Phone */}
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ስልክ (አማራጭ)' : 'PHONE (OPTIONAL)'}</label>
@@ -421,7 +472,7 @@ function TransactionForm({
                   📅 {selectedDue === 'custom' && customDue ? formatEthiopian(new Date(`${customDue}T12:00:00`)) : (lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date')}</button>
               </div>
 
-              <EthiopianDatePicker open={showDatePicker} value={customDue} onChange={(iso) => { setCustomDue(iso); setSelectedDue('custom'); }} onClose={() => setShowDatePicker(false)} lang={lang} />
+              <InlineDatePicker open={showDatePicker} value={customDue} onChange={(iso) => { setCustomDue(iso); setSelectedDue('custom'); }} onClose={() => setShowDatePicker(false)} lang={lang} />
             </>
           )}
 
@@ -485,6 +536,50 @@ function TransactionForm({
                 </div>
               </div>
 
+
+            {/* Recent credit customers — quick-select chips (matches ItemizedSaleView) */}
+            {!customerQuery && !customerMatch && recentCreditCustomers.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {recentCreditCustomers.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => { setCustomerMatch(c); setCustomerQuery(c.display_name || c.name || ''); }}
+                    className="px-2.5 py-1.5 text-[11px] font-bold border press-scale"
+                    style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: '#fff' }}
+                  >
+                    {c.display_name || c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Customer summary when selected (matches ItemizedSaleView) */}
+            {customerMatch && (
+              <div className="flex items-center gap-2 px-2.5 py-1.5 mt-1.5" style={{ background: 'rgba(22,163,74,0.06)', borderRadius: 'var(--radius-sm)', minHeight: '34px' }}>
+                <span className="text-[13px] font-bold flex-1">{customerMatch.display_name || customerMatch.name}</span>
+                {customerMatch.phone && <span className="text-[10px]" style={{ color: '#6b7280' }}>{customerMatch.phone}</span>}
+                <button
+                  type="button"
+                  onClick={() => { setCustomerMatch(null); setCustomerQuery(''); }}
+                  className="text-[12px] font-bold press-scale px-1" style={{ color: '#9ca3af', minHeight: '30px' }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Previous balance (matches ItemizedSaleView) */}
+            {customerMatch && (
+              <div className="mt-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+                  {lang === 'am' ? 'የቀድሞ ዱቤ' : 'Previous balance'}
+                </span>
+                <div className="text-[11px] font-bold" style={{ color: '#C4883A' }}>
+                  {fmt(customerMatch.balance || 0)} {lang === 'am' ? 'ብር' : 'birr'}
+                </div>
+              </div>
+            )}
               {/* Due date */}
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'መቼ ይከፍላል?' : 'WHEN IS THE REST DUE?'} <span style={{ color: '#9ca3af', fontWeight: 600 }}>({lang === 'am' ? 'አማራጭ' : 'optional'})</span></label>
@@ -699,7 +794,7 @@ function TransactionForm({
           </div>
         )}
 
-        <EthiopianDatePicker open={showDatePicker} value={customDue} onChange={(iso) => { setCustomDue(iso); setSelectedDue('custom'); }} onClose={() => setShowDatePicker(false)} lang={lang} />
+        <InlineDatePicker open={showDatePicker} value={customDue} onChange={(iso) => { setCustomDue(iso); setSelectedDue('custom'); }} onClose={() => setShowDatePicker(false)} lang={lang} />
 
 
       </div>

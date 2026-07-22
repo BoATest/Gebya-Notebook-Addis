@@ -11,7 +11,7 @@ import ItemRow from './ItemRow';
 import { useSmartSaleRows } from './useSmartSaleRows';
 import RecentSalesSheet from './RecentSalesSheet';
 import { getDueDateOptions, formatEthiopian } from '../../utils/ethiopianCalendar';
-import EthiopianDatePicker from '../EthiopianDatePicker';
+import InlineDatePicker from '../InlineDatePicker';
 
 const MAX_PHOTOS = 3;
 const DRAFT_KEY = 'gebya_sale_draft';
@@ -74,6 +74,7 @@ export default function ItemizedSaleView({
   const [creditCustomerSearch, setCreditCustomerSearch] = useState('');
   const [creditCustomerId, setCreditCustomerId] = useState(null);
   const [creditCustomerName, setCreditCustomerName] = useState('');
+  const [creditCustomerPhone, setCreditCustomerPhone] = useState('');
   const [selectedDueTs, setSelectedDueTs] = useState(null);
   const [customDueIso, setCustomDueIso] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -574,6 +575,39 @@ export default function ItemizedSaleView({
           </div>
         </div>
 
+        {/* Partial amount received — partial mode only (below TOTAL, above customer fields) */}
+        {isPartial && (
+          <div className="px-2 py-1.5">
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'የተቀበሉት መጠን' : 'Amount Received'} <span style={{ color: '#dc2626' }}>*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={fmtInput(partialReceived)}
+                onChange={e => setPartialReceived(e.target.value.replace(/[^\d.]/g, ''))}
+                placeholder="0"
+                className="w-full p-3 pr-16 border-2 focus:outline-none text-base"
+                style={{ borderRadius: 'var(--radius-md)', borderColor: partialReceivedAmount > 0 && partialReceivedAmount < grandTotal ? '#1B4332' : '#e8e2d8' }}
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-base font-semibold" style={{ color: '#9ca3af' }}>
+                {lang === 'am' ? 'ብር' : 'birr'}
+              </span>
+            </div>
+            {partialReceivedAmount > 0 && partialReceivedAmount < grandTotal && (
+              <p className="text-xs mt-1.5 font-semibold" style={{ color: '#C4883A' }}>
+                {lang === 'am' ? 'ቀሪ ዱቤ' : 'Credit owed'}: {fmt(remainingAmount)} {lang === 'am' ? 'ብር' : 'birr'}
+              </p>
+            )}
+            {partialReceivedAmount >= grandTotal && grandTotal > 0 && (
+              <p className="text-xs mt-1.5 font-medium" style={{ color: '#dc2626' }}>
+                {lang === 'am' ? 'የተቀበሉት ሙሉ ነው — "ጥሬ" ይምረጡ' : 'Amount received is the full sale — use Cash instead.'}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Credit/Partial fields — customer search + recent chips + due date + phone */}
         {(isCredit || isPartial) && (
           <div className="px-2 py-1.5 space-y-1.5">
@@ -760,7 +794,7 @@ export default function ItemizedSaleView({
               </div>
             </div>
 
-            <EthiopianDatePicker
+            <InlineDatePicker
               open={showDatePicker}
               value={customDueIso}
               onChange={(iso) => { setCustomDueIso(iso); setSelectedDueTs(null); }}
@@ -770,38 +804,6 @@ export default function ItemizedSaleView({
           </div>
         )}
 
-        {/* Partial amount received — partial mode only */}
-        {isPartial && (
-          <div className="px-2 py-1.5">
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'የተቀበሉት መጠን' : 'Amount Received'} <span style={{ color: '#dc2626' }}>*</span>
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                inputMode="decimal"
-                value={fmtInput(partialReceived)}
-                onChange={e => setPartialReceived(e.target.value.replace(/[^\d.]/g, ''))}
-                placeholder="0"
-                className="w-full p-3 pr-16 border-2 focus:outline-none text-base"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: partialReceivedAmount > 0 && partialReceivedAmount < grandTotal ? '#1B4332' : '#e8e2d8' }}
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-base font-semibold" style={{ color: '#9ca3af' }}>
-                {lang === 'am' ? 'ብር' : 'birr'}
-              </span>
-            </div>
-            {partialReceivedAmount > 0 && partialReceivedAmount < grandTotal && (
-              <p className="text-xs mt-1.5 font-semibold" style={{ color: '#C4883A' }}>
-                {lang === 'am' ? 'ቀሪ ዱቤ' : 'Credit owed'}: {fmt(remainingAmount)} {lang === 'am' ? 'ብር' : 'birr'}
-              </p>
-            )}
-            {partialReceivedAmount >= grandTotal && grandTotal > 0 && (
-              <p className="text-xs mt-1.5 font-medium" style={{ color: '#dc2626' }}>
-                {lang === 'am' ? 'የተቀበሉት ሙሉ ነው — "ጥሬ" ይምረጡ' : 'Amount received is the full sale — use Cash instead.'}
-              </p>
-            )}
-          </div>
-        )}
         <div className="px-2 py-1">
           <PaymentTypeChips
             paymentType={paymentType}
