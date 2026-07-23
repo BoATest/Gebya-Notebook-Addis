@@ -586,7 +586,7 @@ db.version(25).stores({
   credit_records: '++id, customer_id, customer_name, original_amount, paid_amount, remaining_amount, due_date, status, created_at, direction',
   credit_payment_logs: '++id, credit_record_id, amount, payment_method, paid_at',
   daily_closings: '++id, closed_at, date_start, date_end, actor_role, actor_staff_member_id, actor_name_snapshot, finalized',
-  settlements: '++id, settlement_id, staff_id, status, settled_at, updated_at',
+  settlements: '++id, settlement_id, staff_id, status, settled_at, updated_at, business_id, [settled_at+business_id]',
   settings: 'key, value',
   analytics: 'key, value',
   identity: 'key',
@@ -720,24 +720,28 @@ export async function saveSettlement(record) {
     device_id: record.device_id || '',
   };
   // Attach current business_id from sync engine's persisted setting
-  if (!entry.business_id) {
+  if (!entry.business_id && entry.business_id !== null) {
     try {
       const bizRow = await db.settings.get('gebya_business_id');
-      entry.business_id = Number(bizRow?.value) || 0;
-    } catch { entry.business_id = 0; }
+      entry.business_id = bizRow?.value ? Number(bizRow.value) : null;
+    } catch { entry.business_id = null; }
   }
   entry.total_variance = entry.actual_total - (entry.final_expected_total || entry.expected_total);
   const id = await db.settlements.add(entry);
   return { id, ...entry };
 }
 
-export async function getSettlementsForStaff(staffId, from = 0, to = Date.now()) {
-  return db.settlements
+export async function getSettlementsForStaff(staffId, from = 0, to = Date.now(), businessId) {
+  let results = await db.settlements
     .where('staff_id')
     .equals(staffId)
-    .filter(s => s.settled_at >= from && s.settled_at <= to)
+    .filter((s) => s.settled_at >= from && s.settled_at <= to)
     .reverse()
     .sortBy('settled_at');
+  if (businessId != null) {
+    results = results.filter((s) => Number(s.business_id) === Number(businessId));
+  }
+  return results;
 }
 
 export async function getLatestSettlement(staffId) {
@@ -753,8 +757,8 @@ export async function getAllSettlements(from = 0, to = Date.now(), businessId) {
     .between(from, to)
     .reverse()
     .sortBy('settled_at');
-  if (businessId) {
-    results = results.filter(s => Number(s.business_id) === Number(businessId));
+  if (businessId != null) {
+    results = results.filter((s) => Number(s.business_id) === Number(businessId));
   }
   return results;
 }
@@ -769,7 +773,7 @@ export async function getUnsettledStaffIds(allStaffIds, cutoff = Date.now(), bus
     .where('settled_at')
     .above(cutoff - 90 * 86400000)
     .toArray();
-  if (businessId) {
+  if (businessId != null) {
     settled = settled.filter(s => Number(s.business_id) === Number(businessId));
   }
   const settledIds = new Set(settled.map(s => String(s.staff_id)));
