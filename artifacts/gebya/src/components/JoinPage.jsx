@@ -3,6 +3,7 @@ import { Phone, ArrowRight, Check, AlertCircle, Building2 } from 'lucide-react';
 import { requestOtp, verifyOtp, linkDevice } from '../utils/authClient';
 import { setAuthToken, forceFullSync } from '../utils/syncEngine';
 import { getOrCreateCloudProofDeviceId } from '../utils/cloudProof';
+import { setIdentity } from '../db';
 import { fireToast } from './Toast';
 
 const API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
@@ -84,8 +85,12 @@ async function tryJoin(token, authToken = null) {
     return { kind: 'error', message: msg };
   }
   if (data.requires_auth) return { kind: 'requires_auth', businessName: data.business_name, role: data.role };
-  if (data.joined) return { kind: 'joined', businessName: data.business_name, role: data.role };
-  if (data.already_member) return { kind: 'already_member', businessName: data.business_name, role: data.role };
+  if (data.joined || data.already_member) return {
+    kind: data.joined ? 'joined' : 'already_member',
+    businessName: data.business_name,
+    shopId: data.shop_id,
+    role: data.role,
+  };
   return { kind: 'error', message: 'Unexpected response' };
 }
 
@@ -122,6 +127,13 @@ export default function JoinPage() {
       case 'already_member':
         setStatus('joined');
         setBusinessName(result.businessName || '');
+        if (result.shopId) {
+          setIdentity({
+            shop_id: result.shopId,
+            shop_name: result.businessName || '',
+            role: result.role || 'staff',
+          }).catch(() => {});
+        }
         triggerSyncAndRedirect();
         break;
       case 'requires_auth':

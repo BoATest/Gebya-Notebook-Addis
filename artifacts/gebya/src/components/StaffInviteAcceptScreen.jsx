@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { usePermissionsStore } from '../stores/permissionsStore';
+import { setIdentity } from '../db';
 import { fireToast } from './Toast';
 import { getAuthToken } from '../utils/syncEngine';
 
@@ -51,13 +52,20 @@ export default function StaffInviteAcceptScreen({ onJoined, onDismiss }) {
     if (!activeInvite) return;
     setSaving(true);
     try {
-      await apiFetch(`/business/invites/${activeInvite.id}/accept`, { method: 'POST' });
+      const data = await apiFetch(`/business/invites/${activeInvite.id}/accept`, { method: 'POST' });
       setAccepted(true);
+      // Store identity so app state works after reload
+      if (data.shop_id) {
+        setIdentity({
+          shop_id: data.shop_id,
+          shop_name: data.business_name || activeInvite.business_name,
+          role: data.role || 'staff',
+        }).catch(() => {});
+      }
       fireToast(lang === 'am' ? '✓ ተቀላቅለዋል' : '✓ Joined successfully', 2500);
+      onJoined?.();
       setTimeout(() => {
-        // Force UI re-render with new permissions by reloading auth
         window.location.reload();
-        onJoined?.();
       }, 1800);
     } catch (err) {
       fireToast(err.message || 'Failed to accept', 3000);

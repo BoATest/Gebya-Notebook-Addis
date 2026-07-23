@@ -18,6 +18,12 @@ function getUserIdFromRequest(req: any): number | null {
   return verifyJwt(token)?.userId || null;
 }
 
+function getRequestedBizId(req: any): number | null {
+  const h = req.headers["x-business-id"];
+  const id = h ? Number(h) : null;
+  return id && Number.isInteger(id) ? id : null;
+}
+
 async function getBusinessForUser(userId: number, businessId?: number) {
     const filters: any[] = [eq(businessMembers.userId, userId)];
     if (businessId) filters.push(eq(businessMembers.businessId, businessId));
@@ -68,7 +74,7 @@ router.post("/invite", requireRole("owner"), async (req, res) => {
     return res.status(400).json({ error: "role must be 'cashier', 'viewer', 'manager', or 'trusted_staff'" });
   }
 
-  const businessId = await getBusinessForUser(userId);
+  const businessId = await getBusinessForUser(userId, getRequestedBizId(req));
   if (!businessId) return res.status(403).json({ error: "No business found" });
 
   const token = crypto.randomBytes(32).toString("hex");
@@ -95,7 +101,7 @@ router.post("/invite", requireRole("owner"), async (req, res) => {
 router.get("/invites/pending", requireRole("owner", "manager"), async (req, res) => {
   const userId = getUserIdFromRequest(req);
   if (!userId) return res.status(401).json({ error: "Authorization required" });
-  const businessId = await getBusinessForUser(userId);
+  const businessId = await getBusinessForUser(userId, getRequestedBizId(req));
   if (!businessId) return res.status(403).json({ error: "No business found" });
   const rows = await db
     .select()
@@ -183,7 +189,7 @@ router.post("/invites/:inviteId/accept", async (req, res) => {
         .from(businesses)
         .where(eq(businesses.id, inv.businessId))
         .limit(1);
-      return { kind: "already_member", businessName: biz[0]?.name || "a shop" };
+      return { kind: "already_member", businessName: biz[0]?.name || "a shop", shop_id: inv.businessId };
     }
     await tx.insert(businessMembers).values({
       businessId: inv.businessId,
@@ -200,14 +206,14 @@ router.post("/invites/:inviteId/accept", async (req, res) => {
       .from(businesses)
       .where(eq(businesses.id, inv.businessId))
       .limit(1);
-    return { kind: "joined", businessName: biz[0]?.name || "a shop", role: inv.role };
+    return { kind: "joined", businessName: biz[0]?.name || "a shop", role: inv.role, shop_id: inv.businessId };
   });
   if (result.kind === "not_found") return res.status(404).json({ error: "Invite not found" });
   if (result.kind === "already_used") return res.status(410).json({ error: "Invite already accepted" });
   if (result.kind === "revoked") return res.status(410).json({ error: "Invite has been revoked" });
   if (result.kind === "declined") return res.status(410).json({ error: "Invite already declined" });
   if (result.kind === "expired") return res.status(410).json({ error: "Invite has expired" });
-  return res.json({ ok: true, joined: true, business_name: result.businessName });
+  return res.json({ ok: true, joined: true, business_name: result.businessName, shop_id: result.shop_id });
 });
 
 router.post("/invites/:inviteId/decline", async (req, res) => {
@@ -234,7 +240,7 @@ router.delete("/invites/:inviteId", requireRole("owner", "manager"), async (req,
   if (!userId) return res.status(401).json({ error: "Authorization required" });
   const inviteId = Number(req.params.inviteId);
   if (!Number.isFinite(inviteId)) return res.status(400).json({ error: "Invalid inviteId" });
-  const businessId = await getBusinessForUser(userId);
+  const businessId = await getBusinessForUser(userId, getRequestedBizId(req));
   if (!businessId) return res.status(403).json({ error: "No business found" });
   const rows = await db
     .select()
@@ -281,6 +287,7 @@ router.post("/join/:token", async (req, res) => {
         kind: "requires_auth" as const,
         businessName,
         role: invite.role,
+        shop_id: invite.businessId,
       };
     }
 
@@ -296,6 +303,7 @@ router.post("/join/:token", async (req, res) => {
         kind: "already_member" as const,
         businessName,
         role: invite.role,
+        shop_id: invite.businessId,
       };
     }
 
@@ -314,6 +322,7 @@ router.post("/join/:token", async (req, res) => {
       kind: "joined" as const,
       businessName,
       role: invite.role,
+      shop_id: invite.businessId,
     };
   });
 
@@ -327,11 +336,11 @@ router.post("/join/:token", async (req, res) => {
     case "expired":
       return res.status(410).json({ error: "Invite has expired" });
     case "requires_auth":
-      return res.json({ ok: true, requires_auth: true, business_name: result.businessName, role: result.role });
+      return res.json({ ok: true, requires_auth: true, business_name: result.businessName, role: result.role, shop_id: result.shop_id });
     case "already_member":
-      return res.json({ ok: true, already_member: true, business_name: result.businessName, role: result.role });
+      return res.json({ ok: true, already_member: true, business_name: result.businessName, role: result.role, shop_id: result.shop_id });
     case "joined":
-      return res.json({ ok: true, joined: true, business_name: result.businessName, role: result.role });
+      return res.json({ ok: true, joined: true, business_name: result.businessName, role: result.role, shop_id: result.shop_id });
   }
 });
 
@@ -339,7 +348,7 @@ router.get("/members", requireRole("owner", "manager"), async (req, res) => {
   const userId = getUserIdFromRequest(req);
   if (!userId) return res.status(401).json({ error: "Authorization required" });
 
-  const businessId = await getBusinessForUser(userId);
+  const businessId = await getBusinessForUser(userId, getRequestedBizId(req));
   if (!businessId) return res.status(403).json({ error: "No business found" });
 
   const rows = await db
@@ -382,7 +391,7 @@ router.patch("/members/:userId/permissions", requireRole("owner", "manager"), as
     return res.status(403).json({ error: "Cannot modify owner permissions" });
   }
 
-  const businessId = await getBusinessForUser(ownerId);
+  const businessId = await getBusinessForUser(ownerId, getRequestedBizId(req));
   if (!businessId) return res.status(403).json({ error: "No business found" });
 
   // Verify target is a member of this business

@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
 import { businessMembers } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { verifyJwt } from "../routes/auth.js";
 
 function getUserIdFromRequest(req: any): number | null {
@@ -23,10 +23,18 @@ export function requireRole(...roles: string[]) {
     const userId = getUserIdFromRequest(req);
     if (!userId) return res.status(401).json({ error: "Authorization required" });
 
+    const bizHeader = req.headers["x-business-id"];
+    const requestedBizId = bizHeader ? Number(bizHeader) : null;
+
+    const filters: any[] = [eq(businessMembers.userId, userId)];
+    if (requestedBizId && Number.isInteger(requestedBizId)) {
+      filters.push(eq(businessMembers.businessId, requestedBizId));
+    }
+
     const rows = await db
       .select({ role: businessMembers.role })
       .from(businessMembers)
-      .where(eq(businessMembers.userId, userId))
+      .where(and(...filters))
       .limit(1);
 
     if (!rows.length || !roles.includes(rows[0].role)) {
