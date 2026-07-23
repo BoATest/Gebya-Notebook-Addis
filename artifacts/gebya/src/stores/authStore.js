@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getAuthToken } from '../utils/syncEngine';
 import { usePermissionsStore } from './permissionsStore';
+import { resolvePermissions } from '../utils/permissions';
 
 export const useAuthStore = create((set, get) => ({
   user: null,
@@ -75,17 +76,3 @@ export const useAuthStore = create((set, get) => ({
     set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null });
   },
 }));
-
-const DEFAULT_PERMISSIONS = {
-  owner:          { can_manage_team: true, can_delete_records: true, can_edit_settings: true, can_add_records: true, can_view_reports: true },
-  manager:        { can_manage_team: true, can_delete_records: true, can_edit_settings: true, can_add_records: true, can_view_reports: true },
-  trusted_staff:  { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: true, can_view_reports: true },
-  cashier:        { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: true, can_view_reports: true },
-  viewer:         { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: false, can_view_reports: true },
-};
-
-function resolvePermissions(role, storedPermissions) {
-  const base = DEFAULT_PERMISSIONS[role] || DEFAULT_PERMISSIONS.viewer;
-  if (!storedPermissions || typeof storedPermissions !== 'object') return base;
-  return { ...base, ...storedPermissions };
-}

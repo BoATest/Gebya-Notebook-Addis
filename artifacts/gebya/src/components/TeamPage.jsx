@@ -3,6 +3,7 @@ import { Users, Copy, Check, ChevronDown, ChevronUp, Shield, KeyRound, Upload } 
 import { useLang } from '../context/LangContext';
 import { useShopStore } from '../stores/shopStore';
 import { usePermissionsStore } from '../stores/permissionsStore';
+import { useAuthStore } from '../stores/authStore';
 import { fireToast } from './Toast';
 import ConfirmDialog from './ConfirmDialog';
 import { getAuthToken } from '../utils/syncEngine';
@@ -12,10 +13,10 @@ const API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
 
 async function apiFetch(path, options = {}) {
   const token = await getAuthToken();
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
-  });
+  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers };
+  const bizId = useAuthStore.getState().currentBusinessId;
+  if (bizId) headers['x-business-id'] = String(bizId);
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;

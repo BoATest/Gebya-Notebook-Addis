@@ -2,7 +2,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { businesses, businessMembers, invites, users } from "@workspace/db/schema";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, count, eq, gt, isNull } from "drizzle-orm";
 import crypto from "crypto";
 import { requireRole } from "../middlewares/requireRole.js";
 import { verifyJwt } from "./auth.js";
@@ -22,6 +22,21 @@ function getRequestedBizId(req: any): number | null {
   const h = req.headers["x-business-id"];
   const id = h ? Number(h) : null;
   return id && Number.isInteger(id) ? id : null;
+}
+
+const STAFF_LIMIT = 10;
+
+async function countActiveStaff(businessId: number) {
+  const rows = await db
+    .select({ total: count() })
+    .from(businessMembers)
+    .where(
+      and(
+        eq(businessMembers.businessId, businessId),
+        eq(businessMembers.active, true),
+      )
+    );
+  return Number(rows[0]?.total) || 0;
 }
 
 async function getBusinessForUser(userId: number, businessId?: number) {
@@ -76,6 +91,11 @@ router.post("/invite", requireRole("owner"), async (req, res) => {
 
   const businessId = await getBusinessForUser(userId, getRequestedBizId(req));
   if (!businessId) return res.status(403).json({ error: "No business found" });
+
+  const activeCount = await countActiveStaff(businessId);
+  if (activeCount >= STAFF_LIMIT) {
+    return res.status(403).json({ error: `Staff limit of ${STAFF_LIMIT} active members reached` });
+  }
 
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
@@ -177,6 +197,8 @@ router.post("/invites/:inviteId/accept", async (req, res) => {
     if (inv.revokedAt) return { kind: "revoked" };
     if (inv.declinedAt) return { kind: "declined" };
     if (inv.expiresAt && inv.expiresAt <= new Date()) return { kind: "expired" };
+    const activeCount = await countActiveStaff(inv.businessId);
+    if (activeCount >= STAFF_LIMIT) return { kind: "staff_limit_reached" };
     const existingBizIds = await tx
       .select({ businessId: businessMembers.businessId })
       .from(businessMembers)
@@ -291,6 +313,11 @@ router.post("/join/:token", async (req, res) => {
       };
     }
 
+    const activeCount = await countActiveStaff(invite.businessId);
+    if (activeCount >= STAFF_LIMIT) {
+      return { kind: "staff_limit_reached" as const };
+    }
+
     const existingMembership = await tx
       .select({ businessId: businessMembers.businessId })
       .from(businessMembers)
@@ -339,6 +366,8 @@ router.post("/join/:token", async (req, res) => {
       return res.json({ ok: true, requires_auth: true, business_name: result.businessName, role: result.role, shop_id: result.shop_id });
     case "already_member":
       return res.json({ ok: true, already_member: true, business_name: result.businessName, role: result.role, shop_id: result.shop_id });
+    case "staff_limit_reached":
+      return res.status(403).json({ error: `Staff limit of ${STAFF_LIMIT} active members reached` });
     case "joined":
       return res.json({ ok: true, joined: true, business_name: result.businessName, role: result.role, shop_id: result.shop_id });
   }

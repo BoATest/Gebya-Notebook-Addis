@@ -7,19 +7,25 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
   const [viewAll, setViewAll] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
+      const bizRow = await db.settings.get('gebya_business_id');
+      const bizId = Number(bizRow?.value) || 0;
+      if (cancelled) return;
       try {
-        const rows = await getAllSettlements(Date.now() - 90 * 86400000, Date.now() + 86400000);
+        const rows = await getAllSettlements(Date.now() - 90 * 86400000, Date.now() + 86400000, bizId);
         setSettlements(rows);
       } catch {}
     })();
     const interval = setInterval(async () => {
+      const bizRow = await db.settings.get('gebya_business_id');
+      const bizId = Number(bizRow?.value) || 0;
       try {
-        const rows = await getAllSettlements(Date.now() - 90 * 86400000, Date.now() + 86400000);
+        const rows = await getAllSettlements(Date.now() - 90 * 86400000, Date.now() + 86400000, bizId);
         setSettlements(rows);
       } catch {}
     }, 10000);
-    return () => clearInterval(interval);
+    return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
   const t = (en, am) => lang === 'am' ? am : en;

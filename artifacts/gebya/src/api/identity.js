@@ -17,6 +17,12 @@ async function request(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
+  // Add x-business-id for business-scoped endpoints
+  const bizId = options.businessId;
+  if (bizId) {
+    headers['x-business-id'] = String(bizId);
+  }
+
   const res = await fetch(url, {
     ...options,
     headers,

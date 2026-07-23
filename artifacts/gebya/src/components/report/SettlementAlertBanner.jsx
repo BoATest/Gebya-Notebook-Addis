@@ -7,9 +7,13 @@ export default function SettlementAlertBanner({ lang = 'en', onFocus, isStaffVie
 
   useEffect(() => {
     if (isStaffView) return;
+    let cancelled = false;
     (async () => {
+      const bizRow = await db.settings.get('gebya_business_id');
+      const bizId = Number(bizRow?.value) || 0;
+      if (cancelled) return;
       try {
-        const rows = await getAllSettlements(Date.now() - 90 * 86400000, Date.now() + 86400000);
+        const rows = await getAllSettlements(Date.now() - 90 * 86400000, Date.now() + 86400000, bizId);
 
         // Group by staff, find latest per staff
         const latest = {};

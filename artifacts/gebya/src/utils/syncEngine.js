@@ -380,12 +380,15 @@ class SyncEngine {
     const hasData = Object.values(payload.tables).some((arr) => arr.length > 0);
     if (!hasData) return;
 
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    };
+    if (this.businessId) headers['x-business-id'] = String(this.businessId);
+
     const res = await fetchWithRetry(`${SYNC_API_BASE}/sync/push`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify(payload),
     }, 3);
 
@@ -445,9 +448,11 @@ class SyncEngine {
           if (!localRecord) continue;
 
           // Fetch server record via pull
+          const resolveHeaders = { 'Authorization': `Bearer ${token}` };
+          if (this.businessId) resolveHeaders['x-business-id'] = String(this.businessId);
           const serverRes = await fetch(
             `${SYNC_API_BASE}/sync/pull?since=${(localRecord.updated_at || 0) - 1}&limit=50`,
-            { headers: { 'Authorization': `Bearer ${token}` } }
+            { headers: resolveHeaders }
           );
           if (!serverRes.ok) continue;
           const { tables } = await serverRes.json();
@@ -513,9 +518,12 @@ class SyncEngine {
 
     // Paginated pull: keep pulling until no more pages
     while (hasMore) {
+      const pullHeaders = { 'Authorization': `Bearer ${token}` };
+      if (this.businessId) pullHeaders['x-business-id'] = String(this.businessId);
+
       const res = await fetchWithRetry(
         `${SYNC_API_BASE}/sync/pull?since=${cursor}&limit=200`,
-        { headers: { 'Authorization': `Bearer ${token}` } },
+        { headers: pullHeaders },
         3
       );
       if (!res.ok) throw new Error(`Pull failed: ${res.status}`);
