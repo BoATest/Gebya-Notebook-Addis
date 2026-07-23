@@ -1,12 +1,11 @@
 // @ts-nocheck
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { auditLog, businesses, businessMembers, invites, users } from "@workspace/db/schema";
-import { and, count, eq, gt, isNull } from "drizzle-orm";
+import { businesses, businessMembers, invites, users } from "@workspace/db/schema";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import crypto from "crypto";
 import { requireRole } from "../middlewares/requireRole.js";
 import { verifyJwt } from "./auth.js";
-import { inviteRateLimiter } from "../rateLimits.js";
 import { resolvePermissions, getRoleDefault } from "@workspace/db/schema/permission-defaults";
 
 const router = Router();
@@ -23,21 +22,6 @@ function getRequestedBizId(req: any): number | null {
   const h = req.headers["x-business-id"];
   const id = h ? Number(h) : null;
   return id && Number.isInteger(id) ? id : null;
-}
-
-const STAFF_LIMIT = 10;
-
-async function countActiveStaff(businessId: number) {
-  const rows = await db
-    .select({ total: count() })
-    .from(businessMembers)
-    .where(
-      and(
-        eq(businessMembers.businessId, businessId),
-        eq(businessMembers.active, true),
-      )
-    );
-  return Number(rows[0]?.total) || 0;
 }
 
 async function getBusinessForUser(userId: number, businessId?: number) {
@@ -78,7 +62,7 @@ async function findValidInvite(tx: any, token: string) {
   return rows[0] ?? null;
 }
 
-router.post("/invite", inviteRateLimiter, requireRole("owner"), async (req, res) => {
+router.post("/invite", requireRole("owner"), async (req, res) => {
   const userId = getUserIdFromRequest(req);
   if (!userId) return res.status(401).json({ error: "Authorization required" });
 
@@ -93,11 +77,6 @@ router.post("/invite", inviteRateLimiter, requireRole("owner"), async (req, res)
   const businessId = await getBusinessForUser(userId, getRequestedBizId(req));
   if (!businessId) return res.status(403).json({ error: "No business found" });
 
-  const activeCount = await countActiveStaff(businessId);
-  if (activeCount >= STAFF_LIMIT) {
-    return res.status(403).json({ error: `Staff limit of ${STAFF_LIMIT} active members reached` });
-  }
-
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
 
@@ -110,39 +89,6 @@ router.post("/invite", inviteRateLimiter, requireRole("owner"), async (req, res)
     token,
     expiresAt,
   });
-
-  // Fire-and-forget notification to the invitee
-  (async () => {
-    try {
-      const bizRows = await db.select({ name: businesses.name }).from(businesses).where(eq(businesses.id, businessId)).limit(1);
-      const bizName = bizRows[0]?.name || "a shop";
-      const inviteLink = `${APP_BASE_URL}/join/${token}`;
-
-      const userRows = await db.select({ telegramChatId: users.telegramChatId }).from(users).where(eq(users.phoneNumber, phone_number.trim())).limit(1);
-      const user = userRows[0];
-
-      let method: string | null = null;
-      if (user?.telegramChatId) {
-        try {
-          const { sendTelegramTextMessage } = await import("../services/telegramBotService.js");
-          await sendTelegramTextMessage(user.telegramChatId, `You've been invited to join *${bizName}* as *${role}*.\n\nClick to accept: ${inviteLink}`);
-          method = "telegram";
-        } catch {}
-      }
-      if (!method) {
-        try {
-          const { sendSms, isSmsEnabled } = await import("../services/smsSender.js");
-          if (isSmsEnabled()) {
-            await sendSms(phone_number.trim(), `You've been invited to join ${bizName}. Accept here: ${inviteLink}`);
-            method = "sms";
-          }
-        } catch {}
-      }
-      if (method) {
-        await db.update(invites).set({ notificationSent: true, notificationMethod: method }).where(eq(invites.token, token));
-      }
-    } catch {}
-  })();
 
   return res.json({
     ok: true,
@@ -231,8 +177,6 @@ router.post("/invites/:inviteId/accept", async (req, res) => {
     if (inv.revokedAt) return { kind: "revoked" };
     if (inv.declinedAt) return { kind: "declined" };
     if (inv.expiresAt && inv.expiresAt <= new Date()) return { kind: "expired" };
-    const activeCount = await countActiveStaff(inv.businessId);
-    if (activeCount >= STAFF_LIMIT) return { kind: "staff_limit_reached" };
     const existingBizIds = await tx
       .select({ businessId: businessMembers.businessId })
       .from(businessMembers)
@@ -347,11 +291,6 @@ router.post("/join/:token", async (req, res) => {
       };
     }
 
-    const activeCount = await countActiveStaff(invite.businessId);
-    if (activeCount >= STAFF_LIMIT) {
-      return { kind: "staff_limit_reached" as const };
-    }
-
     const existingMembership = await tx
       .select({ businessId: businessMembers.businessId })
       .from(businessMembers)
@@ -400,8 +339,6 @@ router.post("/join/:token", async (req, res) => {
       return res.json({ ok: true, requires_auth: true, business_name: result.businessName, role: result.role, shop_id: result.shop_id });
     case "already_member":
       return res.json({ ok: true, already_member: true, business_name: result.businessName, role: result.role, shop_id: result.shop_id });
-    case "staff_limit_reached":
-      return res.status(403).json({ error: `Staff limit of ${STAFF_LIMIT} active members reached` });
     case "joined":
       return res.json({ ok: true, joined: true, business_name: result.businessName, role: result.role, shop_id: result.shop_id });
   }
@@ -500,15 +437,6 @@ router.patch("/members/:userId/permissions", requireRole("owner", "manager"), as
     .update(businessMembers)
     .set({ permissions: permissionsToStore })
     .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.userId, targetUserId)));
-
-  await db.insert(auditLog).values({
-    businessId,
-    actorStaffMemberId: ownerId,
-    action: "PERMISSION_CHANGE",
-    entityType: "business_member",
-    entityId: String(targetUserId),
-    details: JSON.stringify({ before: existingPermissions, after: permissionsToStore }),
-  }).catch(() => {});
 
   return res.json({ ok: true, permissions: nextPermissions });
 });
