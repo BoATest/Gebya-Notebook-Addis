@@ -2,6 +2,8 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
 import { toEthiopian, toGregorian } from 'ethiopian-date';
 
+const dvhSupported = typeof window !== 'undefined' && window.CSS?.supports?.('height', '100dvh');
+
 const MONTHS_AM = [
   'መስከረም', 'ጥቅምት', 'ኅዳር', 'ታህሳስ', 'ጥር', 'የካቲት',
   'መጋቢት', 'ሚያዝያ', 'ግንቦት', 'ሰኔ', 'ሐምሌ', 'ነሐሴ', 'ጳጉሜ',
@@ -192,12 +194,12 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             background: '#fff',
             borderTopLeftRadius: 24, borderTopRightRadius: 24,
             width: '100%', maxWidth: 480,
-            maxHeight: '100dvh',
+            maxHeight: dvhSupported ? '100dvh' : 'calc(100vh - 24px)',
             display: 'flex', flexDirection: 'column',
             boxShadow: '0 -8px 32px -8px rgba(0,0,0,0.25)',
           }}
         >
-          <div style={{ overflowY: 'auto', flex: 1 }}>
+          <div style={{ overflowY: 'auto', flex: 1, WebkitOverflowScrolling: 'touch' }}>
             {/* Drag handle */}
             <div style={{ width: 38, height: 4, background: '#e5e7eb', borderRadius: 999, margin: '10px auto 6px' }} />
 
@@ -367,11 +369,11 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             </div>
           </div>
 
-          {/* Sticky footer */}
+          {/* Sticky footer — always visible above phone nav bar */}
           <div style={{
             flexShrink: 0,
             padding: '12px 16px',
-            paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+            paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 24px))',
             background: '#fff',
             borderTop: '1px solid #f0ede8',
           }}>
