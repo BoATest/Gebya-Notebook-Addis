@@ -118,11 +118,14 @@ export function computeSalesSummary(metrics, lang = 'en') {
   let cashCount = 0;
   let transferCount = 0;
   let creditCount = 0;
+  let partialCount = 0;
   for (const row of saleRows) {
     if (row.report_kind === 'credit' || String(row.payment_type || '').toLowerCase() === 'credit') {
       creditCount++;
     } else if (isTransferPayment(row)) {
       transferCount++;
+    } else if (String(row.payment_type || '').toLowerCase() === 'partial') {
+      partialCount++;
     } else {
       cashCount++;
     }
@@ -133,7 +136,7 @@ export function computeSalesSummary(metrics, lang = 'en') {
     totalAmount,
     averageSale,
     topItems,
-    paymentBreakdown: { cash: cashCount, transfer: transferCount, credit: creditCount },
+    paymentBreakdown: { cash: cashCount, transfer: transferCount, credit: creditCount, partial: partialCount },
   };
 }
 

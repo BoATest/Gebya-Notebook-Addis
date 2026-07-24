@@ -111,6 +111,11 @@ export default function SalesSection({ sales, hidden = false, lang = 'en' }) {
                   📝 {sales.paymentBreakdown.credit} {lang === 'am' ? 'ዱቤ' : 'Credit'}
                 </span>
               )}
+              {sales.paymentBreakdown.partial > 0 && (
+                <span style={{ color: '#C4883A' }}>
+                  ½ {sales.paymentBreakdown.partial} {lang === 'am' ? 'ከፊል' : 'Partial'}
+                </span>
+              )}
             </div>
           </div>
         )}
