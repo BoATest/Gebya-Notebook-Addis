@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, MessageCircle, MessageSquare, Pencil, Phone, Plus, Wallet, X,
+  ArrowLeft, MessageCircle, MessageSquare, Pencil, Phone, Plus, Wallet, X, ArrowRightLeft,
 } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { toTelUrl, isValidEthiopianPhone } from '../utils/phoneNumber';
@@ -87,6 +87,7 @@ function CustomerDetail({
   onSmsCustomer,                // NEW · open ReminderSheet with SMS pre-selected
   onEditCustomer,              // Commit C.2 · Edit customer (name/phone/Telegram/photo)
   onSelectTransaction,         // NEW · tap transaction row → open detail sheet
+  onTransfer,                  // NEW · transfer dube to another customer
   isOnline = true,
   isSlowConnection = false,
 }) {
@@ -202,6 +203,26 @@ function CustomerDetail({
                 }}
               >
                 <Pencil className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {onTransfer && (
+              <button
+                type="button"
+                onClick={() => onTransfer(customer)}
+                className="press-scale"
+                aria-label={lang === 'am' ? 'ዱቤ ያስተላልፉ' : 'Transfer credit'}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 30, height: 30,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.12)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
+              >
+                <ArrowRightLeft className="w-3.5 h-3.5" />
               </button>
             )}
           </div>

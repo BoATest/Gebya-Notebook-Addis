@@ -1,5 +1,5 @@
 import { Suspense, useState, lazy } from 'react';
-import { X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
 import { useTheme } from '../context/ThemeContext';
@@ -67,6 +67,7 @@ function SettingsPage({
   const [activeTab, setActiveTab] = useState('shop');
   const [dismissInstall, setDismissInstall] = useState(false);
   const [pendingCardId, setPendingCardId] = useState(null);
+  const [settingsSearchQuery, setSettingsSearchQuery] = useState('');
 
   const [adminSection, setAdminSection] = useState(null); // null | 'metrics' | 'curation'
   const [aboutTapCount, setAboutTapCount] = useState(0);
@@ -141,6 +142,41 @@ function SettingsPage({
           >
             አማ
           </button>
+        </div>
+      </div>
+
+      {/* ── Search Bar ── */}
+      <div className="px-4 pb-1" style={{ background: 'var(--cream)' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          border: '1px solid #e5e7eb', borderRadius: 10,
+          padding: '6px 10px', minHeight: 38,
+          background: '#fff',
+        }}>
+          <Search className="w-4 h-4" style={{ color: '#9ca3af', flexShrink: 0 }} />
+          <input
+            type="text"
+            value={settingsSearchQuery}
+            onChange={e => setSettingsSearchQuery(e.target.value)}
+            placeholder={lang === 'am' ? 'በቅንብሮች ውስጥ ፈልግ...' : 'Search settings...'}
+            style={{
+              flex: 1, border: 'none', outline: 'none', fontSize: '0.8rem',
+              fontWeight: 600, color: '#374151',
+              background: 'transparent', minHeight: 28,
+            }}
+          />
+          {settingsSearchQuery && (
+            <button
+              type="button"
+              onClick={() => setSettingsSearchQuery('')}
+              style={{
+                border: 'none', background: 'none', cursor: 'pointer',
+                padding: 4, display: 'flex',
+              }}
+            >
+              <X className="w-4 h-4" style={{ color: '#9ca3af' }} />
+            </button>
+          )}
         </div>
       </div>
 

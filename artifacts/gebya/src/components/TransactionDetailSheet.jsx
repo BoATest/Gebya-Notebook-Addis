@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react';
 import { X, Pencil, Trash2, Calendar, User, Wallet, ChevronDown, ChevronUp, Image } from 'lucide-react';
 import { fmt } from '../utils/numformat';
-import { formatEthiopian } from '../utils/ethiopianCalendar';
+import { formatEthiopian, formatEthiopianTime } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
 import { useLang } from '../context/LangContext';
 
@@ -131,7 +131,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             }}>
               <Calendar className="w-3.5 h-3.5" style={{ color: '#9ca3af' }} />
               <span style={{ fontSize: '0.78rem', color: '#374151', fontWeight: 600 }}>
-                {formatEthiopian(tx.created_at)}
+                {formatEthiopian(tx.created_at)} · {formatEthiopianTime(tx.created_at)}
               </span>
             </div>
           </div>
