@@ -12,7 +12,7 @@ import { ArrowLeft, Save, X, Plus, Minus, Camera, ChevronDown, ChevronUp, AlertT
 import InlineDatePicker from './InlineDatePicker';
 import CameraCapture from './CameraCapture';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
-import { getDueDateOptions } from '../utils/ethiopianCalendar';
+import { getDueDateOptions, formatEthiopian } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from '../utils/customerTransactionTypes';
 import { useLang } from '../context/LangContext';
 import { photoSizeBytes } from '../utils/photoCapture';
@@ -53,6 +53,7 @@ function CustomerTransactionSheet({
   const [itemNote, setItemNote] = useState(initInitialNote);
   const [catalogEntryId, setCatalogEntryId] = useState('');
   const [dueDate, setDueDate] = useState(initInitialDue);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   // Commit C.6: quantity for credit. Captures "I gave 5 sacks of sugar for
   // 1500 birr total" — descriptive, not multiplicative (amount is the
   // already-computed total). Defaults to empty so users who don't care
@@ -892,14 +893,13 @@ function CustomerTransactionSheet({
           </div>
         )}
 
-        {/* Due date (credit only) — inline Ethiopian calendar picker */}
+        {/* Due date — credit page style */}
         {!isPayment && (
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
               {t.dueDateOptional}
             </label>
-            {/* Quick chips for common dates */}
-            <div className="flex gap-1.5 mb-2" style={{ alignItems: 'stretch' }}>
+            <div className="grid grid-cols-3 gap-2 mb-2">
               {dueDateOptions.map((option) => {
                 const optionDate = new Date(option.value).toISOString().slice(0, 10);
                 const active = dueDate === optionDate;
@@ -908,46 +908,36 @@ function CustomerTransactionSheet({
                     key={option.value}
                     type="button"
                     onClick={() => setDueDate(optionDate)}
-                    className="flex-1 min-w-0 px-1.5 py-1.5 text-center border press-scale"
+                    className="p-2.5 border-2 text-xs font-bold transition-all min-h-[48px] press-scale"
                     style={{
-                      background: active ? accentColor : '#fff',
-                      color: active ? '#fff' : '#374151',
-                      borderColor: active ? accentColor : '#e8e2d8',
                       borderRadius: 'var(--radius-sm)',
-                      minHeight: 44,
-                      display: 'flex', flexDirection: 'column',
-                      alignItems: 'center', justifyContent: 'center',
-                      lineHeight: 1.1,
-                    }}
-                  >
-                    <span className="block text-[11px] font-bold truncate w-full">{option.label}</span>
-                    <span className="block text-[9px] opacity-80 truncate w-full">{option.display}</span>
+                      borderColor: active ? accentColor : '#e8e2d8',
+                      background: active ? `${accentColor}10` : '#fff',
+                      color: active ? accentColor : '#374151',
+                    }}>
+                    <div className="font-bold">{option.label.split(' ')[0]}</div>
+                    <div className="text-[10px] opacity-70">{option.display}</div>
                   </button>
                 );
               })}
-              {dueDate && (
-                <button
-                  type="button"
-                  onClick={() => setDueDate('')}
-                  aria-label={lang === 'am' ? 'አጥፋ' : 'Clear'}
-                  className="flex-shrink-0 press-scale flex items-center justify-center"
-                  style={{
-                    width: 36, minHeight: 44,
-                    background: '#fef2f2',
-                    border: '1px solid #fecaca',
-                    borderRadius: 'var(--radius-sm)',
-                    color: '#dc2626',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
             </div>
-            {/* Inline Ethiopian calendar picker — replaces modal */}
+            <button
+              type="button"
+              onClick={() => setShowDatePicker(true)}
+              className="w-full p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale flex items-center justify-center gap-2"
+              style={{
+                borderRadius: 'var(--radius-sm)',
+                borderColor: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? accentColor : '#e8e2d8',
+                background: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? `${accentColor}10` : '#fff',
+                color: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? accentColor : '#374151',
+              }}>
+              📅 {dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? formatEthiopian(new Date(`${dueDate}T12:00:00`)) : (lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date')}
+            </button>
             <InlineDatePicker
+              open={showDatePicker}
               value={dueDate}
               onChange={(iso) => setDueDate(iso)}
+              onClose={() => setShowDatePicker(false)}
               lang={lang}
             />
           </div>

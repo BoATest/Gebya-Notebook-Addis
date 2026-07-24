@@ -14,6 +14,7 @@ import { photoSizeBytes } from '../utils/photoCapture';
 import { buildPhotoFields, createPhotoProof, normalizePhotos, MAX_PROOF_PHOTOS } from '../utils/photoProof';
 import CameraCapture from './CameraCapture';
 import InlineDatePicker from './InlineDatePicker';
+import { getDueDateOptions, formatEthiopian } from '../utils/ethiopianCalendar';
 
 function handleNumericInput(e, setter) {
   let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
@@ -45,8 +46,10 @@ function SupplierTransactionSheet({
     if (editing && editingTransaction.due_date) {
       return new Date(editingTransaction.due_date).toISOString().slice(0, 10);
     }
-    return new Date().toISOString().slice(0, 10);
+    return '';
   });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const dueDateOptions = useMemo(() => getDueDateOptions(), []);
   // Product proof photos for purchases (base64 JPEG data URLs, max 3)
   const [photos, setPhotos] = useState(() => (editing ? normalizePhotos(editingTransaction) : []));
   const [photoError, setPhotoError] = useState(null);
@@ -430,14 +433,45 @@ function SupplierTransactionSheet({
               <p style={{ fontSize: '0.7rem', color: '#dc2626', marginTop: 4 }}>{photoError}</p>
             )}
 
-            {/* Due date — inline Gregorian picker (purchase only) */}
+            {/* Due date — credit page style */}
             <div className="mt-3">
               <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-                {lang === 'am' ? 'ቀን / የሚያሳስብ ቀን' : 'Due date (optional)'}
+                {lang === 'am' ? 'የሚከፈልበት ቀን' : 'Due date (optional)'}
               </label>
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                {dueDateOptions.map(opt => {
+                  const optionDate = new Date(opt.value).toISOString().slice(0, 10);
+                  const active = dueDate === optionDate;
+                  return (
+                    <button key={opt.value} type="button" onClick={() => setDueDate(optionDate)}
+                      className="p-2.5 border-2 text-xs font-bold transition-all min-h-[48px] press-scale"
+                      style={{
+                        borderRadius: 'var(--radius-sm)',
+                        borderColor: active ? '#1B4332' : '#e8e2d8',
+                        background: active ? 'rgba(27,67,50,0.07)' : '#fff',
+                        color: active ? '#1B4332' : '#374151',
+                      }}>
+                      <div className="font-bold">{opt.label.split(' ')[0]}</div>
+                      <div className="text-[10px] opacity-70">{opt.display}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <button type="button" onClick={() => setShowDatePicker(true)}
+                className="w-full p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale flex items-center justify-center gap-2"
+                style={{
+                  borderRadius: 'var(--radius-sm)',
+                  borderColor: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? '#1B4332' : '#e8e2d8',
+                  background: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? 'rgba(27,67,50,0.07)' : '#fff',
+                  color: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? '#1B4332' : '#374151',
+                }}>
+                📅 {dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? formatEthiopian(new Date(`${dueDate}T12:00:00`)) : (lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date')}
+              </button>
               <InlineDatePicker
+                open={showDatePicker}
                 value={dueDate}
                 onChange={(iso) => setDueDate(iso)}
+                onClose={() => setShowDatePicker(false)}
                 lang={lang}
               />
             </div>

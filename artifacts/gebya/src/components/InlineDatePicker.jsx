@@ -213,6 +213,27 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                 {lang === 'am' ? '(በሌላ አቆጣጠር)' : '(Gregorian)'}: {previewGregorianText}
               </p>
             )}
+            <button
+              type="button"
+              onClick={() => {
+                const today = gregorianISOToEthiopianParts('');
+                setPending(today);
+              }}
+              style={{
+                marginTop: 8,
+                padding: '4px 12px',
+                background: 'rgba(255,255,255,0.2)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.3)',
+                borderRadius: 6,
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                minHeight: 32,
+              }}
+            >
+              {lang === 'am' ? 'ዛሬ' : '📅 Today'}
+            </button>
           </div>
 
           {/* Year stepper */}
@@ -364,6 +385,26 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             >
               {lang === 'am' ? 'ይቅር' : 'Cancel'}
             </button>
+            {value && (
+              <button
+                type="button"
+                onClick={() => { onChange?.(''); onClose?.(); }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: '#fef2f2',
+                  color: '#dc2626',
+                  border: '1px solid #fecaca',
+                  borderRadius: 12,
+                  fontSize: '0.85rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  minHeight: 48,
+                }}
+              >
+                {lang === 'am' ? 'አጥፋ' : 'Clear'}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleModalSet}
@@ -443,6 +484,29 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
           }}
         >
           <ChevronRight className="w-4 h-4" style={{ color: '#374151' }} />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const today = gregorianISOToEthiopianParts('');
+            setInlineMonth(today.month);
+            setInlineDay(today.day);
+            const iso = ethiopianToGregorianISO(today.year, today.month, today.day);
+            if (iso) onChange?.(iso);
+          }}
+          style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: '#1B4332', border: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+            flexShrink: 0,
+            color: '#fff',
+            fontSize: '0.65rem',
+            fontWeight: 800,
+          }}
+          title={lang === 'am' ? 'ዛሬ' : 'Today'}
+        >
+          📅
         </button>
       </div>
 

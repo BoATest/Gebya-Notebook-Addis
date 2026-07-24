@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { X, Save, ChevronDown, ChevronUp, AlertTriangle, Pencil, Plus, Camera } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import PaymentTypeChips from './PaymentTypeChips';
-import { getDueDateOptions } from '../utils/ethiopianCalendar';
+import { getDueDateOptions, formatEthiopian } from '../utils/ethiopianCalendar';
+import InlineDatePicker from './InlineDatePicker';
 import { fmt, fmtInput } from '../utils/numformat';
 import { photoSizeBytes } from '../utils/photoCapture';
 import { buildPhotoFields, createPhotoProof, normalizePhotos, MAX_PROOF_PHOTOS } from '../utils/photoProof';
@@ -56,6 +57,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
   const [direction, setDirection] = useState(transaction.direction || 'owes_me');
   const [selectedDue, setSelectedDue] = useState(transaction.due_date || null);
   const [customDue, setCustomDue] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
   // Editable multi-item breakdown
   const [editableItems, setEditableItems] = useState(() => (
@@ -516,21 +518,23 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
                   </button>
                 ))}
               </div>
-              <button type="button" onClick={() => setSelectedDue('custom')}
-                className="w-full p-3 border-2 text-sm font-semibold min-h-[52px] press-scale font-sans"
+              <button type="button" onClick={() => setShowDatePicker(true)}
+                className="w-full p-3 border-2 text-sm font-semibold min-h-[52px] press-scale font-sans flex items-center justify-center gap-2"
                 style={{
                   borderRadius: 'var(--radius-sm)',
                   borderColor: selectedDue === 'custom' ? '#1B4332' : '#e8e2d8',
                   background: selectedDue === 'custom' ? 'rgba(27,67,50,0.07)' : '#fff',
                   color: selectedDue === 'custom' ? '#1B4332' : '#4b5563',
                 }}>
-                {t.pickDate}
+                📅 {selectedDue === 'custom' && customDue ? formatEthiopian(new Date(`${customDue}T12:00:00`)) : t.pickDate}
               </button>
-              {selectedDue === 'custom' && (
-                <input type="date" value={customDue} onChange={e => setCustomDue(e.target.value)}
-                  className="w-full mt-2 p-4 border-2 focus:outline-none text-base font-sans"
-                  style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
-              )}
+              <InlineDatePicker
+                open={showDatePicker}
+                value={selectedDue === 'custom' ? customDue : ''}
+                onChange={(iso) => { setCustomDue(iso); setSelectedDue('custom'); }}
+                onClose={() => setShowDatePicker(false)}
+                lang={lang}
+              />
             </div>
           )}
 
