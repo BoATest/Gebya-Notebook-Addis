@@ -44,23 +44,15 @@ function daysInEthiopianMonth(year, month) {
   return year % 4 === 3 ? 6 : 5;
 }
 
-function getMonday(date) {
-  const d = new Date(date);
-  const dow = d.getDay();
-  d.setDate(d.getDate() - ((dow + 6) % 7));
-  return d;
-}
-
 function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
   const months = lang === 'am' ? MONTHS_AM : MONTHS_EN;
   const dayScrollRef = useRef(null);
 
-  // Modal state
   const isModal = open !== undefined;
   const [pending, setPending] = useState(() => gregorianISOToEthiopianParts(value));
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [viewMonth, setViewMonth] = useState(pending.month);
+  const [viewYear, setViewYear] = useState(pending.year);
 
-  // Inline mode state
   const parts = useMemo(() => gregorianISOToEthiopianParts(value), [value]);
   const [inlineMonth, setInlineMonth] = useState(parts.month);
   const [inlineDay, setInlineDay] = useState(parts.day);
@@ -72,7 +64,12 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
   }, [value]);
 
   useEffect(() => {
-    if (isModal && open) setPending(gregorianISOToEthiopianParts(value));
+    if (isModal && open) {
+      const p = gregorianISOToEthiopianParts(value);
+      setPending(p);
+      setViewMonth(p.month);
+      setViewYear(p.year);
+    }
   }, [open, value]);
 
   useEffect(() => {
@@ -98,42 +95,25 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     handleModalDaySelect(ed, em, ey);
   }
 
-  function getWeekDays(offset) {
-    const today = new Date();
-    const monday = getMonday(today);
-    monday.setDate(monday.getDate() + offset * 7);
-    const result = [];
-    for (let i = 0; i < 14; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      const [ey, em, ed] = toEthiopian(d.getFullYear(), d.getMonth() + 1, d.getDate());
-      const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      result.push({ ethDay: ed, ethMonth: em, ethYear: ey, gregISO: iso, isToday: iso === todayGregStr });
+  function getMonthGrid(year, month) {
+    const maxDay = daysInEthiopianMonth(year, month);
+    const [gy, gm, gd] = toGregorian(year, month, 1);
+    const firstDay = new Date(gy, gm - 1, gd);
+    const startCol = (firstDay.getDay() + 6) % 7;
+    const cells = [];
+    for (let i = 0; i < startCol; i++) cells.push(null);
+    for (let d = 1; d <= maxDay; d++) {
+      const [gy2, gm2, gd2] = toGregorian(year, month, d);
+      const iso = `${gy2}-${String(gm2).padStart(2,'0')}-${String(gd2).padStart(2,'0')}`;
+      cells.push({ day: d, isToday: iso === todayGregStr, gregISO: iso });
     }
-    return { week1: result.slice(0, 7), week2: result.slice(7, 14) };
+    return cells;
   }
 
-  function weekLabel(week) {
-    if (!week || week.length === 0) return '';
-    const first = week[0];
-    const last = week[week.length - 1];
-    const m1 = months[first.ethMonth - 1] || '';
-    const m2 = months[last.ethMonth - 1] || '';
-    if (first.ethMonth === last.ethMonth) {
-      return `${m1} ${first.ethDay}-${last.ethDay}`;
-    }
-    return `${m1} ${first.ethDay} - ${m2} ${last.ethDay}`;
+  function isCellSelected(cell) {
+    return cell && cell.day === pending.day && pending.month === viewMonth && pending.year === viewYear;
   }
 
-  function getDisplayMonthYear(offset) {
-    const today = new Date();
-    const monday = getMonday(today);
-    monday.setDate(monday.getDate() + offset * 7);
-    const [ey, em] = toEthiopian(monday.getFullYear(), monday.getMonth() + 1, monday.getDate());
-    return { year: ey, month: em };
-  }
-
-  // --- Modal mode handlers ---
   const handleModalDaySelect = (ethDay, ethMonth, ethYear) => {
     const maxDay = daysInEthiopianMonth(ethYear, ethMonth);
     setPending({ year: ethYear, month: ethMonth, day: Math.min(ethDay, maxDay) });
@@ -148,11 +128,22 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
   };
 
   function goToday() {
-    setWeekOffset(0);
-    setPending(gregorianISOToEthiopianParts(''));
+    const t = gregorianISOToEthiopianParts('');
+    setViewMonth(t.month);
+    setViewYear(t.year);
+    setPending(t);
   }
 
-  // --- Inline mode handlers ---
+  function goPrevMonth() {
+    if (viewMonth === 1) { setViewMonth(13); setViewYear(viewYear - 1); }
+    else { setViewMonth(viewMonth - 1); }
+  }
+
+  function goNextMonth() {
+    if (viewMonth === 13) { setViewMonth(1); setViewYear(viewYear + 1); }
+    else { setViewMonth(viewMonth + 1); }
+  }
+
   const handleInlineMonthChange = (delta) => {
     const newMonth = inlineMonth + delta;
     if (newMonth < 1 || newMonth > 13) return;
@@ -174,10 +165,6 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
   if (isModal) {
     if (!open) return null;
 
-    const display = getDisplayMonthYear(weekOffset);
-    const { week1, week2 } = getWeekDays(weekOffset);
-    const w1Label = weekLabel(week1);
-    const w2Label = weekLabel(week2);
     const maxDayForMonth = daysInEthiopianMonth(pending.year, pending.month);
     const pendingGregISO = ethiopianToGregorianISO(pending.year, pending.month, Math.min(pending.day, maxDayForMonth));
     const pendingWeekday = pendingGregISO ? new Date(`${pendingGregISO}T12:00:00`).getDay() : -1;
@@ -185,51 +172,10 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     const pendingMonthName = months[pending.month - 1] || '';
     const weekdayHeaders = WEEKDAY_HEADERS[lang] || WEEKDAY_HEADERS.en;
 
-    function isSelected(di) {
-      return di.ethDay === pending.day && di.ethMonth === pending.month && di.ethYear === pending.year;
-    }
-
-    function renderWeekRow(week, label) {
-      return (
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#6b7280', marginBottom: 6 }}>
-            {label}
-          </div>
-          <div style={{ display: 'flex', gap: 3 }}>
-            {week.map((di, idx) => {
-              const sel = isSelected(di);
-              return (
-                <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span style={{
-                    fontSize: '0.55rem', fontWeight: 600, color: '#9ca3af', marginBottom: 3,
-                    lineHeight: 1,
-                  }}>
-                    {weekdayHeaders[idx]}
-                  </span>
-                  <button type="button" onClick={() => handleModalDaySelect(di.ethDay, di.ethMonth, di.ethYear)}
-                    style={{
-                      width: '100%', aspectRatio: '1/1', maxWidth: 44, maxHeight: 44,
-                      borderRadius: 10,
-                      background: sel ? '#1B4332' : 'transparent',
-                      color: sel ? '#fff' : '#374151',
-                      border: `1.5px solid ${sel ? '#1B4332' : 'transparent'}`,
-                      fontSize: '0.8rem', fontWeight: sel ? 800 : 500,
-                      cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      position: 'relative',
-                      transition: 'all .08s ease',
-                    }}>
-                    {di.ethDay}
-                    {di.isToday && !sel && (
-                      <span style={{ position: 'absolute', bottom: 2, width: 4, height: 4, borderRadius: '50%', background: '#1B4332' }} />
-                    )}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
+    const monthCells = getMonthGrid(viewYear, viewMonth);
+    const rows = [];
+    for (let i = 0; i < monthCells.length; i += 7) {
+      rows.push(monthCells.slice(i, i + 7));
     }
 
     return (
@@ -251,7 +197,6 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             boxShadow: '0 -8px 32px -8px rgba(0,0,0,0.25)',
           }}
         >
-          {/* Scrollable content area */}
           <div style={{ overflowY: 'auto', flex: 1 }}>
             {/* Drag handle */}
             <div style={{ width: 38, height: 4, background: '#e5e7eb', borderRadius: 999, margin: '10px auto 6px' }} />
@@ -288,12 +233,12 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
               )}
             </div>
 
-            {/* Month/Year navigation + Today */}
+            {/* Month/Year nav + Today */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 4,
               padding: '0 16px 10px',
             }}>
-              <button type="button" onClick={() => setWeekOffset(w => w - 48)}
+              <button type="button" onClick={() => setViewYear(viewYear - 1)}
                 aria-label={lang === 'am' ? 'ያለፈ ዓመት' : 'Previous year'}
                 style={{
                   width: 30, height: 30, borderRadius: 6,
@@ -303,7 +248,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                 }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151' }}>«</span>
               </button>
-              <button type="button" onClick={() => setWeekOffset(w => w - 4)}
+              <button type="button" onClick={goPrevMonth}
                 aria-label={lang === 'am' ? 'ያለፈ ወር' : 'Previous month'}
                 style={{
                   width: 30, height: 30, borderRadius: 6,
@@ -317,9 +262,9 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                 flex: 1, textAlign: 'center',
                 fontSize: '0.85rem', fontWeight: 800, color: '#1a1a1a',
               }}>
-                {months[display.month - 1]} {display.year}
+                {months[viewMonth - 1]} {viewYear}
               </span>
-              <button type="button" onClick={() => setWeekOffset(w => w + 4)}
+              <button type="button" onClick={goNextMonth}
                 aria-label={lang === 'am' ? 'ቀጣይ ወር' : 'Next month'}
                 style={{
                   width: 30, height: 30, borderRadius: 6,
@@ -329,7 +274,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                 }}>
                 <ChevronRight className="w-3.5 h-3.5" style={{ color: '#374151' }} />
               </button>
-              <button type="button" onClick={() => setWeekOffset(w => w + 48)}
+              <button type="button" onClick={() => setViewYear(viewYear + 1)}
                 aria-label={lang === 'am' ? 'ቀጣይ ዓመት' : 'Next year'}
                 style={{
                   width: 30, height: 30, borderRadius: 6,
@@ -355,32 +300,74 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             {/* Quick duration chips */}
             <div style={{ padding: '0 16px 12px' }}>
               <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }} className="hide-scrollbar">
-                {quickDurations.map(n => {
-                  return (
-                    <button key={n} type="button" onClick={() => setDateNDaysFromToday(n)}
-                      style={{
-                        flexShrink: 0, padding: '7px 13px', minHeight: 34,
-                        background: '#fff',
-                        color: '#1B4332',
-                        border: '2px solid #d4cdc0',
-                        borderRadius: 8, fontSize: '0.78rem', fontWeight: 800,
-                        cursor: 'pointer',
-                      }}>
-                      +{n} {lang === 'am' ? 'ቀናት' : 'days'}
-                    </button>
-                  );
-                })}
+                {quickDurations.map(n => (
+                  <button key={n} type="button" onClick={() => setDateNDaysFromToday(n)}
+                    style={{
+                      flexShrink: 0, padding: '7px 13px', minHeight: 34,
+                      background: '#fff', color: '#1B4332',
+                      border: '2px solid #d4cdc0',
+                      borderRadius: 8, fontSize: '0.78rem', fontWeight: 800,
+                      cursor: 'pointer',
+                    }}>
+                    +{n} {lang === 'am' ? 'ቀናት' : 'days'}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Week grids */}
-            <div style={{ padding: '0 16px 12px' }}>
-              {renderWeekRow(week1, w1Label)}
-              {renderWeekRow(week2, w2Label)}
+            {/* Full month grid */}
+            <div style={{ padding: '0 16px 14px' }}>
+              {/* Weekday header row */}
+              <div style={{ display: 'flex', marginBottom: 6 }}>
+                {weekdayHeaders.map((h, i) => (
+                  <div key={i} style={{
+                    flex: 1, textAlign: 'center',
+                    fontSize: '0.6rem', fontWeight: 700, color: '#9ca3af',
+                  }}>
+                    {h}
+                  </div>
+                ))}
+              </div>
+              {/* Day rows */}
+              {rows.map((row, ri) => (
+                <div key={ri} style={{ display: 'flex', gap: 2, marginBottom: 2 }}>
+                  {row.map((cell, ci) => {
+                    if (!cell) {
+                      return <div key={ci} style={{ flex: 1 }} />;
+                    }
+                    const sel = isCellSelected(cell);
+                    return (
+                      <button key={ci} type="button"
+                        onClick={() => handleModalDaySelect(cell.day, viewMonth, viewYear)}
+                        style={{
+                          flex: 1, aspectRatio: '1/1', maxWidth: 44, maxHeight: 44,
+                          borderRadius: 10,
+                          background: sel ? '#1B4332' : 'transparent',
+                          color: sel ? '#fff' : '#374151',
+                          border: `1.5px solid ${sel ? '#1B4332' : 'transparent'}`,
+                          fontSize: '0.82rem', fontWeight: sel ? 800 : 500,
+                          cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          position: 'relative',
+                          transition: 'all .08s ease',
+                        }}>
+                        {cell.day}
+                        {cell.isToday && !sel && (
+                          <span style={{
+                            position: 'absolute', bottom: 1,
+                            width: 4, height: 4, borderRadius: '50%',
+                            background: '#1B4332',
+                          }} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Sticky footer — always visible */}
+          {/* Sticky footer */}
           <div style={{
             flexShrink: 0,
             padding: '12px 16px',
@@ -428,93 +415,64 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
       border: '1px solid #e8e2d8',
       borderRadius: 10,
     }}>
-      {/* Month navigation */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 8,
       }}>
-        <button
-          type="button"
-          onClick={() => handleInlineMonthChange(-1)}
-          disabled={inlineMonth <= 1}
-          aria-label="Previous month"
+        <button type="button" onClick={() => handleInlineMonthChange(-1)}
+          disabled={inlineMonth <= 1} aria-label="Previous month"
           style={{
             width: 32, height: 32, borderRadius: 8,
             background: '#fff', border: '1px solid #e8e2d8',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: inlineMonth <= 1 ? 'not-allowed' : 'pointer',
-            opacity: inlineMonth <= 1 ? 0.4 : 1,
-            flexShrink: 0,
-          }}
-        >
+            opacity: inlineMonth <= 1 ? 0.4 : 1, flexShrink: 0,
+          }}>
           <ChevronLeft className="w-4 h-4" style={{ color: '#374151' }} />
         </button>
-        <span style={{
-          fontSize: '0.82rem', fontWeight: 800, color: '#1B4332',
-          textAlign: 'center',
-        }}>
+        <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#1B4332', textAlign: 'center' }}>
           {months[inlineMonth - 1]} {parts.year}
         </span>
-        <button
-          type="button"
-          onClick={() => handleInlineMonthChange(1)}
-          disabled={inlineMonth >= 13}
-          aria-label="Next month"
+        <button type="button" onClick={() => handleInlineMonthChange(1)}
+          disabled={inlineMonth >= 13} aria-label="Next month"
           style={{
             width: 32, height: 32, borderRadius: 8,
             background: '#fff', border: '1px solid #e8e2d8',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: inlineMonth >= 13 ? 'not-allowed' : 'pointer',
-            opacity: inlineMonth >= 13 ? 0.4 : 1,
-            flexShrink: 0,
-          }}
-        >
+            opacity: inlineMonth >= 13 ? 0.4 : 1, flexShrink: 0,
+          }}>
           <ChevronRight className="w-4 h-4" style={{ color: '#374151' }} />
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            const today = gregorianISOToEthiopianParts('');
-            setInlineMonth(today.month);
-            setInlineDay(today.day);
-            const iso = ethiopianToGregorianISO(today.year, today.month, today.day);
-            if (iso) onChange?.(iso);
-          }}
+        <button type="button" onClick={() => {
+          const today = gregorianISOToEthiopianParts('');
+          setInlineMonth(today.month);
+          setInlineDay(today.day);
+          const iso = ethiopianToGregorianISO(today.year, today.month, today.day);
+          if (iso) onChange?.(iso);
+        }}
           style={{
             width: 32, height: 32, borderRadius: 8,
             background: '#1B4332', border: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-            flexShrink: 0,
-            color: '#fff',
-            fontSize: '0.65rem',
-            fontWeight: 800,
+            cursor: 'pointer', flexShrink: 0, color: '#fff',
+            fontSize: '0.65rem', fontWeight: 800,
           }}
-          title={lang === 'am' ? 'ዛሬ' : 'Today'}
-        >
+          title={lang === 'am' ? 'ዛሬ' : 'Today'}>
           📅
         </button>
       </div>
 
-      {/* Day horizontal scroll */}
-      <div
-        ref={dayScrollRef}
+      <div ref={dayScrollRef}
         style={{
-          display: 'flex', gap: 6,
-          overflowX: 'auto',
-          paddingBottom: 4,
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
+          display: 'flex', gap: 6, overflowX: 'auto',
+          paddingBottom: 4, scrollbarWidth: 'none', msOverflowStyle: 'none',
         }}
-        className="hide-scrollbar"
-      >
+        className="hide-scrollbar">
         {days.map((d) => {
           const active = d === inlineDay;
           return (
-            <button
-              key={d}
-              type="button"
-              data-selected={active ? 'true' : undefined}
+            <button key={d} type="button" data-selected={active ? 'true' : undefined}
               onClick={() => handleInlineDaySelect(d)}
               style={{
                 minWidth: 36, height: 36, borderRadius: 8,
@@ -523,12 +481,10 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                 border: `1.5px solid ${active ? '#C4883A' : '#e8e2d8'}`,
                 fontSize: '0.82rem', fontWeight: active ? 800 : 600,
                 fontVariantNumeric: 'tabular-nums',
-                cursor: 'pointer',
-                flexShrink: 0,
+                cursor: 'pointer', flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all .1s ease',
-              }}
-            >
+              }}>
               {d}
             </button>
           );
