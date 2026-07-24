@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X, Save, ChevronDown, ChevronUp, AlertTriangle, Pencil, Plus, Camera } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import PaymentTypeChips from './PaymentTypeChips';
-import { getDueDateOptions, formatEthiopian } from '../utils/ethiopianCalendar';
+import { getDueDateOptions } from '../utils/ethiopianCalendar';
 import InlineDatePicker from './InlineDatePicker';
 import { fmt, fmtInput } from '../utils/numformat';
 import { photoSizeBytes } from '../utils/photoCapture';
@@ -503,31 +503,38 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
           {isCredit && (
             <div>
               <label className="block text-gray-700 font-semibold mb-2 font-sans">{t.dueDate}</label>
-              <div className="grid grid-cols-3 gap-2 mb-2">
-                {dueDateOptions.map(opt => (
-                  <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)}
-                    className="p-3 border-2 text-sm font-medium transition-colors min-h-[52px] press-scale font-sans"
-                    style={{
-                      borderRadius: 'var(--radius-sm)',
-                      borderColor: selectedDue === opt.value ? '#1B4332' : '#e8e2d8',
-                      background: selectedDue === opt.value ? 'rgba(27,67,50,0.07)' : '#fff',
-                      color: selectedDue === opt.value ? '#1B4332' : '#4b5563',
-                    }}>
-                    <div className="font-bold">{opt.label.split(' ')[0]}</div>
-                    <div className="text-xs opacity-70">{opt.display}</div>
-                  </button>
-                ))}
+              <div className="flex gap-2 mb-2">
+                {dueDateOptions.map(opt => {
+                  const active = selectedDue === opt.value;
+                  return (
+                    <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)} className="press-scale font-sans"
+                      style={{
+                        padding: '8px 12px', minWidth: 70, minHeight: 40,
+                        border: `2px solid ${active ? '#1B4332' : '#e8e2d8'}`,
+                        borderRadius: 8,
+                        background: active ? '#1B4332' : '#fff',
+                        color: active ? '#fff' : '#4b5563',
+                        fontSize: '0.8rem', fontWeight: 700,
+                        cursor: 'pointer', flexShrink: 0,
+                      }}>
+                      {opt.label}
+                    </button>
+                  );
+                })}
+                <button type="button" onClick={() => setShowDatePicker(true)} className="press-scale font-sans"
+                  style={{
+                    padding: '8px 12px', minWidth: 70, minHeight: 40,
+                    border: `2px solid ${selectedDue === 'custom' ? '#1B4332' : '#e8e2d8'}`,
+                    borderRadius: 8,
+                    background: selectedDue === 'custom' ? '#1B4332' : '#fff',
+                    color: selectedDue === 'custom' ? '#fff' : '#4b5563',
+                    fontSize: '0.8rem', fontWeight: 700,
+                    cursor: 'pointer', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', gap: 4,
+                  }}>
+                  📅 <span>{t.pickDate}</span>
+                </button>
               </div>
-              <button type="button" onClick={() => setShowDatePicker(true)}
-                className="w-full p-3 border-2 text-sm font-semibold min-h-[52px] press-scale font-sans flex items-center justify-center gap-2"
-                style={{
-                  borderRadius: 'var(--radius-sm)',
-                  borderColor: selectedDue === 'custom' ? '#1B4332' : '#e8e2d8',
-                  background: selectedDue === 'custom' ? 'rgba(27,67,50,0.07)' : '#fff',
-                  color: selectedDue === 'custom' ? '#1B4332' : '#4b5563',
-                }}>
-                📅 {selectedDue === 'custom' && customDue ? formatEthiopian(new Date(`${customDue}T12:00:00`)) : t.pickDate}
-              </button>
               <InlineDatePicker
                 open={showDatePicker}
                 value={selectedDue === 'custom' ? customDue : ''}

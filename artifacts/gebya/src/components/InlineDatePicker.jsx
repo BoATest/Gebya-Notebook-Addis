@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { toEthiopian, toGregorian } from 'ethiopian-date';
 
-const dvhSupported = typeof window !== 'undefined' && window.CSS?.supports?.('height', '100dvh');
+const navBarBottom = 76;
 
 const MONTHS_AM = [
   'መስከረም', 'ጥቅምት', 'ኅዳር', 'ታህሳስ', 'ጥር', 'የካቲት',
@@ -15,8 +15,8 @@ const MONTHS_EN = [
 const WEEKDAYS_AM = ['እሑድ', 'ሰኞ', 'ማክሰኞ', 'ረቡዕ', 'ሐሙስ', 'አርብ', 'ቅዳሜ'];
 const WEEKDAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const WEEKDAY_HEADERS = {
-  am: ['ሰኞ', 'ማክሰ', 'ረቡዕ', 'ሐሙስ', 'አርብ', 'ቅዳሜ', 'እሑድ'],
-  en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  am: ['እሑድ', 'ኞ', 'ማክሰ', 'ረቡዕ', 'ሐስ', 'ዓርብ', 'ቅ'],
+  en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
 };
 
 function gregorianISOToEthiopianParts(iso) {
@@ -88,7 +88,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }, []);
 
-  const quickDurations = useMemo(() => [7, 10, 15, 30], []);
+
 
   function setDateNDaysFromToday(n) {
     const d = new Date();
@@ -101,7 +101,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     const maxDay = daysInEthiopianMonth(year, month);
     const [gy, gm, gd] = toGregorian(year, month, 1);
     const firstDay = new Date(gy, gm - 1, gd);
-    const startCol = (firstDay.getDay() + 6) % 7;
+    const startCol = firstDay.getDay();
     const cells = [];
     for (let i = 0; i < startCol; i++) cells.push(null);
     for (let d = 1; d <= maxDay; d++) {
@@ -128,13 +128,6 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     if (iso) onChange?.(iso);
     onClose?.();
   };
-
-  function goToday() {
-    const t = gregorianISOToEthiopianParts('');
-    setViewMonth(t.month);
-    setViewYear(t.year);
-    setPending(t);
-  }
 
   function goPrevMonth() {
     if (viewMonth === 1) { setViewMonth(13); setViewYear(viewYear - 1); }
@@ -170,7 +163,8 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     const maxDayForMonth = daysInEthiopianMonth(pending.year, pending.month);
     const pendingGregISO = ethiopianToGregorianISO(pending.year, pending.month, Math.min(pending.day, maxDayForMonth));
     const pendingWeekday = pendingGregISO ? new Date(`${pendingGregISO}T12:00:00`).getDay() : -1;
-    const weekdayLabel = pendingWeekday >= 0 ? `${WEEKDAYS_AM[pendingWeekday]} (${WEEKDAYS_EN[pendingWeekday]})` : '';
+    const weekdayLabel = pendingWeekday >= 0 ? `${WEEKDAYS_EN[pendingWeekday]}` : '';
+    const weekdayLabelAM = pendingWeekday >= 0 ? `${WEEKDAYS_AM[pendingWeekday]}` : '';
     const pendingMonthName = months[pending.month - 1] || '';
     const weekdayHeaders = WEEKDAY_HEADERS[lang] || WEEKDAY_HEADERS.en;
 
@@ -183,8 +177,8 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     return (
       <div
         style={{
-          position: 'fixed', inset: 0, zIndex: 80,
-          background: 'rgba(0,0,0,0.55)',
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: navBarBottom,
+          zIndex: 80, background: 'rgba(0,0,0,0.55)',
           display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
         }}
         onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
@@ -194,7 +188,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             background: '#fff',
             borderTopLeftRadius: 24, borderTopRightRadius: 24,
             width: '100%', maxWidth: 480,
-            maxHeight: dvhSupported ? '100dvh' : 'calc(100vh - 24px)',
+            maxHeight: '100%',
             display: 'flex', flexDirection: 'column',
             boxShadow: '0 -8px 32px -8px rgba(0,0,0,0.25)',
           }}
@@ -219,37 +213,83 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
               </button>
             </div>
 
-            {/* Date banner */}
+            {/* Large date display */}
             <div style={{
               margin: '0 16px 10px', padding: '10px 14px',
               background: '#fafaf5', borderRadius: 10,
               textAlign: 'center',
             }}>
-              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1B4332', lineHeight: 1.3 }}>
-                {pending.day} {pendingMonthName} {pending.year}
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1B4332', lineHeight: 1.3 }}>
+                {pending.day} {pendingMonthName} {pending.year}{weekdayLabel ? ` - ${weekdayLabel}` : ''}
               </div>
-              {weekdayLabel && (
-                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#6b7280', marginTop: 2 }}>
-                  {weekdayLabel}
+              {weekdayLabelAM && (
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#6b7280', marginTop: 2 }}>
+                  {weekdayLabelAM}
                 </div>
               )}
             </div>
 
-            {/* Month/Year nav + Today */}
+            {/* Quick preset chips */}
+            <div style={{ padding: '0 16px 12px' }}>
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }} className="hide-scrollbar">
+                <button type="button" onClick={() => {
+                  const t = gregorianISOToEthiopianParts('');
+                  handleModalDaySelect(t.day, t.month, t.year);
+                }}
+                  style={{
+                    flexShrink: 0, padding: '7px 13px', minHeight: 34,
+                    background: '#1B4332', color: '#fff',
+                    border: '2px solid #1B4332', borderRadius: 8,
+                    fontSize: '0.78rem', fontWeight: 800,
+                    cursor: 'pointer',
+                  }}>
+                  {lang === 'am' ? 'ዛሬ' : 'Today'}
+                </button>
+                <button type="button" onClick={() => setDateNDaysFromToday(1)}
+                  style={{
+                    flexShrink: 0, padding: '7px 13px', minHeight: 34,
+                    background: '#fff', color: '#1B4332',
+                    border: '2px solid #d4cdc0', borderRadius: 8,
+                    fontSize: '0.78rem', fontWeight: 800,
+                    cursor: 'pointer',
+                  }}>
+                  {lang === 'am' ? 'ነገ' : 'Tomorrow'}
+                </button>
+                {[7, 15, 30].map(n => (
+                  <button key={n} type="button" onClick={() => setDateNDaysFromToday(n)}
+                    style={{
+                      flexShrink: 0, padding: '7px 13px', minHeight: 34,
+                      background: '#fff', color: '#1B4332',
+                      border: '2px solid #d4cdc0', borderRadius: 8,
+                      fontSize: '0.78rem', fontWeight: 800,
+                      cursor: 'pointer',
+                    }}>
+                    +{n}
+                  </button>
+                ))}
+                <button type="button" onClick={() => {
+                  const t = gregorianISOToEthiopianParts('');
+                  setViewMonth(t.month);
+                  setViewYear(t.year);
+                  setPending(t);
+                }}
+                  style={{
+                    flexShrink: 0, padding: '7px 13px', minHeight: 34,
+                    background: '#fff', color: '#1B4332',
+                    border: '2px solid #d4cdc0', borderRadius: 8,
+                    fontSize: '0.78rem', fontWeight: 800,
+                    cursor: 'pointer',
+                  }}>
+                  Custom
+                </button>
+              </div>
+            </div>
+
+            {/* Month nav */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 4,
               padding: '0 16px 10px',
             }}>
-              <button type="button" onClick={() => setViewYear(viewYear - 1)}
-                aria-label={lang === 'am' ? 'ያለፈ ዓመት' : 'Previous year'}
-                style={{
-                  width: 30, height: 30, borderRadius: 6,
-                  background: '#f3f4f6', border: 'none',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0,
-                }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151' }}>«</span>
-              </button>
               <button type="button" onClick={goPrevMonth}
                 aria-label={lang === 'am' ? 'ያለፈ ወር' : 'Previous month'}
                 style={{
@@ -276,50 +316,10 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                 }}>
                 <ChevronRight className="w-3.5 h-3.5" style={{ color: '#374151' }} />
               </button>
-              <button type="button" onClick={() => setViewYear(viewYear + 1)}
-                aria-label={lang === 'am' ? 'ቀጣይ ዓመት' : 'Next year'}
-                style={{
-                  width: 30, height: 30, borderRadius: 6,
-                  background: '#f3f4f6', border: 'none',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0,
-                }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151' }}>»</span>
-              </button>
-              <button type="button" onClick={goToday}
-                aria-label={lang === 'am' ? 'ዛሬ' : 'Today'}
-                title={lang === 'am' ? 'ዛሬ' : 'Today'}
-                style={{
-                  width: 30, height: 30, borderRadius: 6,
-                  background: '#1B4332', border: 'none',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0,
-                }}>
-                <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#fff' }}>📅</span>
-              </button>
-            </div>
-
-            {/* Quick duration chips */}
-            <div style={{ padding: '0 16px 12px' }}>
-              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }} className="hide-scrollbar">
-                {quickDurations.map(n => (
-                  <button key={n} type="button" onClick={() => setDateNDaysFromToday(n)}
-                    style={{
-                      flexShrink: 0, padding: '7px 13px', minHeight: 34,
-                      background: '#fff', color: '#1B4332',
-                      border: '2px solid #d4cdc0',
-                      borderRadius: 8, fontSize: '0.78rem', fontWeight: 800,
-                      cursor: 'pointer',
-                    }}>
-                    +{n} {lang === 'am' ? 'ቀናት' : 'days'}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Full month grid */}
             <div style={{ padding: '0 16px 14px' }}>
-              {/* Weekday header row */}
               <div style={{ display: 'flex', marginBottom: 4 }}>
                 {weekdayHeaders.map((h, i) => (
                   <div key={i} style={{
@@ -330,7 +330,6 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                   </div>
                 ))}
               </div>
-              {/* Day rows */}
               {rows.map((row, ri) => (
                 <div key={ri} style={{ display: 'flex', gap: 1, marginBottom: 1 }}>
                   {row.map((cell, ci) => {
@@ -369,35 +368,30 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             </div>
           </div>
 
-          {/* Sticky footer — always visible above phone nav bar */}
+          {/* Footer — Cancel + Confirm above nav bar */}
           <div style={{
             flexShrink: 0,
-            padding: '12px 16px',
-            paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 24px))',
+            padding: '12px 16px calc(12px + env(safe-area-inset-bottom, 0px))',
             background: '#fff',
             borderTop: '1px solid #f0ede8',
           }}>
             <div style={{ display: 'flex', gap: 8 }}>
-              {value && (
-                <button type="button" onClick={() => { onChange?.(''); onClose?.(); }}
-                  style={{
-                    flex: 1, padding: '12px', background: '#fef2f2', color: '#dc2626',
-                    border: '1px solid #fecaca', borderRadius: 10, fontSize: '0.85rem', fontWeight: 700,
-                    cursor: 'pointer', minHeight: 48,
-                  }}>
-                  {lang === 'am' ? 'አጥፋ' : 'Clear'}
-                </button>
-              )}
+              <button type="button" onClick={onClose}
+                style={{
+                  flex: 1, padding: '12px', background: '#fff', color: '#374151',
+                  border: '2px solid #e5e7eb', borderRadius: 10, fontSize: '0.9rem', fontWeight: 700,
+                  cursor: 'pointer', minHeight: 48,
+                }}>
+                {lang === 'am' ? 'ተው' : 'Cancel'}
+              </button>
               <button type="button" onClick={handleModalSet}
                 style={{
-                  flex: value ? 3 : 1, padding: '12px', background: '#1B4332', color: '#fff',
+                  flex: 2, padding: '12px', background: '#1B4332', color: '#fff',
                   border: 'none', borderRadius: 10, fontSize: '0.95rem', fontWeight: 800,
                   cursor: 'pointer', minHeight: 48,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   boxShadow: '0 4px 12px rgba(27,67,50,0.3)',
                 }}>
-                <Check className="w-5 h-5" />
-                {lang === 'am' ? 'አስቀምጥ' : 'Set date'}
+                {lang === 'am' ? 'አረጋግጥ' : 'Confirm'}
               </button>
             </div>
           </div>

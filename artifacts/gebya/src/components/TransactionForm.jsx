@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import InlineDatePicker from './InlineDatePicker';
-import { getDueDateOptions, formatEthiopian } from '../utils/ethiopianCalendar';
+import { getDueDateOptions } from '../utils/ethiopianCalendar';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { photoSizeBytes } from '../utils/photoCapture';
 import { buildPhotoFields, createPhotoProof, MAX_PROOF_PHOTOS, photoCountLabel } from '../utils/photoProof';
@@ -438,44 +438,51 @@ function TransactionForm({
                 </div>
               )}
 
-              {/* Due date — credit page style */}
+              {/* Due date — compact chip row */}
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
                   {lang === 'am' ? 'መቼ ይከፍላል?' : 'WHEN IS IT DUE?'} <span style={{ color: '#9ca3af', fontWeight: 600 }}>({lang === 'am' ? 'አማራጭ' : 'optional'})</span>
                 </label>
-                <div className="grid grid-cols-3 gap-2 mb-2">
-                  {dueDateOptions.map(opt => (
-                    <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)}
-                      className="p-2.5 border-2 text-xs font-bold transition-all min-h-[48px] press-scale"
-                      style={{
-                        borderRadius: 'var(--radius-sm)',
-                        borderColor: selectedDue === opt.value && !customDue ? accentColor : '#e8e2d8',
-                        background: selectedDue === opt.value && !customDue ? `${accentColor}10` : '#fff',
-                        color: selectedDue === opt.value && !customDue ? accentColor : '#374151',
-                      }}>
-                      <div className="font-bold">{opt.label.split(' ')[0]}</div>
-                      <div className="text-[10px] opacity-70">{opt.display}</div>
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2 items-start">
+                <div className="flex gap-2 mb-2">
+                  {dueDateOptions.map(opt => {
+                    const active = selectedDue === opt.value && !customDue;
+                    return (
+                      <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)}
+                        className="press-scale"
+                        style={{
+                          padding: '8px 12px', minWidth: 70, minHeight: 40,
+                          border: `2px solid ${active ? accentColor : '#e8e2d8'}`,
+                          borderRadius: 8,
+                          background: active ? accentColor : '#fff',
+                          color: active ? '#fff' : '#374151',
+                          fontSize: '0.8rem', fontWeight: 700,
+                          cursor: 'pointer', flexShrink: 0,
+                        }}>
+                        {opt.label}
+                      </button>
+                    );
+                  })}
                   <button type="button" onClick={() => { setSelectedDue('custom'); setShowDatePicker(true); }}
-                    className="flex-1 p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale flex items-center justify-center gap-2"
+                    className="press-scale"
                     style={{
-                      borderRadius: 'var(--radius-sm)',
-                      borderColor: selectedDue === 'custom' && customDue ? accentColor : '#e8e2d8',
-                      background: selectedDue === 'custom' && customDue ? `${accentColor}10` : '#fff',
-                      color: selectedDue === 'custom' && customDue ? accentColor : '#374151',
+                      padding: '8px 12px', minWidth: 70, minHeight: 40,
+                      border: `2px solid ${selectedDue === 'custom' && customDue ? accentColor : '#e8e2d8'}`,
+                      borderRadius: 8,
+                      background: selectedDue === 'custom' && customDue ? accentColor : '#fff',
+                      color: selectedDue === 'custom' && customDue ? '#fff' : '#374151',
+                      fontSize: '0.8rem', fontWeight: 700,
+                      cursor: 'pointer', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', gap: 4,
                     }}>
-                    📅 {selectedDue === 'custom' && customDue ? formatEthiopian(new Date(`${customDue}T12:00:00`)) : (lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date')}
+                    📅 <span>{lang === 'am' ? 'ምረጥ' : 'Pick'}</span>
                   </button>
-                  <div className="w-1/3 min-w-[110px]">
-                    <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#9ca3af' }}>
-                      {lang === 'am' ? 'የቀድሞ ዱቤ' : 'Balance'}
+                  <div className="flex items-center ml-auto min-w-[100px]">
+                    <div className="text-[9px] font-bold uppercase tracking-wider mr-2" style={{ color: '#9ca3af' }}>
+                      {lang === 'am' ? 'ዱቤ' : 'Bal'}
                     </div>
-                    <div className="w-full px-2 py-1.5 text-[11px] border font-bold flex items-center"
+                    <div className="px-2 py-1.5 text-[11px] border font-bold flex items-center"
                       style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: '#fff', color: '#374151' }}>
-                      {customerMatch ? fmt(customerMatch.balance || 0) : (lang === 'am' ? '0 ወይም አዲስ' : '0 / New')}
+                      {customerMatch ? fmt(customerMatch.balance || 0) : (lang === 'am' ? '0' : '0')}
                     </div>
                   </div>
                 </div>
@@ -580,44 +587,51 @@ function TransactionForm({
                 </div>
               )}
 
-              {/* Due date — credit page style */}
+              {/* Due date — compact chip row */}
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
                   {lang === 'am' ? 'የቀሪው መክፈያ ቀን' : 'REMAINING DUE DATE'} <span style={{ color: '#9ca3af', fontWeight: 600 }}>({lang === 'am' ? 'አማራጭ' : 'optional'})</span>
                 </label>
-                <div className="grid grid-cols-3 gap-2 mb-2">
-                  {dueDateOptions.map(opt => (
-                    <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)}
-                      className="p-2.5 border-2 text-xs font-bold transition-all min-h-[48px] press-scale"
-                      style={{
-                        borderRadius: 'var(--radius-sm)',
-                        borderColor: selectedDue === opt.value && !customDue ? accentColor : '#e8e2d8',
-                        background: selectedDue === opt.value && !customDue ? `${accentColor}10` : '#fff',
-                        color: selectedDue === opt.value && !customDue ? accentColor : '#374151',
-                      }}>
-                      <div className="font-bold">{opt.label.split(' ')[0]}</div>
-                      <div className="text-[10px] opacity-70">{opt.display}</div>
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2 items-start">
+                <div className="flex gap-2 mb-2">
+                  {dueDateOptions.map(opt => {
+                    const active = selectedDue === opt.value && !customDue;
+                    return (
+                      <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)}
+                        className="press-scale"
+                        style={{
+                          padding: '8px 12px', minWidth: 70, minHeight: 40,
+                          border: `2px solid ${active ? accentColor : '#e8e2d8'}`,
+                          borderRadius: 8,
+                          background: active ? accentColor : '#fff',
+                          color: active ? '#fff' : '#374151',
+                          fontSize: '0.8rem', fontWeight: 700,
+                          cursor: 'pointer', flexShrink: 0,
+                        }}>
+                        {opt.label}
+                      </button>
+                    );
+                  })}
                   <button type="button" onClick={() => { setSelectedDue('custom'); setShowDatePicker(true); }}
-                    className="flex-1 p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale flex items-center justify-center gap-2"
+                    className="press-scale"
                     style={{
-                      borderRadius: 'var(--radius-sm)',
-                      borderColor: selectedDue === 'custom' && customDue ? accentColor : '#e8e2d8',
-                      background: selectedDue === 'custom' && customDue ? `${accentColor}10` : '#fff',
-                      color: selectedDue === 'custom' && customDue ? accentColor : '#374151',
+                      padding: '8px 12px', minWidth: 70, minHeight: 40,
+                      border: `2px solid ${selectedDue === 'custom' && customDue ? accentColor : '#e8e2d8'}`,
+                      borderRadius: 8,
+                      background: selectedDue === 'custom' && customDue ? accentColor : '#fff',
+                      color: selectedDue === 'custom' && customDue ? '#fff' : '#374151',
+                      fontSize: '0.8rem', fontWeight: 700,
+                      cursor: 'pointer', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', gap: 4,
                     }}>
-                    📅 {selectedDue === 'custom' && customDue ? formatEthiopian(new Date(`${customDue}T12:00:00`)) : (lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date')}
+                    📅 <span>{lang === 'am' ? 'ምረጥ' : 'Pick'}</span>
                   </button>
-                  <div className="w-1/3 min-w-[110px]">
-                    <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#9ca3af' }}>
-                      {lang === 'am' ? 'የቀድሞ ዱቤ' : 'Balance'}
+                  <div className="flex items-center ml-auto min-w-[100px]">
+                    <div className="text-[9px] font-bold uppercase tracking-wider mr-2" style={{ color: '#9ca3af' }}>
+                      {lang === 'am' ? 'ዱቤ' : 'Bal'}
                     </div>
-                    <div className="w-full px-2 py-1.5 text-[11px] border font-bold flex items-center"
+                    <div className="px-2 py-1.5 text-[11px] border font-bold flex items-center"
                       style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: '#fff', color: '#374151' }}>
-                      {customerMatch ? fmt(customerMatch.balance || 0) : (lang === 'am' ? '0 ወይም አዲስ' : '0 / New')}
+                      {customerMatch ? fmt(customerMatch.balance || 0) : (lang === 'am' ? '0' : '0')}
                     </div>
                   </div>
                 </div>
@@ -810,16 +824,38 @@ function TransactionForm({
         {(isCredit || isCreditSale) && (
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'መቼ ይከፍላል?' : 'WHEN IS IT DUE?'} <span style={{ color: '#dc2626' }}>*</span></label>
-            <div className="grid grid-cols-3 gap-2 mb-2">
-              {dueDateOptions.map(opt => (
-                <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)} className="p-2.5 border-2 text-xs font-bold transition-all min-h-[48px] press-scale"
-                  style={{ borderRadius: 'var(--radius-sm)', borderColor: selectedDue === opt.value ? accentColor : '#e8e2d8', background: selectedDue === opt.value ? `${accentColor}10` : '#fff', color: selectedDue === opt.value ? accentColor : '#374151' }}>
-                  <div className="font-bold">{opt.label.split(' ')[0]}</div><div className="text-[10px] opacity-70">{opt.display}</div></button>
-              ))}
+            <div className="flex gap-2 mb-2">
+              {dueDateOptions.map(opt => {
+                const active = selectedDue === opt.value;
+                return (
+                  <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)} className="press-scale"
+                    style={{
+                      padding: '8px 12px', minWidth: 70, minHeight: 40,
+                      border: `2px solid ${active ? accentColor : '#e8e2d8'}`,
+                      borderRadius: 8,
+                      background: active ? accentColor : '#fff',
+                      color: active ? '#fff' : '#374151',
+                      fontSize: '0.8rem', fontWeight: 700,
+                      cursor: 'pointer', flexShrink: 0,
+                    }}>
+                    {opt.label}
+                  </button>
+                );
+              })}
+              <button type="button" onClick={() => { setSelectedDue('custom'); setShowDatePicker(true); }} className="press-scale"
+                style={{
+                  padding: '8px 12px', minWidth: 70, minHeight: 40,
+                  border: `2px solid ${selectedDue === 'custom' ? accentColor : '#e8e2d8'}`,
+                  borderRadius: 8,
+                  background: selectedDue === 'custom' ? accentColor : '#fff',
+                  color: selectedDue === 'custom' ? '#fff' : '#374151',
+                  fontSize: '0.8rem', fontWeight: 700,
+                  cursor: 'pointer', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}>
+                📅 <span>{lang === 'am' ? 'ምረጥ' : 'Pick'}</span>
+              </button>
             </div>
-            <button type="button" onClick={() => { setSelectedDue('custom'); setShowDatePicker(true); }} className="w-full p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale flex items-center justify-center gap-2"
-              style={{ borderRadius: 'var(--radius-sm)', borderColor: selectedDue === 'custom' ? accentColor : '#e8e2d8', background: selectedDue === 'custom' ? `${accentColor}10` : '#fff', color: selectedDue === 'custom' ? accentColor : '#374151' }}>
-              📅 {selectedDue === 'custom' && customDue ? formatEthiopian(new Date(`${customDue}T12:00:00`)) : (lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date')}</button>
             {!hasDueDate && <p className="text-xs mt-1.5 font-medium" style={{ color: '#C4883A' }}>{lang === 'am' ? 'የመክፍያ ቀን ይምረጡ' : 'Please select a due date'}</p>}
           </div>
         )}

@@ -12,7 +12,7 @@ import { ArrowLeft, Save, X, Plus, Minus, Camera, ChevronDown, ChevronUp, AlertT
 import InlineDatePicker from './InlineDatePicker';
 import CameraCapture from './CameraCapture';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
-import { getDueDateOptions, formatEthiopian } from '../utils/ethiopianCalendar';
+import { getDueDateOptions } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from '../utils/customerTransactionTypes';
 import { useLang } from '../context/LangContext';
 import { photoSizeBytes } from '../utils/photoCapture';
@@ -893,46 +893,45 @@ function CustomerTransactionSheet({
           </div>
         )}
 
-        {/* Due date — credit page style */}
+        {/* Due date — compact chip row */}
         {!isPayment && (
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
               {t.dueDateOptional}
             </label>
-            <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="flex gap-2 mb-2">
               {dueDateOptions.map((option) => {
                 const optionDate = new Date(option.value).toISOString().slice(0, 10);
                 const active = dueDate === optionDate;
                 return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setDueDate(optionDate)}
-                    className="p-2.5 border-2 text-xs font-bold transition-all min-h-[48px] press-scale"
+                  <button key={option.value} type="button" onClick={() => setDueDate(optionDate)} className="press-scale"
                     style={{
-                      borderRadius: 'var(--radius-sm)',
-                      borderColor: active ? accentColor : '#e8e2d8',
-                      background: active ? `${accentColor}10` : '#fff',
-                      color: active ? accentColor : '#374151',
+                      padding: '8px 12px', minWidth: 70, minHeight: 40,
+                      border: `2px solid ${active ? accentColor : '#e8e2d8'}`,
+                      borderRadius: 8,
+                      background: active ? accentColor : '#fff',
+                      color: active ? '#fff' : '#374151',
+                      fontSize: '0.8rem', fontWeight: 700,
+                      cursor: 'pointer', flexShrink: 0,
                     }}>
-                    <div className="font-bold">{option.label.split(' ')[0]}</div>
-                    <div className="text-[10px] opacity-70">{option.display}</div>
+                    {option.label}
                   </button>
                 );
               })}
+              <button type="button" onClick={() => setShowDatePicker(true)} className="press-scale"
+                style={{
+                  padding: '8px 12px', minWidth: 70, minHeight: 40,
+                  border: `2px solid ${dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? accentColor : '#e8e2d8'}`,
+                  borderRadius: 8,
+                  background: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? accentColor : '#fff',
+                  color: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? '#fff' : '#374151',
+                  fontSize: '0.8rem', fontWeight: 700,
+                  cursor: 'pointer', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}>
+                📅 <span>{lang === 'am' ? 'ምረጥ' : 'Pick'}</span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowDatePicker(true)}
-              className="w-full p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale flex items-center justify-center gap-2"
-              style={{
-                borderRadius: 'var(--radius-sm)',
-                borderColor: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? accentColor : '#e8e2d8',
-                background: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? `${accentColor}10` : '#fff',
-                color: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? accentColor : '#374151',
-              }}>
-              📅 {dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? formatEthiopian(new Date(`${dueDate}T12:00:00`)) : (lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date')}
-            </button>
             <InlineDatePicker
               open={showDatePicker}
               value={dueDate}

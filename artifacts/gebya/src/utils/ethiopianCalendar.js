@@ -67,10 +67,14 @@ export function getDueDateOptions() {
   const nextWeek = new Date(today);
   nextWeek.setDate(nextWeek.getDate() + 7);
 
+  const todayParts = getEthiopianParts(today);
+  const tomorrowParts = getEthiopianParts(tomorrow);
+  const nextWeekParts = getEthiopianParts(nextWeek);
+
   return [
-    { label: 'ዛሬ (Today)', value: today.getTime(), display: formatEthiopianShort(today) },
-    { label: 'ነገ (Tomorrow)', value: tomorrow.getTime(), display: formatEthiopianShort(tomorrow) },
-    { label: 'ሳምንት (Week)', value: nextWeek.getTime(), display: formatEthiopianShort(nextWeek) },
+    { label: `ዛሬ ${todayParts.day}`, value: today.getTime(), day: todayParts.day, display: formatEthiopianShort(today) },
+    { label: `ነገ ${tomorrowParts.day}`, value: tomorrow.getTime(), day: tomorrowParts.day, display: formatEthiopianShort(tomorrow) },
+    { label: `ሳም ${nextWeekParts.day}`, value: nextWeek.getTime(), day: nextWeekParts.day, display: formatEthiopianShort(nextWeek) },
   ];
 }
 

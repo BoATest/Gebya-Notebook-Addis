@@ -10,7 +10,7 @@ import PaymentTypeChips from '../PaymentTypeChips';
 import ItemRow from './ItemRow';
 import { useSmartSaleRows } from './useSmartSaleRows';
 import RecentSalesSheet from './RecentSalesSheet';
-import { getDueDateOptions, formatEthiopian } from '../../utils/ethiopianCalendar';
+import { getDueDateOptions } from '../../utils/ethiopianCalendar';
 import InlineDatePicker from '../InlineDatePicker';
 
 const MAX_PHOTOS = 3;
@@ -741,53 +741,52 @@ export default function ItemizedSaleView({
               </div>
             )}
 
-            {/* Due date — credit page style */}
+            {/* Due date — compact chip row */}
             <div>
               <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#9ca3af' }}>
                 {lang === 'am' ? 'መክፈያ ቀን' : 'Due date'}
               </div>
-              <div className="grid grid-cols-3 gap-2 mb-2">
-                {dueDateOptions.map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => { setSelectedDueTs(opt.value); setCustomDueIso(''); }}
-                    className="p-2.5 border-2 text-xs font-bold transition-all min-h-[48px] press-scale"
-                    style={{
-                      borderRadius: 'var(--radius-sm)',
-                      borderColor: selectedDueTs === opt.value && !customDueIso ? '#16a34a' : '#e8e2d8',
-                      background: selectedDueTs === opt.value && !customDueIso ? 'rgba(22,163,74,0.06)' : '#fff',
-                      color: selectedDueTs === opt.value && !customDueIso ? '#16a34a' : '#374151',
-                    }}>
-                    <div className="font-bold">{opt.label.split(' ')[0]}</div>
-                    <div className="text-[10px] opacity-70">{opt.display}</div>
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2 items-start">
-                <button
-                  type="button"
-                  onClick={() => setShowDatePicker(true)}
-                  className="flex-1 p-2.5 border-2 text-sm font-semibold transition-all min-h-[44px] press-scale flex items-center justify-center gap-2"
+              <div className="flex gap-2 mb-2">
+                {dueDateOptions.map(opt => {
+                  const active = selectedDueTs === opt.value && !customDueIso;
+                  return (
+                    <button key={opt.value} type="button"
+                      onClick={() => { setSelectedDueTs(opt.value); setCustomDueIso(''); }} className="press-scale"
+                      style={{
+                        padding: '8px 12px', minWidth: 70, minHeight: 40,
+                        border: `2px solid ${active ? '#16a34a' : '#e8e2d8'}`,
+                        borderRadius: 8,
+                        background: active ? '#16a34a' : '#fff',
+                        color: active ? '#fff' : '#374151',
+                        fontSize: '0.8rem', fontWeight: 700,
+                        cursor: 'pointer', flexShrink: 0,
+                      }}>
+                      {opt.label}
+                    </button>
+                  );
+                })}
+                <button type="button" onClick={() => setShowDatePicker(true)} className="press-scale"
                   style={{
-                    borderRadius: 'var(--radius-sm)',
-                    borderColor: customDueIso ? '#16a34a' : '#e8e2d8',
-                    background: customDueIso ? 'rgba(22,163,74,0.06)' : '#fff',
-                    color: customDueIso ? '#16a34a' : '#374151',
+                    padding: '8px 12px', minWidth: 70, minHeight: 40,
+                    border: `2px solid ${customDueIso ? '#16a34a' : '#e8e2d8'}`,
+                    borderRadius: 8,
+                    background: customDueIso ? '#16a34a' : '#fff',
+                    color: customDueIso ? '#fff' : '#374151',
+                    fontSize: '0.8rem', fontWeight: 700,
+                    cursor: 'pointer', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', gap: 4,
                   }}>
-                  📅 {customDueIso
-                    ? formatEthiopian(new Date(`${customDueIso}T12:00:00`))
-                    : (lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date')}
+                  📅 <span>{lang === 'am' ? 'ምረጥ' : 'Pick'}</span>
                 </button>
-                <div className="w-1/3 min-w-[110px]">
-                  <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#9ca3af' }}>
-                    {lang === 'am' ? 'የቀድሞ ዱቤ' : 'Balance'}
+                <div className="flex items-center ml-auto min-w-[80px]">
+                  <div className="text-[9px] font-bold uppercase tracking-wider mr-1" style={{ color: '#9ca3af' }}>
+                    {lang === 'am' ? 'ዱቤ' : 'Bal'}
                   </div>
-                  <div className="w-full px-2 py-1.5 text-[11px] border font-bold flex items-center"
+                  <div className="px-2 py-1.5 text-[11px] border font-bold flex items-center"
                     style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: '#fff', color: '#374151' }}>
                     {creditCustomerId
                       ? fmt(customers.find(c => c.id === creditCustomerId)?.balance || 0)
-                      : (lang === 'am' ? '0 ወይም አዲስ' : '0 / New')}
+                      : (lang === 'am' ? '0' : '0')}
                   </div>
                 </div>
               </div>
