@@ -99,10 +99,6 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     });
   };
 
-  const handleModalYearChange = (delta) => {
-    setPending(p => ({ ...p, year: p.year + delta }));
-  };
-
   const handleModalDaySelect = (d) => {
     setPending(p => ({ ...p, day: d }));
   };
@@ -138,12 +134,6 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     if (!open) return null;
 
     const maxDayForMonth = daysInEthiopianMonth(pending.year, pending.month);
-    const previewGregorianISO = ethiopianToGregorianISO(pending.year, pending.month, Math.min(pending.day, maxDayForMonth));
-    const previewGregorianText = previewGregorianISO
-      ? new Date(`${previewGregorianISO}T12:00:00`).toLocaleDateString(lang === 'am' ? 'en' : undefined, {
-          weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-        })
-      : '';
 
     return (
       <div
@@ -159,184 +149,107 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             background: '#fff',
             borderTopLeftRadius: 24, borderTopRightRadius: 24,
             width: '100%', maxWidth: 480,
-            paddingBottom: 24,
+            paddingBottom: 20,
             boxShadow: '0 -8px 32px -8px rgba(0,0,0,0.25)',
-            maxHeight: '92vh', overflowY: 'auto',
           }}
         >
           {/* Drag handle */}
-          <div style={{ width: 38, height: 4, background: '#e5e7eb', borderRadius: 999, margin: '12px auto 8px' }} />
+          <div style={{ width: 38, height: 4, background: '#e5e7eb', borderRadius: 999, margin: '10px auto 6px' }} />
 
-          {/* Header */}
-          <div style={{ padding: '4px 16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#1a1a1a', margin: 0 }}>
-                {lang === 'am' ? 'የመመለሻ ቀን ይምረጡ' : 'Pick due date'}
-              </h3>
-              <p style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 2 }}>
-                {lang === 'am' ? 'በኢትዮጵያ ዘመን አቆጣጠር' : 'Ethiopian calendar'}
-              </p>
-            </div>
+          {/* Header row: title + close */}
+          <div style={{ padding: '0 16px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1a1a1a', margin: 0 }}>
+              {lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date'}
+            </h3>
             <button
               type="button"
               onClick={onClose}
               aria-label="Close"
               style={{
-                width: 36, height: 36, borderRadius: 8,
+                width: 32, height: 32, borderRadius: 8,
                 background: '#f3f4f6', border: 'none',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer',
               }}
             >
-              <X className="w-5 h-5" style={{ color: '#6b7280' }} />
+              <X className="w-4 h-4" style={{ color: '#6b7280' }} />
             </button>
           </div>
 
-          {/* Current selection summary */}
-          <div
-            style={{
-              margin: '0 16px 14px',
-              padding: '12px 14px',
-              background: 'linear-gradient(135deg, #1B4332 0%, #2d6a4f 100%)',
-              color: '#fff',
-              borderRadius: 12,
-            }}
-          >
-            <p style={{ fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.1em', opacity: 0.7, textTransform: 'uppercase' }}>
-              {lang === 'am' ? 'የተመረጠ ቀን' : 'Selected'}
-            </p>
-            <p style={{ fontFamily: 'Manrope, system-ui, sans-serif', fontSize: '1.3rem', fontWeight: 800, marginTop: 2 }}>
-              {pending.day} {months[pending.month - 1] || ''} {pending.year}
-            </p>
-            {previewGregorianText && (
-              <p style={{ fontSize: '0.7rem', opacity: 0.75, marginTop: 2 }}>
-                {lang === 'am' ? '(በሌላ አቆጣጠር)' : '(Gregorian)'}: {previewGregorianText}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                const today = gregorianISOToEthiopianParts('');
-                setPending(today);
-              }}
-              style={{
-                marginTop: 8,
-                padding: '4px 12px',
-                background: 'rgba(255,255,255,0.2)',
-                color: '#fff',
-                border: '1px solid rgba(255,255,255,0.3)',
-                borderRadius: 6,
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                minHeight: 32,
-              }}
-            >
-              {lang === 'am' ? 'ዛሬ' : '📅 Today'}
-            </button>
-          </div>
-
-          {/* Year stepper */}
+          {/* Month/Year nav + Today */}
           <div style={{ padding: '0 16px 12px' }}>
-            <p style={{ fontSize: '0.6rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
-              {lang === 'am' ? 'ዓመት' : 'Year'}
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <button
                 type="button"
-                onClick={() => handleModalYearChange(-1)}
-                aria-label={lang === 'am' ? 'የቀደመ ዓመት' : 'Previous year'}
+                onClick={() => handleModalMonthChange(-1)}
+                aria-label="Previous month"
                 style={{
-                  width: 44, height: 44,
+                  width: 36, height: 36,
                   border: '2px solid #e8e2d8',
-                  borderRadius: 10,
+                  borderRadius: 8,
                   background: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer',
                   flexShrink: 0,
                 }}
               >
-                <ChevronLeft className="w-5 h-5" style={{ color: '#374151' }} />
+                <ChevronLeft className="w-4 h-4" style={{ color: '#374151' }} />
               </button>
               <div
                 style={{
                   flex: 1,
                   textAlign: 'center',
-                  padding: '10px 14px',
+                  padding: '8px 10px',
                   background: '#fafaf5',
                   border: '2px solid #e8e2d8',
-                  borderRadius: 10,
-                  fontFamily: 'Manrope, system-ui, sans-serif',
-                  fontSize: '1.3rem',
+                  borderRadius: 8,
+                  fontSize: '0.95rem',
                   fontWeight: 800,
                   color: '#1B4332',
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                {pending.year}
+                {months[pending.month - 1] || ''} {pending.year}
               </div>
               <button
                 type="button"
-                onClick={() => handleModalYearChange(1)}
-                aria-label={lang === 'am' ? 'የቀጣይ ዓመት' : 'Next year'}
+                onClick={() => handleModalMonthChange(1)}
+                aria-label="Next month"
                 style={{
-                  width: 44, height: 44,
+                  width: 36, height: 36,
                   border: '2px solid #e8e2d8',
-                  borderRadius: 10,
+                  borderRadius: 8,
                   background: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer',
                   flexShrink: 0,
                 }}
               >
-                <ChevronRight className="w-5 h-5" style={{ color: '#374151' }} />
+                <ChevronRight className="w-4 h-4" style={{ color: '#374151' }} />
               </button>
-            </div>
-          </div>
-
-          {/* Month grid */}
-          <div style={{ padding: '0 16px 14px' }}>
-            <p style={{ fontSize: '0.6rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
-              {lang === 'am' ? 'ወር' : 'Month'}
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-              {months.map((m, i) => {
-                const idx = i + 1;
-                const active = pending.month === idx;
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setPending(p => ({ ...p, month: idx }))}
-                    style={{
-                      padding: '10px 6px',
-                      background: active ? '#1B4332' : '#fff',
-                      color: active ? '#fff' : '#374151',
-                      border: `1.5px solid ${active ? '#1B4332' : '#e8e2d8'}`,
-                      borderRadius: 8,
-                      fontSize: '0.8rem',
-                      fontWeight: active ? 800 : 600,
-                      minHeight: 44,
-                      cursor: 'pointer',
-                      transition: 'all .12s ease',
-                    }}
-                  >
-                    {m}
-                  </button>
-                );
-              })}
+              <button
+                type="button"
+                onClick={() => {
+                  const today = gregorianISOToEthiopianParts('');
+                  setPending(today);
+                }}
+                title={lang === 'am' ? 'ዛሬ' : 'Today'}
+                style={{
+                  width: 36, height: 36, borderRadius: 8,
+                  background: '#1B4332', border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0,
+                  color: '#fff', fontSize: '0.65rem', fontWeight: 800,
+                }}
+              >
+                📅
+              </button>
             </div>
           </div>
 
           {/* Day grid */}
           <div style={{ padding: '0 16px 14px' }}>
-            <p style={{ fontSize: '0.6rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
-              {lang === 'am' ? 'ቀን' : 'Day'}
-              <span style={{ fontWeight: 500, marginLeft: 4, textTransform: 'none', letterSpacing: 0 }}>
-                · 1–{maxDayForMonth}
-              </span>
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
               {Array.from({ length: maxDayForMonth }, (_, i) => i + 1).map((d) => {
                 const active = pending.day === d;
                 return (
@@ -348,14 +261,13 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                       aspectRatio: '1 / 1',
                       background: active ? '#C4883A' : '#fff',
                       color: active ? '#fff' : '#374151',
-                      border: `1.5px solid ${active ? '#C4883A' : '#e8e2d8'}`,
-                      borderRadius: 8,
-                      fontSize: '0.85rem',
+                      border: `1px solid ${active ? '#C4883A' : '#e8e2d8'}`,
+                      borderRadius: 6,
+                      fontSize: '0.8rem',
                       fontWeight: active ? 800 : 600,
                       fontVariantNumeric: 'tabular-nums',
-                      minHeight: 36,
+                      minHeight: 34,
                       cursor: 'pointer',
-                      transition: 'all .12s ease',
                     }}
                   >
                     {d}
@@ -372,15 +284,15 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
               onClick={onClose}
               style={{
                 flex: 1,
-                padding: '12px',
+                padding: '10px',
                 background: '#f3f4f6',
                 color: '#374151',
                 border: 'none',
-                borderRadius: 12,
-                fontSize: '0.9rem',
+                borderRadius: 10,
+                fontSize: '0.85rem',
                 fontWeight: 700,
                 cursor: 'pointer',
-                minHeight: 48,
+                minHeight: 44,
               }}
             >
               {lang === 'am' ? 'ይቅር' : 'Cancel'}
@@ -391,15 +303,15 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                 onClick={() => { onChange?.(''); onClose?.(); }}
                 style={{
                   flex: 1,
-                  padding: '12px',
+                  padding: '10px',
                   background: '#fef2f2',
                   color: '#dc2626',
                   border: '1px solid #fecaca',
-                  borderRadius: 12,
+                  borderRadius: 10,
                   fontSize: '0.85rem',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  minHeight: 48,
+                  minHeight: 44,
                 }}
               >
                 {lang === 'am' ? 'አጥፋ' : 'Clear'}
@@ -410,20 +322,20 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
               onClick={handleModalSet}
               style={{
                 flex: 2,
-                padding: '12px',
+                padding: '10px',
                 background: '#1B4332',
                 color: '#fff',
                 border: 'none',
-                borderRadius: 12,
-                fontSize: '0.95rem',
+                borderRadius: 10,
+                fontSize: '0.9rem',
                 fontWeight: 800,
                 cursor: 'pointer',
-                minHeight: 48,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                minHeight: 44,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
               }}
             >
               <Check className="w-4 h-4" />
-              {lang === 'am' ? 'አስቀምጥ' : 'Set date'}
+              {lang === 'am' ? 'አስቀምጥ' : 'Set'}
             </button>
           </div>
         </div>
