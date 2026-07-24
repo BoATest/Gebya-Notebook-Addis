@@ -16,7 +16,7 @@ import AppActionBar from './AppActionBar';
 import AppBottomNav from './AppBottomNav';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import GlobalModals from './GlobalModals';
-import SearchSheet from './SearchSheet';
+
 import TransferSheet from './TransferSheet';
 import { ToastContainer, fireToast } from './Toast';
 import { buildPhotoFields, normalizePhotos } from '../utils/photoProof';
@@ -579,7 +579,6 @@ export default function AppShell() {
   const [showItemizedSale, setShowItemizedSale] = useState(false);
   const [reminderDefaultChannel, setReminderDefaultChannel] = useState(null);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
-  const [showSearchSheet, setShowSearchSheet] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [selectedSupplierTransaction, setSelectedSupplierTransaction] = useState(null);
   const [lastPayment, setLastPayment] = useState({
@@ -2669,7 +2668,10 @@ export default function AppShell() {
       } catch { /* non-critical */ }
     }
 
-    setLedgerTransactions(prev => insertCustomerTransaction(prev, { id: `transfer_${now}_fake`, customer_id: sourceCustomerId, type: CUSTOMER_TRANSACTION_TYPES.REVERSAL, amount, created_at: now }));
+    setLedgerTransactions(prev => {
+      const withSrc = insertCustomerTransaction(prev, { id: `transfer_${now}_src`, customer_id: sourceCustomerId, type: CUSTOMER_TRANSACTION_TYPES.REVERSAL, amount, created_at: now });
+      return insertCustomerTransaction(withSrc, { id: `transfer_${now}_tgt`, customer_id: targetCustomerId, type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD, amount, created_at: now });
+    });
     setTransferTarget(null);
     fireToast(`${t.transferSaved || 'Transfer'} ✓`, 2200);
   };
@@ -3050,10 +3052,6 @@ export default function AppShell() {
       <AppBottomNav
         activeTab={activeTab}
         onTabChange={(tabId) => {
-          if (tabId === 'search') {
-            setShowSearchSheet(true);
-            return;
-          }
           setShowForm(null);
           setShowItemizedSale(false);
           setShowCustomerForm(false);
@@ -3115,17 +3113,6 @@ export default function AppShell() {
         onConfirm={(id) => handleDeleteTransaction(id)}
         onCancel={() => setDeleteTarget(null)}
       />
-
-      {showSearchSheet && (
-        <SearchSheet
-          transactions={transactions}
-          ledgerTransactions={ledgerTransactions}
-          customers={ledgerCustomers}
-          catalogEntries={activeCatalogEntries}
-          lang={lang}
-          onClose={() => setShowSearchSheet(false)}
-        />
-      )}
 
       <ToastContainer />
     </div>

@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
-import { Eye, EyeOff, Search, X } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { Eye, EyeOff, Search } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { usePrivacy } from '../context/PrivacyContext';
 import { getCurrentEthiopianDate } from '../utils/ethiopianCalendar';
@@ -24,6 +24,7 @@ import StaffReportSheet from './StaffReportSheet';
 import WhatINoticed from './WhatINoticed';
 import TodayStory from './TodayStory';
 import TimelineView from './TimelineView';
+import SearchSheet from './SearchSheet';
 import ErrorBoundary from './report/ErrorBoundary';
 import SettlementSection from './report/SettlementSection';
 import SettlementAlertBanner from './report/SettlementAlertBanner';
@@ -91,7 +92,7 @@ export default function ReportView({
   };
   const [customFrom, setCustomFrom] = useState(() => new Date().toISOString().slice(0, 10));
   const [customTo, setCustomTo] = useState(() => new Date().toISOString().slice(0, 10));
-  const [reportSearchQuery, setReportSearchQuery] = useState('');
+  const [showSearchSheet, setShowSearchSheet] = useState(false);
 
   const now = Date.now();
   const todayStart = startOfLocalDay(now);
@@ -152,16 +153,7 @@ export default function ReportView({
     return computeReportMetrics(priorRows);
   }, [transactions, ledgerTransactions, customers, todayStart, scope, viewerStaffId, isToday]);
 
-  const filteredReportRows = useMemo(() => {
-    if (!reportSearchQuery.trim()) return reportRows;
-    const q = reportSearchQuery.toLowerCase();
-    return reportRows.filter(r => {
-      const name = (r.customer_name || r.item_name || r.description || '').toLowerCase();
-      const kind = (r.report_kind || '').toLowerCase();
-      const amount = String(r.amount || '');
-      return name.includes(q) || kind.includes(q) || amount.includes(q);
-    });
-  }, [reportRows, reportSearchQuery]);
+
 
   const { avgSalesCount, avgExpenses } = useMemo(() => {
     if (!isToday) return { avgSalesCount: 0, avgExpenses: 0 };
@@ -298,43 +290,35 @@ export default function ReportView({
         </button>
       </div>
 
-      {/* ── Search Bar ── */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 30,
-        background: '#fafaf5', paddingBottom: 8,
-      }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          border: '1px solid #e5e7eb', borderRadius: 10,
-          padding: '6px 10px', minHeight: 38,
-          background: '#fff',
-        }}>
+      {/* ── Search Bar (opens SearchSheet) ── */}
+      <div style={{ paddingBottom: 8 }}>
+        <button
+          type="button"
+          onClick={() => setShowSearchSheet(true)}
+          aria-label={lang === 'am' ? 'ፈልግ' : 'Search notebook'}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+            border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px',
+            minHeight: 38, background: '#fff', cursor: 'pointer',
+            fontSize: '0.8rem', fontWeight: 600, color: '#9ca3af',
+            textAlign: 'left',
+          }}
+        >
           <Search className="w-4 h-4" style={{ color: '#9ca3af', flexShrink: 0 }} />
-          <input
-            type="text"
-            value={reportSearchQuery}
-            onChange={e => setReportSearchQuery(e.target.value)}
-            placeholder={lang === 'am' ? 'በመዝገቦች ውስጥ ፈልግ...' : 'Search entries...'}
-            style={{
-              flex: 1, border: 'none', outline: 'none', fontSize: '0.8rem',
-              fontWeight: 600, color: '#374151',
-              background: 'transparent', minHeight: 28,
-            }}
-          />
-          {reportSearchQuery && (
-            <button
-              type="button"
-              onClick={() => setReportSearchQuery('')}
-              style={{
-                border: 'none', background: 'none', cursor: 'pointer',
-                padding: 4, display: 'flex',
-              }}
-            >
-              <X className="w-4 h-4" style={{ color: '#9ca3af' }} />
-            </button>
-          )}
-        </div>
+          <span>{lang === 'am' ? 'ፈልግ... (/)' : 'Search notebook... (/)'}</span>
+        </button>
       </div>
+
+      {showSearchSheet && (
+        <SearchSheet
+          transactions={transactions}
+          ledgerTransactions={ledgerTransactions}
+          customers={customers}
+          catalogEntries={catalogEntries}
+          lang={lang}
+          onClose={() => setShowSearchSheet(false)}
+        />
+      )}
 
       {/* ── Time Range Tabs ── */}
       <div style={{
@@ -566,7 +550,7 @@ export default function ReportView({
               : (lang === 'am' ? 'እንቅስቃሴዎች' : 'ENTRIES')
           } />
           <ErrorBoundary>
-            <TimelineView reportRows={filteredReportRows} lang={lang} handleExport={handleExport} onEdit={onEdit} />
+            <TimelineView reportRows={reportRows} lang={lang} handleExport={handleExport} onEdit={onEdit} />
           </ErrorBoundary>
 
 
