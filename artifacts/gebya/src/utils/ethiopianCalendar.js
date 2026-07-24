@@ -70,7 +70,7 @@ export function getDueDateOptions() {
   return [
     { label: 'ዛሬ (Today)', value: today.getTime(), display: formatEthiopianShort(today) },
     { label: 'ነገ (Tomorrow)', value: tomorrow.getTime(), display: formatEthiopianShort(tomorrow) },
-    { label: 'ሚቀጥ. ሳምንት', value: nextWeek.getTime(), display: formatEthiopianShort(nextWeek) },
+    { label: 'ሳምንት (Week)', value: nextWeek.getTime(), display: formatEthiopianShort(nextWeek) },
   ];
 }
 

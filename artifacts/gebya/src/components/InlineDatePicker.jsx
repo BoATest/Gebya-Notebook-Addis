@@ -320,11 +320,11 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             {/* Full month grid */}
             <div style={{ padding: '0 16px 14px' }}>
               {/* Weekday header row */}
-              <div style={{ display: 'flex', marginBottom: 6 }}>
+              <div style={{ display: 'flex', marginBottom: 4 }}>
                 {weekdayHeaders.map((h, i) => (
                   <div key={i} style={{
                     flex: 1, textAlign: 'center',
-                    fontSize: '0.6rem', fontWeight: 700, color: '#9ca3af',
+                    fontSize: '0.55rem', fontWeight: 700, color: '#9ca3af',
                   }}>
                     {h}
                   </div>
@@ -332,7 +332,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
               </div>
               {/* Day rows */}
               {rows.map((row, ri) => (
-                <div key={ri} style={{ display: 'flex', gap: 2, marginBottom: 2 }}>
+                <div key={ri} style={{ display: 'flex', gap: 1, marginBottom: 1 }}>
                   {row.map((cell, ci) => {
                     if (!cell) {
                       return <div key={ci} style={{ flex: 1 }} />;
@@ -341,13 +341,13 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                     return (
                       <button key={ci} type="button"
                         onClick={() => handleModalDaySelect(cell.day, viewMonth, viewYear)}
-                        style={{
-                          flex: 1, aspectRatio: '1/1', maxWidth: 44, maxHeight: 44,
-                          borderRadius: 10,
-                          background: sel ? '#1B4332' : 'transparent',
-                          color: sel ? '#fff' : '#374151',
-                          border: `1.5px solid ${sel ? '#1B4332' : 'transparent'}`,
-                          fontSize: '0.82rem', fontWeight: sel ? 800 : 500,
+                          style={{
+                            flex: 1, aspectRatio: '1/1', maxWidth: 36, maxHeight: 36,
+                            borderRadius: 8,
+                            background: sel ? '#1B4332' : 'transparent',
+                            color: sel ? '#fff' : '#374151',
+                            border: `1.5px solid ${sel ? '#1B4332' : 'transparent'}`,
+                            fontSize: '0.75rem', fontWeight: sel ? 800 : 500,
                           cursor: 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           position: 'relative',
