@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Search, X } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { fmt } from '../utils/numformat';
+import { formatEthiopianTime } from '../utils/ethiopianCalendar';
 
 const FILTERS = ['all', 'sale', 'expense', 'collection', 'credit'];
 
@@ -159,7 +160,7 @@ export default function TimelineView({
                   {row.title || row.item_name || row.customer_name || (lang === 'am' ? 'መዝገብ' : 'Record')}
                 </p>
                 <p style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af', marginTop: 1 }}>
-                  {row.created_at ? new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  {row.created_at ? formatEthiopianTime(row.created_at) : ''}
                   {row.actor_name ? ` · ${row.actor_name}` : ''}
                   {` · ${paymentLabel(row)}`}
                 </p>

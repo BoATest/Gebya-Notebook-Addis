@@ -4,11 +4,12 @@
 // Newest first. Each row is a doorway to the transaction.
 
 import { fmt } from '../../utils/numformat';
+import { formatEthiopianTime } from '../../utils/ethiopianCalendar';
 import Chapter from './Chapter';
 
 function TimelineRow({ item, hidden = false, lang = 'en', onAction }) {
   const time = item.time
-    ? new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    ? formatEthiopianTime(item.time)
     : '';
 
   const kindIcon = {

@@ -5,6 +5,7 @@ import { usePermissionsStore } from '../stores/permissionsStore';
 import { getAuthToken } from '../utils/syncEngine';
 import { useSyncStore } from '../stores/syncStore';
 import { fmt } from '../utils/numformat';
+import { formatEthiopianTime } from '../utils/ethiopianCalendar';
 
 const API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
 
@@ -33,7 +34,7 @@ function formatTime(ts, lang) {
   const isToday = d.toDateString() === now.toDateString();
   const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
   const isYesterday = d.toDateString() === yesterday.toDateString();
-  const time = d.toLocaleTimeString(lang === 'am' ? 'am-ET' : 'en-US', { hour: 'numeric', minute: '2-digit' });
+  const time = formatEthiopianTime(ts);
   if (isToday) return time;
   if (isYesterday) return (lang === 'am' ? 'ትላንትና ' : 'Yesterday ') + time;
   return d.toLocaleDateString(lang === 'am' ? 'am-ET' : 'en-US', { month: 'short', day: 'numeric' }) + ' ' + time;

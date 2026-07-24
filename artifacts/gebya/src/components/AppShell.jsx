@@ -20,7 +20,7 @@ import GlobalModals from './GlobalModals';
 import TransferSheet from './TransferSheet';
 import { ToastContainer, fireToast } from './Toast';
 import { buildPhotoFields, normalizePhotos } from '../utils/photoProof';
-import { getCurrentEthiopianDate, formatEthiopian } from '../utils/ethiopianCalendar';
+import { getCurrentEthiopianDate, formatEthiopian, formatEthiopianTime } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/numformat';
 import { useSyncStore } from '../stores/syncStore';
 import { buildCustomerSummaries, getCustomerBalance, insertCustomerTransaction, sortCustomerTransactions } from '../utils/customerLedger';
@@ -461,7 +461,7 @@ function OfflineStatusStrip({
 function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t }) {
   const savedLabel = lastSavedSnapshot?.label || '';
   const savedAt = lastSavedSnapshot?.created_at
-    ? new Date(lastSavedSnapshot.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    ? formatEthiopianTime(lastSavedSnapshot.created_at)
     : null;
 
   return (

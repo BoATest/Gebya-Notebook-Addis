@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { ArrowLeft, Search, Share2 } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { fmt } from '../../utils/numformat';
+import { formatEthiopianTime } from '../../utils/ethiopianCalendar';
 
 function groupByDay(transactions) {
   const groups = {};
@@ -14,7 +15,7 @@ function groupByDay(transactions) {
 }
 
 function formatTime(ts) {
-  return new Date(ts).toLocaleTimeString('en', { hour: 'numeric', minute: '2-digit', hour12: true });
+  return formatEthiopianTime(ts);
 }
 
 function formatDateLabel(ts, lang) {

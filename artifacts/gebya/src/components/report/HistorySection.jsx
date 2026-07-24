@@ -7,11 +7,12 @@
 import { useState } from 'react';
 import { Search, Filter, Download, X } from 'lucide-react';
 import { fmt } from '../../utils/numformat';
+import { formatEthiopianTime } from '../../utils/ethiopianCalendar';
 import Chapter from './Chapter';
 
 function TransactionRow({ tx, hidden = false, lang = 'en', onEdit }) {
   const time = tx.created_at
-    ? new Date(tx.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    ? formatEthiopianTime(tx.created_at)
     : '';
 
   const isOut = tx.report_kind === 'expense';

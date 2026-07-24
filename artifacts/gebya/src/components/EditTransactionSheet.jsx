@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { X, Save, ChevronDown, ChevronUp, AlertTriangle, Pencil, Plus, Camera } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import PaymentTypeChips from './PaymentTypeChips';
-import { getDueDateOptions } from '../utils/ethiopianCalendar';
+import { getDueDateOptions, formatEthiopianTime } from '../utils/ethiopianCalendar';
 import InlineDatePicker from './InlineDatePicker';
 import { fmt, fmtInput } from '../utils/numformat';
 import { photoSizeBytes } from '../utils/photoCapture';
@@ -166,7 +166,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
   };
 
   const lastEdited = transaction.updated_at
-    ? new Date(transaction.updated_at).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })
+    ? formatEthiopianTime(transaction.updated_at)
     : null;
 
   return (

@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { remindersApi } from '../api/reminders';
+import { formatEthiopianTime } from '../utils/ethiopianCalendar';
 
 const STATUS_CONFIG = {
   sent:    { en: 'Sent',    am: 'ተልኳል',    bg: '#ecfdf5', border: '#86efac', color: '#166534' },
@@ -21,9 +22,7 @@ function formatDate(ts, lang) {
   const dateStr = d.toLocaleDateString(lang === 'am' ? 'am-ET' : 'en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
   });
-  const timeStr = d.toLocaleTimeString(lang === 'am' ? 'am-ET' : 'en-US', {
-    hour: '2-digit', minute: '2-digit',
-  });
+  const timeStr = formatEthiopianTime(ts);
   return `${dateStr} ${timeStr}`;
 }
 
