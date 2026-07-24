@@ -83,6 +83,7 @@ router.get("/overview", async (req, res) => {
       customerId: customerTransactions.customerId,
       credit: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'credit_add' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
       paid: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'payment' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
+      reversed: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'reversal' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
       dueDate: sql<number | null>`MAX(${customerTransactions.dueDate})`,
     }).from(customerTransactions).groupBy(customerTransactions.customerId),
   ]);
@@ -106,17 +107,21 @@ router.get("/overview", async (req, res) => {
     ? (Object.values(otpGroups).reduce((s, g) => s + g.attempts, 0) / Object.values(otpGroups).length).toFixed(1) : "0";
   const inviteAccepted = allInvites.filter(i => i.acceptedAt).length;
 
-  const customerBalances: Record<number, { credit: number; paid: number; dueDate: number | null }> = {};
+  const customerBalances: Record<number, { credit: number; paid: number; reversed: number; dueDate: number | null }> = {};
+  let totalReversed = 0;
   for (const row of custBalanceRows) {
     const cid = row.customerId;
     if (!cid) continue;
+    const reversed = Number(row.reversed) || 0;
+    totalReversed += reversed;
     customerBalances[cid] = {
       credit: Number(row.credit) || 0,
       paid: Number(row.paid) || 0,
+      reversed,
       dueDate: row.dueDate ?? null,
     };
   }
-  const overdueExposure = Object.values(customerBalances).filter(b => b.dueDate && b.dueDate < now && b.credit - b.paid > 0).reduce((s, b) => s + (b.credit - b.paid), 0);
+  const overdueExposure = Object.values(customerBalances).filter(b => b.dueDate && b.dueDate < now && b.credit - b.paid - b.reversed > 0).reduce((s, b) => s + (b.credit - b.paid - b.reversed), 0);
 
   const shopsWithStaff = new Set(allStaffMembers.filter(s => s.businessId).map(s => s.businessId));
   const totalActiveStaff = allStaffMembers.filter(s => s.active !== false).length;
@@ -156,7 +161,7 @@ router.get("/overview", async (req, res) => {
     platformNumbers: { shops: allBusinesses.length, users: allUsers.length, devices: allDevices.length, transactions: allTransactionsCount, totalSalesBirr: totalSales, totalCreditBirr: totalCredit },
     onboardingFunnel: { registered: allUsers.length, createdShop: allBusinesses.length, madeFirstTxn: shopsWithTxn.size, activeWeek: shopsActiveWeek.size, activeToday: shopsActiveToday.size },
     onboardingQuality: { avgOtpRetries: Number(avgOtpRetries), inviteSent: allInvites.length, inviteAccepted, inviteAcceptRate: allInvites.length > 0 ? Math.round((inviteAccepted / allInvites.length) * 100) : 0, deviceTotal: allDevices.length },
-    creditOverview: { totalExtended: totalCredit, totalRepaid, recoveryRate: totalCredit > 0 ? Math.round((totalRepaid / totalCredit) * 100) : 0, outstandingBalance: totalCredit - totalRepaid, overdueExposure, uniqueCreditCustomers: Object.keys(customerBalances).length },
+    creditOverview: { totalExtended: totalCredit, totalRepaid, totalReversed, recoveryRate: totalCredit > 0 ? Math.round((totalRepaid / totalCredit) * 100) : 0, outstandingBalance: totalCredit - totalRepaid - totalReversed, overdueExposure, uniqueCreditCustomers: Object.keys(customerBalances).length },
     staffAdoption: { shopsWithMultiStaff: shopsWithStaff.size, totalActiveStaff, avgStaffPerShop: allBusinesses.length > 0 ? (totalActiveStaff / allBusinesses.length).toFixed(1) : "0" },
     deliveryHealth: { telegramLinked, telegramAdoptionRate: allCustomers.length > 0 ? Math.round((telegramLinked / allCustomers.length) * 100) : 0 },
     backupHealth: { shopsBackedUp: Object.keys(latestBackups).length, shopsNeverBackedUp: allUsers.length - Object.keys(latestBackups).length, backupRate: allUsers.length > 0 ? Math.round((Object.keys(latestBackups).length / allUsers.length) * 100) : 0 },
@@ -180,7 +185,7 @@ router.get("/shops", async (req, res) => {
     const lastTxn = bizTxns.length > 0 ? Math.max(...bizTxns.map(t => t.createdAt || 0)) : null;
     const totalSales = bizTxns.filter(t => t.type === "sale").reduce((s, t) => s + (Number(t.amount) || 0), 0);
     const totalCredit = bizCustTxns.filter(t => t.type === "credit_add").reduce((s, t) => s + (Number(t.amount) || 0), 0);
-    const outstanding = bizCustTxns.filter(t => t.type === "credit_add").reduce((s, t) => s + (Number(t.amount) || 0), 0) - bizCustTxns.filter(t => t.type === "payment").reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const outstanding = bizCustTxns.filter(t => t.type === "credit_add").reduce((s, t) => s + (Number(t.amount) || 0), 0) - bizCustTxns.filter(t => t.type === "payment").reduce((s, t) => s + (Number(t.amount) || 0), 0) - bizCustTxns.filter(t => t.type === "reversal").reduce((s, t) => s + (Number(t.amount) || 0), 0);
     let status: "active" | "dormant" | "new" = "new";
     if (lastTxn && lastTxn >= sevenDaysAgo) status = "active"; else if (lastTxn) status = "dormant";
     return { id: biz.id, name: biz.name, ownerPhone: maskPhone(user?.phoneNumber || null), createdAt: biz.createdAt?.toISOString() || null, lastTransactionAt: lastTxn ? new Date(lastTxn).toISOString() : null, totalTransactions: bizTxns.length, totalSalesBirr: totalSales, totalCreditBirr: totalCredit, outstandingBirr: Math.max(outstanding, 0), status };
@@ -262,8 +267,9 @@ router.get("/export-shops", async (req, res) => {
     const totalSales = bizTxns.filter(t => t.type === "sale").reduce((s, t) => s + (Number(t.amount) || 0), 0);
     const totalCredit = bizCustTxns.filter(t => t.type === "credit_add").reduce((s, t) => s + (Number(t.amount) || 0), 0);
     const totalPaid = bizCustTxns.filter(t => t.type === "payment").reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const totalReversed = bizCustTxns.filter(t => t.type === "reversal").reduce((s, t) => s + (Number(t.amount) || 0), 0);
     let status = "new"; if (lastTxn && lastTxn >= sevenDaysAgo) status = "active"; else if (lastTxn) status = "dormant";
-    csvRows.push(`"${(biz.name || "").replace(/"/g, '""')}","${user?.phoneNumber || ""}","${biz.createdAt?.toISOString()?.split("T")[0] || ""}","${lastTxn ? new Date(lastTxn).toISOString()?.split("T")[0] : ""}",${bizTxns.length},${totalSales},${totalCredit},${Math.max(totalCredit - totalPaid, 0)},${bizStaff.length},${status}`);
+    csvRows.push(`"${(biz.name || "").replace(/"/g, '""')}","${user?.phoneNumber || ""}","${biz.createdAt?.toISOString()?.split("T")[0] || ""}","${lastTxn ? new Date(lastTxn).toISOString()?.split("T")[0] : ""}",${bizTxns.length},${totalSales},${totalCredit},${Math.max(totalCredit - totalPaid - totalReversed, 0)},${bizStaff.length},${status}`);
   }
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", `attachment; filename="gebya-shops-${new Date().toISOString().split("T")[0]}.csv"`);
