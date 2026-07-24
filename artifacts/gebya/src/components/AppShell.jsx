@@ -2284,21 +2284,20 @@ export default function AppShell() {
     if (!tx?.id) return;
     const reversalAmount = Math.abs(Number(tx.amount) || 0);
     if (reversalAmount <= 0) return;
+    // Sign amount so getCustomerBalance correctly cancels: credit_add→positive, payment→negative
+    const signedAmount = tx.type === 'payment' ? -reversalAmount : reversalAmount;
     const reversalEntry = {
       customer_id: tx.customer_id,
       type: 'reversal',
-      amount: reversalAmount,
+      amount: signedAmount,
       item_note: tx.item_note ? `Reversal of: ${tx.item_note}` : 'Reversal',
       due_date: null,
       reversal_of: tx.id,
       created_at: Date.now(),
       updated_at: Date.now(),
     };
-    // Optimistic: add reversal to state, remove original from view
-    setLedgerTransactions(prev => {
-      const without = prev.filter(t2 => t2.id !== tx.id);
-      return [reversalEntry, ...without];
-    });
+    // Optimistic: keep original in state, add reversal alongside so getCustomerBalance cancels correctly
+    setLedgerTransactions(prev => [reversalEntry, ...prev]);
     try {
       await db.customer_transactions.add(reversalEntry);
     } catch (err) {
