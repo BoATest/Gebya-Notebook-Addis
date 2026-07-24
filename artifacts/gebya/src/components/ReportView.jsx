@@ -76,6 +76,7 @@ export default function ReportView({
   ledgerTransactions = [],
   enrichedCustomerSummaries = [],
   customers = [],
+  catalogEntries = [],
   shopProfile,
   onEdit,
   activeStaffMemberId = null,

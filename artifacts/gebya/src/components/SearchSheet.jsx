@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, X, Clock, ArrowRight } from 'lucide-react';
+import { Search, X, Clock } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { fmt } from '../utils/numformat';
 

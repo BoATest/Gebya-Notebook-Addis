@@ -1,7 +1,9 @@
+import { formatEthiopianTime } from '../utils/ethiopianCalendar';
+
 export default function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t }) {
   const savedLabel = lastSavedSnapshot?.label || '';
   const savedAt = lastSavedSnapshot?.created_at
-    ? new Date(lastSavedSnapshot.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    ? formatEthiopianTime(lastSavedSnapshot.created_at)
     : null;
 
   return (
