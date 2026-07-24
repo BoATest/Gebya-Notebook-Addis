@@ -78,6 +78,14 @@ router.post("/otp", async (req, res) => {
     } catch (err) {
       console.error("[auth:otp] Telegram send failed:", err);
     }
+  } else {
+    // Fallback: send OTP via SMS if Telegram is not linked
+    try {
+      const { sendSms } = await import("../services/smsSender.js");
+      await sendSms(normalizedPhone, `Your Gebya login code: ${plainOtp}. Expires in 10 min. Do not share.`);
+    } catch (err) {
+      console.error("[auth:otp] SMS send failed:", err);
+    }
   }
 
   // In dev, return the OTP for testing
