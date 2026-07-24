@@ -34,6 +34,7 @@ import { photoSizeBytes } from '../utils/photoCapture';
 import { buildPhotoFields, createPhotoProof, MAX_PROOF_PHOTOS, photoCountLabel } from '../utils/photoProof';
 import { fireToast } from './Toast';
 import CameraCapture from './CameraCapture';
+import PaymentTypeChips from './PaymentTypeChips';
 import { db } from '../db';
 
 function handleNumericInput(e, setter) {
@@ -362,13 +363,14 @@ function TransactionForm({
 
           {/* Payment chips */}
           <div className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar">
-            <button onPointerDown={() => setPaymentType('cash')} className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'cash' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}>{lang === 'am' ? 'ጥሬ' : 'Cash'}</button>
-            {[...(enabledProviders?.banks || []), ...(enabledProviders?.wallets || [])].map(provider => (
-              <button key={provider} onPointerDown={() => { setPaymentType('provider'); setPaymentProvider(provider); }} className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'provider' && paymentProvider === provider ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}>{provider}</button>
-            ))}
-            <button onPointerDown={() => setPaymentType('credit')} className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'credit' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}>{lang === 'am' ? 'ዱቤ' : 'Credit'}</button>
-            <button onPointerDown={() => setPaymentType('partial')} className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${paymentType === 'partial' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-300'}`}>{lang === 'am' ? 'ከፊል' : 'Partial'}</button>
-            <button type="button" onClick={() => setActiveTab?.('settings')} className="shrink-0 px-3 py-2 rounded-full text-sm font-bold border-2 border-dashed press-scale" style={{ borderColor: '#c9bfa8', background: '#faf9f7', color: '#9ca3af', whiteSpace: 'nowrap' }} aria-label={lang === 'am' ? 'አክል' : 'Add provider'}>+</button>
+            <PaymentTypeChips
+              paymentType={paymentType}
+              provider={paymentProvider}
+              onTypeChange={setPaymentType}
+              onProviderChange={setPaymentProvider}
+              enabledProviders={enabledProviders}
+            />
+            <button onClick={() => setActiveTab?.('settings')} className="shrink-0 px-3 py-2 rounded-full text-sm font-bold border-2 border-dashed press-scale" style={{ borderColor: '#c9bfa8', background: '#faf9f7', color: '#9ca3af', whiteSpace: 'nowrap' }}>+</button>
           </div>
 
           {/* Credit details — customer, phone, due date (sale on credit).
