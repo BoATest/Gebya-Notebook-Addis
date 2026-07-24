@@ -90,19 +90,13 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     }
   }, [inlineMonth, inlineDay]);
 
-  // --- Modal mode handlers ---
-  const handleModalMonthChange = (delta) => {
-    setPending(p => {
-      const newMonth = p.month + delta;
-      if (newMonth < 1 || newMonth > 13) return p;
-      const newMax = daysInEthiopianMonth(p.year, newMonth);
-      const safeDay = Math.min(p.day, newMax);
-      return { ...p, month: newMonth, day: safeDay };
-    });
-  };
+  // --- Modal mode state ---
+  const [weekOffset, setWeekOffset] = useState(0);
 
-  const handleModalDaySelect = (d) => {
-    setPending(p => ({ ...p, day: d }));
+  // --- Modal mode handlers ---
+  const handleModalDaySelect = (ethDay, ethMonth, ethYear) => {
+    const maxDay = daysInEthiopianMonth(ethYear, ethMonth);
+    setPending({ year: ethYear, month: ethMonth, day: Math.min(ethDay, maxDay) });
   };
 
   const handleModalSet = () => {
@@ -112,6 +106,48 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     if (iso) onChange?.(iso);
     onClose?.();
   };
+
+  const todayGregStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }, []);
+
+  const quickDurations = useMemo(() => [7, 10, 15, 30], []);
+
+  function setDateNDaysFromToday(n) {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    const [ey, em, ed] = toEthiopian(d.getFullYear(), d.getMonth() + 1, d.getDate());
+    handleModalDaySelect(ed, em, ey);
+  }
+
+  function getWeekDays(offset) {
+    const today = new Date();
+    const dow = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((dow + 6) % 7) + offset * 7);
+    const result = [];
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const [ey, em, ed] = toEthiopian(d.getFullYear(), d.getMonth() + 1, d.getDate());
+      const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      result.push({ ethDay: ed, ethMonth: em, ethYear: ey, gregISO: iso, isToday: iso === todayGregStr });
+    }
+    return { week1: result.slice(0, 7), week2: result.slice(7, 14) };
+  }
+
+  function weekLabel(week) {
+    if (!week || week.length === 0) return '';
+    const first = week[0];
+    const last = week[week.length - 1];
+    const m1 = months[first.ethMonth - 1] || '';
+    const m2 = months[last.ethMonth - 1] || '';
+    if (first.ethMonth === last.ethMonth) {
+      return `${m1} ${first.ethDay}-${last.ethDay}`;
+    }
+    return `${m1} ${first.ethDay} - ${m2} ${last.ethDay}`;
+  }
 
   // --- Inline mode handlers ---
   const handleInlineMonthChange = (delta) => {
@@ -140,6 +176,14 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     const pendingWeekday = pendingGregISO ? new Date(`${pendingGregISO}T12:00:00`).getDay() : -1;
     const weekdayLabel = pendingWeekday >= 0 ? (lang === 'am' ? WEEKDAYS_AM[pendingWeekday] : WEEKDAYS_EN[pendingWeekday]) : '';
     const pendingMonthName = months[pending.month - 1] || '';
+
+    const { week1, week2 } = getWeekDays(weekOffset);
+    const w1Label = weekLabel(week1);
+    const w2Label = weekLabel(week2);
+
+    function isSelected(dayInfo) {
+      return dayInfo.ethDay === pending.day && dayInfo.ethMonth === pending.month && dayInfo.ethYear === pending.year;
+    }
 
     return (
       <div
@@ -195,88 +239,122 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             )}
           </div>
 
-          {/* Month/Year nav + Today */}
+          {/* Quick duration chips */}
           <div style={{ padding: '0 16px 10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <button type="button" onClick={() => setPending(p => ({ ...p, year: p.year - 1 }))}
-                aria-label="Previous year"
-                style={{
-                  width: 28, height: 28, border: '1px solid #e8e2d8', borderRadius: 6,
-                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0, fontSize: '0.55rem', fontWeight: 700, color: '#6b7280',
-                  lineHeight: 1,
-                }}>
-                ◀◀
-              </button>
-              <button type="button" onClick={() => handleModalMonthChange(-1)}
-                aria-label="Previous month"
-                style={{
-                  width: 36, height: 36, border: '2px solid #e8e2d8', borderRadius: 8,
-                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0,
-                }}>
-                <ChevronLeft className="w-4 h-4" style={{ color: '#374151' }} />
-              </button>
-              <div
-                style={{
-                  flex: 1, textAlign: 'center', padding: '8px 6px',
-                  background: '#fafaf5', border: '2px solid #e8e2d8', borderRadius: 8,
-                  fontSize: '0.9rem', fontWeight: 800, color: '#1B4332',
-                  fontVariantNumeric: 'tabular-nums',
-                }}>
-                <span>{months[pending.month - 1] || ''}</span>
-                <span style={{ fontWeight: 600, opacity: 0.6, marginLeft: 4 }}>{pending.year}</span>
-              </div>
-              <button type="button" onClick={() => handleModalMonthChange(1)}
-                aria-label="Next month"
-                style={{
-                  width: 36, height: 36, border: '2px solid #e8e2d8', borderRadius: 8,
-                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0,
-                }}>
-                <ChevronRight className="w-4 h-4" style={{ color: '#374151' }} />
-              </button>
-              <button type="button" onClick={() => setPending(p => ({ ...p, year: p.year + 1 }))}
-                aria-label="Next year"
-                style={{
-                  width: 28, height: 28, border: '1px solid #e8e2d8', borderRadius: 6,
-                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0, fontSize: '0.55rem', fontWeight: 700, color: '#6b7280',
-                  lineHeight: 1,
-                }}>
-                ▶▶
-              </button>
-              <button type="button" onClick={() => { const t = gregorianISOToEthiopianParts(''); setPending(t); }}
-                title={lang === 'am' ? 'ዛሬ' : 'Today'}
-                style={{
-                  height: 36, borderRadius: 8, background: '#1B4332', border: 'none',
-                  display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer', flexShrink: 0,
-                  color: '#fff', fontSize: '0.7rem', fontWeight: 800, padding: '0 8px',
-                }}>
-                <span>📅</span>
-                <span>{lang === 'am' ? 'ዛሬ' : 'Today'}</span>
-              </button>
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }} className="hide-scrollbar">
+              {quickDurations.map(n => {
+                const active = false;
+                return (
+                  <button key={n} type="button" onClick={() => setDateNDaysFromToday(n)}
+                    style={{
+                      flexShrink: 0, padding: '8px 14px', minHeight: 36,
+                      background: active ? '#1B4332' : '#fff',
+                      color: active ? '#fff' : '#1B4332',
+                      border: `2px solid ${active ? '#1B4332' : '#d4cdc0'}`,
+                      borderRadius: 8, fontSize: '0.8rem', fontWeight: 800,
+                      cursor: 'pointer',
+                    }}>
+                    +{n} {lang === 'am' ? 'ቀናት' : 'days'}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Day grid */}
-          <div style={{ padding: '0 16px 14px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-              {Array.from({ length: maxDayForMonth }, (_, i) => i + 1).map((d) => {
-                const active = pending.day === d;
+          {/* Week 1 */}
+          <div style={{ padding: '0 16px 8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+              <button type="button" onClick={() => setWeekOffset(w => w - 1)}
+                aria-label="Previous week"
+                style={{
+                  width: 28, height: 28, border: '1px solid #e8e2d8', borderRadius: 6,
+                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0,
+                }}>
+                <ChevronLeft className="w-3.5 h-3.5" style={{ color: '#374151' }} />
+              </button>
+              <span style={{ flex: 1, fontSize: '0.75rem', fontWeight: 700, color: '#6b7280' }}>
+                {w1Label}
+              </span>
+              <button type="button" onClick={() => setWeekOffset(w => w + 1)}
+                aria-label="Next week"
+                style={{
+                  width: 28, height: 28, border: '1px solid #e8e2d8', borderRadius: 6,
+                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0,
+                }}>
+                <ChevronRight className="w-3.5 h-3.5" style={{ color: '#374151' }} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }} className="hide-scrollbar">
+              {week1.map((di, idx) => {
+                const sel = isSelected(di);
                 return (
-                  <button key={d} type="button" onClick={() => handleModalDaySelect(d)}
+                  <button key={idx} type="button" onClick={() => handleModalDaySelect(di.ethDay, di.ethMonth, di.ethYear)}
                     style={{
-                      aspectRatio: '1 / 1', minHeight: 38,
-                      background: active ? '#C4883A' : '#fff',
-                      color: active ? '#fff' : '#374151',
-                      border: `1px solid ${active ? '#C4883A' : '#e8e2d8'}`,
-                      borderRadius: 8, fontSize: '0.85rem',
-                      fontWeight: active ? 800 : 600,
-                      fontVariantNumeric: 'tabular-nums',
-                      cursor: 'pointer',
+                      minWidth: 40, height: 40, borderRadius: 8,
+                      background: sel ? '#1B4332' : '#fff',
+                      color: sel ? '#fff' : '#374151',
+                      border: `1.5px solid ${sel ? '#1B4332' : '#e8e2d8'}`,
+                      fontSize: '0.85rem', fontWeight: sel ? 800 : 600,
+                      cursor: 'pointer', flexShrink: 0,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      position: 'relative',
                     }}>
-                    {d}
+                    {di.ethDay}
+                    {di.isToday && !sel && (
+                      <span style={{ position: 'absolute', bottom: 3, width: 4, height: 4, borderRadius: '50%', background: '#1B4332' }} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Week 2 */}
+          <div style={{ padding: '0 16px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+              <button type="button" onClick={() => setWeekOffset(w => w - 1)}
+                aria-label="Previous week"
+                style={{
+                  width: 28, height: 28, border: '1px solid #e8e2d8', borderRadius: 6,
+                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0, visibility: 'hidden',
+                }}>
+                <ChevronLeft className="w-3.5 h-3.5" style={{ color: '#374151' }} />
+              </button>
+              <span style={{ flex: 1, fontSize: '0.75rem', fontWeight: 700, color: '#6b7280' }}>
+                {w2Label}
+              </span>
+              <button type="button" onClick={() => setWeekOffset(w => w + 1)}
+                aria-label="Next week"
+                style={{
+                  width: 28, height: 28, border: '1px solid #e8e2d8', borderRadius: 6,
+                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0, visibility: 'hidden',
+                }}>
+                <ChevronRight className="w-3.5 h-3.5" style={{ color: '#374151' }} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }} className="hide-scrollbar">
+              {week2.map((di, idx) => {
+                const sel = isSelected(di);
+                return (
+                  <button key={idx} type="button" onClick={() => handleModalDaySelect(di.ethDay, di.ethMonth, di.ethYear)}
+                    style={{
+                      minWidth: 40, height: 40, borderRadius: 8,
+                      background: sel ? '#1B4332' : '#fff',
+                      color: sel ? '#fff' : '#374151',
+                      border: `1.5px solid ${sel ? '#1B4332' : '#e8e2d8'}`,
+                      fontSize: '0.85rem', fontWeight: sel ? 800 : 600,
+                      cursor: 'pointer', flexShrink: 0,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      position: 'relative',
+                    }}>
+                    {di.ethDay}
+                    {di.isToday && !sel && (
+                      <span style={{ position: 'absolute', bottom: 3, width: 4, height: 4, borderRadius: '50%', background: '#1B4332' }} />
+                    )}
                   </button>
                 );
               })}
