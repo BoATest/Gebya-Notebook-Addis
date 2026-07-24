@@ -149,100 +149,90 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             background: '#fff',
             borderTopLeftRadius: 24, borderTopRightRadius: 24,
             width: '100%', maxWidth: 480,
-            paddingBottom: 20,
+            maxHeight: '90vh', overflowY: 'auto',
+            paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
             boxShadow: '0 -8px 32px -8px rgba(0,0,0,0.25)',
           }}
         >
           {/* Drag handle */}
           <div style={{ width: 38, height: 4, background: '#e5e7eb', borderRadius: 999, margin: '10px auto 6px' }} />
 
-          {/* Header row: title + close */}
+          {/* Header: title + close */}
           <div style={{ padding: '0 16px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1a1a1a', margin: 0 }}>
               {lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date'}
             </h3>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
+            <button type="button" onClick={onClose} aria-label="Close"
               style={{
                 width: 32, height: 32, borderRadius: 8,
                 background: '#f3f4f6', border: 'none',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer',
-              }}
-            >
+              }}>
               <X className="w-4 h-4" style={{ color: '#6b7280' }} />
             </button>
           </div>
 
           {/* Month/Year nav + Today */}
-          <div style={{ padding: '0 16px 12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <button
-                type="button"
-                onClick={() => handleModalMonthChange(-1)}
+          <div style={{ padding: '0 16px 10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <button type="button" onClick={() => setPending(p => ({ ...p, year: p.year - 1 }))}
+                aria-label="Previous year"
+                style={{
+                  width: 28, height: 28, border: '1px solid #e8e2d8', borderRadius: 6,
+                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0, fontSize: '0.55rem', fontWeight: 700, color: '#6b7280',
+                  lineHeight: 1,
+                }}>
+                ◀◀
+              </button>
+              <button type="button" onClick={() => handleModalMonthChange(-1)}
                 aria-label="Previous month"
                 style={{
-                  width: 36, height: 36,
-                  border: '2px solid #e8e2d8',
-                  borderRadius: 8,
-                  background: '#fff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-              >
+                  width: 36, height: 36, border: '2px solid #e8e2d8', borderRadius: 8,
+                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0,
+                }}>
                 <ChevronLeft className="w-4 h-4" style={{ color: '#374151' }} />
               </button>
               <div
                 style={{
-                  flex: 1,
-                  textAlign: 'center',
-                  padding: '8px 10px',
-                  background: '#fafaf5',
-                  border: '2px solid #e8e2d8',
-                  borderRadius: 8,
-                  fontSize: '0.95rem',
-                  fontWeight: 800,
-                  color: '#1B4332',
+                  flex: 1, textAlign: 'center', padding: '8px 6px',
+                  background: '#fafaf5', border: '2px solid #e8e2d8', borderRadius: 8,
+                  fontSize: '0.9rem', fontWeight: 800, color: '#1B4332',
                   fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {months[pending.month - 1] || ''} {pending.year}
+                }}>
+                <span>{months[pending.month - 1] || ''}</span>
+                <span style={{ fontWeight: 600, opacity: 0.6, marginLeft: 4 }}>{pending.year}</span>
               </div>
-              <button
-                type="button"
-                onClick={() => handleModalMonthChange(1)}
+              <button type="button" onClick={() => handleModalMonthChange(1)}
                 aria-label="Next month"
                 style={{
-                  width: 36, height: 36,
-                  border: '2px solid #e8e2d8',
-                  borderRadius: 8,
-                  background: '#fff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-              >
+                  width: 36, height: 36, border: '2px solid #e8e2d8', borderRadius: 8,
+                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0,
+                }}>
                 <ChevronRight className="w-4 h-4" style={{ color: '#374151' }} />
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const today = gregorianISOToEthiopianParts('');
-                  setPending(today);
-                }}
+              <button type="button" onClick={() => setPending(p => ({ ...p, year: p.year + 1 }))}
+                aria-label="Next year"
+                style={{
+                  width: 28, height: 28, border: '1px solid #e8e2d8', borderRadius: 6,
+                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0, fontSize: '0.55rem', fontWeight: 700, color: '#6b7280',
+                  lineHeight: 1,
+                }}>
+                ▶▶
+              </button>
+              <button type="button" onClick={() => { const t = gregorianISOToEthiopianParts(''); setPending(t); }}
                 title={lang === 'am' ? 'ዛሬ' : 'Today'}
                 style={{
-                  width: 36, height: 36, borderRadius: 8,
-                  background: '#1B4332', border: 'none',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0,
-                  color: '#fff', fontSize: '0.65rem', fontWeight: 800,
-                }}
-              >
-                📅
+                  height: 36, borderRadius: 8, background: '#1B4332', border: 'none',
+                  display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer', flexShrink: 0,
+                  color: '#fff', fontSize: '0.7rem', fontWeight: 800, padding: '0 8px',
+                }}>
+                <span>📅</span>
+                <span>{lang === 'am' ? 'ዛሬ' : 'Today'}</span>
               </button>
             </div>
           </div>
@@ -253,23 +243,17 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
               {Array.from({ length: maxDayForMonth }, (_, i) => i + 1).map((d) => {
                 const active = pending.day === d;
                 return (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => handleModalDaySelect(d)}
+                  <button key={d} type="button" onClick={() => handleModalDaySelect(d)}
                     style={{
-                      aspectRatio: '1 / 1',
+                      aspectRatio: '1 / 1', minHeight: 38,
                       background: active ? '#C4883A' : '#fff',
                       color: active ? '#fff' : '#374151',
                       border: `1px solid ${active ? '#C4883A' : '#e8e2d8'}`,
-                      borderRadius: 6,
-                      fontSize: '0.8rem',
+                      borderRadius: 8, fontSize: '0.85rem',
                       fontWeight: active ? 800 : 600,
                       fontVariantNumeric: 'tabular-nums',
-                      minHeight: 34,
                       cursor: 'pointer',
-                    }}
-                  >
+                    }}>
                     {d}
                   </button>
                 );
@@ -279,63 +263,34 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
 
           {/* Action row */}
           <div style={{ padding: '0 16px', display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              onClick={onClose}
+            <button type="button" onClick={onClose}
               style={{
-                flex: 1,
-                padding: '10px',
-                background: '#f3f4f6',
-                color: '#374151',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                minHeight: 44,
-              }}
-            >
+                flex: 1, padding: '12px', background: '#f3f4f6', color: '#374151',
+                border: 'none', borderRadius: 10, fontSize: '0.85rem', fontWeight: 700,
+                cursor: 'pointer', minHeight: 48,
+              }}>
               {lang === 'am' ? 'ይቅር' : 'Cancel'}
             </button>
             {value && (
-              <button
-                type="button"
-                onClick={() => { onChange?.(''); onClose?.(); }}
+              <button type="button" onClick={() => { onChange?.(''); onClose?.(); }}
                 style={{
-                  flex: 1,
-                  padding: '10px',
-                  background: '#fef2f2',
-                  color: '#dc2626',
-                  border: '1px solid #fecaca',
-                  borderRadius: 10,
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  minHeight: 44,
-                }}
-              >
+                  flex: 1, padding: '12px', background: '#fef2f2', color: '#dc2626',
+                  border: '1px solid #fecaca', borderRadius: 10, fontSize: '0.85rem', fontWeight: 700,
+                  cursor: 'pointer', minHeight: 48,
+                }}>
                 {lang === 'am' ? 'አጥፋ' : 'Clear'}
               </button>
             )}
-            <button
-              type="button"
-              onClick={handleModalSet}
+            <button type="button" onClick={handleModalSet}
               style={{
-                flex: 2,
-                padding: '10px',
-                background: '#1B4332',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 10,
-                fontSize: '0.9rem',
-                fontWeight: 800,
-                cursor: 'pointer',
-                minHeight: 44,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-              }}
-            >
-              <Check className="w-4 h-4" />
-              {lang === 'am' ? 'አስቀምጥ' : 'Set'}
+                flex: 3, padding: '12px', background: '#1B4332', color: '#fff',
+                border: 'none', borderRadius: 10, fontSize: '0.95rem', fontWeight: 800,
+                cursor: 'pointer', minHeight: 48,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                boxShadow: '0 4px 12px rgba(27,67,50,0.3)',
+              }}>
+              <Check className="w-5 h-5" />
+              {lang === 'am' ? 'አስቀምጥ' : 'Set date'}
             </button>
           </div>
         </div>
