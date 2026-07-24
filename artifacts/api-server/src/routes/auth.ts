@@ -161,33 +161,44 @@ router.post("/verify", async (req, res) => {
 
   const token = signJwt(user.id);
 
-  // Fetch all business memberships
-  const memberRows = await db
-    .select({
-      businessId: businessMembers.businessId,
-      role: businessMembers.role,
-      permissions: businessMembers.permissions,
-    })
-    .from(businessMembers)
-    .where(eq(businessMembers.userId, user.id));
+  // Fetch all business memberships (gracefully handle if table has schema issues)
+  let memberRows: any[] = [];
+  try {
+    memberRows = await db
+      .select({
+        businessId: businessMembers.businessId,
+        role: businessMembers.role,
+        permissions: businessMembers.permissions,
+      })
+      .from(businessMembers)
+      .where(eq(businessMembers.userId, user.id));
+  } catch (err) {
+    console.error("[auth:verify] business_members query failed:", err);
+    // Continue without memberships — user can still authenticate
+  }
   const primary = memberRows[0] || null;
 
   // Enrich with business names
-  const businessList = await Promise.all(
-    memberRows.map(async (m) => {
-      const biz = await db
-        .select({ name: businesses.name })
-        .from(businesses)
-        .where(eq(businesses.id, m.businessId))
-        .limit(1);
-      return {
-        business_id: m.businessId,
-        name: biz[0]?.name || "Unknown",
-        role: m.role,
-        permissions: m.permissions,
-      };
-    })
-  );
+  let businessList: any[] = [];
+  try {
+    businessList = await Promise.all(
+      memberRows.map(async (m) => {
+        const biz = await db
+          .select({ name: businesses.name })
+          .from(businesses)
+          .where(eq(businesses.id, m.businessId))
+          .limit(1);
+        return {
+          business_id: m.businessId,
+          name: biz[0]?.name || "Unknown",
+          role: m.role,
+          permissions: m.permissions,
+        };
+      })
+    );
+  } catch (err) {
+    console.error("[auth:verify] business enrichment failed:", err);
+  }
 
   return res.json({
     ok: true,
