@@ -235,7 +235,7 @@ export default function TransferSheet({
                   <button
                     key={v}
                     type="button"
-                    onClick={() => setAmount(String(v))}
+                    onClick={() => setAmount(fmtInput(String(v)))}
                     style={{
                       padding: '4px 10px', borderRadius: 6, border: '1px solid #e5e7eb',
                       background: '#f9fafb', fontSize: '0.72rem', fontWeight: 600,

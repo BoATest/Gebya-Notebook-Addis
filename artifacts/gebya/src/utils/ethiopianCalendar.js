@@ -45,7 +45,8 @@ export function formatEthiopianTime(timestamp) {
   const westernHours = d.getHours();
   const hour = getEthiopianHour(westernHours);
   const period = getEthiopianPeriod(westernHours);
-  return `${hour} ${period}`;
+  const minutes = d.getMinutes();
+  return `${hour}:${String(minutes).padStart(2, '0')} ${period}`;
 }
 
 export function formatEthiopianShort(date) {
