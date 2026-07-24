@@ -174,7 +174,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     const maxDayForMonth = daysInEthiopianMonth(pending.year, pending.month);
     const pendingGregISO = ethiopianToGregorianISO(pending.year, pending.month, Math.min(pending.day, maxDayForMonth));
     const pendingWeekday = pendingGregISO ? new Date(`${pendingGregISO}T12:00:00`).getDay() : -1;
-    const weekdayLabel = pendingWeekday >= 0 ? (lang === 'am' ? WEEKDAYS_AM[pendingWeekday] : WEEKDAYS_EN[pendingWeekday]) : '';
+    const weekdayLabel = pendingWeekday >= 0 ? `${WEEKDAYS_AM[pendingWeekday]} (${WEEKDAYS_EN[pendingWeekday]})` : '';
     const pendingMonthName = months[pending.month - 1] || '';
 
     const { week1, week2 } = getWeekDays(weekOffset);
@@ -363,14 +363,6 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
 
           {/* Action row */}
           <div style={{ padding: '0 16px', display: 'flex', gap: 8 }}>
-            <button type="button" onClick={onClose}
-              style={{
-                flex: 1, padding: '12px', background: '#f3f4f6', color: '#374151',
-                border: 'none', borderRadius: 10, fontSize: '0.85rem', fontWeight: 700,
-                cursor: 'pointer', minHeight: 48,
-              }}>
-              {lang === 'am' ? 'ይቅር' : 'Cancel'}
-            </button>
             {value && (
               <button type="button" onClick={() => { onChange?.(''); onClose?.(); }}
                 style={{
@@ -383,7 +375,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             )}
             <button type="button" onClick={handleModalSet}
               style={{
-                flex: 3, padding: '12px', background: '#1B4332', color: '#fff',
+                flex: value ? 3 : 1, padding: '12px', background: '#1B4332', color: '#fff',
                 border: 'none', borderRadius: 10, fontSize: '0.95rem', fontWeight: 800,
                 cursor: 'pointer', minHeight: 48,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
