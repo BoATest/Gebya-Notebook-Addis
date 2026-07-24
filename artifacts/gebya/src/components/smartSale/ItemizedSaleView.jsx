@@ -721,9 +721,12 @@ export default function ItemizedSaleView({
 
             {/* Customer summary when selected */}
             {creditCustomerId && (
-              <div className="flex items-center gap-2 px-2.5 py-1.5" style={{ background: 'rgba(22,163,74,0.06)', borderRadius: 'var(--radius-sm)', minHeight: '34px' }}>
+              <div className="flex items-center gap-2 px-2.5 py-2" style={{ background: 'rgba(22,163,74,0.06)', borderRadius: 'var(--radius-sm)', minHeight: '42px' }}>
                 <span className="text-[13px] font-bold flex-1">{creditCustomerName}</span>
                 {creditCustomerPhone && <span className="text-[10px]" style={{ color: '#6b7280' }}>{creditCustomerPhone}</span>}
+                <span className="text-[10px] font-bold" style={{ color: '#6b7280' }}>
+                  {lang === 'am' ? 'ዱቤ' : 'BAL'} {fmt(creditCustomerBalance)}
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -778,17 +781,6 @@ export default function ItemizedSaleView({
                   }}>
                   📅 <span>{lang === 'am' ? 'ምረጥ' : 'Pick'}</span>
                 </button>
-                <div className="flex items-center ml-auto min-w-[80px]">
-                  <div className="text-[9px] font-bold uppercase tracking-wider mr-1" style={{ color: '#9ca3af' }}>
-                    {lang === 'am' ? 'ዱቤ' : 'Bal'}
-                  </div>
-                  <div className="px-2 py-1.5 text-[11px] border font-bold flex items-center"
-                    style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: '#fff', color: '#374151' }}>
-                    {creditCustomerId
-                      ? fmt(customers.find(c => c.id === creditCustomerId)?.balance || 0)
-                      : (lang === 'am' ? '0' : '0')}
-                  </div>
-                </div>
               </div>
             </div>
 

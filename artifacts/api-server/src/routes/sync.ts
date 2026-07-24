@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { db, customerBalanceExpression } from "@workspace/db";
 import {
   transactions, customers, customerTransactions, catalogEntries,
   suppliers, supplierTransactions, staffMembers, settings, analytics,
@@ -172,43 +172,60 @@ async function pushTable(
   let count = 0;
   const conflicts: ConflictRecord[] = [];
   const mutations: MutationRecord[] = [];
+  const CHUNK_SIZE = 100;
 
-  for (const row of capped) {
-    const data = mapper({ ...row, device_id: deviceId });
-    data.businessId = data.businessId ?? businessId;
-    const incomingVersion = data.syncVersion || 1;
-    const incomingUpdatedAt = data.updatedAt || 0;
-    const existing = await db.select().from(table).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId))).limit(1);
+  for (let i = 0; i < capped.length; i += CHUNK_SIZE) {
+    const chunk = capped.slice(i, i + CHUNK_SIZE);
 
-    if (existing.length === 0) {
-      await db.insert(table).values({ ...data, syncVersion: 1 });
-      count++;
-      mutations.push({ action: "CREATE", entityType: key, entityId: String(data.localId) });
-    } else {
-      const stored = existing[0];
-      const storedVersion = stored.syncVersion || 1;
-      const storedUpdatedAt = stored.updatedAt || 0;
-      const incomingActive = typeof data.active === "boolean" ? data.active : null;
-      const storedActive = typeof stored.active === "boolean" ? stored.active : true;
-      const isSoftDelete = incomingActive === false && storedActive === true;
+    const chunkResult = await db.transaction(async (tx) => {
+      const chunkConflicts: ConflictRecord[] = [];
+      const chunkMutations: MutationRecord[] = [];
+      let chunkCount = 0;
 
-      const isSettlementReconcile = key === "settlements" && data.status === "reconciled" && stored.status !== "reconciled";
-      const reconcileNote = isSettlementReconcile && data.reconciliationNote ? data.reconciliationNote : null;
+      for (const row of chunk) {
+        const data = mapper({ ...row, device_id: deviceId });
+        data.businessId = data.businessId ?? businessId;
+        const incomingVersion = data.syncVersion || 1;
+        const incomingUpdatedAt = data.updatedAt || 0;
+        const existing = await tx.select().from(table).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId))).limit(1);
 
-      if (incomingVersion > storedVersion) {
-        await db.update(table).set({ ...data, syncVersion: incomingVersion + 1 }).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId)));
-        count++;
-        const detail = reconcileNote ? `settlement reconciled: ${reconcileNote}` : undefined;
-        mutations.push({ action: isSoftDelete ? "DELETE" : "UPDATE", entityType: key, entityId: String(data.localId), details: detail });
-      } else if (incomingVersion === storedVersion && incomingUpdatedAt > storedUpdatedAt) {
-        await db.update(table).set({ ...data, syncVersion: storedVersion + 1 }).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId)));
-        count++;
-        const detail = reconcileNote ? `settlement reconciled: ${reconcileNote}` : undefined;
-        mutations.push({ action: isSoftDelete ? "DELETE" : "UPDATE", entityType: key, entityId: String(data.localId), details: detail });
-      } else {
-        conflicts.push({ table: key, localId: data.localId, serverRecord: stored });
+        if (existing.length === 0) {
+          await tx.insert(table).values({ ...data, syncVersion: 1 });
+          chunkCount++;
+          chunkMutations.push({ action: "CREATE", entityType: key, entityId: String(data.localId) });
+        } else {
+          const stored = existing[0];
+          const storedVersion = stored.syncVersion || 1;
+          const storedUpdatedAt = stored.updatedAt || 0;
+          const incomingActive = typeof data.active === "boolean" ? data.active : null;
+          const storedActive = typeof stored.active === "boolean" ? stored.active : true;
+          const isSoftDelete = incomingActive === false && storedActive === true;
+
+          const isSettlementReconcile = key === "settlements" && data.status === "reconciled" && stored.status !== "reconciled";
+          const reconcileNote = isSettlementReconcile && data.reconciliationNote ? data.reconciliationNote : null;
+
+          if (incomingVersion > storedVersion) {
+            await tx.update(table).set({ ...data, syncVersion: incomingVersion + 1 }).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId)));
+            chunkCount++;
+            const detail = reconcileNote ? `settlement reconciled: ${reconcileNote}` : undefined;
+            chunkMutations.push({ action: isSoftDelete ? "DELETE" : "UPDATE", entityType: key, entityId: String(data.localId), details: detail });
+          } else if (incomingVersion === storedVersion && incomingUpdatedAt > storedUpdatedAt) {
+            await tx.update(table).set({ ...data, syncVersion: storedVersion + 1 }).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId)));
+            chunkCount++;
+            const detail = reconcileNote ? `settlement reconciled: ${reconcileNote}` : undefined;
+            chunkMutations.push({ action: isSoftDelete ? "DELETE" : "UPDATE", entityType: key, entityId: String(data.localId), details: detail });
+          } else {
+            chunkConflicts.push({ table: key, localId: data.localId, serverRecord: stored });
+          }
+        }
       }
-    }
+
+      return { count: chunkCount, conflicts: chunkConflicts, mutations: chunkMutations };
+    });
+
+    count += chunkResult.count;
+    conflicts.push(...chunkResult.conflicts);
+    mutations.push(...chunkResult.mutations);
   }
 
   return { count, conflicts, mutations };
@@ -436,11 +453,11 @@ router.get("/balance-check/:customerId",
       return res.status(400).json({ error: "Invalid customer ID" });
     }
 
-    // Fetch all customer transactions for this customer in this business
-    const rows = await db
+    // Recompute balance from immutable transaction log using shared expression
+    const [result] = await db
       .select({
-        type: customerTransactions.type,
-        amount: customerTransactions.amount,
+        balance: customerBalanceExpression(),
+        transactionCount: sql<number>`COUNT(*)`,
       })
       .from(customerTransactions)
       .where(
@@ -450,19 +467,14 @@ router.get("/balance-check/:customerId",
         )
       );
 
-    // Recompute balance from immutable transaction log
-    let balance = 0;
-    for (const row of rows) {
-      if (row.type === "credit_add") balance += Number(row.amount) || 0;
-      if (row.type === "payment") balance -= Number(row.amount) || 0;
-      if (row.type === "reversal") balance -= Number(row.amount) || 0;
-    }
+    const balance = result ? Math.max(Number(result.balance) || 0, 0) : 0;
+    const transactionCount = result ? Number(result.transactionCount) || 0 : 0;
 
     return res.json({
       ok: true,
       customer_id: customerId,
-      balance: Math.max(balance, 0),
-      transaction_count: rows.length,
+      balance,
+      transaction_count: transactionCount,
       computed_at: Date.now(),
     });
   }

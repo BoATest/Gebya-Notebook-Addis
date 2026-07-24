@@ -99,7 +99,7 @@ export default function CreditTab({
                     enrichedSummaries: enrichedCustomerSummaries,
                     customerTransactions: customerTransactions || [],
                   });
-                  exportCreditReportCsv(report);
+                  exportCreditReportCsv(report, customerTransactions || []);
                 } catch (err) {
                   if (import.meta.env.DEV) console.error('CSV Export failed:', err);
                 }

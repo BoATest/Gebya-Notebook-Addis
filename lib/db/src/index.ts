@@ -18,3 +18,4 @@ export const db = pool ? drizzle(pool, { schema }) : null;
 export * from "./schema";
 export { getCustomerBalances, enrichWithTelegram } from "./utils/customerBalance.js";
 export type { CustomerBalanceRow, CustomerWithTelegram } from "./utils/customerBalance.js";
+export { customerBalanceExpression } from "./utils/balance.js";

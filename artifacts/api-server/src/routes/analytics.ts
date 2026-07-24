@@ -98,7 +98,7 @@ async function buildReportPayload(businessId: number, share: typeof bankDataShar
     // Only include PII if merchant opted in
     if (share.shareCustomerData) {
       summary.display_name = customer?.displayName || customer?.name || `Customer ${cid}`;
-      summary.phone = customer?.phoneNumber || customer?.phone;
+      summary.phone = customer?.phoneNumber;
     }
 
     customerSummaries.push(summary);

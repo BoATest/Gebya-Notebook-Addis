@@ -29,7 +29,7 @@ import {
   notifications,
   pushSubscriptions,
 } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gt, sql } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
 
 const router = Router();
@@ -66,17 +66,34 @@ router.get("/overview", async (req, res) => {
   const sevenDaysAgo = daysAgo(7);
   const oneDayAgo = daysAgo(1);
 
-  const [allUsers, allBusinesses, allDevices, allTransactions, allCustomers, allCustomerTransactions, allStaffMembers, allInvites, allOtps, allSnapshots] = await Promise.all([
+  const [allUsers, allBusinesses, allDevices, allCustomers, allStaffMembers, allInvites, allOtps, allSnapshots] = await Promise.all([
     db.select().from(users), db.select().from(businesses), db.select().from(devices),
-    db.select().from(transactions), db.select().from(customers), db.select().from(customerTransactions),
-    db.select().from(staffMembers), db.select().from(invites), db.select().from(otps), db.select().from(snapshots),
+    db.select().from(customers), db.select().from(staffMembers), db.select().from(invites), db.select().from(otps), db.select().from(snapshots),
   ]);
 
-  const totalSales = allTransactions.filter(t => t.type === "sale").reduce((s, t) => s + (Number(t.amount) || 0), 0);
-  const totalCredit = allCustomerTransactions.filter(t => t.type === "credit_add").reduce((s, t) => s + (Number(t.amount) || 0), 0);
-  const shopsWithTxn = new Set(allTransactions.map(t => t.businessId).filter(Boolean));
-  const shopsActiveWeek = new Set(allTransactions.filter(t => (t.createdAt || 0) >= sevenDaysAgo).map(t => t.businessId).filter(Boolean));
-  const shopsActiveToday = new Set(allTransactions.filter(t => (t.createdAt || 0) >= oneDayAgo).map(t => t.businessId).filter(Boolean));
+  const [salesTotal, txnCountResult, shopsDistinct, shopsWeekDistinct, shopsTodayDistinct, creditTotalResult, repaidTotalResult, custBalanceRows] = await Promise.all([
+    db.select({ total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)` }).from(transactions).where(eq(transactions.type, "sale")).then(r => r[0]?.total ?? 0),
+    db.select({ count: sql<number>`COUNT(*)` }).from(transactions).then(r => ({ count: r[0]?.count ?? 0 })),
+    db.selectDistinct({ businessId: transactions.businessId }).from(transactions).then(r => new Set(r.map(t => t.businessId).filter(Boolean))),
+    db.selectDistinct({ businessId: transactions.businessId }).from(transactions).where(gt(transactions.createdAt, sevenDaysAgo)).then(r => new Set(r.map(t => t.businessId).filter(Boolean))),
+    db.selectDistinct({ businessId: transactions.businessId }).from(transactions).where(gt(transactions.createdAt, oneDayAgo)).then(r => new Set(r.map(t => t.businessId).filter(Boolean))),
+    db.select({ total: sql<number>`COALESCE(SUM(${customerTransactions.amount}), 0)` }).from(customerTransactions).where(eq(customerTransactions.type, "credit_add")).then(r => r[0]?.total ?? 0),
+    db.select({ total: sql<number>`COALESCE(SUM(${customerTransactions.amount}), 0)` }).from(customerTransactions).where(eq(customerTransactions.type, "payment")).then(r => r[0]?.total ?? 0),
+    db.select({
+      customerId: customerTransactions.customerId,
+      credit: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'credit_add' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
+      paid: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'payment' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
+      dueDate: sql<number | null>`MAX(${customerTransactions.dueDate})`,
+    }).from(customerTransactions).groupBy(customerTransactions.customerId),
+  ]);
+
+  const totalSales = salesTotal;
+  const totalCredit = creditTotalResult;
+  const totalRepaid = repaidTotalResult;
+  const allTransactionsCount = txnCountResult.count;
+  const shopsWithTxn = shopsDistinct;
+  const shopsActiveWeek = shopsWeekDistinct;
+  const shopsActiveToday = shopsTodayDistinct;
 
   const otpGroups: Record<string, { attempts: number; consumed: number }> = {};
   for (const otp of allOtps) {
@@ -89,15 +106,15 @@ router.get("/overview", async (req, res) => {
     ? (Object.values(otpGroups).reduce((s, g) => s + g.attempts, 0) / Object.values(otpGroups).length).toFixed(1) : "0";
   const inviteAccepted = allInvites.filter(i => i.acceptedAt).length;
 
-  const totalRepaid = allCustomerTransactions.filter(t => t.type === "payment").reduce((s, t) => s + (Number(t.amount) || 0), 0);
   const customerBalances: Record<number, { credit: number; paid: number; dueDate: number | null }> = {};
-  for (const ct of allCustomerTransactions) {
-    const cid = ct.customerId;
+  for (const row of custBalanceRows) {
+    const cid = row.customerId;
     if (!cid) continue;
-    if (!customerBalances[cid]) customerBalances[cid] = { credit: 0, paid: 0, dueDate: null };
-    if (ct.type === "credit_add") customerBalances[cid].credit += Number(ct.amount) || 0;
-    if (ct.type === "payment") customerBalances[cid].paid += Number(ct.amount) || 0;
-    if (ct.dueDate && (!customerBalances[cid].dueDate || ct.dueDate > customerBalances[cid].dueDate!)) customerBalances[cid].dueDate = ct.dueDate;
+    customerBalances[cid] = {
+      credit: Number(row.credit) || 0,
+      paid: Number(row.paid) || 0,
+      dueDate: row.dueDate ?? null,
+    };
   }
   const overdueExposure = Object.values(customerBalances).filter(b => b.dueDate && b.dueDate < now && b.credit - b.paid > 0).reduce((s, b) => s + (b.credit - b.paid), 0);
 
@@ -112,21 +129,31 @@ router.get("/overview", async (req, res) => {
   }
   const staleDevices = allDevices.filter(d => { const ls = d.lastSeenAt?.getTime?.() || 0; return ls > 0 && ls < sevenDaysAgo; }).length;
 
+  // Daily transaction counts for growth timeline (14 days) from SQL
+  const fourteenDaysAgo = daysAgo(14);
+  const txnDailyRows = await db.select({
+    dayBucket: sql<number>`FLOOR(${transactions.createdAt} / 86400000)`,
+    count: sql<number>`COUNT(*)`,
+  }).from(transactions).where(gt(transactions.createdAt, fourteenDaysAgo)).groupBy(sql`1`);
+  const txnCountByDay: Record<number, number> = {};
+  for (const row of txnDailyRows) txnCountByDay[Number(row.dayBucket)] = Number(row.count) || 0;
+
   const growthTimeline: { date: string; shops: number; users: number; transactions: number }[] = [];
   for (let i = 13; i >= 0; i--) {
     const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0); dayStart.setDate(dayStart.getDate() - i);
     const dayMs = dayStart.getTime(); const nextDayMs = dayMs + 86400000;
+    const dayBucket = Math.floor(dayMs / 86400000);
     growthTimeline.push({
       date: dayStart.toISOString().split("T")[0],
       shops: allBusinesses.filter(b => { const t = b.createdAt?.getTime?.() || 0; return t >= dayMs && t < nextDayMs; }).length,
       users: allUsers.filter(u => { const t = u.createdAt?.getTime?.() || 0; return t >= dayMs && t < nextDayMs; }).length,
-      transactions: allTransactions.filter(t => { const ct = t.createdAt || 0; return ct >= dayMs && ct < nextDayMs; }).length,
+      transactions: txnCountByDay[dayBucket] || 0,
     });
   }
 
   return res.json({
     ok: true, generatedAt: new Date().toISOString(),
-    platformNumbers: { shops: allBusinesses.length, users: allUsers.length, devices: allDevices.length, transactions: allTransactions.length, totalSalesBirr: totalSales, totalCreditBirr: totalCredit },
+    platformNumbers: { shops: allBusinesses.length, users: allUsers.length, devices: allDevices.length, transactions: allTransactionsCount, totalSalesBirr: totalSales, totalCreditBirr: totalCredit },
     onboardingFunnel: { registered: allUsers.length, createdShop: allBusinesses.length, madeFirstTxn: shopsWithTxn.size, activeWeek: shopsActiveWeek.size, activeToday: shopsActiveToday.size },
     onboardingQuality: { avgOtpRetries: Number(avgOtpRetries), inviteSent: allInvites.length, inviteAccepted, inviteAcceptRate: allInvites.length > 0 ? Math.round((inviteAccepted / allInvites.length) * 100) : 0, deviceTotal: allDevices.length },
     creditOverview: { totalExtended: totalCredit, totalRepaid, recoveryRate: totalCredit > 0 ? Math.round((totalRepaid / totalCredit) * 100) : 0, outstandingBalance: totalCredit - totalRepaid, overdueExposure, uniqueCreditCustomers: Object.keys(customerBalances).length },

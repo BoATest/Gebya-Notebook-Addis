@@ -8,6 +8,7 @@
 
 import { customers } from "../schema/customers.js";
 import { customerTransactions } from "../schema/customer_transactions.js";
+import { customerBalanceExpression } from "./balance.js";
 import { eq, sql, type SQL, type SQLWrapper } from "drizzle-orm";
 
 // Inline EligibleCustomer to avoid circular dependency with api-server
@@ -80,22 +81,18 @@ export async function getCustomerBalances(
   options: CustomerBalanceOptions = {}
 ): Promise<CustomerBalanceRow[]> {
   const { onlyPositiveBalance = true } = options;
+  const balanceExpr = customerBalanceExpression();
 
   const baseQuery = db
     .select({
       customerId: sql<number>`COALESCE(${customerTransactions.customerId}, 0)`.as("customer_id"),
-      balance: sql<number>`SUM(
-        CASE
-          WHEN ${customerTransactions.type} = 'credit' THEN ${customerTransactions.amount}
-          ELSE -${customerTransactions.amount}
-        END
-      )`.as("balance"),
+      balance: balanceExpr.as("balance"),
       dueDate: sql<number | null>`MAX(${customerTransactions.dueDate})`.as("due_date"),
       createdAt: sql<number>`MIN(${customerTransactions.createdAt})`.as("created_at"),
     })
     .from(customerTransactions)
     .groupBy(customerTransactions.customerId)
-    .having(onlyPositiveBalance ? sql`SUM(CASE WHEN ${customerTransactions.type} = 'credit' THEN ${customerTransactions.amount} ELSE -${customerTransactions.amount} END) > 0` : undefined);
+    .having(onlyPositiveBalance ? sql`${balanceExpr} > 0` : undefined);
 
   const rows = await baseQuery as CustomerBalanceRow[];
 

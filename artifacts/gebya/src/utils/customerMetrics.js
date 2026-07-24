@@ -310,6 +310,7 @@ export function buildCreditReport({
   const customers = enrichedSummaries
     .filter((c) => (Number(c.balance) || 0) > 0 || c.has_overdue)
     .map((c) => ({
+      id: c.id,
       name: c.display_name,
       phone: c.phone_number || null,
       outstanding_birr: Number(c.balance) || 0,
@@ -373,33 +374,92 @@ export async function exportCreditReport(report, filename = 'credit-report') {
   return 'downloaded';
 }
 
-/**
- * Export credit report as CSV (Excel-compatible).
- * Opens in a new tab for download.
- */
-export function exportCreditReportCsv(report, filename = 'credit-report') {
+function fmtCsvTimestamp(ts) {
+  if (!ts) return ['', ''];
+  const d = new Date(Number(ts));
+  if (isNaN(d.getTime())) return ['', ''];
+  const date = d.toISOString().split('T')[0];
+  const time = d.toTimeString().split(' ')[0];
+  return [date, time];
+}
+
+function fmtCsvType(raw) {
+  if (raw === 'credit_add') return 'Credit';
+  if (raw === 'payment') return 'Payment';
+  if (raw === 'reversal') return 'Reversal';
+  return raw || '';
+}
+
+function escapeCsv(val) {
+  const s = String(val ?? '');
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+export function exportCreditReportCsv(report, customerTransactions = [], filename = 'credit-report') {
   const lines = [];
-  lines.push('Credit Report');
-  lines.push(`Shop,${report.shop?.name || 'Unknown'}`);
-  lines.push(`Generated,${report.generated_at}`);
+  lines.push('\uFEFFCredit Report');
+  lines.push(`Shop,${escapeCsv(report.shop?.name)}`);
+  if (report.shop?.phone) lines.push(`Phone,${escapeCsv(report.shop.phone)}`);
+  lines.push(`Generated,${report.generated_at || ''}`);
   lines.push('');
 
-  // Summary
   const s = report.summary || {};
-  lines.push('Summary');
-  lines.push(`Total Outstanding (birr),${s.total_outstanding_birr || 0}`);
-  lines.push(`Total Loan Given (birr),${s.total_loan_given_birr || 0}`);
-  lines.push(`Customers with Credit,${s.customers_with_credit || 0}`);
+  lines.push('=== Summary ===');
+  lines.push(`Total Outstanding (birr),${s.total_owed_birr ?? 0}`);
+  lines.push(`Overdue Amount (birr),${s.overdue_amount_birr ?? 0}`);
+  lines.push(`Overdue Customers,${s.overdue_customers ?? 0}`);
+  lines.push(`On-Time Rate (%),${s.on_time_rate_percent ?? '—'}`);
+  lines.push(`Monthly Collected (birr),${s.monthly_collected_birr ?? 0}`);
+  lines.push(`Monthly Delta (%),${s.monthly_delta_percent != null ? s.monthly_delta_percent : '—'}`);
+  lines.push(`Top Customer,${escapeCsv(s.top_customer)}`);
   lines.push('');
 
-  // Per-customer breakdown
-  const customers = report.customers || [];
-  if (customers.length > 0) {
-    lines.push('Customer Details');
-    lines.push('Customer,Outstanding (birr),Total Credit (birr),Total Paid (birr),Payment Count,Status');
-    for (const c of customers) {
-      const status = c.outstanding_birr > 0 ? 'Active' : 'Settled';
-      lines.push(`"${(c.display_name || '').replace(/"/g, '""')}",${c.outstanding_birr || 0},${c.total_credit_birr || 0},${c.total_paid_birr || 0},${c.payment_count || 0},${status}`);
+  if (report.customers && report.customers.length > 0) {
+    const customerMap = {};
+    for (const c of report.customers) {
+      if (c.id != null) customerMap[c.id] = c.name;
+    }
+
+    const customerTxns = customerTransactions.filter(t => t.customer_id != null && customerMap[t.customer_id]);
+    customerTxns.sort((a, b) => {
+      if ((a.customer_id || 0) !== (b.customer_id || 0)) return (a.customer_id || 0) - (b.customer_id || 0);
+      return (a.created_at || 0) - (b.created_at || 0);
+    });
+
+    if (customerTxns.length > 0) {
+      lines.push('=== Transaction History ===');
+      lines.push('Customer,Date,Time,Type,Item,Amount (birr),Running Balance (birr)');
+
+      let lastCustomerId = null;
+      let runningBalance = 0;
+
+      for (const tx of customerTxns) {
+        if (tx.customer_id !== lastCustomerId) {
+          runningBalance = 0;
+          lastCustomerId = tx.customer_id;
+        }
+
+        const [date, time] = fmtCsvTimestamp(tx.created_at);
+        const type = fmtCsvType(tx.type);
+        const amount = Number(tx.amount) || 0;
+        const signedAmount = type === 'Credit' ? amount : -amount;
+        runningBalance += signedAmount;
+
+        const itemNote = tx.item_note || tx.note || '';
+
+        lines.push([
+          escapeCsv(customerMap[tx.customer_id]),
+          date,
+          time,
+          type,
+          escapeCsv(itemNote),
+          signedAmount,
+          runningBalance,
+        ].join(','));
+      }
     }
   }
 
