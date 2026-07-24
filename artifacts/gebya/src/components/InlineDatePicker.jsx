@@ -25,6 +25,8 @@ const MONTHS_EN = [
   'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit',
   'Megabit', 'Miazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume',
 ];
+const WEEKDAYS_AM = ['እሑድ', 'ሰኞ', 'ማክሰኞ', 'ረቡዕ', 'ሐሙስ', 'አርብ', 'ቅዳሜ'];
+const WEEKDAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function gregorianISOToEthiopianParts(iso) {
   if (!iso) {
@@ -134,6 +136,10 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     if (!open) return null;
 
     const maxDayForMonth = daysInEthiopianMonth(pending.year, pending.month);
+    const pendingGregISO = ethiopianToGregorianISO(pending.year, pending.month, Math.min(pending.day, maxDayForMonth));
+    const pendingWeekday = pendingGregISO ? new Date(`${pendingGregISO}T12:00:00`).getDay() : -1;
+    const weekdayLabel = pendingWeekday >= 0 ? (lang === 'am' ? WEEKDAYS_AM[pendingWeekday] : WEEKDAYS_EN[pendingWeekday]) : '';
+    const pendingMonthName = months[pending.month - 1] || '';
 
     return (
       <div
@@ -171,6 +177,22 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
               }}>
               <X className="w-4 h-4" style={{ color: '#6b7280' }} />
             </button>
+          </div>
+
+          {/* Large date display */}
+          <div style={{
+            margin: '0 16px 10px', padding: '10px 14px',
+            background: '#fafaf5', borderRadius: 10,
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1B4332', lineHeight: 1.3 }}>
+              {pending.day} {pendingMonthName} {pending.year}
+            </div>
+            {weekdayLabel && (
+              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#6b7280', marginTop: 2 }}>
+                {weekdayLabel}
+              </div>
+            )}
           </div>
 
           {/* Month/Year nav + Today */}
