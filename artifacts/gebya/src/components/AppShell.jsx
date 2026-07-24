@@ -2686,6 +2686,7 @@ export default function AppShell() {
     }
   }, [activeCustomerTransactionModal, customerTransactionModal]);
 
+  const todayDateStr = new Date().toDateString();
   const todayTransactions = useMemo(
     () => transactions.filter(t2 => new Date(t2.created_at).toDateString() === todayDateStr),
     [transactions, todayDateStr]
