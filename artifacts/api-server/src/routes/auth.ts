@@ -117,7 +117,7 @@ router.post("/verify", async (req, res) => {
         gt(otps.expiresAt, new Date())
       )
     )
-    .orderBy(otps.createdAt)
+    .orderBy(otps.createdAt, "desc")
     .limit(1);
 
   const otpRecord = otpRows[0];
