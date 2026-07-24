@@ -17,6 +17,7 @@ import AppBottomNav from './AppBottomNav';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import GlobalModals from './GlobalModals';
 import SearchSheet from './SearchSheet';
+import TransferSheet from './TransferSheet';
 import { ToastContainer, fireToast } from './Toast';
 import { buildPhotoFields, normalizePhotos } from '../utils/photoProof';
 import { getCurrentEthiopianDate, formatEthiopian } from '../utils/ethiopianCalendar';
@@ -637,6 +638,8 @@ export default function AppShell() {
   const setShareText = useAppStore(s => s.setShareText);
   const pressedBtn = useAppStore(s => s.pressedBtn);
   const setPressedBtn = useAppStore(s => s.setPressedBtn);
+  const transferTarget = useAppStore(s => s.transferTarget);
+  const setTransferTarget = useAppStore(s => s.setTransferTarget);
   const pendingTelegramCount = useAppStore(s => s.pendingTelegramCount);
   const setPendingTelegramCount = useAppStore(s => s.setPendingTelegramCount);
   const retryingTelegram = useAppStore(s => s.retryingTelegram);
@@ -2571,7 +2574,105 @@ export default function AppShell() {
     return true;
   };
 
-  const todayDateStr = new Date().toDateString();
+  const handleTransferSave = async ({ sourceCustomerId, targetCustomerId, amount, sourceName, targetName }) => {
+    const now = Date.now();
+    const transferId = `transfer_${now}_${sourceCustomerId}_${targetCustomerId}`;
+    const cloudProofFields = await createCloudProofFields();
+    const actorSnapshot = buildActorSnapshot();
+    const isOnlineNow = isBrowserOnline();
+
+    const sourceEntries = await db.customer_transactions.where('customer_id').equals(sourceCustomerId).toArray();
+    const targetEntries = await db.customer_transactions.where('customer_id').equals(targetCustomerId).toArray();
+    const sourceBalance = Math.max(getCustomerBalance(sourceEntries), 0);
+
+    if (amount > sourceBalance) {
+      fireToast(t.validAmountRequired || 'Insufficient balance', 2200);
+      setTransferTarget(null);
+      return;
+    }
+
+    let targetRecord = await db.customers.get(targetCustomerId);
+    let sourceRecord = await db.customers.get(sourceCustomerId);
+
+    await db.transaction('rw', db.customer_transactions, db.customers, async () => {
+      const reversalEntry = {
+        customer_id: sourceCustomerId,
+        type: CUSTOMER_TRANSACTION_TYPES.REVERSAL,
+        amount,
+        item_note: `${t.transferToLabel || 'Transfer to'} ${targetName}`,
+        payment_method: 'transfer',
+        transfer_id: transferId,
+        transfer_target_id: targetCustomerId,
+        reference_code: null,
+        telegram_delivery_state: null,
+        telegram_delivery_attempted_at: null,
+        created_at: now,
+        updated_at: now,
+        ...actorSnapshot,
+        ...cloudProofFields,
+      };
+      const revId = await db.customer_transactions.add(reversalEntry);
+      const revRef = createCustomerTransactionReference(revId, now);
+      await db.customer_transactions.update(revId, { reference_code: revRef });
+      await db.customers.update(sourceCustomerId, { updated_at: now });
+
+      const creditEntry = {
+        customer_id: targetCustomerId,
+        type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+        amount,
+        item_note: `${t.transferFromLabel || 'Transfer from'} ${sourceName}`,
+        payment_method: 'transfer',
+        transfer_id: transferId,
+        transfer_source_id: sourceCustomerId,
+        reference_code: null,
+        telegram_delivery_state: null,
+        telegram_delivery_attempted_at: null,
+        created_at: now,
+        updated_at: now,
+        ...actorSnapshot,
+        ...cloudProofFields,
+      };
+      const crId = await db.customer_transactions.add(creditEntry);
+      const crRef = createCustomerTransactionReference(crId, now);
+      await db.customer_transactions.update(crId, { reference_code: crRef });
+      await db.customers.update(targetCustomerId, { updated_at: now });
+    });
+
+    const revivedTarget = await db.customers.get(targetCustomerId);
+    const revivedSource = await db.customers.get(sourceCustomerId);
+
+    // Notify source customer if Telegram connected
+    if (revivedSource?.telegram_notify_enabled && revivedSource?.telegram_chat_id && revivedSource?.telegram_link_token) {
+      try {
+        await enqueueTelegramLedgerUpdate({
+          recordTable: 'customer_transactions',
+          recordId: `transfer_${sourceCustomerId}_${now}`,
+          payload: {
+            customerState: { token: revivedSource.telegram_link_token, currentBalance: Math.max(getCustomerBalance(await db.customer_transactions.where('customer_id').equals(sourceCustomerId).toArray()), 0), updatesEnabled: true, telegramUsername: revivedSource.telegram_username || null, chatId: revivedSource.telegram_chat_id || null },
+            ledgerUpdate: { token: revivedSource.telegram_link_token, currentBalance: Math.max(getCustomerBalance(await db.customer_transactions.where('customer_id').equals(sourceCustomerId).toArray()), 0), message: `${t.transferToLabel || 'Transfer to'} ${targetName}: ${fmt(amount)} ${t.birr || 'birr'}`, reference: `transfer_${now}` },
+          },
+        });
+      } catch { /* non-critical */ }
+    }
+
+    // Notify target customer if Telegram connected
+    if (revivedTarget?.telegram_notify_enabled && revivedTarget?.telegram_chat_id && revivedTarget?.telegram_link_token) {
+      try {
+        await enqueueTelegramLedgerUpdate({
+          recordTable: 'customer_transactions',
+          recordId: `transfer_${targetCustomerId}_${now}`,
+          payload: {
+            customerState: { token: revivedTarget.telegram_link_token, currentBalance: Math.max(getCustomerBalance(await db.customer_transactions.where('customer_id').equals(targetCustomerId).toArray()), 0), updatesEnabled: true, telegramUsername: revivedTarget.telegram_username || null, chatId: revivedTarget.telegram_chat_id || null },
+            ledgerUpdate: { token: revivedTarget.telegram_link_token, currentBalance: Math.max(getCustomerBalance(await db.customer_transactions.where('customer_id').equals(targetCustomerId).toArray()), 0), message: `${t.transferFromLabel || 'Transfer from'} ${sourceName}: ${fmt(amount)} ${t.birr || 'birr'}`, reference: `transfer_${now}` },
+          },
+        });
+      } catch { /* non-critical */ }
+    }
+
+    setLedgerTransactions(prev => insertCustomerTransaction(prev, { id: `transfer_${now}_fake`, customer_id: sourceCustomerId, type: CUSTOMER_TRANSACTION_TYPES.REVERSAL, amount, created_at: now }));
+    setTransferTarget(null);
+    fireToast(`${t.transferSaved || 'Transfer'} ✓`, 2200);
+  };
 
   useEffect(() => {
     if (selectedCustomerId && !selectedCustomer) {
@@ -2805,6 +2906,7 @@ export default function AppShell() {
             onSelectTransaction={setSelectedTransaction}
             onSelectSupplierTransaction={setSelectedSupplierTransaction}
             onSetReminderDefaultChannel={setReminderDefaultChannel}
+            onTransfer={(c) => setTransferTarget(c)}
           />
         )}
 
@@ -2998,6 +3100,14 @@ export default function AppShell() {
         handleAddCustomerInline={handleAddCustomerInline}
       />
 
+      {transferTarget && (
+        <TransferSheet
+          sourceCustomer={transferTarget}
+          customers={enrichedCustomerSummaries}
+          onSave={handleTransferSave}
+          onClose={() => setTransferTarget(null)}
+        />
+      )}
 
       <DeleteConfirmDialog
         deleteTarget={deleteTarget}

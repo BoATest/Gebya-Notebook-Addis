@@ -1,18 +1,3 @@
-// InlineDatePicker.jsx — Standard Ethiopian calendar picker for all Gebya screens.
-//
-// Supports two modes:
-//   1. Inline mode (no `open` prop) — compact card that sits directly in the form.
-//      Month is navigated with arrows, days are a horizontal scroll.
-//   2. Modal mode (`open` + `onClose` props) — bottom-sheet modal with year
-//      stepper, Cancel/Set buttons.  Drop-in replacement for EthiopianDatePicker.
-//
-// Props:
-//   value     — Gregorian ISO string ('YYYY-MM-DD') or empty
-//   onChange   — (iso) => void
-//   lang      — 'am' | 'en'
-//   open      — (optional) boolean for modal mode
-//   onClose   — (optional) () => void for modal mode
-
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, X, Check } from 'lucide-react';
 import { toEthiopian, toGregorian } from 'ethiopian-date';
@@ -27,6 +12,10 @@ const MONTHS_EN = [
 ];
 const WEEKDAYS_AM = ['እሑድ', 'ሰኞ', 'ማክሰኞ', 'ረቡዕ', 'ሐሙስ', 'አርብ', 'ቅዳሜ'];
 const WEEKDAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WEEKDAY_HEADERS = {
+  am: ['ሰኞ', 'ማክሰ', 'ረቡዕ', 'ሐሙስ', 'አርብ', 'ቅዳሜ', 'እሑድ'],
+  en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
 
 function gregorianISOToEthiopianParts(iso) {
   if (!iso) {
@@ -55,32 +44,37 @@ function daysInEthiopianMonth(year, month) {
   return year % 4 === 3 ? 6 : 5;
 }
 
+function getMonday(date) {
+  const d = new Date(date);
+  const dow = d.getDay();
+  d.setDate(d.getDate() - ((dow + 6) % 7));
+  return d;
+}
+
 function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
   const months = lang === 'am' ? MONTHS_AM : MONTHS_EN;
   const dayScrollRef = useRef(null);
 
-  // Modal mode: pending state so changes only apply on "Set"
+  // Modal state
   const isModal = open !== undefined;
   const [pending, setPending] = useState(() => gregorianISOToEthiopianParts(value));
+  const [weekOffset, setWeekOffset] = useState(0);
 
-  // Inline mode: direct state
+  // Inline mode state
   const parts = useMemo(() => gregorianISOToEthiopianParts(value), [value]);
   const [inlineMonth, setInlineMonth] = useState(parts.month);
   const [inlineDay, setInlineDay] = useState(parts.day);
 
-  // Sync from external value in inline mode
   useEffect(() => {
     const p = gregorianISOToEthiopianParts(value);
     setInlineMonth(p.month);
     setInlineDay(p.day);
   }, [value]);
 
-  // Sync pending from prop when modal opens
   useEffect(() => {
     if (isModal && open) setPending(gregorianISOToEthiopianParts(value));
   }, [open, value]);
 
-  // Scroll to selected day when month changes (inline mode)
   useEffect(() => {
     if (!isModal && dayScrollRef.current) {
       const selectedBtn = dayScrollRef.current.querySelector('[data-selected="true"]');
@@ -89,23 +83,6 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
       }
     }
   }, [inlineMonth, inlineDay]);
-
-  // --- Modal mode state ---
-  const [weekOffset, setWeekOffset] = useState(0);
-
-  // --- Modal mode handlers ---
-  const handleModalDaySelect = (ethDay, ethMonth, ethYear) => {
-    const maxDay = daysInEthiopianMonth(ethYear, ethMonth);
-    setPending({ year: ethYear, month: ethMonth, day: Math.min(ethDay, maxDay) });
-  };
-
-  const handleModalSet = () => {
-    const maxDay = daysInEthiopianMonth(pending.year, pending.month);
-    const safeDay = Math.min(pending.day, maxDay);
-    const iso = ethiopianToGregorianISO(pending.year, pending.month, safeDay);
-    if (iso) onChange?.(iso);
-    onClose?.();
-  };
 
   const todayGregStr = useMemo(() => {
     const d = new Date();
@@ -123,9 +100,8 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
 
   function getWeekDays(offset) {
     const today = new Date();
-    const dow = today.getDay();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - ((dow + 6) % 7) + offset * 7);
+    const monday = getMonday(today);
+    monday.setDate(monday.getDate() + offset * 7);
     const result = [];
     for (let i = 0; i < 14; i++) {
       const d = new Date(monday);
@@ -149,6 +125,33 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     return `${m1} ${first.ethDay} - ${m2} ${last.ethDay}`;
   }
 
+  function getDisplayMonthYear(offset) {
+    const today = new Date();
+    const monday = getMonday(today);
+    monday.setDate(monday.getDate() + offset * 7);
+    const [ey, em] = toEthiopian(monday.getFullYear(), monday.getMonth() + 1, monday.getDate());
+    return { year: ey, month: em };
+  }
+
+  // --- Modal mode handlers ---
+  const handleModalDaySelect = (ethDay, ethMonth, ethYear) => {
+    const maxDay = daysInEthiopianMonth(ethYear, ethMonth);
+    setPending({ year: ethYear, month: ethMonth, day: Math.min(ethDay, maxDay) });
+  };
+
+  const handleModalSet = () => {
+    const maxDay = daysInEthiopianMonth(pending.year, pending.month);
+    const safeDay = Math.min(pending.day, maxDay);
+    const iso = ethiopianToGregorianISO(pending.year, pending.month, safeDay);
+    if (iso) onChange?.(iso);
+    onClose?.();
+  };
+
+  function goToday() {
+    setWeekOffset(0);
+    setPending(gregorianISOToEthiopianParts(''));
+  }
+
   // --- Inline mode handlers ---
   const handleInlineMonthChange = (delta) => {
     const newMonth = inlineMonth + delta;
@@ -167,22 +170,66 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     if (iso) onChange?.(iso);
   };
 
-  // --- Modal mode render ---
+  // --- Modal render ---
   if (isModal) {
     if (!open) return null;
 
+    const display = getDisplayMonthYear(weekOffset);
+    const { week1, week2 } = getWeekDays(weekOffset);
+    const w1Label = weekLabel(week1);
+    const w2Label = weekLabel(week2);
     const maxDayForMonth = daysInEthiopianMonth(pending.year, pending.month);
     const pendingGregISO = ethiopianToGregorianISO(pending.year, pending.month, Math.min(pending.day, maxDayForMonth));
     const pendingWeekday = pendingGregISO ? new Date(`${pendingGregISO}T12:00:00`).getDay() : -1;
     const weekdayLabel = pendingWeekday >= 0 ? `${WEEKDAYS_AM[pendingWeekday]} (${WEEKDAYS_EN[pendingWeekday]})` : '';
     const pendingMonthName = months[pending.month - 1] || '';
+    const weekdayHeaders = WEEKDAY_HEADERS[lang] || WEEKDAY_HEADERS.en;
 
-    const { week1, week2 } = getWeekDays(weekOffset);
-    const w1Label = weekLabel(week1);
-    const w2Label = weekLabel(week2);
+    function isSelected(di) {
+      return di.ethDay === pending.day && di.ethMonth === pending.month && di.ethYear === pending.year;
+    }
 
-    function isSelected(dayInfo) {
-      return dayInfo.ethDay === pending.day && dayInfo.ethMonth === pending.month && dayInfo.ethYear === pending.year;
+    function renderWeekRow(week, label) {
+      return (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#6b7280', marginBottom: 6 }}>
+            {label}
+          </div>
+          <div style={{ display: 'flex', gap: 3 }}>
+            {week.map((di, idx) => {
+              const sel = isSelected(di);
+              return (
+                <div key={idx} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <span style={{
+                    fontSize: '0.55rem', fontWeight: 600, color: '#9ca3af', marginBottom: 3,
+                    lineHeight: 1,
+                  }}>
+                    {weekdayHeaders[idx]}
+                  </span>
+                  <button type="button" onClick={() => handleModalDaySelect(di.ethDay, di.ethMonth, di.ethYear)}
+                    style={{
+                      width: '100%', aspectRatio: '1/1', maxWidth: 44, maxHeight: 44,
+                      borderRadius: 10,
+                      background: sel ? '#1B4332' : 'transparent',
+                      color: sel ? '#fff' : '#374151',
+                      border: `1.5px solid ${sel ? '#1B4332' : 'transparent'}`,
+                      fontSize: '0.8rem', fontWeight: sel ? 800 : 500,
+                      cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      position: 'relative',
+                      transition: 'all .08s ease',
+                    }}>
+                    {di.ethDay}
+                    {di.isToday && !sel && (
+                      <span style={{ position: 'absolute', bottom: 2, width: 4, height: 4, borderRadius: '50%', background: '#1B4332' }} />
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
     }
 
     return (
@@ -199,191 +246,171 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             background: '#fff',
             borderTopLeftRadius: 24, borderTopRightRadius: 24,
             width: '100%', maxWidth: 480,
-            maxHeight: '90vh', overflowY: 'auto',
-            paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+            maxHeight: '100dvh',
+            display: 'flex', flexDirection: 'column',
             boxShadow: '0 -8px 32px -8px rgba(0,0,0,0.25)',
           }}
         >
-          {/* Drag handle */}
-          <div style={{ width: 38, height: 4, background: '#e5e7eb', borderRadius: 999, margin: '10px auto 6px' }} />
+          {/* Scrollable content area */}
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {/* Drag handle */}
+            <div style={{ width: 38, height: 4, background: '#e5e7eb', borderRadius: 999, margin: '10px auto 6px' }} />
 
-          {/* Header: title + close */}
-          <div style={{ padding: '0 16px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1a1a1a', margin: 0 }}>
-              {lang === 'am' ? 'ቀን ይምረጡ' : 'Pick a date'}
-            </h3>
-            <button type="button" onClick={onClose} aria-label="Close"
-              style={{
-                width: 32, height: 32, borderRadius: 8,
-                background: '#f3f4f6', border: 'none',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer',
-              }}>
-              <X className="w-4 h-4" style={{ color: '#6b7280' }} />
-            </button>
-          </div>
-
-          {/* Large date display */}
-          <div style={{
-            margin: '0 16px 10px', padding: '10px 14px',
-            background: '#fafaf5', borderRadius: 10,
-            textAlign: 'center',
-          }}>
-            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1B4332', lineHeight: 1.3 }}>
-              {pending.day} {pendingMonthName} {pending.year}
+            {/* Header */}
+            <div style={{ padding: '0 16px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1a1a1a', margin: 0 }}>
+                {lang === 'am' ? 'የቀን ምረጫ' : 'Pick a date'}
+              </h3>
+              <button type="button" onClick={onClose} aria-label="Close"
+                style={{
+                  width: 32, height: 32, borderRadius: 8,
+                  background: '#f3f4f6', border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                }}>
+                <X className="w-4 h-4" style={{ color: '#6b7280' }} />
+              </button>
             </div>
-            {weekdayLabel && (
-              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#6b7280', marginTop: 2 }}>
-                {weekdayLabel}
+
+            {/* Date banner */}
+            <div style={{
+              margin: '0 16px 10px', padding: '10px 14px',
+              background: '#fafaf5', borderRadius: 10,
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1B4332', lineHeight: 1.3 }}>
+                {pending.day} {pendingMonthName} {pending.year}
               </div>
-            )}
-          </div>
-
-          {/* Quick duration chips */}
-          <div style={{ padding: '0 16px 10px' }}>
-            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }} className="hide-scrollbar">
-              {quickDurations.map(n => {
-                const active = false;
-                return (
-                  <button key={n} type="button" onClick={() => setDateNDaysFromToday(n)}
-                    style={{
-                      flexShrink: 0, padding: '8px 14px', minHeight: 36,
-                      background: active ? '#1B4332' : '#fff',
-                      color: active ? '#fff' : '#1B4332',
-                      border: `2px solid ${active ? '#1B4332' : '#d4cdc0'}`,
-                      borderRadius: 8, fontSize: '0.8rem', fontWeight: 800,
-                      cursor: 'pointer',
-                    }}>
-                    +{n} {lang === 'am' ? 'ቀናት' : 'days'}
-                  </button>
-                );
-              })}
+              {weekdayLabel && (
+                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#6b7280', marginTop: 2 }}>
+                  {weekdayLabel}
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* Week 1 */}
-          <div style={{ padding: '0 16px 8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-              <button type="button" onClick={() => setWeekOffset(w => w - 1)}
-                aria-label="Previous week"
+            {/* Month/Year navigation + Today */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '0 16px 10px',
+            }}>
+              <button type="button" onClick={() => setWeekOffset(w => w - 48)}
+                aria-label={lang === 'am' ? 'ያለፈ ዓመት' : 'Previous year'}
                 style={{
-                  width: 28, height: 28, border: '1px solid #e8e2d8', borderRadius: 6,
-                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 30, height: 30, borderRadius: 6,
+                  background: '#f3f4f6', border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0,
+                }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151' }}>«</span>
+              </button>
+              <button type="button" onClick={() => setWeekOffset(w => w - 4)}
+                aria-label={lang === 'am' ? 'ያለፈ ወር' : 'Previous month'}
+                style={{
+                  width: 30, height: 30, borderRadius: 6,
+                  background: '#f3f4f6', border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer', flexShrink: 0,
                 }}>
                 <ChevronLeft className="w-3.5 h-3.5" style={{ color: '#374151' }} />
               </button>
-              <span style={{ flex: 1, fontSize: '0.75rem', fontWeight: 700, color: '#6b7280' }}>
-                {w1Label}
-              </span>
-              <button type="button" onClick={() => setWeekOffset(w => w + 1)}
-                aria-label="Next week"
-                style={{
-                  width: 28, height: 28, border: '1px solid #e8e2d8', borderRadius: 6,
-                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0,
-                }}>
-                <ChevronRight className="w-3.5 h-3.5" style={{ color: '#374151' }} />
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }} className="hide-scrollbar">
-              {week1.map((di, idx) => {
-                const sel = isSelected(di);
-                return (
-                  <button key={idx} type="button" onClick={() => handleModalDaySelect(di.ethDay, di.ethMonth, di.ethYear)}
-                    style={{
-                      minWidth: 40, height: 40, borderRadius: 8,
-                      background: sel ? '#1B4332' : '#fff',
-                      color: sel ? '#fff' : '#374151',
-                      border: `1.5px solid ${sel ? '#1B4332' : '#e8e2d8'}`,
-                      fontSize: '0.85rem', fontWeight: sel ? 800 : 600,
-                      cursor: 'pointer', flexShrink: 0,
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                      position: 'relative',
-                    }}>
-                    {di.ethDay}
-                    {di.isToday && !sel && (
-                      <span style={{ position: 'absolute', bottom: 3, width: 4, height: 4, borderRadius: '50%', background: '#1B4332' }} />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Week 2 */}
-          <div style={{ padding: '0 16px 14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
-              <button type="button" onClick={() => setWeekOffset(w => w - 1)}
-                aria-label="Previous week"
-                style={{
-                  width: 28, height: 28, border: '1px solid #e8e2d8', borderRadius: 6,
-                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0, visibility: 'hidden',
-                }}>
-                <ChevronLeft className="w-3.5 h-3.5" style={{ color: '#374151' }} />
-              </button>
-              <span style={{ flex: 1, fontSize: '0.75rem', fontWeight: 700, color: '#6b7280' }}>
-                {w2Label}
-              </span>
-              <button type="button" onClick={() => setWeekOffset(w => w + 1)}
-                aria-label="Next week"
-                style={{
-                  width: 28, height: 28, border: '1px solid #e8e2d8', borderRadius: 6,
-                  background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0, visibility: 'hidden',
-                }}>
-                <ChevronRight className="w-3.5 h-3.5" style={{ color: '#374151' }} />
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }} className="hide-scrollbar">
-              {week2.map((di, idx) => {
-                const sel = isSelected(di);
-                return (
-                  <button key={idx} type="button" onClick={() => handleModalDaySelect(di.ethDay, di.ethMonth, di.ethYear)}
-                    style={{
-                      minWidth: 40, height: 40, borderRadius: 8,
-                      background: sel ? '#1B4332' : '#fff',
-                      color: sel ? '#fff' : '#374151',
-                      border: `1.5px solid ${sel ? '#1B4332' : '#e8e2d8'}`,
-                      fontSize: '0.85rem', fontWeight: sel ? 800 : 600,
-                      cursor: 'pointer', flexShrink: 0,
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                      position: 'relative',
-                    }}>
-                    {di.ethDay}
-                    {di.isToday && !sel && (
-                      <span style={{ position: 'absolute', bottom: 3, width: 4, height: 4, borderRadius: '50%', background: '#1B4332' }} />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Action row */}
-          <div style={{ padding: '0 16px', display: 'flex', gap: 8 }}>
-            {value && (
-              <button type="button" onClick={() => { onChange?.(''); onClose?.(); }}
-                style={{
-                  flex: 1, padding: '12px', background: '#fef2f2', color: '#dc2626',
-                  border: '1px solid #fecaca', borderRadius: 10, fontSize: '0.85rem', fontWeight: 700,
-                  cursor: 'pointer', minHeight: 48,
-                }}>
-                {lang === 'am' ? 'አጥፋ' : 'Clear'}
-              </button>
-            )}
-            <button type="button" onClick={handleModalSet}
-              style={{
-                flex: value ? 3 : 1, padding: '12px', background: '#1B4332', color: '#fff',
-                border: 'none', borderRadius: 10, fontSize: '0.95rem', fontWeight: 800,
-                cursor: 'pointer', minHeight: 48,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                boxShadow: '0 4px 12px rgba(27,67,50,0.3)',
+              <span style={{
+                flex: 1, textAlign: 'center',
+                fontSize: '0.85rem', fontWeight: 800, color: '#1a1a1a',
               }}>
-              <Check className="w-5 h-5" />
-              {lang === 'am' ? 'አስቀምጥ' : 'Set date'}
-            </button>
+                {months[display.month - 1]} {display.year}
+              </span>
+              <button type="button" onClick={() => setWeekOffset(w => w + 4)}
+                aria-label={lang === 'am' ? 'ቀጣይ ወር' : 'Next month'}
+                style={{
+                  width: 30, height: 30, borderRadius: 6,
+                  background: '#f3f4f6', border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0,
+                }}>
+                <ChevronRight className="w-3.5 h-3.5" style={{ color: '#374151' }} />
+              </button>
+              <button type="button" onClick={() => setWeekOffset(w => w + 48)}
+                aria-label={lang === 'am' ? 'ቀጣይ ዓመት' : 'Next year'}
+                style={{
+                  width: 30, height: 30, borderRadius: 6,
+                  background: '#f3f4f6', border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0,
+                }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151' }}>»</span>
+              </button>
+              <button type="button" onClick={goToday}
+                aria-label={lang === 'am' ? 'ዛሬ' : 'Today'}
+                title={lang === 'am' ? 'ዛሬ' : 'Today'}
+                style={{
+                  width: 30, height: 30, borderRadius: 6,
+                  background: '#1B4332', border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0,
+                }}>
+                <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#fff' }}>📅</span>
+              </button>
+            </div>
+
+            {/* Quick duration chips */}
+            <div style={{ padding: '0 16px 12px' }}>
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }} className="hide-scrollbar">
+                {quickDurations.map(n => {
+                  return (
+                    <button key={n} type="button" onClick={() => setDateNDaysFromToday(n)}
+                      style={{
+                        flexShrink: 0, padding: '7px 13px', minHeight: 34,
+                        background: '#fff',
+                        color: '#1B4332',
+                        border: '2px solid #d4cdc0',
+                        borderRadius: 8, fontSize: '0.78rem', fontWeight: 800,
+                        cursor: 'pointer',
+                      }}>
+                      +{n} {lang === 'am' ? 'ቀናት' : 'days'}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Week grids */}
+            <div style={{ padding: '0 16px 12px' }}>
+              {renderWeekRow(week1, w1Label)}
+              {renderWeekRow(week2, w2Label)}
+            </div>
+          </div>
+
+          {/* Sticky footer — always visible */}
+          <div style={{
+            flexShrink: 0,
+            padding: '12px 16px',
+            paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+            background: '#fff',
+            borderTop: '1px solid #f0ede8',
+          }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {value && (
+                <button type="button" onClick={() => { onChange?.(''); onClose?.(); }}
+                  style={{
+                    flex: 1, padding: '12px', background: '#fef2f2', color: '#dc2626',
+                    border: '1px solid #fecaca', borderRadius: 10, fontSize: '0.85rem', fontWeight: 700,
+                    cursor: 'pointer', minHeight: 48,
+                  }}>
+                  {lang === 'am' ? 'አጥፋ' : 'Clear'}
+                </button>
+              )}
+              <button type="button" onClick={handleModalSet}
+                style={{
+                  flex: value ? 3 : 1, padding: '12px', background: '#1B4332', color: '#fff',
+                  border: 'none', borderRadius: 10, fontSize: '0.95rem', fontWeight: 800,
+                  cursor: 'pointer', minHeight: 48,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  boxShadow: '0 4px 12px rgba(27,67,50,0.3)',
+                }}>
+                <Check className="w-5 h-5" />
+                {lang === 'am' ? 'አስቀምጥ' : 'Set date'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

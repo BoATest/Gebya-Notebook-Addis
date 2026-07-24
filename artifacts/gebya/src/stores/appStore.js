@@ -37,6 +37,9 @@ export const useAppStore = create((set, get) => ({
   telegramConnectCustomerId: null,
   setTelegramConnectCustomerId: (v) => set({ telegramConnectCustomerId: v }),
 
+  transferTarget: null,
+  setTransferTarget: (v) => set({ transferTarget: v }),
+
   reminderTarget: null,
   setReminderTarget: (v) => set({ reminderTarget: v }),
 
