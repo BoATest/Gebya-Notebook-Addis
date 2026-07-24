@@ -18,7 +18,7 @@ import { formatEthiopian, formatEthiopianTime } from '../utils/ethiopianCalendar
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
 import { useLang } from '../context/LangContext';
 
-function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp, onClose, onEdit, onDelete }) {
+function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp, onClose, onEdit, onDelete, customerBalance }) {
   const { lang } = useLang();
   const currentLang = langProp || lang;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -360,8 +360,12 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             </h3>
             <p style={{ fontSize: '0.82rem', color: '#6b7280', margin: '0 0 24px', maxWidth: 260, lineHeight: 1.4 }}>
               {currentLang === 'am'
-                ? 'ይህ ተግባር ሊቀለብት አይችልም። የደንበኛውን ቀሪ ቀሪ ተጽዕኖ ያደርጋል።'
-                : 'This cannot be undone. It will affect the customer\'s balance.'}
+                ? (customerBalance > 0
+                  ? `ይህ ደንበኛ ${fmt(customerBalance)} ብር ዕዳ አለበት። ይህን ማስወገድ ቀሪ ሂሳባቸውን ይቀንሳል።`
+                  : 'ይህ ተግባር ሊቀለብት አይችልም። የደንበኛው ቀሪ ተጽዕኖ ያደርጋል።')
+                : (customerBalance > 0
+                  ? `This customer has ${fmt(customerBalance)} birr outstanding. Reversing this entry will reduce their balance.`
+                  : 'This cannot be undone. It will affect the customer\'s balance.')}
             </p>
             <button
               type="button"

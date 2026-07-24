@@ -2919,6 +2919,7 @@ export default function AppShell() {
               transaction={selectedTransaction}
               type="customer"
               lang={lang}
+              customerBalance={selectedCustomer?.balance}
               onClose={() => setSelectedTransaction(null)}
               onEdit={(tx) => {
                 setSelectedTransaction(null);
