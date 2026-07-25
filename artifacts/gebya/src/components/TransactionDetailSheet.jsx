@@ -23,6 +23,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
   const currentLang = langProp || lang;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [expandedItems, setExpandedItems] = useState(false);
+  const [fullscreenPhoto, setFullscreenPhoto] = useState(null);
 
   // Lock body scroll while open
   useEffect(() => {
@@ -38,6 +39,9 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
   const items = Array.isArray(tx.items) && tx.items.length > 0 ? tx.items : null;
   const settlementMode = tx.settlement_mode || null;
   const hasPhoto = tx.photo || (Array.isArray(tx.photos) && tx.photos.length > 0);
+  const photoList = hasPhoto
+    ? (Array.isArray(tx.photos) ? tx.photos.map(p => p.dataUrl || p) : [tx.photo])
+    : [];
   const hasQuantity = !isPayment && tx.quantity > 0;
 
   const typeLabel = isPayment
@@ -273,20 +277,79 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             </div>
           )}
 
-          {/* Photo proof */}
+          {/* Photo proof thumbnails */}
           {hasPhoto && (
             <div style={{
               padding: '10px 12px', marginBottom: 12,
               background: '#fafaf5', border: '1px solid #f3f4f6', borderRadius: 10,
-              display: 'flex', alignItems: 'center', gap: 8,
             }}>
-              <Image className="w-4 h-4" style={{ color: '#6b7280' }} />
-              <span style={{ fontSize: '0.78rem', color: '#6b7280', fontWeight: 600 }}>
-                {currentLang === 'am' ? 'የዕቃ ፎቶ' : 'Photo proof'}
-              </span>
-              <span style={{ fontSize: '0.72rem', color: '#9ca3af', marginLeft: 'auto' }}>
-                {Array.isArray(tx.photos) ? tx.photos.length : 1} {currentLang === 'am' ? 'ፎቶ' : 'photo(s)'}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Image className="w-4 h-4" style={{ color: '#6b7280' }} />
+                <span style={{ fontSize: '0.78rem', color: '#6b7280', fontWeight: 600 }}>
+                  {currentLang === 'am' ? 'የዕቃ ፎቶ' : 'Photo proof'}
+                </span>
+                <span style={{ fontSize: '0.72rem', color: '#9ca3af', marginLeft: 'auto' }}>
+                  {photoList.length} {currentLang === 'am' ? 'ፎቶ' : 'photo(s)'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
+                {photoList.map((src, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setFullscreenPhoto(src)}
+                    className="press-scale"
+                    style={{
+                      width: 64, height: 64, borderRadius: 8,
+                      overflow: 'hidden', border: '1px solid #e8e2d8',
+                      padding: 0, cursor: 'pointer', flexShrink: 0,
+                      background: '#fff',
+                    }}
+                  >
+                    <img
+                      src={src}
+                      alt=""
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Full-screen photo viewer */}
+          {fullscreenPhoto && (
+            <div
+              onClick={() => setFullscreenPhoto(null)}
+              style={{
+                position: 'fixed', inset: 0, zIndex: 100,
+                background: 'rgba(0,0,0,0.92)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); setFullscreenPhoto(null); }}
+                style={{
+                  position: 'absolute', top: 16, right: 16,
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  zIndex: 101,
+                }}
+              >
+                <X className="w-5 h-5" style={{ color: '#fff' }} />
+              </button>
+              <img
+                src={fullscreenPhoto}
+                alt=""
+                style={{
+                  maxWidth: '95%', maxHeight: '90%',
+                  borderRadius: 8, objectFit: 'contain',
+                }}
+              />
             </div>
           )}
         </div>
