@@ -5,8 +5,9 @@ import { PanelFallback } from './Fallbacks';
 import OverdueCustomerFlags from './OverdueCustomerFlags';
 import { CustomerList, CustomerDetail, SupplierList, SupplierDetail } from '../utils/lazyImports';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
-import { SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger';
+import { SUPPLIER_TRANSACTION_TYPES, buildSupplierReport, exportSupplierReportCsv } from '../utils/supplierLedger';
 import { buildCreditReport, exportCreditReportCsv, exportCreditReportPdf } from '../utils/customerMetrics';
+import { fireToast } from './Toast';
 
 export default function CreditTab({
   selectedCustomer,
@@ -101,6 +102,7 @@ export default function CreditTab({
                   });
                   exportCreditReportCsv(report, customerTransactions || []);
                 } catch (err) {
+                  fireToast(t.exportFailed || 'Export failed', 2600);
                   if (import.meta.env.DEV) console.error('CSV Export failed:', err);
                 }
               }}
@@ -130,6 +132,7 @@ export default function CreditTab({
                   });
                   exportCreditReportPdf(report, lang);
                 } catch (err) {
+                  fireToast(t.exportFailed || 'Export failed', 2600);
                   if (import.meta.env.DEV) console.error('PDF Export failed:', err);
                 }
               }}
@@ -146,6 +149,39 @@ export default function CreditTab({
               }}
             >
               PDF
+            </button>
+            </>
+          )}
+          {creditView === 'suppliers' && supplierSummaries?.length > 0 && (
+            <>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const report = buildSupplierReport({
+                    shopName: shopProfile?.name || 'Shop',
+                    suppliers: supplierSummaries,
+                    supplierTransactions: supplierSummaries.flatMap(s => s.transactions || []),
+                  });
+                  exportSupplierReportCsv(report, supplierSummaries.flatMap(s => s.transactions || []));
+                } catch (err) {
+                  fireToast(t.exportFailed || 'Export failed', 2600);
+                  if (import.meta.env.DEV) console.error('Supplier CSV Export failed:', err);
+                }
+              }}
+              className="press-scale"
+              style={{
+                padding: '6px 12px',
+                borderRadius: 999,
+                fontSize: '0.7rem', fontWeight: 600,
+                border: '1px solid #e5e7eb',
+                cursor: 'pointer',
+                background: '#fff',
+                color: '#6b7280',
+                marginLeft: 8,
+              }}
+            >
+              CSV
             </button>
             </>
           )}
@@ -196,11 +232,22 @@ export default function CreditTab({
                 customerId: customer.id,
               })}
               onBulkRemind={() => {
-                const queue = enrichedCustomerSummaries
-                  .filter((c) => c.has_overdue
-                    && (c.telegram_chat_id || c.telegram_username || c.phone_number))
-                  .map((c) => c.id);
-                if (queue.length === 0) return;
+                const overdueCustomers = enrichedCustomerSummaries.filter((c) => c.has_overdue);
+                const remindable = overdueCustomers.filter((c) =>
+                  c.telegram_chat_id || c.telegram_username || c.phone_number);
+                const skipped = overdueCustomers.length - remindable.length;
+                if (remindable.length === 0) {
+                  fireToast(skipped > 0
+                    ? (lang === 'am' ? `${skipped} የዘገዩ ደንበኞች አሏቸው ግን ስልክ ወይም ቴሌግራም የላቸውም` : `${skipped} overdue — no contact info to remind`)
+                    : (lang === 'am' ? 'ምንም የዘገዩ ደንበኞች የሉም' : 'No overdue customers'), 3000);
+                  return;
+                }
+                if (skipped > 0) {
+                  fireToast(lang === 'am'
+                    ? `${remindable.length} እያስታወስን · ${skipped} ተዘለለ (ስልክ የለም)`
+                    : `Reminding ${remindable.length} · ${skipped} skipped (no contact)`, 3000);
+                }
+                const queue = remindable.map((c) => c.id);
                 setBulkReminderQueue(queue.slice(1));
                 setReminderTarget(enrichedCustomerSummaries.find(c => c.id === queue[0]));
               }}
