@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Save, ChevronDown, ChevronUp, AlertTriangle, Pencil, Plus, Camera } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import PaymentTypeChips from './PaymentTypeChips';
+import AddProviderButton from './AddProviderButton';
 import { getDueDateOptions, formatEthiopianTime } from '../utils/ethiopianCalendar';
 import InlineDatePicker from './InlineDatePicker';
 import { fmt, fmtInput } from '../utils/numformat';
@@ -22,7 +23,7 @@ const ACCENT = {
   credit:  { btn: '#C4883A', shadow: '#96662b' },
 };
 
-function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose }) {
+function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, onUpdate, onClose }) {
   const { lang, t } = useLang();
   const type = transaction.type;
   const isCredit = type === 'credit';
@@ -546,14 +547,19 @@ function EditTransactionSheet({ transaction, enabledProviders, onUpdate, onClose
           )}
 
           {!isCredit && (
-            <PaymentTypeChips
-              paymentType={paymentType}
-              provider={paymentProvider}
-              onTypeChange={setPaymentType}
-              onProviderChange={setPaymentProvider}
-              enabledProviders={enabledProviders}
-              lastProviderByType={lastProviderByType}
-            />
+            <div className="flex items-center gap-1.5">
+              <div className="flex-1 min-w-0">
+                <PaymentTypeChips
+                  paymentType={paymentType}
+                  provider={paymentProvider}
+                  onTypeChange={setPaymentType}
+                  onProviderChange={setPaymentProvider}
+                  enabledProviders={enabledProviders}
+                  lastProviderByType={lastProviderByType}
+                />
+              </div>
+              <AddProviderButton onAddProvider={onAddProvider} />
+            </div>
           )}
 
           {!isCredit && (

@@ -24,7 +24,7 @@ import { getCurrentEthiopianDate, formatEthiopian, formatEthiopianTime } from '.
 import { fmt } from '../utils/numformat';
 import { useSyncStore } from '../stores/syncStore';
 import { buildCustomerSummaries, getCustomerBalance, insertCustomerTransaction, sortCustomerTransactions } from '../utils/customerLedger';
-import { normalizeCustomerDraft, normalizeCustomerTransactionDraft } from '../utils/customerLedgerMutations';
+import { fifoAllocatePayment, normalizeCustomerDraft, normalizeCustomerTransactionDraft } from '../utils/customerLedgerMutations';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from '../utils/customerTransactionTypes';
 import { buildCustomerLedgerTelegramMessage, buildTelegramMessageUrl, createCustomerTelegramLinkToken, createCustomerTransactionReference } from '../utils/customerTelegram';
 import { buildSupplierSummaries, getSupplierBalance, isValidSupplierTransactionType, SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger';
@@ -42,6 +42,7 @@ import {
   migrateLegacyToChannels,
   deriveLegacyFromChannels,
   normalizeChannelsForSave,
+  addCustomChannel,
 } from '../utils/paymentChannels';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useNotificationsStore } from '../stores/notificationsStore';
@@ -1433,6 +1434,12 @@ export default function AppShell() {
     }
   };
 
+  const handleQuickAddProvider = (kind, name) => {
+    const channels = shopProfile?.paymentChannels || [];
+    const updated = addCustomChannel(channels, { kind, name });
+    handleSavePaymentChannels(updated);
+  };
+
   const handleProfileSave = async (name, phone, telegram, businessType = 'retail-shop') => {
     await db.settings.put({ key: 'shop_name', value: name });
     await db.settings.put({ key: 'shop_phone', value: phone || '' });
@@ -1776,6 +1783,30 @@ export default function AppShell() {
     setLedgerCustomers(prev => prev.map(customer => (
       customer.id === customerId ? { ...customer, ...nextUpdates } : customer
     )));
+  };
+
+  const handleArchiveCustomer = async (customer) => {
+    if (!customer) return;
+    const now = Date.now();
+    const isArchived = !!customer.archived_at;
+    const payload = isArchived
+      ? { archived_at: null }
+      : { archived_at: now };
+    await handleUpdateCustomerRecord(customer.id, payload);
+    setLedgerCustomers(prev => prev.map(c =>
+      c.id === customer.id
+        ? { ...c, ...payload }
+        : c
+    ));
+    if (customer.id === selectedCustomerId) {
+      setSelectedCustomerId(customer.id);
+    }
+    fireToast(
+      isArchived
+        ? (t.restoreCustomer || 'Customer restored')
+        : (t.archiveCustomer || 'Customer archived'),
+      2000
+    );
   };
 
   const handleToggleCustomerTelegramNotify = async (customer) => {
@@ -2410,6 +2441,33 @@ export default function AppShell() {
       await db.customer_transactions.update(id, { reference_code: referenceCode });
       saved = await db.customer_transactions.get(id);
       nextBalance = getCustomerBalance([saved, ...existingTx]);
+
+      if (draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT) {
+        const allCredits = await db.customer_transactions
+          .where('customer_id').equals(payload.customer_id)
+          .and(tx => tx.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD)
+          .toArray();
+        const openCredits = allCredits
+          .filter(c => (Number(c.amount) || 0) - (Number(c.paid_amount) || 0) > 0)
+          .sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
+        if (openCredits.length > 0) {
+          const { allocation, creditsToUpdate } = fifoAllocatePayment(amount, openCredits);
+          if (creditsToUpdate.length > 0) {
+            for (const update of creditsToUpdate) {
+              await db.customer_transactions.update(update.id, {
+                paid_amount: update.paid_amount,
+                status: update.status,
+              });
+            }
+            await db.customer_transactions.update(id, {
+              allocation,
+            });
+            saved = await db.customer_transactions.get(id);
+            nextBalance = getCustomerBalance([saved, ...existingTx]);
+          }
+        }
+      }
+
       await db.customers.update(draft.customer_id, { updated_at: now });
       latestCustomerRecord = await db.customers.get(draft.customer_id);
     });
@@ -2912,6 +2970,7 @@ export default function AppShell() {
             onSelectSupplierTransaction={setSelectedSupplierTransaction}
             onSetReminderDefaultChannel={setReminderDefaultChannel}
             onTransfer={(c) => setTransferTarget(c)}
+            onArchiveCustomer={handleArchiveCustomer}
           />
         )}
 
@@ -3100,6 +3159,7 @@ export default function AppShell() {
         handleCustomerReminderSent={handleCustomerReminderSent}
         handleSaveCatalogEntry={handleSaveCatalogEntry}
         handleAddCustomerInline={handleAddCustomerInline}
+        onAddProvider={handleQuickAddProvider}
       />
 
       {transferTarget && (

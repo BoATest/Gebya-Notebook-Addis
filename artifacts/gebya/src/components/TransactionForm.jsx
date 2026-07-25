@@ -35,6 +35,7 @@ import { buildPhotoFields, createPhotoProof, MAX_PROOF_PHOTOS, photoCountLabel }
 import { fireToast } from './Toast';
 import CameraCapture from './CameraCapture';
 import PaymentTypeChips from './PaymentTypeChips';
+import AddProviderButton from './AddProviderButton';
 import { db } from '../db';
 
 function handleNumericInput(e, setter) {
@@ -54,10 +55,10 @@ function TransactionForm({
    onRecurringChange,
    customers = [],
    onAddCustomerInline,
+   onAddProvider,
    initialPaymentType,
    initialPaymentProvider,
    lastPaymentHistory,
-   setActiveTab,
  }) {
   const { lang, t } = useLang();
 
@@ -370,7 +371,7 @@ function TransactionForm({
               onProviderChange={setPaymentProvider}
               enabledProviders={enabledProviders}
             />
-            <button onClick={() => setActiveTab?.('settings')} className="shrink-0 px-3 py-2 rounded-full text-sm font-bold border-2 border-dashed press-scale" style={{ borderColor: '#c9bfa8', background: '#faf9f7', color: '#9ca3af', whiteSpace: 'nowrap' }}>+</button>
+            <AddProviderButton onAddProvider={onAddProvider} />
           </div>
 
           {/* Credit details — customer, phone, due date (sale on credit).

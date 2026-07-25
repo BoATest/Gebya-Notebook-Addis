@@ -41,6 +41,7 @@ export default function GlobalModals({
   handleCustomerReminderSent,
   handleSaveCatalogEntry,
   handleAddCustomerInline,
+  onAddProvider,
 }) {
   const { t } = useLang();
   const shopProfile = useShopStore(s => s.shopProfile);
@@ -102,6 +103,7 @@ export default function GlobalModals({
             onSaveCatalogEntry={handleSaveCatalogEntry}
             customers={customerSummaries}
             onAddCustomerInline={handleAddCustomerInline}
+            onAddProvider={onAddProvider}
             initialPaymentType={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.type : undefined}
             initialPaymentProvider={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.provider : undefined}
             lastPaymentHistory={(showForm === 'sale' || showForm === 'expense') ? {
@@ -123,6 +125,7 @@ export default function GlobalModals({
             catalogEntries={activeCatalogEntries}
             onSaveCatalogEntry={handleSaveCatalogEntry}
             onAddCustomerInline={handleAddCustomerInline}
+            onAddProvider={onAddProvider}
             customers={customerSummaries}
             transactions={todaySales}
             onHistory={() => { setShowItemizedSale(false); setActiveTab('report'); }}
@@ -164,6 +167,7 @@ export default function GlobalModals({
             actorLabel={currentActorLabel}
             catalogEntries={activeCatalogEntries}
             enabledProviders={enabledProviders}
+            onAddProvider={onAddProvider}
             onDone={() => setCustomerTransactionModal(null)}
           />
         </Suspense>
@@ -179,6 +183,7 @@ export default function GlobalModals({
             actorLabel={currentActorLabel}
             catalogEntries={activeCatalogEntries}
             enabledProviders={enabledProviders}
+            onAddProvider={onAddProvider}
             onDone={() => setCustomerTransactionEditTarget(null)}
           />
         </Suspense>
@@ -219,6 +224,7 @@ export default function GlobalModals({
             onSave={handleSaveSupplierTransaction}
             actorLabel={currentActorLabel}
             enabledProviders={enabledProviders}
+            onAddProvider={onAddProvider}
             onDone={() => setSupplierTransactionModal(null)}
           />
         </Suspense>
@@ -233,6 +239,7 @@ export default function GlobalModals({
             onSave={handleSaveSupplierTransaction}
             actorLabel={currentActorLabel}
             enabledProviders={enabledProviders}
+            onAddProvider={onAddProvider}
             onDone={() => setSupplierTransactionEditTarget(null)}
           />
         </Suspense>
@@ -255,6 +262,7 @@ export default function GlobalModals({
           <EditTransactionSheet
             transaction={editTarget}
             enabledProviders={enabledProviders}
+            onAddProvider={onAddProvider}
             onUpdate={handleUpdateTransaction}
             onClose={() => setEditTarget(null)}
           />

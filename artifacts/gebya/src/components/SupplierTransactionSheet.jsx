@@ -15,6 +15,7 @@ import { buildPhotoFields, createPhotoProof, normalizePhotos, MAX_PROOF_PHOTOS }
 import CameraCapture from './CameraCapture';
 import InlineDatePicker from './InlineDatePicker';
 import { getDueDateOptions } from '../utils/ethiopianCalendar';
+import AddProviderButton from './AddProviderButton';
 
 function handleNumericInput(e, setter) {
   let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
@@ -27,11 +28,12 @@ function SupplierTransactionSheet({
   supplier,
   mode = SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD,
   initialAmount,
-  editingTransaction = null,  // Commit D: when set, sheet enters edit mode
+  editingTransaction = null,
   onSave,
   onDone,
   actorLabel,
   enabledProviders,
+  onAddProvider,
 }) {
   const { t, lang } = useLang();
   const editing = !!editingTransaction?.id;
@@ -291,10 +293,13 @@ function SupplierTransactionSheet({
                 );
               })}
             </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+              <AddProviderButton onAddProvider={onAddProvider} />
+            </div>
           </div>
         )}
 
-          {!hasOutstanding && isPayment && (
+        {!hasOutstanding && isPayment && (
             <p className="text-xs font-medium mt-2" style={{ color: '#b45309' }}>
               {lang === 'am' ? 'ለመክፈል ምንም የለም' : 'Nothing outstanding to pay'}
             </p>

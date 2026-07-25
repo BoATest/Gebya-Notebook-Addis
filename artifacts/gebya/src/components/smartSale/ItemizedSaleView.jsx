@@ -7,6 +7,7 @@ import { buildPhotoFields, createPhotoProof } from '../../utils/photoProof';
 import CameraCapture from '../CameraCapture';
 import { fireToast } from '../Toast';
 import PaymentTypeChips from '../PaymentTypeChips';
+import AddProviderButton from '../AddProviderButton';
 import ItemRow from './ItemRow';
 import { useSmartSaleRows } from './useSmartSaleRows';
 import RecentSalesSheet from './RecentSalesSheet';
@@ -42,6 +43,7 @@ export default function ItemizedSaleView({
   customers = [],
   onSaveCatalogEntry,
   onAddCustomerInline,
+  onAddProvider,
   transactions = [],
   actorLabel = '',
   onHistory,
@@ -794,17 +796,20 @@ export default function ItemizedSaleView({
           </div>
         )}
 
-        <div className="px-2 py-1">
-          <PaymentTypeChips
-            paymentType={paymentType}
-            provider={paymentProvider}
-            onTypeChange={(type) => {
-              setPaymentType(type);
-              if (type === 'cash') setPaymentProvider('');
-            }}
-            onProviderChange={setPaymentProvider}
-            enabledProviders={enabledProviders}
-          />
+        <div className="px-2 py-1 flex items-center gap-1.5">
+          <div className="flex-1 min-w-0">
+            <PaymentTypeChips
+              paymentType={paymentType}
+              provider={paymentProvider}
+              onTypeChange={(type) => {
+                setPaymentType(type);
+                if (type === 'cash') setPaymentProvider('');
+              }}
+              onProviderChange={setPaymentProvider}
+              enabledProviders={enabledProviders}
+            />
+          </div>
+          <AddProviderButton onAddProvider={onAddProvider} />
         </div>
 
         {/* Share toggle + Preview + Complete — single row */}

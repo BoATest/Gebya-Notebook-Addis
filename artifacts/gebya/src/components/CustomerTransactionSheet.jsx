@@ -17,6 +17,7 @@ import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from '../u
 import { useLang } from '../context/LangContext';
 import { photoSizeBytes } from '../utils/photoCapture';
 import { buildPhotoFields, createPhotoProof, normalizePhotos, MAX_PROOF_PHOTOS } from '../utils/photoProof';
+import AddProviderButton from './AddProviderButton';
 
 function handleNumericInput(e, setter) {
   let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
@@ -29,12 +30,13 @@ function CustomerTransactionSheet({
   customer,
   mode = CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
   initialAmount,
-  editingTransaction,   // NEW · pre-fills form for edit mode; save → update record
+  editingTransaction,
   onSave,
   onDone,
   actorLabel,
   catalogEntries = [],
   enabledProviders,
+  onAddProvider,
 }) {
   const { t, lang } = useLang();
   const isEditing = !!editingTransaction;
@@ -180,18 +182,6 @@ function CustomerTransactionSheet({
   };
   const addFromCatalogToBreakdown = (entry) => {
     addLineItem({ name: entry.name, amount: entry.default_price });
-  };
-
-  // ─── Multi-debt batch payment handlers ──────────────────────────────
-  const toggleDebtSelection = (debtId) => {
-    setSelectedDebtIds(prev =>
-      prev.includes(debtId) ? prev.filter(id => id !== debtId) : [...prev, debtId]
-    );
-  };
-
-  const handlePayAllToggle = () => {
-    setPayAllDebts(prev => !prev);
-    if (!payAllDebts) setSelectedDebtIds([]);
   };
 
   // Color accent: credit-add (amber for liability) vs payment (green for settled)
@@ -433,6 +423,9 @@ function CustomerTransactionSheet({
                   </button>
                 );
               })}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+              <AddProviderButton onAddProvider={onAddProvider} />
             </div>
           </div>
         )}
