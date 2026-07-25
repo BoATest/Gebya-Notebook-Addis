@@ -1800,6 +1800,22 @@ export default function AppShell() {
     )));
   };
 
+  const handleRecordPromise = async (customerId, promisedPayDate, promiseNote) => {
+    await handleUpdateCustomerRecord(customerId, {
+      promised_pay_date: promisedPayDate,
+      promise_note: promiseNote || null,
+    });
+    fireToast(t.promiseSaved || 'Promise recorded', 2000);
+  };
+
+  const handleClearPromise = async (customerId) => {
+    await handleUpdateCustomerRecord(customerId, {
+      promised_pay_date: null,
+      promise_note: null,
+    });
+    fireToast(t.promiseCleared || 'Promise cleared', 2000);
+  };
+
   const handleArchiveCustomer = async (customer) => {
     if (!customer) return;
     const now = Date.now();
@@ -2948,6 +2964,9 @@ export default function AppShell() {
         <AppHeader
           shopProfile={shopProfile}
           currentActorLabel={currentActorLabel}
+          staffMembers={staffMembers}
+          activeStaffMemberId={activeStaffMemberId}
+          onSetActiveStaffMember={handleSetActiveStaffMember}
           pwa={pwa}
           unreadNotifCount={unreadNotifCount}
           conflictWarning={syncConflictWarning}
@@ -2986,6 +3005,8 @@ export default function AppShell() {
             onSetReminderDefaultChannel={setReminderDefaultChannel}
             onTransfer={(c) => setTransferTarget(c)}
             onArchiveCustomer={handleArchiveCustomer}
+            onRecordPromise={handleRecordPromise}
+            onClearPromise={handleClearPromise}
           />
         )}
 
@@ -3056,6 +3077,24 @@ export default function AppShell() {
           />
         )}
 
+        {activeTab === 'staff' && (
+          <StaffPage
+            staffMembers={staffMembers}
+            activeStaffMemberId={activeStaffMemberId}
+            currentActorLabel={currentActorLabel}
+            shopProfile={shopProfile}
+            onSetActiveStaffMember={handleSetActiveStaffMember}
+            onSaveStaffMember={handleSaveStaffMember}
+            onUpdateStaffMember={handleUpdateStaffMember}
+            onDeactivateStaffMember={handleDeactivateStaffMember}
+            onReactivateStaffMember={handleReactivateStaffMember}
+            onApproveDevice={handleApproveDevice}
+            onRejectDevice={handleRejectDevice}
+            lang={lang}
+            canManageTeam={canManageTeam}
+          />
+        )}
+
         {activeTab === 'settings' && (
           <Suspense fallback={<PanelFallback label={t.loading} />}>
             <SettingsPage
@@ -3066,16 +3105,7 @@ export default function AppShell() {
               supplierSummaries={supplierSummaries}
               shopProfile={shopProfile}
               staffMembers={staffMembers}
-              activeStaffMemberId={activeStaffMemberId}
-              currentActorLabel={currentActorLabel}
               onProfileSave={handleProfileSave}
-              onSaveStaffMember={handleSaveStaffMember}
-              onUpdateStaffMember={handleUpdateStaffMember}
-              onDeactivateStaffMember={handleDeactivateStaffMember}
-              onReactivateStaffMember={handleReactivateStaffMember}
-              onSetActiveStaffMember={handleSetActiveStaffMember}
-              onApproveDevice={handleApproveDevice}
-              onRejectDevice={handleRejectDevice}
               paymentChannels={shopProfile?.paymentChannels || []}
               onSavePaymentChannels={handleSavePaymentChannels}
               recurringExpenses={recurringExpenses}
@@ -3087,6 +3117,7 @@ export default function AppShell() {
               entitlements={entitlements}
               staffCount={(staffMembers || []).filter(m => m.active !== false).length}
               transactionCount={transactions.length}
+              onUpgrade={null}
             />
           </Suspense>
         )}
@@ -3143,6 +3174,7 @@ export default function AppShell() {
         }}
         creditMetrics={creditMetrics}
         unreadNotifCount={unreadNotifCount}
+        showStaffTab={canManageTeam}
       />
 
       <GlobalModals
