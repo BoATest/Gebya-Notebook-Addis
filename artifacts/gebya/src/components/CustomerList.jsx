@@ -397,7 +397,6 @@ function CustomerList({
           const balance = Number(customer.balance || 0);
           const hasBalance = balance > 0;
           const isOverdue = customer.has_overdue;
-          const isTop = customer.on_time_eligible > 0 && customer.on_time_count === customer.on_time_eligible && customer.on_time_count >= 3;
           const urg = urgencyColor(customer);
           const dot = statusDot(customer);
           const initials = initialsOf(customer.display_name);
@@ -450,16 +449,7 @@ function CustomerList({
                     background: dot === 'overdue' ? '#dc2626' : '#10b981',
                   }} />
                 )}
-                {isTop && (
-                  <div style={{
-                    position: 'absolute', top: -5, left: -5,
-                    width: 18, height: 18, borderRadius: '50%',
-                    border: '2px solid #fff',
-                    background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.7rem', lineHeight: 1,
-                  }}>👑</div>
-                )}
+
               </div>
 
               {/* Mid: name + meta */}
