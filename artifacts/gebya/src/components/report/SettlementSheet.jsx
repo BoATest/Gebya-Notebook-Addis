@@ -17,9 +17,16 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
   const [adjustmentType, setAdjustmentType] = useState('expense');
   const [notes, setNotes] = useState('');
   const [reconcileNote, setReconcileNote] = useState('');
+  const [ownerReviewNote, setOwnerReviewNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [mode, setMode] = useState(isReconcile ? 'view' : 'new');
+  const hasStaffReport = existingSettlement?.staff_reported_cash != null;
+  const staffCash = Number(existingSettlement?.staff_reported_cash) || 0;
+  const staffTransfer = Number(existingSettlement?.staff_reported_transfer) || 0;
+  const staffTotal = staffCash + staffTransfer;
+  const recLog = existingSettlement?.reconciliation_log || [];
+  const isStaffSubmitted = existingSettlement?.reconciliation_status === 'staff_submitted';
+  const [mode, setMode] = useState(isStaffSubmitted ? 'review' : (isReconcile ? 'view' : 'new'));
 
   useEffect(() => {
     (async () => {
@@ -112,7 +119,36 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       const staffIdNum = Number(staff.id);
       const now = Date.now();
 
-      if (isReconcile && mode === 'reconcile') {
+      if (isStaffSubmitted) {
+        const ownerNote = ownerReviewNote.trim();
+        const logEntry = {
+          actor: 'owner',
+          action: actualCashVal === staffCash && actualTransferVal === staffTransfer ? 'accepted' : 'reviewed',
+          note: ownerNote || (actualCashVal === staffCash && actualTransferVal === staffTransfer ? t('Owner accepted staff report', 'ባለቤት የሰራተኛ ሪፖርት ተቀብሏል') : t('Owner reviewed with adjustments', 'ባለቤት በማስተካከል ተመልክቷል')),
+          timestamp: now,
+        };
+        const newLog = [...(recLog || []), logEntry];
+        const isAccepted = actualCashVal === staffCash && actualTransferVal === staffTransfer;
+
+        await updateSettlement(existingSettlement.id, {
+          actual_cash: actualCashVal,
+          actual_transfer: actualTransferVal,
+          actual_total: actualCashVal + actualTransferVal,
+          owner_confirmed_cash: actualCashVal,
+          owner_confirmed_transfer: actualTransferVal,
+          owner_note: ownerNote || null,
+          reconciliation_status: isAccepted ? 'finalized' : 'owner_reviewed',
+          final_expected_cash: finalExpectedCash,
+          final_expected_total: finalExpectedTotal,
+          final_variance: totalVariance,
+          reconciliation_log: newLog,
+          status: 'reconciled',
+          notes: notes.trim() || (ownerNote || null),
+          reconciled_at: now,
+          reconciled_by: staffIdNum,
+          updated_at: now,
+        });
+      } else if (isReconcile && mode === 'reconcile') {
         const adjustmentsWithReconcile = [
           ...adjustments,
           ...(reconcileNote.trim() ? [{
@@ -196,10 +232,19 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           {existingSettlement && (
             <span style={{
               fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6,
-              background: existingSettlement.status === 'reconciled' ? '#dcfce7' : '#fef3c7',
-              color: existingSettlement.status === 'reconciled' ? '#16a34a' : '#d97706',
+              background: existingSettlement.reconciliation_status === 'finalized' ? '#dcfce7' :
+                          existingSettlement.reconciliation_status === 'staff_submitted' ? '#e0f2fe' :
+                          existingSettlement.reconciliation_status === 'disputed' ? '#fef2f2' : '#fef3c7',
+              color: existingSettlement.reconciliation_status === 'finalized' ? '#16a34a' :
+                     existingSettlement.reconciliation_status === 'staff_submitted' ? '#0369a1' :
+                     existingSettlement.reconciliation_status === 'disputed' ? '#b91c1c' : '#d97706',
             }}>
-              {existingSettlement.status === 'reconciled' ? t('Reconciled', 'ተስተካክሏል') : t('Checked', 'ተፈትሏል')}
+              {existingSettlement.reconciliation_status === 'finalized' ? t('Finalized', 'ተጠናቋል') :
+               existingSettlement.reconciliation_status === 'staff_submitted' ? t('Staff sent', 'ሰራተኛ ልኳል') :
+               existingSettlement.reconciliation_status === 'owner_reviewed' ? t('Reviewed', 'ተመልክቷል') :
+               existingSettlement.reconciliation_status === 'disputed' ? t('Disputed', 'አልተስማማም') :
+               existingSettlement.reconciliation_status === 'checked' ? t('Checked', 'ተፈትሟል') :
+               t('Settled', 'ተቀምጧል')}
             </span>
           )}
         </div>
@@ -230,10 +275,59 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         </div>
       </div>
 
+      {/* Staff reported section */}
+      {hasStaffReport && (
+        <div style={{ background: '#f0f9ff', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #bae6fd' }}>
+          <p style={{ fontSize: 10, fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', margin: '0 0 8px' }}>
+            {t('Staff reported', 'ሰራተኛ ያስረከበው')}
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div>
+              <span style={{ fontSize: 10, color: '#7c3aed' }}>{t('Cash', 'ጥሬ')}</span>
+              <p style={{ fontSize: 18, fontWeight: 900, color: '#1f2937', margin: '2px 0' }}>{fmt(staffCash)}</p>
+            </div>
+            <div>
+              <span style={{ fontSize: 10, color: '#7c3aed' }}>{t('Transfer', 'ዝውውር')}</span>
+              <p style={{ fontSize: 18, fontWeight: 900, color: '#1f2937', margin: '2px 0' }}>{fmt(staffTransfer)}</p>
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid #bae6fd', marginTop: 8, paddingTop: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 10, color: '#0369a1' }}>{t('Total reported', 'ጠቅላላ ያስረከበው')}</span>
+              <span style={{ fontSize: 16, fontWeight: 950, color: '#1f2937' }}>{fmt(staffTotal)} ETB</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+              <span style={{ fontSize: 10, color: '#0369a1' }}>{t('vs Expected', 'ከሚጠበቀው ጋር')}</span>
+              <span style={{
+                fontSize: 14, fontWeight: 900,
+                color: staffTotal === expected.expectedTotal ? '#16a34a' : '#dc2626',
+              }}>
+                {staffTotal === expected.expectedTotal ? '✓' : `${staffTotal >= expected.expectedTotal ? '+' : ''}${fmt(staffTotal - expected.expectedTotal)} ETB`}
+              </span>
+            </div>
+            {existingSettlement?.staff_note && (
+              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 6, borderTop: '1px solid #bae6fd', paddingTop: 6 }}>
+                📝 {existingSettlement.staff_note}
+              </div>
+            )}
+          </div>
+          {/* Quick accept action */}
+          {isStaffSubmitted && mode !== 'view' && (
+            <button onClick={() => { setActualCash(String(staffCash)); setActualTransfer(String(staffTransfer)); }}
+              style={{
+                width: '100%', marginTop: 8, padding: '8px 0', borderRadius: 8,
+                background: '#1B4332', color: '#fff', border: 'none',
+                fontSize: 12, fontWeight: 800, cursor: 'pointer',
+              }}
+            >{t('✓ Accept staff amount', 'የሰራተኛውን መጠን ተቀበል')}</button>
+          )}
+        </div>
+      )}
+
       {/* Actual inputs */}
       <div style={{ background: '#fff', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #e5e7eb' }}>
         <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', margin: '0 0 8px' }}>
-          {t('Actual (counted together)', 'ትክክለኛው')}
+          {hasStaffReport ? t('Owner confirmation', 'የባለቤት ማረጋገጫ') : t('Actual (counted together)', 'ትክክለኛው')}
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -349,6 +443,36 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         )}
       </div>
 
+      {/* Reconciliation log (timeline of events) */}
+      {recLog.length > 0 && (
+        <div style={{ background: '#fff', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #e5e7eb' }}>
+          <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', margin: '0 0 8px' }}>
+            {t('Reconciliation Log', 'የማስተካከያ ምዝግብ')}
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {recLog.map((entry, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'flex-start', gap: 8,
+                padding: '6px 8px', borderRadius: 6,
+                background: entry.actor === 'staff' ? '#f0f9ff' : '#fffbeb',
+                fontSize: 11,
+              }}>
+                <span style={{
+                  fontSize: 16, lineHeight: '20px', flexShrink: 0,
+                }}>{entry.actor === 'staff' ? '👤' : '👑'}</span>
+                <div>
+                  <span style={{ fontWeight: 800, color: '#374151' }}>
+                    {entry.actor === 'staff' ? t('Staff', 'ሰራተኛ') : t('Owner', 'ባለቤት')} · {entry.action}
+                  </span>
+                  {entry.note && <p style={{ margin: '2px 0', color: '#6b7280' }}>{entry.note}</p>}
+                  <span style={{ fontSize: 9, color: '#9ca3af' }}>{new Date(entry.timestamp).toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Notes */}
       <div style={{ marginBottom: 12 }}>
         <textarea value={notes} onChange={e => setNotes(e.target.value)}
@@ -359,8 +483,22 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         />
       </div>
 
-      {/* Reconciliation note (shown when owner starts reconciliation) */}
-      {isReconcile && mode === 'reconcile' && (
+      {/* Owner review note (shown when staff submitted & owner is reviewing) */}
+      {isStaffSubmitted && mode !== 'view' && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 11, fontWeight: 800, color: '#374151', display: 'block', marginBottom: 4 }}>
+            {t('Owner review note', 'የባለቤት ማስታወሻ')}
+          </label>
+          <textarea value={ownerReviewNote} onChange={e => setOwnerReviewNote(e.target.value)}
+            placeholder={t('Any difference? Note it here', 'ልዩነት ካለ እዚህ ያስረዱ')}
+            rows={2}
+            style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 10px', fontSize: 12, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+          />
+        </div>
+      )}
+
+      {/* Reconciliation note (shown when owner starts reconciliation on old-style settlement) */}
+      {isReconcile && mode === 'reconcile' && !isStaffSubmitted && (
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 11, fontWeight: 800, color: '#374151', display: 'block', marginBottom: 4 }}>
             {t('Reconciliation note', 'የማስተካከያ ማስታወሻ')}
@@ -382,13 +520,24 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           style={{ flex: 1, minHeight: 40, border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', color: '#374151', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
         >{t('Back', 'ተመለስ')}</button>
 
-        {isReconcile && mode === 'view' && existingSettlement?.status === 'checked' && (
+        {isReconcile && mode === 'view' && existingSettlement?.status === 'checked' && !isStaffSubmitted && (
           <button onClick={() => setMode('reconcile')}
             style={{ flex: 1, minHeight: 40, border: 'none', borderRadius: 8, background: '#d97706', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
           >{t('Reconcile', 'አስተካክል')}</button>
         )}
 
-        {mode !== 'view' && (
+        {isStaffSubmitted && mode !== 'view' && (
+          <button onClick={handleSave} disabled={saving || (actualCashVal === 0 && actualTransferVal === 0)}
+            style={{
+              flex: 1, minHeight: 40, border: 'none', borderRadius: 8,
+              background: saving ? '#9ca3af' : '#1B4332',
+              color: '#fff',
+              fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer',
+            }}
+          >{saving ? t('Saving...', 'በማስቀመጥ ላይ...') : t('Accept & Finalize', 'ተቀበል እና ጨርስ')}</button>
+        )}
+
+        {!isStaffSubmitted && mode !== 'view' && (
           <button onClick={handleSave} disabled={saving || (actualCashVal === 0 && actualTransferVal === 0)}
             style={{
               flex: 1, minHeight: 40, border: 'none', borderRadius: 8,

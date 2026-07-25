@@ -49,6 +49,22 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
   const unsettled = staffWithStatus.filter(s => s.daysSince === null || s.daysSince > 0);
   const displayed = viewAll ? settlements : settlements.slice(0, 10);
 
+  function ReconBadge({ status }) {
+    const STATUSES = {
+      staff_submitted: { label: t('Staff sent', 'ሰራተኛ ልኳል'), bg: '#e0f2fe', color: '#0369a1' },
+      owner_reviewed: { label: t('Reviewed', 'ተመልክቷል'), bg: '#fef3c7', color: '#92400e' },
+      disputed: { label: t('Disputed', 'አልተስማማም'), bg: '#fef2f2', color: '#b91c1c' },
+      finalized: { label: t('Finalized', 'ተጠናቋል'), bg: '#dcfce7', color: '#166534' },
+      checked: { label: t('Checked', 'ተፈትሟል'), bg: '#f3f4f6', color: '#6b7280' },
+    };
+    const s = STATUSES[status] || STATUSES.checked;
+    return (
+      <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4, background: s.bg, color: s.color }}>
+        {s.label}
+      </span>
+    );
+  }
+
   return (
     <div>
       {/* Unsettled staff alerts */}
@@ -57,41 +73,58 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
           <p style={{ fontSize: 10, fontWeight: 900, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
             {t('Ready to settle', 'ለማስተካከል ዝግጁ')}
           </p>
-          {unsettled.map(staff => (
-            <div key={staff.id} style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '10px 12px', marginBottom: 6,
-              background: '#fff', borderRadius: 10,
-              border: currentSettlingStaff === String(staff.id) ? '2px solid #1B4332' : '1px solid #e5e7eb',
-            }}>
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: 13, fontWeight: 900, color: '#1f2937', margin: 0 }}>
-                  {staff.name || staff.displayName}
-                </p>
-                {staff.daysSince !== null ? (
-                  <p style={{ fontSize: 11, color: '#f59e0b', margin: '2px 0 0' }}>
-                    {t('Last settled', 'መጨረሻ የተስተካከለ')} {staff.daysSince} {t('days ago', 'ቀናት በፊት')}
+          {unsettled.map(staff => {
+            const hasStaffSubmission = staff.lastSettlement?.reconciliation_status === 'staff_submitted';
+            return (
+              <div key={staff.id} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '10px 12px', marginBottom: 6,
+                background: hasStaffSubmission ? '#f0f9ff' : '#fff', borderRadius: 10,
+                border: currentSettlingStaff === String(staff.id) ? '2px solid #1B4332' : '1px solid #e5e7eb',
+                borderLeft: hasStaffSubmission ? '3px solid #0369a1' : undefined,
+              }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 13, fontWeight: 900, color: '#1f2937', margin: 0 }}>
+                    {staff.name || staff.displayName}
+                    {hasStaffSubmission && (
+                      <span style={{ fontSize: 10, marginLeft: 6, color: '#0369a1' }}>
+                        📨 {t('submitted', 'ልኳል')}
+                      </span>
+                    )}
                   </p>
-                ) : (
-                  <p style={{ fontSize: 11, color: '#ef4444', margin: '2px 0 0' }}>
-                    {t('Never settled', 'እስካሁን አልተስተካከለም')}
-                  </p>
-                )}
-                {staff.lastSettlement && staff.lastSettlement.final_variance !== 0 && (
-                  <p style={{ fontSize: 11, color: '#f59e0b', margin: '2px 0 0' }}>
-                    {t('Variance:', 'ልዩነት:')} {fmt(staff.lastSettlement.final_variance)} ETB
-                  </p>
-                )}
+                  {staff.lastSettlement?.reconciliation_status === 'staff_submitted' ? (
+                    <p style={{ fontSize: 11, color: '#0369a1', margin: '2px 0 0' }}>
+                      {t('Staff reported:', 'ሰራተኛ ያስረከበው:')} {fmt(staff.lastSettlement.staff_reported_cash || 0)} ETB
+                      {staff.lastSettlement.staff_reported_transfer > 0 && (
+                        <span> + {t('transfer:', 'ዝውውር:')} {fmt(staff.lastSettlement.staff_reported_transfer)} ETB</span>
+                      )}
+                    </p>
+                  ) : staff.daysSince !== null ? (
+                    <p style={{ fontSize: 11, color: '#f59e0b', margin: '2px 0 0' }}>
+                      {t('Last settled', 'መጨረሻ የተስተካከለ')} {staff.daysSince} {t('days ago', 'ቀናት በፊት')}
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: 11, color: '#ef4444', margin: '2px 0 0' }}>
+                      {t('Never settled', 'እስካሁን አልተስተካከለም')}
+                    </p>
+                  )}
+                  {staff.lastSettlement && staff.lastSettlement.final_variance !== 0 && (
+                    <p style={{ fontSize: 11, color: '#f59e0b', margin: '2px 0 0' }}>
+                      {t('Variance:', 'ልዩነት:')} {fmt(staff.lastSettlement.final_variance)} ETB
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => hasStaffSubmission ? onViewSettlement?.(staff.lastSettlement, staff) : onSettle(staff)}
+                  style={{
+                    background: hasStaffSubmission ? '#0369a1' : '#1B4332', color: '#fff', border: 'none',
+                    borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 800,
+                    cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 8,
+                  }}
+                >{hasStaffSubmission ? t('Review', 'መርምር') : t('Settle', 'አስተካክል')}</button>
               </div>
-              <button onClick={() => onSettle(staff)}
-                style={{
-                  background: '#1B4332', color: '#fff', border: 'none',
-                  borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 800,
-                  cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 8,
-                }}
-              >{t('Settle', 'አስተካክል')}</button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -104,8 +137,7 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
           <div style={{ maxHeight: viewAll ? 400 : 240, overflowY: 'auto' }}>
             {displayed.map((s, i) => {
               const staff = staffRows.find(r => String(r.id) === String(s.staff_id));
-              const isReconciled = s.status === 'reconciled';
-              const hasVariance = Math.abs(s.final_variance || 0) > 0;
+              const rStatus = s.reconciliation_status;
               return (
                 <div key={s.id || i} onClick={() => onViewSettlement?.(s, staff)}
                   style={{
@@ -113,31 +145,25 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
                     padding: '8px 10px', fontSize: 11, fontWeight: 650, color: '#374151',
                     borderBottom: '1px solid #f3f4f6', cursor: 'pointer',
                     borderRadius: 6, transition: 'background 0.1s',
+                    background: rStatus === 'staff_submitted' ? '#f0f9ff' :
+                                rStatus === 'disputed' ? '#fef2f2' : 'transparent',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  onMouseEnter={e => e.currentTarget.style.background = rStatus === 'staff_submitted' ? '#e0f2fe' : rStatus === 'disputed' ? '#fee2e2' : '#f9fafb'}
+                  onMouseLeave={e => e.currentTarget.style.background = rStatus === 'staff_submitted' ? '#f0f9ff' : rStatus === 'disputed' ? '#fef2f2' : 'transparent'}
                 >
                   <div style={{ flex: 1 }}>
                     <span>
                       {new Date(s.settled_at).toLocaleDateString()} · {staff?.name || staff?.displayName || `#${s.staff_id}`}
                     </span>
-                    {s.reconciliation_note && (
+                    {(s.staff_reported_cash != null || s.reconciliation_note) && (
                       <span style={{ display: 'block', fontSize: 10, color: '#6b7280', marginTop: 2 }}>
-                        📝 {s.reconciliation_note}
+                        {s.staff_reported_cash != null && `${t('Staff:', 'ሰራተኛ:')} ${fmt(s.staff_reported_cash)} ETB`}
+                        {s.reconciliation_note && ` 📝 ${s.reconciliation_note}`}
                       </span>
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{
-                      fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4,
-                      background: isReconciled ? '#dcfce7' : '#fef3c7',
-                      color: isReconciled ? '#16a34a' : '#d97706',
-                    }}>
-                      {isReconciled ? t('R', 'ተ') : t('C', 'ተ')}
-                    </span>
-                    <span style={{ color: hasVariance ? '#f59e0b' : '#16a34a' }}>
-                      {hasVariance ? `${fmt(s.final_variance)} ETB` : '✓'}
-                    </span>
+                    <ReconBadge status={rStatus} />
                     <span style={{ color: '#9ca3af', fontSize: 14 }}>›</span>
                   </div>
                 </div>
