@@ -480,6 +480,27 @@ function CustomerDetail({
             </span>
           )}
         </div>
+        {/* Mark Fully Paid button — single tap, no confirmation. Opens payment sheet pre-filled with full balance. */}
+        {hasBalance && onMarkFullyPaid && (
+          <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
+            <button
+              type="button"
+              onClick={() => onMarkFullyPaid(customer)}
+              className="press-scale"
+              style={{
+                width: '100%', padding: '12px',
+                background: '#1B4332', color: '#fff',
+                border: 'none', borderRadius: 10,
+                fontSize: '0.82rem', fontWeight: 800,
+                cursor: 'pointer', minHeight: 44,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              <Wallet className="w-4 h-4" />
+              {lang === 'am' ? `ሁሉንም ይክፈሉ · ${fmt(balance)} ብር` : `Mark Fully Paid · ${fmt(balance)} birr`}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ═══ 4. REMINDER HISTORY (collapsible) ═══════════════════════════════ */}
