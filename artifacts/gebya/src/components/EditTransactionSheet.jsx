@@ -154,7 +154,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
         customer_phone: isCredit ? (phoneEntered && phoneValid ? '+251' + phoneDigits : null) : null,
         direction: isCredit ? direction : null,
         due_date: isCredit ? getEffectiveDueDate() : null,
-        ...(isCredit ? { photos: [], photo: null, photo_taken_at: null } : buildPhotoFields(photos)),
+        ...buildPhotoFields(photos),
         ...(useBreakdown ? { items: validBreakdown.length > 0 ? validBreakdown : null } : {}),
       };
       await onUpdate(transaction.id, updates);

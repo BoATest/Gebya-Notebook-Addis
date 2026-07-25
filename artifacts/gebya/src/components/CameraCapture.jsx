@@ -16,7 +16,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Camera, X, RefreshCw, Image as ImageIcon } from 'lucide-react';
-import { compressPhoto } from '../utils/photoCapture';
+import { compressPhoto, MAX_DIMENSION, JPEG_QUALITY } from '../utils/photoCapture';
 
 function CameraCapture({ open, onCapture, onClose, lang = 'en' }) {
   const videoRef = useRef(null);
@@ -84,15 +84,19 @@ function CameraCapture({ open, onCapture, onClose, lang = 'en' }) {
     try {
       const w = video.videoWidth || 1280;
       const h = video.videoHeight || 960;
+      let srcW = w, srcH = h;
+      const max = Math.max(w, h);
+      if (max > MAX_DIMENSION) {
+        const ratio = MAX_DIMENSION / max;
+        srcW = Math.round(w * ratio);
+        srcH = Math.round(h * ratio);
+      }
       const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
+      canvas.width = srcW;
+      canvas.height = srcH;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, w, h);
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-      if (!blob) throw new Error('capture failed');
-      // Reuse the shared compressor (resizes to <=1024 + JPEG 0.72)
-      const dataUrl = await compressPhoto(blob);
+      ctx.drawImage(video, 0, 0, srcW, srcH);
+      const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
       onCapture?.(dataUrl);
     } catch {
       setError('capture');

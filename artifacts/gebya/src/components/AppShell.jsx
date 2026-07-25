@@ -1436,7 +1436,12 @@ export default function AppShell() {
 
   const handleQuickAddProvider = (kind, name) => {
     const channels = shopProfile?.paymentChannels || [];
+    const before = channels.length;
     const updated = addCustomChannel(channels, { kind, name });
+    if (updated.length === before) {
+      fireToast(lang === 'am' ? 'ይህ አስቀድሞ አለ' : 'Already exists', 1800);
+      return;
+    }
     handleSavePaymentChannels(updated);
   };
 

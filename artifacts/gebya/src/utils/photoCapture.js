@@ -2,8 +2,8 @@
 // Helpers for capturing photos and compressing them for IndexedDB storage.
 // Output is a base64 data URL — safe to store directly on a transaction record.
 
-const MAX_DIMENSION = 1024;
-const JPEG_QUALITY = 0.72;
+export const MAX_DIMENSION = 1024;
+export const JPEG_QUALITY = 0.72;
 
 /**
  * Compress an image File to a base64 JPEG data URL.

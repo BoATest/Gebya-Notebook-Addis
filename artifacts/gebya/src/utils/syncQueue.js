@@ -25,14 +25,14 @@ export async function enqueueTelegramLedgerUpdate({ recordTable, recordId, paylo
   if (!recordTable || recordId == null || !payload?.ledgerUpdate?.token) return null;
 
   const now = Date.now();
-  const existing = await db.sync_queue
-    .toArray()
-    .then((rows) => rows.find((row) => (
-      row.kind === TELEGRAM_LEDGER_UPDATE
-      && row.record_table === recordTable
+  const existing = (await db.sync_queue
+    .where('kind').equals(TELEGRAM_LEDGER_UPDATE)
+    .toArray())
+    .find((row) => (
+      row.record_table === recordTable
       && row.record_id === recordId
       && row.status !== SENT
-    )));
+    ));
 
   const entry = {
     kind: TELEGRAM_LEDGER_UPDATE,
@@ -68,10 +68,11 @@ async function markCustomerTransactionDelivery(recordId, updates) {
 }
 
 export async function countPendingTelegramSync() {
-  const rows = await db.sync_queue.toArray();
+  const rows = await db.sync_queue
+    .where('kind').equals(TELEGRAM_LEDGER_UPDATE)
+    .toArray();
   return rows.filter((row) => (
-    row.kind === TELEGRAM_LEDGER_UPDATE
-    && [PENDING, RUNNING, FAILED].includes(row.status)
+    [PENDING, RUNNING, FAILED].includes(row.status)
     && row.status !== SENT
   )).length;
 }
@@ -136,11 +137,12 @@ export async function drainTelegramSyncQueue({ limit = 5 } = {}) {
   }
 
   const now = Date.now();
-  const rows = await db.sync_queue.toArray();
+  const rows = await db.sync_queue
+    .where('kind').equals(TELEGRAM_LEDGER_UPDATE)
+    .toArray();
   const due = rows
     .filter((row) => (
-      row.kind === TELEGRAM_LEDGER_UPDATE
-      && [PENDING, FAILED].includes(row.status)
+      [PENDING, FAILED].includes(row.status)
       && Number(row.next_attempt_at || 0) <= now
     ))
     .sort((a, b) => Number(a.created_at || 0) - Number(b.created_at || 0))
@@ -200,11 +202,12 @@ export async function drainCloudProofQueue({ limit = 10 } = {}) {
   }
 
   const now = Date.now();
-  const rows = await db.sync_queue.toArray();
+  const rows = await db.sync_queue
+    .where('kind').equals(CLOUD_PROOF_UPSERT)
+    .toArray();
   const due = rows
     .filter((row) => (
-      row.kind === CLOUD_PROOF_UPSERT
-      && [PENDING, FAILED].includes(row.status)
+      [PENDING, FAILED].includes(row.status)
       && Number(row.next_attempt_at || 0) <= now
     ))
     .sort((a, b) => Number(a.created_at || 0) - Number(b.created_at || 0))

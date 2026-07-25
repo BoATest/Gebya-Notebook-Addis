@@ -153,6 +153,13 @@ export default defineConfig({
         main: path.resolve(import.meta.dirname, "index.html"),
         bank: path.resolve(import.meta.dirname, "bank.html"),
       },
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/react-dom")) return "vendor-react";
+          if (id.includes("node_modules/react")) return "vendor-react";
+          if (id.includes("node_modules/scheduler")) return "vendor-react";
+        },
+      },
     },
   },
   server: {

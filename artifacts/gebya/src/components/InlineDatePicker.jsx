@@ -95,6 +95,8 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     d.setDate(d.getDate() + n);
     const [ey, em, ed] = toEthiopian(d.getFullYear(), d.getMonth() + 1, d.getDate());
     handleModalDaySelect(ed, em, ey);
+    setViewMonth(em);
+    setViewYear(ey);
   }
 
   function getMonthGrid(year, month) {
@@ -267,21 +269,6 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                     +{n}
                   </button>
                 ))}
-                <button type="button" onClick={() => {
-                  const t = gregorianISOToEthiopianParts('');
-                  setViewMonth(t.month);
-                  setViewYear(t.year);
-                  setPending(t);
-                }}
-                  style={{
-                    flexShrink: 0, padding: '7px 13px', minHeight: 34,
-                    background: '#fff', color: '#1B4332',
-                    border: '2px solid #d4cdc0', borderRadius: 8,
-                    fontSize: '0.78rem', fontWeight: 800,
-                    cursor: 'pointer',
-                  }}>
-                  Custom
-                </button>
               </div>
             </div>
 
@@ -341,12 +328,12 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                       <button key={ci} type="button"
                         onClick={() => handleModalDaySelect(cell.day, viewMonth, viewYear)}
                           style={{
-                            flex: 1, aspectRatio: '1/1', maxWidth: 36, maxHeight: 36,
+                            flex: 1, aspectRatio: '1',
                             borderRadius: 8,
                             background: sel ? '#1B4332' : 'transparent',
                             color: sel ? '#fff' : '#374151',
                             border: `1.5px solid ${sel ? '#1B4332' : 'transparent'}`,
-                            fontSize: '0.75rem', fontWeight: sel ? 800 : 500,
+                            fontSize: 'clamp(0.65rem, 3.5vw, 0.9rem)', fontWeight: sel ? 800 : 500,
                           cursor: 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           position: 'relative',
