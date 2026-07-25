@@ -8,7 +8,7 @@
 // - Compact due-date pills
 // - Solid colored save button
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Save, X, Plus, Minus, Camera, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, X, Plus, Camera, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import InlineDatePicker from './InlineDatePicker';
 import CameraCapture from './CameraCapture';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
@@ -63,7 +63,6 @@ function CustomerTransactionSheet({
     : '';
   const [quantity, setQuantity] = useState(initInitialQuantity);
   const [saving, setSaving] = useState(false);
-  const showQuantityField = false;
   // Multi-item breakdown — credit_add only. Pre-populates from editingTransaction.items.
   const [lineItems, setLineItems] = useState(
     isEditing && Array.isArray(editingTransaction.items)
@@ -100,10 +99,6 @@ function CustomerTransactionSheet({
   const [showOverpaymentConfirm, setShowOverpaymentConfirm] = useState(false);
   const [pendingPaymentAmount, setPendingPaymentAmount] = useState(null);
 
-  // Multi-debt selection state
-  const [selectedDebtIds, setSelectedDebtIds] = useState([]);
-  const [payAllDebts, setPayAllDebts] = useState(false);
-
   const handleCameraPhoto = (dataUrl) => {
     if (replacePhotoId) {
       const proof = createPhotoProof(dataUrl);
@@ -138,7 +133,7 @@ function CustomerTransactionSheet({
   const isPayment = transactionType === CUSTOMER_TRANSACTION_TYPES.PAYMENT;
   const selectedCatalogEntry = catalogEntries.find(entry => String(entry.id) === String(catalogEntryId)) || null;
   const parsedAmount = parseFloat(parseInput(amount)) || 0;
-  const currentBalance = Math.max(Number(customer?.balance) || 0, 0);
+  const currentBalance = Math.max(Number(initialAmount ?? customer?.balance) || 0, 0);
   // In edit mode, the existing row is already in `balance`; relax validation so
   // the shopkeeper can correct typos without spurious overpayment errors.
   const hasCollectableBalance = isEditing || !isPayment || currentBalance > 0;
@@ -148,27 +143,7 @@ function CustomerTransactionSheet({
   const dueDateOptions = useMemo(() => getDueDateOptions(), []);
   const overPayment = isPayment && !isEditing && parsedAmount > currentBalance;
 
-  // Multi-debt selection state (must be before hasSelectedDebts/canSave)
-  const customerDebts = useMemo(() => {
-    if (!customer?.transactions) return [];
-    return customer.transactions
-      .filter(tx => tx.type === 'credit_add')
-      .filter(debt => (debt.remaining_amount || debt.amount) > 0)
-      .sort((a, b) => (b.due_date || 0) - (a.due_date || 0));
-  }, [customer]);
-
-  const effectiveSelectedDebtIds = payAllDebts
-    ? customerDebts.map(debt => debt.id)
-    : selectedDebtIds;
-
-  const totalSelectedDebtAmount = useMemo(() => {
-    return customerDebts
-      .filter(debt => effectiveSelectedDebtIds.includes(debt.id))
-      .reduce((sum, debt) => sum + (debt.remaining_amount || debt.amount), 0);
-  }, [customerDebts, effectiveSelectedDebtIds]);
-
-  const hasSelectedDebts = isPayment && (effectiveSelectedDebtIds.length > 0 || payAllDebts);
-  const canSave = parsedAmount > 0 && (!overPayment || hasSelectedDebts) && hasCollectableBalance && !saving;
+  const canSave = parsedAmount > 0 && hasCollectableBalance && !saving;
 
   // ─── Multi-item breakdown · derived + handlers (credit_add only) ──────
   const lineItemsTotal = lineItems.reduce((sum, l) => {
@@ -462,142 +437,6 @@ function CustomerTransactionSheet({
           </div>
         )}
 
-        {/* Multi-debt batch payment selection — payment mode only */}
-        {isPayment && customerDebts.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
-                {lang === 'am' ? 'የዱቤ ምርጫ' : 'Select Debts'}
-              </label>
-              <button
-                type="button"
-                onClick={handlePayAllToggle}
-                className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 border press-scale"
-                style={{
-                  borderRadius: 'var(--radius-sm)',
-                  borderColor: payAllDebts ? '#1B4332' : '#d1d5db',
-                  background: payAllDebts ? '#1B4332' : 'transparent',
-                  color: payAllDebts ? '#fff' : '#6b7280',
-                }}
-              >
-                {payAllDebts
-                  ? (lang === 'am' ? 'ሁሉን ምረጥ' : 'Deselect all')
-                  : (lang === 'am' ? 'ሁሉን ክፈል' : 'Pay all')}
-              </button>
-            </div>
-            <div className="space-y-1.5 max-h-40 overflow-y-auto border p-2" style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)' }}>
-              {customerDebts.map(debt => {
-                const isSelected = payAllDebts || selectedDebtIds.includes(debt.id);
-                const remaining = debt.remaining_amount || debt.amount;
-                return (
-                  <button
-                    key={debt.id}
-                    type="button"
-                    onClick={() => toggleDebtSelection(debt.id)}
-                    className="w-full flex items-center justify-between gap-2 px-3 py-2 border press-scale text-left"
-                    style={{
-                      borderColor: isSelected ? '#1B4332' : '#e8e2d8',
-                      background: isSelected ? 'rgba(27,67,50,0.06)' : '#fff',
-                      borderRadius: 'var(--radius-sm)',
-                    }}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold truncate" style={{ color: '#111827' }}>
-                        {debt.item_name || debt.item_note || (lang === 'am' ? 'ዱቤ' : 'Debt')}
-                      </p>
-                      {debt.due_date && (
-                        <p className="text-[10px]" style={{ color: '#6b7280' }}>
-                          {new Date(debt.due_date).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                    <span className="text-xs font-black flex-shrink-0" style={{ color: isSelected ? '#1B4332' : '#C4883A' }}>
-                      {fmt(remaining)} {lang === 'am' ? 'ብር' : 'birr'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            {hasSelectedDebts && (
-              <p className="text-[10px] font-bold mt-1.5" style={{ color: '#1B4332' }}>
-                {lang === 'am' ? `የተመረጠ ድምር: ${fmt(totalSelectedDebtAmount)} ብር` : `Selected total: ${fmt(totalSelectedDebtAmount)} birr`}
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Quantity (credit only) — Commit C.6.
-            Descriptive: "I gave 5 sacks of sugar for 1500 birr total".
-            Amount stays the authoritative total — qty does not multiply. */}
-        {showQuantityField && !isPayment && (
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'ብዛት (አማራጭ)' : 'Quantity (optional)'}
-            </label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const cur = parseInt(quantity, 10) || 0;
-                  setQuantity(cur > 1 ? String(cur - 1) : '');
-                }}
-                aria-label={lang === 'am' ? 'ቀንስ' : 'Decrease'}
-                className="press-scale flex items-center justify-center"
-                style={{
-                  width: 44, height: 44,
-                  border: '2px solid #e8e2d8',
-                  borderRadius: 'var(--radius-md)',
-                  background: '#fff',
-                }}
-              >
-                <Minus className="w-4 h-4" style={{ color: '#374151' }} />
-              </button>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={quantity}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(/\D/g, '');
-                  setQuantity(raw.slice(0, 4));
-                }}
-                placeholder={lang === 'am' ? 'ለምሳሌ 5' : 'e.g. 5'}
-                className="flex-1 p-2.5 border-2 focus:outline-none text-base text-center font-bold"
-                style={{
-                  borderRadius: 'var(--radius-md)',
-                  borderColor: quantity ? accentColor : '#e8e2d8',
-                  minHeight: 44,
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const cur = parseInt(quantity, 10) || 0;
-                  setQuantity(String(cur + 1));
-                }}
-                aria-label={lang === 'am' ? 'ጨምር' : 'Increase'}
-                className="press-scale flex items-center justify-center"
-                style={{
-                  width: 44, height: 44,
-                  border: '2px solid #e8e2d8',
-                  borderRadius: 'var(--radius-md)',
-                  background: '#fff',
-                }}
-              >
-                <Plus className="w-4 h-4" style={{ color: '#374151' }} />
-              </button>
-              <span className="text-xs font-semibold" style={{ color: '#9ca3af', minWidth: 70 }}>
-                {lang === 'am' ? 'ብዛት' : 'pieces'}
-              </span>
-            </div>
-            <p className="text-[10px] mt-1.5" style={{ color: '#9ca3af' }}>
-              {lang === 'am'
-                ? 'ለመመዝገብ ብቻ — መጠን ላይ ተጽዕኖ የለውም።'
-                : 'For your records only — does not multiply the amount.'}
-            </p>
-          </div>
-        )}
-
         {/* Note (optional) + Photo button inline (credit only — proof of goods) */}
         <div>
           <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
@@ -633,27 +472,29 @@ function CustomerTransactionSheet({
                   ? <span className="text-sm">...</span>
                   : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? '#16a34a' : '#6b7280' }} />
                 }
-                <span
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute',
-                    top: -7,
-                    right: -7,
-                    minWidth: 24,
-                    height: 20,
-                    padding: '0 5px',
-                    borderRadius: 999,
-                     background: accentColor,
-                    color: '#fff',
-                    border: '2px solid #fff',
-                    fontSize: 10,
-                    fontWeight: 900,
-                    lineHeight: '16px',
-                    textAlign: 'center',
-                  }}
-                >
-                  +1
-                </span>
+                {photos.length < MAX_PROOF_PHOTOS && (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      top: -7,
+                      right: -7,
+                      minWidth: 24,
+                      height: 20,
+                      padding: '0 5px',
+                      borderRadius: 999,
+                       background: accentColor,
+                      color: '#fff',
+                      border: '2px solid #fff',
+                      fontSize: 10,
+                      fontWeight: 900,
+                      lineHeight: '16px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    +{MAX_PROOF_PHOTOS - photos.length}
+                  </span>
+                )}
               </button>
             )}
           </div>
