@@ -1825,6 +1825,9 @@ export default function AppShell() {
         setTimeout(() => setReminderTarget(nextCustomer), 120);
       }
       setBulkReminderQueue(rest);
+    } else {
+      // Queue exhausted — notify user
+      fireToast(lang === 'am' ? 'ሁሉም ማሳሰቢያዎች ተልከዋል' : 'All reminders sent', 2500);
     }
   };
 
