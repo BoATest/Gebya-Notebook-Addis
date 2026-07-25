@@ -6,7 +6,9 @@ export default function AddProviderButton({ onAddProvider }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState('bank');
   const [name, setName] = useState('');
+  const [popupPos, setPopupPos] = useState({ top: 0, right: 0 });
   const containerRef = useRef(null);
+  const btnRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
@@ -19,6 +21,17 @@ export default function AddProviderButton({ onAddProvider }) {
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
+  const handleToggle = () => {
+    if (!open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setPopupPos({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      });
+    }
+    setOpen(!open);
+  };
+
   const handleSave = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -28,10 +41,11 @@ export default function AddProviderButton({ onAddProvider }) {
   };
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', flexShrink: 0 }}>
+    <div ref={containerRef} style={{ flexShrink: 0 }}>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={handleToggle}
         className="shrink-0 px-3 py-2 rounded-full text-sm font-bold border-2 border-dashed press-scale"
         style={{
           borderColor: open ? '#1B4332' : '#c9bfa8',
@@ -47,11 +61,10 @@ export default function AddProviderButton({ onAddProvider }) {
       {open && (
         <div
           style={{
-            position: 'absolute',
-            top: '100%',
-            right: 0,
-            zIndex: 50,
-            marginTop: 4,
+            position: 'fixed',
+            top: popupPos.top,
+            right: popupPos.right,
+            zIndex: 9999,
             background: '#fff',
             border: '1px solid #e8e2d8',
             borderRadius: 8,

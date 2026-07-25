@@ -768,6 +768,25 @@ function TransactionForm({
           )}
         </div>
 
+        {/* Payment chips (expense only) — lets us track which account we paid from */}
+        {isExpense && (
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              {lang === 'am' ? 'የክፍያ ዘዴ' : 'Payment Method'}
+            </label>
+            <div className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar">
+              <PaymentTypeChips
+                paymentType={paymentType}
+                provider={paymentProvider}
+                onTypeChange={setPaymentType}
+                onProviderChange={setPaymentProvider}
+                enabledProviders={enabledProviders}
+              />
+              <AddProviderButton onAddProvider={onAddProvider} />
+            </div>
+          </div>
+        )}
+
         {/* Customer */}
         {(isCredit || isCreditSale) && (
           <div>
