@@ -20,6 +20,7 @@ export default function AppHeader({
   onRetryTelegram,
 }) {
   const { lang, toggleLang, t } = useLang();
+  const T = (en, am) => lang === 'am' ? am : en;
   const setActiveTab = useAppStore(s => s.setActiveTab);
   const pendingTelegramCount = useAppStore(s => s.pendingTelegramCount);
   const retryingTelegram = useAppStore(s => s.retryingTelegram);
@@ -55,7 +56,7 @@ export default function AppHeader({
             className="flex items-center gap-1 text-[10px] sm:text-xs font-medium mt-0.5 truncate press-scale"
             style={{ color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
           >
-            {t('Recording as', 'እየመዘገቡ ያሉት')} {currentActorLabel || 'Owner'}
+            {T('Recording as', 'እየመዘገቡ ያሉት')} {currentActorLabel || 'Owner'}
             <ChevronDown className="w-3 h-3" />
           </button>
         </div>
@@ -72,7 +73,7 @@ export default function AppHeader({
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-4 py-3 text-xs font-black uppercase tracking-wide text-gray-500 border-b" style={{ borderColor: '#f0ece4' }}>
-                {t('Switch actor', 'ተጠቃሚ ቀይር')}
+                {T('Switch actor', 'ተጠቃሚ ቀይር')}
               </div>
               <div className="py-1">
                 <button
@@ -84,7 +85,7 @@ export default function AppHeader({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold text-gray-900">{shopProfile.name || 'Owner'}</div>
-                    <div className="text-[11px] text-gray-500">{t('Owner', 'ባለቤት')}</div>
+                    <div className="text-[11px] text-gray-500">{T('Owner', 'ባለቤት')}</div>
                   </div>
                   {!activeStaffMemberId && <Check className="w-4 h-4 text-green-700 flex-shrink-0" />}
                 </button>
