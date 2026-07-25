@@ -7,7 +7,7 @@ export default function HeroStatus({
   closingDone,
   cashVariance,
   overdueCount,
-  staffRows,
+  staffRows = [],
   period,
   lang,
   onAction,

@@ -4,7 +4,7 @@ import { computeRecommendations } from '../utils/shopStory';
 export default function WhatINoticed({
   metrics,
   priorMetrics,
-  staffSummary,
+  staffSummary = null,
   overdueCount,
   closingDone,
   creditCollected,

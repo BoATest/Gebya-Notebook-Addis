@@ -88,6 +88,9 @@ function CustomerDetail({
   onEditCustomer,              // Commit C.2 · Edit customer (name/phone/Telegram/photo)
   onSelectTransaction,         // NEW · tap transaction row → open detail sheet
   onTransfer,                  // NEW · transfer dube to another customer
+  onArchiveCustomer,           // Archive / restore customer
+  onRecordPromise,             // Record promise-to-pay date
+  onClearPromise,              // Clear promise-to-pay
   isOnline = true,
   isSlowConnection = false,
 }) {
@@ -503,7 +506,89 @@ function CustomerDetail({
         )}
       </div>
 
-      {/* ═══ 4. REMINDER HISTORY (collapsible) ═══════════════════════════════ */}
+      {/* ═══ 4. PROMISE TO PAY ═══════════════════════════════════════════ */}
+      {onRecordPromise && (
+        (() => {
+          const promiseDate = customer.promised_pay_date;
+          const now = Date.now();
+          const isMissed = promiseDate && promiseDate < now;
+          const isToday = promiseDate && Math.abs(promiseDate - now) < 86400000;
+          return (
+            <div style={{ padding: '8px 0' }}>
+              {promiseDate ? (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 14px', borderRadius: 10,
+                  background: isMissed ? '#fef2f2' : '#fffbeb',
+                  border: `1px solid ${isMissed ? '#fecaca' : '#fde68a'}`,
+                }}>
+                  <span style={{
+                    fontSize: '0.78rem', fontWeight: 600,
+                    color: isMissed ? '#991b1b' : '#92400e',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    📅 {isMissed
+                      ? (lang === 'am'
+                        ? `የጠበቀው ቀን አልፏል — ${formatEthiopian(promiseDate)}`
+                        : `Missed promise — was due ${formatEthiopian(promiseDate)}`)
+                      : isToday
+                        ? (lang === 'am' ? 'ዛሬ ይከፍላል ብሏል' : 'Promised to pay today')
+                        : (lang === 'am'
+                          ? `እስከ ${formatEthiopian(promiseDate)} ይከፍላል ብሏል`
+                          : `Promised to pay by ${formatEthiopian(promiseDate)}`)}
+                    {customer.promise_note && (
+                      <span style={{ fontWeight: 400, opacity: 0.8 }}>
+                        — {customer.promise_note}
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onClearPromise(customer.id)}
+                    style={{
+                      background: 'none', border: 'none',
+                      fontSize: '0.65rem', fontWeight: 700, color: '#6b7280',
+                      cursor: 'pointer', padding: '4px 8px',
+                    }}
+                  >
+                    {lang === 'am' ? 'አስወግድ' : 'Clear'}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const dateStr = window.prompt(
+                        lang === 'am'
+                          ? 'የሚከፍሉበትን ቀን ያስገቡ (YYYY-MM-DD):'
+                          : 'Enter promised pay date (YYYY-MM-DD):'
+                      );
+                      if (!dateStr) return;
+                      const parsed = new Date(dateStr + 'T23:59:59').getTime();
+                      if (isNaN(parsed)) return;
+                      const note = window.prompt(
+                        lang === 'am' ? 'ማስታወሻ (አማራጭ):' : 'Note (optional):'
+                      ) || '';
+                      onRecordPromise(customer.id, parsed, note);
+                    }}
+                    style={{
+                      background: 'none', border: '1px dashed #d1d5db',
+                      borderRadius: 8, padding: '8px 14px',
+                      fontSize: '0.72rem', fontWeight: 600, color: '#9ca3af',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    📅 {lang === 'am' ? 'የተስፋፉበትን ቀን ይመዝግቡ' : 'Record Promise'}
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()
+      )}
+
+      {/* ═══ 5. REMINDER HISTORY (collapsible) ═══════════════════════════════ */}
       {customer.has_overdue && (
         <CustomerReminderHistory
           customerId={customer.id || customer.customer_id}
@@ -618,6 +703,41 @@ function CustomerDetail({
           ? 'በደህንነት ይቀመጣል። መጠኖች በራስ ሰር ይደብቃሉ።'
           : 'Backed up securely. Amounts auto-hide for privacy.'}
       </p>
+
+      {/* ═══ 7. ARCHIVE / RESTORE ═══════════════════════════════════ */}
+      {onArchiveCustomer && (
+        <div style={{ textAlign: 'center', padding: '4px 14px 12px' }}>
+          <button
+            type="button"
+            onClick={() => {
+              if (customer.archived_at) {
+                onArchiveCustomer(customer);
+              } else if (window.confirm(
+                lang === 'am'
+                  ? `"${customer.display_name}" አርክስ? ${hasBalance ? `ይህ ደንበኛ ${fmt(balance)} ብር ዕዳ አለበት። የአርክስ መዝገቦች ለታሪክ ይቀመጣሉ።` : ''}`
+                  : `Archive "${customer.display_name}"?${hasBalance ? ` This customer has ${fmt(balance)} birr outstanding. Archived records are preserved for history.` : ''}`
+              )) {
+                onArchiveCustomer(customer);
+              }
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '0.7rem',
+              color: customer.archived_at ? '#047857' : '#9ca3af',
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: '6px 12px',
+              borderRadius: 8,
+              opacity: 0.7,
+            }}
+          >
+            {customer.archived_at
+              ? (lang === 'am' ? 'መልስ' : 'Restore')
+              : (lang === 'am' ? 'አርክስ' : 'Archive')}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { Bell, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { Bell, Settings, ChevronDown, Check } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { useAppStore } from '../stores/appStore';
 import { useAuthStore } from '../stores/authStore';
@@ -8,6 +9,9 @@ import BusinessSelector from './BusinessSelector';
 export default function AppHeader({
   shopProfile,
   currentActorLabel,
+  staffMembers = [],
+  activeStaffMemberId,
+  onSetActiveStaffMember,
   pwa,
   unreadNotifCount,
   conflictWarning,
@@ -20,6 +24,9 @@ export default function AppHeader({
   const pendingTelegramCount = useAppStore(s => s.pendingTelegramCount);
   const retryingTelegram = useAppStore(s => s.retryingTelegram);
   const currentBusinessId = useAuthStore(s => s.currentBusinessId);
+  const [showActorPicker, setShowActorPicker] = useState(false);
+
+  const activeStaff = (staffMembers || []).filter(m => m.active !== false);
 
   return (
     <header
@@ -43,10 +50,64 @@ export default function AppHeader({
           <h1 className="text-sm sm:text-base font-bold tracking-tight leading-tight truncate" style={{ color: '#1a1a1a' }}>
             <BusinessSelector shopProfile={shopProfile} currentBusinessId={currentBusinessId} />
           </h1>
-          <p className="text-[10px] sm:text-xs font-medium mt-0.5 truncate" style={{ color: '#6b7280' }}>
-            Recording as {currentActorLabel || 'Owner'} · {String(shopProfile.role || 'owner').replace(/_/g, ' ')}
-          </p>
+          <button
+            onClick={() => setShowActorPicker(!showActorPicker)}
+            className="flex items-center gap-1 text-[10px] sm:text-xs font-medium mt-0.5 truncate press-scale"
+            style={{ color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          >
+            {t('Recording as', 'እየመዘገቡ ያሉት')} {currentActorLabel || 'Owner'}
+            <ChevronDown className="w-3 h-3" />
+          </button>
         </div>
+
+        {showActorPicker && (
+          <div
+            className="fixed inset-0 z-50"
+            onClick={() => setShowActorPicker(false)}
+            style={{ background: 'rgba(0,0,0,0.3)' }}
+          >
+            <div
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-72 bg-white rounded-2xl overflow-hidden shadow-xl border"
+              style={{ borderColor: '#e8e2d8' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-4 py-3 text-xs font-black uppercase tracking-wide text-gray-500 border-b" style={{ borderColor: '#f0ece4' }}>
+                {t('Switch actor', 'ተጠቃሚ ቀይር')}
+              </div>
+              <div className="py-1">
+                <button
+                  onClick={() => { onSetActiveStaffMember?.(null); setShowActorPicker(false); }}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-50"
+                >
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0" style={{ background: '#1B4332' }}>
+                    {shopProfile.name?.charAt(0)?.toUpperCase() || 'O'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-gray-900">{shopProfile.name || 'Owner'}</div>
+                    <div className="text-[11px] text-gray-500">{t('Owner', 'ባለቤት')}</div>
+                  </div>
+                  {!activeStaffMemberId && <Check className="w-4 h-4 text-green-700 flex-shrink-0" />}
+                </button>
+                {activeStaff.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => { onSetActiveStaffMember?.(m.id); setShowActorPicker(false); }}
+                    className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-50"
+                  >
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style={{ background: '#f0fdf4', color: '#16a34a' }}>
+                      {(m.display_name || 'S').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-gray-900 truncate">{m.display_name}</div>
+                      <div className="text-[11px] text-gray-500">{m.role || 'staff'}</div>
+                    </div>
+                    {String(activeStaffMemberId) === String(m.id) && <Check className="w-4 h-4 text-green-700 flex-shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <button
           onClick={toggleLang}

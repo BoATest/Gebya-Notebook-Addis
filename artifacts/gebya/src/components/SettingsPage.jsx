@@ -1,13 +1,13 @@
-import { Suspense, useState, lazy } from 'react';
+import { Suspense, useState, lazy, useMemo } from 'react';
 import { Search, X } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { useLang } from '../context/LangContext';
 import { useTheme } from '../context/ThemeContext';
+import { usePermissionsStore } from '../stores/permissionsStore';
 import { fireToast } from './Toast';
 
 import ShopTab from './settings/tabs/ShopTab';
 import MoneyTab from './settings/tabs/MoneyTab';
-import StaffTab from './settings/tabs/StaffTab';
 import DataTab from './settings/tabs/DataTab';
 import AdminMetricsView from './AdminMetricsView';
 import CrossShopCurationQueue from './CrossShopCurationQueue';
@@ -18,7 +18,6 @@ const AdminDashboard = lazy(() => import('./AdminDashboard.jsx'));
 const TABS = [
   { id: 'shop', labelEn: 'Shop', labelAm: 'ሱቅ' },
   { id: 'money', labelEn: 'Money', labelAm: 'ገንዘብ' },
-  { id: 'staff', labelEn: 'Staff', labelAm: 'ሰራተኞች' },
   { id: 'data', labelEn: 'Data', labelAm: 'ውሂብ' },
 ];
 
@@ -37,16 +36,7 @@ function SettingsPage({
   supplierSummaries,
   shopProfile,
   staffMembers,
-  activeStaffMemberId,
-  currentActorLabel,
   onProfileSave,
-  onSaveStaffMember,
-  onUpdateStaffMember,
-  onDeactivateStaffMember,
-  onReactivateStaffMember,
-  onSetActiveStaffMember,
-  onApproveDevice,
-  onRejectDevice,
   paymentChannels,
   onSavePaymentChannels,
   recurringExpenses,
@@ -64,6 +54,8 @@ function SettingsPage({
   const { theme, setTheme } = useTheme();
   const { hidden, toggle } = usePrivacy();
   const { lang, toggleLang, t } = useLang();
+  const hasPermission = usePermissionsStore(s => s.hasPermission);
+  const canManageTeam = hasPermission('can_manage_team');
   const [activeTab, setActiveTab] = useState('shop');
   const [dismissInstall, setDismissInstall] = useState(false);
   const [pendingCardId, setPendingCardId] = useState(null);
@@ -230,21 +222,6 @@ function SettingsPage({
               onUpgrade={onUpgrade}
             />
           )}
-          {activeTab === 'staff' && (
-            <StaffTab
-              staffMembers={staffMembers}
-              activeStaffMemberId={activeStaffMemberId}
-              currentActorLabel={currentActorLabel}
-              onSetActiveStaffMember={onSetActiveStaffMember}
-              onSaveStaffMember={onSaveStaffMember}
-              onUpdateStaffMember={onUpdateStaffMember}
-              onDeactivateStaffMember={onDeactivateStaffMember}
-              onReactivateStaffMember={onReactivateStaffMember}
-              onApproveDevice={onApproveDevice}
-              onRejectDevice={onRejectDevice}
-              lang={lang}
-            />
-          )}
           {activeTab === 'data' && (
             <DataTab
               transactions={transactions}
@@ -292,6 +269,41 @@ function SettingsPage({
             {adminSection === 'metrics' && <div className="px-4 pb-3"><AdminMetricsView shopId={shopId} /></div>}
             {adminSection === 'curation' && <div className="px-4 pb-3"><CrossShopCurationQueue /></div>}
             {adminSection === 'admin' && <div className="px-4 pb-3"><Suspense fallback={<div className="text-xs text-gray-400 py-4">Loading...</div>}><AdminDashboard /></Suspense></div>}
+          </div>
+        )}
+
+        {/* My Profile card — for staff without manage_team permission */}
+        {!canManageTeam && staffMembers && staffMembers.length > 0 && (
+          <div className="bg-white rounded-2xl border overflow-hidden mt-4" style={{ borderColor: '#e8e2d8' }}>
+            <div className="px-4 py-3 border-b" style={{ borderColor: '#f0ece4', background: '#fcfbf8' }}>
+              <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                {lang === 'am' ? 'የእኔ መገለጫ' : 'MY PROFILE'}
+              </span>
+            </div>
+            <div className="px-4 py-3 space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white" style={{ background: '#1B4332' }}>
+                  {(shopProfile?.name || 'S').charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-gray-900">{shopProfile?.name || 'Staff'}</div>
+                  <div className="text-xs font-medium" style={{ color: '#6b7280' }}>
+                    {lang === 'am' ? 'ሰራተኛ' : 'Staff'} · {shopProfile?.role || 'staff'}
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mt-2">
+                {lang === 'am' ? 'የቡድን አባላት' : 'Team'}
+              </div>
+              {staffMembers.filter(m => m.active !== false).map(m => (
+                <div key={m.id} className="flex items-center gap-2 py-1">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: '#f3f4f6', color: '#6b7280' }}>
+                    {(m.display_name || 'S').charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-xs font-medium text-gray-700">{m.display_name}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

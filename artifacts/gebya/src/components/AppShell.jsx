@@ -19,9 +19,11 @@ import GlobalModals from './GlobalModals';
 
 import TransferSheet from './TransferSheet';
 import { ToastContainer, fireToast } from './Toast';
+import StaffPage from './StaffPage';
 import { buildPhotoFields, normalizePhotos } from '../utils/photoProof';
 import { getCurrentEthiopianDate, formatEthiopian, formatEthiopianTime } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/numformat';
+import { usePermissionsStore } from '../stores/permissionsStore';
 import { useSyncStore } from '../stores/syncStore';
 import { buildCustomerSummaries, getCustomerBalance, insertCustomerTransaction, sortCustomerTransactions } from '../utils/customerLedger';
 import { fifoAllocatePayment, normalizeCustomerDraft, normalizeCustomerTransactionDraft } from '../utils/customerLedgerMutations';
@@ -663,6 +665,14 @@ export default function AppShell() {
     getActorDisplayLabel({ shopProfile, staffMembers, activeStaffMemberId })
   ), [shopProfile, staffMembers, activeStaffMemberId]);
 
+  const storeRole = usePermissionsStore(s => s.role);
+  const storePermissions = usePermissionsStore(s => s.permissions);
+  const canManageTeam = useMemo(() => {
+    const role = storeRole || shopProfile?.role;
+    if (role === 'owner' || role === 'manager') return true;
+    return storePermissions?.can_manage_team === true;
+  }, [storeRole, storePermissions, shopProfile?.role]);
+
   const rememberLastSave = useCallback(async (snapshot) => {
     if (!snapshot) return;
     setLastSavedSnapshot(snapshot);
@@ -759,14 +769,14 @@ export default function AppShell() {
           await db.settings.put({ key: 'shop_payment_channels', value: JSON.stringify(paymentChannels) });
         } catch { /* non-critical â€” next save will retry */ }
       }
-      txns.sort((a, b) => b.created_at - a.created_at);
-      setTransactions(txns);
+      const sortedTxns = [...txns].sort((a, b) => b.created_at - a.created_at);
+      setTransactions(sortedTxns);
       setLedgerCustomers(customerRows);
       setLedgerTransactions(sortCustomerTransactions(customerTxRows));
       setCatalogEntries(catalogRows || []);
       setSuppliers(supplierRows || []);
       setSupplierTransactions(supplierTxRows || []);
-      setStaffMembers((staffRows || []).sort((a, b) => {
+      setStaffMembers([...(staffRows || [])].sort((a, b) => {
         if ((a.active !== false) !== (b.active !== false)) return a.active === false ? 1 : -1;
         return String(a.display_name || '').localeCompare(String(b.display_name || ''));
       }));

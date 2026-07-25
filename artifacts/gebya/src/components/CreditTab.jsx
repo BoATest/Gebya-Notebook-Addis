@@ -23,6 +23,9 @@ export default function CreditTab({
   onSelectSupplierTransaction,
   onSetReminderDefaultChannel,
   onTransfer,
+  onArchiveCustomer,
+  onRecordPromise,
+  onClearPromise,
 }) {
   const { t, lang } = useLang();
   const creditView = useAppStore(s => s.creditView);
@@ -216,6 +219,9 @@ export default function CreditTab({
               onEditCustomer={(c) => setCustomerEditTarget(c)}
               onSelectTransaction={(tx) => onSelectTransaction(tx)}
               onTransfer={onTransfer}
+              onArchiveCustomer={onArchiveCustomer}
+              onRecordPromise={onRecordPromise}
+              onClearPromise={onClearPromise}
             />
           </Suspense>
         ) : (

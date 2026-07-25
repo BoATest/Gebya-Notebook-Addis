@@ -7,27 +7,19 @@ import { useTimeOfDay } from '../hooks/useTimeOfDay';
 import {
   ALL_SCOPE,
   buildReportRows,
-  buildStaffReportRows,
   computeReportMetrics,
   startOfLocalDay,
 } from '../utils/reportSelectors';
-import {
-  computeCreditSummary,
-  computeStaffSummary,
-  computeStaffReconciliation,
-} from '../utils/shopStory';
+import { computeCreditSummary } from '../utils/shopStory';
 
 import HeroStatus from './HeroStatus';
 import TodayBusiness from './TodayBusiness';
 import DoThisNext from './DoThisNext';
-import StaffReportSheet from './StaffReportSheet';
 import WhatINoticed from './WhatINoticed';
 import TodayStory from './TodayStory';
 import TimelineView from './TimelineView';
 import SearchSheet from './SearchSheet';
 import ErrorBoundary from './report/ErrorBoundary';
-import SettlementSection from './report/SettlementSection';
-import SettlementAlertBanner from './report/SettlementAlertBanner';
 
 const DAY_MS = 86400000;
 
@@ -79,7 +71,6 @@ export default function ReportView({
   catalogEntries = [],
   shopProfile,
   onEdit,
-  activeStaffMemberId = null,
   scope = ALL_SCOPE,
 }) {
   const { lang } = useLang();
@@ -111,8 +102,6 @@ export default function ReportView({
     try { localStorage.setItem(closingKey, JSON.stringify(closingState)); } catch {}
   }, [closingKey, closingState]);
 
-  const isStaffView = Boolean(activeStaffMemberId);
-  const viewerStaffId = isStaffView ? activeStaffMemberId : null;
   const { period } = useTimeOfDay();
   const isToday = timeRange === 'today';
 
@@ -131,13 +120,11 @@ export default function ReportView({
   const [from, to] = rangeBounds;
 
   const reportRows = useMemo(
-    () => buildReportRows({ transactions, ledgerTransactions, customers, from, to, scope, viewerStaffId, filters: {} }),
-    [transactions, ledgerTransactions, customers, from, to, scope, viewerStaffId]
+    () => buildReportRows({ transactions, ledgerTransactions, customers, from, to, scope, viewerStaffId: null, filters: {} }),
+    [transactions, ledgerTransactions, customers, from, to, scope]
   );
 
   const metrics = useMemo(() => computeReportMetrics(reportRows), [reportRows]);
-  const staffRows = useMemo(() => buildStaffReportRows(reportRows), [reportRows]);
-  const staffSummary = useMemo(() => computeStaffSummary(staffRows, lang), [staffRows, lang]);
   const creditSummary = useMemo(
     () => computeCreditSummary(enrichedCustomerSummaries, lang),
     [enrichedCustomerSummaries, lang]
@@ -149,10 +136,10 @@ export default function ReportView({
     const priorRows = buildReportRows({
       transactions, ledgerTransactions, customers,
       from: yesterdayStart, to: todayStart,
-      scope, viewerStaffId, filters: {},
+      scope, viewerStaffId: null, filters: {},
     });
     return computeReportMetrics(priorRows);
-  }, [transactions, ledgerTransactions, customers, todayStart, scope, viewerStaffId, isToday]);
+  }, [transactions, ledgerTransactions, customers, todayStart, scope, isToday]);
 
 
 
@@ -173,16 +160,6 @@ export default function ReportView({
     const totalExpenses = Array.from(expensesByDay.values()).reduce((s, v) => s + v, 0);
     return { avgSalesCount: Math.round(totalSales / 7), avgExpenses: Math.round(totalExpenses / 7) };
   }, [transactions, ledgerTransactions, todayStart, isToday]);
-
-  const unconfirmedStaffCount = useMemo(() =>
-    staffRows.filter(s => !closingState.staffReports?.[s.id]?.confirmed).length,
-    [staffRows, closingState.staffReports]
-  );
-
-  const staffReconciliation = useMemo(() =>
-    computeStaffReconciliation(staffRows, closingState),
-    [staffRows, closingState]
-  );
 
   const isEmpty = reportRows.length === 0 && (ledgerTransactions || []).length === 0 && isToday;
 
@@ -231,13 +208,6 @@ export default function ReportView({
 
   const handleClose = ({ cashInHand, cashVariance }) => {
     setClosingState(prev => ({ ...prev, done: true, cashInHand, cashVariance }));
-  };
-
-  const handleStaffConfirm = (staffId, report) => {
-    setClosingState(prev => ({
-      ...prev,
-      staffReports: { ...prev.staffReports, [staffId]: report },
-    }));
   };
 
   const timeRangeLabel = isToday
@@ -411,35 +381,18 @@ export default function ReportView({
           {isToday ? (
             <>
               {/* 1. Hero Status */}
-              {!isStaffView && (
-                <>
-                  <SectionHeading label={lang === 'am' ? 'የሱቅ ሁኔታ' : 'SHOP STATUS'} />
-                  <ErrorBoundary>
-                    <HeroStatus
-                      metrics={metrics}
-                      closingDone={closingState.done}
-                      cashVariance={closingState.cashVariance}
-                      overdueCount={creditSummary.overdueCount}
-                      staffRows={staffReconciliation}
-                      period={period}
-                      lang={lang}
-                      onAction={handleAction}
-                    />
-                  </ErrorBoundary>
-                </>
-              )}
-
-              {/* Settlement alerts banner */}
-              {!isStaffView && (
-                <SettlementAlertBanner
+              <SectionHeading label={lang === 'am' ? 'የሱቅ ሁኔታ' : 'SHOP STATUS'} />
+              <ErrorBoundary>
+                <HeroStatus
+                  metrics={metrics}
+                  closingDone={closingState.done}
+                  cashVariance={closingState.cashVariance}
+                  overdueCount={creditSummary.overdueCount}
+                  period={period}
                   lang={lang}
-                  isStaffView={isStaffView}
-                  onFocus={() => {
-                    const el = document.getElementById('settlement-section');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                  }}
+                  onAction={handleAction}
                 />
-              )}
+              </ErrorBoundary>
 
               {/* 2. Today's Business */}
               <SectionHeading label={lang === 'am' ? 'የዛሬ ንግድ' : "TODAY'S BUSINESS"} />
@@ -450,63 +403,44 @@ export default function ReportView({
               </div>
 
               {/* 3. Do This Next */}
-              {!isStaffView && (
-                <>
-                  <SectionHeading label={lang === 'am' ? 'በመቀጠል ይህን አድርግ' : 'DO THIS NEXT'} />
-                  <ErrorBoundary>
-                    <DoThisNext
-                      closingDone={closingState.done}
-                      cashExpected={metrics.cashExpected}
-                      cashVariance={closingState.cashVariance}
-                      overdueCount={creditSummary.overdueCount}
-                      overdueAmount={creditSummary.overdueAmount}
-                      largestOverdueDays={creditSummary.overdue[0]?.overdue_days || 0}
-                      unconfirmedStaff={unconfirmedStaffCount}
-                      salesCount={metrics.saleRows?.length || 0}
-                      avgSalesCount={avgSalesCount}
-                      expenses={metrics.spentToday}
-                      avgExpenses={avgExpenses}
-                      lang={lang}
-                      onAction={handleAction}
-                      staffReportContent={
-                        <StaffReportSheet staffRows={staffRows} closingState={closingState} lang={lang} onStaffConfirm={handleStaffConfirm} />
-                      }
-                    />
-                  </ErrorBoundary>
-                </>
-              )}
+              <SectionHeading label={lang === 'am' ? 'በመቀጠል ይህን አድርግ' : 'DO THIS NEXT'} />
+              <ErrorBoundary>
+                <DoThisNext
+                  closingDone={closingState.done}
+                  cashExpected={metrics.cashExpected}
+                  cashVariance={closingState.cashVariance}
+                  overdueCount={creditSummary.overdueCount}
+                  overdueAmount={creditSummary.overdueAmount}
+                  largestOverdueDays={creditSummary.overdue[0]?.overdue_days || 0}
+                  salesCount={metrics.saleRows?.length || 0}
+                  avgSalesCount={avgSalesCount}
+                  expenses={metrics.spentToday}
+                  avgExpenses={avgExpenses}
+                  lang={lang}
+                  onAction={handleAction}
+                />
+              </ErrorBoundary>
 
               {/* 4. What I Noticed */}
-              {!isStaffView && (
-                <>
-                  <SectionHeading label={lang === 'am' ? 'ያስተዋልኩት' : 'WHAT I NOTICED'} />
-                  <ErrorBoundary>
-                    <WhatINoticed
-                      metrics={metrics} priorMetrics={priorMetrics} staffSummary={staffSummary}
-                      overdueCount={creditSummary.overdueCount} closingDone={closingState.done}
-                      creditCollected={metrics.creditCollected} lang={lang}
-                    />
-                  </ErrorBoundary>
-                </>
-              )}
+              <SectionHeading label={lang === 'am' ? 'ያስተዋልኩት' : 'WHAT I NOTICED'} />
+              <ErrorBoundary>
+                <WhatINoticed
+                  metrics={metrics} priorMetrics={priorMetrics}
+                  overdueCount={creditSummary.overdueCount} closingDone={closingState.done}
+                  creditCollected={metrics.creditCollected} lang={lang}
+                />
+              </ErrorBoundary>
 
               {/* 5. Today's Story */}
-              {!isStaffView && (
-                <>
-                  <SectionHeading label={lang === 'am' ? 'የዛሬ ታሪክ' : "TODAY'S STORY"} />
-                  <ErrorBoundary>
-                    <TodayStory
-                      metrics={metrics} staffSummary={staffSummary}
-                      overdueCount={creditSummary.overdueCount} overdueAmount={creditSummary.overdueAmount}
-                      closingDone={closingState.done} cashVariance={closingState.cashVariance}
-                      creditCollected={metrics.creditCollected} expenseCount={metrics.expenseRows?.length || 0} lang={lang}
-                    />
-                  </ErrorBoundary>
-                </>
-              )}
-
-              {/* 6. Staff Settlement */}
-              <SettlementSection lang={lang} isStaffView={isStaffView} />
+              <SectionHeading label={lang === 'am' ? 'የዛሬ ታሪክ' : "TODAY'S STORY"} />
+              <ErrorBoundary>
+                <TodayStory
+                  metrics={metrics}
+                  overdueCount={creditSummary.overdueCount} overdueAmount={creditSummary.overdueAmount}
+                  closingDone={closingState.done} cashVariance={closingState.cashVariance}
+                  creditCollected={metrics.creditCollected} expenseCount={metrics.expenseRows?.length || 0} lang={lang}
+                />
+              </ErrorBoundary>
             </>
           ) : (
             /* ════════════════════════════════════════════ */
@@ -514,33 +448,25 @@ export default function ReportView({
             /* ════════════════════════════════════════════ */
             <>
               {/* Hero Status for past days (retro close) */}
-              {!isStaffView && (
-                <>
-                  <SectionHeading label={lang === 'am' ? 'ማጠቃለያ' : 'SUMMARY'} />
-                  <ErrorBoundary>
-                    <HeroStatus
-                      metrics={metrics}
-                      closingDone={closingState.done}
-                      cashVariance={closingState.cashVariance}
-                      overdueCount={creditSummary.overdueCount}
-                      staffRows={staffReconciliation}
-                      period={period}
-                      lang={lang}
-                      onAction={handleAction}
-                      isPast
-                    />
-                  </ErrorBoundary>
-                </>
-              )}
+              <SectionHeading label={lang === 'am' ? 'ማጠቃለያ' : 'SUMMARY'} />
+              <ErrorBoundary>
+                <HeroStatus
+                  metrics={metrics}
+                  closingDone={closingState.done}
+                  cashVariance={closingState.cashVariance}
+                  overdueCount={creditSummary.overdueCount}
+                  period={period}
+                  lang={lang}
+                  onAction={handleAction}
+                  isPast
+                />
+              </ErrorBoundary>
 
               {/* Business Summary */}
               <SectionHeading label={lang === 'am' ? 'የንግድ ማጠቃለያ' : 'BUSINESS SUMMARY'} />
               <ErrorBoundary>
                 <TodayBusiness metrics={metrics} closingState={closingState} lang={lang} onClose={handleClose} />
               </ErrorBoundary>
-
-              {/* Staff Settlement (compact) */}
-              <SettlementSection lang={lang} isStaffView={isStaffView} />
             </>
           )}
 

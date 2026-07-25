@@ -267,9 +267,6 @@ function CustomerTransactionSheet({
         payment_method: isPayment ? paymentMethod : null,
         payment_provider: isPayment && paymentMethod !== 'cash' ? paymentProvider : null,
         sale_settlement_mode: isPayment ? 'paid' : null,
-        paid_amount: isPayment ? parsedAmount : null,
-        remaining_amount: 0,
-        settlement_due_date: null,
         editing_id: editingTransaction?.id || null,
       });
       if (didSave) onDone?.();

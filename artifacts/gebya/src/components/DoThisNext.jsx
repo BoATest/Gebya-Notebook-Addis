@@ -12,45 +12,26 @@ export default function DoThisNext({
   overdueCount,
   overdueAmount,
   largestOverdueDays,
-  unconfirmedStaff,
   salesCount,
   avgSalesCount,
   expenses,
   avgExpenses,
   lang,
   onAction,
-  staffReportContent,
 }) {
   const items = buildActionItems({
     closingDone, cashExpected, cashVariance, overdueCount, overdueAmount,
-    largestOverdueDays, unconfirmedStaff, salesCount, avgSalesCount,
+    largestOverdueDays, salesCount, avgSalesCount,
     expenses, avgExpenses, lang,
   });
 
-  if (items.length === 0 && !unconfirmedStaff.length) return null;
+  if (items.length === 0) return null;
 
   return (
     <div style={{ marginTop: 10 }}>
       {items.map((item, i) => (
         <ActionCard key={i} item={item} lang={lang} onAction={onAction} />
       ))}
-      {unconfirmedStaff > 0 && (
-        <ActionCard
-          item={{
-            urgency: 'urgent',
-            icon: '👥',
-            message: lang === 'am'
-              ? `${unconfirmedStaff} ሰራተኛ ገንዘብ አላስረከበም`
-              : `${unconfirmedStaff} staff haven't reported cash`,
-            detail: lang === 'am' ? 'ከሰራተኞች ገንዘብ ሰብስብ' : 'Collect cash from staff',
-            cta: lang === 'am' ? '👥 ሰብስብ →' : '👥 Collect from Staff →',
-            actionType: 'collect_staff',
-          }}
-          lang={lang}
-          onAction={onAction}
-          expandedContent={staffReportContent}
-        />
-      )}
     </div>
   );
 }
@@ -118,7 +99,7 @@ function ActionCard({ item, lang, onAction, expandedContent }) {
 
 function buildActionItems({
   closingDone, cashExpected, cashVariance, overdueCount, overdueAmount,
-  largestOverdueDays, unconfirmedStaff, salesCount, avgSalesCount,
+  largestOverdueDays, salesCount, avgSalesCount,
   expenses, avgExpenses, lang,
 }) {
   const items = [];

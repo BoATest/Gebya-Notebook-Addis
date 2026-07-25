@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 import { buildCustomerSummaries, getCustomerBalance, sortCustomerTransactions } from '../utils/customerLedger.js';
-import { normalizeCustomerDraft, normalizeCustomerTransactionDraft } from '../utils/customerLedgerMutations.js';
+import { fifoAllocatePayment, normalizeCustomerDraft, normalizeCustomerTransactionDraft } from '../utils/customerLedgerMutations.js';
 import { buildSupplierSummaries, getSupplierBalance, SUPPLIER_TRANSACTION_TYPES } from '../utils/supplierLedger.js';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes.js';
 
@@ -104,6 +104,8 @@ runTest('customer transaction draft accepts valid credit payload and trims note'
     amount: 250,
     item_note: 'Sugar',
     due_date: 1700000000000,
+    payment_method: 'cash',
+    payment_provider: null,
   });
 });
 
@@ -164,6 +166,86 @@ runTest('unknown supplier transaction types do not change balance', () => {
   ]);
 
   assert.equal(balance, 250);
+});
+
+// ─── FIFO allocation tests ─────────────────────────────────────────
+runTest('fifo allocates single payment to oldest credit first', () => {
+  const credits = [
+    { id: 1, amount: 200, paid_amount: 0 },
+    { id: 2, amount: 100, paid_amount: 0 },
+  ];
+  const { allocation, creditsToUpdate } = fifoAllocatePayment(150, credits);
+
+  assert.equal(allocation.length, 2);
+  assert.equal(allocation[0].credit_id, 1);
+  assert.equal(allocation[0].amount, 150);
+  assert.equal(allocation[1].credit_id, 2);
+  assert.equal(allocation[1].amount, 0);
+  assert.equal(creditsToUpdate.length, 2);
+  assert.equal(creditsToUpdate[0].id, 1);
+  assert.equal(creditsToUpdate[0].paid_amount, 150);
+  assert.equal(creditsToUpdate[0].status, 'partial');
+  assert.equal(creditsToUpdate[1].id, 2);
+  assert.equal(creditsToUpdate[1].paid_amount, 0);
+  assert.equal(creditsToUpdate[1].status, 'partial');
+});
+
+runTest('fifo allocates payment across multiple credits', () => {
+  const credits = [
+    { id: 1, amount: 200, paid_amount: 0 },
+    { id: 2, amount: 100, paid_amount: 0 },
+  ];
+  const { allocation, creditsToUpdate } = fifoAllocatePayment(250, credits);
+
+  assert.deepEqual(allocation, [
+    { credit_id: 1, amount: 200 },
+    { credit_id: 2, amount: 50 },
+  ]);
+  assert.equal(creditsToUpdate.length, 2);
+  assert.equal(creditsToUpdate[0].status, 'paid');
+  assert.equal(creditsToUpdate[1].status, 'partial');
+});
+
+runTest('fifo handles overpayment (excess becomes prepay)', () => {
+  const credits = [
+    { id: 1, amount: 100, paid_amount: 0 },
+  ];
+  const { allocation, creditsToUpdate } = fifoAllocatePayment(150, credits);
+
+  assert.equal(allocation.length, 1);
+  assert.equal(allocation[0].credit_id, 1);
+  assert.equal(allocation[0].amount, 100);
+  assert.equal(creditsToUpdate.length, 1);
+  assert.equal(creditsToUpdate[0].status, 'paid');
+});
+
+runTest('fifo handles partial payment against existing paid_amount', () => {
+  const credits = [
+    { id: 1, amount: 500, paid_amount: 200 },
+    { id: 2, amount: 300, paid_amount: 0 },
+  ];
+  const { allocation, creditsToUpdate } = fifoAllocatePayment(200, credits);
+
+  assert.equal(allocation.length, 2);
+  assert.equal(allocation[0].credit_id, 1);
+  assert.equal(allocation[0].amount, 200);
+  assert.equal(creditsToUpdate[0].paid_amount, 400);
+  assert.equal(creditsToUpdate[0].status, 'partial');
+  assert.equal(creditsToUpdate.length, 2);
+});
+
+runTest('fifo ignores fully paid credits', () => {
+  const credits = [
+    { id: 1, amount: 100, paid_amount: 100 },
+    { id: 2, amount: 100, paid_amount: 0 },
+  ];
+  const { allocation, creditsToUpdate } = fifoAllocatePayment(50, credits);
+
+  assert.equal(allocation.length, 1);
+  assert.equal(allocation[0].credit_id, 2);
+  assert.equal(allocation[0].amount, 50);
+  assert.equal(creditsToUpdate.length, 1);
+  assert.equal(creditsToUpdate[0].id, 2);
 });
 
 console.log('Ledger verification passed.');

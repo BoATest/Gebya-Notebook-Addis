@@ -116,26 +116,31 @@ function CustomerList({
   const { t, lang } = useLang();
   const { hidden, toggle: togglePrivacy } = usePrivacy();
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState('all'); // 'all' | 'overdue' | 'canRemind'
+  const [filter, setFilter] = useState('all'); // 'all' | 'overdue' | 'canRemind' | 'archived'
 
   const trimmedQuery = query.trim();
   const hasQuery = trimmedQuery.length > 0;
 
   // ───── derive filter counts (always show across all customers) ─────
   const counts = useMemo(() => {
-    let all = customers.length;
+    let all = 0;
     let overdue = 0;
     let canRemind = 0;
+    let archived = 0;
     for (const c of customers) {
+      if (c.archived_at) { archived++; continue; }
+      all++;
       if (c.has_overdue) overdue++;
       if (c.phone_number || c.telegram_chat_id || c.telegram_username) canRemind++;
     }
-    return { all, overdue, canRemind };
+    return { all, overdue, canRemind, archived };
   }, [customers]);
 
   // ───── apply filter + search ─────
   const filtered = useMemo(() => {
     let list = customers.filter((c) => {
+      if (filter === 'archived') return !!c.archived_at;
+      if (c.archived_at) return false;
       if (filter === 'overdue') return c.has_overdue;
       if (filter === 'canRemind') return c.phone_number || c.telegram_chat_id || c.telegram_username;
       return true; // 'all'
@@ -335,6 +340,7 @@ function CustomerList({
           { id: 'all',      label: lang === 'am' ? 'ሁሉም'     : 'All',     count: counts.all,      style: 'default' },
           { id: 'overdue',  label: lang === 'am' ? 'የዘገዩ'    : 'Overdue', count: counts.overdue,  style: 'overdue' },
           { id: 'canRemind', label: lang === 'am' ? 'መታወቂያ አለ'  : 'Can remind', count: counts.canRemind, style: 'default' },
+          ...(counts.archived > 0 ? [{ id: 'archived', label: lang === 'am' ? 'አርክስ' : 'Archived', count: counts.archived, style: 'default' }] : []),
         ].map((f) => {
           const active = filter === f.id;
           const isOverdue = f.style === 'overdue';
@@ -376,6 +382,40 @@ function CustomerList({
         })}
       </div>
 
+      {/* Chase prompt — show when customers need attention */}
+      {(() => {
+        const chaseCount = sorted.filter(c => c.has_overdue && (c.phone_number || c.telegram_chat_id || c.telegram_username)).length;
+        if (chaseCount === 0) return null;
+        const missedPromiseCount = sorted.filter(c => c.promised_pay_date && c.promised_pay_date < Date.now()).length;
+        return (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '6px 10px', margin: '2px 0',
+            background: '#fef2f2', borderRadius: 8,
+            border: '1px solid #fecaca',
+          }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 5 }}>
+              🎯 {lang === 'am'
+                ? `${chaseCount} ትኩረት ይፈልጋሉ${missedPromiseCount > 0 ? ` · ${missedPromiseCount} የጠበቁት አልፏል` : ''}`
+                : `${chaseCount} need attention${missedPromiseCount > 0 ? ` · ${missedPromiseCount} missed promise` : ''}`}
+            </span>
+            {onBulkRemind && (
+              <button
+                type="button"
+                onClick={onBulkRemind}
+                style={{
+                  background: '#dc2626', color: '#fff', border: 'none',
+                  borderRadius: 6, padding: '4px 10px',
+                  fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer',
+                }}
+              >
+                🔔 {lang === 'am' ? 'ሁሉንም አስታውስ' : 'Remind all'}
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
       {/* Sort + count line */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px', fontSize: '0.7rem', color: '#6b7280' }}>
         <span>
@@ -394,13 +434,14 @@ function CustomerList({
       {/* ═══ ROWS ══════════════════════════════════════════ */}
       <div style={{ paddingBottom: counts.overdue > 0 ? 56 : 4 }}>
         {sorted.map((customer) => {
+          const isArchived = !!customer.archived_at;
           const balance = Number(customer.balance || 0);
           const hasBalance = balance > 0;
           const isOverdue = customer.has_overdue;
           const urg = urgencyColor(customer);
           const dot = statusDot(customer);
           const initials = initialsOf(customer.display_name);
-          const canRemind = hasBalance && (customer.telegram_chat_id || customer.telegram_username || customer.phone_number);
+          const canRemind = !isArchived && hasBalance && (customer.telegram_chat_id || customer.telegram_username || customer.phone_number);
 
           return (
             <div
@@ -413,10 +454,11 @@ function CustomerList({
                 padding: '10px 14px',
                 background: '#fff',
                 borderBottom: '1px solid #f5f1ea',
-                borderLeft: `4px solid ${urg}`,
+                borderLeft: `4px solid ${isArchived ? '#d1d5db' : urg}`,
                 display: 'flex', alignItems: 'center', gap: 10,
                 cursor: 'pointer',
                 minHeight: 60,
+                opacity: isArchived ? 0.5 : 1,
               }}
             >
 
@@ -468,6 +510,16 @@ function CustomerList({
                       borderRadius: 3, letterSpacing: '0.04em',
                     }}>
                       {customer.overdue_days}{lang === 'am' ? 'ቀን ያለፈው' : 'd OD'}
+                    </span>
+                  )}
+                  {customer.promised_pay_date && customer.promised_pay_date < Date.now() && (
+                    <span style={{
+                      fontSize: '0.58rem', fontWeight: 800,
+                      padding: '1px 6px',
+                      background: '#fef2f2', color: '#dc2626',
+                      borderRadius: 3, border: '1px solid #fecaca',
+                    }}>
+                      🔴 {lang === 'am' ? 'የጠበቁት አልፏል' : 'Missed'}
                     </span>
                   )}
                 </p>

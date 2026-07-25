@@ -927,6 +927,25 @@ const EN_OVERRIDES = {
   updateFailed: 'Could not update. Please try again.',
   addItem: 'Add Item',
   tapAddItemToConfirm: 'Tap Add Item to confirm',
+
+  // Customer archive
+  archiveCustomer: 'Archive Customer',
+  restoreCustomer: 'Restore Customer',
+  archiveConfirm: 'Archive {name}?',
+  archiveBalanceWarning: 'This customer has {balance} birr outstanding. Archived records are preserved for history.',
+
+  // Promise tracking
+  recordPromise: 'Record Promise',
+  promisedPayDate: 'Promised to pay by {date}',
+  missedPromise: 'Missed promise — was due {date}',
+  promiseNote: 'Note (optional)',
+  promiseSaved: 'Promise recorded',
+  promiseCleared: 'Promise cleared',
+  clearPromise: 'Clear promise',
+  promisePayToday: 'Promised to pay today',
+  daysOverdue: '{days}d overdue',
+  needAttention: 'Need attention',
+  chaseCount: '{count} need attention',
 };
 
 const AM_OVERRIDES = {
@@ -1422,6 +1441,25 @@ const AM_OVERRIDES = {
   updateFailed: 'ማስተካከል አልተሳካም — እንደገና ይሞክሩ',
   addItem: 'አክል',
   tapAddItemToConfirm: 'ለማስቀመጥ አክል ይጫኑ',
+
+  // Customer archive
+  archiveCustomer: 'ደንበኛን አርክስ',
+  restoreCustomer: 'ደንበኛን መልስ',
+  archiveConfirm: '{name} አርክስ?',
+  archiveBalanceWarning: 'ይህ ደንበኛ {balance} ብር ዕዳ አለበት። የአርክስ መዝገቦች ለታሪክ ይቀመጣሉ።',
+
+  // Promise tracking
+  recordPromise: 'የተስፋፉበትን ቀን ይመዝግቡ',
+  promisedPayDate: 'እስከ {date} ይከፍላል ብሏል',
+  missedPromise: 'የጠበቀው ቀን አልፏል — {date} ነበር',
+  promiseNote: 'ማስታወሻ (አማራጭ)',
+  promiseSaved: 'የተስፋፉበት ተመዝግቧል',
+  promiseCleared: 'የተስፋፉበት ተወግዷል',
+  clearPromise: 'አስወግድ',
+  promisePayToday: 'ዛሬ ይከፍላል ብሏል',
+  daysOverdue: '{days} ቀን ያለፈው',
+  needAttention: 'ትኩረት የሚሹ',
+  chaseCount: '{count} ትኩረት ይፈልጋሉ',
 };
 
 const LangContext = createContext(null);

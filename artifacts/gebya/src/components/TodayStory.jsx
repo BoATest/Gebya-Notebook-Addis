@@ -4,7 +4,7 @@ import { usePrivacy } from '../context/PrivacyContext';
 
 export default function TodayStory({
   metrics,
-  staffSummary,
+  staffSummary = null,
   overdueCount,
   overdueAmount,
   closingDone,
