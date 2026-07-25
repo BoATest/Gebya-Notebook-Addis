@@ -10,7 +10,7 @@
 // Touch targets ≥44px · privacy mode · Ethiopian calendar.
 // Long-press removed — tap row → TransactionDetailSheet.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   ArrowLeft, MessageCircle, MessageSquare, Pencil, Phone, Plus, Wallet, X, ArrowRightLeft,
 } from 'lucide-react';
@@ -119,11 +119,6 @@ function CustomerDetail({
     });
   }, [customer.transactions, balance]);
 
-  // Top customer detection (matches CustomerList logic)
-  const isTopCustomer = customer.on_time_eligible > 0
-    && customer.on_time_count === customer.on_time_eligible
-    && customer.on_time_count >= 3;
-
   // ─── render ──────────────────────────────────────────────────────────
   return (
     <div className="space-y-3" style={{ paddingBottom: 16 }}>
@@ -169,18 +164,7 @@ function CustomerDetail({
                 {customer.overdue_days}{lang === 'am' ? 'ቀን ያለፈው' : 'd OVERDUE'}
               </span>
             )}
-            {!customer.has_overdue && isTopCustomer && (
-              <span style={{
-                background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                color: '#1a1a1a',
-                padding: '2px 8px', borderRadius: 999,
-                fontSize: '0.62rem', fontWeight: 800,
-                letterSpacing: '0.04em',
-                flexShrink: 0,
-              }}>
-                👑 {lang === 'am' ? 'በወቅቱ' : 'ON TIME'}
-              </span>
-            )}
+
 
             {/* Edit customer button — Commit C.2.
                 Opens CustomerForm pre-filled so the shopkeeper can add or
@@ -239,16 +223,6 @@ function CustomerDetail({
               position: 'relative', flexShrink: 0, overflow: 'hidden',
             }}>
               <img src={customer.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              {isTopCustomer && (
-                <div style={{
-                  position: 'absolute', top: -4, left: -4,
-                  width: 18, height: 18, borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                  border: '2px solid #1a1a1a',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.65rem',
-                }}>👑</div>
-              )}
             </div>
           ) : (
             <button
@@ -277,16 +251,6 @@ function CustomerDetail({
                 fontSize: '0.55rem',
                 color: '#1a1a1a',
               }}>📷</span>
-              {isTopCustomer && (
-                <div style={{
-                  position: 'absolute', top: -4, left: -4,
-                  width: 18, height: 18, borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                  border: '2px solid #1a1a1a',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.65rem',
-                }}>👑</div>
-              )}
             </button>
           )}
 
