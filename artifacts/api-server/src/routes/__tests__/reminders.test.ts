@@ -13,6 +13,7 @@ vi.mock("../../services/reminderConfiguration.js", () => ({
   setCustomerFrequency: vi.fn(),
   clearCustomerOverride: vi.fn(),
   isRemindersEnabled: vi.fn(),
+  setLastReminderSentAt: vi.fn(),
 }));
 
 vi.mock("../../services/reminderSender.js", () => ({
@@ -34,6 +35,19 @@ vi.mock("../../services/telegramBotService.js", () => ({
 
 vi.mock("../../services/reminderScheduler.js", () => ({
   runRemindersForShop: vi.fn(),
+  scanCriticalOverdue: vi.fn(),
+}));
+
+vi.mock("../../services/reminderHistory.js", () => ({
+  createHistoryEntry: vi.fn(),
+}));
+
+vi.mock("../../services/pushNotificationSender.js", () => ({
+  sendPushToOwner: vi.fn(),
+}));
+
+vi.mock("@workspace/db/utils/customerBalance", () => ({
+  getCustomerBalances: vi.fn().mockResolvedValue([]),
 }));
 
 
@@ -65,11 +79,14 @@ import {
   setCustomerFrequency,
   clearCustomerOverride,
   isRemindersEnabled,
+  setLastReminderSentAt,
 } from "../../services/reminderConfiguration.js";
 import { queryHistory } from "../../services/reminderSender.js";
 import { getSessionByChatId, getTelegramLinkSession } from "../../services/telegramStore.js";
 import { sendTelegramTextMessage } from "../../services/telegramBotService.js";
-import { runRemindersForShop } from "../../services/reminderScheduler.js";
+import { runRemindersForShop, scanCriticalOverdue } from "../../services/reminderScheduler.js";
+import { createHistoryEntry } from "../../services/reminderHistory.js";
+import { sendPushToOwner } from "../../services/pushNotificationSender.js";
 
 const mockGetShopDefault = getShopDefault as ReturnType<typeof vi.fn>;
 const mockSetShopDefault = setShopDefault as ReturnType<typeof vi.fn>;
@@ -77,11 +94,15 @@ const mockGetCustomerFrequency = getCustomerFrequency as ReturnType<typeof vi.fn
 const mockSetCustomerFrequency = setCustomerFrequency as ReturnType<typeof vi.fn>;
 const mockClearCustomerOverride = clearCustomerOverride as ReturnType<typeof vi.fn>;
 const mockIsRemindersEnabled = isRemindersEnabled as ReturnType<typeof vi.fn>;
+const mockSetLastReminderSentAt = setLastReminderSentAt as ReturnType<typeof vi.fn>;
 const mockQueryHistory = queryHistory as ReturnType<typeof vi.fn>;
 const mockGetSessionByChatId = getSessionByChatId as ReturnType<typeof vi.fn>;
 const mockGetTelegramLinkSession = getTelegramLinkSession as ReturnType<typeof vi.fn>;
 const mockSendTelegramTextMessage = sendTelegramTextMessage as ReturnType<typeof vi.fn>;
 const mockRunRemindersForShop = runRemindersForShop as ReturnType<typeof vi.fn>;
+const mockScanCriticalOverdue = scanCriticalOverdue as ReturnType<typeof vi.fn>;
+const mockCreateHistoryEntry = createHistoryEntry as ReturnType<typeof vi.fn>;
+const mockSendPushToOwner = sendPushToOwner as ReturnType<typeof vi.fn>;
 
 // Resolver for the in-flight route request (see createRes / runHandler).
 let pendingResolve: (() => void) | null = null;
@@ -487,6 +508,163 @@ describe("reminders routes", () => {
           process.env.REMINDER_CRON_SECRET = originalSecret;
         }
       }
+    });
+  });
+
+  describe("POST /remind/:customerId", () => {
+    it("sends manual reminder and records history", async () => {
+      mockSendTelegramTextMessage.mockResolvedValue({ message_id: "msg-1" });
+
+      const req = createReq("POST", "/remind/1", { chatId: "123", customerName: "Test", balance: 100, language: "en", dueDate: Date.now() + 86400000 }, {}, { "x-shop-id": "1" });
+      req.params = { customerId: "1" };
+      const res = createRes();
+
+      await runHandler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(mockSendTelegramTextMessage).toHaveBeenCalledWith("123", expect.any(String));
+      expect(mockCreateHistoryEntry).toHaveBeenCalledWith(expect.objectContaining({
+        shopId: 1,
+        customerId: 1,
+        chatId: "123",
+        balanceAtSendTime: "100",
+        status: "sent",
+      }));
+      expect(mockSetLastReminderSentAt).toHaveBeenCalledWith(1, 1, expect.any(Number));
+      expect(res.json).toHaveBeenCalledWith({ sent: true, messageId: "msg-1" });
+    });
+
+    it("returns 400 for invalid customerId", async () => {
+      const req = createReq("POST", "/remind/abc", { chatId: "123", balance: 100 }, {}, { "x-shop-id": "1" });
+      req.params = { customerId: "abc" };
+      const res = createRes();
+
+      await runHandler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: "Invalid customerId" });
+    });
+
+    it("returns 400 for missing chatId in body", async () => {
+      const req = createReq("POST", "/remind/1", { balance: 100 }, {}, { "x-shop-id": "1" });
+      req.params = { customerId: "1" };
+      const res = createRes();
+
+      await runHandler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    it("returns 400 when balance is zero or negative", async () => {
+      const req = createReq("POST", "/remind/1", { chatId: "123", balance: 0 }, {}, { "x-shop-id": "1" });
+      req.params = { customerId: "1" };
+      const res = createRes();
+
+      await runHandler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: "Customer has no outstanding balance to remind about" });
+    });
+
+    it("returns 403 for cross-shop access", async () => {
+      const req = createReq("POST", "/remind/1", { chatId: "123", balance: 100 }, {}, { "x-shop-id": "2" }, { userId: 1, businessId: 1, role: "owner", permissions: {} });
+      req.params = { customerId: "1" };
+      const res = createRes();
+
+      await runHandler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it("returns 401 when no deviceContext is present", async () => {
+      const req = createReq("POST", "/remind/1", { chatId: "123", balance: 100 }, {}, { "x-shop-id": "1" }, null);
+      req.params = { customerId: "1" };
+      const res = createRes();
+
+      await runHandler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(401);
+    });
+  });
+
+  describe("GET /critical-overdue", () => {
+    it("returns empty list when no customers are overdue", async () => {
+      mockScanCriticalOverdue.mockResolvedValue([]);
+
+      const req = createReq("GET", "/critical-overdue", {}, {}, { "x-shop-id": "1" });
+      const res = createRes();
+
+      await runHandler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ shopId: 1, count: 0, customers: [] });
+    });
+
+    it("returns 403 for cross-shop access", async () => {
+      const req = createReq("GET", "/critical-overdue", {}, {}, { "x-shop-id": "2" }, { userId: 1, businessId: 1, role: "owner", permissions: {} });
+      const res = createRes();
+
+      await runHandler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+  });
+
+  describe("POST /payment-confirmed", () => {
+    it("stops reminders, records history, sends thank-you and push", async () => {
+      mockSendTelegramTextMessage.mockResolvedValue({ message_id: "pmt-1" });
+
+      const req = createReq("POST", "/payment-confirmed", { shopId: 1, customerId: 5, amount: 500, customerName: "Test", chatId: "123", language: "am" }, {});
+      const res = createRes();
+
+      await runHandler(req, res);
+
+      expect(mockSetLastReminderSentAt).toHaveBeenCalledWith(1, 5, expect.any(Number));
+      expect(mockCreateHistoryEntry).toHaveBeenCalledWith(expect.objectContaining({
+        shopId: 1,
+        customerId: 5,
+        chatId: "123",
+        balanceAtSendTime: "500",
+        status: "sent",
+        messageId: "payment_confirmed",
+      }));
+      expect(mockSendTelegramTextMessage).toHaveBeenCalledWith("123", expect.stringContaining("ክፍያህ ተረጋግጧል"));
+      expect(mockSendPushToOwner).toHaveBeenCalledWith(1, expect.objectContaining({
+        title: "Payment confirmed",
+        type: "payment_confirmed",
+      }));
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ ok: true, shopId: 1, customerId: 5 });
+    });
+
+    it("returns 400 for invalid body", async () => {
+      const req = createReq("POST", "/payment-confirmed", { shopId: 1 }, {});  // missing customerId + amount
+      const res = createRes();
+
+      await runHandler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    it("handles SMS-only customers (no chatId)", async () => {
+      const req = createReq("POST", "/payment-confirmed", { shopId: 1, customerId: 5, amount: 500, customerName: "SMS Only" }, {});
+      const res = createRes();
+
+      await runHandler(req, res);
+
+      expect(mockSetLastReminderSentAt).toHaveBeenCalledWith(1, 5, expect.any(Number));
+      expect(mockCreateHistoryEntry).toHaveBeenCalledWith(expect.objectContaining({
+        shopId: 1,
+        customerId: 5,
+        chatId: "",
+      }));
+      // Should NOT send Telegram when no chatId
+      expect(mockSendTelegramTextMessage).not.toHaveBeenCalledWith("", expect.any(String));
+      // Should still push-notify owner
+      expect(mockSendPushToOwner).toHaveBeenCalledWith(1, expect.objectContaining({
+        title: "Payment confirmed",
+      }));
+      expect(res.json).toHaveBeenCalledWith({ ok: true, shopId: 1, customerId: 5 });
     });
   });
 });

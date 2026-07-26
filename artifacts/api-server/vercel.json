@@ -10,7 +10,10 @@
   "crons": [
     {
       "path": "/api/telegram/reminders/run",
-      "schedule": "0 8 * * *"
+      "schedule": "0 8 * * *",
+      "headers": {
+        "x-reminder-cron-secret": "@REMINDER_CRON_SECRET"
+      }
     }
   ],
   "headers": [
