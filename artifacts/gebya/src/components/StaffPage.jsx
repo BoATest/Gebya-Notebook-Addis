@@ -17,6 +17,7 @@ import SettlementSheet from './report/SettlementSheet';
 import StaffSettlementList from './report/StaffSettlementList';
 import db, { getAllSettlements, saveSettlement, updateSettlement } from '../db';
 import { fmt } from '../utils/numformat';
+import { isValidEthiopianPhone, normalizeEthiopianPhone, formatEthiopianPhone, extractSubscriberDigits } from '../utils/phoneNumber';
 
 const API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
 
@@ -110,9 +111,11 @@ function parseCsvToInvites(csvText) {
     if (parts.length < 2) continue;
     const [name, phone, role = 'cashier'] = parts;
     if (!name || !phone) continue;
+    const normalizedPhone = normalizeEthiopianPhone(phone);
+    if (!normalizedPhone) continue;
     result.push({
       staff_name: name,
-      phone_number: phone.replace(/^0+/, ''),
+      phone_number: normalizedPhone,
       role: ['cashier', 'viewer', 'owner', 'manager', 'trusted_staff'].includes(role) ? role : 'cashier',
     });
   }
@@ -535,7 +538,8 @@ export default function StaffPage({
 
   // ── Handlers ──
   const handleInvite = async () => {
-    if (!phone.trim() || !inviteName.trim()) return;
+    const normalizedPhone = normalizeEthiopianPhone(phone);
+    if (!normalizedPhone || !inviteName.trim()) return;
     try {
       const { entitlements } = await getCurrentEntitlements();
       if (activeStaff.length >= entitlements.max_staff) {
@@ -547,7 +551,7 @@ export default function StaffPage({
     try {
       const data = await apiFetch('/business/invite', {
         method: 'POST',
-        body: JSON.stringify({ phone_number: phone.trim(), role, staff_name: inviteName.trim() }),
+        body: JSON.stringify({ phone_number: normalizedPhone, role, staff_name: inviteName.trim() }),
       });
       setInviteLink(data.invite_link);
       setPhone('');
@@ -1198,10 +1202,10 @@ export default function StaffPage({
                       <input
                         type="tel"
                         value={phone}
-                        onChange={e => setPhone(e.target.value)}
+                        onChange={e => setPhone(extractSubscriberDigits(e.target.value))}
                         placeholder={t('Phone number', 'ቴሌፎን ቁጥር')}
                         className="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-                        style={{ borderColor: phone.trim() ? '#C4883A' : '#e8e2d8' }}
+                        style={{ borderColor: isValidEthiopianPhone(phone) ? '#C4883A' : (phone ? '#ef4444' : '#e8e2d8') }}
                       />
                       <select
                         value={role}
@@ -1217,9 +1221,9 @@ export default function StaffPage({
                     </div>
                     <button
                       type="submit"
-                      disabled={!phone.trim() || !inviteName.trim() || inviting}
+                      disabled={!isValidEthiopianPhone(phone) || !inviteName.trim() || inviting}
                       className="w-full py-2.5 rounded-xl text-sm font-bold min-h-[44px]"
-                      style={{ background: (phone.trim() && inviteName.trim()) ? '#1B4332' : '#e5e7eb', color: (phone.trim() && inviteName.trim()) ? '#fff' : '#9ca3af' }}
+                      style={{ background: (isValidEthiopianPhone(phone) && inviteName.trim()) ? '#1B4332' : '#e5e7eb', color: (isValidEthiopianPhone(phone) && inviteName.trim()) ? '#fff' : '#9ca3af' }}
                     >
                       {inviting ? '...' : t('Invite', 'ጥሪ ፍጠር')}
                     </button>
@@ -1267,8 +1271,8 @@ export default function StaffPage({
                     {pendingInvites.map(inv => (
                       <div key={inv.id} className="flex items-center justify-between py-2 border-b last:border-0" style={{ borderColor: '#f0ece4' }}>
                         <div className="min-w-0">
-                          <div className="text-sm font-bold text-gray-900 truncate">{inv.staffName || inv.phoneNumber}</div>
-                          <div className="text-xs text-gray-500">{inv.phoneNumber} · {inv.role}</div>
+                          <div className="text-sm font-bold text-gray-900 truncate">{inv.staffName || formatEthiopianPhone(inv.phoneNumber)}</div>
+                          <div className="text-xs text-gray-500">{formatEthiopianPhone(inv.phoneNumber)} · {inv.role}</div>
                         </div>
                         {!inv.acceptedAt && (
                           <button
@@ -1370,7 +1374,7 @@ export default function StaffPage({
                             )}
                           </div>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            {phoneStr && <span className="text-xs" style={{ color: '#6b7280' }}>{phoneStr}</span>}
+                            {phoneStr && <span className="text-xs" style={{ color: '#6b7280' }}>{formatEthiopianPhone(phoneStr)}</span>}
                             <RoleBadge role={m.role || 'staff'} />
                           </div>
                         </div>
@@ -1409,7 +1413,8 @@ export default function StaffPage({
                               autoFocus
                               onKeyDown={e => {
                                 if (e.key === 'Enter') {
-                                  onUpdateStaffMember?.(mid, { display_name: editNameValue.trim() || displayName });
+                                  const normalizedPhone = normalizeEthiopianPhone(editPhoneValue);
+                                  onUpdateStaffMember?.(mid, { display_name: editNameValue.trim() || displayName, phone: normalizedPhone || undefined });
                                   setEditingStaffName(null);
                                 }
                                 if (e.key === 'Escape') setEditingStaffName(null);
@@ -1418,16 +1423,17 @@ export default function StaffPage({
                             <input
                               type="tel"
                               value={editPhoneValue}
-                              onChange={e => setEditPhoneValue(e.target.value)}
+                              onChange={e => setEditPhoneValue(extractSubscriberDigits(e.target.value))}
                               placeholder={t('Phone', 'ስልክ')}
                               className="w-28 px-2 py-1.5 border-2 rounded-lg text-sm focus:outline-none"
-                              style={{ borderColor: '#e8e2d8' }}
+                              style={{ borderColor: editPhoneValue && !isValidEthiopianPhone(editPhoneValue) ? '#ef4444' : '#e8e2d8' }}
                             />
                             <button
                               onClick={() => {
+                                const normalizedPhone = normalizeEthiopianPhone(editPhoneValue);
                                 onUpdateStaffMember?.(mid, {
                                   display_name: editNameValue.trim() || displayName,
-                                  phone: editPhoneValue.trim() || undefined,
+                                  phone: normalizedPhone || undefined,
                                 });
                                 setEditingStaffName(null);
                               }}
