@@ -4,7 +4,9 @@ import { calculateExpected, generateSettlementId, getLastSettlementPeriod, loadS
 import { fmt } from '../../utils/numformat';
 
 export default function SettlementSheet({ staff, existingSettlement, lang = 'en', onSaved, onCancel }) {
-  const isReconcile = Boolean(existingSettlement);
+  const isReview = existingSettlement?.reconciliation_status === 'staff_submitted';
+  const isView = Boolean(existingSettlement) && !isReview;
+  const isNew = !existingSettlement;
 
   const [loading, setLoading] = useState(true);
   const [expected, setExpected] = useState({ expectedCash: 0, expectedTransfer: 0, expectedTotal: 0, transactionCount: 0 });
@@ -16,7 +18,6 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
   const [adjustmentAmount, setAdjustmentAmount] = useState('');
   const [adjustmentType, setAdjustmentType] = useState('expense');
   const [notes, setNotes] = useState('');
-  const [reconcileNote, setReconcileNote] = useState('');
   const [ownerReviewNote, setOwnerReviewNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -25,8 +26,8 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
   const staffTransfer = Number(existingSettlement?.staff_reported_transfer) || 0;
   const staffTotal = staffCash + staffTransfer;
   const recLog = existingSettlement?.reconciliation_log || [];
-  const isStaffSubmitted = existingSettlement?.reconciliation_status === 'staff_submitted';
-  const [mode, setMode] = useState(isStaffSubmitted ? 'review' : (isReconcile ? 'view' : 'new'));
+
+  const t = (en, am) => lang === 'am' ? am : en;
 
   useEffect(() => {
     (async () => {
@@ -61,7 +62,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
             setNotes(draft.notes || '');
           }
         }
-      } catch (e) {
+      } catch {
         setError('Failed to load settlement data');
       }
       setLoading(false);
@@ -69,14 +70,14 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
   }, [staff.id, existingSettlement]);
 
   useEffect(() => {
-    if (loading || mode === 'view') return;
+    if (loading || isView) return;
     saveSettlementDraft(String(staff.id), {
       actualCash: Number(actualCash) || 0,
       actualTransfer: Number(actualTransfer) || 0,
       adjustments,
       notes,
     });
-  }, [actualCash, actualTransfer, adjustments, notes, loading, mode]);
+  }, [actualCash, actualTransfer, adjustments, notes, loading, isView]);
 
   const actualCashVal = Number(actualCash) || 0;
   const actualTransferVal = Number(actualTransfer) || 0;
@@ -108,7 +109,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
   };
 
   const handleSave = async () => {
-    if (mode === 'view') return;
+    if (isView) return;
     if (actualCashVal === 0 && actualTransferVal === 0) {
       setError('Enter at least actual cash or transfer amount');
       return;
@@ -119,17 +120,15 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       const staffIdNum = Number(staff.id);
       const now = Date.now();
 
-      if (isStaffSubmitted) {
+      if (isReview) {
         const ownerNote = ownerReviewNote.trim();
+        const isAccepted = actualCashVal === staffCash && actualTransferVal === staffTransfer;
         const logEntry = {
           actor: 'owner',
-          action: actualCashVal === staffCash && actualTransferVal === staffTransfer ? 'accepted' : 'reviewed',
-          note: ownerNote || (actualCashVal === staffCash && actualTransferVal === staffTransfer ? t('Owner accepted staff report', 'ባለቤት የሰራተኛ ሪፖርት ተቀብሏል') : t('Owner reviewed with adjustments', 'ባለቤት በማስተካከል ተመልክቷል')),
+          action: isAccepted ? 'accepted' : 'reviewed',
+          note: ownerNote || (isAccepted ? t('Owner accepted staff report', 'ባለቤት የሰራተኛ ሪፖርት ተቀብሏል') : t('Owner reviewed with adjustments', 'ባለቤት በማስተካከል ተመልክቷል')),
           timestamp: now,
         };
-        const newLog = [...(recLog || []), logEntry];
-        const isAccepted = actualCashVal === staffCash && actualTransferVal === staffTransfer;
-
         await updateSettlement(existingSettlement.id, {
           actual_cash: actualCashVal,
           actual_transfer: actualTransferVal,
@@ -141,41 +140,11 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           final_expected_cash: finalExpectedCash,
           final_expected_total: finalExpectedTotal,
           final_variance: totalVariance,
-          reconciliation_log: newLog,
+          reconciliation_log: [...recLog, logEntry],
           status: 'reconciled',
           notes: notes.trim() || (ownerNote || null),
           reconciled_at: now,
           reconciled_by: staffIdNum,
-          updated_at: now,
-        });
-      } else if (isReconcile && mode === 'reconcile') {
-        const adjustmentsWithReconcile = [
-          ...adjustments,
-          ...(reconcileNote.trim() ? [{
-            type: 'other',
-            amount: 0,
-            note: 'Reconciliation: ' + reconcileNote.trim(),
-            addedBy: 'owner',
-            addedAt: new Date().toISOString(),
-          }] : []),
-        ];
-        const recAdjTotal = adjustmentsWithReconcile.reduce((sum, a) => sum + Number(a.amount || 0), 0);
-        const recAdjCash = adjustmentsWithReconcile.filter(a => a.type === 'expense' || a.type === 'credit_to_owner').reduce((sum, a) => sum + Number(a.amount || 0), 0);
-        const recFinalCash = expected.expectedCash - recAdjCash;
-        const recFinalTotal = expected.expectedTotal - recAdjTotal;
-
-        await updateSettlement(existingSettlement.id, {
-          actual_cash: actualCashVal,
-          actual_transfer: actualTransferVal,
-          adjustments: adjustmentsWithReconcile,
-          final_expected_cash: recFinalCash,
-          final_expected_total: recFinalTotal,
-          final_variance: (actualCashVal + actualTransferVal) - recFinalTotal,
-          status: 'reconciled',
-          notes: notes.trim(),
-          reconciled_at: now,
-          reconciled_by: staffIdNum,
-          reconciliation_note: reconcileNote.trim(),
           updated_at: now,
         });
       } else {
@@ -203,7 +172,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         clearSettlementDraft(String(staff.id));
       }
       onSaved?.();
-    } catch (e) {
+    } catch {
       setError('Failed to save settlement');
     }
     setSaving(false);
@@ -213,8 +182,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
     return <div style={{ padding: 20, textAlign: 'center', color: '#6b7280' }}>Loading...</div>;
   }
 
-  const t = (en, am) => lang === 'am' ? am : en;
-  const readOnly = mode === 'view';
+  const readOnly = isView;
 
   return (
     <div style={{
@@ -225,24 +193,23 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ fontSize: 16, fontWeight: 900, color: '#1f2937', margin: 0 }}>
-            {isReconcile
-              ? t('Reconcile', 'ማስተካከል') + ' ' + (staff.name || staff.displayName)
-              : t('Settle with', 'ከ') + ' ' + (staff.name || staff.displayName)}
+            {isNew
+              ? t('Settle with', 'ከ') + ' ' + (staff.name || staff.displayName)
+              : t('Settlement', 'ማስተካከያ') + ' — ' + (staff.name || staff.displayName)}
           </h3>
           {existingSettlement && (
             <span style={{
               fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6,
               background: existingSettlement.reconciliation_status === 'finalized' ? '#dcfce7' :
                           existingSettlement.reconciliation_status === 'staff_submitted' ? '#e0f2fe' :
-                          existingSettlement.reconciliation_status === 'disputed' ? '#fef2f2' : '#fef3c7',
+                          existingSettlement.reconciliation_status === 'owner_reviewed' ? '#fef3c7' : '#f3f4f6',
               color: existingSettlement.reconciliation_status === 'finalized' ? '#16a34a' :
                      existingSettlement.reconciliation_status === 'staff_submitted' ? '#0369a1' :
-                     existingSettlement.reconciliation_status === 'disputed' ? '#b91c1c' : '#d97706',
+                     existingSettlement.reconciliation_status === 'owner_reviewed' ? '#d97706' : '#6b7280',
             }}>
               {existingSettlement.reconciliation_status === 'finalized' ? t('Finalized', 'ተጠናቋል') :
                existingSettlement.reconciliation_status === 'staff_submitted' ? t('Staff sent', 'ሰራተኛ ልኳል') :
                existingSettlement.reconciliation_status === 'owner_reviewed' ? t('Reviewed', 'ተመልክቷል') :
-               existingSettlement.reconciliation_status === 'disputed' ? t('Disputed', 'አልተስማማም') :
                existingSettlement.reconciliation_status === 'checked' ? t('Checked', 'ተፈትሟል') :
                t('Settled', 'ተቀምጧል')}
             </span>
@@ -275,7 +242,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         </div>
       </div>
 
-      {/* Staff reported section */}
+      {/* Staff reported section (only in review mode) */}
       {hasStaffReport && (
         <div style={{ background: '#f0f9ff', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #bae6fd' }}>
           <p style={{ fontSize: 10, fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', margin: '0 0 8px' }}>
@@ -311,8 +278,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
               </div>
             )}
           </div>
-          {/* Quick accept action */}
-          {isStaffSubmitted && mode !== 'view' && (
+          {isReview && (
             <button onClick={() => { setActualCash(String(staffCash)); setActualTransfer(String(staffTransfer)); }}
               style={{
                 width: '100%', marginTop: 8, padding: '8px 0', borderRadius: 8,
@@ -327,7 +293,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       {/* Actual inputs */}
       <div style={{ background: '#fff', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #e5e7eb' }}>
         <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', margin: '0 0 8px' }}>
-          {hasStaffReport ? t('Owner confirmation', 'የባለቤት ማረጋገጫ') : t('Actual (counted together)', 'ትክክለኛው')}
+          {isReview ? t('Owner confirmation', 'የባለቤት ማረጋገጫ') : t('Actual (counted)', 'ትክክለኛው')}
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -443,11 +409,11 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         )}
       </div>
 
-      {/* Reconciliation log (timeline of events) */}
+      {/* Reconciliation log */}
       {recLog.length > 0 && (
         <div style={{ background: '#fff', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #e5e7eb' }}>
           <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', margin: '0 0 8px' }}>
-            {t('Reconciliation Log', 'የማስተካከያ ምዝግብ')}
+            {t('Activity Log', 'የእንቅስቃሴ ምዝግብ')}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {recLog.map((entry, i) => (
@@ -457,9 +423,9 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
                 background: entry.actor === 'staff' ? '#f0f9ff' : '#fffbeb',
                 fontSize: 11,
               }}>
-                <span style={{
-                  fontSize: 16, lineHeight: '20px', flexShrink: 0,
-                }}>{entry.actor === 'staff' ? '👤' : '👑'}</span>
+                <span style={{ fontSize: 16, lineHeight: '20px', flexShrink: 0 }}>
+                  {entry.actor === 'staff' ? '👤' : '👑'}
+                </span>
                 <div>
                   <span style={{ fontWeight: 800, color: '#374151' }}>
                     {entry.actor === 'staff' ? t('Staff', 'ሰራተኛ') : t('Owner', 'ባለቤት')} · {entry.action}
@@ -483,28 +449,14 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         />
       </div>
 
-      {/* Owner review note (shown when staff submitted & owner is reviewing) */}
-      {isStaffSubmitted && mode !== 'view' && (
+      {/* Owner review note */}
+      {isReview && (
         <div style={{ marginBottom: 12 }}>
           <label style={{ fontSize: 11, fontWeight: 800, color: '#374151', display: 'block', marginBottom: 4 }}>
             {t('Owner review note', 'የባለቤት ማስታወሻ')}
           </label>
           <textarea value={ownerReviewNote} onChange={e => setOwnerReviewNote(e.target.value)}
             placeholder={t('Any difference? Note it here', 'ልዩነት ካለ እዚህ ያስረዱ')}
-            rows={2}
-            style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 10px', fontSize: 12, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
-          />
-        </div>
-      )}
-
-      {/* Reconciliation note (shown when owner starts reconciliation on old-style settlement) */}
-      {isReconcile && mode === 'reconcile' && !isStaffSubmitted && (
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, fontWeight: 800, color: '#374151', display: 'block', marginBottom: 4 }}>
-            {t('Reconciliation note', 'የማስተካከያ ማስታወሻ')}
-          </label>
-          <textarea value={reconcileNote} onChange={e => setReconcileNote(e.target.value)}
-            placeholder={t('What changed and why?', 'ምን ተለውጧል እና ለምን?')}
             rows={2}
             style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 10px', fontSize: 12, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
           />
@@ -520,13 +472,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           style={{ flex: 1, minHeight: 40, border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', color: '#374151', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
         >{t('Back', 'ተመለስ')}</button>
 
-        {isReconcile && mode === 'view' && existingSettlement?.status === 'checked' && !isStaffSubmitted && (
-          <button onClick={() => setMode('reconcile')}
-            style={{ flex: 1, minHeight: 40, border: 'none', borderRadius: 8, background: '#d97706', color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
-          >{t('Reconcile', 'አስተካክል')}</button>
-        )}
-
-        {isStaffSubmitted && mode !== 'view' && (
+        {isReview && (
           <button onClick={handleSave} disabled={saving || (actualCashVal === 0 && actualTransferVal === 0)}
             style={{
               flex: 1, minHeight: 40, border: 'none', borderRadius: 8,
@@ -537,7 +483,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           >{saving ? t('Saving...', 'በማስቀመጥ ላይ...') : t('Accept & Finalize', 'ተቀበል እና ጨርስ')}</button>
         )}
 
-        {!isStaffSubmitted && mode !== 'view' && (
+        {isNew && (
           <button onClick={handleSave} disabled={saving || (actualCashVal === 0 && actualTransferVal === 0)}
             style={{
               flex: 1, minHeight: 40, border: 'none', borderRadius: 8,
@@ -545,7 +491,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
               color: '#fff',
               fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer',
             }}
-          >{saving ? t('Saving...', 'በማስቀመጥ ላይ...') : (mode === 'reconcile' ? t('Save Reconciliation', 'ማስተካከያ አስቀምጥ') : t('Save Settlement', 'አስቀምጥ'))}</button>
+          >{saving ? t('Saving...', 'በማስቀመጥ ላይ...') : t('Save Settlement', 'አስቀምጥ')}</button>
         )}
       </div>
     </div>

@@ -9,12 +9,9 @@ import ConfirmDialog from './ConfirmDialog';
 import { getAuthToken } from '../utils/syncEngine';
 import { getCurrentEntitlements } from '../utils/entitlements';
 import { loadStaffActivityFeed } from '../utils/staffActivityFeed';
-import { getActorDisplayLabel } from '../utils/staffMembers';
 import { loadSettlementFromLocalStorage, clearSettlementDraft, calculateExpected } from '../utils/settlementSelectors';
 import { startOfLocalDay } from '../utils/reportSelectors';
-import StaffReportSheet from './StaffReportSheet';
 import SettlementSheet from './report/SettlementSheet';
-import StaffSettlementList from './report/StaffSettlementList';
 import db, { getAllSettlements, saveSettlement, updateSettlement } from '../db';
 import { fmt } from '../utils/numformat';
 import { isValidEthiopianPhone, normalizeEthiopianPhone, formatEthiopianPhone, extractSubscriberDigits } from '../utils/phoneNumber';
@@ -303,6 +300,7 @@ export default function StaffPage({
   const [expandedSections, setExpandedSections] = useState({
     activity: false,
     more: false,
+    pastSettlements: false,
   });
 
   // ── Quick-collect state ──
@@ -583,6 +581,10 @@ export default function StaffPage({
     }
   };
 
+  const handleViewSettlement = (staff, settlement) => {
+    setViewingSettlement({ settlement, staff });
+  };
+
   const handleSettlementSaved = () => {
     setSettling(null);
     setViewingSettlement(null);
@@ -696,71 +698,7 @@ export default function StaffPage({
       )}
 
       {/* ════════════════════════════════════════════ */}
-      {/* 2. NEEDS ATTENTION (conditional)            */}
-      {/* ════════════════════════════════════════════ */}
-      {canManageTeam && (unsettledStaff.length > 0 || pendingDevices.length > 0) && (
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#fde68a', background: '#fffbeb' }}>
-          <div className="px-4 py-2 text-xs font-black uppercase tracking-wide" style={{ color: '#92400e' }}>
-            {t('Needs attention', 'ትኩረት የሚፈልግ')}
-          </div>
-          {unsettledStaff.map(m => {
-            const estCash = todayStaffSales[m.id];
-            return (
-              <div key={m.id} className="px-4 py-2.5 flex items-center justify-between border-t" style={{ borderColor: '#fef3c7' }}>
-                <div className="flex items-center gap-2 min-w-0">
-                  <span>💰</span>
-                  <div>
-                    <span className="text-xs font-bold text-gray-800 truncate">{m.display_name}</span>
-                    <span className="text-[10px] text-gray-500"> {t('not settled', 'አልተስተካከለም')}</span>
-                    {estCash && (
-                      <div className="text-[10px] font-bold mt-0.5" style={{ color: '#d97706' }}>
-                        {t('Est.', 'ግምት')} {fmt(estCash.cashTotal)} ETB
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => handleQuickCollect(m)}
-                    className="px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
-                    style={{ background: '#dcfce7', color: '#166534' }}
-                  >
-                    ✓ {t('Collected', 'ተሰበሰበ')}
-                  </button>
-                  <button
-                    onClick={() => setSettling(m)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
-                    style={{ background: '#1B4332', color: '#fff' }}
-                  >
-                    {t('Settle', 'አስተካክል')}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-          {pendingDevices.map(d => (
-            <div key={d.id} className="px-4 py-2.5 flex items-center justify-between border-t" style={{ borderColor: '#fef3c7' }}>
-              <div className="flex items-center gap-2 min-w-0">
-                <span>📱</span>
-                <span className="text-xs font-bold text-gray-800 truncate">{d.staffName || 'Staff'}</span>
-                <span className="text-[10px] text-gray-500">{t('device pending', 'መሳሪያ በመጠባበቅ')}</span>
-              </div>
-              <div className="flex gap-1.5">
-                <button
-                  onClick={() => onApproveDevice?.(d.id)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold"
-                  style={{ background: '#1B4332', color: '#fff' }}
-                >
-                  {t('Approve', 'አረጋግጥ')}
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ════════════════════════════════════════════ */}
-      {/* 3. TODAY'S TEAM  (with drill-down)           */}
+      {/* 2. TODAY'S TEAM  (with settlement status)    */}
       {/* ════════════════════════════════════════════ */}
       <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#e8e2d8' }}>
         <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: '#f0ece4', background: '#fcfbf8' }}>
@@ -786,13 +724,15 @@ export default function StaffPage({
             const sales = todayStaffSales[m.id];
             const txns = todayStaffTransactions[m.id] || [];
             const isOwnerView = canManageTeam;
+            const lastS = lastSettlementPerStaff[String(m.id)];
+            const sDaysSince = lastS ? Math.floor((Date.now() - lastS.settled_at) / 86400000) : null;
+            const sStatus = lastS?.reconciliation_status;
+            const isSubmitted = sStatus === 'staff_submitted';
+            const isFinalized = sStatus === 'finalized' || (sStatus === 'checked' && sDaysSince === 0);
             return (
               <div key={m.id}>
-                <button
-                  onClick={() => setExpandedStaffDrilldown(isDrilled ? null : m.id)}
-                  className="w-full px-4 py-3 flex items-center justify-between text-left"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
+                <div className="w-full px-4 py-3 flex items-center justify-between text-left">
+                  <button onClick={() => setExpandedStaffDrilldown(isDrilled ? null : m.id)} className="flex items-center gap-3 min-w-0 flex-1 text-left">
                     <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0" style={{ background: '#f0fdf4', color: '#16a34a' }}>
                       {(m.display_name || 'S').charAt(0).toUpperCase()}
                     </div>
@@ -811,12 +751,37 @@ export default function StaffPage({
                           {sales.count} {t('sales', 'ሽያጮች')} · {fmt(sales.total)} {t('birr', 'ብር')}
                         </div>
                       )}
+                      {!sales && !isOwnerView && (
+                        <div className="text-[10px] text-gray-400 mt-0.5">{t('No sales today', 'ዛሬ ሽያጥ የለም')}</div>
+                      )}
                     </div>
-                  </div>
-                  <span className="text-xs font-bold" style={{ color: isDrilled ? '#1B4332' : '#9ca3af' }}>
-                    {isDrilled ? '▾' : '▸'}
-                  </span>
-                </button>
+                  </button>
+                  {isOwnerView && (
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                      {isSubmitted ? (
+                        <button onClick={() => handleViewSettlement(m, lastS)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
+                          style={{ background: '#e0f2fe', color: '#0369a1' }}
+                        >📨 {t('Review', 'መርምር')}</button>
+                      ) : isFinalized ? (
+                        <span className="text-[10px] font-bold px-2 py-1 rounded-lg whitespace-nowrap" style={{ background: '#dcfce7', color: '#166534' }}>
+                          ✓ {t('Settled', 'ተቀምጧል')}
+                        </span>
+                      ) : (
+                        <>
+                          <button onClick={() => handleQuickCollect(m)}
+                            className="px-2 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap"
+                            style={{ background: '#dcfce7', color: '#166534' }}
+                          >✓ {t('Collect', 'ሰብስብ')}</button>
+                          <button onClick={() => setSettling(m)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
+                            style={{ background: '#1B4332', color: '#fff' }}
+                          >{t('Settle', 'አስተካክል')}</button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* Drill-down panel */}
                 {isDrilled && (
@@ -905,7 +870,51 @@ export default function StaffPage({
       </div>
 
       {/* ════════════════════════════════════════════ */}
-      {/* 3b. MY COLLECTION (staff actor)              */}
+      {/* 3. PAST SETTLEMENTS (collapsible)            */}
+      {/* ════════════════════════════════════════════ */}
+      {settlements.length > 0 && (
+        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#e8e2d8' }}>
+          <button
+            onClick={() => toggleSection('pastSettlements')}
+            className="w-full px-4 py-3 flex items-center justify-between text-left"
+            style={{ background: '#fcfbf8' }}
+          >
+            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
+              {t('Past Settlements', 'ያለፉ ማስተካከያዎች')}
+            </span>
+            <span className="text-xs text-gray-400">{settlements.length}</span>
+          </button>
+          {expandedSections.pastSettlements && (
+            <div className="divide-y max-h-60 overflow-y-auto" style={{ borderColor: '#f0ece4' }}>
+              {settlements.slice().sort((a, b) => b.settled_at - a.settled_at).slice(0, 20).map((s, i) => {
+                const staff = activeStaff.find(r => String(r.id) === String(s.staff_id));
+                const rStatus = s.reconciliation_status;
+                return (
+                  <div key={s.id || i} className="px-4 py-2.5 flex items-center justify-between cursor-pointer"
+                    style={{ background: rStatus === 'staff_submitted' ? '#f0f9ff' : 'transparent' }}
+                    onClick={() => handleViewSettlement(staff || { id: s.staff_id, displayName: `#${s.staff_id}`, name: `#${s.staff_id}` }, s)}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-gray-800">
+                        {new Date(s.settled_at).toLocaleDateString()} · {staff?.display_name || staff?.name || `#${s.staff_id}`}
+                      </div>
+                      <div className="text-[10px] text-gray-500">
+                        {fmt(s.actual_cash || 0)} ETB {s.final_variance !== 0 && `(${s.final_variance >= 0 ? '+' : ''}${fmt(s.final_variance)})`}
+                      </div>
+                    </div>
+                    {rStatus && (
+                      <ReconStatusBadge status={rStatus} lang={lang} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════ */}
+      {/* 4. MY COLLECTION (staff actor)               */}
       {/* ════════════════════════════════════════════ */}
       {activeStaffMemberId != null && activeStaff.find(m => String(m.id) === String(activeStaffMemberId)) && (
         (() => {
@@ -1381,40 +1390,19 @@ export default function StaffPage({
       )}
 
       {/* ════════════════════════════════════════════ */}
-      {/* 5. SETTLEMENT SECTION                       */}
+      {/* 5. SETTLEMENT SHEET (overlay)                */}
       {/* ════════════════════════════════════════════ */}
-      {canManageTeam && (
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#e8e2d8' }}>
-          <div className="px-4 py-3 border-b" style={{ borderColor: '#f0ece4', background: '#fcfbf8' }}>
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
-              {t('Staff Settlement', 'የሰራተኛ ማስተካከያ')}
-            </span>
-          </div>
-          <div className="px-4 py-3">
-            {activeSettlement ? (
-              <SettlementSheet
-                staff={activeSettlementStaff}
-                existingSettlement={viewingSettlement ? viewingSettlement.settlement : null}
-                lang={lang}
-                onSaved={handleSettlementSaved}
-                onCancel={() => { setSettling(null); setViewingSettlement(null); }}
-              />
-            ) : (
-              <StaffSettlementList
-                staffRows={activeStaff}
-                lang={lang}
-                onSettle={(staff) => { setSettling(staff); setViewingSettlement(null); }}
-                onViewSettlement={(settlement, staff) => {
-                  if (!staff) {
-                    const found = activeStaff.find(s => String(s.id) === String(settlement.staff_id));
-                    setViewingSettlement({ settlement, staff: found || { id: settlement.staff_id, displayName: `#${settlement.staff_id}` } });
-                  } else {
-                    setViewingSettlement({ settlement, staff });
-                  }
-                }}
-                currentSettlingStaff={settling?.id ? String(settling.id) : null}
-              />
-            )}
+      {activeSettlement && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.35)' }}>
+          <div className="w-full max-w-md rounded-2xl bg-white px-4 pb-6 pt-2 max-h-[90vh] overflow-y-auto" style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+            <div className="w-9 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
+            <SettlementSheet
+              staff={activeSettlementStaff}
+              existingSettlement={viewingSettlement ? viewingSettlement.settlement : null}
+              lang={lang}
+              onSaved={handleSettlementSaved}
+              onCancel={() => { setSettling(null); setViewingSettlement(null); }}
+            />
           </div>
         </div>
       )}
