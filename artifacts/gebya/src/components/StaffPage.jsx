@@ -48,6 +48,36 @@ function RoleBadge({ role }) {
   );
 }
 
+const ROLE_PRESETS = {
+  manager: { can_manage_team: true, can_delete_records: true, can_edit_settings: true, can_add_records: true, can_view_reports: true },
+  cashier: { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: true, can_view_reports: true },
+  viewer: { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: false, can_view_reports: true },
+};
+
+const ROLE_OPTIONS = [
+  { value: 'manager', label: { en: 'Manager', am: 'ማኔጀር' } },
+  { value: 'cashier', label: { en: 'Sales Staff', am: 'ሰራተኛ' } },
+  { value: 'viewer', label: { en: 'Auditor', am: 'ኦዲተር' } },
+];
+
+function getEffectiveRoleLabel(member, overrides, lang) {
+  const t = (en, am) => lang === 'am' ? am : en;
+  const role = member.role || 'cashier';
+  const preset = ROLE_PRESETS[role];
+  if (!preset) return ROLE_BADGE[role]?.label || role;
+  const perms = member.resolved_permissions || {};
+  const effective = { ...preset };
+  const mid = member.id || member.userId;
+  const memberOverrides = overrides[mid];
+  if (memberOverrides) {
+    for (const key of Object.keys(memberOverrides)) {
+      effective[key] = memberOverrides[key];
+    }
+  }
+  const matches = Object.keys(preset).every(k => effective[k] === preset[k]);
+  return matches ? ROLE_BADGE[role]?.label || role : t('Custom', 'የተበጀ');
+}
+
 function ReconStatusBadge({ status, lang }) {
   const t = (en, am) => lang === 'am' ? am : en;
   const STATUSES = {
@@ -288,6 +318,7 @@ export default function StaffPage({
   const [expandedMember, setExpandedMember] = useState(null);
   const [pendingNoPerms, setPendingNoPerms] = useState(null);
   const [pendingPermChange, setPendingPermChange] = useState(null);
+  const [pendingRoleChange, setPendingRoleChange] = useState(null);
   const [savingPerms, setSavingPerms] = useState(false);
   const [localPermOverrides, setLocalPermOverrides] = useState({});
 
@@ -484,6 +515,38 @@ export default function StaffPage({
         return next;
       });
       fireToast(err.message || t('Failed', 'አልተሳካም'), 2400);
+    } finally {
+      setSavingPerms(false);
+    }
+  };
+
+  const handleRoleChange = async (member, newRole) => {
+    if (savingPerms) return;
+    if (member.role === 'owner') {
+      fireToast(t('Owner role cannot be changed', 'የባለቤት ሚና አይቀየርም'), 2200);
+      return;
+    }
+    if (member.role === newRole) return;
+    setSavingPerms(true);
+    const preset = ROLE_PRESETS[newRole];
+    if (!preset) { setSavingPerms(false); return; }
+    try {
+      await apiFetch(`/business/members/${member.userId}/permissions`, {
+        method: 'PATCH',
+        body: JSON.stringify(preset),
+      });
+      setLocalPermOverrides(prev => {
+        const next = { ...prev };
+        delete next[member.id || member.userId];
+        return next;
+      });
+      setCloudMembers(prev => {
+        if (!prev) return prev;
+        return prev.map(m => String(m.userId) === String(member.userId) ? { ...m, role: newRole, resolved_permissions: { ...preset } } : m);
+      });
+      fireToast(t(`✓ Role changed to ${ROLE_BADGE[newRole]?.label || newRole}`, `✓ ሚና ወደ ${ROLE_BADGE[newRole]?.label || newRole} ተቀይሯል`), 1800);
+    } catch (err) {
+      fireToast(err.message || t('Failed to change role', 'ሚና መቀየር አልተሳካም'), 2400);
     } finally {
       setSavingPerms(false);
     }
@@ -1143,6 +1206,11 @@ export default function StaffPage({
                           <div className="flex items-center gap-1.5 mt-0.5">
                             {phoneStr && <span className="text-xs" style={{ color: '#6b7280' }}>{formatEthiopianPhone(phoneStr)}</span>}
                             <RoleBadge role={m.role || 'staff'} />
+                            {!isLocal && getEffectiveRoleLabel(m, localPermOverrides, lang) !== (ROLE_BADGE[m.role]?.label || m.role) && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#fef3c7', color: '#92400e' }}>
+                                {t('Custom', 'የተበጀ')}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
@@ -1213,10 +1281,53 @@ export default function StaffPage({
                         </div>
                       )}
 
-                      {/* Permissions + deactivate for cloud members */}
+                      {/* Permissions + role + deactivate for cloud members */}
                       {!isLocal && isExpanded && (
                         <div className="px-4 pb-4" style={{ background: '#fafaf9' }}>
-                          <div className="flex items-center gap-1.5 mb-2 mt-1">
+                          {/* Role selector */}
+                          {!isOwnerRole && (
+                            <div className="mb-3">
+                              <div className="flex items-center gap-1.5 mb-1.5 mt-1">
+                                <Shield className="w-3.5 h-3.5 text-gray-400" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                                  {t('Role', 'ሚና')}
+                                </span>
+                                {getEffectiveRoleLabel(m, localPermOverrides, lang) !== (ROLE_BADGE[m.role]?.label || m.role) && (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#fef3c7', color: '#92400e' }}>
+                                    {t('Custom', 'የተበጀ')}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex gap-1.5 flex-wrap">
+                                {ROLE_OPTIONS.map(opt => {
+                                  const label = lang === 'am' ? opt.label.am : opt.label.en;
+                                  const isActive = m.role === opt.value && getEffectiveRoleLabel(m, localPermOverrides, lang) === label;
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => {
+                                        if (m.role === opt.value) return;
+                                        setPendingRoleChange({ member: m, newRole: opt.value, label });
+                                      }}
+                                      disabled={savingPerms}
+                                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                                      style={{
+                                        background: isActive ? '#1B4332' : '#f3f4f6',
+                                        color: isActive ? '#fff' : '#374151',
+                                        opacity: savingPerms ? 0.5 : 1,
+                                      }}
+                                    >
+                                      {label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Permission toggles */}
+                          <div className="flex items-center gap-1.5 mb-2">
                             <Shield className="w-3.5 h-3.5 text-gray-400" />
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
                               {t('Permissions', 'ፍቃዶች')}
@@ -1414,6 +1525,20 @@ export default function StaffPage({
         cancelLabel={t('Cancel', 'ሰርዝ')}
         onConfirm={() => { const p = pendingPermChange; setPendingPermChange(null); if (p) applyTogglePermission(p.member, p.key, p.nextValue); }}
         onCancel={() => setPendingPermChange(null)}
+      />
+
+      <ConfirmDialog
+        open={pendingRoleChange != null}
+        tone="default"
+        title={pendingRoleChange ? t(`Change role to ${pendingRoleChange.label}?`, `ሚና ወደ ${pendingRoleChange.label} ይቀየር?`) : ''}
+        message={pendingRoleChange ? t(
+          `This will update ${pendingRoleChange.member.displayName || pendingRoleChange.member.display_name || 'this member'}'s permissions to match the ${pendingRoleChange.label} role.`,
+          `የ${pendingRoleChange.member.displayName || pendingRoleChange.member.display_name || 'ይህ አባል'} ፍቃዶች ወደ ${pendingRoleChange.label} ሚና ይቀየራሉ።`
+        ) : ''}
+        confirmLabel={t('Change Role', 'ሚና ቀይር')}
+        cancelLabel={t('Cancel', 'ሰርዝ')}
+        onConfirm={() => { const p = pendingRoleChange; setPendingRoleChange(null); if (p) handleRoleChange(p.member, p.newRole); }}
+        onCancel={() => setPendingRoleChange(null)}
       />
 
       {/* Quick-collect bottom sheet */}
