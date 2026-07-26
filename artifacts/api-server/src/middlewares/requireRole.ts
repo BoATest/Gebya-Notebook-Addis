@@ -1,4 +1,4 @@
-import { db } from "@workspace/db";
+import { db, requireDb } from "@workspace/db";
 import { businessMembers } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { verifyJwt } from "../routes/auth.js";
@@ -31,7 +31,7 @@ export function requireRole(...roles: string[]) {
       filters.push(eq(businessMembers.businessId, requestedBizId));
     }
 
-    const rows = await db
+    const rows = await requireDb()
       .select({ role: businessMembers.role })
       .from(businessMembers)
       .where(and(...filters))

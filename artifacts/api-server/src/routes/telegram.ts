@@ -748,6 +748,7 @@ router.post("/webhook", async (req: Request, res: Response) => {
     // when the shop owner records the payment in Gebya.
     let customerNameForNotify = "Customer";
     try {
+      if (!db) throw new Error("Database not configured");
       if (session?.customerId) {
         customerNameForNotify = session.customerName || `Customer ${session.customerId}`;
         const latest = await getLatestQueuedReminderForCustomer(Number(session.customerId));

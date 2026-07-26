@@ -11,7 +11,14 @@ import { normalizePhone } from "@workspace/db/schema/phone";
 
 const router = Router();
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://gebya.app";
-const JWT_SECRET = process.env.JWT_SECRET || "";
+
+if (!process.env.JWT_SECRET) {
+  throw new Error(
+    "[auth] FATAL: JWT_SECRET is not set. Refusing to start without a signing secret. " +
+    "Set JWT_SECRET in your environment before booting."
+  );
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = "30d";
 
 function signJwt(userId: number) {

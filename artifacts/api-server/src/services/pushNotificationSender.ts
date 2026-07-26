@@ -38,6 +38,7 @@ export async function sendPushToOwner(
     return { sent: 0, failed: 0 };
   }
 
+  if (!db) throw new Error("Database not configured");
   const subscriptions = await db
     .select()
     .from(pushSubscriptions)

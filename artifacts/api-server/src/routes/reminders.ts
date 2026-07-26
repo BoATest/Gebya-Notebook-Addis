@@ -31,7 +31,7 @@ import { sendTelegramTextMessage } from "../services/telegramBotService.js";
 import { createHistoryEntry } from "../services/reminderHistory.js";
 import { sendPushToOwner } from "../services/pushNotificationSender.js";
 import { verifyShopOwnership } from "./rbac.js";
-import { db } from "@workspace/db";
+import { db, requireDb } from "@workspace/db";
 import { customers as customersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import type {
@@ -109,6 +109,7 @@ function log(level: "info" | "warn" | "error", message: string, context?: Record
  */
 router.post("/run", async (req: Request, res: Response) => {
   try {
+    if (!db) throw new Error("Database not configured");
     const isVercelCron = req.headers?.["x-vercel-cron"] === "1";
     const cronSecret = req.headers?.["x-reminder-cron-secret"];
     if (isVercelCron) {
@@ -547,7 +548,7 @@ router.post("/remind/:customerId", verifyShopOwnership, async (req: Request, res
 
     const { chatId, customerName, balance, dueDate, language } = parsed.data;
 
-    const validBalance = Number.isFinite(balance) ? balance : 0;
+    const validBalance: number = typeof balance === "number" && Number.isFinite(balance) ? balance : 0;
     if (validBalance <= 0) {
       return res.status(400).json({ error: "Customer has no outstanding balance to remind about" });
     }
@@ -605,6 +606,7 @@ router.post("/remind/:customerId", verifyShopOwnership, async (req: Request, res
  */
 router.get("/critical-overdue", verifyShopOwnership, async (req: Request, res: Response) => {
   try {
+    if (!db) throw new Error("Database not configured");
     const shopId = getShopId(req);
 
     // Auto-fetch customers with balance from the transaction ledger
