@@ -97,3 +97,7 @@ export function clearSettlementDraft(staffId) {
     localStorage.removeItem(`gebya_settlement_draft_${staffId}`);
   } catch { /* ignore */ }
 }
+
+export function createReconciliationEntry(actor, action, note) {
+  return { actor, action, note, timestamp: Date.now() };
+}

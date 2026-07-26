@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Staff Page · Wireframe</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,700;14..32,900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #f5f3ef; padding: 16px; color: #1f2937; }
+  .phone { max-width: 400px; margin: 0 auto; background: #fff; border-radius: 28px; box-shadow: 0 8px 40px rgba(0,0,0,0.08); overflow: hidden; }
+  .header { padding: 16px 20px 12px; border-bottom: 1px solid #f0ece4; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 18px; font-weight: 900; letter-spacing: -0.3px; }
+  .header-badge { font-size: 11px; font-weight: 700; color: #6b7280; background: #f3f4f6; padding: 4px 10px; border-radius: 20px; }
+  .content { padding: 16px; }
+  .section { margin-bottom: 16px; }
+  .section-title { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+
+  /* Stats bar */
+  .stats { display: flex; gap: 8px; margin-bottom: 16px; }
+  .stat { flex: 1; border: 1px solid #e8e2d8; border-radius: 12px; padding: 10px 8px; text-align: center; background: #fcfbf8; }
+  .stat-num { font-size: 20px; font-weight: 900; color: #1B4332; }
+  .stat-label { font-size: 9px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat.warn { border-color: #fde68a; background: #fffbeb; }
+  .stat.warn .stat-num { color: #d97706; }
+
+  /* Team card */
+  .team-card { border: 1px solid #e8e2d8; border-radius: 16px; overflow: hidden; }
+  .team-header { padding: 12px 16px; background: #fcfbf8; border-bottom: 1px solid #f0ece4; display: flex; justify-content: space-between; align-items: center; }
+  .team-header span:first-child { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; }
+  .team-header span:last-child { font-size: 11px; font-weight: 900; color: #1B4332; }
+  .member { padding: 12px 16px; border-bottom: 1px solid #f0ece4; cursor: pointer; transition: background 0.15s; }
+  .member:last-child { border-bottom: none; }
+  .member:hover { background: #fafaf9; }
+  .member-row { display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; flex-shrink: 0; }
+  .avatar.active { background: #f0fdf4; color: #16a34a; }
+  .avatar.inactive { background: #f3f4f6; color: #9ca3af; }
+  .info { flex: 1; min-width: 0; }
+  .name { font-size: 14px; font-weight: 900; color: #111; }
+  .meta { font-size: 11px; color: #6b7280; margin-top: 2px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .badge { font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 10px; }
+  .badge-role { background: #f3f4f6; color: #4b5563; }
+  .badge-pending { background: #fef3c7; color: #92400e; }
+  .badge-cloud { background: #e0f2fe; color: #0369a1; }
+  .sales-line { font-size: 11px; font-weight: 700; color: #1B4332; margin-top: 3px; }
+
+  /* Drill-down panel */
+  .drilldown { background: #fafaf9; border-top: 1px solid #f0ece4; padding: 0; max-height: 0; overflow: hidden; transition: max-height 0.25s ease; }
+  .drilldown.open { max-height: 600px; }
+  .drilldown-inner { padding: 12px 16px 16px; }
+  .drill-summary { display: flex; gap: 12px; margin-bottom: 12px; }
+  .drill-stat { flex: 1; background: #fff; border: 1px solid #e8e2d8; border-radius: 10px; padding: 8px 10px; text-align: center; }
+  .drill-stat-val { font-size: 15px; font-weight: 900; color: #1B4332; }
+  .drill-stat-label { font-size: 9px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.04em; }
+  .drill-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+  .drill-item:last-child { border-bottom: none; }
+  .drill-name { flex: 1; font-size: 12px; font-weight: 700; color: #374151; }
+  .drill-qty { font-size: 11px; color: #9ca3af; }
+  .drill-amount { font-size: 12px; font-weight: 900; color: #111; }
+
+  /* Quick collect with amount */
+  .collect-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; background: rgba(0,0,0,0.35); }
+  .collect-sheet { width: 100%; max-width: 400px; background: #fff; border-radius: 20px 20px 0 0; padding: 20px; }
+  .collect-handle { width: 36px; height: 4px; background: #d1d5db; border-radius: 4px; margin: 0 auto 16px; }
+  .collect-title { font-size: 15px; font-weight: 900; margin-bottom: 4px; }
+  .collect-sub { font-size: 11px; color: #6b7280; margin-bottom: 16px; }
+  .amount-input-wrap { display: flex; align-items: center; border: 2px solid #C4883A; border-radius: 14px; padding: 0 16px; margin-bottom: 16px; }
+  .amount-prefix { font-size: 18px; font-weight: 900; color: #6b7280; margin-right: 8px; }
+  .amount-input { flex: 1; border: none; font-size: 22px; font-weight: 900; padding: 14px 0; outline: none; background: transparent; width: 100%; }
+  .collect-actions { display: flex; gap: 10px; }
+  .btn { flex: 1; padding: 14px; border-radius: 12px; font-size: 13px; font-weight: 800; border: none; cursor: pointer; text-align: center; }
+  .btn-primary { background: #1B4332; color: #fff; }
+  .btn-secondary { background: #f3f4f6; color: #374151; }
+  .btn-green { background: #dcfce7; color: #166534; }
+  .btn-sm { padding: 8px 14px; font-size: 11px; }
+  .btn-outline { background: transparent; border: 1.5px solid #e8e2d8; color: #374151; }
+
+  /* Needs attention section */
+  .attention { border: 1px solid #fde68a; border-radius: 14px; background: #fffbeb; overflow: hidden; margin-bottom: 16px; }
+  .attention-head { padding: 10px 16px; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; color: #92400e; }
+  .attention-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid #fef3c7; gap: 8px; }
+  .attention-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .attention-left span { font-size: 12px; font-weight: 700; color: #1f2937; }
+  .attention-left .sub { font-size: 10px; color: #9ca3af; }
+  .attention-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .tag { font-size: 9px; font-weight: 700; color: #6b7280; background: #f3f4f6; padding: 2px 8px; border-radius: 8px; }
+
+  /* Settlement section */
+  .settle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+  .settle-row:last-child { border-bottom: none; }
+  .settle-name { font-size: 13px; font-weight: 700; }
+  .settle-status { font-size: 10px; color: #6b7280; margin-top: 2px; }
+  .settle-amt { font-size: 15px; font-weight: 900; color: #1B4332; }
+
+  .divider { height: 1px; background: #f0ece4; margin: 12px 0; }
+
+  .note { font-size: 10px; color: #9ca3af; text-align: center; padding: 12px; border: 1px dashed #e8e2d8; border-radius: 8px; margin-top: 8px; }
+  .note strong { color: #6b7280; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>Staff</h1>
+    <span class="header-badge">Owner · 4 active</span>
+  </div>
+
+  <div class="content">
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat"><div class="stat-num">4</div><div class="stat-label">Active</div></div>
+      <div class="stat warn"><div class="stat-num">2</div><div class="stat-label">Unsettled</div></div>
+      <div class="stat"><div class="stat-num">1</div><div class="stat-label">Pending</div></div>
+      <div class="stat"><div class="stat-num">6</div><div class="stat-label">Total</div></div>
+    </div>
+
+    <!-- Needs Attention -->
+    <div class="attention">
+      <div class="attention-head">Needs attention</div>
+      <div class="attention-item">
+        <div class="attention-left">
+          <span>💰</span>
+          <div>
+            <span>Abebe Bekele</span>
+            <span class="sub"> · not settled</span>
+            <div><span class="tag">Est. 5,400 birr</span></div>
+          </div>
+        </div>
+        <div class="attention-actions">
+          <button class="btn btn-green btn-sm" style="padding:6px 12px">Collected ✓</button>
+          <button class="btn btn-primary btn-sm">Settle</button>
+        </div>
+      </div>
+      <div class="attention-item">
+        <div class="attention-left">
+          <span>💰</span>
+          <div>
+            <span>Sara Hailu</span>
+            <span class="sub"> · not settled</span>
+            <div><span class="tag">Est. 2,150 birr</span></div>
+          </div>
+        </div>
+        <div class="attention-actions">
+          <button class="btn btn-green btn-sm" style="padding:6px 12px">Collected ✓</button>
+          <button class="btn btn-primary btn-sm">Settle</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Today's Team -->
+    <div class="section-title">
+      <span>Today's Team</span>
+      <span style="color:#1B4332;font-weight:900">4 active</span>
+    </div>
+    <div class="team-card">
+
+      <!-- Abebe — expanded drill-down -->
+      <div class="member">
+        <div class="member-row">
+          <div class="avatar active">A</div>
+          <div class="info">
+            <div class="name">Abebe Bekele</div>
+            <div class="meta">
+              <span class="badge badge-role">Sales Staff</span>
+            </div>
+            <div class="sales-line">12 sales · 8,450 ETB</div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:#1B4332">▾</span>
+        </div>
+        <!-- DRILL-DOWN: visible when expanded -->
+        <div class="drilldown open">
+          <div class="drilldown-inner">
+            <div class="drill-summary">
+              <div class="drill-stat">
+                <div class="drill-stat-val">12</div>
+                <div class="drill-stat-label">Items sold</div>
+              </div>
+              <div class="drill-stat">
+                <div class="drill-stat-val">8,450</div>
+                <div class="drill-stat-label">Revenue (ETB)</div>
+              </div>
+              <div class="drill-stat">
+                <div class="drill-stat-val">5,240</div>
+                <div class="drill-stat-label">Cash collected</div>
+              </div>
+              <div class="drill-stat">
+                <div class="drill-stat-val">3,210</div>
+                <div class="drill-stat-label">Transfer</div>
+              </div>
+            </div>
+            <div style="font-size:10px;font-weight:900;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Today's transactions</div>
+            <div class="drill-item">
+              <span class="drill-name">Bread (2×)</span>
+              <span class="drill-qty">2 × 35</span>
+              <span class="drill-amount">70</span>
+            </div>
+            <div class="drill-item">
+              <span class="drill-name">Cooking oil 1L</span>
+              <span class="drill-qty">1 × 320</span>
+              <span class="drill-amount">320</span>
+            </div>
+            <div class="drill-item">
+              <span class="drill-name">Sugar 2kg</span>
+              <span class="drill-qty">1 × 165</span>
+              <span class="drill-amount">165</span>
+            </div>
+            <div class="drill-item" style="color:#9ca3af;font-style:italic;font-size:11px">
+              <span class="drill-name">+ 9 more items</span>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:6px">
+              <button class="btn btn-outline btn-sm" style="flex:1">View all transactions →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sara — collapsed -->
+      <div class="member">
+        <div class="member-row">
+          <div class="avatar active">S</div>
+          <div class="info">
+            <div class="name">Sara Hailu</div>
+            <div class="meta">
+              <span class="badge badge-role">Trusted Staff</span>
+            </div>
+            <div class="sales-line">8 sales · 2,150 ETB</div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:#9ca3af">▸</span>
+        </div>
+      </div>
+
+      <!-- Cloud member example -->
+      <div class="member" style="background:#fafaf9">
+        <div class="member-row">
+          <div class="avatar active" style="background:#e0f2fe;color:#0369a1">M</div>
+          <div class="info">
+            <div class="name" style="display:flex;align-items:center;gap:6px">
+              Martha Tadesse
+              <span class="badge badge-cloud">Cloud</span>
+            </div>
+            <div class="meta">
+              <span class="badge badge-role">Manager</span>
+              <span> · 0911-223344</span>
+            </div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:#9ca3af">▸</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Settlement Section -->
+    <div style="margin-top:16px">
+      <div class="section-title">
+        <span>Settlement</span>
+        <span style="color:#9ca3af;font-weight:700;font-size:10px">Today · 2 unsettled</span>
+      </div>
+      <div class="team-card" style="padding:12px 16px">
+        <div class="settle-row">
+          <div>
+            <div class="settle-name">Abebe Bekele</div>
+            <div class="settle-status">Last settled 3 days ago</div>
+          </div>
+          <div style="text-align:right">
+            <div class="settle-amt">5,400 ETB</div>
+            <div style="font-size:9px;color:#9ca3af">est. cash to collect</div>
+          </div>
+        </div>
+        <div class="settle-row">
+          <div>
+            <div class="settle-name">Sara Hailu</div>
+            <div class="settle-status">Never settled</div>
+          </div>
+          <div style="text-align:right">
+            <div class="settle-amt">2,150 ETB</div>
+            <div style="font-size:9px;color:#9ca3af">est. cash to collect</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Collect Modal (overlay preview) -->
+    <div class="collect-modal" style="position:relative;margin-top:16px;border-radius:12px;overflow:hidden">
+      <div class="collect-sheet">
+        <div class="collect-handle"></div>
+        <div class="collect-title">Quick collect from Abebe</div>
+        <div class="collect-sub">Today's sales: 8,450 ETB · Cash collected so far: 3,050 ETB</div>
+        <div class="amount-input-wrap">
+          <span class="amount-prefix">ETB</span>
+          <input class="amount-input" type="text" placeholder="0" value="5,400">
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+          <button class="btn btn-sm" style="background:#f3f4f6;font-weight:700;padding:6px 12px;border:none;border-radius:8px">5,400</button>
+          <button class="btn btn-sm" style="background:#f3f4f6;font-weight:700;padding:6px 12px;border:none;border-radius:8px">5,000</button>
+          <button class="btn btn-sm" style="background:#f3f4f6;font-weight:700;padding:6px 12px;border:none;border-radius:8px">Full cash</button>
+        </div>
+        <div class="collect-actions">
+          <button class="btn btn-secondary">Cancel</button>
+          <button class="btn btn-primary">Record collection</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="note">
+      <strong>What's new:</strong> Quick-collect now prompts for actual cash amount · Tap any staff member to drill into their today's transactions · Estimated amounts shown in settlement + attention sections
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

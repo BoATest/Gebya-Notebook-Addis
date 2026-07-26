@@ -39,6 +39,28 @@ const JoinCode = z
   .max(20)
   .refine((v) => /^[A-Za-z0-9 \-]{8,20}$/.test(v), "invalid join code format");
 
+// ---- Auth endpoints (OTP flow) ----
+
+export const OtpRequestBody = z.object({
+  phone_number: E164Like,
+});
+
+export type OtpRequestBodyT = z.infer<typeof OtpRequestBody>;
+
+export const VerifyRequestBody = z.object({
+  phone_number: E164Like,
+  otp: z.string().trim().length(6, "OTP must be 6 digits"),
+});
+
+export type VerifyRequestBodyT = z.infer<typeof VerifyRequestBody>;
+
+export const LinkDeviceBody = z.object({
+  device_id: z.string().uuid(),
+  device_name: z.string().trim().max(100).optional(),
+});
+
+export type LinkDeviceBodyT = z.infer<typeof LinkDeviceBody>;
+
 // ---- POST /api/shops ----
 
 export const CreateShopBody = z.object({

@@ -31,8 +31,13 @@ async function kvCmd(args: (string | number)[]): Promise<unknown> {
   if (!res.ok) {
     throw new Error(`KV command failed (${res.status})`);
   }
-  const data = (await res.json()) as { result?: unknown };
-  return data?.result ?? null;
+  try {
+    const data = (await res.json()) as { result?: unknown };
+    return data?.result ?? null;
+  } catch {
+    const text = await res.text();
+    throw new Error(`KV invalid JSON response: ${text.slice(0, 200)}`);
+  }
 }
 
 // ─── key scheme ───────────────────────────────────────────────────────

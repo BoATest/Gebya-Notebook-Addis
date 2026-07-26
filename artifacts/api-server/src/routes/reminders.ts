@@ -21,8 +21,9 @@ import {
   setCustomerFrequency,
   clearCustomerOverride,
   isRemindersEnabled,
+  setLastReminderSentAt as setLastReminderSentAtImpl,
 } from "../services/reminderConfiguration.js";
-import { runRemindersForShop } from "../services/reminderScheduler.js";
+import { runRemindersForShop, scanCriticalOverdue } from "../services/reminderScheduler.js";
 import { queryHistory } from "../services/reminderSender.js";
 import { getSessionByChatId, getTelegramLinkSession } from "../services/telegramStore.js";
 import { buildReminderMessage } from "../services/reminderMessageBuilder.js";
@@ -108,13 +109,15 @@ function log(level: "info" | "warn" | "error", message: string, context?: Record
  */
 router.post("/run", async (req: Request, res: Response) => {
   try {
+    const isVercelCron = req.headers?.["x-vercel-cron"] === "1";
     const cronSecret = req.headers?.["x-reminder-cron-secret"];
-    if (!process.env.REMINDER_CRON_SECRET) {
+    if (isVercelCron) {
+      // Vercel Cron Jobs inject x-vercel-cron: 1 automatically
+    } else if (!process.env.REMINDER_CRON_SECRET) {
       return res.status(500).json({
         error: "Server misconfigured: REMINDER_CRON_SECRET environment variable is not set",
       });
-    }
-    if (!cronSecret || cronSecret !== process.env.REMINDER_CRON_SECRET) {
+    } else if (!cronSecret || cronSecret !== process.env.REMINDER_CRON_SECRET) {
       return res.status(401).json({ error: "unauthorized" });
     }
 
@@ -576,8 +579,7 @@ router.post("/remind/:customerId", verifyShopOwnership, async (req: Request, res
 
     // Prevent cron from re-sending too soon
     try {
-      const { setLastReminderSentAt } = await import("../services/reminderConfiguration.js");
-      await setLastReminderSentAt(shopId, customerId, Date.now());
+      await setLastReminderSentAtImpl(shopId, customerId, Date.now());
     } catch {
       // non-critical — history entry already recorded
     }
@@ -643,7 +645,6 @@ router.get("/critical-overdue", verifyShopOwnership, async (req: Request, res: R
       };
     });
 
-    const { scanCriticalOverdue } = await import("../services/reminderScheduler.js");
     const critical = await scanCriticalOverdue(eligibleCustomers);
 
     return res.json({
@@ -683,8 +684,7 @@ router.post("/payment-confirmed", async (req: Request, res: Response) => {
     const { shopId, customerId, amount, customerName, chatId, language } = parsed.data;
 
     // Prevent next cron from sending a reminder
-    const { setLastReminderSentAt } = await import("../services/reminderConfiguration.js");
-    await setLastReminderSentAt(shopId, customerId, Date.now());
+    await setLastReminderSentAtImpl(shopId, customerId, Date.now());
 
     // Record in history
     await createHistoryEntry({
@@ -709,7 +709,6 @@ router.post("/payment-confirmed", async (req: Request, res: Response) => {
       const thankYouEn = `🏪 Gebya\n\n${validName}, your payment of ${formattedAmt} ETB has been confirmed. Thank you! 🙏\n\nType /balance to check your account.`;
       const msg = (language ?? "am") === "am" ? thankYou : thankYouEn;
       try {
-        const { sendTelegramTextMessage } = await import("../services/telegramBotService.js");
         await sendTelegramTextMessage(chatId, msg);
       } catch {
         // non-critical — history entry already recorded

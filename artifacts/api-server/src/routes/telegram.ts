@@ -16,6 +16,12 @@ import {
   isTelegramBotConfigured,
   sendTelegramTextMessage,
 } from "../services/telegramBotService.js";
+import { getLatestQueuedReminderForCustomer, acknowledgeReminder } from "../services/reminderHistory.js";
+import { sendPushToOwner } from "../services/pushNotificationSender.js";
+import { setLastReminderSentAt } from "../services/reminderConfiguration.js";
+import { db } from "@workspace/db";
+import { customers, businessMembers, notifications } from "@workspace/db/schema";
+import { eq, and } from "drizzle-orm";
 
 const linkSessionSchema = z.object({
   token: z.string(),
@@ -744,7 +750,6 @@ router.post("/webhook", async (req: Request, res: Response) => {
     try {
       if (session?.customerId) {
         customerNameForNotify = session.customerName || `Customer ${session.customerId}`;
-        const { getLatestQueuedReminderForCustomer, acknowledgeReminder } = await import("../services/reminderHistory.js");
         const latest = await getLatestQueuedReminderForCustomer(Number(session.customerId));
         if (latest && !latest.acknowledged) {
           await acknowledgeReminder(latest.id);
@@ -756,11 +761,6 @@ router.post("/webhook", async (req: Request, res: Response) => {
         }
 
         // Notify shop owner that customer claims to have paid
-        const { db } = await import("@workspace/db");
-        const { customers, businessMembers, notifications } = await import("@workspace/db/schema");
-        const { eq, and } = await import("drizzle-orm");
-        const { sendPushToOwner } = await import("../services/pushNotificationSender.js");
-
         const customerRow = await db
           .select({ businessId: customers.businessId })
           .from(customers)
@@ -776,7 +776,6 @@ router.post("/webhook", async (req: Request, res: Response) => {
           // so they don't get nagged while the owner confirms payment.
           // Reminders resume after the frequency window (default: 1 week).
           try {
-            const { setLastReminderSentAt } = await import("../services/reminderConfiguration.js");
             await setLastReminderSentAt(businessId, Number(session.customerId), Date.now());
             console.log("[telegram:webhook:paid:grace]", {
               customerId: session.customerId,

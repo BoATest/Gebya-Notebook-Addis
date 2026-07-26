@@ -6,6 +6,8 @@ export type PermissionKey =
   | "can_view_reports";
 
 export type PermissionMap = Record<PermissionKey, boolean>;
+export type EffectivePermissions = PermissionMap;
+export type StaffPermissionsOverride = Partial<PermissionMap>;
 
 export type BusinessRole = "owner" | "manager" | "trusted_staff" | "cashier" | "viewer";
 
@@ -53,9 +55,12 @@ export function getRoleDefault(role: string): PermissionMap {
 
 export function resolvePermissions(
   role: string,
-  storedPermissions: unknown
+  storedPermissions: unknown,
+  staffStatus?: string
 ): PermissionMap {
   const base = getRoleDefault(role);
+  // If staff is deactivated, return empty permissions
+  if (staffStatus === "inactive") return {} as PermissionMap;
   if (!storedPermissions || typeof storedPermissions !== "object" || Array.isArray(storedPermissions)) return base;
   const merged = { ...base };
   for (const key of Object.keys(base)) {

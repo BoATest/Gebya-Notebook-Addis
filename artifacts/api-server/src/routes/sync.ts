@@ -11,6 +11,9 @@ import { verifyJwt } from "./auth.js";
 import { syncRateLimiter } from "../rateLimits.js";
 import { requirePermission } from "./rbac.js";
 import { sendPushToOwner } from "../services/pushNotificationSender.js";
+import { setLastReminderSentAt } from "../services/reminderConfiguration.js";
+import { createHistoryEntry } from "../services/reminderHistory.js";
+import { sendTelegramTextMessage } from "../services/telegramBotService.js";
 
 const MAX_ROWS_PER_TABLE_PUSH = 500;
 const DEFAULT_PULL_LIMIT = 200;
@@ -380,11 +383,9 @@ router.post("/push",
           const chatId = cust?.telegramChatId || "";
 
           // Stop reminders
-          const { setLastReminderSentAt } = await import("../services/reminderConfiguration.js");
           await setLastReminderSentAt(businessId, customerId, Date.now());
 
           // Record in history
-          const { createHistoryEntry } = await import("../services/reminderHistory.js");
           await createHistoryEntry({
             shopId: businessId,
             customerId,
@@ -401,7 +402,6 @@ router.post("/push",
 
           // Send thank-you if customer has Telegram
           if (chatId) {
-            const { sendTelegramTextMessage } = await import("../services/telegramBotService.js");
             const formattedAmt = Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const msg = `🏪 ጌባያ\n\n${customerName} ሆይ፣ የ${formattedAmt} ብር ክፍያህ ተረጋግጧል። እናመሰግናለን! 🙏\n\nሂሳብህን ለማየት /balance ይጫኑ።`;
             sendTelegramTextMessage(chatId, msg).catch(() => {});

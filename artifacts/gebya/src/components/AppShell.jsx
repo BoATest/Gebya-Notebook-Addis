@@ -402,7 +402,7 @@ function OfflineStatusStrip({
         const newVal = d.serverVersion?.[field];
         const oldStr = oldVal == null ? '(empty)' : String(oldVal).substring(0, 30);
         const newStr = newVal == null ? '(empty)' : String(newVal).substring(0, 30);
-        return `${field}: ${oldStr} â†’ ${newStr}`;
+        return `${field}: ${oldStr} → ${newStr}`;
       });
       const more = (d.changedFields || []).length > 3 ? ` +${(d.changedFields || []).length - 3} more` : '';
       return `${d.table} #${d.recordId}: ${changes.join(', ')}${more}`;
@@ -414,11 +414,11 @@ function OfflineStatusStrip({
         style={{ minHeight: 36, padding: '7px 9px', borderRadius: 8, background: '#fffbeb', border: '1px solid #fcd34d', color: '#92400e', fontSize: 12, fontWeight: 800 }}
       >
         <span className="truncate">
-          âš ï¸ {t.syncConflict} Â· {conflictWarning}
+          ⚠️ {t.syncConflict} · {conflictWarning}
         </span>
         {detailLines.length > 0 && (
           <span style={{ fontWeight: 600, fontSize: 11, opacity: 0.85 }}>
-            {detailLines.join(' Â· ')}
+            {detailLines.join(' · ')}
             {(conflictDetails || []).length > 3 && ` +${(conflictDetails || []).length - 3} more`}
           </span>
         )}
@@ -453,7 +453,7 @@ function OfflineStatusStrip({
     >
       <span className="min-w-0 truncate">
         {label}
-        {detail ? <span style={{ fontWeight: 700 }}> Â· {detail}</span> : null}
+        {detail ? <span style={{ fontWeight: 700 }}> · {detail}</span> : null}
       </span>
       {action}
     </div>
@@ -518,7 +518,7 @@ function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t
         style={{ background: 'var(--color-surface-soft)', borderTop: '1px solid var(--color-border-light)' }}
       >
         <p className="text-xs font-medium font-sans" style={{ color: 'var(--color-text-muted)' }}>
-          {t.trustReopenHint || 'Close and reopen anytime â€” your records stay here.'}
+          {t.trustReopenHint || 'Close and reopen anytime — your records stay here.'}
         </p>
         {totalEntries === 0 && (
           <button
@@ -567,7 +567,7 @@ export default function AppShell() {
   const fetchUnreadNotifCount = useNotificationsStore(s => s.fetchUnreadCount);
   const syncConflictWarning = useSyncStore(s => s.conflictWarning);
   const syncConflictDetails = useSyncStore(s => s.conflictDetails);
-  // â”€â”€â”€ Data state (local â€” not in stores) â”€â”€â”€
+  // ─── Data state (local — not in stores) ───
   const [transactions, setTransactions] = useState([]);
   const [ledgerCustomers, setLedgerCustomers] = useState([]);
   const [ledgerTransactions, setLedgerTransactions] = useState([]);
@@ -592,7 +592,7 @@ export default function AppShell() {
   const [planTier, setPlanTier] = useState('free');
   const [entitlements, setEntitlements] = useState({ max_staff: 3, max_transactions_per_month: 500, advanced_reports: false, multi_shop: false, priority_support: false });
 
-  // â”€â”€â”€ App state (useAppStore) â”€â”€â”€
+  // ─── App state (useAppStore) ───
   const loading = useAppStore(s => s.loading);
   const setLoading = useAppStore(s => s.setLoading);
   const activeTab = useAppStore(s => s.activeTab);
@@ -647,7 +647,7 @@ export default function AppShell() {
   const retryingTelegram = useAppStore(s => s.retryingTelegram);
   const setRetryingTelegram = useAppStore(s => s.setRetryingTelegram);
 
-  // â”€â”€â”€ Shop state (useShopStore) â”€â”€â”€
+  // ─── Shop state (useShopStore) ───
   const shopProfile = useShopStore(s => s.shopProfile);
   const setShopProfile = useShopStore(s => s.setShopProfile);
   const recurringExpenses = useShopStore(s => s.recurringExpenses);
@@ -694,7 +694,7 @@ export default function AppShell() {
         txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, staffRows,
         nameRow, phoneRow, businessTypeRow, epRow, reRow, customQuickAmountsRow, telegramRow,
         snapshotRow, activeStaffRow,
-        // Payment receiving accounts â€” used by Pay-it-now /pay URLs (legacy, C.1)
+        // Payment receiving accounts — used by Pay-it-now /pay URLs (legacy, C.1)
         payTelebirrRow, payCbePhoneRow, payCbeAccountRow, payAwashPhoneRow,
         payBankNameRow, payBankAccountRow,
         // Unified payment channels (Commit C.4) + legacy custom lists for migration
@@ -767,7 +767,7 @@ export default function AppShell() {
         // Persist migrated/default channels so this one-time work is durable.
         try {
           await db.settings.put({ key: 'shop_payment_channels', value: JSON.stringify(paymentChannels) });
-        } catch { /* non-critical â€” next save will retry */ }
+        } catch { /* non-critical — next save will retry */ }
       }
       const sortedTxns = [...txns].sort((a, b) => b.created_at - a.created_at);
       setTransactions(sortedTxns);
@@ -837,7 +837,7 @@ export default function AppShell() {
         join_url: identityForProfile?.join_url || '',
         // Canonical (Commit C.4)
         paymentChannels,
-        // Legacy compat shim â€” derived, never written to from outside App.jsx
+        // Legacy compat shim — derived, never written to from outside App.jsx
         payments: derivedLegacy.payments,
       });
       // Commit C.4: enabledProviders is derived from the canonical channels[]
@@ -1208,7 +1208,7 @@ export default function AppShell() {
         return updated;
       });
 
-      // Paid Â· Partial Â· Pay Later â€” when a sale has a credit portion, also
+      // Paid · Partial · Pay Later — when a sale has a credit portion, also
       // record a customer_transaction so the customer's running balance updates.
       // Sale record keeps amount = full value sold; customer_transaction tracks
       // the unpaid portion. Today's cash tally should use cash_received on the
@@ -1226,12 +1226,12 @@ export default function AppShell() {
             catalog_entry_id: transaction.catalog_entry_id || null,
             item_kind: transaction.item_kind || null,
             due_date: null,
-            // Settlement breadcrumb Â· so CustomerDetail can show a "from sale"
+            // Settlement breadcrumb · so CustomerDetail can show a "from sale"
             // or "pay-later" badge on this credit row. Non-indexed, no schema
             // migration needed.
             settlement_mode: transaction.settlement_mode || null,
-            // Multi-item breakdown Â· copy the items[] array onto the customer
-            // credit so the ðŸ§º expander shows up in CustomerDetail history.
+            // Multi-item breakdown · copy the items[] array onto the customer
+            // credit so the 🧺 expander shows up in CustomerDetail history.
             items: Array.isArray(transaction.items) && transaction.items.length > 0
               ? transaction.items
               : null,
@@ -1357,7 +1357,7 @@ export default function AppShell() {
       const toastMsg = { sale: t.saleSaved, expense: t.expenseSaved }[transaction.type] || 'Saved';
       const safeToastMsg = buildSavedOnDeviceMessage(toastMsg, isOnlineNow);
       // Non-destructive confirmation only. Corrections are made by tapping the
-      // transaction row (Today/History) â†’ edit/delete, which unwinds related
+      // transaction row (Today/History) → edit/delete, which unwinds related
       // records (customer credit, Telegram, cloud-proof) via the proper paths.
       fireToast(safeToastMsg, isOnlineNow ? 4000 : 4500);
     } catch (err) {
@@ -1428,7 +1428,7 @@ export default function AppShell() {
     try {
       // Canonical
       await db.settings.put({ key: 'shop_payment_channels', value: JSON.stringify(normalized) });
-      // Legacy compat â€” derived
+      // Legacy compat — derived
       await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(derived.enabledProviders) });
       await db.settings.put({ key: 'custom_banks', value: JSON.stringify(derived.customBanks) });
       await db.settings.put({ key: 'custom_wallets', value: JSON.stringify(derived.customWallets) });
@@ -1462,7 +1462,7 @@ export default function AppShell() {
     await db.settings.put({ key: 'shop_business_type', value: businessType || 'retail-shop' });
 
     // Commit C.4: payment accounts moved to handleSavePaymentChannels.
-    // The profile form no longer owns telebirr/CBE/Awash fields â€” those
+    // The profile form no longer owns telebirr/CBE/Awash fields — those
     // live in the unified Payment Channels section (which has its own
     // save handler). We preserve shopProfile.paymentChannels here so
     // the profile-form save doesn't blank them out.
@@ -1646,7 +1646,7 @@ export default function AppShell() {
     [ledgerCustomers, ledgerTransactions]
   );
 
-  // Enriched customer summaries â€” adds on_time_count, on_time_rate, has_overdue,
+  // Enriched customer summaries — adds on_time_count, on_time_rate, has_overdue,
   // overdue_amount, overdue_days, avg_pay_days. Used by the v0.3 Credit page.
   // Defined HERE (early) because selectedCustomer + activeCustomerTransactionModal
   // both pull from this enriched list.
@@ -1718,7 +1718,7 @@ export default function AppShell() {
   // Light-weight customer creator for inline "+ New customer" picker inside
   // TransactionForm (Partial / Pay Later flow). Returns the saved record so
   // the caller can immediately wire it into the transaction. No nav switch,
-  // no toast â€” the caller drives the UX.
+  // no toast — the caller drives the UX.
   const handleAddCustomerInline = async (payload) => {
     const draft = normalizeCustomerDraft(payload);
     if (!draft) return null;
@@ -1727,7 +1727,7 @@ export default function AppShell() {
       const linkToken = createCustomerTelegramLinkToken();
       const id = await db.customers.add({
         ...draft,
-        // Customer photo Â· base64, non-indexed, no schema migration needed
+        // Customer photo · base64, non-indexed, no schema migration needed
         photo: payload?.photo || null,
         telegram_chat_id: null,
         telegram_link_token: linkToken,
@@ -1751,7 +1751,7 @@ export default function AppShell() {
 
     try {
       const now = Date.now();
-      // Edit branch â€” payload.id present means update existing row
+      // Edit branch — payload.id present means update existing row
       if (payload.id) {
         const updates = {
           ...draft,
@@ -1768,7 +1768,7 @@ export default function AppShell() {
       const linkToken = createCustomerTelegramLinkToken();
       const id = await db.customers.add({
         ...draft,
-        // Customer photo Â· base64, non-indexed
+        // Customer photo · base64, non-indexed
         photo: payload?.photo || null,
         telegram_chat_id: null,
         telegram_link_token: linkToken,
@@ -1872,7 +1872,7 @@ export default function AppShell() {
     try {
       await db.customers.update(customerId, { last_reminded_at: stamp });
     } catch {
-      // non-critical â€” keep optimistic UI
+      // non-critical — keep optimistic UI
     }
     setLedgerCustomers(prev => prev.map(c => (
       c.id === customerId ? { ...c, last_reminded_at: stamp } : c
@@ -1974,7 +1974,7 @@ export default function AppShell() {
   };
 
   const handleSaveSupplierTransaction = async (payload) => {
-    // Commit D: EDIT branch â€” payload carries editing_id (mirror of
+    // Commit D: EDIT branch — payload carries editing_id (mirror of
     // handleSaveCustomerTransaction). Only allow amount + item_name + note +
     // photo edits; type and supplier_id stay locked to the original row.
     if (payload?.editing_id) {
@@ -2298,8 +2298,8 @@ export default function AppShell() {
     }
   };
 
-  // EDIT-mode branch Â· if payload carries editing_id, update that row instead
-  // of inserting a new one. Used by CustomerDetail long-press â†’ Edit.
+  // EDIT-mode branch · if payload carries editing_id, update that row instead
+  // of inserting a new one. Used by CustomerDetail long-press → Edit.
   const updateCustomerTransactionRecord = async (editingId, draft, originalPayload) => {
     try {
       const existing = await db.customer_transactions.get(editingId);
@@ -2344,7 +2344,7 @@ export default function AppShell() {
     }
   };
 
-  // DELETE handler Â· insert reversal entry instead of hard delete for audit trail integrity.
+  // DELETE handler · insert reversal entry instead of hard delete for audit trail integrity.
   const handleDeleteCustomerTransaction = async (tx) => {
     if (!tx?.id) return;
     const reversalAmount = Math.abs(Number(tx.amount) || 0);
@@ -2391,7 +2391,7 @@ export default function AppShell() {
   };
 
   const handleSaveCustomerTransaction = async (payload) => {
-    // EDIT branch â€” payload carries editing_id
+    // EDIT branch — payload carries editing_id
     if (payload?.editing_id) {
       const draftForEdit = normalizeCustomerTransactionDraft(payload);
       if (!draftForEdit) {
@@ -2546,7 +2546,7 @@ export default function AppShell() {
       amount,
       created_at: now,
     });
-    fireToast(draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? (t.paymentSaved || 'Payment recorded Ã¢Å“â€œ') : t.creditSaved, 2200);
+    fireToast(draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? (t.paymentSaved || 'Payment recorded ✓') : t.creditSaved, 2200);
 
     if (draft.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD) {
       try {
@@ -2810,7 +2810,7 @@ export default function AppShell() {
     [todayExpenses]
   );
 
-  // Yesterday derived state â€” used by TodaySummary's trend indicator (â–²/â–¼ vs yesterday)
+  // Yesterday derived state — used by TodaySummary's trend indicator (▲/▼ vs yesterday)
   const yesterdayDateStr = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
@@ -2911,7 +2911,7 @@ export default function AppShell() {
     });
   }, []);
 
-  const hid = (n) => hidden ? 'â€¢â€¢â€¢â€¢' : fmt(n);
+  const hid = (n) => hidden ? '••••' : fmt(n);
 
   const getTimeGreeting = () => {
     const h = new Date().getHours();
@@ -3010,7 +3010,7 @@ export default function AppShell() {
           />
         )}
 
-        {/* â•â•â• Transaction Detail Sheet (customer) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {/* ═══ Transaction Detail Sheet (customer) ═════════════════════════════ */}
         {selectedTransaction && (
           <Suspense fallback={<PanelFallback label={t.loading} />}>
             <TransactionDetailSheet
@@ -3034,7 +3034,7 @@ export default function AppShell() {
           </Suspense>
         )}
 
-        {/* â•â•â• Transaction Detail Sheet (supplier) â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {/* ═══ Transaction Detail Sheet (supplier) ═════════════════════════════ */}
         {selectedSupplierTransaction && (
           <Suspense fallback={<PanelFallback label={t.loading} />}>
             <TransactionDetailSheet

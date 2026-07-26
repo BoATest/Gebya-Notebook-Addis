@@ -30,8 +30,13 @@ async function kvCmd(args: (string | number)[]): Promise<unknown> {
     body: JSON.stringify(args),
   });
   if (!res.ok) throw new Error(`KV command failed (${res.status})`);
-  const data = (await res.json()) as { result?: unknown };
-  return data?.result ?? null;
+  try {
+    const data = (await res.json()) as { result?: unknown };
+    return data?.result ?? null;
+  } catch {
+    const text = await res.text();
+    throw new Error(`KV invalid JSON response: ${text.slice(0, 200)}`);
+  }
 }
 
 async function safeKvCmd<T>(args: (string | number)[], fallback: T): Promise<T> {

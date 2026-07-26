@@ -15,6 +15,13 @@ export const pool = process.env.DATABASE_URL
   : null;
 export const db = pool ? drizzle(pool, { schema }) : null;
 
+export function requireDb(): NonNullable<typeof db> {
+  if (!db) {
+    throw new Error("Database not configured");
+  }
+  return db;
+}
+
 export * from "./schema";
 export { getCustomerBalances, enrichWithTelegram } from "./utils/customerBalance.js";
 export type { CustomerBalanceRow, CustomerWithTelegram } from "./utils/customerBalance.js";

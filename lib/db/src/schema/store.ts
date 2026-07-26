@@ -19,7 +19,7 @@ import {
   resolvePermissions,
   type EffectivePermissions,
   type StaffPermissionsOverride,
-} from "./permissions";
+} from "./permission-defaults";
 import type { Role, StaffStatus, DeviceStatus } from "./shops";
 
 export type StoredSyncEventType = "sale" | "customer_payment" | "customer_credit";

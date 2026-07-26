@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, ChevronDown, ChevronUp, Shield, KeyRound, Search, AlertCircle, RefreshCw } from 'lucide-react';
+import { Copy, ChevronDown, ChevronUp, Shield, KeyRound, Search } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { useShopStore } from '../stores/shopStore';
 import { usePermissionsStore } from '../stores/permissionsStore';
@@ -9,7 +9,7 @@ import ConfirmDialog from './ConfirmDialog';
 import { getAuthToken } from '../utils/syncEngine';
 import { getCurrentEntitlements } from '../utils/entitlements';
 import { loadStaffActivityFeed } from '../utils/staffActivityFeed';
-import { loadSettlementFromLocalStorage, clearSettlementDraft, calculateExpected } from '../utils/settlementSelectors';
+import { loadSettlementFromLocalStorage, clearSettlementDraft, calculateExpected, createReconciliationEntry } from '../utils/settlementSelectors';
 import { startOfLocalDay } from '../utils/reportSelectors';
 import SettlementSheet from './report/SettlementSheet';
 import db, { getAllSettlements, saveSettlement, updateSettlement } from '../db';
@@ -141,12 +141,39 @@ function StaffActivityFeed() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    loadStaffActivityFeed()
-      .then(res => { if (!cancelled) setActivities(res.activities || []); })
-      .catch(() => { if (!cancelled) setActivities([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+    Promise.all([
+      loadStaffActivityFeed()
+        .then(res => { if (!cancelled) setActivities(res.activities || []); })
+        .catch(() => { if (!cancelled) setActivities([]); }),
+      (async () => {
+        try {
+          const todayStart = startOfLocalDay();
+          const todayEnd = todayStart + 86400000;
+          const txns = await db.transactions.where('created_at').between(todayStart, todayEnd).toArray();
+          if (cancelled) return;
+          const salesMap = {};
+          const txnMap = {};
+          for (const t of txns) {
+            if (t.type !== 'sale') continue;
+            const staffId = t.actor_staff_member_id;
+            if (!staffId) continue;
+            if (!salesMap[staffId]) salesMap[staffId] = { count: 0, total: 0, cashTotal: 0, transferTotal: 0 };
+            salesMap[staffId].count += 1;
+            salesMap[staffId].total += Number(t.amount || 0);
+            if (t.payment_type === 'transfer' || t.payment_type === 'bank') {
+              salesMap[staffId].transferTotal += Number(t.amount || 0);
+            } else {
+              salesMap[staffId].cashTotal += Number(t.amount || 0);
+            }
+            if (!txnMap[staffId]) txnMap[staffId] = [];
+            txnMap[staffId].push(t);
+          }
+          if (!cancelled) { setTodayStaffSales(salesMap); setTodayStaffTransactions(txnMap); }
+        } catch {}
+      })(),
+    ]).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [todayRefreshKey]);
 
   const filters = [
     { key: 'all', label: lang === 'am' ? 'ሁሉም' : 'All' },
@@ -303,14 +330,14 @@ export default function StaffPage({
     pastSettlements: false,
   });
 
-  // ── Quick-collect state ──
-  const [quickCollectStaff, setQuickCollectStaff] = useState(null);
-  const [quickCollectAmount, setQuickCollectAmount] = useState('');
+  // ── Deactivation confirm ──
+  const [pendingDeactivation, setPendingDeactivation] = useState(null);
 
   // ── Settlement state ──
   const [settling, setSettling] = useState(null);
   const [viewingSettlement, setViewingSettlement] = useState(null);
   const [settlementRefreshKey, setSettlementRefreshKey] = useState(0);
+  const [todayRefreshKey, setTodayRefreshKey] = useState(0);
 
   // ── Permission editing state ──
   const [expandedMember, setExpandedMember] = useState(null);
@@ -329,37 +356,6 @@ export default function StaffPage({
   const [todayStaffSales, setTodayStaffSales] = useState({});
   const [todayStaffTransactions, setTodayStaffTransactions] = useState({});
   const [expandedStaffDrilldown, setExpandedStaffDrilldown] = useState(null);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const todayStart = startOfLocalDay();
-        const todayEnd = todayStart + 86400000;
-        const txns = await db.transactions.where('created_at').between(todayStart, todayEnd).toArray();
-        if (cancelled) return;
-        const salesMap = {};
-        const txnMap = {};
-        for (const t of txns) {
-          if (t.type !== 'sale') continue;
-          const staffId = t.actor_staff_member_id;
-          if (!staffId) continue;
-          if (!salesMap[staffId]) salesMap[staffId] = { count: 0, total: 0, cashTotal: 0, transferTotal: 0 };
-          salesMap[staffId].count += 1;
-          salesMap[staffId].total += Number(t.amount || 0);
-          if (t.payment_type === 'transfer' || t.payment_type === 'bank') {
-            salesMap[staffId].transferTotal += Number(t.amount || 0);
-          } else {
-            salesMap[staffId].cashTotal += Number(t.amount || 0);
-          }
-          if (!txnMap[staffId]) txnMap[staffId] = [];
-          txnMap[staffId].push(t);
-        }
-        setTodayStaffSales(salesMap);
-        setTodayStaffTransactions(txnMap);
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   // ── Staff collection form ──
   const [staffCollectCash, setStaffCollectCash] = useState('');
@@ -399,6 +395,14 @@ export default function StaffPage({
     document.addEventListener('visibilitychange', handle);
     return () => document.removeEventListener('visibilitychange', handle);
   }, []);
+
+  // ── Escape key closes settlement sheet ──
+  useEffect(() => {
+    if (!settling && !viewingSettlement) return;
+    const handle = (e) => { if (e.key === 'Escape') { setSettling(null); setViewingSettlement(null); } };
+    document.addEventListener('keydown', handle);
+    return () => document.removeEventListener('keydown', handle);
+  }, [settling, viewingSettlement]);
 
   // ── Derived data ──
   const activeStaff = useMemo(() =>
@@ -467,7 +471,7 @@ export default function StaffPage({
         return;
       }
     } catch { /* non-critical */ }
-    await onSaveStaffMember?.({ display_name: localStaffName.trim(), role: 'staff', active: true });
+    await onSaveStaffMember?.({ display_name: localStaffName.trim(), role: 'cashier', active: true });
     setLocalStaffName('');
   };
 
@@ -550,37 +554,6 @@ export default function StaffPage({
     }
   };
 
-  const handleQuickCollect = async (staff) => {
-    setQuickCollectStaff(staff);
-    const sales = todayStaffSales[staff.id];
-    const suggested = sales ? String(Math.round(sales.cashTotal)) : '';
-    setQuickCollectAmount(suggested);
-  };
-
-  const handleQuickCollectConfirm = async () => {
-    const staff = quickCollectStaff;
-    if (!staff) return;
-    const amount = parseFloat(quickCollectAmount) || 0;
-    try {
-      await saveSettlement({
-        staff_id: staff.id,
-        period_start: startOfLocalDay(),
-        period_end: Date.now(),
-        actual_cash: amount,
-        actual_transfer: 0,
-        status: 'checked',
-        settled_at: Date.now(),
-        notes: t('Quick collected', 'ፈጣን ማስተካከያ'),
-      });
-      fireToast(t(`✓ ${fmt(amount)} ETB collected`, `✓ ${fmt(amount)} ብር ተሰበሰበ`), 1500);
-      setQuickCollectStaff(null);
-      setQuickCollectAmount('');
-      setSettlementRefreshKey(k => k + 1);
-    } catch (err) {
-      fireToast(err.message || t('Failed', 'አልተሳካም'), 2400);
-    }
-  };
-
   const handleViewSettlement = (staff, settlement) => {
     setViewingSettlement({ settlement, staff });
   };
@@ -623,7 +596,7 @@ export default function StaffPage({
         staff_note: staffCollectNote.trim() || null,
         settled_at: Date.now(),
         settled_by: staffId,
-        reconciliation_log: [{ actor: 'staff', action: 'submitted', note: staffCollectNote.trim() || t('Staff submitted collection', 'ሰራተኛ ስብስብ አስገብቷል'), timestamp: Date.now() }],
+        reconciliation_log: [createReconciliationEntry('staff', 'submitted', staffCollectNote.trim() || t('Staff submitted collection', 'ሰራተኛ ስብስብ አስገብቷል'))],
       });
       fireToast(t('✓ Collection submitted', '✓ ስብስብ ተልኳል'), 1800);
       setSettlementRefreshKey(k => k + 1);
@@ -768,16 +741,10 @@ export default function StaffPage({
                           ✓ {t('Settled', 'ተቀምጧል')}
                         </span>
                       ) : (
-                        <>
-                          <button onClick={() => handleQuickCollect(m)}
-                            className="px-2 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap"
-                            style={{ background: '#dcfce7', color: '#166534' }}
-                          >✓ {t('Collect', 'ሰብስብ')}</button>
-                          <button onClick={() => setSettling(m)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
-                            style={{ background: '#1B4332', color: '#fff' }}
-                          >{t('Settle', 'አስተካክል')}</button>
-                        </>
+                        <button onClick={() => setSettling(m)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
+                          style={{ background: '#1B4332', color: '#fff' }}
+                        >{t('Settle', 'አስተካክል')}</button>
                       )}
                     </div>
                   )}
@@ -1233,7 +1200,7 @@ export default function StaffPage({
                           )}
                           {isLocal && (
                             <button
-                              onClick={(e) => { e.stopPropagation(); m.active === false ? onReactivateStaffMember?.(mid) : onDeactivateStaffMember?.(mid); }}
+                              onClick={(e) => { e.stopPropagation(); if (m.active === false) { onReactivateStaffMember?.(mid); } else { setPendingDeactivation({ member: m, isLocal: true, id: mid, name: displayName }); } }}
                               className="text-xs px-2.5 py-1.5 rounded-lg font-semibold flex-shrink-0"
                               style={{ background: '#f5f5f5', color: '#6b7280' }}
                             >
@@ -1362,7 +1329,7 @@ export default function StaffPage({
                           )}
                           {!isOwnerRole && m.active !== false && (
                             <button
-                              onClick={() => onDeactivateStaffMember?.(m.userId)}
+                              onClick={() => setPendingDeactivation({ member: m, isLocal: false, id: m.userId, name: displayName })}
                               className="mt-3 w-full py-2 rounded-xl text-xs font-bold"
                               style={{ background: '#fef2f2', color: '#b91c1c' }}
                             >
@@ -1529,75 +1496,30 @@ export default function StaffPage({
         onCancel={() => setPendingRoleChange(null)}
       />
 
-      {/* Quick-collect bottom sheet */}
-      {quickCollectStaff && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.35)' }}>
-          <div className="w-full max-w-md rounded-2xl bg-white px-5 pb-6 pt-3">
-            <div className="w-9 h-1 rounded-full bg-gray-300 mx-auto mb-4" />
-            <div className="text-base font-black text-gray-900 mb-1">
-              {t('Quick collect', 'ፈጣን መሰብሰብ')}
-            </div>
-            <div className="text-xs text-gray-500 mb-4">
-              {quickCollectStaff.display_name}
-              {todayStaffSales[quickCollectStaff.id] && (
-                <span> · {t('Today:', 'ዛሬ:')} {fmt(todayStaffSales[quickCollectStaff.id].total)} {t('birr sales', 'ብር ሽያጭ')}</span>
-              )}
-            </div>
-
-            <div className="flex items-center border-2 rounded-xl px-4 mb-3" style={{ borderColor: '#C4883A' }}>
-              <span className="text-lg font-black text-gray-500 mr-2">ETB</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                value={quickCollectAmount}
-                onChange={e => setQuickCollectAmount(e.target.value)}
-                className="flex-1 border-none text-xl font-black py-3 focus:outline-none bg-transparent"
-                style={{ outline: 'none' }}
-                autoFocus
-                placeholder="0"
-              />
-            </div>
-
-            <div className="flex gap-2 mb-4 flex-wrap">
-              {todayStaffSales[quickCollectStaff.id] && (
-                <>
-                  <button
-                    onClick={() => setQuickCollectAmount(String(Math.round(todayStaffSales[quickCollectStaff.id].cashTotal)))}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold"
-                    style={{ background: '#f3f4f6', color: '#374151' }}
-                  >
-                    {fmt(todayStaffSales[quickCollectStaff.id].cashTotal)} {t('cash', 'ጥሬ')}
-                  </button>
-                  <button
-                    onClick={() => setQuickCollectAmount(String(Math.round(todayStaffSales[quickCollectStaff.id].total)))}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold"
-                    style={{ background: '#f3f4f6', color: '#374151' }}
-                  >
-                    {t('Full amount', 'ሙሉ መጠን')}
-                  </button>
-                </>
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setQuickCollectStaff(null); setQuickCollectAmount(''); }}
-                className="flex-1 py-3 rounded-xl text-sm font-bold"
-                style={{ background: '#f3f4f6', color: '#374151' }}
-              >
-                {t('Cancel', 'ሰርዝ')}
-              </button>
-              <button
-                onClick={handleQuickCollectConfirm}
-                className="flex-1 py-3 rounded-xl text-sm font-bold text-white"
-                style={{ background: '#1B4332' }}
-              >
-                {t('Record collection', 'መዝግብ')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Deactivation confirm dialog */}
+      <ConfirmDialog
+        open={pendingDeactivation != null}
+        tone="danger"
+        title={pendingDeactivation ? t(`Deactivate ${pendingDeactivation.name}?`, `${pendingDeactivation.name}ን ያቁሙ?`) : ''}
+        message={t(
+          'They will not be able to access the shop until reactivated. Their sales history is preserved.',
+          'እስኪነቁ ድረስ ሱቁን መጠቀም አይችሉም። የሽያጭ ታሪካቸው ይቆያል።'
+        )}
+        confirmLabel={t('Deactivate', 'አቁም')}
+        cancelLabel={t('Cancel', 'ሰርዝ')}
+        onConfirm={() => {
+          const p = pendingDeactivation;
+          setPendingDeactivation(null);
+          if (p) {
+            if (p.isLocal) {
+              onDeactivateStaffMember?.(p.id);
+            } else {
+              onDeactivateStaffMember?.(p.id);
+            }
+          }
+        }}
+        onCancel={() => setPendingDeactivation(null)}
+      />
 
       <div className="h-4" />
     </div>

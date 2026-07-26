@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import db, { saveSettlement, updateSettlement } from '../../db';
-import { calculateExpected, generateSettlementId, getLastSettlementPeriod, loadSettlementFromLocalStorage, saveSettlementDraft, clearSettlementDraft } from '../../utils/settlementSelectors';
+import { User, Shield } from 'lucide-react';
+import { saveSettlement, updateSettlement } from '../../db';
+import { generateSettlementId, loadSettlementFromLocalStorage, saveSettlementDraft, clearSettlementDraft, createReconciliationEntry } from '../../utils/settlementSelectors';
+import useCalculatedExpected from '../../utils/useCalculatedExpected';
 import { fmt } from '../../utils/numformat';
 
 export default function SettlementSheet({ staff, existingSettlement, lang = 'en', onSaved, onCancel }) {
@@ -8,9 +10,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
   const isView = Boolean(existingSettlement) && !isReview;
   const isNew = !existingSettlement;
 
-  const [loading, setLoading] = useState(true);
-  const [expected, setExpected] = useState({ expectedCash: 0, expectedTransfer: 0, expectedTotal: 0, transactionCount: 0 });
-  const [period, setPeriod] = useState({ start: 0, end: 0 });
+  const { expected, period, loading } = useCalculatedExpected(staff?.id, existingSettlement);
   const [actualCash, setActualCash] = useState('');
   const [actualTransfer, setActualTransfer] = useState('');
   const [adjustments, setAdjustments] = useState([]);
@@ -30,44 +30,21 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
   const t = (en, am) => lang === 'am' ? am : en;
 
   useEffect(() => {
-    (async () => {
-      try {
-        if (existingSettlement) {
-          const s = existingSettlement;
-          setPeriod({ start: s.period_start, end: s.period_end });
-          setExpected({
-            expectedCash: s.expected_cash || 0,
-            expectedTransfer: s.expected_transfer || 0,
-            expectedTotal: s.expected_total || 0,
-            transactionCount: 0,
-          });
-          setActualCash(String(s.actual_cash || ''));
-          setActualTransfer(String(s.actual_transfer || ''));
-          setAdjustments(s.adjustments || []);
-          setNotes(s.notes || '');
-        } else {
-          const lastSettled = await getLastSettlementPeriod(staff.id);
-          const periodStart = lastSettled || 0;
-          const periodEnd = Date.now();
-          setPeriod({ start: periodStart, end: periodEnd });
-
-          const calc = await calculateExpected(String(staff.id), periodStart, periodEnd);
-          setExpected(calc);
-
-          const draft = loadSettlementFromLocalStorage(String(staff.id));
-          if (draft) {
-            setActualCash(String(draft.actualCash || ''));
-            setActualTransfer(String(draft.actualTransfer || ''));
-            setAdjustments(draft.adjustments || []);
-            setNotes(draft.notes || '');
-          }
-        }
-      } catch {
-        setError('Failed to load settlement data');
+    if (existingSettlement) {
+      setActualCash(String(existingSettlement.actual_cash || ''));
+      setActualTransfer(String(existingSettlement.actual_transfer || ''));
+      setAdjustments(existingSettlement.adjustments || []);
+      setNotes(existingSettlement.notes || '');
+    } else {
+      const draft = loadSettlementFromLocalStorage(String(staff?.id));
+      if (draft) {
+        setActualCash(String(draft.actualCash || ''));
+        setActualTransfer(String(draft.actualTransfer || ''));
+        setAdjustments(draft.adjustments || []);
+        setNotes(draft.notes || '');
       }
-      setLoading(false);
-    })();
-  }, [staff.id, existingSettlement]);
+    }
+  }, [staff?.id, existingSettlement]);
 
   useEffect(() => {
     if (loading || isView) return;
@@ -123,12 +100,11 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       if (isReview) {
         const ownerNote = ownerReviewNote.trim();
         const isAccepted = actualCashVal === staffCash && actualTransferVal === staffTransfer;
-        const logEntry = {
-          actor: 'owner',
-          action: isAccepted ? 'accepted' : 'reviewed',
-          note: ownerNote || (isAccepted ? t('Owner accepted staff report', 'ባለቤት የሰራተኛ ሪፖርት ተቀብሏል') : t('Owner reviewed with adjustments', 'ባለቤት በማስተካከል ተመልክቷል')),
-          timestamp: now,
-        };
+        const logEntry = createReconciliationEntry(
+          'owner',
+          isAccepted ? 'accepted' : 'reviewed',
+          ownerNote || (isAccepted ? t('Owner accepted staff report', 'ባለቤት የሰራተኛ ሪፖርት ተቀብሏል') : t('Owner reviewed with adjustments', 'ባለቤት በማስተካከል ተመልክቷል')),
+        );
         await updateSettlement(existingSettlement.id, {
           actual_cash: actualCashVal,
           actual_transfer: actualTransferVal,
@@ -320,6 +296,23 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         </div>
       </div>
 
+      {/* Quick-fill chips for new settlements */}
+      {isNew && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+          <button onClick={() => { setActualCash(String(expected.expectedCash)); setActualTransfer(String(expected.expectedTransfer)); }}
+            style={{ background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
+          >{t('Expected total', 'የሚጠበቅ ድምር')} {fmt(expected.expectedTotal)}</button>
+          <button onClick={() => setActualCash(String(expected.expectedCash))}
+            style={{ background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
+          >{t('Expected cash', 'የሚጠበቅ ጥሬ')} {fmt(expected.expectedCash)}</button>
+          {expected.expectedTransfer > 0 && (
+            <button onClick={() => setActualTransfer(String(expected.expectedTransfer))}
+              style={{ background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
+            >{t('Expected transfer', 'የሚጠበቅ ዝውውር')} {fmt(expected.expectedTransfer)}</button>
+          )}
+        </div>
+      )}
+
       {/* Variance */}
       {(actualCashVal > 0 || actualTransferVal > 0) && (
         <div style={{
@@ -409,32 +402,57 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         )}
       </div>
 
-      {/* Reconciliation log */}
+      {/* Reconciliation timeline */}
       {recLog.length > 0 && (
         <div style={{ background: '#fff', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #e5e7eb' }}>
-          <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', margin: '0 0 8px' }}>
-            {t('Activity Log', 'የእንቅስቃሴ ምዝግብ')}
+          <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', margin: '0 0 12px' }}>
+            {t('Timeline', 'የእንቅስቃሴ ምዝግብ')}
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {recLog.map((entry, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'flex-start', gap: 8,
-                padding: '6px 8px', borderRadius: 6,
-                background: entry.actor === 'staff' ? '#f0f9ff' : '#fffbeb',
-                fontSize: 11,
-              }}>
-                <span style={{ fontSize: 16, lineHeight: '20px', flexShrink: 0 }}>
-                  {entry.actor === 'staff' ? '👤' : '👑'}
-                </span>
-                <div>
-                  <span style={{ fontWeight: 800, color: '#374151' }}>
-                    {entry.actor === 'staff' ? t('Staff', 'ሰራተኛ') : t('Owner', 'ባለቤት')} · {entry.action}
-                  </span>
-                  {entry.note && <p style={{ margin: '2px 0', color: '#6b7280' }}>{entry.note}</p>}
-                  <span style={{ fontSize: 9, color: '#9ca3af' }}>{new Date(entry.timestamp).toLocaleString()}</span>
+          <div style={{ position: 'relative', paddingLeft: 28 }}>
+            {recLog.map((entry, i) => {
+              const isStaff = entry.actor === 'staff';
+              return (
+                <div key={i} style={{ position: 'relative', paddingBottom: i < recLog.length - 1 ? 16 : 0 }}>
+                  {i < recLog.length - 1 && (
+                    <div style={{ position: 'absolute', left: 11, top: 24, bottom: 0, width: 2, background: '#e5e7eb' }} />
+                  )}
+                  <div style={{
+                    position: 'absolute', left: 0, top: 2,
+                    width: 24, height: 24, borderRadius: 12,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: isStaff ? '#e0f2fe' : '#fef3c7',
+                  }}>
+                    {isStaff
+                      ? <User className="w-3 h-3" style={{ color: '#0369a1' }} />
+                      : <Shield className="w-3 h-3" style={{ color: '#92400e' }} />
+                    }
+                  </div>
+                  <div style={{ marginLeft: 12 }}>
+                    <div style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      padding: '4px 10px', borderRadius: 6, fontSize: 11,
+                      background: isStaff ? '#f0f9ff' : '#fffbeb',
+                    }}>
+                      <span style={{ fontWeight: 800, color: '#374151' }}>
+                        {isStaff ? t('Staff', 'ሰራተኛ') : t('Owner', 'ባለቤት')}
+                      </span>
+                      <span style={{ color: '#9ca3af' }}>·</span>
+                      <span style={{ fontWeight: 700, textTransform: 'capitalize', color: '#6b7280' }}>
+                        {entry.action.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                    {entry.note && (
+                      <p style={{ margin: '4px 0 2px', fontSize: 11, color: '#6b7280', lineHeight: 1.4 }}>
+                        {entry.note}
+                      </p>
+                    )}
+                    <span style={{ fontSize: 9, color: '#9ca3af' }}>
+                      {new Date(entry.timestamp).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
