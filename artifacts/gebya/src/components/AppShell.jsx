@@ -478,7 +478,7 @@ function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t
             className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl"
             style={{ background: 'rgba(27,67,50,0.08)' }}
           >
-            Ã°Å¸â€™Â¾
+            💾
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-black text-gray-900 text-sm font-sans">
@@ -2847,16 +2847,16 @@ export default function AppShell() {
     const profit = todaySalesTotal - todayExpensesTotal;
     const topStr = topProducts.length > 0
       ? topProducts.map((p, i) => `  ${i + 1}. ${p.name} (x${p.qty})`).join('\n')
-      : '  â€”';
+      : '  —';
     return [
-      `ðŸ“Š ${shopProfile?.name || 'Shop'} â€” ${t.shareDailyReport}`,
-      `ðŸ“… ${new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
+      `📊 ${shopProfile?.name || 'Shop'} — ${t.shareDailyReport}`,
+      `📅 ${new Date().toLocaleDateString('en', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
       ``,
-      `ðŸ’° ${t.sales}:    ${fmt(todaySalesTotal)} ${t.birr}`,
-      `ðŸ›’ ${t.spent}: ${fmt(todayExpensesTotal)} ${t.birr}`,
-      `Ã°Å¸â€œË† ${t.calcProfit}:   ${fmt(profit)} ${t.birr}`,
+      `💰 ${t.sales}:    ${fmt(todaySalesTotal)} ${t.birr}`,
+      `🛒 ${t.spent}: ${fmt(todayExpensesTotal)} ${t.birr}`,
+      `📈 ${t.calcProfit}:   ${fmt(profit)} ${t.birr}`,
       ``,
-      `Ã°Å¸Ââ€  ${t.shareTopItems}:`,
+      `🏆 ${t.shareTopItems}:`,
       topStr,
       ``,
       t.shareSentVia,
@@ -2924,8 +2924,8 @@ export default function AppShell() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: P.bg }}>
         <div className="text-center animate-elastic">
-          <div className="text-5xl mb-3">Ã°Å¸â€œâ€™</div>
-          <h1 className="text-2xl font-black font-serif" style={{ color: P.header }}>Ã¡Å’Ë†Ã¡â€° Ã¡â€¹Â«</h1>
+          <div className="text-5xl mb-3">📓</div>
+          <h1 className="text-2xl font-black font-serif" style={{ color: P.header }}>ገበያ</h1>
           <p className="text-sm mt-2" style={{ color: 'var(--color-text-soft)' }}>{t.loading}</p>
         </div>
       </div>

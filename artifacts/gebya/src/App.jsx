@@ -1,4 +1,4 @@
-﻿import { PrivacyProvider } from './context/PrivacyContext';
+import { PrivacyProvider } from './context/PrivacyContext';
 import { LangProvider } from './context/LangContext';
 import { ThemeProvider } from './context/ThemeContext';
 import AppShell from './components/AppShell';

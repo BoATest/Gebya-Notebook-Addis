@@ -13,10 +13,10 @@ export function OnboardingPage({ className }: OnboardingPageProps) {
   const accountTypes = [
     {
       id: 'owner',
-      title: isLanguageEnglish ? 'Shop Owner / Employer' : 'የሱቅ ባለቤት / አሰሪ ነኝ',
+      title: isLanguageEnglish ? 'Shop Owner / Employer' : 'የሱቅ ባለቤት / አሰሪ',
       description: isLanguageEnglish
         ? 'Record your shop data and manage your sales staff'
-        : 'የራስዎን የሱቅ መረጃ ለመመዝገብ እና ሰራተኞችን ለማስገባት',
+        : 'የሱቅዎን መረጃ ይመዝግቡ እና ሰራተኞችዎን ያስተዳድሩ',
       icon: isLanguageEnglish ? '🏪' : '🏪',
       imageUrl: isLanguageEnglish
         ? 'https://images.unsplash.com/photo-1556740749-885e1a5b8e9b?w=400'
@@ -29,18 +29,18 @@ export function OnboardingPage({ className }: OnboardingPageProps) {
             'Access from any device',
           ]
         : [
-            'ሽያጭና መረጃ ማቆጫዎ',
-            'ሰራተኞች እና ደንባናት ማቆጫዎ',
-            'ዕለ መረጃ ለመመጥር',
-            'በማኑት ላይ ለመመጥር',
+            'ሽያጭ እና ዕቃ አስተዳደር',
+            'ደንበኞች እና አቅራቢዎች አስተዳደር',
+            'ዕለታዊ ሪፖርቶችን ያመንጫል',
+            'ከማንኛውም መሳሪያ መጠቀም ይቻላል',
           ],
     },
     {
       id: 'staff',
-      title: isLanguageEnglish ? 'Sales Staff' : 'አሰሪ ወደ ሱቅ ተጋብደለሁ',
+      title: isLanguageEnglish ? 'Sales Staff' : 'የሽያጭ ሰራተኛ',
       description: isLanguageEnglish
         ? 'View sales data and collect payments'
-        : 'በዘገብ ውስጥ ሚዜቶ በቅርቡአዊው እና በመመጥር ሚዜቶ ይመረጃቡም',
+        : 'የሽያጭ መረጃን ይመልከቱ እና ክፍያ ይሰብስቡ',
       icon: isLanguageEnglish ? '👥' : '👥',
       imageUrl: isLanguageEnglish
         ? 'https://images.unsplash.com/photo-1521747716927-712215148e1b?w=400'
@@ -53,18 +53,18 @@ export function OnboardingPage({ className }: OnboardingPageProps) {
             'Send payment reminders',
           ]
         : [
-            'ዕለ-ቲድ ሚዜቶ መረጃ መረጃትዎ',
-            'ደብት በመመጥርና ክፍያ ማቅረብ',
-            'ሚዜቶ ሞልስት መረጃህደም እናመመጥር',
-            'ደብት መሰናክማሽ ትዋል',
+            'ዕለታዊ ሽያጮችን ይመልከቱ',
+            'የደንበኞች ክፍያ ያስተናግዱ',
+            'ስብስቦችን ይከታተሉ',
+            'የክፍያ አስታዋሾችን ይላኩ',
           ],
     },
     {
       id: 'quickstart',
-      title: isLanguageEnglish ? 'Quick Start' : 'በተውጥር ሊረመም',
+      title: isLanguageEnglish ? 'Quick Start' : 'ፈጣን መጀመሪያ',
       description: isLanguageEnglish
         ? 'Get started quickly with your shop'
-        : 'የሱቅ መረጃ በተውጥር ሊረመም ተመመበት',
+        : 'ሱቅዎን በፍጥነት መጀመር ይችላሉ',
       icon: isLanguageEnglish ? '⚡' : '⚡',
       imageUrl: isLanguageEnglish
         ? 'https://images.unsplash.com/photo-1559628231-e3590c37b0b0?w=400'
@@ -77,10 +77,10 @@ export function OnboardingPage({ className }: OnboardingPageProps) {
             'Works offline',
           ]
         : [
-            'አንድ ዋጅ ሊሆመ በመመጥር 5 ደብት',
-            'ሁሉነት አስገበዎ መመጥር ተካላቾቷ',
-            'ስላች አንድት የኢንተርኔት መመጥር',
-            'መመጥር ሊን|ጥታዊክ በተቻለ ገመልና ውስብ መረጃ🏾ን ይመረጃት።',
+            'አንድ ጊዜ ማዋቀር በ5 ደቂቃ ውስጥ',
+            'ሁሉም አስፈላጊ መሳሪዎች ተካተዋል',
+            'ለሞባይል የተመቻቸ በይነገጽ',
+            'ያለ ኢንተርኔት ይሰራል',
           ],
     },
   ];
@@ -101,11 +101,11 @@ export function OnboardingPage({ className }: OnboardingPageProps) {
 
   const getActionText = () => {
     if (selectedAccountType === 'owner') {
-      return isLanguageEnglish ? 'Create Shop' : 'ሱቅ መቅር';
+      return isLanguageEnglish ? 'Create Shop' : 'ሱቅ ፍጠር';
     } else if (selectedAccountType === 'staff') {
-      return isLanguageEnglish ? 'Join Shop' : 'በሱቅ ይገባበኝ';
+      return isLanguageEnglish ? 'Join Shop' : 'ሱቅ ይቀላቀሉ';
     } else {
-      return isLanguageEnglish ? 'Get Started' : 'ዊረመም ተመመበት';
+      return isLanguageEnglish ? 'Get Started' : 'ይጀምሩ';
     }
   };
 
@@ -113,14 +113,14 @@ export function OnboardingPage({ className }: OnboardingPageProps) {
     if (isLanguageEnglish) {
       return 'Your Shop Notebook';
     }
-    return 'የሱቅ መፈክር';
+    return 'የእርስዎ የሱቅ ማስታወሻ';
   };
 
   const getDescription = () => {
     if (isLanguageEnglish) {
       return 'Choose the account type that best fits you and get started with your digital notebook today.';
     }
-    return 'አንድ መገኙህ መጻዋመና መጻረኡ, በሁሉም ውስብ ተሸፋማሪ ሁቫወመች እና መመጥር ይመረጃቱ።';
+    return 'የሚስማማዎትን የመለያ አይነት ይምረጡ እና ዛሬውኑ ዲጂታል ማስታወሻዎን ይጀምሩ።';
   };
 
   return (

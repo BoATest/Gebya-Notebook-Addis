@@ -1,4 +1,4 @@
-﻿import { formatEthiopian } from './ethiopianCalendar';
+import { formatEthiopian } from './ethiopianCalendar';
 import { fmt } from './numformat';
 import { CUSTOMER_TRANSACTION_TYPES } from './customerTransactionTypes';
 
