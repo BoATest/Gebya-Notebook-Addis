@@ -146,28 +146,11 @@ export function formatDayCount(days: number, language: ReminderLanguage): string
   return `${roundedDays} days`;
 }
 
+export type MessageUrgency = 'pre_due' | 'due_today' | 'overdue' | 'normal';
+
 /**
- * Build a localized reminder message with balance, due date, and days held
- * 
- * @param language - 'am' for Amharic or 'en' for English
- * @param customerName - The customer's display name
- * @param balance - Outstanding balance in ETB (should be > 0 for reminders)
- * @param dueDate - Unix timestamp (ms) of when payment is due, or null if no due date
- * @param daysHeld - How many days the customer has owed this balance
- * @returns Formatted reminder message with emojis and localized text
- * 
- * Message includes:
- * - Shop emoji (🏪) + Customer emoji (👤)
- * - Balance with currency formatting (💰)
- * - Due date (if provided) or days held (📅)
- * - Call-to-action: /balance or /paid
- * - Culturally appropriate tone
- * 
- * Edge cases handled:
- * - Very long customer names (truncated gracefully)
- * - Zero or negative balance (returns friendly message, though reminders shouldn't send)
- * - Null/undefined inputs (validated before use)
- * - Very old debts (100+ days)
+ * Build a localized reminder message with balance, due date, and days held.
+ * Supports different urgency tones based on how close or overdue the payment is.
  */
 export function buildReminderMessage(
   language: ReminderLanguage,
@@ -175,58 +158,115 @@ export function buildReminderMessage(
   balance: number,
   dueDate: number | null,
   daysHeld: number,
+  urgency?: MessageUrgency,
+  daysUntilDue?: number,
+  overdueDays?: number,
 ): string {
-  // Validate inputs
   const validName = String(customerName || "Customer").slice(0, 50);
   const validBalance = Number.isFinite(balance) ? balance : 0;
-  const validDaysHeld = Number.isFinite(daysHeld) && daysHeld >= 0 ? Math.floor(daysHeld) : 0;
-
   const formattedBalance = formatCurrency(validBalance, language);
-  const formattedDaysHeld = formatDayCount(validDaysHeld, language);
 
   if (language === "am") {
-    // Amharic message template
-    const lines = [
-      "🏪 ጌባያ",
-      "",
-      `👤 ${validName}`,
-      `💰 ቀሪ ሂሳብ: ${formattedBalance}`,
-    ];
+    return buildAmharicMessage(validName, formattedBalance, dueDate, daysHeld, urgency, daysUntilDue, overdueDays);
+  }
+  return buildEnglishMessage(validName, formattedBalance, dueDate, daysHeld, urgency, daysUntilDue, overdueDays);
+}
 
-    // Add due date or days held
+function buildEnglishMessage(
+  validName: string,
+  formattedBalance: string,
+  dueDate: number | null,
+  daysHeld: number,
+  urgency?: MessageUrgency,
+  daysUntilDue?: number,
+  overdueDays?: number,
+): string {
+  const lines: string[] = ["🏪 Gebya", "", `👤 ${validName}`, `💰 Balance due: ${formattedBalance}`];
+
+  if (urgency === 'pre_due' && daysUntilDue !== undefined) {
+    if (daysUntilDue === 1) {
+      lines.push(`📅 Due tomorrow — please prepare payment 🙏`);
+    } else {
+      lines.push(`📅 Due in ${daysUntilDue} days — please prepare payment 🙏`);
+    }
+    lines.push("");
+    lines.push("Type /balance to check your account.");
+  } else if (urgency === 'due_today') {
+    lines.push(`📅 Due today — please make arrangements to pay`);
+    lines.push("");
+    lines.push("Type /balance to check your account.");
+    lines.push("Type /paid if you've sent payment.");
+  } else if (urgency === 'overdue' && overdueDays !== undefined) {
+    if (overdueDays === 1) {
+      lines.push(`⏰ Overdue by 1 day — please pay as soon as possible`);
+    } else {
+      lines.push(`⏰ Overdue by ${overdueDays} days — please pay as soon as possible`);
+    }
+    lines.push("");
+    lines.push("Type /balance to check your account.");
+    lines.push("Type /paid if you've sent payment.");
+  } else {
+    // Normal (no due date)
+    const formattedDaysHeld = formatDayCount(daysHeld, 'en');
+    if (dueDate !== null && Number.isFinite(dueDate) && dueDate > 0) {
+      const formattedDate = formatDate(dueDate, "en");
+      lines.push(`📅 Due date: ${formattedDate}`);
+    } else {
+      lines.push(`📅 Days held: ${formattedDaysHeld}`);
+    }
+    lines.push("");
+    lines.push("Type /balance to check your account.");
+    lines.push("Type /paid if you've sent payment.");
+  }
+
+  return lines.join("\n");
+}
+
+function buildAmharicMessage(
+  validName: string,
+  formattedBalance: string,
+  dueDate: number | null,
+  daysHeld: number,
+  urgency?: MessageUrgency,
+  daysUntilDue?: number,
+  overdueDays?: number,
+): string {
+  const lines: string[] = ["🏪 ጌባያ", "", `👤 ${validName}`, `💰 ቀሪ ሂሳብ: ${formattedBalance}`];
+
+  if (urgency === 'pre_due' && daysUntilDue !== undefined) {
+    if (daysUntilDue === 1) {
+      lines.push(`📅 ነገ ጊዜው ያበቃል — እባክዎ ይዘጋጁ 🙏`);
+    } else {
+      lines.push(`📅 በ${daysUntilDue} ቀን ውስጥ ጊዜው ያበቃል — እባክዎ ይዘጋጁ 🙏`);
+    }
+    lines.push("");
+    lines.push("ሂሳብዎን ለማየት /balance ይጫኑ።");
+  } else if (urgency === 'due_today') {
+    lines.push(`📅 ዛሬ ጊዜው ያበቃል — እባክዎ ይክፈሉ`);
+    lines.push("");
+    lines.push("ሂሳብዎን ለማየት /balance ይጫኑ።");
+    lines.push("ከከፈሉ /paid ይጫኑ።");
+  } else if (urgency === 'overdue' && overdueDays !== undefined) {
+    if (overdueDays === 1) {
+      lines.push(`⏰ 1 ቀን አልፏል — እባክዎ በተቻለ ፍጥነት ይክፈሉ`);
+    } else {
+      lines.push(`⏰ ${overdueDays} ቀን አልፏል — እባክዎ በተቻለ ፍጥነት ይክፈሉ`);
+    }
+    lines.push("");
+    lines.push("ሂሳብዎን ለማየት /balance ይጫኑ።");
+    lines.push("ከከፈሉ /paid ይጫኑ።");
+  } else {
+    const formattedDaysHeld = formatDayCount(daysHeld, 'am');
     if (dueDate !== null && Number.isFinite(dueDate) && dueDate > 0) {
       const formattedDate = formatDate(dueDate, "am");
       lines.push(`📅 ጊዜ ያበቃል: ${formattedDate}`);
     } else {
       lines.push(`📅 ጊዜ: ${formattedDaysHeld}`);
     }
-
     lines.push("");
     lines.push("ክፍያ ከሚያስቀምጡ በኋላ /balance ይተይቡ።");
     lines.push("ወይም ክፍያ ከከፈሉ /paid ይተይቡ።");
-
-    return lines.join("\n");
   }
-
-  // English message template
-  const lines = [
-    "🏪 Gebya",
-    "",
-    `👤 ${validName}`,
-    `💰 Balance due: ${formattedBalance}`,
-  ];
-
-  // Add due date or days held
-  if (dueDate !== null && Number.isFinite(dueDate) && dueDate > 0) {
-    const formattedDate = formatDate(dueDate, "en");
-    lines.push(`📅 Due date: ${formattedDate}`);
-  } else {
-    lines.push(`📅 Days held: ${formattedDaysHeld}`);
-  }
-
-  lines.push("");
-  lines.push("Type /balance to check your account.");
-  lines.push("Type /paid if you've sent payment.");
 
   return lines.join("\n");
 }

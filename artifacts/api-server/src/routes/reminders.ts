@@ -27,6 +27,12 @@ import { queryHistory } from "../services/reminderSender.js";
 import { getSessionByChatId, getTelegramLinkSession } from "../services/telegramStore.js";
 import { buildReminderMessage } from "../services/reminderMessageBuilder.js";
 import { sendTelegramTextMessage } from "../services/telegramBotService.js";
+import { createHistoryEntry } from "../services/reminderHistory.js";
+import { sendPushToOwner } from "../services/pushNotificationSender.js";
+import { verifyShopOwnership } from "./rbac.js";
+import { db } from "@workspace/db";
+import { customers as customersTable } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
 import type {
   ReminderFrequency,
   EligibleCustomer,
@@ -40,6 +46,14 @@ const router = Router();
 
 const frequencySchema = z.object({
   frequency: z.enum(["daily", "weekly", "disabled"]),
+});
+
+const manualRemindSchema = z.object({
+  chatId: z.string().min(1, "chatId is required"),
+  customerName: z.string().optional(),
+  balance: z.number().finite().optional(),
+  dueDate: z.number().positive().optional(),
+  language: z.enum(["am", "en"]).optional(),
 });
 
 const runSchema = z.object({
@@ -74,6 +88,15 @@ function getShopId(req: Request): number {
   return shopId;
 }
 
+// ─── logging helper ────────────────────────────────────────────────────
+
+function log(level: "info" | "warn" | "error", message: string, context?: Record<string, unknown>): void {
+  const logLine = [`[reminders] ${level.toUpperCase()}`, message, context ? JSON.stringify(context) : ""].join(" ");
+  if (level === "error") console.error(logLine);
+  else if (level === "warn") console.warn(logLine);
+  else console.log(logLine);
+}
+
 // ─── endpoints ─────────────────────────────────────────────────────────
 
 /**
@@ -81,11 +104,20 @@ function getShopId(req: Request): number {
  * Callable by Vercel Cron Jobs or external scheduler.
  *
  * Body: { shopId, customers?: [...], shopName?: string }
- * If customers is not provided, the scheduler runs with empty data
- * (production would query the DB).
+ * If customers is not provided, the scheduler auto-fetches from the ledger.
  */
 router.post("/run", async (req: Request, res: Response) => {
   try {
+    const cronSecret = req.headers?.["x-reminder-cron-secret"];
+    if (!process.env.REMINDER_CRON_SECRET) {
+      return res.status(500).json({
+        error: "Server misconfigured: REMINDER_CRON_SECRET environment variable is not set",
+      });
+    }
+    if (!cronSecret || cronSecret !== process.env.REMINDER_CRON_SECRET) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
     const parsed = runSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
@@ -96,29 +128,103 @@ router.post("/run", async (req: Request, res: Response) => {
 
     const { shopId, customers, shopName } = parsed.data;
 
-    // Map provided customers to EligibleCustomer format
-    const eligibleCustomers: EligibleCustomer[] = (customers || []).map((c) => ({
-      customerId: c.customerId,
-      customerName: c.customerName,
-      balance: c.balance,
-      dueDate: c.dueDate ?? null,
-      customerCreatedAt: c.customerCreatedAt,
-      chatId: c.chatId,
-      updatesEnabled: c.updatesEnabled ?? true,
-      telegramLanguage: c.telegramLanguage ?? "en",
-      reminderConfig: {
-        id: "",
-        shopId,
+    let eligibleCustomers: EligibleCustomer[];
+
+    if (customers && customers.length > 0) {
+      // Map provided customers to EligibleCustomer format
+      eligibleCustomers = customers.map((c) => ({
         customerId: c.customerId,
-        frequency: "daily",
-        lastReminderSentAt: null,
-        enabled: true,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      },
-    }));
+        customerName: c.customerName,
+        balance: c.balance,
+        dueDate: c.dueDate ?? null,
+        customerCreatedAt: c.customerCreatedAt,
+        chatId: c.chatId,
+        updatesEnabled: c.updatesEnabled ?? true,
+        telegramLanguage: c.telegramLanguage ?? "en",
+        reminderConfig: {
+          id: "",
+          shopId,
+          customerId: c.customerId,
+          frequency: "weekly",
+          lastReminderSentAt: null,
+          enabled: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      }));
+    } else {
+      // Auto-fetch customers with balance from the transaction ledger
+      // and enrich with Telegram data from the customers table.
+      try {
+        const { getCustomerBalances } = await import("@workspace/db/utils/customerBalance");
+        const rows = await getCustomerBalances(db, { businessId: shopId, onlyPositiveBalance: true });
+
+        // Fetch Telegram+phone info for all customers with balance
+        const customerIds = rows.map((r: any) => r.customerId);
+        const customerRows = customerIds.length > 0
+          ? await db
+              .select({
+                id: customersTable.id,
+                name: customersTable.name,
+                displayName: customersTable.displayName,
+                telegramChatId: customersTable.telegramChatId,
+                telegramNotifyEnabled: customersTable.telegramNotifyEnabled,
+                telegramUsername: customersTable.telegramUsername,
+                phoneNumber: customersTable.phoneNumber,
+              })
+              .from(customersTable)
+              .where(eq(customersTable.businessId, shopId))
+          : [];
+
+        const customerMap = new Map(customerRows.map((c: any) => [c.id, c]));
+
+        eligibleCustomers = rows.map((row: any) => {
+          const cust = customerMap.get(row.customerId);
+          const chatId = cust?.telegramChatId ?? "";
+          const hasTelegram = !!chatId;
+          return {
+            customerId: row.customerId,
+            customerName: cust?.displayName || cust?.name || `Customer ${row.customerId}`,
+            balance: row.balance,
+            dueDate: row.dueDate ?? null,
+            customerCreatedAt: row.createdAt,
+            chatId,
+            updatesEnabled: hasTelegram ? Boolean(cust?.telegramNotifyEnabled) : false,
+            phoneNumber: cust?.phoneNumber ?? undefined,
+            telegramLanguage: (cust?.telegramUsername ?? "").toLowerCase().startsWith("am") ? "am" as const : "en" as const,
+            reminderConfig: {
+              id: `cfg-${row.customerId}`,
+              shopId,
+              customerId: row.customerId,
+              frequency: "weekly",
+              lastReminderSentAt: null,
+              enabled: true,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            },
+          };
+        });
+
+        const withTelegram = eligibleCustomers.filter((c: any) => c.chatId).length;
+        log("info", "Auto-fetched customers for reminder run", {
+          shopId,
+          total: eligibleCustomers.length,
+          withTelegram: withTelegram,
+        });
+      } catch (fetchError) {
+        log("error", "Failed to auto-fetch customers", { shopId, error: fetchError instanceof Error ? fetchError.message : String(fetchError) });
+        return res.status(502).json({
+          error: "Failed to fetch customer data from ledger",
+          details: fetchError instanceof Error ? fetchError.message : String(fetchError),
+        });
+      }
+    }
 
     const stats = await runRemindersForShop(shopId, eligibleCustomers, shopName);
+
+    if (!stats) {
+      return res.status(500).json({ error: "Reminder execution returned no result" });
+    }
 
     return res.json({
       ok: true,
@@ -147,7 +253,7 @@ router.post("/run", async (req: Request, res: Response) => {
  * GET /config — Get shop default reminder frequency.
  * Query: ?shopId=123
  */
-router.get("/config", async (req: Request, res: Response) => {
+router.get("/config", verifyShopOwnership, async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const frequency = await getShopDefault(shopId);
@@ -165,7 +271,7 @@ router.get("/config", async (req: Request, res: Response) => {
  * POST /config — Set shop default reminder frequency.
  * Body: { shopId, frequency }
  */
-router.post("/config", async (req: Request, res: Response) => {
+router.post("/config", verifyShopOwnership, async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const parsed = frequencySchema.safeParse(req.body);
@@ -192,7 +298,7 @@ router.post("/config", async (req: Request, res: Response) => {
 /**
  * GET /config/:customerId — Get customer-specific frequency override.
  */
-router.get("/config/:customerId", async (req: Request, res: Response) => {
+router.get("/config/:customerId", verifyShopOwnership, async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const customerId = parseInt(String(req.params.customerId), 10);
@@ -220,7 +326,7 @@ router.get("/config/:customerId", async (req: Request, res: Response) => {
  * POST /config/:customerId — Set customer-specific override.
  * Body: { frequency, shopId }
  */
-router.post("/config/:customerId", async (req: Request, res: Response) => {
+router.post("/config/:customerId", verifyShopOwnership, async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const customerId = parseInt(String(req.params.customerId), 10);
@@ -253,7 +359,7 @@ router.post("/config/:customerId", async (req: Request, res: Response) => {
 /**
  * DELETE /config/:customerId — Clear customer override (revert to shop default).
  */
-router.delete("/config/:customerId", async (req: Request, res: Response) => {
+router.delete("/config/:customerId", verifyShopOwnership, async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const customerId = parseInt(String(req.params.customerId), 10);
@@ -279,7 +385,7 @@ router.delete("/config/:customerId", async (req: Request, res: Response) => {
  * GET /history — Query reminder history.
  * Query: ?shopId=123&limit=50&offset=0&customerId=456
  */
-router.get("/history", async (req: Request, res: Response) => {
+router.get("/history", verifyShopOwnership, async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const limit = parseInt(String(req.query?.limit ?? "50"), 10);
@@ -306,7 +412,7 @@ router.get("/history", async (req: Request, res: Response) => {
  * POST /test/:customerId — Send a manual test reminder to a customer.
  * Body: { shopId, balance, dueDate?, language? }
  */
-router.post("/test/:customerId", async (req: Request, res: Response) => {
+router.post("/test/:customerId", verifyShopOwnership, async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const customerId = parseInt(String(req.params.customerId), 10);
@@ -376,7 +482,7 @@ router.post("/test/:customerId", async (req: Request, res: Response) => {
  * Body: { shopId }
  * Sets shop default to 'disabled' (can be re-enabled via POST /config).
  */
-router.post("/pause", async (req: Request, res: Response) => {
+router.post("/pause", verifyShopOwnership, async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     await setShopDefault(shopId, "disabled");
@@ -398,7 +504,7 @@ router.post("/pause", async (req: Request, res: Response) => {
  * Body: { shopId }
  * Sets shop default back to 'daily'.
  */
-router.post("/resume", async (req: Request, res: Response) => {
+router.post("/resume", verifyShopOwnership, async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     await setShopDefault(shopId, "daily");
@@ -412,6 +518,225 @@ router.post("/resume", async (req: Request, res: Response) => {
     return res.status(500).json({
       error: error instanceof Error ? error.message : "Internal server error",
     });
+  }
+});
+
+/**
+ * POST /remind/:customerId — Manually send a reminder to a customer.
+ * The shop owner triggers this from the dashboard for an instant nudge.
+ * Body: { chatId, customerName, balance, dueDate?, language? }
+ */
+router.post("/remind/:customerId", verifyShopOwnership, async (req: Request, res: Response) => {
+  try {
+    const shopId = getShopId(req);
+    const customerId = parseInt(String(req.params.customerId), 10);
+    if (!Number.isInteger(customerId) || customerId <= 0) {
+      return res.status(400).json({ error: "Invalid customerId" });
+    }
+
+    const parsed = manualRemindSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: "Invalid request body",
+        details: parsed.error.flatten(),
+      });
+    }
+
+    const { chatId, customerName, balance, dueDate, language } = parsed.data;
+
+    const validBalance = Number.isFinite(balance) ? balance : 0;
+    if (validBalance <= 0) {
+      return res.status(400).json({ error: "Customer has no outstanding balance to remind about" });
+    }
+
+    const validLanguage: ReminderLanguage = language === "am" ? "am" : "en";
+    const validName = String(customerName || `Customer ${customerId}`).slice(0, 50);
+    const validDueDate = dueDate ? Number(dueDate) : null;
+    const daysHeld = validDueDate ? Math.floor((Date.now() - validDueDate) / 86400000) : 0;
+
+    const message = buildReminderMessage(validLanguage, validName, validBalance, validDueDate, daysHeld);
+
+    const result = await sendTelegramTextMessage(chatId, message);
+
+    await createHistoryEntry({
+      shopId,
+      customerId,
+      chatId,
+      balanceAtSendTime: String(validBalance),
+      dueDate: validDueDate ?? undefined,
+      daysHeld,
+      sentAt: Date.now(),
+      status: "sent",
+      language: validLanguage,
+      messageId: String((result as { message_id?: string })?.message_id ?? ""),
+      retryCount: 0,
+      lastAttemptAt: Date.now(),
+      customerNameSnapshot: validName,
+    });
+
+    // Prevent cron from re-sending too soon
+    try {
+      const { setLastReminderSentAt } = await import("../services/reminderConfiguration.js");
+      await setLastReminderSentAt(shopId, customerId, Date.now());
+    } catch {
+      // non-critical — history entry already recorded
+    }
+
+    log("info", "Manual reminder sent", { shopId, customerId });
+
+    return res.json({
+      sent: true,
+      messageId: (result as { message_id?: string })?.message_id,
+    });
+  } catch (error) {
+    log("error", "Manual reminder failed", { error: error instanceof Error ? error.message : String(error) });
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : "Internal server error",
+    });
+  }
+});
+
+/**
+ * GET /critical-overdue — Return customers 30+ days past due for the dashboard.
+ * Shop owner can see who needs urgent attention.
+ * Query: ?shopId=123
+ */
+router.get("/critical-overdue", verifyShopOwnership, async (req: Request, res: Response) => {
+  try {
+    const shopId = getShopId(req);
+
+    // Auto-fetch customers with balance from the transaction ledger
+    const { getCustomerBalances } = await import("@workspace/db/utils/customerBalance");
+    const rows = await getCustomerBalances(db, { businessId: shopId, onlyPositiveBalance: true });
+
+    // Enrich with names from customers table
+    const customerIds = rows.map((r: any) => r.customerId);
+    const customerRows = customerIds.length > 0
+      ? await db
+          .select({ id: customersTable.id, name: customersTable.name, displayName: customersTable.displayName })
+          .from(customersTable)
+          .where(eq(customersTable.businessId, shopId))
+      : [];
+    const customerMap = new Map(customerRows.map((c: any) => [c.id, c]));
+
+    const eligibleCustomers: EligibleCustomer[] = rows.map((row: any) => {
+      const cust = customerMap.get(row.customerId);
+      return {
+        customerId: row.customerId,
+        customerName: cust?.displayName || cust?.name || `Customer ${row.customerId}`,
+        balance: row.balance,
+        dueDate: row.dueDate ?? null,
+        customerCreatedAt: row.createdAt,
+        chatId: "",
+        updatesEnabled: false,
+        telegramLanguage: "en" as const,
+        reminderConfig: {
+          id: `cfg-${row.customerId}`,
+          shopId,
+          customerId: row.customerId,
+          frequency: "weekly",
+          lastReminderSentAt: null,
+          enabled: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      };
+    });
+
+    const { scanCriticalOverdue } = await import("../services/reminderScheduler.js");
+    const critical = await scanCriticalOverdue(eligibleCustomers);
+
+    return res.json({
+      shopId,
+      count: critical.length,
+      customers: critical,
+    });
+  } catch (error) {
+    log("error", "Failed to scan critical overdue", { error: error instanceof Error ? error.message : String(error) });
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : "Internal server error",
+    });
+  }
+});
+
+/**
+ * POST /payment-confirmed — Called when owner records a payment in the app.
+ * Stops reminders for this customer and sends a thank-you message.
+ * Body: { shopId, customerId, amount }
+ */
+const paymentConfirmedSchema = z.object({
+  shopId: z.number().int().positive(),
+  customerId: z.number().int().positive(),
+  amount: z.number().finite(),
+  customerName: z.string().optional(),
+  chatId: z.string().optional(),
+  language: z.enum(["am", "en"]).optional(),
+});
+
+router.post("/payment-confirmed", async (req: Request, res: Response) => {
+  try {
+    const parsed = paymentConfirmedSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid request body", details: parsed.error.flatten() });
+    }
+
+    const { shopId, customerId, amount, customerName, chatId, language } = parsed.data;
+
+    // Prevent next cron from sending a reminder
+    const { setLastReminderSentAt } = await import("../services/reminderConfiguration.js");
+    await setLastReminderSentAt(shopId, customerId, Date.now());
+
+    // Record in history
+    await createHistoryEntry({
+      shopId,
+      customerId,
+      chatId: chatId ?? "",
+      balanceAtSendTime: String(amount),
+      sentAt: Date.now(),
+      status: "sent",
+      language: "am",
+      messageId: "payment_confirmed",
+      retryCount: 0,
+      lastAttemptAt: Date.now(),
+      customerNameSnapshot: customerName,
+    });
+
+    // Send thank-you message to customer if they have Telegram
+    if (chatId) {
+      const validName = customerName || `Customer ${customerId}`;
+      const formattedAmt = Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+      const thankYou = `🏪 ጌባያ\n\n${validName} ሆይ፣ የ${formattedAmt} ብር ክፍያህ ተረጋግጧል። እናመሰግናለን! 🙏\n\nሂሳብህን ለማየት /balance ይጫኑ።`;
+      const thankYouEn = `🏪 Gebya\n\n${validName}, your payment of ${formattedAmt} ETB has been confirmed. Thank you! 🙏\n\nType /balance to check your account.`;
+      const msg = (language ?? "am") === "am" ? thankYou : thankYouEn;
+      try {
+        const { sendTelegramTextMessage } = await import("../services/telegramBotService.js");
+        await sendTelegramTextMessage(chatId, msg);
+      } catch {
+        // non-critical — history entry already recorded
+      }
+    }
+
+    // Notify shop owner that payment was confirmed
+    try {
+      const name = customerName || `Customer ${customerId}`;
+      const formattedAmt = Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+      await sendPushToOwner(shopId, {
+        title: "Payment confirmed",
+        body: `${name} — ${formattedAmt} ETB payment recorded and reminders stopped.`,
+        type: "payment_confirmed",
+        id: Date.now(),
+      });
+    } catch {
+      // non-critical
+    }
+
+    const sentAmount = amount;
+    log("info", "Payment confirmed — reminders stopped", { shopId, customerId, amount: sentAmount });
+
+    return res.json({ ok: true, shopId, customerId });
+  } catch (error) {
+    log("error", "Payment-confirmed webhook failed", { error: error instanceof Error ? error.message : String(error) });
+    return res.status(500).json({ error: error instanceof Error ? error.message : "Internal server error" });
   }
 });
 

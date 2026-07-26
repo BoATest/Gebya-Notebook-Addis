@@ -24,6 +24,11 @@ export type ReminderDeliveryStatus = 'queued' | 'sent' | 'failed' | 'skipped';
 export type ReminderLanguage = 'am' | 'en';
 
 /**
+ * Urgency level for determining message tone
+ */
+export type ReminderUrgency = 'pre_due' | 'due_today' | 'overdue' | 'normal';
+
+/**
  * Shop-level or per-customer reminder frequency configuration
  * 
  * Stored in database table or KV store (e.g., `reminder:config:{shopId}:{customerId}`)
@@ -193,6 +198,15 @@ export interface QueuedReminder {
   /** Language for the message */
   language: ReminderLanguage;
 
+  /** Urgency level for tone-appropriate messaging */
+  urgency: ReminderUrgency;
+
+  /** Days until due (for pre-due messages) */
+  daysUntilDue?: number;
+
+  /** Days overdue (for overdue messages) */
+  overdueDays?: number;
+
   /** When this reminder was queued */
   queuedAt: number;
 
@@ -251,6 +265,18 @@ export interface ReminderBatchStats {
 
   /** Success status */
   success: boolean;
+
+  /** Number of customers 30+ days overdue */
+  criticalOverdueCount?: number;
+
+  /** Customers with 30+ days overdue (for dashboard notification) */
+  criticalOverdueCustomers?: Array<{
+    customerId: number;
+    customerName: string;
+    overdueDays: number;
+    shopId: number;
+    balance?: number;
+  }>;
 }
 
 /**

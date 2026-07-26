@@ -235,7 +235,7 @@ export async function sendReminder(
 
   let retryCount = 0;
 
-  // Build message using the reminderMessageBuilder
+  // Build message using the reminderMessageBuilder with urgency-aware tone
   const { buildReminderMessage } = await import("./reminderMessageBuilder.js");
   const message = buildReminderMessage(
     reminder.language,
@@ -243,9 +243,45 @@ export async function sendReminder(
     reminder.balance,
     reminder.dueDate,
     reminder.daysHeld,
+    reminder.urgency,
+    reminder.daysUntilDue,
+    reminder.overdueDays,
   );
 
   log("info", "Sending reminder", { customerId: reminder.customerId, shopId: reminder.shopId });
+
+  // SMS-only customer (no Telegram chatId): skip Telegram and go straight to SMS
+  if (!reminder.chatId && reminder.phoneNumber) {
+    log("info", "SMS-only customer — skipping Telegram, sending SMS directly", {
+      customerId: reminder.customerId,
+      shopId: reminder.shopId,
+    });
+    const smsResult = await attemptSmsFallback(reminder, "No Telegram chat ID");
+    if (smsResult) return smsResult;
+    // SMS also failed — record failure
+    await createHistoryEntry({
+      shopId: reminder.shopId,
+      customerId: reminder.customerId,
+      chatId: "",
+      balanceAtSendTime: String(reminder.balance),
+      dueDate: reminder.dueDate ?? undefined,
+      daysHeld: reminder.daysHeld,
+      sentAt: Date.now(),
+      status: "failed",
+      language: reminder.language,
+      failureReason: "SMS failed for SMS-only customer",
+      retryCount: 0,
+      lastAttemptAt: Date.now(),
+    });
+    return {
+      success: false,
+      error: "SMS delivery failed",
+      retryCount: 0,
+      lastAttemptAt: Date.now(),
+      shouldRetry: false,
+      shouldUnlink: false,
+    };
+  }
 
   for (let attempt = 0; attempt <= BACKOFF_DELAYS.length; attempt++) {
     try {
@@ -422,7 +458,7 @@ async function attemptSmsFallback(
     return null;
   }
 
-  // Build SMS message
+  // Build SMS message with same urgency-aware tone
   const { buildReminderMessage } = await import("./reminderMessageBuilder.js");
   const message = buildReminderMessage(
     reminder.language,
@@ -430,6 +466,9 @@ async function attemptSmsFallback(
     reminder.balance,
     reminder.dueDate,
     reminder.daysHeld,
+    reminder.urgency,
+    reminder.daysUntilDue,
+    reminder.overdueDays,
   );
 
   // Truncate to 160 chars for single SMS

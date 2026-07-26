@@ -10,6 +10,8 @@
  */
 import { getSessionByChatId, getTelegramLinkSession } from "./telegramStore.js";
 import { getCustomerFrequency, isRemindersEnabled, setLastReminderSentAt } from "./reminderConfiguration.js";
+import { sendPushToOwner } from "./pushNotificationSender.js";
+import type { MessageUrgency } from "./reminderMessageBuilder.js";
 import type {
   EligibleCustomer,
   QueuedReminder,
@@ -34,25 +36,84 @@ function detectLanguage(langCode?: string | null): ReminderLanguage {
 
 // ─── helper: time windows ──────────────────────────────────────────────
 
-const DAY_MS = 86_400_000; // 24 hours
-const WEEK_MS = 7 * DAY_MS; // 7 days
+const DAY_MS = 86_400_000;
 
 /**
- * Check if a customer is eligible to receive a reminder today
- * based on their frequency setting and last reminder send time.
+ * How many days BEFORE the due date to start sending reminders,
+ * based on the total credit period (dueDate - customerCreatedAt).
+ *
+ * Longer credit gets more lead time so the customer can prepare.
  */
-export function isEligibleToday(
+export function getLeadDays(creditPeriodDays: number): number {
+  if (creditPeriodDays <= 7) return 0;
+  if (creditPeriodDays <= 14) return 2;
+  if (creditPeriodDays <= 21) return 3;
+  if (creditPeriodDays <= 30) return 5;
+  return 7;
+}
+
+export interface EligibilityResult {
+  eligible: boolean;
+  urgency: MessageUrgency;
+  daysUntilDue?: number;
+  overdueDays?: number;
+}
+
+/**
+ * Check if a customer is eligible to receive a reminder now,
+ * based on due date, frequency, last send time, and credit period.
+ *
+ * Behavior by scenario:
+ *   - Due date in future & beyond lead-in window → not eligible (too early)
+ *   - Due date in lead-in window → eligible daily (pre-due)
+ *   - Due date is today → eligible (due-today)
+ *   - Past due 1-7 days → eligible every 2 days
+ *   - Past due 8+ days → eligible daily
+ *   - No due date → eligible per frequency setting (default: weekly)
+ */
+export function isEligibleNow(
   frequency: "daily" | "weekly" | "disabled",
   lastSentAt: number | null,
-): boolean {
-  if (frequency === "disabled") return false;
-  if (lastSentAt === null) return true; // never sent → eligible
+  dueDate: number | null,
+  customerCreatedAt: number,
+): EligibilityResult {
+  if (frequency === "disabled") return { eligible: false, urgency: "normal" };
 
   const now = Date.now();
-  const windowMs = frequency === "daily" ? DAY_MS : WEEK_MS;
 
-  // Eligible if sufficient time has passed since last reminder
-  return now - lastSentAt >= windowMs;
+  if (dueDate && dueDate > 0) {
+    const creditPeriod = Math.max(1, Math.ceil((dueDate - customerCreatedAt) / DAY_MS));
+    const leadDays = getLeadDays(creditPeriod);
+    const daysUntilDue = Math.ceil((dueDate - now) / DAY_MS);
+
+    if (daysUntilDue > leadDays) {
+      // Too early — don't send before the lead-in window
+      return { eligible: false, urgency: "normal", daysUntilDue };
+    }
+
+    if (daysUntilDue >= 1 && daysUntilDue <= leadDays) {
+      // Pre-due: at most once per day
+      const eligible = lastSentAt === null || now - lastSentAt >= DAY_MS;
+      return { eligible, urgency: "pre_due", daysUntilDue };
+    }
+
+    if (daysUntilDue === 0) {
+      // Due today
+      const eligible = lastSentAt === null || now - lastSentAt >= DAY_MS;
+      return { eligible, urgency: "due_today" };
+    }
+
+    // Overdue
+    const overdueDays = Math.abs(daysUntilDue);
+    const windowMs = overdueDays <= 7 ? 2 * DAY_MS : DAY_MS;
+    const eligible = lastSentAt === null || now - lastSentAt >= windowMs;
+    return { eligible, urgency: "overdue", overdueDays };
+  }
+
+  // No due date → use frequency setting (default: weekly)
+  const windowMs = frequency === "daily" ? DAY_MS : 7 * DAY_MS;
+  if (lastSentAt === null) return { eligible: true, urgency: "normal" };
+  return { eligible: now - lastSentAt >= windowMs, urgency: "normal" };
 }
 
 /**
@@ -176,8 +237,31 @@ export async function scheduleReminders(
         continue;
       }
 
+      // Due-date aware eligibility
       const lastSentAt = customer.reminderConfig?.lastReminderSentAt ?? null;
-      if (!isEligibleToday(frequency, lastSentAt)) {
+      const eligibility = isEligibleNow(
+        frequency,
+        lastSentAt,
+        customer.dueDate,
+        customer.customerCreatedAt,
+      );
+
+      // Track critical overdue (30+ days) regardless of eligibility
+      if (eligibility.urgency === 'overdue' && eligibility.overdueDays !== undefined) {
+        if (eligibility.overdueDays >= 30) {
+          if (!stats.criticalOverdueCustomers) stats.criticalOverdueCustomers = [];
+          stats.criticalOverdueCustomers.push({
+            customerId: customer.customerId,
+            customerName: customer.customerName,
+            overdueDays: eligibility.overdueDays,
+            shopId,
+            balance: customer.balance,
+          });
+          stats.criticalOverdueCount = (stats.criticalOverdueCount ?? 0) + 1;
+        }
+      }
+
+      if (!eligibility.eligible) {
         stats.remindersSkipped++;
         continue;
       }
@@ -189,16 +273,19 @@ export async function scheduleReminders(
       // Calculate days held
       const heldDays = daysSince(customer.customerCreatedAt);
 
-      // Queue the reminder (with phone number for SMS fallback)
+      // Queue the reminder with urgency info for tone-appropriate messaging
       const queuedReminder: QueuedReminder = {
         id: `${shopId}-${customer.customerId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         shopId,
         customerId: customer.customerId,
-        chatId: customer.chatId || "",  // Empty string if no Telegram
+        chatId: customer.chatId || "",
         balance: customer.balance,
         dueDate: customer.dueDate,
         daysHeld: heldDays,
         language,
+        urgency: eligibility.urgency,
+        daysUntilDue: eligibility.daysUntilDue,
+        overdueDays: eligibility.overdueDays,
         queuedAt: Date.now(),
         priority: 0,
         customerName: customer.customerName,
@@ -233,6 +320,34 @@ export async function scheduleReminders(
  * Run reminders for a single shop: schedule + send.
  * This is the high-level entry point called by the cron endpoint.
  */
+/**
+ * Scan customers for critical overdue (30+ days past due).
+ * Used by the GET /critical-overdue endpoint for the dashboard.
+ */
+export async function scanCriticalOverdue(
+  customersWithBalance: EligibleCustomer[],
+): Promise<Array<{ customerId: number; customerName: string; overdueDays: number; shopId: number; balance: number }>> {
+  const critical: Array<{ customerId: number; customerName: string; overdueDays: number; shopId: number; balance: number }> = [];
+
+  for (const customer of customersWithBalance) {
+    if (customer.balance <= 0) continue;
+    if (!customer.dueDate || customer.dueDate <= 0) continue;
+
+    const overdueDays = Math.ceil((Date.now() - customer.dueDate) / DAY_MS);
+    if (overdueDays >= 30) {
+      critical.push({
+        customerId: customer.customerId,
+        customerName: customer.customerName,
+        overdueDays,
+        shopId: customer.reminderConfig?.shopId ?? 0,
+        balance: customer.balance,
+      });
+    }
+  }
+
+  return critical;
+}
+
 export async function runRemindersForShop(
   shopId: number,
   customersWithBalance: EligibleCustomer[],
@@ -270,10 +385,57 @@ export async function runRemindersForShop(
     }
   }
 
+  // ─── Alert owner about customers 1+ day past due ────────────────
+  // Owner gets a push notification when a customer misses their due date,
+  // so they can take action (send manual reminder, call, etc.)
+  try {
+    const ownerAlertedKey = (cid: number) => `reminder:owner_alert:${shopId}:${cid}`;
+    const now = Date.now();
+    const ALERT_COOLDOWN_MS = 3 * DAY_MS; // max 1 alert per 3 days per customer
+
+    for (const customer of customersWithBalance) {
+      if (customer.balance <= 0) continue;
+      if (!customer.dueDate || customer.dueDate <= 0) continue;
+
+      const overdueDays = Math.ceil((now - customer.dueDate) / DAY_MS);
+      if (overdueDays < 1) continue;
+
+      // Dedup: check if we already alerted the owner recently
+      const key = ownerAlertedKey(customer.customerId);
+      const lastAlerted = memOwnerAlerted.get(key);
+      if (lastAlerted && now - lastAlerted < ALERT_COOLDOWN_MS) continue;
+
+      const title = overdueDays === 1
+        ? `⚠️ Due yesterday — ${customer.customerName}`
+        : `⏰ ${overdueDays} days overdue — ${customer.customerName}`;
+      const alertBody = `${customer.customerName} (${formatCurrencySimple(customer.balance)}) hasn't paid since ${overdueDays === 1 ? "their due date yesterday" : `${overdueDays} days ago`}. Tap to send a manual reminder.`;
+
+      await sendPushToOwner(shopId, {
+        title,
+        body: alertBody,
+        type: "overdue_alert",
+        id: now,
+      }).catch(() => {});
+
+      memOwnerAlerted.set(key, now);
+      console.log(`[ReminderScheduler] Alerted owner about customer ${customer.customerId} (${overdueDays}d overdue)`);
+    }
+  } catch (alertErr) {
+    console.error("[ReminderScheduler] Failed to alert owner about overdue customers:", alertErr);
+  }
+
   console.log(
     `[ReminderScheduler] Shop ${shopId}: sent=${stats.remindersSent}, ` +
     `failed=${stats.remindersFailed}, success=${stats.success}`,
   );
 
   return stats;
+}
+
+// In-memory dedup for owner alerts (resets on cold start — acceptable for daily cron)
+const memOwnerAlerted = new Map<string, number>();
+
+function formatCurrencySimple(amount: number): string {
+  const formatted = Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${formatted} ETB`;
 }

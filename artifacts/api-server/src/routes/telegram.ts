@@ -740,8 +740,10 @@ router.post("/webhook", async (req: Request, res: Response) => {
     // Record customer acknowledgement in reminder history.
     // We intentionally do not modify balances here — that happens
     // when the shop owner records the payment in Gebya.
+    let customerNameForNotify = "Customer";
     try {
       if (session?.customerId) {
+        customerNameForNotify = session.customerName || `Customer ${session.customerId}`;
         const { getLatestQueuedReminderForCustomer, acknowledgeReminder } = await import("../services/reminderHistory.js");
         const latest = await getLatestQueuedReminderForCustomer(Number(session.customerId));
         if (latest && !latest.acknowledged) {
@@ -751,6 +753,73 @@ router.post("/webhook", async (req: Request, res: Response) => {
             reminderId: latest.id,
             chatId,
           });
+        }
+
+        // Notify shop owner that customer claims to have paid
+        const { db } = await import("@workspace/db");
+        const { customers, businessMembers, notifications } = await import("@workspace/db/schema");
+        const { eq, and } = await import("drizzle-orm");
+        const { sendPushToOwner } = await import("../services/pushNotificationSender.js");
+
+        const customerRow = await db
+          .select({ businessId: customers.businessId })
+          .from(customers)
+          .where(eq(customers.id, Number(session.customerId)))
+          .limit(1);
+
+        if (customerRow[0]?.businessId) {
+          const businessId = customerRow[0].businessId;
+          const amount = arg || "unknown";
+          const notifName = customerNameForNotify;
+
+          // Cooling-off grace period: pause reminders for this customer
+          // so they don't get nagged while the owner confirms payment.
+          // Reminders resume after the frequency window (default: 1 week).
+          try {
+            const { setLastReminderSentAt } = await import("../services/reminderConfiguration.js");
+            await setLastReminderSentAt(businessId, Number(session.customerId), Date.now());
+            console.log("[telegram:webhook:paid:grace]", {
+              customerId: session.customerId,
+              businessId,
+            });
+          } catch (graceError) {
+            console.error("[telegram:webhook:paid:grace]", {
+              error: graceError instanceof Error ? graceError.message : String(graceError),
+            });
+          }
+
+          // Look up owner userId
+          const ownerRows = await db
+            .select({ userId: businessMembers.userId })
+            .from(businessMembers)
+            .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.role, "owner"), eq(businessMembers.active, true)))
+            .limit(1);
+          const ownerUserId = ownerRows[0]?.userId;
+
+          if (ownerUserId) {
+            // Create in-app notification
+            await db.insert(notifications).values({
+              businessId,
+              ownerUserId,
+              type: "payment_claimed",
+              title: "Payment claimed",
+              body: `${notifName} says they paid ${amount} — confirm in app`,
+              entityType: "customer",
+              entityId: String(session.customerId),
+              actorName: notifName,
+              amount: amount !== "unknown" ? String(amount) : null,
+              read: false,
+              createdAt: new Date(),
+            } as any);
+
+            // Send web push to owner
+            sendPushToOwner(businessId, {
+              title: "💰 Payment claimed",
+              body: `${notifName} says they paid ${amount} — tap to confirm`,
+              type: "payment_claimed",
+              id: Date.now(),
+            }).catch(() => {});
+          }
         }
       }
     } catch (ackError) {

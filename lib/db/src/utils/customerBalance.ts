@@ -124,7 +124,7 @@ export function enrichWithTelegram(
       id: `cfg-${row.customerId}`,
       shopId: 0, // filled by caller
       customerId: row.customerId,
-      frequency: "daily",
+      frequency: "weekly",
       lastReminderSentAt: null,
       enabled: true,
       createdAt: Date.now(),

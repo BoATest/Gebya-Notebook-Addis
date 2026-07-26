@@ -115,7 +115,7 @@ export async function getShopDefault(shopId: number): Promise<ReminderFrequency>
         id: `${shopId}-default-${Date.now()}`,
         shopId,
         customerId: null,
-        frequency: 'daily',
+        frequency: 'weekly',
         lastReminderSentAt: null,
         enabled: true,
         createdAt: Date.now(),

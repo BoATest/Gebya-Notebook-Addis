@@ -353,6 +353,76 @@ router.post("/push",
       // Don't let notification failures break sync
       console.error("[sync] notification creation failed:", notifErr);
     }
+
+    // ─── Notify reminder system when owner records a payment ─────
+    // Auto-stop reminders + send thank-you so customer isn't nagged
+    // after they've already paid (even if owner forgets to record later).
+    try {
+      const paymentRows = (tables?.customer_transactions || [])
+        .filter((row: any) => row.type === "payment" && row.customer_id);
+
+      if (paymentRows.length > 0) {
+        const customerIds = [...new Set(paymentRows.map((r: any) => Number(r.customer_id)))];
+        const customerInfo = await db
+          .select({ id: customers.id, name: customers.name, displayName: customers.displayName, telegramChatId: customers.telegramChatId })
+          .from(customers)
+          .where(and(eq(customers.businessId, businessId), inArray(customers.id, customerIds)));
+
+        const infoMap = new Map(customerInfo.map((c: any) => [c.id, c]));
+
+        for (const payment of paymentRows) {
+          const customerId = Number(payment.customer_id);
+          const amount = Number(payment.amount) || 0;
+          if (!customerId || customerId <= 0 || amount <= 0) continue;
+
+          const cust = infoMap.get(customerId);
+          const customerName = cust?.displayName || cust?.name || `Customer ${customerId}`;
+          const chatId = cust?.telegramChatId || "";
+
+          // Stop reminders
+          const { setLastReminderSentAt } = await import("../services/reminderConfiguration.js");
+          await setLastReminderSentAt(businessId, customerId, Date.now());
+
+          // Record in history
+          const { createHistoryEntry } = await import("../services/reminderHistory.js");
+          await createHistoryEntry({
+            shopId: businessId,
+            customerId,
+            chatId,
+            balanceAtSendTime: String(amount),
+            sentAt: Date.now(),
+            status: "sent",
+            language: "am",
+            messageId: "payment_confirmed",
+            retryCount: 0,
+            lastAttemptAt: Date.now(),
+            customerNameSnapshot: customerName,
+          });
+
+          // Send thank-you if customer has Telegram
+          if (chatId) {
+            const { sendTelegramTextMessage } = await import("../services/telegramBotService.js");
+            const formattedAmt = Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const msg = `🏪 ጌባያ\n\n${customerName} ሆይ፣ የ${formattedAmt} ብር ክፍያህ ተረጋግጧል። እናመሰግናለን! 🙏\n\nሂሳብህን ለማየት /balance ይጫኑ።`;
+            sendTelegramTextMessage(chatId, msg).catch(() => {});
+          }
+
+          // Push-notify owner
+          const formattedAmt = Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          sendPushToOwner(businessId, {
+            title: "Payment confirmed",
+            body: `${customerName} — ${formattedAmt} ETB payment recorded and reminders stopped.`,
+            type: "payment_confirmed",
+            id: Date.now(),
+          }).catch(() => {});
+
+          console.log(`[sync] Payment confirmed for customer ${customerId} (${businessId}): reminders stopped`);
+        }
+      }
+    } catch (paymentErr) {
+      // Don't let payment reminder failures break sync
+      console.error("[sync] payment reminder callback failed:", paymentErr);
+    }
   }
 
   const tableKeys = ["transactions", "customers", "customer_transactions", "catalog_entries", "suppliers", "supplier_transactions", "staff_members", "settlements"];

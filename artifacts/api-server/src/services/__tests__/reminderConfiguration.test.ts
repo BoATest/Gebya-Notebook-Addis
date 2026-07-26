@@ -19,9 +19,9 @@ describe("reminderConfiguration", () => {
     clearAllConfigs();
   });
 
-  it("getShopDefault returns daily for new shop", async () => {
+  it("getShopDefault returns weekly for new shop", async () => {
     const result = await getShopDefault(1);
-    expect(result).toBe("daily");
+    expect(result).toBe("weekly");
   });
 
   it("setShopDefault persists and is retrievable", async () => {
