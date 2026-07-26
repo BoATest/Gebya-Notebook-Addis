@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Users, Copy, Check, ChevronDown, ChevronUp, Shield, KeyRound, Upload, Search, AlertCircle, RefreshCw } from 'lucide-react';
+import { Copy, ChevronDown, ChevronUp, Shield, KeyRound, Search, AlertCircle, RefreshCw } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { useShopStore } from '../stores/shopStore';
 import { usePermissionsStore } from '../stores/permissionsStore';
@@ -35,7 +35,6 @@ async function apiFetch(path, options = {}) {
 const ROLE_BADGE = {
   owner: { label: 'Owner', bg: '#fef3c7', color: '#92400e' },
   manager: { label: 'Manager', bg: '#fef3c7', color: '#92400e' },
-  trusted_staff: { label: 'Trusted Staff', bg: '#e0f2fe', color: '#0369a1' },
   cashier: { label: 'Sales Staff', bg: '#f3f4f6', color: '#4b5563' },
   viewer: { label: 'Auditor', bg: '#f3f4f6', color: '#4b5563' },
 };
@@ -103,93 +102,7 @@ function PermissionToggle({ keyName, value, onChange, lang }) {
   );
 }
 
-function parseCsvToInvites(csvText) {
-  const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-  const result = [];
-  for (const line of lines) {
-    const parts = line.split(',').map(p => p.trim());
-    if (parts.length < 2) continue;
-    const [name, phone, role = 'cashier'] = parts;
-    if (!name || !phone) continue;
-    const normalizedPhone = normalizeEthiopianPhone(phone);
-    if (!normalizedPhone) continue;
-    result.push({
-      staff_name: name,
-      phone_number: normalizedPhone,
-      role: ['cashier', 'viewer', 'owner', 'manager', 'trusted_staff'].includes(role) ? role : 'cashier',
-    });
-  }
-  return result;
-}
 
-function BulkInviteModal({ onClose, onImported, lang }) {
-  const [csv, setCsv] = useState('');
-  const [importing, setImporting] = useState(false);
-  const [results, setResults] = useState([]);
-
-  const handleImport = async () => {
-    const rows = parseCsvToInvites(csv);
-    setImporting(true);
-    const out = [];
-    for (const row of rows) {
-      try {
-        const res = await apiFetch('/business/invite', { method: 'POST', body: JSON.stringify(row) });
-        out.push({ ...row, ok: true, data: res });
-      } catch (err) {
-        out.push({ ...row, ok: false, error: err.message || 'Failed' });
-      }
-    }
-    setResults(out);
-    setImporting(false);
-    try { await onImported?.(); } catch { /* ignore */ }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)' }}>
-      <div className="w-full max-w-md rounded-2xl border bg-white p-4" style={{ borderColor: '#e8e2d8' }}>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <div className="text-sm font-black text-gray-900">{lang === 'am' ? 'ከ CSV አስገባ' : 'Import from CSV'}</div>
-            <div className="text-[10px] text-gray-500">{lang === 'am' ? 'ስም, ስልክ, ቦታ' : 'name, phone, role'}</div>
-          </div>
-          <button type="button" onClick={onClose} className="text-xs font-bold text-gray-500">✕</button>
-        </div>
-        <textarea
-          value={csv}
-          onChange={e => setCsv(e.target.value)}
-          placeholder={`Abebe Bekele,911223344,cashier\nSara Hailu,922334455,viewer`}
-          className="w-full h-32 rounded-xl border px-3 py-2 text-xs font-mono"
-          style={{ borderColor: '#e8e2d8' }}
-        />
-        <div className="flex items-center justify-between mt-3">
-          <div className="text-[10px] text-gray-500">{lang === 'am' ? 'ቻር ለማድረግ ይጠቀሙ' : 'Use commas to separate columns'}</div>
-          <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="px-3 py-2 rounded-xl border text-xs font-bold" style={{ borderColor: '#e8e2d8' }}>{lang === 'am' ? 'መውጫ' : 'Cancel'}</button>
-            <button type="button" disabled={importing || !csv.trim()} onClick={handleImport} className="px-3 py-2 rounded-xl bg-[#1B4332] text-white text-xs font-bold disabled:opacity-50">
-              {importing ? (lang === 'am' ? 'በመጫን ላይ...' : 'Importing...') : (lang === 'am' ? 'አስገባ' : 'Import')}
-            </button>
-          </div>
-        </div>
-        {results.length > 0 && (
-          <div className="mt-3 space-y-1">
-            <div className="text-[10px] font-bold text-gray-700">Results · {results.filter(r => r.ok).length} success / {results.filter(r => !r.ok).length} failed</div>
-            {results.map((r, i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg border px-2 py-1.5" style={{ borderColor: r.ok ? '#bbf7d0' : '#fecaca', background: r.ok ? '#ecfdf5' : '#fef2f2' }}>
-                <div className="min-w-0">
-                  <div className="text-[11px] font-bold text-gray-900 truncate">{r.staff_name}</div>
-                  <div className="text-[10px] text-gray-600">{r.phone_number} · {r.role}</div>
-                </div>
-                <div className="text-[10px] font-black" style={{ color: r.ok ? '#166534' : '#b91c1c' }}>
-                  {r.ok ? 'OK' : (r.error || 'Failed')}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function StaffActivityFeed() {
   const { lang } = useLang();
@@ -342,31 +255,22 @@ export default function StaffPage({
   onReactivateStaffMember,
   onApproveDevice,
   onRejectDevice,
+  onRotateJoinCode,
   lang,
   canManageTeam,
 }) {
   const t = (en, am) => lang === 'am' ? am : en;
 
-  // ── Invite state ──
-  const [phone, setPhone] = useState('');
-  const [inviteName, setInviteName] = useState('');
+  // ── Local staff name ──
   const [localStaffName, setLocalStaffName] = useState('');
-  const [role, setRole] = useState('cashier');
-  const [inviting, setInviting] = useState(false);
-  const [inviteLink, setInviteLink] = useState(null);
-  const [copied, setCopied] = useState(false);
-  const [showBulkImport, setShowBulkImport] = useState(false);
 
   // ── Cloud members ──
   const [cloudMembers, setCloudMembers] = useState(null);
   const [membersLoading, setMembersLoading] = useState(false);
-  const [pendingInvites, setPendingInvites] = useState([]);
-  const [pendingLoading, setPendingLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // ── Expanded / collapsed sections ──
   const [expandedSections, setExpandedSections] = useState({
-    invite: false,
     activity: false,
     more: false,
   });
@@ -522,60 +426,9 @@ export default function StaffPage({
     }
   }, []);
 
-  const loadPending = useCallback(async () => {
-    setPendingLoading(true);
-    try {
-      const data = await apiFetch('/business/invites/pending');
-      setPendingInvites(Array.isArray(data.pending) ? data.pending : []);
-    } catch {
-      setPendingInvites([]);
-    } finally {
-      setPendingLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { loadMembers(); loadPending(); }, [loadMembers, loadPending]);
+  useEffect(() => { loadMembers(); }, [loadMembers]);
 
   // ── Handlers ──
-  const handleInvite = async () => {
-    const normalizedPhone = normalizeEthiopianPhone(phone);
-    if (!normalizedPhone || !inviteName.trim()) return;
-    try {
-      const { entitlements } = await getCurrentEntitlements();
-      if (activeStaff.length >= entitlements.max_staff) {
-        fireToast(t('Staff limit reached. Upgrade to add more.', 'የሰራተኛ ገደብ ደረሰዋል'), 3000);
-        return;
-      }
-    } catch { /* non-critical */ }
-    setInviting(true);
-    try {
-      const data = await apiFetch('/business/invite', {
-        method: 'POST',
-        body: JSON.stringify({ phone_number: normalizedPhone, role, staff_name: inviteName.trim() }),
-      });
-      setInviteLink(data.invite_link);
-      setPhone('');
-      setInviteName('');
-      fireToast(t('✓ Invite created', '✓ ጥሪ ተፈጠረ'), 2000);
-      loadMembers();
-      loadPending();
-    } catch (err) {
-      fireToast(err.message || t('Failed', 'አልተሳካም'), 2400);
-    } finally {
-      setInviting(false);
-    }
-  };
-
-  const handleCancelInvite = async (inviteId) => {
-    try {
-      await apiFetch(`/business/invites/${inviteId}`, { method: 'DELETE' });
-      fireToast(t('Invite cancelled', 'ጥሪ ተሰረዘ'), 1800);
-      loadPending();
-    } catch (err) {
-      fireToast(err.message || t('Failed', 'አልተሳካም'), 2400);
-    }
-  };
-
   const handleAddLocalStaff = async () => {
     if (!localStaffName.trim()) return;
     try {
@@ -1135,160 +988,74 @@ export default function StaffPage({
       {/* ════════════════════════════════════════════ */}
       {canManageTeam && (
         <>
-          {/* Invite section — collapsible */}
+          {/* Join code — always visible */}
           <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#e8e2d8' }}>
-            <button
-              onClick={() => toggleSection('invite')}
-              className="w-full px-4 py-3 flex items-center justify-between text-left"
-              style={{ background: '#fcfbf8' }}
-            >
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-amber-600" />
-                <span className="text-sm font-black text-gray-900">{t('Invite Staff', 'ሰራተኛ ጋብዝ')}</span>
+            <div className="px-4 py-3.5" style={{ background: shopProfile?.join_code ? '#fffbeb' : '#fafaf9' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <KeyRound className="w-4 h-4 text-amber-600" />
+                <span className="text-sm font-black text-gray-900">{t('Join code', 'የመቀላቀል ኮድ')}</span>
               </div>
-              {expandedSections.invite ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-            </button>
-
-            {expandedSections.invite && (
-              <div className="px-4 pb-4 space-y-3">
-                {/* Join code — primary invite method for offline/local shops */}
-                {(shopProfile?.join_code || shopProfile?.join_url) && (
-                  <div className="rounded-xl border px-3 py-3" style={{ borderColor: '#C4883A', background: '#fffbeb' }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <KeyRound className="w-4 h-4 text-amber-600" />
-                      <span className="text-xs font-black text-gray-700">{t('Join code', 'የመቀላቀል ኮድ')}</span>
-                    </div>
-                    {shopProfile?.join_code && (
-                      <div className="flex items-center gap-2">
-                        <span className="flex-1 text-lg font-black tracking-[0.3em] font-mono select-all" style={{ color: '#1B4332' }}>
-                          {shopProfile.join_code}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(shopProfile.join_code);
-                              fireToast(t('✓ Code copied', '✓ ኮድ ተቀድሷል'), 1500);
-                            } catch {}
-                          }}
-                          className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold"
-                          style={{ background: '#1B4332', color: '#fff' }}
-                        >
-                          {t('Copy', 'ቅዳ')}
-                        </button>
-                      </div>
-                    )}
-                    <p className="text-[10px] text-gray-500 mt-1.5">
-                      {t('Share this code with staff to join instantly — no phone number needed.', 'ይህን ኮድ ለሰራተኞች ያጋሩ፣ ስልክ ቁጥር አያስፈልግም።')}
-                    </p>
-                  </div>
-                )}
-
-                {/* Online invite form */}
-                <div className="rounded-xl border px-3 py-3" style={{ borderColor: '#e8e2d8', background: '#fafaf9' }}>
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <span className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('Online', 'ኦንላይን')}</span>
-                  </div>
-                  <form onSubmit={(e) => { e.preventDefault(); handleInvite(); }} className="space-y-3">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={inviteName}
-                        onChange={e => setInviteName(e.target.value)}
-                        placeholder={t('Staff name', 'የሰራተኛ ስም')}
-                        className="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-                        style={{ borderColor: inviteName.trim() ? '#C4883A' : '#e8e2d8' }}
-                      />
-                      <input
-                        type="tel"
-                        value={phone}
-                        onChange={e => setPhone(extractSubscriberDigits(e.target.value))}
-                        placeholder={t('Phone number', 'ቴሌፎን ቁጥር')}
-                        className="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-                        style={{ borderColor: isValidEthiopianPhone(phone) ? '#C4883A' : (phone ? '#ef4444' : '#e8e2d8') }}
-                      />
-                      <select
-                        value={role}
-                        onChange={e => setRole(e.target.value)}
-                        className="px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none bg-white"
-                        style={{ borderColor: '#e8e2d8' }}
-                      >
-                        <option value="manager">{t('Manager', 'ማኔጀር')}</option>
-                        <option value="trusted_staff">{t('Trusted Staff', 'የታመነ ሰራተኛ')}</option>
-                        <option value="cashier">{t('Sales Staff', 'የሽያጭ ሠራተኛ')}</option>
-                        <option value="viewer">{t('Auditor', 'ኦዲተር')}</option>
-                      </select>
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={!isValidEthiopianPhone(phone) || !inviteName.trim() || inviting}
-                      className="w-full py-2.5 rounded-xl text-sm font-bold min-h-[44px]"
-                      style={{ background: (isValidEthiopianPhone(phone) && inviteName.trim()) ? '#1B4332' : '#e5e7eb', color: (isValidEthiopianPhone(phone) && inviteName.trim()) ? '#fff' : '#9ca3af' }}
-                    >
-                      {inviting ? '...' : t('Invite', 'ጥሪ ፍጠር')}
-                    </button>
+              {shopProfile?.join_code ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="flex-1 text-lg font-black tracking-[0.3em] font-mono select-all" style={{ color: '#1B4332' }}>
+                      {shopProfile.join_code}
+                    </span>
                     <button
                       type="button"
-                      onClick={() => setShowBulkImport(true)}
-                      className="w-full py-2 rounded-xl text-xs font-bold border-2 border-dashed flex items-center justify-center gap-2"
-                      style={{ borderColor: '#e8e2d8', color: '#6b7280', background: '#fafaf9' }}
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(shopProfile.join_code);
+                          fireToast(t('✓ Code copied', '✓ ኮድ ተቀድሷል'), 1500);
+                        } catch {}
+                      }}
+                      className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold"
+                      style={{ background: '#1B4332', color: '#fff' }}
                     >
-                      <Upload className="w-4 h-4" />
-                      {t('Import from CSV', 'ከ CSV ፋይል አስገባ')}
+                      {t('Copy', 'ቅዳ')}
                     </button>
-
-                    {inviteLink && (
-                      <div className="rounded-xl border px-3 py-2.5" style={{ borderColor: '#bbf7d0', background: '#f0fdf4' }}>
-                        <p className="text-xs font-bold text-green-800 mb-1">{t('Invite link', 'ጥሪ ሊንክ')}</p>
-                        <div className="flex items-center gap-2">
-                          <span className="flex-1 text-xs font-mono text-gray-600 truncate">{inviteLink}</span>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                await navigator.clipboard.writeText(inviteLink);
-                                setCopied(true);
-                                setTimeout(() => setCopied(false), 2000);
-                              } catch { /* ignore */ }
-                            }}
-                            className="flex-shrink-0 px-2 py-1.5 rounded-lg text-xs font-bold"
-                            style={{ background: copied ? '#dcfce7' : '#e8e2d8', color: copied ? '#166534' : '#374151' }}
-                          >
-                            {copied ? t('Copied', 'ተቀድሷል') : t('Copy', 'ቅዳ')}
-                          </button>
-                        </div>
-                      </div>
+                    {'share' in navigator && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.share({ title: t('Join code', 'የመቀላቀል ኮድ'), text: t('Use this code to join my shop: ', 'እንደምትቀላቀሉ ኮድ: ') + shopProfile.join_code });
+                          } catch { /* user cancelled */ }
+                        }}
+                        className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold"
+                        style={{ background: '#e8e2d8', color: '#374151' }}
+                      >
+                        {t('Share', 'አጋራ')}
+                      </button>
                     )}
-                  </form>
-                </div>
-
-                {/* Pending invites */}
-                {pendingInvites.length > 0 && (
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">
-                      {t('Pending invites', 'በመጠባበቅ ላይ ያሉ ጥሪዎች')}
-                    </div>
-                    {pendingInvites.map(inv => (
-                      <div key={inv.id} className="flex items-center justify-between py-2 border-b last:border-0" style={{ borderColor: '#f0ece4' }}>
-                        <div className="min-w-0">
-                          <div className="text-sm font-bold text-gray-900 truncate">{inv.staffName || formatEthiopianPhone(inv.phoneNumber)}</div>
-                          <div className="text-xs text-gray-500">{formatEthiopianPhone(inv.phoneNumber)} · {inv.role}</div>
-                        </div>
-                        {!inv.acceptedAt && (
-                          <button
-                            onClick={() => handleCancelInvite(inv.id)}
-                            className="text-xs px-3 py-2 rounded-xl font-bold"
-                            style={{ background: '#fef2f2', color: '#b91c1c' }}
-                          >
-                            {t('Cancel', 'ሰርዝ')}
-                          </button>
-                        )}
-                      </div>
-                    ))}
                   </div>
-                )}
-              </div>
-            )}
+                  <p className="text-[10px] text-gray-500 mt-2">
+                    {t('Staff install the app, enter this code, and join. You can change their role from the list below.', 'ሰራተኞች ኮዱን አስገብተው ይቀላቀላሉ። ሚናቸውን ከዚህ በታች መቀየር ይችላሉ።')}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!onRotateJoinCode) return;
+                      const result = await onRotateJoinCode(shopProfile?.shop_id || shopProfile?.id);
+                      if (result) {
+                        fireToast(t('✓ Join code generated', '✓ የመቀላቀል ኮድ ተፈጠረ'), 2000);
+                      }
+                    }}
+                    className="w-full py-2.5 rounded-xl text-xs font-bold border-2 border-dashed flex items-center justify-center gap-2"
+                    style={{ borderColor: '#C4883A', color: '#92400e', background: '#fffbeb' }}
+                  >
+                    <KeyRound className="w-4 h-4" />
+                    {t('Generate join code for staff', 'የመቀላቀል ኮድ ፍጠር')}
+                  </button>
+                  <p className="text-[10px] text-gray-500 mt-2">
+                    {t('Generate a code to share with staff so they can join your shop.', 'ሰራተኞች እንዲቀላቀሉ ኮድ ይፍጠሩ።')}
+                  </p>
+                </>
+              )}
+            </div>
           </div>
 
           {/* All Staff (local + cloud) */}
@@ -1608,17 +1375,6 @@ export default function StaffPage({
                 )}
               </div>
 
-              {/* CSV Bulk Import */}
-              <div>
-                <button
-                  onClick={() => setShowBulkImport(true)}
-                  className="w-full py-2.5 rounded-xl text-xs font-bold border-2 border-dashed flex items-center justify-center gap-2"
-                  style={{ borderColor: '#e8e2d8', color: '#6b7280', background: '#fafaf9' }}
-                >
-                  <Upload className="w-4 h-4" />
-                  {t('Bulk Import CSV', 'በቡድን ከ CSV አስገባ')}
-                </button>
-              </div>
             </div>
           )}
         </div>
@@ -1627,13 +1383,6 @@ export default function StaffPage({
       {/* ════════════════════════════════════════════ */}
       {/* MODALS                                      */}
       {/* ════════════════════════════════════════════ */}
-      {showBulkImport && (
-        <BulkInviteModal
-          onClose={() => setShowBulkImport(false)}
-          onImported={() => { loadPending(); loadMembers(); }}
-          lang={lang}
-        />
-      )}
 
       <ConfirmDialog
         open={pendingNoPerms != null}

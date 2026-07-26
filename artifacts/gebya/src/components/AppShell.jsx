@@ -3090,6 +3090,7 @@ export default function AppShell() {
             onReactivateStaffMember={handleReactivateStaffMember}
             onApproveDevice={handleApproveDevice}
             onRejectDevice={handleRejectDevice}
+            onRotateJoinCode={handleRotateJoinCode}
             lang={lang}
             canManageTeam={canManageTeam}
           />

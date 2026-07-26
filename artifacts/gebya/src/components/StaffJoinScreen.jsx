@@ -5,6 +5,7 @@ import { identityApi } from '../api/identity';
 import { setIdentity } from '../db';
 import db from '../db';
 import { setAuthToken } from '../utils/syncEngine';
+import { isValidEthiopianPhone, normalizeEthiopianPhone, extractSubscriberDigits } from '../utils/phoneNumber';
 
 const BANK_COPY = 'Gebya is a notebook, not a bank. Gebya does not connect to your bank. Gebya cannot withdraw money. Never enter PIN, OTP, or password. Payment method is only a label like Cash, CBE, Telebirr, or Bank Transfer. Staff phone number is for identity/contact only, not bank/payment.';
 
@@ -85,9 +86,9 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
       setError(t.staffNameTooShort || 'Display name must be at least 2 characters');
       return;
     }
-    const phoneDigits = phone.replace(/[^0-9]/g, '');
-    if (phoneRequired && (!phoneDigits || phoneDigits.length < 9)) {
-      setError(t.staffPhoneRequired || 'Phone number is required by this shop');
+    const normalizedPhone = normalizeEthiopianPhone(phone);
+    if (!normalizedPhone) {
+      setError(t.staffPhoneRequired || 'Enter a valid Ethiopian phone number (starts with 09 or 07, 9 digits)');
       return;
     }
     setError(null);
@@ -96,7 +97,7 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
       const result = await identityApi.joinShop({
         join_code: formatJoinCode(joinCode),
         display_name: name,
-        phone: phoneRequired ? phoneDigits : undefined,
+        phone: normalizedPhone,
         device_label: DEVICE_LABEL,
       });
 
@@ -123,8 +124,7 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
       } else if (err.status === 409) {
         setError(t.staffJoinAlreadyJoined || 'This device is already connected to a shop. Leave the current shop first.');
       } else if (err.status === 400 && /phone/i.test(err.data?.error || err.message || '')) {
-        setPhoneRequired(true);
-        setError(t.staffPhoneRequired || 'Phone number is required by this shop');
+        setError(t.staffPhoneRequired || 'A valid Ethiopian phone number is required');
       } else {
         setError(err.data?.error || err.message || t.staffJoinNetworkError || 'Could not reach the server.');
       }
@@ -155,10 +155,11 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
     setLoading(true);
     setError(null);
     try {
+      const normalizedPhone = normalizeEthiopianPhone(phone);
       const result = await identityApi.joinShop({
         join_code: formatJoinCode(joinCode),
         display_name: displayName.trim(),
-        phone: phoneRequired ? phone.replace(/[^0-9]/g, '') : undefined,
+        phone: normalizedPhone || undefined,
         device_label: DEVICE_LABEL,
       });
       if (result.device_status === 'pending') {
@@ -314,42 +315,24 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
               />
             </div>
 
-            {phoneRequired && (
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
-                  {t.staffJoinPhoneLabel || 'Phone Number'} <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => { setPhone(e.target.value); setError(null); }}
-                  placeholder={t.staffJoinPhonePlaceholder || '09xxxxxxxx'}
-                  className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 text-base font-semibold focus:border-green-500 focus:outline-none transition-colors"
-                  inputMode="numeric"
-                  maxLength={15}
-                />
-                <p className="text-xs text-gray-400 mt-1.5 font-medium">
-                  {t.staffJoinPhoneNote || 'Required by this shop · Used for contact only, never for payment'}
-                </p>
-              </div>
-            )}
-
-            {!phoneRequired && (
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
-                  {t.staffJoinPhoneLabelOptional || 'Phone Number'} <span className="text-gray-400 font-normal text-xs">({t.staffJoinPhoneOptional || 'optional'})</span>
-                </label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder={t.staffJoinPhonePlaceholder || '09xxxxxxxx'}
-                  className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 text-base font-semibold focus:border-green-500 focus:outline-none transition-colors"
-                  inputMode="numeric"
-                  maxLength={15}
-                />
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                {t.staffJoinPhoneLabel || 'Phone Number'} <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => { setPhone(extractSubscriberDigits(e.target.value)); setError(null); }}
+                placeholder={t.staffJoinPhonePlaceholder || '09xxxxxxxx'}
+                className="w-full px-4 py-3.5 rounded-xl border-2 text-base font-semibold focus:outline-none transition-colors"
+                style={{ borderColor: phone && !isValidEthiopianPhone(phone) ? '#ef4444' : '#d1d5db' }}
+                inputMode="numeric"
+                maxLength={9}
+              />
+              <p className="text-xs text-gray-400 mt-1.5 font-medium">
+                {t.staffJoinPhoneNote || 'Used for contact only, never for payment'}
+              </p>
+            </div>
 
             {error && (
               <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
