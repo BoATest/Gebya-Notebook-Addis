@@ -20,22 +20,31 @@ const shopIndexKey = (shopId: number) =>
 const shopCustIndexKey = (shopId: number, customerId: number) =>
   `reminder:history:idx:shop_cust:${shopId}:${customerId}`;
 
+let kvBroken = false;
+
 async function kvCmd(args: (string | number)[]): Promise<unknown> {
-  const res = await fetch(KV_URL as string, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${KV_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(args),
-  });
-  if (!res.ok) throw new Error(`KV command failed (${res.status})`);
+  if (kvBroken) throw new Error("KV unavailable");
   try {
-    const data = (await res.json()) as { result?: unknown };
-    return data?.result ?? null;
-  } catch {
-    const text = await res.text();
-    throw new Error(`KV invalid JSON response: ${text.slice(0, 200)}`);
+    const res = await fetch(KV_URL as string, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${KV_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(args),
+    });
+    if (!res.ok) throw new Error(`KV command failed (${res.status})`);
+    try {
+      const data = (await res.json()) as { result?: unknown };
+      return data?.result ?? null;
+    } catch {
+      const text = await res.text();
+      throw new Error(`KV invalid JSON response: ${text.slice(0, 200)}`);
+    }
+  } catch (err) {
+    console.error("[ReminderHistory:KV] fetch error, falling back to memory:", err instanceof Error ? err.message : String(err));
+    kvBroken = true;
+    throw err;
   }
 }
 
@@ -88,23 +97,26 @@ export async function createHistoryEntry(
     createdAt: new Date(),
   };
 
-  if (kvEnabled) {
-    const key = dataKey(data.shopId, data.customerId, data.sentAt);
-    const shopIdx = shopIndexKey(data.shopId);
-    const shopCustIdx = shopCustIndexKey(data.shopId, data.customerId);
+  if (kvEnabled && !kvBroken) {
+    try {
+      const key = dataKey(data.shopId, data.customerId, data.sentAt);
+      const shopIdx = shopIndexKey(data.shopId);
+      const shopCustIdx = shopCustIndexKey(data.shopId, data.customerId);
 
-    await Promise.all([
-      kvCmd(["SET", key, JSON.stringify(entry), "EX", 7_776_000]),
-      kvCmd(["ZADD", shopIdx, data.sentAt, String(data.sentAt)]),
-      kvCmd(["ZADD", shopCustIdx, data.sentAt, String(data.sentAt)]),
-      kvCmd(["EXPIRE", shopIdx, 7_776_000]),
-      kvCmd(["EXPIRE", shopCustIdx, 7_776_000]),
-    ]);
-  } else {
-    memHistory.push(entry);
-    if (memHistory.length > 10_000) {
-      memHistory.splice(0, memHistory.length - 10_000);
+      await Promise.all([
+        kvCmd(["SET", key, JSON.stringify(entry), "EX", 7_776_000]),
+        kvCmd(["ZADD", shopIdx, data.sentAt, String(data.sentAt)]),
+        kvCmd(["ZADD", shopCustIdx, data.sentAt, String(data.sentAt)]),
+        kvCmd(["EXPIRE", shopIdx, 7_776_000]),
+        kvCmd(["EXPIRE", shopCustIdx, 7_776_000]),
+      ]);
+    } catch {
+      console.warn("[ReminderHistory] KV write failed, falling back to memory");
     }
+  }
+  memHistory.push(entry);
+  if (memHistory.length > 10_000) {
+    memHistory.splice(0, memHistory.length - 10_000);
   }
 
   return entry;

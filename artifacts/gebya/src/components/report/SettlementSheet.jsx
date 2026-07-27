@@ -1,9 +1,39 @@
 import { useState, useEffect } from 'react';
-import { User, Shield } from 'lucide-react';
+import { User, Shield, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { saveSettlement, updateSettlement } from '../../db';
 import { generateSettlementId, loadSettlementFromLocalStorage, saveSettlementDraft, clearSettlementDraft, createReconciliationEntry } from '../../utils/settlementSelectors';
 import useCalculatedExpected from '../../utils/useCalculatedExpected';
 import { fmt } from '../../utils/numformat';
+
+const C = {
+  green: '#1B4332', greenLight: '#f0fdf4', greenBorder: '#bbf7d0',
+  amber: '#C4883A', amberLight: '#fffbeb', amberBorder: '#fde68a',
+  red: '#dc2626', redLight: '#fef2f2', redBorder: '#fecaca',
+  blue: '#0369a1', blueLight: '#f0f9ff', blueBorder: '#bae6fd',
+  gray: '#6b7280', grayLight: '#f9fafb', grayBorder: '#e5e7eb',
+  text: '#1f2937', textMuted: '#6b7280', textFaint: '#9ca3af',
+  radius: 8, radiusLg: 12, font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+};
+
+function Skeleton({ h = 12, w = '100%' }) {
+  return <div style={{ height: h, width: w, background: '#f0f0f0', borderRadius: 4, animation: 'pulse 1.5s infinite' }} />;
+}
+
+function StatusBadge({ status, lang }) {
+  const t = (en, am) => lang === 'am' ? am : en;
+  const map = {
+    finalized: { label: t('Finalized', 'ተጠናቋል'), bg: C.greenLight, color: '#16a34a' },
+    staff_submitted: { label: t('Staff sent', 'ሰራተኛ ልኳል'), bg: C.blueLight, color: C.blue },
+    owner_reviewed: { label: t('Reviewed', 'ተመልክቷል'), bg: C.amberLight, color: '#d97706' },
+    checked: { label: t('Checked', 'ተፈትሟል'), bg: '#f3f4f6', color: C.gray },
+  };
+  const s = map[status] || map.checked;
+  return (
+    <span style={{ fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6, background: s.bg, color: s.color, whiteSpace: 'nowrap' }}>
+      {s.label}
+    </span>
+  );
+}
 
 export default function SettlementSheet({ staff, existingSettlement, lang = 'en', onSaved, onCancel }) {
   const isReview = existingSettlement?.reconciliation_status === 'staff_submitted';
@@ -155,142 +185,143 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
   };
 
   if (loading) {
-    return <div style={{ padding: 20, textAlign: 'center', color: '#6b7280' }}>Loading...</div>;
+    return (
+      <div style={{ padding: 16 }}>
+        <div style={{ marginBottom: 16 }}>
+          <Skeleton h={18} w="60%" /><div style={{ height: 8 }} /><Skeleton h={12} w="80%" />
+        </div>
+        <Skeleton h={100} w="100%" /><div style={{ height: 12 }} />
+        <Skeleton h={100} w="100%" />
+      </div>
+    );
   }
 
   const readOnly = isView;
 
   return (
     <div style={{
-      background: '#f9fafb', borderRadius: 12, padding: 16,
-      border: '1px solid #e5e7eb',
+      background: '#f9fafb', borderRadius: C.radiusLg, padding: 16, border: `1px solid ${C.grayBorder}`,
+      fontFamily: C.font,
     }}>
       {/* Header */}
       <div style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 900, color: '#1f2937', margin: 0 }}>
-            {isNew
-              ? t('Settle with', 'ከ') + ' ' + (staff.name || staff.displayName)
-              : t('Settlement', 'ማስተካከያ') + ' — ' + (staff.name || staff.displayName)}
-          </h3>
-          {existingSettlement && (
-            <span style={{
-              fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6,
-              background: existingSettlement.reconciliation_status === 'finalized' ? '#dcfce7' :
-                          existingSettlement.reconciliation_status === 'staff_submitted' ? '#e0f2fe' :
-                          existingSettlement.reconciliation_status === 'owner_reviewed' ? '#fef3c7' : '#f3f4f6',
-              color: existingSettlement.reconciliation_status === 'finalized' ? '#16a34a' :
-                     existingSettlement.reconciliation_status === 'staff_submitted' ? '#0369a1' :
-                     existingSettlement.reconciliation_status === 'owner_reviewed' ? '#d97706' : '#6b7280',
-            }}>
-              {existingSettlement.reconciliation_status === 'finalized' ? t('Finalized', 'ተጠናቋል') :
-               existingSettlement.reconciliation_status === 'staff_submitted' ? t('Staff sent', 'ሰራተኛ ልኳል') :
-               existingSettlement.reconciliation_status === 'owner_reviewed' ? t('Reviewed', 'ተመልክቷል') :
-               existingSettlement.reconciliation_status === 'checked' ? t('Checked', 'ተፈትሟል') :
-               t('Settled', 'ተቀምጧል')}
-            </span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h3 style={{ fontSize: 16, fontWeight: 900, color: C.text, margin: 0, lineHeight: 1.3 }}>
+              {isNew
+                ? t('Settle with', 'ከ') + ' ' + (staff.name || staff.displayName)
+                : t('Settlement', 'ማስተካከያ') + ' — ' + (staff.name || staff.displayName)}
+            </h3>
+            <p style={{ fontSize: 11, color: C.textMuted, margin: '4px 0 0' }}>
+              {period.start ? new Date(period.start).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : t('Start', 'መጀመሪያ')}
+              {' → '}
+              {new Date(period.end).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              {existingSettlement && ` · ${new Date(existingSettlement.settled_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`}
+            </p>
+          </div>
+          {existingSettlement && existingSettlement.reconciliation_status && (
+            <StatusBadge status={existingSettlement.reconciliation_status} lang={lang} />
           )}
         </div>
-        <p style={{ fontSize: 11, color: '#6b7280', margin: '4px 0 0' }}>
-          {t('Period:', 'ከ')} {period.start ? new Date(period.start).toLocaleDateString() : t('Beginning', 'መጀመሪያ')} → {new Date(period.end).toLocaleDateString()}
-          {existingSettlement && ` · ${t('Settled', 'ተቀምጧል')} ${new Date(existingSettlement.settled_at).toLocaleDateString()}`}
-        </p>
       </div>
 
-      {/* Expected */}
-      <div style={{ background: '#fff', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #e5e7eb' }}>
-        <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', margin: '0 0 8px' }}>
-          {t('Expected (from records)', 'የሚጠበቅ')}
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <div>
-            <span style={{ fontSize: 10, color: '#9ca3af' }}>{t('Cash', 'ጥሬ')}</span>
-            <p style={{ fontSize: 18, fontWeight: 900, color: '#1f2937', margin: '2px 0' }}>{fmt(expected.expectedCash)}</p>
-          </div>
-          <div>
-            <span style={{ fontSize: 10, color: '#9ca3af' }}>{t('Transfer', 'ዝውውር')}</span>
-            <p style={{ fontSize: 18, fontWeight: 900, color: '#1f2937', margin: '2px 0' }}>{fmt(expected.expectedTransfer)}</p>
-          </div>
-        </div>
-        <div style={{ borderTop: '1px solid #f3f4f6', marginTop: 8, paddingTop: 8, textAlign: 'center' }}>
-          <span style={{ fontSize: 10, color: '#9ca3af' }}>{t('Total expected', 'ጠቅላላ')}</span>
-          <p style={{ fontSize: 20, fontWeight: 950, color: '#1f2937', margin: '2px 0' }}>{fmt(expected.expectedTotal)} ETB</p>
+      {/* Summary card */}
+      <div style={{ background: '#fff', borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+          {[
+            { label: t('Cash', 'ጥሬ'), value: fmt(expected.expectedCash), color: C.text },
+            { label: t('Transfer', 'ዝውውር'), value: fmt(expected.expectedTransfer), color: C.text },
+            { label: t('Total', 'ጠቅላላ'), value: `${fmt(expected.expectedTotal)} ETB`, color: C.green, bold: true },
+          ].map((col, i) => (
+            <div key={i} style={{ textAlign: i === 2 ? 'right' : 'left' }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: C.textFaint, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{col.label}</span>
+              <p style={{ fontSize: i === 2 ? 20 : 17, fontWeight: col.bold ? 950 : 900, color: col.color, margin: '2px 0 0', lineHeight: 1.2 }}>{col.value}</p>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Staff reported section (only in review mode) */}
       {hasStaffReport && (
-        <div style={{ background: '#f0f9ff', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #bae6fd' }}>
-          <p style={{ fontSize: 10, fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', margin: '0 0 8px' }}>
+        <div style={{ background: C.blueLight, borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.blueBorder}` }}>
+          <p style={{ fontSize: 9, fontWeight: 800, color: C.blue, textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 10px' }}>
+            <User className="w-3 h-3" style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
             {t('Staff reported', 'ሰራተኛ ያስረከበው')}
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
             <div>
-              <span style={{ fontSize: 10, color: '#7c3aed' }}>{t('Cash', 'ጥሬ')}</span>
-              <p style={{ fontSize: 18, fontWeight: 900, color: '#1f2937', margin: '2px 0' }}>{fmt(staffCash)}</p>
+              <span style={{ fontSize: 9, fontWeight: 700, color: C.blue }}>{t('Cash', 'ጥሬ')}</span>
+              <p style={{ fontSize: 18, fontWeight: 900, color: C.text, margin: '2px 0' }}>{fmt(staffCash)}</p>
             </div>
             <div>
-              <span style={{ fontSize: 10, color: '#7c3aed' }}>{t('Transfer', 'ዝውውር')}</span>
-              <p style={{ fontSize: 18, fontWeight: 900, color: '#1f2937', margin: '2px 0' }}>{fmt(staffTransfer)}</p>
+              <span style={{ fontSize: 9, fontWeight: 700, color: C.blue }}>{t('Transfer', 'ዝውውር')}</span>
+              <p style={{ fontSize: 18, fontWeight: 900, color: C.text, margin: '2px 0' }}>{fmt(staffTransfer)}</p>
             </div>
           </div>
-          <div style={{ borderTop: '1px solid #bae6fd', marginTop: 8, paddingTop: 8 }}>
+          <div style={{ borderTop: `1px solid ${C.blueBorder}`, paddingTop: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 10, color: '#0369a1' }}>{t('Total reported', 'ጠቅላላ ያስረከበው')}</span>
-              <span style={{ fontSize: 16, fontWeight: 950, color: '#1f2937' }}>{fmt(staffTotal)} ETB</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: C.blue }}>{t('Total reported', 'ጠቅላላ ያስረከበው')}</span>
+              <span style={{ fontSize: 16, fontWeight: 950, color: C.text }}>{fmt(staffTotal)} ETB</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-              <span style={{ fontSize: 10, color: '#0369a1' }}>{t('vs Expected', 'ከሚጠበቀው ጋር')}</span>
+              <span style={{ fontSize: 10, color: C.blue }}>{t('vs Expected', 'ከሚጠበቀው ጋር')}</span>
               <span style={{
                 fontSize: 14, fontWeight: 900,
-                color: staffTotal === expected.expectedTotal ? '#16a34a' : '#dc2626',
+                color: staffTotal === expected.expectedTotal ? '#16a34a' : C.red,
               }}>
-                {staffTotal === expected.expectedTotal ? '✓' : `${staffTotal >= expected.expectedTotal ? '+' : ''}${fmt(staffTotal - expected.expectedTotal)} ETB`}
+                {staffTotal === expected.expectedTotal
+                  ? `${t('Matched', 'ተመጣጣኚ')} ✓`
+                  : `${staffTotal >= expected.expectedTotal ? '+' : ''}${fmt(staffTotal - expected.expectedTotal)} ETB`}
               </span>
             </div>
             {existingSettlement?.staff_note && (
-              <div style={{ fontSize: 11, color: '#6b7280', marginTop: 6, borderTop: '1px solid #bae6fd', paddingTop: 6 }}>
-                📝 {existingSettlement.staff_note}
+              <div style={{ fontSize: 11, color: C.textMuted, marginTop: 6, borderTop: `1px solid ${C.blueBorder}`, paddingTop: 6 }}>
+                <FileText className="w-3 h-3" style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle', color: C.textFaint }} />
+                {existingSettlement.staff_note}
               </div>
             )}
           </div>
           {isReview && (
             <button onClick={() => { setActualCash(String(staffCash)); setActualTransfer(String(staffTransfer)); }}
               style={{
-                width: '100%', marginTop: 8, padding: '8px 0', borderRadius: 8,
-                background: '#1B4332', color: '#fff', border: 'none',
-                fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                width: '100%', marginTop: 10, padding: '10px 0', borderRadius: C.radius,
+                background: C.green, color: '#fff', border: 'none',
+                fontSize: 12, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.3px',
               }}
-            >{t('✓ Accept staff amount', 'የሰራተኛውን መጠን ተቀበል')}</button>
+            >{t('Use staff amounts', 'የሰራተኛውን መጠን ተጠቀም')}</button>
           )}
         </div>
       )}
 
       {/* Actual inputs */}
-      <div style={{ background: '#fff', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #e5e7eb' }}>
-        <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', margin: '0 0 8px' }}>
+      <div style={{ background: '#fff', borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
+        <p style={{ fontSize: 9, fontWeight: 800, color: C.gray, textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 10px' }}>
           {isReview ? t('Owner confirmation', 'የባለቤት ማረጋገጫ') : t('Actual (counted)', 'ትክክለኛው')}
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#374151' }}>{t('Cash in hand', 'በእጅ ጥሬ')}</span>
+            <span style={{ fontSize: 10, fontWeight: 800, color: C.text }}>{t('Cash in hand', 'በእጅ ጥሬ')}</span>
             <input type="number" inputMode="decimal" value={actualCash}
               onChange={e => setActualCash(e.target.value)}
               readOnly={readOnly}
               placeholder="0"
-              style={{ minHeight: 40, border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 10px', fontSize: 16, fontWeight: 900, textAlign: 'center', outline: 'none', background: readOnly ? '#f9fafb' : '#fff' }}
+              style={{ minHeight: 44, border: `2px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '6px 10px', fontSize: 18, fontWeight: 900, textAlign: 'center', outline: 'none', background: readOnly ? C.grayLight : '#fff', transition: 'border-color 0.15s', boxSizing: 'border-box' }}
+              onFocus={e => { if (!readOnly) e.target.style.borderColor = C.green; }}
+              onBlur={e => { if (!readOnly) e.target.style.borderColor = C.grayBorder; }}
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#374151' }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: C.text }}>
               {t('Transfer', 'ዝውውር')}
-              <span style={{ fontWeight: 400, color: '#9ca3af' }}> ({t('optional', 'አማራጭ')})</span>
+              <span style={{ fontWeight: 400, color: C.textFaint }}> ({t('opt', 'አማራጭ')})</span>
             </span>
             <input type="number" inputMode="decimal" value={actualTransfer}
               onChange={e => setActualTransfer(e.target.value)}
               readOnly={readOnly}
               placeholder="0"
-              style={{ minHeight: 40, border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 10px', fontSize: 16, fontWeight: 900, textAlign: 'center', outline: 'none', background: readOnly ? '#f9fafb' : '#fff' }}
+              style={{ minHeight: 44, border: `2px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '6px 10px', fontSize: 18, fontWeight: 900, textAlign: 'center', outline: 'none', background: readOnly ? C.grayLight : '#fff', transition: 'border-color 0.15s', boxSizing: 'border-box' }}
+              onFocus={e => { if (!readOnly) e.target.style.borderColor = C.green; }}
+              onBlur={e => { if (!readOnly) e.target.style.borderColor = C.grayBorder; }}
             />
           </label>
         </div>
@@ -300,14 +331,20 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       {isNew && (
         <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
           <button onClick={() => { setActualCash(String(expected.expectedCash)); setActualTransfer(String(expected.expectedTransfer)); }}
-            style={{ background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
+            style={{ background: C.grayLight, color: C.text, border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'background 0.15s' }}
+            onMouseEnter={e => e.target.style.background = '#e5e7eb'}
+            onMouseLeave={e => e.target.style.background = C.grayLight}
           >{t('Expected total', 'የሚጠበቅ ድምር')} {fmt(expected.expectedTotal)}</button>
           <button onClick={() => setActualCash(String(expected.expectedCash))}
-            style={{ background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
+            style={{ background: C.grayLight, color: C.text, border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'background 0.15s' }}
+            onMouseEnter={e => e.target.style.background = '#e5e7eb'}
+            onMouseLeave={e => e.target.style.background = C.grayLight}
           >{t('Expected cash', 'የሚጠበቅ ጥሬ')} {fmt(expected.expectedCash)}</button>
           {expected.expectedTransfer > 0 && (
             <button onClick={() => setActualTransfer(String(expected.expectedTransfer))}
-              style={{ background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}
+              style={{ background: C.grayLight, color: C.text, border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'background 0.15s' }}
+              onMouseEnter={e => e.target.style.background = '#e5e7eb'}
+              onMouseLeave={e => e.target.style.background = C.grayLight}
             >{t('Expected transfer', 'የሚጠበቅ ዝውውር')} {fmt(expected.expectedTransfer)}</button>
           )}
         </div>
@@ -316,60 +353,66 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       {/* Variance */}
       {(actualCashVal > 0 || actualTransferVal > 0) && (
         <div style={{
-          background: totalVariance === 0 ? '#dcfce7' : '#fef2f2',
-          borderRadius: 8, padding: 12, marginBottom: 12, textAlign: 'center',
-          border: `1px solid ${totalVariance === 0 ? '#bbf7d0' : '#fecaca'}`,
+          background: totalVariance === 0 ? C.greenLight : C.redLight,
+          borderRadius: C.radius, padding: 14, marginBottom: 12, textAlign: 'center',
+          border: `1px solid ${totalVariance === 0 ? C.greenBorder : C.redBorder}`,
         }}>
-          <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', margin: 0 }}>
-            {t('Variance', 'ልዩነት')}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 4 }}>
+            {totalVariance === 0
+              ? <CheckCircle className="w-4 h-4" style={{ color: '#16a34a' }} />
+              : <AlertCircle className="w-4 h-4" style={{ color: C.red }} />
+            }
+            <span style={{ fontSize: 9, fontWeight: 800, color: C.gray, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+              {t('Variance', 'ልዩነት')}
+            </span>
+          </div>
           <p style={{
-            fontSize: 22, fontWeight: 950,
-            color: totalVariance === 0 ? '#16a34a' : '#dc2626',
+            fontSize: 24, fontWeight: 950,
+            color: totalVariance === 0 ? '#16a34a' : C.red,
             margin: '4px 0 0',
           }}>
             {totalVariance === 0
-              ? (lang === 'am' ? 'ተመጣጣኚ ✓' : 'Balanced ✓')
+              ? (lang === 'am' ? 'ተመጣጣኚ' : 'Balanced')
               : `${totalVariance >= 0 ? '+' : ''}${fmt(totalVariance)} ETB`
             }
           </p>
           {totalVariance !== 0 && (
-            <p style={{ fontSize: 11, color: '#dc2626', margin: '4px 0 0' }}>
-              {t('Cash:', 'ጥሬ:')} {cashVariance >= 0 ? '+' : ''}{fmt(cashVariance)} ·
-              {t('Transfer:', 'ዝውውር:')} {String(actualTransferVal - expected.expectedTransfer >= 0 ? '+' : '')}{fmt(actualTransferVal - expected.expectedTransfer)}
+            <p style={{ fontSize: 11, color: C.red, margin: '6px 0 0' }}>
+              {t('Cash', 'ጥሬ')}: {cashVariance >= 0 ? '+' : ''}{fmt(cashVariance)} ·
+              {t('Transfer', 'ዝውውር')}: {String(actualTransferVal - expected.expectedTransfer >= 0 ? '+' : '')}{fmt(actualTransferVal - expected.expectedTransfer)}
             </p>
           )}
         </div>
       )}
 
       {/* Adjustments */}
-      <div style={{ background: '#fff', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #e5e7eb' }}>
-        <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', margin: '0 0 8px' }}>
+      <div style={{ background: '#fff', borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
+        <p style={{ fontSize: 9, fontWeight: 800, color: C.gray, textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 10px' }}>
           {t('Adjustments', 'ማስተካከያ')}
-          {!readOnly && <span style={{ fontWeight: 400, color: '#9ca3af', textTransform: 'none' }}> ({t('owner only', 'የባለቤት')})</span>}
+          {!readOnly && <span style={{ fontWeight: 400, color: C.textFaint, textTransform: 'none' }}> ({t('owner only', 'የባለቤት')})</span>}
         </p>
 
         {adjustments.length > 0 && (
-          <div style={{ marginBottom: 8 }}>
+          <div style={{ marginBottom: 10 }}>
             {adjustments.map((adj, i) => (
               <div key={i} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '6px 8px', background: '#f9fafb', borderRadius: 6, marginBottom: 4,
+                padding: '7px 10px', background: C.grayLight, borderRadius: C.radius, marginBottom: 4,
                 fontSize: 12,
               }}>
-                <div>
-                  <span style={{ fontWeight: 800, color: '#374151' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <span style={{ fontWeight: 800, color: C.text }}>
                     {adj.type === 'expense' ? t('Expense', 'ወጪ') :
                      adj.type === 'credit_to_owner' ? t('Credit to owner', 'ለባለቤት ክሬዲት') :
                      adj.type === 'sale' ? t('Sale', 'ሽያጭ') : t('Other', 'ሌላ')}
                   </span>
-                  <span style={{ color: '#6b7280', marginLeft: 6 }}>
+                  <span style={{ color: C.textMuted, marginLeft: 6 }}>
                     {adj.amount >= 0 ? '+' : ''}{fmt(adj.amount)} · {adj.note}
                   </span>
                 </div>
                 {!readOnly && (
                   <button onClick={() => handleRemoveAdjustment(i)}
-                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14 }}
+                    style={{ background: 'none', border: 'none', color: C.red, cursor: 'pointer', fontSize: 14, padding: '2px 4px', flexShrink: 0 }}
                   >✕</button>
                 )}
               </div>
@@ -378,9 +421,9 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         )}
 
         {!readOnly && (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <select value={adjustmentType} onChange={e => setAdjustmentType(e.target.value)}
-              style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '6px 8px', outline: 'none' }}
+              style={{ fontSize: 11, border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '7px 8px', outline: 'none', background: '#fff', minHeight: 34 }}
             >
               <option value="expense">{t('Expense', 'ወጪ')}</option>
               <option value="credit_to_owner">{t('Credit to owner', 'ለባለቤት ክሬዲት')}</option>
@@ -388,15 +431,15 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
               <option value="other">{t('Other', 'ሌላ')}</option>
             </select>
             <input type="number" inputMode="decimal" value={adjustmentAmount}
-              onChange={e => setAdjustmentAmount(e.target.value)} placeholder="Amount"
-              style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '6px 8px', width: 80, outline: 'none' }}
+              onChange={e => setAdjustmentAmount(e.target.value)} placeholder={t('Amount', 'መጠን')}
+              style={{ fontSize: 11, border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '7px 8px', width: 72, outline: 'none', minHeight: 34, boxSizing: 'border-box' }}
             />
             <input type="text" value={adjustmentNote}
-              onChange={e => setAdjustmentNote(e.target.value)} placeholder="Note"
-              style={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, padding: '6px 8px', flex: 1, minWidth: 100, outline: 'none' }}
+              onChange={e => setAdjustmentNote(e.target.value)} placeholder={t('Note', 'ማስታወሻ')}
+              style={{ fontSize: 11, border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '7px 8px', flex: 1, minWidth: 80, outline: 'none', minHeight: 34, boxSizing: 'border-box' }}
             />
             <button onClick={handleAddAdjustment}
-              style={{ background: '#1B4332', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
+              style={{ background: C.green, color: '#fff', border: 'none', borderRadius: C.radius, padding: '7px 12px', fontSize: 14, fontWeight: 800, cursor: 'pointer', minHeight: 34, lineHeight: 1 }}
             >+</button>
           </div>
         )}
@@ -404,49 +447,52 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
 
       {/* Reconciliation timeline */}
       {recLog.length > 0 && (
-        <div style={{ background: '#fff', borderRadius: 8, padding: 12, marginBottom: 12, border: '1px solid #e5e7eb' }}>
-          <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', margin: '0 0 12px' }}>
+        <div style={{ background: '#fff', borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
+          <p style={{ fontSize: 9, fontWeight: 800, color: C.gray, textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 12px' }}>
             {t('Timeline', 'የእንቅስቃሴ ምዝግብ')}
           </p>
           <div style={{ position: 'relative', paddingLeft: 28 }}>
             {recLog.map((entry, i) => {
               const isStaff = entry.actor === 'staff';
+              const dotBg = isStaff ? C.blueLight : C.amberLight;
+              const iconColor = isStaff ? C.blue : '#92400e';
+              const entryBg = isStaff ? C.blueLight : C.amberLight;
               return (
                 <div key={i} style={{ position: 'relative', paddingBottom: i < recLog.length - 1 ? 16 : 0 }}>
                   {i < recLog.length - 1 && (
-                    <div style={{ position: 'absolute', left: 11, top: 24, bottom: 0, width: 2, background: '#e5e7eb' }} />
+                    <div style={{ position: 'absolute', left: 11, top: 24, bottom: 0, width: 2, background: C.grayBorder }} />
                   )}
                   <div style={{
                     position: 'absolute', left: 0, top: 2,
                     width: 24, height: 24, borderRadius: 12,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: isStaff ? '#e0f2fe' : '#fef3c7',
+                    background: dotBg,
                   }}>
                     {isStaff
-                      ? <User className="w-3 h-3" style={{ color: '#0369a1' }} />
-                      : <Shield className="w-3 h-3" style={{ color: '#92400e' }} />
+                      ? <User className="w-3 h-3" style={{ color: iconColor }} />
+                      : <Shield className="w-3 h-3" style={{ color: iconColor }} />
                     }
                   </div>
                   <div style={{ marginLeft: 12 }}>
                     <div style={{
                       display: 'inline-flex', alignItems: 'center', gap: 6,
-                      padding: '4px 10px', borderRadius: 6, fontSize: 11,
-                      background: isStaff ? '#f0f9ff' : '#fffbeb',
+                      padding: '5px 10px', borderRadius: 6, fontSize: 11,
+                      background: entryBg,
                     }}>
-                      <span style={{ fontWeight: 800, color: '#374151' }}>
+                      <span style={{ fontWeight: 800, color: C.text }}>
                         {isStaff ? t('Staff', 'ሰራተኛ') : t('Owner', 'ባለቤት')}
                       </span>
-                      <span style={{ color: '#9ca3af' }}>·</span>
-                      <span style={{ fontWeight: 700, textTransform: 'capitalize', color: '#6b7280' }}>
+                      <span style={{ color: C.textFaint }}>·</span>
+                      <span style={{ fontWeight: 700, textTransform: 'capitalize', color: C.textMuted }}>
                         {entry.action.replace(/_/g, ' ')}
                       </span>
                     </div>
                     {entry.note && (
-                      <p style={{ margin: '4px 0 2px', fontSize: 11, color: '#6b7280', lineHeight: 1.4 }}>
+                      <p style={{ margin: '4px 0 2px', fontSize: 11, color: C.textMuted, lineHeight: 1.4 }}>
                         {entry.note}
                       </p>
                     )}
-                    <span style={{ fontSize: 9, color: '#9ca3af' }}>
+                    <span style={{ fontSize: 9, color: C.textFaint }}>
                       {new Date(entry.timestamp).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
                     </span>
                   </div>
@@ -458,45 +504,51 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       )}
 
       {/* Notes */}
-      <div style={{ marginBottom: 12 }}>
+      <div style={{ marginBottom: 10 }}>
         <textarea value={notes} onChange={e => setNotes(e.target.value)}
           readOnly={readOnly}
           placeholder={t('Notes (optional)', 'ማስታወሻ')}
           rows={2}
-          style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 10px', fontSize: 12, outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: readOnly ? '#f9fafb' : '#fff' }}
+          style={{ width: '100%', border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '8px 10px', fontSize: 12, outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: readOnly ? C.grayLight : '#fff', fontFamily: C.font, lineHeight: 1.5 }}
         />
       </div>
 
       {/* Owner review note */}
       {isReview && (
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ fontSize: 11, fontWeight: 800, color: '#374151', display: 'block', marginBottom: 4 }}>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ fontSize: 10, fontWeight: 800, color: C.text, display: 'block', marginBottom: 4 }}>
             {t('Owner review note', 'የባለቤት ማስታወሻ')}
           </label>
           <textarea value={ownerReviewNote} onChange={e => setOwnerReviewNote(e.target.value)}
             placeholder={t('Any difference? Note it here', 'ልዩነት ካለ እዚህ ያስረዱ')}
             rows={2}
-            style={{ width: '100%', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 10px', fontSize: 12, outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+            style={{ width: '100%', border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '8px 10px', fontSize: 12, outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: C.font, lineHeight: 1.5 }}
           />
         </div>
       )}
 
       {/* Error */}
-      {error && <p style={{ color: '#dc2626', fontSize: 12, fontWeight: 800, marginBottom: 8 }}>{error}</p>}
+      {error && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', background: C.redLight, borderRadius: C.radius, marginBottom: 10, border: `1px solid ${C.redBorder}` }}>
+          <AlertCircle className="w-4 h-4" style={{ color: C.red, flexShrink: 0 }} />
+          <span style={{ color: C.red, fontSize: 12, fontWeight: 700 }}>{error}</span>
+        </div>
+      )}
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={onCancel}
-          style={{ flex: 1, minHeight: 40, border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', color: '#374151', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
+          style={{ flex: 1, minHeight: 44, border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, background: '#fff', color: C.text, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
         >{t('Back', 'ተመለስ')}</button>
 
         {isReview && (
           <button onClick={handleSave} disabled={saving || (actualCashVal === 0 && actualTransferVal === 0)}
             style={{
-              flex: 1, minHeight: 40, border: 'none', borderRadius: 8,
-              background: saving ? '#9ca3af' : '#1B4332',
+              flex: 2, minHeight: 44, border: 'none', borderRadius: C.radius,
+              background: saving ? C.textFaint : C.green,
               color: '#fff',
               fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer',
+              letterSpacing: '0.3px',
             }}
           >{saving ? t('Saving...', 'በማስቀመጥ ላይ...') : t('Accept & Finalize', 'ተቀበል እና ጨርስ')}</button>
         )}
@@ -504,10 +556,11 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         {isNew && (
           <button onClick={handleSave} disabled={saving || (actualCashVal === 0 && actualTransferVal === 0)}
             style={{
-              flex: 1, minHeight: 40, border: 'none', borderRadius: 8,
-              background: saving ? '#9ca3af' : '#1B4332',
+              flex: 2, minHeight: 44, border: 'none', borderRadius: C.radius,
+              background: saving ? C.textFaint : C.green,
               color: '#fff',
               fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer',
+              letterSpacing: '0.3px',
             }}
           >{saving ? t('Saving...', 'በማስቀመጥ ላይ...') : t('Save Settlement', 'አስቀምጥ')}</button>
         )}

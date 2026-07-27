@@ -131,7 +131,7 @@ function PermissionToggle({ keyName, value, onChange, lang }) {
 
 
 
-function StaffActivityFeed() {
+function StaffActivityFeed({ todayRefreshKey, setTodayStaffSales, setTodayStaffTransactions }) {
   const { lang } = useLang();
   const [filter, setFilter] = useState('all');
   const [activities, setActivities] = useState([]);
@@ -324,10 +324,14 @@ export default function StaffPage({
   const [searchQuery, setSearchQuery] = useState('');
 
   // ── Expanded / collapsed sections ──
+  const hasUnresolvedSettlements = useMemo(() =>
+    settlements.some(s => s.reconciliation_status === 'staff_submitted' || s.reconciliation_status === 'disputed'),
+    [settlements]
+  );
   const [expandedSections, setExpandedSections] = useState({
     activity: false,
     more: false,
-    pastSettlements: false,
+    pastSettlements: true,
   });
 
   // ── Deactivation confirm ──
@@ -386,14 +390,17 @@ export default function StaffPage({
     return () => { cancelled = true; clearInterval(interval); };
   }, [settlementRefreshKey]);
 
-  // ── Visibility guard for settlement poll ──
+  // ── Visibility guard & periodic refresh ──
   useEffect(() => {
-    const handle = () => {
+    let cancelled = false;
+    const refresh = () => {
       if (document.hidden) return;
       setSettlementRefreshKey(k => k + 1);
+      setTodayRefreshKey(k => k + 1);
     };
-    document.addEventListener('visibilitychange', handle);
-    return () => document.removeEventListener('visibilitychange', handle);
+    const interval = setInterval(() => { if (!cancelled) refresh(); }, 30000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { cancelled = true; clearInterval(interval); document.removeEventListener('visibilitychange', refresh); };
   }, []);
 
   // ── Escape key closes settlement sheet ──
@@ -682,8 +689,10 @@ export default function StaffPage({
         </div>
         <div className="divide-y" style={{ borderColor: '#f0ece4' }}>
           {activeStaff.length === 0 && (
-            <div className="px-4 py-6 text-center">
-              <div className="text-3xl mb-2">👥</div>
+            <div className="px-4 py-8 text-center">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: '#f3f4f6' }}>
+                <span className="text-xl font-black" style={{ color: '#9ca3af' }}>+</span>
+              </div>
               <p className="text-sm font-bold text-gray-500">
                 {canManageTeam
                   ? t('Invite your first team member', 'የመጀመሪያ ሰራተኛዎን ይጋብዙ')
@@ -844,12 +853,20 @@ export default function StaffPage({
           <button
             onClick={() => toggleSection('pastSettlements')}
             className="w-full px-4 py-3 flex items-center justify-between text-left"
-            style={{ background: '#fcfbf8' }}
+            style={{ background: hasUnresolvedSettlements ? '#fffbeb' : '#fcfbf8' }}
           >
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
-              {t('Past Settlements', 'ያለፉ ማስተካከያዎች')}
-            </span>
-            <span className="text-xs text-gray-400">{settlements.length}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                {t('Past Settlements', 'ያለፉ ማስተካከያዎች')}
+              </span>
+              <span className="text-xs font-bold" style={{ color: '#9ca3af' }}>{settlements.length}</span>
+              {hasUnresolvedSettlements && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#fef2f2', color: '#dc2626' }}>
+                  {t('Needs review', 'ክለሳ ይፈልጋል')}
+                </span>
+              )}
+            </div>
+            {expandedSections.pastSettlements ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
           </button>
           {expandedSections.pastSettlements && (
             <div className="divide-y max-h-60 overflow-y-auto" style={{ borderColor: '#f0ece4' }}>
@@ -1139,6 +1156,11 @@ export default function StaffPage({
                   className="flex-1 text-sm focus:outline-none bg-transparent"
                   style={{ border: 'none', outline: 'none' }}
                 />
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="text-gray-400 hover:text-gray-600 text-sm font-bold px-1">
+                    ✕
+                  </button>
+                )}
               </div>
             </div>
             {filteredMembers.length === 0 ? (
@@ -1391,7 +1413,11 @@ export default function StaffPage({
           </button>
           {expandedSections.activity && (
             <div className="px-4 py-3">
-              <StaffActivityFeed />
+              <StaffActivityFeed
+                todayRefreshKey={todayRefreshKey}
+                setTodayStaffSales={setTodayStaffSales}
+                setTodayStaffTransactions={setTodayStaffTransactions}
+              />
             </div>
           )}
         </div>

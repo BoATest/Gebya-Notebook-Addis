@@ -19,24 +19,31 @@ const memConfig = new Map<string, ReminderConfiguration>();
 
 // ─── KV command helper ────────────────────────────────────────────────
 
+let kvBroken = false;
+
 async function kvCmd(args: (string | number)[]): Promise<unknown> {
-  const res = await fetch(KV_URL as string, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${KV_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(args),
-  });
-  if (!res.ok) {
-    throw new Error(`KV command failed (${res.status})`);
-  }
+  if (kvBroken) throw new Error("KV unavailable");
   try {
-    const data = (await res.json()) as { result?: unknown };
-    return data?.result ?? null;
-  } catch {
-    const text = await res.text();
-    throw new Error(`KV invalid JSON response: ${text.slice(0, 200)}`);
+    const res = await fetch(KV_URL as string, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${KV_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(args),
+    });
+    if (!res.ok) throw new Error(`KV command failed (${res.status})`);
+    try {
+      const data = (await res.json()) as { result?: unknown };
+      return data?.result ?? null;
+    } catch {
+      const text = await res.text();
+      throw new Error(`KV invalid JSON response: ${text.slice(0, 200)}`);
+    }
+  } catch (err) {
+    console.error("[ReminderConfig:KV] fetch error, falling back to memory:", err instanceof Error ? err.message : String(err));
+    kvBroken = true;
+    throw err;
   }
 }
 
@@ -50,43 +57,40 @@ const configKey = (shopId: number, customerId: number | null): string => {
 // ─── low-level accessors (KV or memory) ───────────────────────────────
 
 async function readConfig(key: string): Promise<ReminderConfiguration | null> {
-  if (kvEnabled) {
+  if (kvEnabled && !kvBroken) {
     try {
       const raw = await kvCmd(["GET", key]);
       if (!raw || typeof raw !== "string") return null;
       return JSON.parse(raw) as ReminderConfiguration;
     } catch (error) {
       console.error(`[ReminderConfig] Error reading from KV: ${error}`);
-      return null;
     }
   }
   return memConfig.get(key) ?? null;
 }
 
 async function writeConfig(key: string, config: ReminderConfiguration): Promise<void> {
-  if (kvEnabled) {
+  if (kvEnabled && !kvBroken) {
     try {
       await kvCmd(["SET", key, JSON.stringify(config)]);
+      return;
     } catch (error) {
       console.error(`[ReminderConfig] Error writing to KV: ${error}`);
-      throw error;
     }
-  } else {
-    memConfig.set(key, config);
   }
+  memConfig.set(key, config);
 }
 
 async function deleteConfig(key: string): Promise<void> {
-  if (kvEnabled) {
+  if (kvEnabled && !kvBroken) {
     try {
       await kvCmd(["DEL", key]);
+      return;
     } catch (error) {
       console.error(`[ReminderConfig] Error deleting from KV: ${error}`);
-      throw error;
     }
-  } else {
-    memConfig.delete(key);
   }
+  memConfig.delete(key);
 }
 
 // ─── validation helpers ───────────────────────────────────────────────
