@@ -18,6 +18,8 @@ export const supplierTransactions = pgTable("supplier_transactions", {
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }),
 
+  deletedAt: bigint("deleted_at", { mode: "number" }),
+
   businessId: integer("business_id").references(() => businesses.id, { onDelete: "restrict" }),
   schemaVersion: integer("schema_version").default(1),
   syncVersion: integer("sync_version").default(1),
@@ -41,6 +43,7 @@ export const insertSupplierTransactionSchema = z.object({
   quantity: z.number().optional(),
   createdAt: z.number(),
   updatedAt: z.number().optional(),
+  deletedAt: z.number().nullable().optional(),
   schemaVersion: z.number().optional(),
   syncVersion: z.number().optional(),
 });

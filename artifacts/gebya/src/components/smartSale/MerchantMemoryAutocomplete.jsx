@@ -2,6 +2,7 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import { useLang } from '../../context/LangContext';
 import { fmt } from '../../utils/numformat';
 import { computeAcceptanceWeight } from '../../utils/learningEngine';
+import { bigramSimilarity } from '../../utils/shared-ui.jsx';
 
 /*
  * ── Merchant Memory Parameters ──────────────────────────────────────
@@ -65,30 +66,6 @@ const MEMORY_PARAMS = {
   PREFIX_SCORE: 1.0,         // name/code starts with query
   CONTAINS_SCORE: 0.8,       // query appears anywhere in name/code
 };
-
-function bigramSimilarity(a, b) {
-  if (!a || !b) return 0;
-  const normalize = (s) => s.toLowerCase().replace(/[^a-z0-9\u1200-\u137f\u1380-\u139f\u2d80-\u2ddf\uab00-\uab2f]/gu, '');
-  const na = normalize(a);
-  const nb = normalize(b);
-  if (na === nb) return 1;
-  if (na.length < 2 || nb.length < 2) return 0;
-  const bigrams = (s) => {
-    const set = new Map();
-    for (let i = 0; i < s.length - 1; i++) {
-      const bg = s.substring(i, i + 2);
-      set.set(bg, (set.get(bg) || 0) + 1);
-    }
-    return set;
-  };
-  const aBi = bigrams(na);
-  const bBi = bigrams(nb);
-  let intersection = 0;
-  for (const [bg, count] of aBi) {
-    if (bBi.has(bg)) intersection += Math.min(count, bBi.get(bg));
-  }
-  return (2 * intersection) / (na.length - 1 + (nb.length - 1));
-}
 
 function memoryScore(entry, now) {
   const P = MEMORY_PARAMS;

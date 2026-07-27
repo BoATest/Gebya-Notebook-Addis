@@ -223,14 +223,18 @@ router.post("/broadcast", async (req, res) => {
   if (!title || typeof title !== "string" || !body || typeof body !== "string") return res.status(400).json({ error: "title and body are required" });
   const ownerMembers = await db.select({ userId: businessMembers.userId, businessId: businessMembers.businessId }).from(businessMembers).where(and(eq(businessMembers.role, "owner"), eq(businessMembers.active, true)));
   if (ownerMembers.length === 0) return res.json({ ok: true, sent: 0, message: "No active shops found" });
-  let sent = 0;
-  for (const member of ownerMembers) {
-    try {
-      await db.insert(notifications).values({ businessId: member.businessId, ownerUserId: member.userId, type: type || "announcement", title: title.slice(0, 255), body, read: false });
-      sent++;
-    } catch (err) { console.error("[admin:broadcast] failed for user", member.userId, err); }
-  }
-  return res.json({ ok: true, sent, total: ownerMembers.length });
+
+  const values = ownerMembers.map((m) => ({
+    businessId: m.businessId,
+    ownerUserId: m.userId,
+    type: type || "announcement",
+    title: title.slice(0, 255),
+    body,
+    read: false,
+  }));
+  await db.insert(notifications).values(values);
+
+  return res.json({ ok: true, sent: values.length, total: ownerMembers.length });
 });
 
 // ─── POST /admin/push-all ──────────────────────────────────────────────

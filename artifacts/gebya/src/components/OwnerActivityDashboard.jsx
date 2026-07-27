@@ -2,23 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Shield, AlertTriangle, User, Calendar, Filter, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { usePermissionsStore } from '../stores/permissionsStore';
-import { getAuthToken } from '../utils/syncEngine';
 import { useSyncStore } from '../stores/syncStore';
 import { fmt } from '../utils/numformat';
 import { formatEthiopianTime } from '../utils/ethiopianCalendar';
-
-const API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
-
-async function apiFetch(path, options = {}) {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
-  return data;
-}
+import { apiFetch } from '../utils/shared-ui.jsx';
 
 const ACTION_LABELS = {
   CREATE: { en: 'Recorded', am: 'ተመዝግቧል' },

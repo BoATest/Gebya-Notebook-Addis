@@ -3,40 +3,10 @@ import { ChevronDown, ChevronUp, Shield, KeyRound } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { useShopStore } from '../stores/shopStore';
 import { usePermissionsStore } from '../stores/permissionsStore';
-import { useAuthStore } from '../stores/authStore';
 import { fireToast } from './Toast';
 import ConfirmDialog from './ConfirmDialog';
-import { getAuthToken } from '../utils/syncEngine';
+import { apiFetch, ROLE_BADGE, RoleBadge } from '../utils/shared-ui.jsx';
 import { getCurrentEntitlements } from '../utils/entitlements';
-
-const API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
-
-async function apiFetch(path, options = {}) {
-  const token = await getAuthToken();
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers };
-  const bizId = useAuthStore.getState().currentBusinessId;
-  if (bizId) headers['x-business-id'] = String(bizId);
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
-  return data;
-}
-
-const ROLE_BADGE = {
-  owner: { label: 'Owner', bg: '#fef3c7', color: '#92400e' },
-  manager: { label: 'Manager', bg: '#fef3c7', color: '#92400e' },
-  cashier: { label: 'Sales Staff', bg: '#f3f4f6', color: '#4b5563' },
-  viewer: { label: 'Auditor', bg: '#f3f4f6', color: '#4b5563' },
-};
-
-function RoleBadge({ role }) {
-  const style = ROLE_BADGE[role] || ROLE_BADGE.viewer;
-  return (
-    <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: style.bg, color: style.color }}>
-      {style.label}
-    </span>
-  );
-}
 
 function ActorSelector({ staffMembers, activeStaffMemberId, currentActorLabel, onSetActiveStaffMember, shopProfile, lang }) {
   return (

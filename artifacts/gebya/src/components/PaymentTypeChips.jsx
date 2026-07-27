@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useLang } from '../context/LangContext';
 
 export const ALL_BANKS = ['CBE', 'Dashen', 'Awash', 'Abyssinia'];
@@ -7,8 +8,23 @@ export const DEFAULT_PROVIDERS = { banks: [...ALL_BANKS], wallets: [...ALL_WALLE
 function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChange, enabledProviders }) {
   const { t } = useLang();
 
-  const enabledBanks   = enabledProviders?.banks?.length   ? enabledProviders.banks   : ALL_BANKS;
-  const enabledWallets = enabledProviders?.wallets?.length ? enabledProviders.wallets : ALL_WALLETS;
+  const enabledBanks   = enabledProviders?.banks   !== undefined ? enabledProviders.banks   : ALL_BANKS;
+  const enabledWallets = enabledProviders?.wallets !== undefined ? enabledProviders.wallets : ALL_WALLETS;
+
+  const prevRef = useRef({ banks: enabledBanks, wallets: enabledWallets });
+  useEffect(() => {
+    const prev = prevRef.current;
+    if (prev.banks !== enabledBanks || prev.wallets !== enabledWallets) {
+      prevRef.current = { banks: enabledBanks, wallets: enabledWallets };
+      if (paymentType === 'bank' && !enabledBanks.includes(provider)) {
+        onTypeChange('cash');
+        onProviderChange('');
+      } else if (paymentType === 'wallet' && !enabledWallets.includes(provider)) {
+        onTypeChange('cash');
+        onProviderChange('');
+      }
+    }
+  }, [enabledBanks, enabledWallets, paymentType, provider, onTypeChange, onProviderChange]);
 
   const options = [
     { id: 'cash', label: t.cash, emoji: '💵', type: 'cash', provider: '' },

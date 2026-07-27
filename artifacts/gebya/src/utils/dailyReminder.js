@@ -9,7 +9,6 @@
 // in-page timer + a local Notification / toast — delivery only while the app is open.
 
 import { toEthiopianClock, msUntilNext } from './ethiopianTime';
-import { fireToast } from '../components/Toast';
 
 let pageTimer = null;
 
@@ -21,7 +20,7 @@ function postToSW(message) {
   return false;
 }
 
-function showInAppFallback() {
+function showInAppFallback(fireToast) {
   const body = "Don't forget to record today's sales. ዛሬውን ሽያጭ ይመዝግቡ።";
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
@@ -34,10 +33,10 @@ function showInAppFallback() {
   }
 }
 
-function armInPageFallback(time24) {
+function armInPageFallback(time24, fireToast) {
   disarmInPageFallback();
   const tick = () => {
-    showInAppFallback();
+    showInAppFallback(fireToast);
     pageTimer = setTimeout(tick, 24 * 60 * 60 * 1000);
   };
   pageTimer = setTimeout(tick, msUntilNext(time24));
@@ -50,9 +49,9 @@ function disarmInPageFallback() {
   }
 }
 
-export function armDailyReminder(time24) {
+export function armDailyReminder(time24, fireToast) {
   const sent = postToSW({ type: 'schedule-reminder', enabled: true, time: time24 });
-  if (!sent) armInPageFallback(time24);
+  if (!sent) armInPageFallback(time24, fireToast);
 }
 
 export function disarmDailyReminder() {

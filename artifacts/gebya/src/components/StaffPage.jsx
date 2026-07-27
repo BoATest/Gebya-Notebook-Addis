@@ -3,10 +3,8 @@ import { Copy, ChevronDown, ChevronUp, Shield, KeyRound, Search, Eye } from 'luc
 import { useLang } from '../context/LangContext';
 import { useShopStore } from '../stores/shopStore';
 import { usePermissionsStore } from '../stores/permissionsStore';
-import { useAuthStore } from '../stores/authStore';
 import { fireToast } from './Toast';
 import ConfirmDialog from './ConfirmDialog';
-import { getAuthToken } from '../utils/syncEngine';
 import { getCurrentEntitlements } from '../utils/entitlements';
 import { loadStaffActivityFeed } from '../utils/staffActivityFeed';
 import { loadSettlementFromLocalStorage, clearSettlementDraft, calculateExpected, createReconciliationEntry } from '../utils/settlementSelectors';
@@ -15,35 +13,7 @@ import SettlementSheet from './report/SettlementSheet';
 import db, { getAllSettlements, saveSettlement, updateSettlement } from '../db';
 import { fmt } from '../utils/numformat';
 import { isValidEthiopianPhone, normalizeEthiopianPhone, formatEthiopianPhone, extractSubscriberDigits } from '../utils/phoneNumber';
-
-const API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
-
-async function apiFetch(path, options = {}) {
-  const token = await getAuthToken();
-  const headers = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers };
-  const bizId = useAuthStore.getState().currentBusinessId;
-  if (bizId) headers['x-business-id'] = String(bizId);
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
-  return data;
-}
-
-const ROLE_BADGE = {
-  owner: { label: 'Owner', bg: '#fef3c7', color: '#92400e' },
-  manager: { label: 'Manager', bg: '#fef3c7', color: '#92400e' },
-  cashier: { label: 'Sales Staff', bg: '#f3f4f6', color: '#4b5563' },
-  viewer: { label: 'Auditor', bg: '#f3f4f6', color: '#4b5563' },
-};
-
-function RoleBadge({ role }) {
-  const style = ROLE_BADGE[role] || ROLE_BADGE.viewer;
-  return (
-    <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: style.bg, color: style.color }}>
-      {style.label}
-    </span>
-  );
-}
+import { apiFetch, ROLE_BADGE, RoleBadge } from '../utils/shared-ui.jsx';
 
 const ROLE_PRESETS = {
   manager: { can_manage_team: true, can_delete_records: true, can_edit_settings: true, can_add_records: true, can_view_reports: true },

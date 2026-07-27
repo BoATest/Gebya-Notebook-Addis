@@ -27,7 +27,7 @@ import {
   customerTransactions,
   businesses,
 } from "@workspace/db/schema";
-import { eq, and, gte, lte, sql, desc } from "drizzle-orm";
+import { eq, and, gte, lte, sql, desc, isNull } from "drizzle-orm";
 import { requireDeviceContext, type DeviceContext } from "./rbac.js";
 import { verifyJwt } from "./auth.js";
 
@@ -56,7 +56,7 @@ async function getBankUserFromToken(req: any): Promise<{ bankUser: typeof bankUs
 async function buildReportPayload(businessId: number, share: typeof bankDataShares.$inferSelect) {
   const [bizRows, txRows, custRows, custTxRows] = await Promise.all([
     db.select().from(businesses).where(eq(businesses.id, businessId)).limit(1),
-    db.select().from(transactions).where(eq(transactions.businessId, businessId)),
+    db.select().from(transactions).where(and(eq(transactions.businessId, businessId), isNull(transactions.deletedAt))),
     db.select().from(customers).where(eq(customers.businessId, businessId)),
     db.select().from(customerTransactions).where(eq(customerTransactions.businessId, businessId)),
   ]);

@@ -7,8 +7,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { fmt } from '../utils/numformat';
-
-const API_BASE = (import.meta.env.VITE_API_BASE ?? '/api').replace(/\/$/, '');
+import { apiFetch } from '../utils/shared-ui.jsx';
 
 // --- CSV Export ---
 
@@ -54,22 +53,6 @@ function exportReportCsv(report) {
   URL.revokeObjectURL(url);
 }
 
-async function apiFetch(path, token, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(options.headers || {}),
-    },
-    credentials: 'include',
-  });
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-  return data;
-}
-
 // --- Login Form ---
 
 function BankLoginForm({ onLogin }) {
@@ -83,7 +66,7 @@ function BankLoginForm({ onLogin }) {
     setLoading(true);
     setError(null);
     try {
-      await apiFetch('/auth/otp', null, {
+      await apiFetch('/auth/otp', {
         method: 'POST',
         body: JSON.stringify({ phone_number: phone }),
       });
@@ -99,12 +82,12 @@ function BankLoginForm({ onLogin }) {
     setLoading(true);
     setError(null);
     try {
-      const result = await apiFetch('/auth/verify', null, {
+      const result = await apiFetch('/auth/verify', {
         method: 'POST',
         body: JSON.stringify({ phone_number: phone, otp }),
       });
       if (result.token) {
-        onLogin(result.token);
+        onLogin(result);
       } else {
         setError('No token received');
       }
@@ -189,16 +172,16 @@ function BankLoginForm({ onLogin }) {
 
 // --- Shop List ---
 
-function ShopList({ token, onSelect }) {
+function ShopList({ onSelect }) {
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch('/analytics/shops', token)
+    apiFetch('/analytics/shops')
       .then((d) => setShops(d.shops || []))
       .catch(() => setShops([]))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, []);
 
   if (loading) return <div style={{ padding: 20, textAlign: 'center', color: '#9ca3af' }}>Loading shops...</div>;
   if (shops.length === 0) return (
@@ -236,18 +219,18 @@ function ShopList({ token, onSelect }) {
 
 // --- Shop Report View ---
 
-function ShopReport({ token, businessId, onBack }) {
+function ShopReport({ businessId, onBack }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     setLoading(true);
-    apiFetch(`/analytics/shop/${businessId}`, token)
+    apiFetch(`/analytics/shop/${businessId}`)
       .then(setReport)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [token, businessId]);
+  }, [businessId]);
 
   if (loading) return <div style={{ padding: 20, textAlign: 'center', color: '#9ca3af' }}>Loading report...</div>;
   if (error) return (
@@ -359,21 +342,34 @@ function ShopReport({ token, businessId, onBack }) {
 // --- Main Dashboard ---
 
 export default function BankDashboard() {
-  const [token, setToken] = useState(() => localStorage.getItem('gebya_bank_token'));
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [selectedShop, setSelectedShop] = useState(null);
 
-  const handleLogin = useCallback((newToken) => {
-    localStorage.setItem('gebya_bank_token', newToken);
-    setToken(newToken);
+  // On mount, check if already authenticated via httpOnly cookie
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch('/auth/me')
+      .then((data) => { if (!cancelled && data.ok) setUser(data.user); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('gebya_bank_token');
-    setToken(null);
+  const handleLogin = useCallback((result) => {
+    setUser(result.user);
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await apiFetch('/auth/logout', { method: 'POST' });
+    } catch {}
+    setUser(null);
     setSelectedShop(null);
   }, []);
 
-  if (!token) return <BankLoginForm onLogin={handleLogin} />;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Loading...</div>;
+  if (!user) return <BankLoginForm onLogin={handleLogin} />;
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
@@ -403,9 +399,9 @@ export default function BankDashboard() {
       {/* Content */}
       <div style={{ padding: '20px', maxWidth: 480, margin: '0 auto' }}>
         {selectedShop ? (
-          <ShopReport token={token} businessId={selectedShop} onBack={() => setSelectedShop(null)} />
+          <ShopReport businessId={selectedShop} onBack={() => setSelectedShop(null)} />
         ) : (
-          <ShopList token={token} onSelect={setSelectedShop} />
+          <ShopList onSelect={setSelectedShop} />
         )}
       </div>
     </div>

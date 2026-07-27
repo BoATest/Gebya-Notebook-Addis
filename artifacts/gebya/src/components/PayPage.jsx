@@ -16,35 +16,68 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
+const SENSITIVE_KEYS = ['tb', 'cbe_p', 'cbe_a', 'aw_p', 'bk_n', 'bk_a', 'cbe', 'awash', 'phone', 'tg'];
+const SS_PREFIX = 'gebya_pay_';
+
 function decodeParam(value) {
   if (!value) return '';
   try { return decodeURIComponent(value); } catch { return value; }
 }
 
-function readUrlParams() {
+function readFromSession(key) {
+  try { return sessionStorage.getItem(SS_PREFIX + key) || ''; } catch { return ''; }
+}
+
+function writeToSession(key, value) {
+  try { if (value) sessionStorage.setItem(SS_PREFIX + key, value); } catch {}
+}
+
+function readParams() {
   if (typeof window === 'undefined') return {};
   const u = new URLSearchParams(window.location.search);
-  return {
+
+  const params = {
     to: decodeParam(u.get('to')),
     amount: decodeParam(u.get('amount')),
     from: decodeParam(u.get('from')),
     ref: decodeParam(u.get('ref')),
-    phone: decodeParam(u.get('phone')),
-    tg: decodeParam(u.get('tg')),
-    // Commit C.1: explicit payment account fields. When set, channel cards
-    // show the real account number with a copy button. When unset, cards
-    // still render but only with the generic USSD code as a fallback.
-    tb: decodeParam(u.get('tb')),        // telebirr phone (defaults to `phone`)
-    cbe_p: decodeParam(u.get('cbe_p')),  // CBE Birr phone (for *847#)
-    cbe_a: decodeParam(u.get('cbe_a')),  // CBE bank account number
-    aw_p: decodeParam(u.get('aw_p')),    // Awash Mobile phone (for *901#)
-    bk_n: decodeParam(u.get('bk_n')),    // Bank name (e.g. "Dashen")
-    bk_a: decodeParam(u.get('bk_a')),    // Bank account number
-    // Legacy single-CBE param — keep reading it for backwards compat with old links
-    cbe: decodeParam(u.get('cbe')),
-    awash: decodeParam(u.get('awash')),
+    phone: decodeParam(u.get('phone')) || readFromSession('phone'),
+    tg: decodeParam(u.get('tg')) || readFromSession('tg'),
+    tb: decodeParam(u.get('tb')) || readFromSession('tb'),
+    cbe_p: decodeParam(u.get('cbe_p')) || readFromSession('cbe_p'),
+    cbe_a: decodeParam(u.get('cbe_a')) || readFromSession('cbe_a'),
+    aw_p: decodeParam(u.get('aw_p')) || readFromSession('aw_p'),
+    bk_n: decodeParam(u.get('bk_n')) || readFromSession('bk_n'),
+    bk_a: decodeParam(u.get('bk_a')) || readFromSession('bk_a'),
+    cbe: decodeParam(u.get('cbe')) || readFromSession('cbe'),
+    awash: decodeParam(u.get('awash')) || readFromSession('awash'),
     lang: (u.get('lang') === 'am') ? 'am' : 'en',
+    enabled: u.get('enabled') || '',
   };
+
+  // Store sensitive params in sessionStorage and clean URL
+  let hasSensitive = false;
+  for (const key of SENSITIVE_KEYS) {
+    const val = key === 'phone' ? (u.get('phone') || '') : u.get(key);
+    if (val) {
+      writeToSession(key, decodeParam(val));
+      hasSensitive = true;
+    }
+  }
+
+  if (hasSensitive) {
+    const clean = new URLSearchParams();
+    if (params.to) clean.set('to', params.to);
+    if (params.amount) clean.set('amount', params.amount);
+    if (params.from) clean.set('from', params.from);
+    if (params.ref) clean.set('ref', params.ref);
+    if (params.lang) clean.set('lang', params.lang);
+    const qs = clean.toString();
+    const newUrl = qs ? window.location.pathname + '?' + qs : window.location.pathname;
+    window.history.replaceState(null, '', newUrl);
+  }
+
+  return params;
 }
 
 function formatAmount(s) {
@@ -136,13 +169,19 @@ const TEXT = {
 };
 
 function PayPage() {
-  const params = useMemo(() => readUrlParams(), []);
+  const params = useMemo(() => readParams(), []);
   const [copied, setCopied] = useState(null); // null | 'phone' | 'tg' | etc.
   // T2 (Q1 + queue): "I paid" callback — confirm modal then opens
   // shop's Telegram or SMS with a pre-filled "I just paid" message.
   const [showPaidConfirm, setShowPaidConfirm] = useState(false);
   const [paidSent, setPaidSent] = useState(false);
   const t = TEXT[params.lang] || TEXT.en;
+
+  // Channel visibility — controlled by `enabled` param from the reminder link.
+  // When absent (direct access / backward compat), all channels show.
+  const enabledSet = useMemo(() => {
+    return params.enabled ? new Set(params.enabled.split(',')) : null;
+  }, [params.enabled]);
 
   useEffect(() => {
     // Set page title for browser tab
@@ -239,132 +278,142 @@ function PayPage() {
         {/* Telebirr — featured. Uses explicit `tb` if set, otherwise falls back
             to the shop's `phone` (most common case — shopkeepers receive
             telebirr on their own phone). */}
-        <ChannelCard
-          icon="💛"
-          iconBg="#ffeb3b"
-          iconColor="#1f2937"
-          name={t.telebirrName}
-          sub={(params.tb || params.phone) ? t.telebirrSubWithPhone : t.telebirrSubGeneric}
-          tag={t.telebirrTag}
-          tagBg="#d1f4e0"
-          tagColor="#047857"
-          accountValue={params.tb || params.phone}
-          accountKey="tb"
-          copyLabel={t.copy}
-          copiedLabel={t.copied}
-          copiedKey={copied}
-          onCopy={copyText}
-          onClick={() => { window.location.href = 'tel:*127%23'; }}
-          featured
-        />
+        {(!enabledSet || enabledSet.has('tb')) && (
+          <ChannelCard
+            icon="💛"
+            iconBg="#ffeb3b"
+            iconColor="#1f2937"
+            name={t.telebirrName}
+            sub={(params.tb || params.phone) ? t.telebirrSubWithPhone : t.telebirrSubGeneric}
+            tag={t.telebirrTag}
+            tagBg="#d1f4e0"
+            tagColor="#047857"
+            accountValue={params.tb || params.phone}
+            accountKey="tb"
+            copyLabel={t.copy}
+            copiedLabel={t.copied}
+            copiedKey={copied}
+            onCopy={copyText}
+            onClick={() => { window.location.href = 'tel:*127%23'; }}
+            featured
+          />
+        )}
 
         {/* CBE Birr — show phone if set; also show bank account as a second
             row when the shopkeeper has provided one. */}
-        <ChannelCard
-          icon="💜"
-          iconBg="#5d3a98"
-          iconColor="#fff"
-          name={t.cbeName}
-          sub={(params.cbe_p || params.cbe) ? t.cbeSubWithPhone : t.cbeSubGeneric}
-          accountValue={params.cbe_p || params.cbe}
-          accountKey="cbe_p"
-          secondaryLabel={t.cbeAccountLabel}
-          secondaryValue={params.cbe_a}
-          secondaryKey="cbe_a"
-          copyLabel={t.copy}
-          copiedLabel={t.copied}
-          copiedKey={copied}
-          onCopy={copyText}
-          onClick={() => { window.location.href = 'tel:*847%23'; }}
-        />
+        {(!enabledSet || enabledSet.has('cbe')) && (
+          <ChannelCard
+            icon="💜"
+            iconBg="#5d3a98"
+            iconColor="#fff"
+            name={t.cbeName}
+            sub={(params.cbe_p || params.cbe) ? t.cbeSubWithPhone : t.cbeSubGeneric}
+            accountValue={params.cbe_p || params.cbe}
+            accountKey="cbe_p"
+            secondaryLabel={t.cbeAccountLabel}
+            secondaryValue={params.cbe_a}
+            secondaryKey="cbe_a"
+            copyLabel={t.copy}
+            copiedLabel={t.copied}
+            copiedKey={copied}
+            onCopy={copyText}
+            onClick={() => { window.location.href = 'tel:*847%23'; }}
+          />
+        )}
 
         {/* Awash Mobile */}
-        <ChannelCard
-          icon="🟡"
-          iconBg="#d4af37"
-          iconColor="#1f2937"
-          name={t.awashName}
-          sub={(params.aw_p || params.awash) ? t.awashSubWithPhone : t.awashSubGeneric}
-          accountValue={params.aw_p || params.awash}
-          accountKey="aw_p"
-          copyLabel={t.copy}
-          copiedLabel={t.copied}
-          copiedKey={copied}
-          onCopy={copyText}
-          onClick={() => { window.location.href = 'tel:*901%23'; }}
-        />
+        {(!enabledSet || enabledSet.has('aw')) && (
+          <ChannelCard
+            icon="🟡"
+            iconBg="#d4af37"
+            iconColor="#1f2937"
+            name={t.awashName}
+            sub={(params.aw_p || params.awash) ? t.awashSubWithPhone : t.awashSubGeneric}
+            accountValue={params.aw_p || params.awash}
+            accountKey="aw_p"
+            copyLabel={t.copy}
+            copiedLabel={t.copied}
+            copiedKey={copied}
+            onCopy={copyText}
+            onClick={() => { window.location.href = 'tel:*901%23'; }}
+          />
+        )}
 
-        <p style={sectionLabelStyle()}>{t.bankTransfer}</p>
+        {(!enabledSet || enabledSet.has('bk')) && (
+          <>
+            <p style={sectionLabelStyle()}>{t.bankTransfer}</p>
 
-        {/* Bank / contact card.
-            If the shopkeeper has set bk_n + bk_a (Commit C.1), this becomes a
-            full bank-transfer card with the account number. Otherwise it
-            falls back to a generic contact card with the shop's phone/Telegram. */}
-        <div style={{
-          background: '#fff',
-          border: '1px solid #ece6d6',
-          borderRadius: 12,
-          padding: 14,
-          marginBottom: 6,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+            {/* Bank / contact card.
+                If the shopkeeper has set bk_n + bk_a (Commit C.1), this becomes a
+                full bank-transfer card with the account number. Otherwise it
+                falls back to a generic contact card with the shop's phone/Telegram. */}
             <div style={{
-              width: 40, height: 40, borderRadius: 10,
-              background: '#1a1a1a', color: '#fff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.2rem',
-              flexShrink: 0,
-            }}>🏦</div>
-            <p style={{ flex: 1, fontSize: '0.92rem', fontWeight: 700, color: '#1f2937' }}>
-              {params.bk_n ? params.bk_n : t.bankName}
-            </p>
-          </div>
+              background: '#fff',
+              border: '1px solid #ece6d6',
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 6,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: 10,
+                  background: '#1a1a1a', color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '1.2rem',
+                  flexShrink: 0,
+                }}>🏦</div>
+                <p style={{ flex: 1, fontSize: '0.92rem', fontWeight: 700, color: '#1f2937' }}>
+                  {params.bk_n ? params.bk_n : t.bankName}
+                </p>
+              </div>
 
-          {/* Bank account if configured */}
-          {params.bk_a && (
-            <ContactRow
-              label="#"
-              value={params.bk_a}
-              onCopy={() => copyText(params.bk_a, 'bk_a')}
-              copied={copied === 'bk_a'}
-              copyLabel={t.copy}
-              copiedLabel={t.copied}
-            />
-          )}
-
-          {/* Contact rows */}
-          {(params.phone || params.tg) ? (
-            <>
-              <p style={{ fontSize: '0.7rem', color: '#6b7280', margin: '8px 0 6px' }}>
-                {t.bankSubWithPhone}:
-              </p>
-              {params.phone && (
+              {/* Bank account if configured */}
+              {params.bk_a && (
                 <ContactRow
-                  label="📞"
-                  value={params.phone}
-                  onCopy={() => copyText(params.phone, 'phone')}
-                  copied={copied === 'phone'}
+                  label="#"
+                  value={params.bk_a}
+                  onCopy={() => copyText(params.bk_a, 'bk_a')}
+                  copied={copied === 'bk_a'}
                   copyLabel={t.copy}
                   copiedLabel={t.copied}
                 />
               )}
-              {params.tg && (
-                <ContactRow
-                  label="💬"
-                  value={params.tg}
-                  onCopy={() => copyText(params.tg, 'tg')}
-                  copied={copied === 'tg'}
-                  copyLabel={t.copy}
-                  copiedLabel={t.copied}
-                />
+
+              {/* Contact rows */}
+              {(params.phone || params.tg) ? (
+                <>
+                  <p style={{ fontSize: '0.7rem', color: '#6b7280', margin: '8px 0 6px' }}>
+                    {t.bankSubWithPhone}:
+                  </p>
+                  {params.phone && (
+                    <ContactRow
+                      label="📞"
+                      value={params.phone}
+                      onCopy={() => copyText(params.phone, 'phone')}
+                      copied={copied === 'phone'}
+                      copyLabel={t.copy}
+                      copiedLabel={t.copied}
+                    />
+                  )}
+                  {params.tg && (
+                    <ContactRow
+                      label="💬"
+                      value={params.tg}
+                      onCopy={() => copyText(params.tg, 'tg')}
+                      copied={copied === 'tg'}
+                      copyLabel={t.copy}
+                      copiedLabel={t.copied}
+                    />
+                  )}
+                </>
+              ) : !params.bk_a && (
+                <p style={{ fontSize: '0.78rem', color: '#6b7280' }}>
+                  {t.bankSubNoContact}
+                </p>
               )}
-            </>
-          ) : !params.bk_a && (
-            <p style={{ fontSize: '0.78rem', color: '#6b7280' }}>
-              {t.bankSubNoContact}
-            </p>
-          )}
-        </div>
+            </div>
+          </>
+        )}
 
         {/* T2: "I paid" callback — only if the customer has a way to message
             the shop back (phone or Telegram). Lets the customer ping the shop

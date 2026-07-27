@@ -5,7 +5,7 @@
 // additive chips, photo capture for the item bought. No Telegram (suppliers
 // don't get reminders) and no multi-item breakdown (supplier purchases are
 // typically batched: "5 bags coffee = 5000 birr").
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Save, X, Camera } from 'lucide-react';
 import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { SUPPLIER_TRANSACTION_TYPES, isValidSupplierTransactionType } from '../utils/supplierLedger';
@@ -79,6 +79,19 @@ function SupplierTransactionSheet({
       ...wallets.map(w => ({ id: `wallet:${w}`, label: w, emoji: '📱', type: 'wallet', provider: w })),
     ];
   }, [enabledProviders]);
+
+  // Reset to cash if the selected provider was disabled in Settings
+  const enabledBanks = enabledProviders?.banks || [];
+  const enabledWallets = enabledProviders?.wallets || [];
+  useEffect(() => {
+    if (paymentMethod === 'bank' && !enabledBanks.includes(paymentProvider)) {
+      setPaymentMethod('cash');
+      setPaymentProvider('');
+    } else if (paymentMethod === 'wallet' && !enabledWallets.includes(paymentProvider)) {
+      setPaymentMethod('cash');
+      setPaymentProvider('');
+    }
+  }, [enabledBanks, enabledWallets, paymentMethod, paymentProvider]);
 
   const transactionType = useMemo(() => {
     if (editing) return editingTransaction.type;

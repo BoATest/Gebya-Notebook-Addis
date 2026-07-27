@@ -7,7 +7,7 @@
 // - Optional one-line note
 // - Compact due-date pills
 // - Solid colored save button
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Save, X, Plus, Camera, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import InlineDatePicker from './InlineDatePicker';
 import CameraCapture from './CameraCapture';
@@ -213,6 +213,19 @@ function CustomerTransactionSheet({
       ...wallets.map(w => ({ id: `wallet:${w}`, label: w, emoji: '📱', type: 'wallet', provider: w })),
     ];
   }, [enabledProviders]);
+
+  // Reset to cash if the selected provider was disabled in Settings
+  const enabledBanks = enabledProviders?.banks || [];
+  const enabledWallets = enabledProviders?.wallets || [];
+  useEffect(() => {
+    if (paymentMethod === 'bank' && !enabledBanks.includes(paymentProvider)) {
+      setPaymentMethod('cash');
+      setPaymentProvider('');
+    } else if (paymentMethod === 'wallet' && !enabledWallets.includes(paymentProvider)) {
+      setPaymentMethod('cash');
+      setPaymentProvider('');
+    }
+  }, [enabledBanks, enabledWallets, paymentMethod, paymentProvider]);
 
   const handleSave = async () => {
     if (!canSave) return;

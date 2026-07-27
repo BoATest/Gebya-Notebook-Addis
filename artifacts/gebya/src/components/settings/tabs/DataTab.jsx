@@ -6,6 +6,7 @@ import ExportPanel from '../ExportPanel';
 import PwaInstallPanel from '../../PwaInstallPanel';
 import TabCard from '../TabCard';
 import { toEthiopianClock, armDailyReminder, disarmDailyReminder, requestReminderPermission } from '../../../utils/dailyReminder';
+import { fireToast } from '../../Toast';
 
 const DEFAULT_REMINDER_TIME = '20:00';
 
@@ -40,7 +41,7 @@ export default function DataTab({
 
   // Keep an in-app scheduler armed while enabled.
   useEffect(() => {
-    if (reminderEnabled) armDailyReminder(reminderTime);
+    if (reminderEnabled) armDailyReminder(reminderTime, fireToast);
     else disarmDailyReminder();
     return () => disarmDailyReminder();
   }, [reminderEnabled, reminderTime]);

@@ -2,7 +2,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { users, devices, otps, businesses, businessMembers } from "@workspace/db/schema";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, gt, inArray } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { sendTelegramTextMessage } from "../services/telegramBotService.js";
@@ -17,8 +17,35 @@ if (!process.env.JWT_SECRET) {
 }
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = "30d";
+const JWT_COOKIE_NAME = "gebya_token";
 const OTP_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
 const OTP_MAX_ATTEMPTS = 5;
+
+/**
+ * Extract JWT from Authorization header (Bearer) or httpOnly cookie.
+ * Cookie is used by the bank dashboard; header is used by the merchant app.
+ */
+function getToken(req) {
+  const authHeader = req.headers.authorization || "";
+  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (bearerMatch) return bearerMatch[1];
+  return req.cookies?.[JWT_COOKIE_NAME] || null;
+}
+
+function setTokenCookie(res, token) {
+  const isProduction = process.env.NODE_ENV === "production";
+  res.cookie(JWT_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    path: "/",
+  });
+}
+
+function clearTokenCookie(res) {
+  res.clearCookie(JWT_COOKIE_NAME, { path: "/" });
+}
 
 function hashOtp(plain: string) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -172,6 +199,7 @@ router.post("/verify", async (req, res) => {
   }
 
   const token = signJwt(user.id);
+  setTokenCookie(res, token);
 
   // Fetch all business memberships (gracefully handle if table has schema issues)
   let memberRows: any[] = [];
@@ -190,24 +218,23 @@ router.post("/verify", async (req, res) => {
     }
     const primary = memberRows[0] || null;
 
-    // Enrich with business names
+    // Enrich with business names (batch query to avoid N+1)
     let businessList: any[] = [];
     try {
-      businessList = await Promise.all(
-        memberRows.map(async (m) => {
-          const biz = await db
-            .select({ name: businesses.name })
-            .from(businesses)
-            .where(eq(businesses.id, m.businessId))
-            .limit(1);
-          return {
-            business_id: m.businessId,
-            name: biz[0]?.name || "Unknown",
-            role: m.role,
-            permissions: m.permissions,
-          };
-        })
-      );
+      if (memberRows.length > 0) {
+        const bizIds = memberRows.map((m) => m.businessId);
+        const bizRows = await db
+          .select({ id: businesses.id, name: businesses.name })
+          .from(businesses)
+          .where(inArray(businesses.id, bizIds));
+        const bizMap = new Map(bizRows.map((b) => [b.id, b.name]));
+        businessList = memberRows.map((m) => ({
+          business_id: m.businessId,
+          name: bizMap.get(m.businessId) || "Unknown",
+          role: m.role,
+          permissions: m.permissions,
+        }));
+      }
     } catch (err) {
       console.error("[auth:verify] business enrichment failed:", err);
     }
@@ -362,6 +389,7 @@ router.post("/verify-otp", async (req, res) => {
 
   // Generate JWT token
   const token = signJwt(otp.userId);
+  setTokenCookie(res, token);
 
   // Fetch user details
   const user = await db
@@ -393,8 +421,7 @@ router.post("/verify-otp", async (req, res) => {
 
 // --- POST /api/auth/link-device ---
 router.post("/link-device", async (req, res) => {
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "");
+  const token = getToken(req);
   if (!token) {
     return res.status(401).json({ error: "Authorization token required" });
   }
@@ -425,10 +452,15 @@ router.post("/link-device", async (req, res) => {
   return res.json({ ok: true, device_id, user_id: decoded.userId });
 });
 
+// --- POST /api/auth/logout ---
+router.post("/logout", async (req, res) => {
+  clearTokenCookie(res);
+  return res.json({ ok: true });
+});
+
 // --- GET /api/auth/me ---
 router.get("/me", async (req, res) => {
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.replace(/^Bearer\s+/i, "");
+  const token = getToken(req);
   if (!token) {
     return res.status(401).json({ error: "Authorization token required" });
   }
@@ -455,22 +487,22 @@ router.get("/me", async (req, res) => {
     .where(eq(businessMembers.userId, user.id));
   const primary = memberRows[0] || null;
 
-  // Enrich with business names
-  const businessList = await Promise.all(
-    memberRows.map(async (m) => {
-      const biz = await db
-        .select({ name: businesses.name })
-        .from(businesses)
-        .where(eq(businesses.id, m.businessId))
-        .limit(1);
-      return {
-        business_id: m.businessId,
-        name: biz[0]?.name || "Unknown",
-        role: m.role,
-        permissions: m.permissions,
-      };
-    })
-  );
+  // Enrich with business names (batch query to avoid N+1)
+  let businessList: any[] = [];
+  if (memberRows.length > 0) {
+    const bizIds = memberRows.map((m) => m.businessId);
+    const bizRows = await db
+      .select({ id: businesses.id, name: businesses.name })
+      .from(businesses)
+      .where(inArray(businesses.id, bizIds));
+    const bizMap = new Map(bizRows.map((b) => [b.id, b.name]));
+    businessList = memberRows.map((m) => ({
+      business_id: m.businessId,
+      name: bizMap.get(m.businessId) || "Unknown",
+      role: m.role,
+      permissions: m.permissions,
+    }));
+  }
 
   return res.json({
     ok: true,

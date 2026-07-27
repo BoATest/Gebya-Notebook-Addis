@@ -4,18 +4,8 @@
  */
 import { useState, useEffect } from 'react';
 import { useLang } from '../context/LangContext';
+import { apiFetch } from '../utils/shared-ui.jsx';
 import { getAuthToken } from '../utils/syncEngine';
-
-const API_BASE = (import.meta.env.VITE_SYNC_API_URL || '/api').replace(/\/$/, '');
-
-async function apiFetch(path) {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
 
 function fmt(n) { return n == null ? '0' : Number(n).toLocaleString('en-US'); }
 function fmtBirr(n) { return `${fmt(n)} ETB`; }

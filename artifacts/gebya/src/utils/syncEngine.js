@@ -8,6 +8,26 @@ const LAST_SYNC_AT_KEY = 'gebya_last_sync_at';
 const TABLE_LAST_SYNC_KEY = 'gebya_table_last_sync';
 const BUSINESS_ID_KEY = 'gebya_business_id';
 
+function _deepEqual(a, b) {
+  if (a === b) return true;
+  if (a == null || b == null) return a === b;
+  if (typeof a !== typeof b) return false;
+  if (typeof a === 'number' && isNaN(a) && isNaN(b)) return true;
+  if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (!_deepEqual(a[i], b[i])) return false;
+    return true;
+  }
+  if (typeof a === 'object') {
+    const ka = Object.keys(a), kb = Object.keys(b);
+    if (ka.length !== kb.length) return false;
+    for (const k of ka) if (!_deepEqual(a[k], b[k])) return false;
+    return true;
+  }
+  return false;
+}
+
 let syncEngineInstance = null;
 
 // ─── JWT helpers ───
@@ -129,7 +149,7 @@ class SyncEngine {
       if (excludeKeys.includes(key)) continue;
       const l = local?.[key];
       const r = remote?.[key];
-      if (JSON.stringify(l) !== JSON.stringify(r)) {
+      if (!_deepEqual(l, r)) {
         changed.push(key);
       }
     }

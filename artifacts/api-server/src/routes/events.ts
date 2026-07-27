@@ -2,7 +2,7 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { staffEvents } from "@workspace/db/schema/staff_events";
-import { and, eq, desc, sql } from "drizzle-orm";
+import { and, eq, desc, sql, inArray } from "drizzle-orm";
 import { PushEventsBody, type SyncEventEnvelopeT, type PushEventsBodyT } from "@workspace/api-zod/events";
 import { requireDeviceContext } from "./rbac.js";
 
@@ -88,37 +88,33 @@ router.post("/events/push", async (req: Request, res: Response) => {
   const body = parsePushEventsBody(req.body, res);
   if (!body) return;
 
-  const results = await Promise.all(
-    body.events.map(async (event) => {
-      if (payloadHasForbiddenStaffPhone(event.payload)) {
-        return reject(event, "Staff phone number must not be included in event payload.");
-      }
+  // Reject events with forbidden payload fields
+  const rejectedPrefix = body.events
+    .filter((e) => payloadHasForbiddenStaffPhone(e.payload))
+    .map((e) => ({ client_event_id: e.client_event_id, status: "rejected" as const, reason: "Staff phone number must not be included in event payload." }));
+  const validEvents = body.events.filter((e) => ["sale", "customer_payment", "customer_credit"].includes(e.event_type) && !payloadHasForbiddenStaffPhone(e.payload));
+  const invalidEvents = body.events.filter((e) => !["sale", "customer_payment", "customer_credit"].includes(e.event_type) && !payloadHasForbiddenStaffPhone(e.payload))
+    .map((e) => ({ client_event_id: e.client_event_id, status: "rejected" as const, reason: "Unsupported event type." }));
 
-      if (!["sale", "customer_payment", "customer_credit"].includes(event.event_type)) {
-        return reject(event, "Unsupported event type.");
-      }
-
-      // Idempotency check: reject duplicate (businessId + clientEventId)
-      const existing = await db
-        .select({ id: staffEvents.id })
+  // Batch idempotency check (1 query instead of N)
+  const clientEventIds = validEvents.map((e) => e.client_event_id);
+  const existingEvents = clientEventIds.length > 0
+    ? await db
+        .select({ id: staffEvents.id, clientEventId: staffEvents.clientEventId })
         .from(staffEvents)
-        .where(
-          and(
-            eq(staffEvents.businessId, ctx.businessId),
-            eq(staffEvents.clientEventId, event.client_event_id)
-          )
-        )
-        .limit(1);
+        .where(and(eq(staffEvents.businessId, ctx.businessId), inArray(staffEvents.clientEventId, clientEventIds)))
+    : [];
+  const existingMap = new Map(existingEvents.map((e) => [e.clientEventId, e.id]));
 
-      if (existing.length > 0) {
-        return {
-          client_event_id: event.client_event_id,
-          status: "duplicate" as const,
-          event_id: String(existing[0].id),
-        };
-      }
+  const toInsert = validEvents.filter((e) => !existingMap.has(e.client_event_id));
+  const duplicates = validEvents.filter((e) => existingMap.has(e.client_event_id))
+    .map((e) => ({ client_event_id: e.client_event_id, status: "duplicate" as const, event_id: String(existingMap.get(e.client_event_id)) }));
 
-      const [inserted] = await db.insert(staffEvents).values({
+  // Batch insert (1 query instead of N)
+  let accepted: { client_event_id: string; status: "accepted"; event_id: string; created_at_server: string | undefined }[] = [];
+  if (toInsert.length > 0) {
+    const inserted = await db.insert(staffEvents).values(
+      toInsert.map((event) => ({
         businessId: ctx.businessId,
         userId: ctx.userId,
         clientEventId: event.client_event_id,
@@ -128,16 +124,18 @@ router.post("/events/push", async (req: Request, res: Response) => {
         eventType: event.event_type,
         occurredAtDevice: new Date(event.occurred_at_device),
         payload: (event.payload as Record<string, unknown>) ?? {},
-      }).returning({ id: staffEvents.id, createdAt: staffEvents.createdAt });
+      }))
+    ).returning({ id: staffEvents.id, createdAt: staffEvents.createdAt, clientEventId: staffEvents.clientEventId });
 
-      return {
-        client_event_id: event.client_event_id,
-        status: "accepted" as const,
-        event_id: String(inserted.id),
-        created_at_server: inserted.createdAt?.toISOString(),
-      };
-    })
-  );
+    accepted = inserted.map((row) => ({
+      client_event_id: row.clientEventId,
+      status: "accepted" as const,
+      event_id: String(row.id),
+      created_at_server: row.createdAt?.toISOString(),
+    }));
+  }
+
+  const results = [...rejectedPrefix, ...invalidEvents, ...duplicates, ...accepted];
 
   res.json({ results });
 });

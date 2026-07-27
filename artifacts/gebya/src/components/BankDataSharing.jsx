@@ -3,25 +3,7 @@
  * Shows which banks have access, lets merchant grant/revoke.
  */
 import { useState, useEffect } from 'react';
-import { getAuthToken } from '../utils/syncEngine';
-
-const API_BASE = (import.meta.env.VITE_API_BASE ?? '/api').replace(/\/$/, '');
-
-async function apiFetch(path, token, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(options.headers || {}),
-    },
-    credentials: 'include',
-  });
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-  return data;
-}
+import { apiFetch } from '../utils/shared-ui.jsx';
 
 const BANKS = [
   { id: 'cbe', name: 'Commercial Bank of Ethiopia', nameAm: 'የኢትዮጵያ ንግድ ባንክ' },
@@ -32,19 +14,14 @@ const BANKS = [
 ];
 
 export default function BankDataSharing({ shopId, lang }) {
-  const [token, setToken] = useState(null);
   const [shares, setShares] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getAuthToken().then((t) => {
-      setToken(t);
-      if (!t) { setLoading(false); return; }
-      apiFetch('/analytics/shares', t)
-        .then((d) => setShares(d.shares || []))
-        .catch(() => setShares([]))
-        .finally(() => setLoading(false));
-    });
+    apiFetch('/analytics/shares')
+      .then((d) => setShares(d.shares || []))
+      .catch(() => setShares([]))
+      .finally(() => setLoading(false));
   }, [shopId]);
   const [showGrant, setShowGrant] = useState(false);
   const [selectedBank, setSelectedBank] = useState('');
@@ -57,7 +34,7 @@ export default function BankDataSharing({ shopId, lang }) {
     setSaving(true);
     setError(null);
     try {
-      await apiFetch('/analytics/share', token, {
+      await apiFetch('/analytics/share', {
         method: 'POST',
         body: JSON.stringify({
           bankName: selectedBank,
@@ -67,7 +44,7 @@ export default function BankDataSharing({ shopId, lang }) {
         }),
       });
       // Refresh
-      const d = await apiFetch('/analytics/shares', token);
+      const d = await apiFetch('/analytics/shares');
       setShares(d.shares || []);
       setShowGrant(false);
       setSelectedBank('');
@@ -81,7 +58,7 @@ export default function BankDataSharing({ shopId, lang }) {
   const handleRevoke = async (shareId) => {
     if (!confirm(lang === 'am' ? 'ይህን ባንክ ይቀሩ?' : 'Revoke access for this bank?')) return;
     try {
-      await apiFetch(`/analytics/share/${shareId}`, token, { method: 'DELETE' });
+      await apiFetch(`/analytics/share/${shareId}`, { method: 'DELETE' });
       setShares((prev) => prev.filter((s) => s.id !== shareId));
     } catch (e) {
       setError(e.message);

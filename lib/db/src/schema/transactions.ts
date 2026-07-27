@@ -37,6 +37,8 @@ export const transactions = pgTable("transactions", {
   actorStaffMemberId: integer("actor_staff_member_id"),
   actorNameSnapshot: text("actor_name_snapshot"),
 
+  deletedAt: bigint("deleted_at", { mode: "number" }),
+
   businessId: integer("business_id").references(() => businesses.id, { onDelete: "restrict" }),
   schemaVersion: integer("schema_version").default(1),
   syncVersion: integer("sync_version").default(1),
@@ -74,6 +76,7 @@ export const insertTransactionSchema = z.object({
   actorRole: z.string().max(32).nullable().optional(),
   actorStaffMemberId: z.number().nullable().optional(),
   actorNameSnapshot: z.string().nullable().optional(),
+  deletedAt: z.number().nullable().optional(),
   schemaVersion: z.number().optional(),
   syncVersion: z.number().optional(),
 });

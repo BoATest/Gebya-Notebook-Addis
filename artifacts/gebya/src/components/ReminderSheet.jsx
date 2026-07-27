@@ -28,10 +28,12 @@ import {
 // All params are URL-encoded; PayPage decodes them and renders the channel
 // picker page. Empty/missing values are simply omitted.
 //
-// Commit C.1: also passes payment-account fields from shopProfile.payments
-// so PayPage can show real account numbers (telebirr / CBE / Awash / bank)
-// instead of just generic USSD codes.
-function buildPayUrl({ shopName, shopPhone, shopTelegram, shopPayments, customer, lang }) {
+// The `enabled` param lists which channels are toggled ON in Settings so
+// PayPage can hide cards for disabled channels.
+const ENABLED_PARAM_MAP = {
+  telebirr: 'tb', cbe_birr: 'cbe', awash_mobile: 'aw', bank: 'bk',
+};
+function buildPayUrl({ shopName, shopPhone, shopTelegram, shopPayments, paymentChannels, customer, lang }) {
   if (typeof window === 'undefined') return '';
   const origin = window.location.origin;
   const balance = Number(customer?.balance || 0);
@@ -46,11 +48,15 @@ function buildPayUrl({ shopName, shopPhone, shopTelegram, shopPayments, customer
   if (shopTelegram) params.set('tg', shopTelegram);
   if (lang) params.set('lang', lang);
 
-  // Payment receiving accounts (Commit C.1). telebirr defaults to shopPhone
-  // when its dedicated field is empty — common case for shopkeepers who use
-  // the same number for both. Other channels are independent.
+  // Enabled channels — PayPage reads this to show/hide cards
+  const enabledCodes = (paymentChannels || [])
+    .filter(c => c.enabled)
+    .map(c => ENABLED_PARAM_MAP[c.id] || null)
+    .filter(Boolean);
+  if (enabledCodes.length) params.set('enabled', enabledCodes.join(','));
+
+  // Payment receiving accounts. Only enabled channels have data here.
   const pmt = shopPayments || {};
-  // telebirr: explicit field overrides shop phone; empty string → fall back to phone
   const telebirrPhone = (pmt.telebirr && pmt.telebirr.trim())
     ? (pmt.telebirr.startsWith('+251') ? pmt.telebirr : `+251${pmt.telebirr.replace(/\D/g, '').slice(-9)}`)
     : shopPhone;
@@ -97,10 +103,23 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
   const available = useMemo(() => getAvailableChannels(customer), [customer]);
   const effectiveChannel = channel || available[0] || null;
 
-  const generatedMessage = useMemo(
-    () => buildReminderMessage({ template, lang, customer, shopName }),
-    [template, lang, customer, shopName]
+  const payUrl = useMemo(
+    () => buildPayUrl({
+      shopName,
+      shopPhone: shopProfile?.phone,
+      shopTelegram: shopProfile?.telegram,
+      shopPayments: shopProfile?.payments,
+      paymentChannels: shopProfile?.paymentChannels,
+      customer,
+      lang,
+    }),
+    [shopName, shopProfile, customer, lang]
   );
+
+  const generatedMessage = useMemo(() => {
+    const base = buildReminderMessage({ template, lang, customer, shopName });
+    return appendPayLink({ baseMessage: base, payUrl, lang });
+  }, [template, lang, customer, shopName, payUrl]);
 
   // Reset edited message when template changes
   useEffect(() => {

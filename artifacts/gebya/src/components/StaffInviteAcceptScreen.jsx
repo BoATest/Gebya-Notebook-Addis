@@ -5,19 +5,7 @@ import { usePermissionsStore } from '../stores/permissionsStore';
 import { setIdentity } from '../db';
 import { fireToast } from './Toast';
 import { getAuthToken } from '../utils/syncEngine';
-
-const API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
-
-async function apiFetch(path, options = {}) {
-  const token = await getAuthToken();
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
-  return data;
-}
+import { apiFetch } from '../utils/shared-ui.jsx';
 
 export default function StaffInviteAcceptScreen({ onJoined, onDismiss }) {
   const { lang } = useLang();

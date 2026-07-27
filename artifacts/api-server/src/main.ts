@@ -5,6 +5,7 @@ import cors from "cors";
 import helmet from "helmet";
 // @ts-ignore
 import rateLimit from "express-rate-limit";
+import cookieParser from "cookie-parser";
 import router from "./routes/index.js";
 
 const app: Express = express();
@@ -106,6 +107,9 @@ try {
 // ---- BODY PARSING ----
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+
+// ---- COOKIE PARSING (for httpOnly JWT cookie) ----
+app.use(cookieParser());
 
 // ---- REQUEST CONTEXT ----
 app.use((req, res, next) => {
