@@ -26,18 +26,10 @@ function hashOtp(plain: string) {
   return `${salt}:${hash}`;
 }
 
-function verifyOtp(otp: string, hash: string): boolean {
-  if (!hash.includes(':')) {
-    // Legacy hash format (without salt) - for backward compatibility during transition
-    return hashOtp(otp) === hash;
-  }
-  
-  const [salt, storedHash] = hash.split(':');
-  const computedHash = crypto.pbkdf2Sync(otp, salt, 100000, 64, 'sha512').toString('hex');
-  return storedHash === computedHash;
-}
-
 function verifyOtp(plain: string, hashed: string): boolean {
+  if (!hashed.includes(':')) {
+    return hashOtp(plain) === hashed;
+  }
   const [salt, hash] = hashed.split(':');
   if (!salt || !hash) return false;
   const computedHash = crypto.pbkdf2Sync(plain, salt, 100000, 64, 'sha512').toString('hex');
