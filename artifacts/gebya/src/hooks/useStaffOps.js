@@ -91,13 +91,17 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
       }
     }
     const now = Date.now();
-    await db.staff_members.update(member.id, { active: false, updated_at: now, deactivated_at: now });
-    setStaffMembers(prev => sortStaff(prev.map(item =>
-      item.id === member.id ? { ...item, active: false, updated_at: now, deactivated_at: now } : item
-    )));
-    if (String(activeStaffMemberId) === String(member.id)) {
-      await db.settings.put({ key: 'active_staff_member_id', value: null });
-      setActiveStaffMemberId(null);
+    try {
+      await db.staff_members.update(member.id, { active: false, updated_at: now, deactivated_at: now });
+      setStaffMembers(prev => sortStaff(prev.map(item =>
+        item.id === member.id ? { ...item, active: false, updated_at: now, deactivated_at: now } : item
+      )));
+      if (String(activeStaffMemberId) === String(member.id)) {
+        await db.settings.put({ key: 'active_staff_member_id', value: null });
+        setActiveStaffMemberId(null);
+      }
+    } catch {
+      return false;
     }
     return true;
   }, [staffMembers, activeStaffMemberId, setStaffMembers, setActiveStaffMemberId, sortStaff, refreshStaffMembers]);
@@ -106,10 +110,14 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
     const member = staffMembers.find(item => String(item.id) === String(staffId));
     if (!member) return false;
     const now = Date.now();
-    await db.staff_members.update(member.id, { active: true, updated_at: now, deactivated_at: null });
-    setStaffMembers(prev => sortStaff(prev.map(item =>
-      item.id === member.id ? { ...item, active: true, updated_at: now, deactivated_at: null } : item
-    )));
+    try {
+      await db.staff_members.update(member.id, { active: true, updated_at: now, deactivated_at: null });
+      setStaffMembers(prev => sortStaff(prev.map(item =>
+        item.id === member.id ? { ...item, active: true, updated_at: now, deactivated_at: null } : item
+      )));
+    } catch {
+      return false;
+    }
     return true;
   }, [staffMembers, setStaffMembers, sortStaff]);
 

@@ -290,6 +290,7 @@ const EN = {
   costPriceLabel: 'Cost price',
   sellingBelowCostShort: 'Selling below cost.',
   profitLabel: 'Profit:',
+  calcProfit: 'Calculate profit',
   saving: 'Saving...',
 
   todaysProfit: "Today's Profit",
@@ -704,6 +705,7 @@ const AM = {
   costPriceLabel: 'የዋጋ',
   sellingBelowCostShort: 'ከዋጋ በታች።',
   profitLabel: 'ትርፍ:',
+  calcProfit: 'ትርፍ አስላ',
   saving: 'እየተቀመጠ…',
 
   todaysProfit: 'የዛሬ ትርፍ',
@@ -1467,12 +1469,27 @@ const LangContext = createContext(null);
 export function LangProvider({ children }) {
   // Default to Amharic for new users (most Gebya shopkeepers are Amharic-first).
   // Existing users who've toggled keep their saved choice via localStorage.
-  const [lang, setLang] = useState(() => localStorage.getItem('gebya_lang') || 'am');
+  const [lang, setLang] = useState('am');
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('gebya_lang');
+      if (stored === 'en' || stored === 'am') {
+        setLang(stored);
+      }
+    } catch {
+      // localStorage may be unavailable in SSR or private mode.
+    }
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = lang;
     document.body.dataset.lang = lang;
-    localStorage.setItem('gebya_lang', lang);
+    try {
+      localStorage.setItem('gebya_lang', lang);
+    } catch {
+      // ignore storage errors
+    }
   }, [lang]);
 
   const toggleLang = () => {

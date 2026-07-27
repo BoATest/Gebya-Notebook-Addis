@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { getAuthToken } from '../utils/syncEngine';
 
 /**
  * Global app-level UI state.

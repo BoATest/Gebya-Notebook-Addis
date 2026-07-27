@@ -1,5 +1,4 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { X } from 'lucide-react';
 import db, { getIdentity, setIdentity } from '../db';
 import { getAuthToken } from '../utils/syncEngine';
 import identityApi from '../api/identity';
@@ -21,7 +20,7 @@ import TransferSheet from './TransferSheet';
 import { ToastContainer, fireToast } from './Toast';
 import StaffPage from './StaffPage';
 import { buildPhotoFields, normalizePhotos } from '../utils/photoProof';
-import { getCurrentEthiopianDate, formatEthiopian, formatEthiopianTime } from '../utils/ethiopianCalendar';
+import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/numformat';
 import { usePermissionsStore } from '../stores/permissionsStore';
 import { useSyncStore } from '../stores/syncStore';
@@ -52,12 +51,11 @@ import { useAppStore } from '../stores/appStore';
 import { useShopStore } from '../stores/shopStore';
 import { useAuthStore } from '../stores/authStore';
 import { initSyncEngine, destroySyncEngine } from '../utils/syncEngine';
-import { requestOtp, verifyOtp } from '../utils/authClient';
 import { setAuthToken } from '../utils/syncEngine';
 import AuthRequiredPrompt from './shell/AuthRequiredPrompt';
 import { PanelFallback } from './shell/FallbackViews';
 import { LoadingScreen, StaffJoinScreenView, OnboardingScreenView } from './shell/AppShellScreens';
-import { isLikelyStaleChunkError, lazyWithRetry, isBrowserOnline, runAfterFirstPaint, buildSavedOnDeviceMessage, getTransactionCloudProofRecordType, getCustomerCloudProofRecordType, getSupplierCloudProofRecordType } from '../utils/appShellUtils';
+import { lazyWithRetry, isBrowserOnline, runAfterFirstPaint, buildSavedOnDeviceMessage, getTransactionCloudProofRecordType, getCustomerCloudProofRecordType, getSupplierCloudProofRecordType } from '../utils/appShellUtils';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { useStaffOps } from '../hooks/useStaffOps';
 import { useShopOps } from '../hooks/useShopOps';
@@ -142,6 +140,24 @@ export default function AppShell() {
     updateSupplierTransaction,
     deleteSupplierTransaction,
   } = useSuppliers(t);
+
+  // ─── Shop state (useShopStore) ───
+  const shopProfile = useShopStore(s => s.shopProfile);
+  const setShopProfile = useShopStore(s => s.setShopProfile);
+  const recurringExpenses = useShopStore(s => s.recurringExpenses);
+  const setRecurringExpenses = useShopStore(s => s.setRecurringExpenses);
+  const customQuickAmounts = useShopStore(s => s.customQuickAmounts);
+  const setCustomQuickAmounts = useShopStore(s => s.setCustomQuickAmounts);
+  const lastSavedSnapshot = useShopStore(s => s.lastSavedSnapshot);
+  const setLastSavedSnapshot = useShopStore(s => s.setLastSavedSnapshot);
+
+  const buildActorSnapshot = useCallback(() => (
+    resolveActorSnapshot({ shopProfile, staffMembers, activeStaffMemberId })
+  ), [shopProfile, staffMembers, activeStaffMemberId]);
+
+  const currentActorLabel = useMemo(() => (
+    getActorDisplayLabel({ shopProfile, staffMembers, activeStaffMemberId })
+  ), [shopProfile, staffMembers, activeStaffMemberId]);
 
   // ─── Staff ops (useStaffOps hook) ───
   const {
@@ -239,24 +255,6 @@ export default function AppShell() {
   const retryingTelegram = useAppStore(s => s.retryingTelegram);
   const setRetryingTelegram = useAppStore(s => s.setRetryingTelegram);
 
-  // ─── Shop state (useShopStore) ───
-  const shopProfile = useShopStore(s => s.shopProfile);
-  const setShopProfile = useShopStore(s => s.setShopProfile);
-  const recurringExpenses = useShopStore(s => s.recurringExpenses);
-  const setRecurringExpenses = useShopStore(s => s.setRecurringExpenses);
-  const customQuickAmounts = useShopStore(s => s.customQuickAmounts);
-  const setCustomQuickAmounts = useShopStore(s => s.setCustomQuickAmounts);
-  const lastSavedSnapshot = useShopStore(s => s.lastSavedSnapshot);
-  const setLastSavedSnapshot = useShopStore(s => s.setLastSavedSnapshot);
-
-  const buildActorSnapshot = useCallback(() => (
-    resolveActorSnapshot({ shopProfile, staffMembers, activeStaffMemberId })
-  ), [shopProfile, staffMembers, activeStaffMemberId]);
-
-  const currentActorLabel = useMemo(() => (
-    getActorDisplayLabel({ shopProfile, staffMembers, activeStaffMemberId })
-  ), [shopProfile, staffMembers, activeStaffMemberId]);
-
   const storeRole = usePermissionsStore(s => s.role);
   const storePermissions = usePermissionsStore(s => s.permissions);
   const canManageTeam = useMemo(() => {
@@ -293,7 +291,7 @@ export default function AppShell() {
         paymentChannelsRow, customBanksRow, customWalletsRow, identityRow,
       ] = await Promise.all([
         db.transactions.limit(500).toArray().then(r => r.filter(t => !t.deletedAt)),
-        db.customers.limit(500).toArray(),
+        db.customers.limit(500).toArray().then(r => r.filter(c => !c.deletedAt)),
         db.customer_transactions.limit(500).toArray(),
         db.catalog_entries?.limit?.(500)?.toArray?.() || [],
         db.staff_members?.limit?.(500)?.toArray?.() || [],
@@ -734,10 +732,11 @@ export default function AppShell() {
         const now = new Date();
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
         const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
-        const monthCount = await db.transactions
+        const monthRows = await db.transactions
           .where('created_at')
           .between(monthStart, monthEnd, true, true)
-          .count();
+          .toArray();
+        const monthCount = monthRows.filter(t => !t.deletedAt).length;
         if (monthCount >= entitlements.max_transactions_per_month) {
           fireToast({
             type: 'error',
@@ -1137,10 +1136,15 @@ export default function AppShell() {
   const handleUpdateCustomerRecord = async (customerId, updates) => {
     const now = Date.now();
     const nextUpdates = { ...updates, updated_at: now };
-    await db.customers.update(customerId, nextUpdates);
-    setLedgerCustomers(prev => prev.map(customer => (
-      customer.id === customerId ? { ...customer, ...nextUpdates } : customer
-    )));
+    try {
+      await db.customers.update(customerId, nextUpdates);
+      setLedgerCustomers(prev => prev.map(customer => (
+        customer.id === customerId ? { ...customer, ...nextUpdates } : customer
+      )));
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Failed to update customer record:', err);
+      fireToast(t.customerSaveFailed || 'Could not update customer.', 2400);
+    }
   };
 
   const handleRecordPromise = async (customerId, promisedPayDate, promiseNote) => {
@@ -1258,30 +1262,35 @@ export default function AppShell() {
     const now = Date.now();
     const nextChatId = payload.telegram_chat_id || customer.telegram_chat_id || null;
     const nextUsername = payload.telegram_username || customer.telegram_username || null;
-    await handleUpdateCustomerRecord(customer.id, {
-      telegram_username: nextUsername,
-      telegram_chat_id: nextChatId,
-      telegram_link_token: customer.telegram_link_token || createCustomerTelegramLinkToken(customer.id),
-      telegram_linked_at: nextChatId ? (payload.telegram_linked_at || customer.telegram_linked_at || now) : customer.telegram_linked_at || null,
-      telegram_link_requested_at: payload.telegram_link_requested_at || customer.telegram_link_requested_at || now,
-      telegram_notify_enabled: nextChatId
-        ? customer.telegram_notify_enabled
-        : Boolean(nextUsername && customer.telegram_notify_enabled),
-    });
-    if (nextChatId) {
-      await syncLinkedCustomerTelegramState({
-        ...customer,
-        telegram_chat_id: nextChatId,
+    try {
+      await handleUpdateCustomerRecord(customer.id, {
         telegram_username: nextUsername,
-        telegram_linked_at: payload.telegram_linked_at || customer.telegram_linked_at || now,
+        telegram_chat_id: nextChatId,
+        telegram_link_token: customer.telegram_link_token || createCustomerTelegramLinkToken(customer.id),
+        telegram_linked_at: nextChatId ? (payload.telegram_linked_at || customer.telegram_linked_at || now) : customer.telegram_linked_at || null,
         telegram_link_requested_at: payload.telegram_link_requested_at || customer.telegram_link_requested_at || now,
+        telegram_notify_enabled: nextChatId
+          ? customer.telegram_notify_enabled
+          : Boolean(nextUsername && customer.telegram_notify_enabled),
       });
-    }
-    if (payload.showSavedToast !== false) {
-      fireToast(t.saved, 1800);
-    }
-    if (payload.closeSheet !== false) {
-      setTelegramConnectCustomerId(null);
+      if (nextChatId) {
+        await syncLinkedCustomerTelegramState({
+          ...customer,
+          telegram_chat_id: nextChatId,
+          telegram_username: nextUsername,
+          telegram_linked_at: payload.telegram_linked_at || customer.telegram_linked_at || now,
+          telegram_link_requested_at: payload.telegram_link_requested_at || customer.telegram_link_requested_at || now,
+        });
+      }
+      if (payload.showSavedToast !== false) {
+        fireToast(t.saved, 1800);
+      }
+      if (payload.closeSheet !== false) {
+        setTelegramConnectCustomerId(null);
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Failed to confirm telegram connection:', err);
+      fireToast(t.saveFailed || 'Could not save. Please try again.', 3500);
     }
   };
 
@@ -1674,104 +1683,110 @@ export default function AppShell() {
   const handleTransferSave = async ({ sourceCustomerId, targetCustomerId, amount, sourceName, targetName }) => {
     const now = Date.now();
     const transferId = `transfer_${now}_${sourceCustomerId}_${targetCustomerId}`;
-    const cloudProofFields = await createCloudProofFields();
-    const actorSnapshot = buildActorSnapshot();
-    const isOnlineNow = isBrowserOnline();
+    try {
+      const cloudProofFields = await createCloudProofFields();
+      const actorSnapshot = buildActorSnapshot();
+      const isOnlineNow = isBrowserOnline();
 
-    const sourceEntries = await db.customer_transactions.where('customer_id').equals(sourceCustomerId).toArray();
-    const targetEntries = await db.customer_transactions.where('customer_id').equals(targetCustomerId).toArray();
-    const sourceBalance = Math.max(getCustomerBalance(sourceEntries), 0);
+      const sourceEntries = await db.customer_transactions.where('customer_id').equals(sourceCustomerId).toArray();
+      const targetEntries = await db.customer_transactions.where('customer_id').equals(targetCustomerId).toArray();
+      const sourceBalance = Math.max(getCustomerBalance(sourceEntries), 0);
 
-    if (amount > sourceBalance) {
-      fireToast(t.validAmountRequired || 'Insufficient balance', 2200);
+      if (amount > sourceBalance) {
+        fireToast(t.validAmountRequired || 'Insufficient balance', 2200);
+        setTransferTarget(null);
+        return;
+      }
+
+      let targetRecord = await db.customers.get(targetCustomerId);
+      let sourceRecord = await db.customers.get(sourceCustomerId);
+
+      await db.transaction('rw', db.customer_transactions, db.customers, async () => {
+        const reversalEntry = {
+          customer_id: sourceCustomerId,
+          type: CUSTOMER_TRANSACTION_TYPES.REVERSAL,
+          amount,
+          item_note: `${t.transferToLabel || 'Transfer to'} ${targetName}`,
+          payment_method: 'transfer',
+          transfer_id: transferId,
+          transfer_target_id: targetCustomerId,
+          reference_code: null,
+          telegram_delivery_state: null,
+          telegram_delivery_attempted_at: null,
+          created_at: now,
+          updated_at: now,
+          ...actorSnapshot,
+          ...cloudProofFields,
+        };
+        const revId = await db.customer_transactions.add(reversalEntry);
+        const revRef = createCustomerTransactionReference(revId, now);
+        await db.customer_transactions.update(revId, { reference_code: revRef });
+        await db.customers.update(sourceCustomerId, { updated_at: now });
+
+        const creditEntry = {
+          customer_id: targetCustomerId,
+          type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
+          amount,
+          item_note: `${t.transferFromLabel || 'Transfer from'} ${sourceName}`,
+          payment_method: 'transfer',
+          transfer_id: transferId,
+          transfer_source_id: sourceCustomerId,
+          reference_code: null,
+          telegram_delivery_state: null,
+          telegram_delivery_attempted_at: null,
+          created_at: now,
+          updated_at: now,
+          ...actorSnapshot,
+          ...cloudProofFields,
+        };
+        const crId = await db.customer_transactions.add(creditEntry);
+        const crRef = createCustomerTransactionReference(crId, now);
+        await db.customer_transactions.update(crId, { reference_code: crRef });
+        await db.customers.update(targetCustomerId, { updated_at: now });
+      });
+
+      const revivedTarget = await db.customers.get(targetCustomerId);
+      const revivedSource = await db.customers.get(sourceCustomerId);
+
+      // Notify source customer if Telegram connected
+      if (revivedSource?.telegram_notify_enabled && revivedSource?.telegram_chat_id && revivedSource?.telegram_link_token) {
+        try {
+          await enqueueTelegramLedgerUpdate({
+            recordTable: 'customer_transactions',
+            recordId: `transfer_${sourceCustomerId}_${now}`,
+            payload: {
+              customerState: { token: revivedSource.telegram_link_token, currentBalance: Math.max(getCustomerBalance(await db.customer_transactions.where('customer_id').equals(sourceCustomerId).toArray()), 0), updatesEnabled: true, telegramUsername: revivedSource.telegram_username || null, chatId: revivedSource.telegram_chat_id || null },
+              ledgerUpdate: { token: revivedSource.telegram_link_token, currentBalance: Math.max(getCustomerBalance(await db.customer_transactions.where('customer_id').equals(sourceCustomerId).toArray()), 0), message: `${t.transferToLabel || 'Transfer to'} ${targetName}: ${fmt(amount)} ${t.birr || 'birr'}`, reference: `transfer_${now}` },
+            },
+          });
+        } catch { /* non-critical */ }
+      }
+
+      // Notify target customer if Telegram connected
+      if (revivedTarget?.telegram_notify_enabled && revivedTarget?.telegram_chat_id && revivedTarget?.telegram_link_token) {
+        try {
+          await enqueueTelegramLedgerUpdate({
+            recordTable: 'customer_transactions',
+            recordId: `transfer_${targetCustomerId}_${now}`,
+            payload: {
+              customerState: { token: revivedTarget.telegram_link_token, currentBalance: Math.max(getCustomerBalance(await db.customer_transactions.where('customer_id').equals(targetCustomerId).toArray()), 0), updatesEnabled: true, telegramUsername: revivedTarget.telegram_username || null, chatId: revivedTarget.telegram_chat_id || null },
+              ledgerUpdate: { token: revivedTarget.telegram_link_token, currentBalance: Math.max(getCustomerBalance(await db.customer_transactions.where('customer_id').equals(targetCustomerId).toArray()), 0), message: `${t.transferFromLabel || 'Transfer from'} ${sourceName}: ${fmt(amount)} ${t.birr || 'birr'}`, reference: `transfer_${now}` },
+            },
+          });
+        } catch { /* non-critical */ }
+      }
+
+      setLedgerTransactions(prev => {
+        const withSrc = insertCustomerTransaction(prev, { id: `transfer_${now}_src`, customer_id: sourceCustomerId, type: CUSTOMER_TRANSACTION_TYPES.REVERSAL, amount, created_at: now });
+        return insertCustomerTransaction(withSrc, { id: `transfer_${now}_tgt`, customer_id: targetCustomerId, type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD, amount, created_at: now });
+      });
       setTransferTarget(null);
-      return;
+      fireToast(`${t.transferSaved || 'Transfer'} ✓`, 2200);
+    } catch (err) {
+      if (import.meta.env.DEV) console.error('Failed to save transfer:', err);
+      fireToast(t.saveFailed || 'Could not save transfer. Please try again.', 3500);
+      setTransferTarget(null);
     }
-
-    let targetRecord = await db.customers.get(targetCustomerId);
-    let sourceRecord = await db.customers.get(sourceCustomerId);
-
-    await db.transaction('rw', db.customer_transactions, db.customers, async () => {
-      const reversalEntry = {
-        customer_id: sourceCustomerId,
-        type: CUSTOMER_TRANSACTION_TYPES.REVERSAL,
-        amount,
-        item_note: `${t.transferToLabel || 'Transfer to'} ${targetName}`,
-        payment_method: 'transfer',
-        transfer_id: transferId,
-        transfer_target_id: targetCustomerId,
-        reference_code: null,
-        telegram_delivery_state: null,
-        telegram_delivery_attempted_at: null,
-        created_at: now,
-        updated_at: now,
-        ...actorSnapshot,
-        ...cloudProofFields,
-      };
-      const revId = await db.customer_transactions.add(reversalEntry);
-      const revRef = createCustomerTransactionReference(revId, now);
-      await db.customer_transactions.update(revId, { reference_code: revRef });
-      await db.customers.update(sourceCustomerId, { updated_at: now });
-
-      const creditEntry = {
-        customer_id: targetCustomerId,
-        type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
-        amount,
-        item_note: `${t.transferFromLabel || 'Transfer from'} ${sourceName}`,
-        payment_method: 'transfer',
-        transfer_id: transferId,
-        transfer_source_id: sourceCustomerId,
-        reference_code: null,
-        telegram_delivery_state: null,
-        telegram_delivery_attempted_at: null,
-        created_at: now,
-        updated_at: now,
-        ...actorSnapshot,
-        ...cloudProofFields,
-      };
-      const crId = await db.customer_transactions.add(creditEntry);
-      const crRef = createCustomerTransactionReference(crId, now);
-      await db.customer_transactions.update(crId, { reference_code: crRef });
-      await db.customers.update(targetCustomerId, { updated_at: now });
-    });
-
-    const revivedTarget = await db.customers.get(targetCustomerId);
-    const revivedSource = await db.customers.get(sourceCustomerId);
-
-    // Notify source customer if Telegram connected
-    if (revivedSource?.telegram_notify_enabled && revivedSource?.telegram_chat_id && revivedSource?.telegram_link_token) {
-      try {
-        await enqueueTelegramLedgerUpdate({
-          recordTable: 'customer_transactions',
-          recordId: `transfer_${sourceCustomerId}_${now}`,
-          payload: {
-            customerState: { token: revivedSource.telegram_link_token, currentBalance: Math.max(getCustomerBalance(await db.customer_transactions.where('customer_id').equals(sourceCustomerId).toArray()), 0), updatesEnabled: true, telegramUsername: revivedSource.telegram_username || null, chatId: revivedSource.telegram_chat_id || null },
-            ledgerUpdate: { token: revivedSource.telegram_link_token, currentBalance: Math.max(getCustomerBalance(await db.customer_transactions.where('customer_id').equals(sourceCustomerId).toArray()), 0), message: `${t.transferToLabel || 'Transfer to'} ${targetName}: ${fmt(amount)} ${t.birr || 'birr'}`, reference: `transfer_${now}` },
-          },
-        });
-      } catch { /* non-critical */ }
-    }
-
-    // Notify target customer if Telegram connected
-    if (revivedTarget?.telegram_notify_enabled && revivedTarget?.telegram_chat_id && revivedTarget?.telegram_link_token) {
-      try {
-        await enqueueTelegramLedgerUpdate({
-          recordTable: 'customer_transactions',
-          recordId: `transfer_${targetCustomerId}_${now}`,
-          payload: {
-            customerState: { token: revivedTarget.telegram_link_token, currentBalance: Math.max(getCustomerBalance(await db.customer_transactions.where('customer_id').equals(targetCustomerId).toArray()), 0), updatesEnabled: true, telegramUsername: revivedTarget.telegram_username || null, chatId: revivedTarget.telegram_chat_id || null },
-            ledgerUpdate: { token: revivedTarget.telegram_link_token, currentBalance: Math.max(getCustomerBalance(await db.customer_transactions.where('customer_id').equals(targetCustomerId).toArray()), 0), message: `${t.transferFromLabel || 'Transfer from'} ${sourceName}: ${fmt(amount)} ${t.birr || 'birr'}`, reference: `transfer_${now}` },
-          },
-        });
-      } catch { /* non-critical */ }
-    }
-
-    setLedgerTransactions(prev => {
-      const withSrc = insertCustomerTransaction(prev, { id: `transfer_${now}_src`, customer_id: sourceCustomerId, type: CUSTOMER_TRANSACTION_TYPES.REVERSAL, amount, created_at: now });
-      return insertCustomerTransaction(withSrc, { id: `transfer_${now}_tgt`, customer_id: targetCustomerId, type: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD, amount, created_at: now });
-    });
-    setTransferTarget(null);
-    fireToast(`${t.transferSaved || 'Transfer'} ✓`, 2200);
   };
 
   useEffect(() => {
