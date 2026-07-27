@@ -398,7 +398,6 @@ router.post("/verify-otp", async (req, res) => {
     },
   });
 });
-});
 
 // --- POST /api/auth/link-device ---
 router.post("/link-device", async (req, res) => {
