@@ -54,185 +54,20 @@ import { useAuthStore } from '../stores/authStore';
 import { initSyncEngine, destroySyncEngine } from '../utils/syncEngine';
 import { requestOtp, verifyOtp } from '../utils/authClient';
 import { setAuthToken } from '../utils/syncEngine';
+import AuthRequiredPrompt from './shell/AuthRequiredPrompt';
+import { PanelFallback } from './shell/FallbackViews';
+import { LoadingScreen, StaffJoinScreenView, OnboardingScreenView } from './shell/AppShellScreens';
+import { isLikelyStaleChunkError, lazyWithRetry, isBrowserOnline, runAfterFirstPaint, buildSavedOnDeviceMessage, getTransactionCloudProofRecordType, getCustomerCloudProofRecordType, getSupplierCloudProofRecordType } from '../utils/appShellUtils';
+import { useSuppliers } from '../hooks/useSuppliers';
+import { useStaffOps } from '../hooks/useStaffOps';
+import { useShopOps } from '../hooks/useShopOps';
 
 const DEFAULT_PROVIDERS = {
   banks: [],
   wallets: [],
 };
 
-function AuthRequiredPrompt({ lang, onClose }) {
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState('phone');
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const t = lang === 'am' ? {
-    title: 'እባክዎ ይግቡ',
-    subtitle: 'መረጃዎን ለማቀነስ የስልክ ቁጥርዎን ያስገቡ',
-    phoneLabel: 'ስልክ ቁጥር',
-    continue: 'ቀጥል',
-    otpLabel: 'የተላከውን ኮድ ያስገቡ',
-    verify: 'ያረጋግጡ',
-    resend: 'ኮድ እንደገና ይላኩ',
-    back: 'ተመለስ',
-    skip: 'ዝጋ',
-    invalidPhone: 'ትክክለኛ ስልክ ቁጥር ያስገቡ',
-    otpSent: 'ኮድ ተላክ!',
-    success: 'በተሳካ ሁኔታ ገብተዋል',
-    error: 'ችግር ተፈጥሯል',
-  } : {
-    title: 'Sign in',
-    subtitle: 'Enter your phone number to restore cloud sync',
-    phoneLabel: 'Phone number',
-    continue: 'Continue',
-    otpLabel: 'Enter the code we sent',
-    verify: 'Verify',
-    resend: 'Resend code',
-    back: 'Back',
-    skip: 'Dismiss',
-    invalidPhone: 'Enter a valid phone number',
-    otpSent: 'Code sent!',
-    success: 'Signed in successfully',
-    error: 'Something went wrong',
-  };
-
-  async function handleRequestOtp() {
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length !== 9 || (digits[0] !== '7' && digits[0] !== '9')) {
-      setError(t.invalidPhone);
-      return;
-    }
-    setError(null);
-    setLoading(true);
-    try {
-      await requestOtp(`+251${digits}`);
-      setStep('otp');
-      fireToast(t.otpSent, 2000);
-    } catch (err) { setError(err.message || t.error); }
-    finally { setLoading(false); }
-  }
-
-  async function handleVerify() {
-    const digits = phone.replace(/\D/g, '');
-    setError(null);
-    setLoading(true);
-    try {
-      const { token } = await verifyOtp(`+251${digits}`, otp);
-      await setAuthToken(token);
-      fireToast(t.success, 2000);
-      onClose();
-    } catch (err) { setError(err.message || t.error); }
-    finally { setLoading(false); }
-  }
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center px-6" style={{ background: 'rgba(0,0,0,0.6)' }}>
-      <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
-        <div className="text-center mb-5">
-          <h2 className="text-lg font-bold text-gray-900">{t.title}</h2>
-          <p className="text-sm text-gray-500 mt-1">{t.subtitle}</p>
-        </div>
-
-        {error && (
-          <div className="mb-3 rounded-xl px-3 py-2 text-xs font-medium" style={{ background: '#fef2f2', color: '#991b1b' }}>
-            {error}
-          </div>
-        )}
-
-        {step === 'phone' && (
-          <div className="space-y-3">
-            <div className="flex gap-0">
-              <div className="flex items-center justify-center px-3 py-3 rounded-l-xl border-2 border-r-0 text-sm font-bold" style={{ background: '#f5f0e8', borderColor: '#e8e2d8', color: '#1B4332', minWidth: '64px' }}>
-                +251
-              </div>
-              <input
-                type="tel"
-                inputMode="numeric"
-                value={phone}
-                onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 9)); setError(null); }}
-                placeholder="9XX XXX XXX"
-                maxLength={9}
-                className="flex-1 px-4 py-3 border-2 rounded-r-xl text-sm focus:outline-none"
-                style={{ borderColor: error ? '#fca5a5' : '#e8e2d8' }}
-                autoFocus
-              />
-            </div>
-            <button
-              onClick={handleRequestOtp}
-              disabled={loading || phone.length !== 9}
-              className="w-full py-3 rounded-xl font-bold text-sm min-h-[48px]"
-              style={{ background: loading ? '#e5e7eb' : '#1B4332', color: loading ? '#9ca3af' : '#fff' }}
-            >
-              {loading ? '...' : t.continue}
-            </button>
-            <button onClick={onClose} className="w-full py-2.5 text-xs font-bold text-gray-400">{t.skip}</button>
-          </div>
-        )}
-
-        {step === 'otp' && (
-          <div className="space-y-3">
-            <input
-              type="text"
-              inputMode="numeric"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="6-digit code"
-              maxLength={6}
-              className="w-full px-4 py-3 border-2 rounded-xl text-sm font-bold tracking-widest text-center focus:outline-none"
-              style={{ borderColor: '#e8e2d8' }}
-              autoFocus
-            />
-            <button
-              onClick={handleVerify}
-              disabled={loading || otp.length !== 6}
-              className="w-full py-3 rounded-xl font-bold text-sm min-h-[48px]"
-              style={{ background: loading ? '#e5e7eb' : '#1B4332', color: loading ? '#9ca3af' : '#fff' }}
-            >
-              {loading ? '...' : t.verify}
-            </button>
-            <div className="flex gap-2">
-              <button onClick={() => { setStep('phone'); setOtp(''); setError(null); }} className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{ background: '#f5f5f5' }}>{t.back}</button>
-              <button onClick={handleRequestOtp} disabled={loading} className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{ background: '#FAF8F5', border: '1px solid #e8e2d8' }}>{t.resend}</button>
-            </div>
-            <button onClick={onClose} className="w-full py-2.5 text-xs font-bold text-gray-400">{t.skip}</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// Stale-chunk self-heal. After a new deploy, Vite emits new hashed chunk
-// filenames. A browser still running the previous index.html (or a stale
-// service-worker shell) requests an old chunk URL that now 404s, throwing
-// "Failed to fetch dynamically imported module". We retry once via a hard
-// reload (which pulls the fresh index.html + new hashes); a per-chunk
-// sessionStorage guard prevents reload loops if the asset is truly missing.
-function isLikelyStaleChunkError(err) {
-  const message = String(err?.message || err || '');
-  return /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk .* failed|ChunkLoadError/i.test(message);
-}
-
-function lazyWithRetry(importer, name) {
-  return lazy(async () => {
-    const flag = `gebya_chunk_reload_${name}`;
-    const getFlag = () => { try { return sessionStorage.getItem(flag); } catch { return null; } };
-    const setFlag = (on) => { try { on ? sessionStorage.setItem(flag, '1') : sessionStorage.removeItem(flag); } catch { /* storage blocked */ } };
-    try {
-      const mod = await importer();
-      setFlag(false);
-      return mod;
-    } catch (err) {
-      if (isLikelyStaleChunkError(err) && !getFlag()) {
-        setFlag(true);
-        window.location.reload();
-        return new Promise(() => {}); // hold the render until the reload lands
-      }
-      throw err;
-    }
-  });
-}
+// Stale-chunk self-heal — now delegated to appShellUtils.js
 
 const importSupplierList = () => import('./SupplierList');
 const importCustomerList = () => import('./CustomerList');
@@ -265,299 +100,6 @@ const BUSINESS_TYPE_PROMPT_LABELS = {
   other: 'Other',
 };
 
-function isBrowserOnline() {
-  if (typeof navigator === 'undefined') return true;
-  return navigator.onLine !== false;
-}
-
-function runAfterFirstPaint(callback) {
-  if (typeof window === 'undefined') return () => {};
-  let cancelled = false;
-  let timeoutId = null;
-  let idleId = null;
-
-  const run = () => {
-    if (cancelled) return;
-    callback();
-  };
-
-  if ('requestIdleCallback' in window) {
-    idleId = window.requestIdleCallback(run, { timeout: 2500 });
-  } else {
-    timeoutId = window.setTimeout(run, 1200);
-  }
-
-  return () => {
-    cancelled = true;
-    if (idleId != null && 'cancelIdleCallback' in window) {
-      window.cancelIdleCallback(idleId);
-    }
-    if (timeoutId != null) window.clearTimeout(timeoutId);
-  };
-}
-
-function buildSavedOnDeviceMessage(message, isOnline) {
-  const baseMessage = String(message || 'Saved').trim() || 'Saved';
-  return isOnline ? baseMessage : (baseMessage + ' - saved on this phone');
-}
-
-function getTransactionCloudProofRecordType(transaction) {
-  if (transaction?.type === 'sale') return 'sale';
-  if (transaction?.type === 'expense') return 'expense';
-  return null;
-}
-
-function getCustomerCloudProofRecordType(transaction) {
-  if (transaction?.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT) return 'customer_payment';
-  if (transaction?.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD) return 'customer_credit';
-  return null;
-}
-
-function getSupplierCloudProofRecordType(transaction) {
-  if (transaction?.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT) return 'supplier_payment';
-  if (transaction?.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD) return 'supplier_purchase';
-  return null;
-}
-
-function OfflineStatusStrip({
-  pwa,
-  pendingTelegramCount = 0,
-  lang = 'en',
-  onRetryTelegram,
-  retryingTelegram = false,
-  conflictWarning = null,
-  conflictDetails = [],
-}) {
-  const { t } = useLang();
-  let tone = null;
-  let label = '';
-  let detail = '';
-  let action = null;
-
-  if (!pwa?.isOnline) {
-    tone = 'offline';
-    label = t.offlineLabel;
-    detail = t.offlineDetail;
-  } else if (pendingTelegramCount > 0) {
-    tone = 'waiting';
-    label = t.telegramWaiting;
-    detail = `${pendingTelegramCount}`;
-    if (typeof onRetryTelegram === 'function') {
-      action = (
-        <button
-          type="button"
-          onClick={onRetryTelegram}
-          disabled={retryingTelegram}
-          className="press-scale"
-          style={{
-            minHeight: 36,
-            minWidth: 56,
-            padding: '6px 10px',
-            border: 'none',
-            borderRadius: 8,
-            background: retryingTelegram ? '#bfdbfe' : '#1d4ed8',
-            color: '#fff',
-            fontSize: 11,
-            fontWeight: 800,
-            cursor: retryingTelegram ? 'wait' : 'pointer',
-          }}
-        >
-          {retryingTelegram ? '...' : t.telegramRetry}
-        </button>
-      );
-    }
-  } else if (pwa?.updateReady) {
-    tone = 'update';
-    label = t.updateReady;
-    detail = t.updateTapRefresh;
-    action = (
-      <button
-        type="button"
-        onClick={pwa.applyUpdate}
-        className="press-scale"
-        style={{
-          minHeight: 30,
-          padding: '4px 10px',
-          border: 'none',
-          borderRadius: 8,
-          background: '#1B4332',
-          color: '#fff',
-          fontSize: 11,
-          fontWeight: 800,
-        }}
-      >
-        {t.updateButton}
-      </button>
-    );
-  } else if (pwa?.offlineReady) {
-    tone = 'ready';
-    label = t.offlineReadyStatus;
-    detail = t.offlineReadyDetail;
-  }
-
-  if (conflictWarning) {
-    const detailLines = (conflictDetails || []).slice(0, 3).map((d) => {
-      const changes = (d.changedFields || []).slice(0, 3).map((field) => {
-        const oldVal = d.localVersion?.[field];
-        const newVal = d.serverVersion?.[field];
-        const oldStr = oldVal == null ? '(empty)' : String(oldVal).substring(0, 30);
-        const newStr = newVal == null ? '(empty)' : String(newVal).substring(0, 30);
-        return `${field}: ${oldStr} → ${newStr}`;
-      });
-      const more = (d.changedFields || []).length > 3 ? ` +${(d.changedFields || []).length - 3} more` : '';
-      return `${d.table} #${d.recordId}: ${changes.join(', ')}${more}`;
-    });
-    return (
-      <div
-        role="alert"
-        className="mt-2 flex flex-col gap-1"
-        style={{ minHeight: 36, padding: '7px 9px', borderRadius: 8, background: '#fffbeb', border: '1px solid #fcd34d', color: '#92400e', fontSize: 12, fontWeight: 800 }}
-      >
-        <span className="truncate">
-          ⚠️ {t.syncConflict} · {conflictWarning}
-        </span>
-        {detailLines.length > 0 && (
-          <span style={{ fontWeight: 600, fontSize: 11, opacity: 0.85 }}>
-            {detailLines.join(' · ')}
-            {(conflictDetails || []).length > 3 && ` +${(conflictDetails || []).length - 3} more`}
-          </span>
-        )}
-      </div>
-    );
-  }
-
-  if (!tone) return null;
-
-  const styles = {
-    offline: { background: '#fff7ed', border: '#fed7aa', color: '#9a3412' },
-    waiting: { background: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
-    update: { background: '#ecfdf5', border: '#bbf7d0', color: '#166534' },
-    ready: { background: '#f0fdf4', border: '#bbf7d0', color: '#166534' },
-  }[tone];
-
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="mt-2 flex items-center justify-between gap-2"
-      style={{
-        minHeight: 36,
-        padding: '7px 9px',
-        borderRadius: 8,
-        background: styles.background,
-        border: `1px solid ${styles.border}`,
-        color: styles.color,
-        fontSize: 12,
-        fontWeight: 800,
-      }}
-    >
-      <span className="min-w-0 truncate">
-        {label}
-        {detail ? <span style={{ fontWeight: 700 }}> · {detail}</span> : null}
-      </span>
-      {action}
-    </div>
-  );
-}
-
-
-function TrustCard({ totalEntries, todayCount, lastSavedSnapshot, onStartSale, t }) {
-  const savedLabel = lastSavedSnapshot?.label || '';
-  const savedAt = lastSavedSnapshot?.created_at
-    ? formatEthiopianTime(lastSavedSnapshot.created_at)
-    : null;
-
-  return (
-    <div
-      className="overflow-hidden animate-elastic"
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
-    >
-      <div className="px-4 py-4">
-        <div className="flex items-start gap-3">
-          <div
-            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl"
-            style={{ background: 'rgba(27,67,50,0.08)' }}
-          >
-            💾
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-black text-gray-900 text-sm font-sans">
-              {t.trustCardTitle || 'Your notebook stays on this phone'}
-            </p>
-            <p className="text-sm mt-1 font-sans" style={{ color: 'var(--color-text-muted)' }}>
-              {t.trustCardBody || 'Save your sales, close the app, and open again later. Your records stay here on this phone.'}
-            </p>
-            {totalEntries > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                <span
-                  className="px-2.5 py-1 text-xs font-black"
-                  style={{ background: 'rgba(27,67,50,0.08)', color: '#1B4332', borderRadius: '999px' }}
-                >
-                  {todayCount} {t.trustTodayCount || 'saved today'}
-                </span>
-                {savedAt && (
-                  <span
-                    className="px-2.5 py-1 text-xs font-bold"
-                    style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)', borderRadius: '999px' }}
-                  >
-                    {t.trustLastSaved || 'Last saved'} {savedAt}
-                  </span>
-                )}
-              </div>
-            )}
-            {savedLabel && (
-              <p className="text-xs mt-2 font-semibold truncate font-sans" style={{ color: '#C4883A' }}>
-                {savedLabel}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-      <div
-        className="px-4 py-3 flex items-center justify-between gap-3"
-        style={{ background: 'var(--color-surface-soft)', borderTop: '1px solid var(--color-border-light)' }}
-      >
-        <p className="text-xs font-medium font-sans" style={{ color: 'var(--color-text-muted)' }}>
-          {t.trustReopenHint || 'Close and reopen anytime — your records stay here.'}
-        </p>
-        {totalEntries === 0 && (
-          <button
-            onClick={onStartSale}
-            className="flex-shrink-0 px-3 py-2 text-xs font-black text-white min-h-[40px] press-scale"
-            style={{ background: '#1B4332', borderRadius: 'var(--radius-sm)' }}
-          >
-            {t.trustCardAction || 'Record your first sale'}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function PanelFallback({ label }) {
-  return (
-    <div
-      className="rounded-2xl border px-4 py-8 text-center text-sm font-semibold"
-      style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
-    >
-      {label}
-    </div>
-  );
-}
-
-function ModalFallback({ label }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-6" style={{ background: 'rgba(0, 0, 0, 0.6)' }}>
-      <div
-        className="w-full max-w-sm rounded-3xl px-6 py-8 text-center text-sm font-semibold"
-        style={{ background: 'var(--color-surface)', color: 'var(--color-text-muted)', boxShadow: 'var(--shadow-lg)' }}
-      >
-        {label}
-      </div>
-    </div>
-  );
-}
-
 export default function AppShell() {
   const { hidden } = usePrivacy();
   const { lang, toggleLang, t } = useLang();
@@ -572,8 +114,6 @@ export default function AppShell() {
   const [ledgerCustomers, setLedgerCustomers] = useState([]);
   const [ledgerTransactions, setLedgerTransactions] = useState([]);
   const [catalogEntries, setCatalogEntries] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [supplierTransactions, setSupplierTransactions] = useState([]);
   const [staffMembers, setStaffMembers] = useState([]);
   const [activeStaffMemberId, setActiveStaffMemberId] = useState(null);
   const [onboardingType, setOnboardingType] = useState(null);
@@ -591,6 +131,58 @@ export default function AppShell() {
   const [usageStats, setUsageStats] = useState(null);
   const [planTier, setPlanTier] = useState('free');
   const [entitlements, setEntitlements] = useState({ max_staff: 3, max_transactions_per_month: 500, advanced_reports: false, multi_shop: false, priority_support: false });
+
+  // ─── Supplier state (useSuppliers hook) ───
+  const {
+    suppliers,
+    supplierTransactions,
+    supplierSummaries,
+    saveSupplier,
+    saveSupplierTransaction,
+    updateSupplierTransaction,
+    deleteSupplierTransaction,
+  } = useSuppliers(t);
+
+  // ─── Staff ops (useStaffOps hook) ───
+  const {
+    handleSaveStaffMember,
+    handleUpdateStaffMember,
+    handleSetActiveStaffMember,
+    handleDeactivateStaffMember,
+    handleReactivateStaffMember,
+    handleApproveDevice,
+    handleRejectDevice,
+    refreshStaffMembers,
+  } = useStaffOps({
+    setStaffMembers,
+    setActiveStaffMemberId,
+    staffMembers,
+    activeStaffMemberId,
+    shopProfile,
+  });
+
+  // ─── Shop ops (useShopOps hook) ───
+  const {
+    handleSavePaymentChannels,
+    handleQuickAddProvider,
+    handleProfileSave,
+    handleRotateJoinCode,
+    handleUpdateShopSettings,
+    handleCustomQuickAmountsChange,
+    handleSaveCatalogEntry,
+    handleToggleCatalogEntryActive,
+    handleOnboardingComplete,
+    handleStaffJoined,
+  } = useShopOps({
+    shopProfile,
+    setShopProfile,
+    setEnabledProviders,
+    setOnboardingType,
+    setCatalogEntries,
+    setCustomQuickAmounts,
+    fireToast,
+    lang,
+  });
 
   // ─── App state (useAppStore) ───
   const loading = useAppStore(s => s.loading);
@@ -691,7 +283,7 @@ export default function AppShell() {
   const loadData = useCallback(async () => {
     try {
       const [
-        txns, customerRows, customerTxRows, catalogRows, supplierRows, supplierTxRows, staffRows,
+        txns, customerRows, customerTxRows, catalogRows, staffRows,
         nameRow, phoneRow, businessTypeRow, epRow, reRow, customQuickAmountsRow, telegramRow,
         snapshotRow, activeStaffRow,
         // Payment receiving accounts — used by Pay-it-now /pay URLs (legacy, C.1)
@@ -704,8 +296,6 @@ export default function AppShell() {
         db.customers.limit(500).toArray(),
         db.customer_transactions.limit(500).toArray(),
         db.catalog_entries?.limit?.(500)?.toArray?.() || [],
-        db.suppliers.limit(500).toArray().then(r => r.filter(t => !t.deletedAt)),
-        db.supplier_transactions.limit(500).toArray().then(r => r.filter(t => !t.deletedAt)),
         db.staff_members?.limit?.(500)?.toArray?.() || [],
         db.settings.get('shop_name'),
         db.settings.get('shop_phone'),
@@ -774,8 +364,6 @@ export default function AppShell() {
       setLedgerCustomers(customerRows);
       setLedgerTransactions(sortCustomerTransactions(customerTxRows));
       setCatalogEntries(catalogRows || []);
-      setSuppliers(supplierRows || []);
-      setSupplierTransactions(supplierTxRows || []);
       setStaffMembers([...(staffRows || [])].sort((a, b) => {
         if ((a.active !== false) !== (b.active !== false)) return a.active === false ? 1 : -1;
         return String(a.display_name || '').localeCompare(String(b.display_name || ''));
@@ -1401,246 +989,6 @@ export default function AppShell() {
     }
   };
 
-  /**
-   * Commit C.4: Persist a unified payment-channels array.
-   *
-   * Writes the canonical key (shop_payment_channels) AND keeps the legacy
-   * keys (enabled_payment_methods, custom_banks, custom_wallets, shop_pay_*)
-   * in sync so PaymentTypeChips and ReminderSheet continue to read from
-   * their existing data paths without needing their own refactor.
-   *
-   * Called from SettingsPage whenever the user toggles a channel or edits
-   * a phone/account field. Optimistic update: state is updated first, then
-   * Dexie writes happen; on write failure, state still reflects the user's
-   * intent (we just log).
-   */
-  const handleSavePaymentChannels = async (channels) => {
-    const normalized = normalizeChannelsForSave(channels || []);
-    // Update React state immediately (optimistic)
-    setShopProfile({
-      ...(shopProfile || {}),
-      paymentChannels: normalized,
-      payments: deriveLegacyFromChannels(normalized).payments,
-    });
-    const derived = deriveLegacyFromChannels(normalized);
-    setEnabledProviders(derived.enabledProviders || DEFAULT_PROVIDERS);
-
-    try {
-      // Canonical
-      await db.settings.put({ key: 'shop_payment_channels', value: JSON.stringify(normalized) });
-      // Legacy compat — derived
-      await db.settings.put({ key: 'enabled_payment_methods', value: JSON.stringify(derived.enabledProviders) });
-      await db.settings.put({ key: 'custom_banks', value: JSON.stringify(derived.customBanks) });
-      await db.settings.put({ key: 'custom_wallets', value: JSON.stringify(derived.customWallets) });
-      // Pay-it-now legacy
-      await db.settings.put({ key: 'shop_pay_telebirr', value: derived.payments.telebirr });
-      await db.settings.put({ key: 'shop_pay_cbe_phone', value: derived.payments.cbe_phone });
-      await db.settings.put({ key: 'shop_pay_cbe_account', value: derived.payments.cbe_account });
-      await db.settings.put({ key: 'shop_pay_awash_phone', value: derived.payments.awash_phone });
-      await db.settings.put({ key: 'shop_pay_bank_name', value: derived.payments.bank_name });
-      await db.settings.put({ key: 'shop_pay_bank_account', value: derived.payments.bank_account });
-    } catch (err) {
-      if (import.meta.env.DEV) console.error('Payment channels save failed:', err);
-    }
-  };
-
-  const handleQuickAddProvider = (kind, name) => {
-    const channels = shopProfile?.paymentChannels || [];
-    const before = channels.length;
-    const updated = addCustomChannel(channels, { kind, name });
-    if (updated.length === before) {
-      fireToast(lang === 'am' ? 'ይህ አስቀድሞ አለ' : 'Already exists', 1800);
-      return;
-    }
-    handleSavePaymentChannels(updated);
-  };
-
-  const handleProfileSave = async (name, phone, telegram, businessType = 'retail-shop') => {
-    await db.settings.put({ key: 'shop_name', value: name });
-    await db.settings.put({ key: 'shop_phone', value: phone || '' });
-    await db.settings.put({ key: 'shop_telegram', value: telegram || '' });
-    await db.settings.put({ key: 'shop_business_type', value: businessType || 'retail-shop' });
-
-    // Commit C.4: payment accounts moved to handleSavePaymentChannels.
-    // The profile form no longer owns telebirr/CBE/Awash fields — those
-    // live in the unified Payment Channels section (which has its own
-    // save handler). We preserve shopProfile.paymentChannels here so
-    // the profile-form save doesn't blank them out.
-    setShopProfile({
-      ...(shopProfile || {}),
-      name,
-      phone: phone || '',
-      telegram: telegram || '',
-      businessType: businessType || 'retail-shop',
-      paymentChannels: shopProfile?.paymentChannels,
-      payments: shopProfile?.payments,
-    });
-  };
-
-  const handleSaveStaffMember = async (payload) => {
-    const normalized = normalizeStaffDraft(payload);
-    if (!normalized) return false;
-    const id = await db.staff_members.add(normalized);
-    const saved = await db.staff_members.get(id);
-    setStaffMembers(prev => [...prev, saved].sort((a, b) => {
-      if ((a.active !== false) !== (b.active !== false)) return a.active === false ? 1 : -1;
-      return String(a.display_name || '').localeCompare(String(b.display_name || ''));
-    }));
-    return saved;
-  };
-
-  const handleUpdateStaffMember = async (staffId, payload) => {
-    const member = staffMembers.find(item => String(item.id) === String(staffId));
-    if (!member) return false;
-    const displayName = String(payload?.display_name || '').trim();
-    if (!displayName) return false;
-
-    const now = Date.now();
-    await db.staff_members.update(member.id, { display_name: displayName, updated_at: now });
-    const updatedMember = { ...member, display_name: displayName, updated_at: now };
-    setStaffMembers(prev => prev
-      .map(item => item.id === member.id ? updatedMember : item)
-      .sort((a, b) => {
-        if ((a.active !== false) !== (b.active !== false)) return a.active === false ? 1 : -1;
-        return String(a.display_name || '').localeCompare(String(b.display_name || ''));
-      }));
-    return updatedMember;
-  };
-
-  const handleSetActiveStaffMember = async (staffId) => {
-    const nextId = staffId ? Number(staffId) : null;
-    await db.settings.put({ key: 'active_staff_member_id', value: nextId });
-    setActiveStaffMemberId(nextId);
-  };
-
-  const handleDeactivateStaffMember = async (staffId) => {
-    const member = staffMembers.find(item => String(item.id) === String(staffId));
-    if (!member) return false;
-    if (member.staff_id) {
-      try {
-        const token = await getAuthToken();
-        if (!token) return false;
-        await identityApi.deactivateStaff(member.staff_id, token);
-        await refreshStaffMembers();
-        return true;
-      } catch {
-        return false;
-      }
-    }
-    const now = Date.now();
-    await db.staff_members.update(member.id, { active: false, updated_at: now, deactivated_at: now });
-    setStaffMembers(prev => prev
-      .map(item => item.id === member.id ? { ...item, active: false, updated_at: now, deactivated_at: now } : item)
-      .sort((a, b) => {
-        if ((a.active !== false) !== (b.active !== false)) return a.active === false ? 1 : -1;
-        return String(a.display_name || '').localeCompare(String(b.display_name || ''));
-      }));
-    if (String(activeStaffMemberId) === String(member.id)) {
-      await db.settings.put({ key: 'active_staff_member_id', value: null });
-      setActiveStaffMemberId(null);
-    }
-    return true;
-  };
-
-  const handleReactivateStaffMember = async (staffId) => {
-    const member = staffMembers.find(item => String(item.id) === String(staffId));
-    if (!member) return false;
-    const now = Date.now();
-    await db.staff_members.update(member.id, { active: true, updated_at: now, deactivated_at: null });
-    setStaffMembers(prev => prev
-      .map(item => item.id === member.id ? { ...item, active: true, updated_at: now, deactivated_at: null } : item)
-      .sort((a, b) => {
-        if ((a.active !== false) !== (b.active !== false)) return a.active === false ? 1 : -1;
-        return String(a.display_name || '').localeCompare(String(b.display_name || ''));
-      }));
-    return true;
-  };
-
-  const refreshStaffMembers = useCallback(async () => {
-    const shopId = shopProfile?.shop_id || shopProfile?.id;
-    if (!shopId) return;
-    const token = await getAuthToken();
-    if (!token) return;
-    const data = await identityApi.listStaff(shopId, token);
-    if (!data?.staff) return;
-    setStaffMembers(data.staff
-      .filter(s => s.role !== 'owner')
-      .map(s => ({
-        id: s.staff_id,
-        staff_id: s.staff_id,
-        display_name: s.display_name,
-        phone_snapshot: s.phone_snapshot,
-        role: s.role,
-        active: s.staff_status !== 'inactive',
-        staff_status: s.staff_status,
-        pending: (s.devices || []).some(d => d.device_status === 'pending'),
-        permissions: s.permissions,
-        joined_at: s.joined_at,
-        updated_at: Date.now(),
-        deactivated_at: s.deactivated_at,
-        devices: (s.devices || []).map(d => ({
-          id: d.device_id,
-          device_id: d.device_id,
-          device_label: d.device_label,
-          active: d.device_status === 'active',
-          device_status: d.device_status,
-          pending: d.device_status === 'pending',
-          last_seen_at: d.last_seen_at,
-          created_at: d.created_at,
-        })),
-      })));
-  }, [shopProfile]);
-
-  const handleRotateJoinCode = useCallback(async (shopId) => {
-    try {
-      const token = await getAuthToken();
-      if (!token) return null;
-      const result = await identityApi.rotateJoinCode(shopId, token);
-      const current = useShopStore.getState().shopProfile;
-      setShopProfile(current ? { ...current, join_code: result.join_code, join_url: result.join_url } : current);
-      return result;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const handleUpdateShopSettings = useCallback(async (shopId, patch) => {
-    try {
-      const token = await getAuthToken();
-      if (!token) return null;
-      return identityApi.updateShopSettings(shopId, {
-        phone_required: patch.require_phone_on_join,
-        approval_required: patch.require_approval,
-      }, token);
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const handleApproveDevice = useCallback(async (deviceId) => {
-    try {
-      const token = await getAuthToken();
-      if (!token) return null;
-      const result = await identityApi.approveDevice(deviceId, token);
-      await refreshStaffMembers();
-      return result;
-    } catch {
-      return null;
-    }
-  }, [refreshStaffMembers]);
-
-  const handleRejectDevice = useCallback(async (deviceId, reason) => {
-    try {
-      const token = await getAuthToken();
-      if (!token) return null;
-      const result = await identityApi.rejectDevice(deviceId, { reason }, token);
-      await refreshStaffMembers();
-      return result;
-    } catch {
-      return null;
-    }
-  }, [refreshStaffMembers]);
-
   const customerSummaries = useMemo(
     () => buildCustomerSummaries(ledgerCustomers, ledgerTransactions),
     [ledgerCustomers, ledgerTransactions]
@@ -1687,11 +1035,6 @@ export default function AppShell() {
       globalTimestamps: allTimestamps,
     });
   }, [enrichedCustomerSummaries, ledgerTransactions, transactions, supplierTransactions]);
-
-  const supplierSummaries = useMemo(
-    () => buildSupplierSummaries(suppliers, supplierTransactions),
-    [suppliers, supplierTransactions]
-  );
 
   const selectedSupplier = useMemo(
     () => supplierSummaries.find(s => s.id === selectedSupplierId) || null,
@@ -1893,358 +1236,22 @@ export default function AppShell() {
     }
   };
 
-  const handleCustomQuickAmountsChange = async (nextList) => {
-    // Dedupe, drop non-positive, cap at 8 most recent
-    const clean = Array.from(new Set((nextList || [])
-      .filter(n => typeof n === 'number' && n > 0 && Number.isFinite(n))
-    )).slice(-8);
-    setCustomQuickAmounts(clean);
-    try {
-      await db.settings.put({ key: 'custom_quick_amounts', value: JSON.stringify(clean) });
-    } catch {
-      // non-critical
-    }
-  };
+  const handleSaveSupplier = useCallback((payload) => saveSupplier(payload), [saveSupplier]);
 
-  const handleSaveCatalogEntry = async (payload) => {
-    const now = Date.now();
-    const entry = {
-      name: String(payload.name || '').trim(),
-      kind: payload.kind === 'service' ? 'service' : 'item',
-      default_price: payload.default_price != null && payload.default_price !== '' ? Number(payload.default_price) : null,
-      default_cost: payload.default_cost != null && payload.default_cost !== '' ? Number(payload.default_cost) : null,
-      note: payload.note ? String(payload.note).trim() : null,
-      active: payload.active !== false,
-      created_at: payload.created_at || now,
-      updated_at: now,
-    };
+  const handleSaveSupplierTransaction = useCallback(
+    (payload) => saveSupplierTransaction(payload, buildActorSnapshot()),
+    [saveSupplierTransaction, buildActorSnapshot]
+  );
 
-    if (!entry.name) return null;
+  const handleUpdateSupplierTransaction = useCallback(
+    (transactionId, updates) => updateSupplierTransaction(transactionId, updates, buildActorSnapshot()),
+    [updateSupplierTransaction, buildActorSnapshot]
+  );
 
-    if (payload.id) {
-      await db.catalog_entries.update(payload.id, entry);
-      const saved = await db.catalog_entries.get(payload.id);
-      setCatalogEntries(prev => prev.map(item => item.id === payload.id ? saved : item));
-      return saved;
-    }
-
-    const id = await db.catalog_entries.add(entry);
-    const saved = await db.catalog_entries.get(id);
-    setCatalogEntries(prev => [...prev, saved]);
-    return saved;
-  };
-
-  const handleToggleCatalogEntryActive = async (entry) => {
-    if (!entry?.id) return;
-    const updatedAt = Date.now();
-    await db.catalog_entries.update(entry.id, { active: entry.active === false, updated_at: updatedAt });
-    setCatalogEntries(prev => prev.map(item => (
-      item.id === entry.id ? { ...item, active: item.active === false, updated_at: updatedAt } : item
-    )));
-  };
-
-  const handleSaveSupplier = async (payload) => {
-    const now = Date.now();
-    const entry = {
-      display_name: String(payload.display_name || '').trim(),
-      phone_number: payload.phone_number ? String(payload.phone_number).trim() : null,
-      note: payload.note ? String(payload.note).trim() : null,
-      // Commit D: supplier photo (base64 data URL, non-indexed Dexie property).
-      photo: payload.photo || null,
-      active: payload.active !== false,
-      created_at: payload.created_at || now,
-      updated_at: now,
-    };
-
-    if (!entry.display_name) return null;
-
-    if (payload.id) {
-      // Edit branch: preserve created_at if not provided explicitly
-      const { created_at, ...editEntry } = entry;
-      await db.suppliers.update(payload.id, editEntry);
-      const saved = await db.suppliers.get(payload.id);
-      setSuppliers(prev => prev.map(item => item.id === payload.id ? saved : item));
-      return saved;
-    }
-
-    const id = await db.suppliers.add(entry);
-    const saved = await db.suppliers.get(id);
-    setSuppliers(prev => [...prev, saved]);
-    return saved;
-  };
-
-  const handleSaveSupplierTransaction = async (payload) => {
-    // Commit D: EDIT branch — payload carries editing_id (mirror of
-    // handleSaveCustomerTransaction). Only allow amount + item_name + note +
-    // photo edits; type and supplier_id stay locked to the original row.
-    if (payload?.editing_id) {
-      const amount = Number(payload.amount) || 0;
-      if (amount <= 0) {
-        fireToast('Enter a valid amount', 2200);
-        return false;
-      }
-      const now = Date.now();
-      let updated = null;
-      await db.transaction('rw', db.supplier_transactions, db.suppliers, async () => {
-        const existing = await db.supplier_transactions.get(payload.editing_id);
-        if (!existing) return;
-        const supplierTx = await db.supplier_transactions
-          .where('supplier_id').equals(existing.supplier_id).toArray();
-        // Refuse a payment edit that would over-pay
-        if (existing.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT) {
-          const others = supplierTx.filter(t => t.id !== existing.id);
-          const otherBalance = Math.max(getSupplierBalance(others), 0);
-          if (amount > otherBalance) {
-            fireToast('Payment is more than remaining dubie', 2600);
-            return;
-          }
-        }
-        const nextEntry = {
-          ...existing,
-          amount,
-          item_name: payload.item_name || existing.item_name || null,
-          note: payload.note || existing.note || null,
-          ...(existing.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT
-            ? { photos: [], photo: null, photo_taken_at: null }
-            : buildPhotoFields(normalizePhotos(payload))),
-          was_edited: true,
-          edited_at: now,
-          ...(() => {
-            const s = buildActorSnapshot();
-            return { edited_by_name: s.actor_name_snapshot, edited_by_role: s.actor_role };
-          })(),
-          updated_at: now,
-        };
-        await db.supplier_transactions.update(payload.editing_id, nextEntry);
-        updated = await db.supplier_transactions.get(payload.editing_id);
-        await db.suppliers.update(existing.supplier_id, { updated_at: now });
-      });
-      if (!updated) return false;
-      setSupplierTransactions(prev => prev.map(tx => tx.id === updated.id ? updated : tx));
-      fireToast(t.toastEntryUpdated, 1800);
-      return true;
-    }
-
-    if (!isValidSupplierTransactionType(payload.type)) return false;
-    const supplier = supplierSummaries.find(item => item.id === payload.supplier_id);
-    if (!supplier) {
-      fireToast('Supplier not found', 2200);
-      return false;
-    }
-
-    const amount = Number(payload.amount) || 0;
-    if (amount <= 0) {
-      fireToast('Enter a valid amount', 2200);
-      return false;
-    }
-
-    const now = Date.now();
-    const cloudProofFields = await createCloudProofFields();
-    let supplierMissing = false;
-    let staleOverPayment = false;
-    let saved = null;
-
-    await db.transaction('rw', db.supplier_transactions, db.suppliers, async () => {
-      const supplierRecord = await db.suppliers.get(payload.supplier_id);
-      if (!supplierRecord) {
-        supplierMissing = true;
-        return;
-      }
-
-      const existingTx = await db.supplier_transactions.where('supplier_id').equals(payload.supplier_id).toArray();
-      const previousBalance = Math.max(getSupplierBalance(existingTx), 0);
-
-      if (payload.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT && amount > previousBalance) {
-        staleOverPayment = true;
-        return;
-      }
-
-      const entry = {
-        supplier_id: payload.supplier_id,
-        type: payload.type,
-        catalog_entry_id: payload.catalog_entry_id || null,
-        item_name: payload.item_name || null,
-        item_kind: payload.item_kind || null,
-        quantity: payload.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? (Number(payload.quantity) || 1) : null,
-        amount,
-        note: payload.note || null,
-        due_date: payload.due_date || null,
-        // Product proof photos (base64 data URLs, non-indexed Dexie property).
-        ...(payload.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT
-          ? { photos: [], photo: null, photo_taken_at: null }
-          : buildPhotoFields(normalizePhotos(payload))),
-        created_at: now,
-        updated_at: now,
-        ...buildActorSnapshot(),
-        ...cloudProofFields,
-      };
-
-      const id = await db.supplier_transactions.add(entry);
-      saved = await db.supplier_transactions.get(id);
-      await db.suppliers.update(payload.supplier_id, { updated_at: now });
-    });
-
-    if (supplierMissing) {
-      fireToast('Supplier not found', 2200);
-      return false;
-    }
-
-    if (staleOverPayment || !saved) {
-      fireToast('Payment is more than remaining dubie', 2600);
-      return false;
-    }
-
-    setSupplierTransactions(prev => [saved, ...prev]);
-    setSuppliers(prev => prev.map(item => item.id === payload.supplier_id ? { ...item, updated_at: now } : item));
-    await enqueueCloudProofUpsert({
-      recordTable: 'supplier_transactions',
-      recordId: saved.id,
-      recordType: getSupplierCloudProofRecordType(saved),
-      record: saved,
-    });
-    if (isOnlineNow) drainCloudProofQueue({ limit: 3 }).catch(() => {});
-    return true;
-  };
-
-  const handleUpdateSupplierTransaction = async (transactionId, updates) => {
-    if (!isValidSupplierTransactionType(updates.type)) return false;
-    const amount = Number(updates.amount) || 0;
-    if (amount <= 0) {
-      fireToast('Enter a valid amount', 2200);
-      return false;
-    }
-
-    const now = Date.now();
-    let supplierMissing = false;
-    let transactionMissing = false;
-    let staleOverPayment = false;
-    let saved = null;
-    let previousSupplierId = null;
-    let nextSupplierId = Number(updates.supplier_id) || null;
-
-    await db.transaction('rw', db.supplier_transactions, db.suppliers, async () => {
-      const existing = await db.supplier_transactions.get(transactionId);
-      if (!existing) {
-        transactionMissing = true;
-        return;
-      }
-
-      previousSupplierId = existing.supplier_id;
-      nextSupplierId = nextSupplierId || existing.supplier_id;
-
-      const supplierRecord = await db.suppliers.get(nextSupplierId);
-      if (!supplierRecord) {
-        supplierMissing = true;
-        return;
-      }
-
-      const nextEntry = {
-        supplier_id: nextSupplierId,
-        type: updates.type,
-        catalog_entry_id: updates.catalog_entry_id || null,
-        item_name: updates.item_name || null,
-        item_kind: updates.item_kind || null,
-        quantity: updates.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? (Number(updates.quantity) || 1) : null,
-        amount,
-        note: updates.note || null,
-        due_date: updates.due_date || null,
-        was_edited: true,
-        edited_at: now,
-        ...(() => {
-          const s = buildActorSnapshot();
-          return { edited_by_name: s.actor_name_snapshot, edited_by_role: s.actor_role };
-        })(),
-        updated_at: now,
-      };
-
-      const existingSupplierTx = await db.supplier_transactions.where('supplier_id').equals(previousSupplierId).toArray();
-      const previousSupplierNextTx = existingSupplierTx
-        .filter(item => item.id !== transactionId)
-        .concat(previousSupplierId === nextSupplierId ? [{ ...existing, ...nextEntry, id: transactionId }] : []);
-
-      if (getSupplierBalance(previousSupplierNextTx) < 0) {
-        staleOverPayment = true;
-        return;
-      }
-
-      if (previousSupplierId !== nextSupplierId) {
-        const nextSupplierTx = await db.supplier_transactions.where('supplier_id').equals(nextSupplierId).toArray();
-        const nextSupplierNextTx = nextSupplierTx.concat({ ...existing, ...nextEntry, id: transactionId });
-        if (getSupplierBalance(nextSupplierNextTx) < 0) {
-          staleOverPayment = true;
-          return;
-        }
-      }
-
-      await db.supplier_transactions.update(transactionId, nextEntry);
-      saved = await db.supplier_transactions.get(transactionId);
-      await db.suppliers.update(nextSupplierId, { updated_at: now });
-      if (previousSupplierId && previousSupplierId !== nextSupplierId) {
-        await db.suppliers.update(previousSupplierId, { updated_at: now });
-      }
-    });
-
-    if (transactionMissing) {
-      fireToast('Supplier transaction not found', 2200);
-      return false;
-    }
-
-    if (supplierMissing) {
-      fireToast('Supplier not found', 2200);
-      return false;
-    }
-
-    if (staleOverPayment || !saved) {
-      fireToast('Payment is more than remaining dubie', 2600);
-      return false;
-    }
-
-    setSupplierTransactions(prev => prev.map(item => item.id === transactionId ? saved : item));
-    const touchedSupplierIds = new Set([previousSupplierId, saved?.supplier_id].filter(Boolean));
-    setSuppliers(prev => prev.map(item => touchedSupplierIds.has(item.id) ? { ...item, updated_at: now } : item));
-    return saved;
-  };
-
-  const handleDeleteSupplierTransaction = async (transactionId) => {
-    const now = Date.now();
-    let existing = null;
-    let transactionMissing = false;
-    let staleOverPayment = false;
-
-    await db.transaction('rw', db.supplier_transactions, db.suppliers, async () => {
-      existing = await db.supplier_transactions.get(transactionId);
-      if (!existing) {
-        transactionMissing = true;
-        return;
-      }
-
-      const supplierTx = await db.supplier_transactions.where('supplier_id').equals(existing.supplier_id).toArray();
-      const remainingTx = supplierTx.filter(item => item.id !== transactionId);
-      if (getSupplierBalance(remainingTx) < 0) {
-        staleOverPayment = true;
-        return;
-      }
-
-      await db.supplier_transactions.delete(transactionId);
-      await db.suppliers.update(existing.supplier_id, { updated_at: now });
-    });
-
-    if (transactionMissing) {
-      fireToast('Supplier transaction not found', 2200);
-      return false;
-    }
-
-    if (staleOverPayment) {
-      fireToast('Payment is more than remaining dubie', 2600);
-      return false;
-    }
-
-    setSupplierTransactions(prev => prev.filter(item => item.id !== transactionId));
-    if (existing?.supplier_id) {
-      setSuppliers(prev => prev.map(item => item.id === existing.supplier_id ? { ...item, updated_at: now } : item));
-    }
-    return true;
-  };
+  const handleDeleteSupplierTransaction = useCallback(
+    (transactionId) => deleteSupplierTransaction(transactionId),
+    [deleteSupplierTransaction]
+  );
 
   const handleConfirmCustomerTelegramConnection = async (customer, payload) => {
     if (!customer) return;
@@ -2876,41 +1883,6 @@ export default function AppShell() {
     setShowShareModal(true);
   };
 
-  const handleOnboardingComplete = useCallback((profile) => {
-    if (profile?.__staff_join) {
-      setOnboardingType('staff');
-      return;
-    }
-    const defaults = buildDefaultChannels();
-    setShopProfile({
-      ...profile,
-      id: profile?.id || profile?.shop_id || null,
-      shop_id: profile?.shop_id || profile?.id || null,
-      telegram: profile?.telegram || '',
-      businessType: profile?.businessType || 'retail-shop',
-      role: profile?.role || 'owner',
-      paymentChannels: profile?.paymentChannels || defaults,
-      payments: profile?.payments || deriveLegacyFromChannels(defaults).payments,
-    });
-    db.settings.put({ key: 'shop_payment_channels', value: JSON.stringify(defaults) })
-      .catch(() => { /* non-critical */ });
-  }, []);
-
-  const handleStaffJoined = useCallback((identity) => {
-    setOnboardingType(null);
-    setShopProfile({
-      id: identity?.shop_id || null,
-      shop_id: identity?.shop_id || null,
-      name: identity?.shop_name || 'Gebya',
-      phone: identity?.phone_number || '',
-      telegram: '',
-      businessType: 'retail-shop',
-      role: identity?.role || 'staff',
-      paymentChannels: buildDefaultChannels(),
-      payments: deriveLegacyFromChannels(buildDefaultChannels()).payments,
-    });
-  }, []);
-
   const hid = (n) => hidden ? '••••' : fmt(n);
 
   const getTimeGreeting = () => {
@@ -2921,32 +1893,15 @@ export default function AppShell() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: P.bg }}>
-        <div className="text-center animate-elastic">
-          <div className="text-5xl mb-3">📓</div>
-          <h1 className="text-2xl font-black font-serif" style={{ color: P.header }}>ገበያ</h1>
-          <p className="text-sm mt-2" style={{ color: 'var(--color-text-soft)' }}>{t.loading}</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen t={t} />;
   }
 
   if (onboardingType === 'staff') {
-    return (
-      <StaffJoinScreen
-        onJoined={handleStaffJoined}
-        onBack={() => setOnboardingType(null)}
-      />
-    );
+    return <StaffJoinScreenView onJoined={handleStaffJoined} onBack={() => setOnboardingType(null)} />;
   }
 
   if (!shopProfile || !shopProfile.name) {
-    return (
-      <OnboardingScreen
-        onComplete={handleOnboardingComplete}
-      />
-    );
+    return <OnboardingScreenView onComplete={handleOnboardingComplete} shopProfile={shopProfile} />;
   }
 
   return (

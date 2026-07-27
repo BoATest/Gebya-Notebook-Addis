@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import db from '../db';
-import { fireToast } from '../components/Toast';
+import { drainCloudProofQueue } from '../utils/syncQueue';
 import { buildPhotoFields, normalizePhotos } from '../utils/photoProof';
 import {
   createCloudProofFields,
@@ -13,21 +13,15 @@ import {
   isValidSupplierTransactionType,
   SUPPLIER_TRANSACTION_TYPES,
 } from '../utils/supplierLedger';
+import { isBrowserOnline } from '../utils/appShellUtils';
 
-/**
- * useSuppliers hook — manages suppliers and supplier transactions.
- * Keeps state in sync with IndexedDB.
- *
- * Save functions accept an actorSnapshot object so the hook stays
- * decoupled from shopProfile / staffMembers state.
- */
+const FALLBACK_T = { toastEntryUpdated: 'Entry updated' };
 
-export function useSuppliers() {
+export function useSuppliers(t = FALLBACK_T) {
   const [suppliers, setSuppliers] = useState([]);
   const [supplierTransactions, setSupplierTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Load on mount
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -49,14 +43,10 @@ export function useSuppliers() {
     return () => { cancelled = true; };
   }, []);
 
-  // ─── Derived state (must come before handlers that use it) ───────────────
-
   const supplierSummaries = useMemo(
     () => buildSupplierSummaries(suppliers, supplierTransactions),
     [suppliers, supplierTransactions]
   );
-
-  // ─── Supplier CRUD ─────────────────────────────────────────────────────
 
   const saveSupplier = useCallback(async (payload) => {
     const now = Date.now();
@@ -69,7 +59,6 @@ export function useSuppliers() {
       created_at: payload.created_at || now,
       updated_at: now,
     };
-
     if (!entry.display_name) return null;
 
     if (payload.id) {
@@ -86,10 +75,7 @@ export function useSuppliers() {
     return saved;
   }, []);
 
-  // ─── Supplier Transaction CRUD ──────────────────────────────────────────
-
   const saveSupplierTransaction = useCallback(async (payload, actorSnapshot = {}) => {
-    // EDIT branch
     if (payload?.editing_id) {
       const amount = Number(payload.amount) || 0;
       if (amount <= 0) {
@@ -119,6 +105,10 @@ export function useSuppliers() {
           ...(existing.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT
             ? { photos: [], photo: null, photo_taken_at: null }
             : buildPhotoFields(normalizePhotos(payload))),
+          was_edited: true,
+          edited_at: now,
+          edited_by_name: actorSnapshot.actor_name_snapshot || null,
+          edited_by_role: actorSnapshot.actor_role || null,
           updated_at: now,
         };
         await db.supplier_transactions.update(payload.editing_id, nextEntry);
@@ -127,7 +117,7 @@ export function useSuppliers() {
       });
       if (!updated) return false;
       setSupplierTransactions(prev => prev.map(t => t.id === updated.id ? updated : t));
-      fireToast('Entry updated', 1800);
+      fireToast(t.toastEntryUpdated, 1800);
       return true;
     }
 
@@ -205,8 +195,9 @@ export function useSuppliers() {
       recordType: getSupplierCloudProofRecordType(saved),
       record: saved,
     });
+    if (isBrowserOnline()) drainCloudProofQueue({ limit: 3 }).catch(() => {});
     return true;
-  }, [supplierSummaries]);
+  }, [supplierSummaries, t]);
 
   const updateSupplierTransaction = useCallback(async (transactionId, updates, actorSnapshot = {}) => {
     if (!isValidSupplierTransactionType(updates.type)) return false;
@@ -249,6 +240,10 @@ export function useSuppliers() {
         quantity: updates.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD ? (Number(updates.quantity) || 1) : null,
         amount,
         note: updates.note || null,
+        was_edited: true,
+        edited_at: now,
+        edited_by_name: actorSnapshot.actor_name_snapshot || null,
+        edited_by_role: actorSnapshot.actor_role || null,
         updated_at: now,
       };
 

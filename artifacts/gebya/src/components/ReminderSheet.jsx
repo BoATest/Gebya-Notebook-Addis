@@ -24,74 +24,6 @@ import {
   daysAgoLabel,
 } from '../utils/reminders';
 
-// Build the customer-facing Pay-it-now URL.
-// All params are URL-encoded; PayPage decodes them and renders the channel
-// picker page. Empty/missing values are simply omitted.
-//
-// The `enabled` param lists which channels are toggled ON in Settings so
-// PayPage can hide cards for disabled channels.
-const ENABLED_PARAM_MAP = {
-  telebirr: 'tb', cbe_birr: 'cbe', awash_mobile: 'aw', bank: 'bk',
-};
-function buildPayUrl({ shopName, shopPhone, shopTelegram, shopPayments, paymentChannels, customer, lang }) {
-  if (typeof window === 'undefined') return '';
-  const origin = window.location.origin;
-  const balance = Number(customer?.balance || 0);
-  const params = new URLSearchParams();
-
-  // Core fields
-  if (shopName) params.set('to', shopName);
-  if (balance > 0) params.set('amount', String(balance));
-  if (customer?.display_name) params.set('from', customer.display_name);
-  if (customer?.id) params.set('ref', String(customer.id));
-  if (shopPhone) params.set('phone', shopPhone);
-  if (shopTelegram) params.set('tg', shopTelegram);
-  if (lang) params.set('lang', lang);
-
-  // Enabled channels — PayPage reads this to show/hide cards
-  const enabledCodes = (paymentChannels || [])
-    .filter(c => c.enabled)
-    .map(c => ENABLED_PARAM_MAP[c.id] || null)
-    .filter(Boolean);
-  if (enabledCodes.length) params.set('enabled', enabledCodes.join(','));
-
-  // Payment receiving accounts. Only enabled channels have data here.
-  const pmt = shopPayments || {};
-  const telebirrPhone = (pmt.telebirr && pmt.telebirr.trim())
-    ? (pmt.telebirr.startsWith('+251') ? pmt.telebirr : `+251${pmt.telebirr.replace(/\D/g, '').slice(-9)}`)
-    : shopPhone;
-  if (telebirrPhone) params.set('tb', telebirrPhone);
-  if (pmt.cbe_phone) {
-    const cbeFormatted = pmt.cbe_phone.startsWith('+251')
-      ? pmt.cbe_phone
-      : `+251${pmt.cbe_phone.replace(/\D/g, '').slice(-9)}`;
-    params.set('cbe_p', cbeFormatted);
-  }
-  if (pmt.cbe_account) params.set('cbe_a', pmt.cbe_account);
-  if (pmt.awash_phone) {
-    const awashFormatted = pmt.awash_phone.startsWith('+251')
-      ? pmt.awash_phone
-      : `+251${pmt.awash_phone.replace(/\D/g, '').slice(-9)}`;
-    params.set('aw_p', awashFormatted);
-  }
-  if (pmt.bank_name) params.set('bk_n', pmt.bank_name);
-  if (pmt.bank_account) params.set('bk_a', pmt.bank_account);
-
-  return `${origin}/pay?${params.toString()}`;
-}
-
-function appendPayLink({ baseMessage, payUrl, lang }) {
-  if (!payUrl) return baseMessage;
-  const trimmed = (baseMessage || '').trimEnd();
-  // Avoid double-appending if the URL is already present
-  if (trimmed.includes(payUrl)) return trimmed;
-  const ctaLabel = lang === 'am'
-    ? '👉 በዚህ ይክፈሉ:'
-    : '👉 Pay here:';
-  // Two newlines so the link reads as a separate block, easy to tap.
-  return `${trimmed}\n\n${ctaLabel} ${payUrl}`;
-}
-
 function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defaultChannel }) {
   const { lang, t } = useLang();
   const [template, setTemplate] = useState('gentle');
@@ -103,23 +35,10 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
   const available = useMemo(() => getAvailableChannels(customer), [customer]);
   const effectiveChannel = channel || available[0] || null;
 
-  const payUrl = useMemo(
-    () => buildPayUrl({
-      shopName,
-      shopPhone: shopProfile?.phone,
-      shopTelegram: shopProfile?.telegram,
-      shopPayments: shopProfile?.payments,
-      paymentChannels: shopProfile?.paymentChannels,
-      customer,
-      lang,
-    }),
-    [shopName, shopProfile, customer, lang]
+  const generatedMessage = useMemo(
+    () => buildReminderMessage({ template, lang, customer, shopName }),
+    [template, lang, customer, shopName]
   );
-
-  const generatedMessage = useMemo(() => {
-    const base = buildReminderMessage({ template, lang, customer, shopName });
-    return appendPayLink({ baseMessage: base, payUrl, lang });
-  }, [template, lang, customer, shopName, payUrl]);
 
   // Reset edited message when template changes
   useEffect(() => {
