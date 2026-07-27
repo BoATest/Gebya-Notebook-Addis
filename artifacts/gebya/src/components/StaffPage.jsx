@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, ChevronDown, ChevronUp, Shield, KeyRound, Search } from 'lucide-react';
+import { Copy, ChevronDown, ChevronUp, Shield, KeyRound, Search, Eye } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { useShopStore } from '../stores/shopStore';
 import { usePermissionsStore } from '../stores/permissionsStore';
@@ -689,7 +689,7 @@ export default function StaffPage({
             <div className="text-[10px] font-bold text-gray-500">{t('Finalized', 'የተጠናቀቀ')}</div>
           </div>
           <div className="flex-1 rounded-xl border px-3 py-2 text-center" style={{ borderColor: '#e8e2d8', background: '#fcfbf8' }}>
-            <div className="text-xs font-black" style={{ color: '#1B4332' }}>{fmt(snapshotStats.totalCollected)}</div>
+            <div className="text-lg font-black" style={{ color: '#1B4332' }}>{fmt(snapshotStats.totalCollected)}</div>
             <div className="text-[10px] font-bold text-gray-500">{t('Collected', 'የተሰበሰበ')}</div>
           </div>
         </div>
@@ -762,7 +762,7 @@ export default function StaffPage({
                         <button onClick={() => handleViewSettlement(m, lastS)}
                           className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
                           style={{ background: '#e0f2fe', color: '#0369a1' }}
-                        >📨 {t('Review', 'መርምር')}</button>
+                        ><Eye className="w-3 h-3 inline" /> {t('Review', 'መርምር')}</button>
                       ) : isFinalized ? (
                         <span className="text-[10px] font-bold px-2 py-1 rounded-lg whitespace-nowrap" style={{ background: '#dcfce7', color: '#166534' }}>
                           ✓ {t('Settled', 'ተቀምጧል')}
@@ -935,7 +935,12 @@ export default function StaffPage({
             </div>
             {expandedSections.pastSettlements ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
           </button>
-          {expandedSections.pastSettlements && (
+          <div style={{
+            overflow: 'hidden',
+            maxHeight: expandedSections.pastSettlements ? '400px' : '0',
+            opacity: expandedSections.pastSettlements ? 1 : 0,
+            transition: 'max-height 0.3s ease, opacity 0.25s ease',
+          }}>
             <div className="divide-y max-h-60 overflow-y-auto" style={{ borderColor: '#f0ece4' }}>
               {settlements.slice().sort((a, b) => b.settled_at - a.settled_at).slice(0, 20).map((s, i) => {
                 const staff = activeStaff.find(r => String(r.id) === String(s.staff_id));
@@ -960,7 +965,7 @@ export default function StaffPage({
                 );
               })}
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -1449,7 +1454,7 @@ export default function StaffPage({
       {/* 5. SETTLEMENT SHEET (overlay)                */}
       {/* ════════════════════════════════════════════ */}
       {activeSettlement && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.35)' }}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(2px)' }}>
           <div className="w-full max-w-md rounded-2xl bg-white px-4 pb-6 pt-2 max-h-[90vh] overflow-y-auto" style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             <div className="w-9 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
             <SettlementSheet
@@ -1478,7 +1483,12 @@ export default function StaffPage({
             </span>
             {expandedSections.activity ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
           </button>
-          {expandedSections.activity && (
+          <div style={{
+            overflow: 'hidden',
+            maxHeight: expandedSections.activity ? '2000px' : '0',
+            opacity: expandedSections.activity ? 1 : 0,
+            transition: 'max-height 0.3s ease, opacity 0.25s ease',
+          }}>
             <div className="px-4 py-3">
               <StaffActivityFeed
                 todayRefreshKey={todayRefreshKey}
@@ -1486,7 +1496,7 @@ export default function StaffPage({
                 setTodayStaffTransactions={setTodayStaffTransactions}
               />
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -1505,7 +1515,12 @@ export default function StaffPage({
             </span>
             {expandedSections.more ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
           </button>
-          {expandedSections.more && (
+          <div style={{
+            overflow: 'hidden',
+            maxHeight: expandedSections.more ? '2000px' : '0',
+            opacity: expandedSections.more ? 1 : 0,
+            transition: 'max-height 0.3s ease, opacity 0.25s ease',
+          }}>
             <div className="px-4 py-3 space-y-3">
               {/* Device Management */}
               <div>
@@ -1535,7 +1550,7 @@ export default function StaffPage({
               </div>
 
             </div>
-          )}
+          </div>
         </div>
       )}
 

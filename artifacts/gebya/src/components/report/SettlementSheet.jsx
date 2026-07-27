@@ -26,6 +26,7 @@ function StatusBadge({ status, lang }) {
     staff_submitted: { label: t('Staff sent', 'ሰራተኛ ልኳል'), bg: C.blueLight, color: C.blue },
     owner_reviewed: { label: t('Reviewed', 'ተመልክቷል'), bg: C.amberLight, color: '#d97706' },
     checked: { label: t('Checked', 'ተፈትሟል'), bg: '#f3f4f6', color: C.gray },
+    disputed: { label: t('Disputed', 'አከራካሪ'), bg: C.redLight, color: C.red },
   };
   const s = map[status] || map.checked;
   return (
@@ -36,7 +37,7 @@ function StatusBadge({ status, lang }) {
 }
 
 export default function SettlementSheet({ staff, existingSettlement, lang = 'en', onSaved, onCancel }) {
-  const isReview = existingSettlement?.reconciliation_status === 'staff_submitted';
+  const isReview = existingSettlement?.reconciliation_status === 'staff_submitted' || existingSettlement?.reconciliation_status === 'disputed';
   const isView = Boolean(existingSettlement) && !isReview;
   const isNew = !existingSettlement;
 
@@ -115,10 +116,30 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
     setAdjustments(adjustments.filter((_, i) => i !== index));
   };
 
+  const handleMarkDisputed = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      const ownerNote = ownerReviewNote.trim();
+      const logEntry = createReconciliationEntry('owner', 'disputed', ownerNote || t('Owner marked as disputed', 'ባለቤት አከራካሪ አድርጎ ምልክት አድርጓል'));
+      await updateSettlement(existingSettlement.id, {
+        reconciliation_status: 'disputed',
+        status: 'reconciled',
+        owner_note: ownerNote || null,
+        reconciliation_log: [...recLog, logEntry],
+        updated_at: Date.now(),
+      });
+      onSaved?.();
+    } catch {
+      setError(t('Failed to mark as disputed', 'አከራካሪ አድርጎ ምልክት ማድረግ አልተሳካም'));
+    }
+    setSaving(false);
+  };
+
   const handleSave = async () => {
     if (isView) return;
     if (actualCashVal === 0 && actualTransferVal === 0) {
-      setError('Enter at least actual cash or transfer amount');
+      setError(t('Enter at least actual cash or transfer amount', 'እባክዎ ቢያንስ የጥሬ ገንዘብ ወይም የዝውውር መጠን ያስገቡ'));
       return;
     }
     setSaving(true);
@@ -130,10 +151,13 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       if (isReview) {
         const ownerNote = ownerReviewNote.trim();
         const isAccepted = actualCashVal === staffCash && actualTransferVal === staffTransfer;
+        const wasDisputed = existingSettlement?.reconciliation_status === 'disputed';
         const logEntry = createReconciliationEntry(
           'owner',
           isAccepted ? 'accepted' : 'reviewed',
-          ownerNote || (isAccepted ? t('Owner accepted staff report', 'ባለቤት የሰራተኛ ሪፖርት ተቀብሏል') : t('Owner reviewed with adjustments', 'ባለቤት በማስተካከል ተመልክቷል')),
+          wasDisputed
+            ? (ownerNote || (isAccepted ? t('Dispute resolved — owner accepted', 'ክርክር ተፈቷል — ባለቤት ተቀብሏል') : t('Dispute resolved with adjustments', 'ክርክር በማስተካከል ተፈቷል')))
+            : (ownerNote || (isAccepted ? t('Owner accepted staff report', 'ባለቤት የሰራተኛ ሪፖርት ተቀብሏል') : t('Owner reviewed with adjustments', 'ባለቤት በማስተካከል ተመልክቷል'))),
         );
         await updateSettlement(existingSettlement.id, {
           actual_cash: actualCashVal,
@@ -179,7 +203,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       }
       onSaved?.();
     } catch {
-      setError('Failed to save settlement');
+      setError(t('Failed to save settlement', 'ማስተካከያ ማስቀመጥ አልተሳካም'));
     }
     setSaving(false);
   };
@@ -290,6 +314,21 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
               }}
             >{t('Use staff amounts', 'የሰራተኛውን መጠን ተጠቀም')}</button>
           )}
+        </div>
+      )}
+
+      {/* Dispute banner */}
+      {existingSettlement?.reconciliation_status === 'disputed' && (
+        <div style={{ background: C.redLight, borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.redBorder}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            <AlertCircle className="w-4 h-4" style={{ color: C.red }} />
+            <span style={{ fontSize: 11, fontWeight: 800, color: C.red }}>
+              {t('Disputed settlement', 'አከራካሪ ማስተካከያ')}
+            </span>
+          </div>
+          <p style={{ fontSize: 11, color: C.red, margin: 0, lineHeight: 1.4 }}>
+            {existingSettlement.owner_note || t('Owner identified a discrepancy. Review and resolve.', 'ባለቤት ልዩነት አስተውሏል። መርምረው ይፍቱ።')}
+          </p>
         </div>
       )}
 
@@ -550,22 +589,37 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
                 updated_at: Date.now(),
               });
               onSaved?.();
-            } catch { setError('Failed to re-open'); }
+            } catch { setError(t('Failed to re-open', 'እንደገና መክፈት አልተሳካም')); }
           }}
             style={{ flex: 1, minHeight: 44, border: `1px solid ${C.amberBorder}`, borderRadius: C.radius, background: C.amberLight, color: '#92400e', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
           >{t('Re-open', 'እንደገና ክፈት')}</button>
         )}
 
         {isReview && (
-          <button onClick={handleSave} disabled={saving || (actualCashVal === 0 && actualTransferVal === 0)}
-            style={{
-              flex: 2, minHeight: 44, border: 'none', borderRadius: C.radius,
-              background: saving ? C.textFaint : C.green,
-              color: '#fff',
-              fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer',
-              letterSpacing: '0.3px',
-            }}
-          >{saving ? t('Saving...', 'በማስቀመጥ ላይ...') : t('Accept & Finalize', 'ተቀበል እና ጨርስ')}</button>
+          <div style={{ display: 'flex', gap: 8, flex: 2 }}>
+            {existingSettlement?.reconciliation_status === 'staff_submitted' && (
+              <button onClick={handleMarkDisputed} disabled={saving}
+                style={{
+                  flex: 1, minHeight: 44, border: `1px solid ${C.redBorder}`, borderRadius: C.radius,
+                  background: C.redLight, color: C.red,
+                  fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer',
+                }}
+              >{t('Dispute', 'አከራካሪ')}</button>
+            )}
+            <button onClick={handleSave} disabled={saving || (actualCashVal === 0 && actualTransferVal === 0)}
+              style={{
+                flex: existingSettlement?.reconciliation_status === 'staff_submitted' ? 2 : 1, minHeight: 44, border: 'none', borderRadius: C.radius,
+                background: saving ? C.textFaint : C.green,
+                color: '#fff',
+                fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer',
+                letterSpacing: '0.3px',
+              }}
+            >{saving ? t('Saving...', 'በማስቀመጥ ላይ...') : (
+              existingSettlement?.reconciliation_status === 'disputed'
+                ? t('Resolve & Finalize', 'ፍታ እና ጨርስ')
+                : t('Accept & Finalize', 'ተቀበል እና ጨርስ')
+            )}</button>
+          </div>
         )}
 
         {isNew && (
