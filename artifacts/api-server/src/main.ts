@@ -14,7 +14,7 @@ app.set("trust proxy", 1);
 const isProduction = process.env.NODE_ENV === "production";
 
 function createRequestId() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 6)}`;
 }
 
 // ---- CORS CONFIG ----

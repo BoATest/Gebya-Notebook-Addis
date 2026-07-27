@@ -762,15 +762,18 @@ export async function getLatestSettlement(staffId) {
 }
 
 export async function getAllSettlements(from = 0, to = Date.now(), businessId) {
-  let results = await db.settlements
+  if (businessId != null) {
+    return db.settlements
+      .where('[settled_at+business_id]')
+      .between([from, Number(businessId)], [to, Number(businessId)])
+      .reverse()
+      .toArray();
+  }
+  return db.settlements
     .where('settled_at')
     .between(from, to)
     .reverse()
-    .sortBy('settled_at');
-  if (businessId != null) {
-    results = results.filter((s) => Number(s.business_id) === Number(businessId));
-  }
-  return results;
+    .toArray();
 }
 
 export async function updateSettlement(id, changes) {
@@ -779,12 +782,18 @@ export async function updateSettlement(id, changes) {
 }
 
 export async function getUnsettledStaffIds(allStaffIds, cutoff = Date.now(), businessId) {
-  let settled = await db.settlements
-    .where('settled_at')
-    .above(cutoff - 90 * 86400000)
-    .toArray();
+  let settled;
   if (businessId != null) {
-    settled = settled.filter(s => Number(s.business_id) === Number(businessId));
+    const past = cutoff - 30 * 86400000;
+    settled = await db.settlements
+      .where('[settled_at+business_id]')
+      .between([past, Number(businessId)], [cutoff, Number(businessId)])
+      .toArray();
+  } else {
+    settled = await db.settlements
+      .where('settled_at')
+      .above(cutoff - 30 * 86400000)
+      .toArray();
   }
   const settledIds = new Set(settled.map(s => String(s.staff_id)));
   return allStaffIds.filter(id => !settledIds.has(String(id)));

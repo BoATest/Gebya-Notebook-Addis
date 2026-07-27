@@ -78,7 +78,7 @@ export async function createHistoryEntry(
   data: Omit<ReminderHistoryEntry, "id" | "createdAt"> & { shopId: number; customerId: number; chatId: string; balanceAtSendTime: number | string; sentAt: number; status: "queued" | "sent" | "failed" | "skipped"; language: "am" | "en" }
 ): Promise<ReminderHistoryEntry> {
   const entry: ReminderHistoryEntry = {
-    id: `${data.shopId}-${data.customerId}-${data.sentAt}-${Math.random().toString(36).slice(2, 8)}`,
+    id: `${data.shopId}-${data.customerId}-${data.sentAt}-${crypto.randomUUID().slice(2, 8)}`,
     shopId: data.shopId,
     customerId: data.customerId,
     chatId: data.chatId,

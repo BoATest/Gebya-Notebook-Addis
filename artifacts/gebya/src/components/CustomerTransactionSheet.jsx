@@ -161,7 +161,7 @@ function CustomerTransactionSheet({
     setLineItems(prev => [
       ...prev,
       {
-        id: `new-${Date.now()}-${Math.random()}`,
+        id: `new-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
         name: preset.name || '',
         amount: preset.amount != null ? String(preset.amount) : '',
       },

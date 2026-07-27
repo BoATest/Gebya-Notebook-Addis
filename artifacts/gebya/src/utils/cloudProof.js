@@ -15,7 +15,7 @@ function randomHex(length) {
     cryptoApi.getRandomValues(bytes);
   } else {
     for (let index = 0; index < bytes.length; index += 1) {
-      bytes[index] = Math.floor(Math.random() * 256);
+      bytes[index] = crypto.getRandomValues ? crypto.getRandomValues(new Uint8Array(1))[0] : crypto.randomBytes(1)[0];
     }
   }
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, length);

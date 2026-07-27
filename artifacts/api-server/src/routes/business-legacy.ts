@@ -1,13 +1,14 @@
 // @ts-nocheck
-import { Router, type Request, type Response } from "express";
+import { Request, Response } from "express";
+import { Router } from "express";
 import { db } from "@workspace/db";
-import { businesses, businessMembers, users, invites } from "@workspace/db/schema";
-import { and, eq, isNull, gt } from "drizzle-orm";
-import crypto from "crypto";
+import { users, devices, otps, businesses, businessMembers, invites } from "@workspace/db/schema";
+import { eq, and, gt, isNull } from "drizzle-orm";
 import jwt from "jsonwebtoken";
-import { verifyJwt } from "./auth.js";
-import { resolvePermissions } from "@workspace/db/schema/permission-defaults";
-import { normalizePhone } from "@workspace/db/schema/phone";
+import crypto from "crypto";
+import { sendTelegramTextMessage } from "../services/telegramBotService.js";
+
+const JOIN_CODE_SIGNING_KEY = process.env.JOIN_CODE_SIGNING_KEY || crypto.randomBytes(32).toString('hex');
 
 const router = Router();
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://gebya.app";
@@ -100,7 +101,7 @@ router.post("/shops", async (req: Request, res: Response) => {
   });
 
   const joinCode = generateJoinCode();
-  const joinCodeToken = crypto.createHash("sha256").update(joinCode).digest("hex");
+  const joinCodeToken = crypto.createHmac('sha256', JOIN_CODE_SIGNING_KEY).update(joinCode).digest("hex");
   const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
   await db.insert(invites).values({
     businessId: biz.id,
@@ -152,7 +153,7 @@ router.post("/shops/join", async (req: Request, res: Response) => {
   }
 
   const cleanCode = join_code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
-  const codeHash = crypto.createHash("sha256").update(cleanCode).digest("hex");
+  const codeHash = crypto.createHmac('sha256', JOIN_CODE_SIGNING_KEY).update(cleanCode).digest("hex");
 
   const inviteRows = await db
     .select({

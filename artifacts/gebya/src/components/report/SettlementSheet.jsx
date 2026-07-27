@@ -541,6 +541,21 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           style={{ flex: 1, minHeight: 44, border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, background: '#fff', color: C.text, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
         >{t('Back', 'ተመለስ')}</button>
 
+        {isView && existingSettlement?.reconciliation_status === 'finalized' && (
+          <button onClick={async () => {
+            try {
+              await updateSettlement(existingSettlement.id, {
+                reconciliation_status: 'owner_reviewed',
+                status: 'reconciled',
+                updated_at: Date.now(),
+              });
+              onSaved?.();
+            } catch { setError('Failed to re-open'); }
+          }}
+            style={{ flex: 1, minHeight: 44, border: `1px solid ${C.amberBorder}`, borderRadius: C.radius, background: C.amberLight, color: '#92400e', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
+          >{t('Re-open', 'እንደገና ክፈት')}</button>
+        )}
+
         {isReview && (
           <button onClick={handleSave} disabled={saving || (actualCashVal === 0 && actualTransferVal === 0)}
             style={{

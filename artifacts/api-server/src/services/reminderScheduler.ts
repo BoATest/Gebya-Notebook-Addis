@@ -275,7 +275,7 @@ export async function scheduleReminders(
 
       // Queue the reminder with urgency info for tone-appropriate messaging
       const queuedReminder: QueuedReminder = {
-        id: `${shopId}-${customer.customerId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        id: `${shopId}-${customer.customerId}-${Date.now()}-${crypto.randomUUID().slice(2, 10)}`,
         shopId,
         customerId: customer.customerId,
         chatId: customer.chatId || "",

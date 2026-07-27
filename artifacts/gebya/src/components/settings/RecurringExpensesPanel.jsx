@@ -19,7 +19,7 @@ export default function RecurringExpensesPanel({ recurring, onRecurringChange })
     if (!reName.trim() || !amt) return;
     const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
       ? crypto.randomUUID()
-      : `re_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      : `re_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
     const newItem = { id, name: reName.trim(), amount: amt, freq: reFreq };
     const updated = [...(recurring || []), newItem];
     onRecurringChange?.(updated);

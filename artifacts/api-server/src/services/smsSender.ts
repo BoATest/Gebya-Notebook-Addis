@@ -240,7 +240,7 @@ export async function sendSms(
 
       return {
         success: true,
-        messageId: `sms_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        messageId: `sms_${Date.now()}_${crypto.randomUUID().slice(2, 8)}`,
         retryCount: attempt,
         lastAttemptAt: Date.now(),
         provider: "ethio_telecom",

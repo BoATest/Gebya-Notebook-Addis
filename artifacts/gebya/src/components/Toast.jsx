@@ -4,7 +4,7 @@ let toastListeners = [];
 let toastQueue = [];
 
 export function fireToast(message, duration = 2500, onUndo = null) {
-  toastQueue.push({ message, id: Date.now() + Math.random(), duration, onUndo });
+  toastQueue.push({ message, id: Date.now() + crypto.randomUUID(), duration, onUndo });
   toastListeners.forEach(fn => fn([...toastQueue]));
 }
 

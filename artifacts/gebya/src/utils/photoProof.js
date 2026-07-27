@@ -4,7 +4,7 @@ export const MAX_PROOF_PHOTOS = 3;
 export function createPhotoProof(dataUrl, takenAt = Date.now()) {
   if (!dataUrl) return null;
   return {
-    id: `photo-${takenAt}-${Math.random().toString(36).slice(2, 8)}`,
+    id: `photo-${takenAt}-${crypto.randomUUID().slice(2, 8)}`,
     dataUrl,
     taken_at: takenAt,
   };

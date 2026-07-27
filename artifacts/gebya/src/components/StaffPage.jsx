@@ -375,19 +375,11 @@ export default function StaffPage({
       try {
         const bizRow = await db.settings.get('gebya_business_id');
         const bizId = Number(bizRow?.value) || 0;
-        const rows = await getAllSettlements(Date.now() - 90 * 86400000, Date.now() + 86400000, bizId);
+        const rows = await getAllSettlements(Date.now() - 30 * 86400000, Date.now() + 86400000, bizId);
         if (!cancelled) setSettlements(rows);
       } catch {}
     })();
-    const interval = setInterval(async () => {
-      const bizRow = await db.settings.get('gebya_business_id');
-      const bizId = Number(bizRow?.value) || 0;
-      try {
-        const rows = await getAllSettlements(Date.now() - 90 * 86400000, Date.now() + 86400000, bizId);
-        setSettlements(rows);
-      } catch {}
-    }, 30000);
-    return () => { cancelled = true; clearInterval(interval); };
+    return () => { cancelled = true; };
   }, [settlementRefreshKey]);
 
   // ── Visibility guard & periodic refresh ──
@@ -629,8 +621,11 @@ export default function StaffPage({
     const active = activeStaff.length;
     const pendingDeviceCount = pendingDevices.length;
     const unsettledCount = unsettledStaff.length;
-    return { totalStaff, active, pendingDeviceCount, unsettledCount };
-  }, [staffMembers, activeStaff, pendingDevices, unsettledStaff]);
+    const submittedCount = settlements.filter(s => s.reconciliation_status === 'staff_submitted').length;
+    const finalizedCount = settlements.filter(s => s.reconciliation_status === 'finalized' || s.reconciliation_status === 'checked').length;
+    const totalCollected = settlements.reduce((sum, s) => sum + Number(s.actual_total || 0), 0);
+    return { totalStaff, active, pendingDeviceCount, unsettledCount, submittedCount, finalizedCount, totalCollected };
+  }, [staffMembers, activeStaff, pendingDevices, unsettledStaff, settlements]);
 
   // ── Combined staff list (local + cloud) ──
   const combinedStaffList = useMemo(() => {
@@ -654,25 +649,48 @@ export default function StaffPage({
   return (
     <div className="space-y-4 pb-4">
       {/* ════════════════════════════════════════════ */}
+      {/* NOTIFICATION BANNER (needs review)         */}
+      {/* ════════════════════════════════════════════ */}
+      {canManageTeam && snapshotStats.submittedCount > 0 && (
+        <div className="rounded-2xl border flex items-center gap-3 px-4 py-3" style={{ borderColor: '#bae6fd', background: '#f0f9ff' }}>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#e0f2fe' }}>
+            <span className="text-sm font-black" style={{ color: '#0369a1' }}>!</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold" style={{ color: '#0369a1' }}>
+              {t('Staff submissions pending review', 'የሰራተኞች ስብስብ ክለሳ ይፈልጋል')}
+            </p>
+            <p className="text-xs" style={{ color: '#6b7280' }}>
+              {snapshotStats.submittedCount} {t('staff member(s) have submitted their collection', 'ሰራተኞች ስብስባቸውን ልከዋል')}
+            </p>
+          </div>
+          <button onClick={() => toggleSection('pastSettlements')}
+            className="text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap"
+            style={{ background: '#1B4332', color: '#fff', border: 'none', cursor: 'pointer' }}
+          >{t('Review', 'ክለሳ')}</button>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════ */}
       {/* 1. SNAPSHOT STATS BAR                       */}
       {/* ════════════════════════════════════════════ */}
       {canManageTeam && (
         <div className="flex gap-2">
           <div className="flex-1 rounded-xl border px-3 py-2 text-center" style={{ borderColor: '#e8e2d8', background: '#fcfbf8' }}>
-            <div className="text-lg font-black" style={{ color: '#1B4332' }}>{snapshotStats.active}</div>
-            <div className="text-[10px] font-bold text-gray-500">{t('Active', 'ንቁ')}</div>
-          </div>
-          <div className="flex-1 rounded-xl border px-3 py-2 text-center" style={{ borderColor: unsettledStaff.length > 0 ? '#fde68a' : '#e8e2d8', background: unsettledStaff.length > 0 ? '#fffbeb' : '#fcfbf8' }}>
-            <div className="text-lg font-black" style={{ color: unsettledStaff.length > 0 ? '#d97706' : '#6b7280' }}>{snapshotStats.unsettledCount}</div>
+            <div className="text-lg font-black" style={{ color: '#1B4332' }}>{snapshotStats.unsettledCount}</div>
             <div className="text-[10px] font-bold text-gray-500">{t('Unsettled', 'ያልተስተካከለ')}</div>
           </div>
-          <div className="flex-1 rounded-xl border px-3 py-2 text-center" style={{ borderColor: pendingDevices.length > 0 ? '#fde68a' : '#e8e2d8', background: pendingDevices.length > 0 ? '#fffbeb' : '#fcfbf8' }}>
-            <div className="text-lg font-black" style={{ color: pendingDevices.length > 0 ? '#d97706' : '#6b7280' }}>{snapshotStats.pendingDeviceCount}</div>
-            <div className="text-[10px] font-bold text-gray-500">{t('Pending', 'በመጠባበቅ')}</div>
+          <div className="flex-1 rounded-xl border px-3 py-2 text-center" style={{ borderColor: snapshotStats.submittedCount > 0 ? '#bae6fd' : '#e8e2d8', background: snapshotStats.submittedCount > 0 ? '#f0f9ff' : '#fcfbf8' }}>
+            <div className="text-lg font-black" style={{ color: snapshotStats.submittedCount > 0 ? '#0369a1' : '#6b7280' }}>{snapshotStats.submittedCount}</div>
+            <div className="text-[10px] font-bold text-gray-500">{t('Submitted', 'የላኩ')}</div>
           </div>
           <div className="flex-1 rounded-xl border px-3 py-2 text-center" style={{ borderColor: '#e8e2d8', background: '#fcfbf8' }}>
-            <div className="text-lg font-black" style={{ color: '#1B4332' }}>{snapshotStats.totalStaff}</div>
-            <div className="text-[10px] font-bold text-gray-500">{t('Total', 'ጠቅላላ')}</div>
+            <div className="text-lg font-black" style={{ color: '#1B4332' }}>{snapshotStats.finalizedCount}</div>
+            <div className="text-[10px] font-bold text-gray-500">{t('Finalized', 'የተጠናቀቀ')}</div>
+          </div>
+          <div className="flex-1 rounded-xl border px-3 py-2 text-center" style={{ borderColor: '#e8e2d8', background: '#fcfbf8' }}>
+            <div className="text-xs font-black" style={{ color: '#1B4332' }}>{fmt(snapshotStats.totalCollected)}</div>
+            <div className="text-[10px] font-bold text-gray-500">{t('Collected', 'የተሰበሰበ')}</div>
           </div>
         </div>
       )}
@@ -772,41 +790,90 @@ export default function StaffPage({
                           </div>
                           <div className="flex-1 rounded-lg border px-2 py-1.5 text-center bg-white" style={{ borderColor: '#e8e2d8' }}>
                             <div className="text-sm font-black" style={{ color: '#1B4332' }}>{fmt(sales.cashTotal)}</div>
-                            <div className="text-[9px] font-bold text-gray-500 uppercase tracking-wide">{t('Cash', 'ጥሬ')}</div>
+                            <div className="text-[9px] font-bold text-gray-500 uppercase tracking-wide">{t('Cash Sales', 'ጥሬ ሽያጭ')}</div>
                           </div>
-                          <div className="flex-1 rounded-lg border px-2 py-1.5 text-center bg-white" style={{ borderColor: '#e8e2d8' }}>
-                            <div className="text-sm font-black" style={{ color: '#1B4332' }}>{fmt(sales.transferTotal)}</div>
+                          <div className="flex-1 rounded-lg border px-2 py-1.5 text-center bg-white" style={{ borderColor: sales.transferTotal > 0 ? '#e8e2d8' : '#e8e2d8' }}>
+                            <div className="text-sm font-black" style={{ color: sales.transferTotal > 0 ? '#1B4332' : '#9ca3af' }}>{fmt(sales.transferTotal)}</div>
                             <div className="text-[9px] font-bold text-gray-500 uppercase tracking-wide">{t('Transfer', 'ዝውውር')}</div>
                           </div>
                         </div>
                       )}
 
-                      {/* Transaction list */}
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-2">
-                        {t("Today's transactions", 'የዛሬ ግብይቶች')}
+                      {/* Settlement status bar */}
+                      {lastS && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: '6px 10px', background: isSubmitted ? '#f0f9ff' : isFinalized ? '#f0fdf4' : '#f3f4f6', borderRadius: 6, fontSize: 11 }}>
+                          <span style={{ fontWeight: 700, color: isSubmitted ? '#0369a1' : isFinalized ? '#16a34a' : '#6b7280' }}>
+                            {isSubmitted ? t('Awaiting review', 'ክለሳ ይጠበቃል') : isFinalized ? t('Settled today', 'ዛሬ ተቀምጧል') : t('Last settled', 'የመጨረሻ ማስተካከያ')}
+                          </span>
+                          <span style={{ color: '#9ca3af' }}>
+                            {new Date(lastS.settled_at).toLocaleString(undefined, { month: 'short', day: 'numeric' })}
+                            {isFinalized ? ` · ${fmt(lastS.actual_total || 0)} ETB` : ''}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Transaction list header */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500">
+                          {t("Today's transactions", 'የዛሬ ግብይቶች')}
+                          {txns.length > 0 && <span className="font-normal text-gray-400 ml-1">({txns.length})</span>}
+                        </span>
+                        {!sales && isOwnerView && (
+                          <button onClick={() => setSettling(m)}
+                            className="text-[10px] font-bold px-2 py-1 rounded-lg"
+                            style={{ background: '#1B4332', color: '#fff', border: 'none', cursor: 'pointer' }}
+                          >{t('Settle', 'አስተካክል')}</button>
+                        )}
                       </div>
+
                       {txns.length === 0 ? (
-                        <div className="text-xs text-gray-400 py-2 text-center">{t('No sales recorded today', 'ዛሬ ምንም ሽያጥ የለም')}</div>
+                        <div className="text-xs text-gray-400 py-3 text-center">
+                          {t('No sales recorded today', 'ዛሬ ምንም ሽያጥ የለም')}
+                        </div>
                       ) : (
                         <div>
-                          {txns.slice(0, 10).map(txn => (
-                            <div key={txn.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-[11px] font-bold text-gray-800 truncate">{txn.item_name || t('Sale', 'ሽያጭ')}</span>
-                                {txn.quantity != null && txn.quantity > 1 && (
-                                  <span className="text-[10px] text-gray-500">×{txn.quantity}</span>
-                                )}
+                          {txns.map(txn => {
+                            const txnTime = new Date(txn.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+                            const isTransfer = txn.payment_type === 'transfer' || txn.payment_type === 'bank';
+                            const isCreditSale = txn.is_credit || String(txn.payment_type || '').toLowerCase() === 'credit';
+                            return (
+                              <div key={txn.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0" style={{ gap: 8 }}>
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <span className="text-[10px] font-mono text-gray-400 flex-shrink-0 w-12">{txnTime}</span>
+                                  <span className="text-[12px] font-bold text-gray-800 truncate">{txn.item_name || t('Sale', 'ሽያጭ')}</span>
+                                  {txn.quantity != null && txn.quantity > 1 && (
+                                    <span className="text-[10px] text-gray-500 flex-shrink-0">×{txn.quantity}</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  {isCreditSale && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#fef3c7', color: '#92400e' }}>
+                                      {t('Credit', 'ዱቤ')}
+                                    </span>
+                                  )}
+                                  {isTransfer && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#f3f4f6', color: '#6b7280' }}>
+                                      {t('Trans', 'ዝውውር')}
+                                    </span>
+                                  )}
+                                  {!isTransfer && !isCreditSale && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#f0fdf4', color: '#166534' }}>
+                                      {t('Cash', 'ጥሬ')}
+                                    </span>
+                                  )}
+                                  <span className="text-[12px] font-black flex-shrink-0 ml-1" style={{ color: '#1B4332' }}>
+                                    {fmt(txn.amount)}
+                                  </span>
+                                </div>
                               </div>
-                              <span className="text-[11px] font-bold flex-shrink-0 ml-2" style={{ color: '#1B4332' }}>
-                                {fmt(txn.amount)} {t('birr', 'ብር')}
-                              </span>
-                            </div>
-                          ))}
-                          {txns.length > 10 && (
-                            <div className="text-[10px] font-bold text-gray-400 text-center py-2">
-                              + {txns.length - 10} {t('more items', 'ተጨማሪ እቃዎች')}
-                            </div>
-                          )}
+                            );
+                          })}
+                          <div className="flex items-center justify-between pt-2 mt-1 border-t border-gray-200" style={{ borderColor: '#e8e2d8' }}>
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{t('Total', 'ጠቅላላ')}</span>
+                            <span className="text-sm font-black" style={{ color: '#1B4332' }}>
+                              {fmt(txns.reduce((sum, t) => sum + Number(t.amount || 0), 0))} {t('birr', 'ብር')}
+                            </span>
+                          </div>
                         </div>
                       )}
                     </div>

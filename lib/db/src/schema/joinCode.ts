@@ -14,15 +14,15 @@ const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 32 chars, no 0/1/O/I
 
 /**
  * Generate a fresh join code, formatted as XXXX-XXXX.
- * Uses Math.random — fine for codes that are not security
- * tokens. The code's entropy is 32^8 ≈ 1.1e12, which is
+ * Uses crypto.randomInt for cryptographic security.
+ * The code's entropy is 32^8 ≈ 1.1e12, which is
  * enough to make accidental guessing infeasible.
  */
 export function generateJoinCode(): string {
   let out = "";
   for (let i = 0; i < 8; i++) {
     if (i === 4) out += "-";
-    out += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+    out += ALPHABET[crypto.randomInt(0, ALPHABET.length)];
   }
   return out;
 }

@@ -75,7 +75,7 @@ export async function getLastSettlementPeriod(staffId) {
 }
 
 export function generateSettlementId() {
-  return 'settle_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  return 'settle_' + Date.now() + '_' + crypto.randomUUID().slice(2, 10);
 }
 
 export function loadSettlementFromLocalStorage(staffId) {

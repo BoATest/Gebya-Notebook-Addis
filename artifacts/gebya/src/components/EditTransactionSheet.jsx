@@ -94,7 +94,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
   const addBreakdownLine = () =>
     setEditableItems(prev => [
       ...prev,
-      { id: `new-${Date.now()}-${Math.random()}`, name: '', amount: '' },
+      { id: `new-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, name: '', amount: '' },
     ]);
 
   const handleCameraPhoto = async (dataUrl) => {
