@@ -87,16 +87,18 @@ async function fetchWithRetry(url, options, retries = 5, baseDelay = 1000) {
 class SyncEngine {
   constructor() {
     this.deviceId = null;
-    this.status = 'idle'; // idle | syncing | error | offline | unauthenticated
+    this.status = 'idle';
     this.error = null;
     this.lastSyncAt = 0;
-    this.tableLastSync = {}; // per-table last sync timestamps for resumable syncs
+    this.tableLastSync = {};
     this.businessId = null;
     this.listeners = [];
     this.unsubscribers = [];
     this.online = typeof navigator !== 'undefined' ? navigator.onLine : true;
     this.timer = null;
     this._pushDebounce = null;
+    this._pulling = false;
+    this.pendingCount = 0;
   }
 
   _notify() {
@@ -163,6 +165,7 @@ class SyncEngine {
       lastSyncAt: this.lastSyncAt,
       online: this.online,
       businessId: this.businessId,
+      pendingCount: this.pendingCount,
     };
   }
 
@@ -193,6 +196,7 @@ class SyncEngine {
     this._setupOnlineListeners();
     this._setupDexieHooks();
     this._setupPeriodicSync();
+    await this._countPending();
   }
 
   _setupPeriodicSync() {
@@ -282,8 +286,27 @@ class SyncEngine {
   }
 
   _schedulePush(table, operation, record) {
+    if (this._pulling) return;
+    this.pendingCount++;
     if (this._pushDebounce) clearTimeout(this._pushDebounce);
     this._pushDebounce = setTimeout(() => this.sync(), 800);
+  }
+
+  async _countPending() {
+    const tables = [
+      'transactions', 'customers', 'customer_transactions',
+      'catalog_entries', 'suppliers', 'supplier_transactions',
+      'staff_members', 'settlements',
+    ];
+    let count = 0;
+    for (const name of tables) {
+      count += await db[name].where('updated_at').above(this.lastSyncAt).count();
+    }
+    for (const name of ['settings', 'analytics']) {
+      const all = await db[name].toArray();
+      count += all.filter((r) => (r.updated_at || r.created_at || 0) > this.lastSyncAt).length;
+    }
+    this.pendingCount = count;
   }
 
   async sync() {
@@ -300,18 +323,19 @@ class SyncEngine {
     this._notify();
 
     try {
-      await this._pushAll(token);
-      await this._pullAll(token);
+      await Promise.all([
+        this._pushAll(token),
+        this._pullAll(token),
+      ]);
+      await this._countPending();
       this.lastSyncAt = Date.now();
       await db.settings.put({ key: LAST_SYNC_AT_KEY, value: this.lastSyncAt });
       await db.settings.put({ key: TABLE_LAST_SYNC_KEY, value: this.tableLastSync });
       this.status = 'idle';
     } catch (err) {
       if (err.message?.includes('401') || err.message?.includes('403')) {
-        // Token is invalid/expired — clear it and notify the UI
         this.status = 'unauthenticated';
         await clearAuthToken();
-        // Notify listeners that re-authentication is needed
         if (this._onAuthRequired) {
           try { this._onAuthRequired(); } catch { /* listener error */ }
         }
@@ -337,7 +361,6 @@ class SyncEngine {
     }
     if (!this.online || this.status === 'syncing') return;
 
-    // Save current state so we can restore if needed
     const previousLastSync = this.lastSyncAt;
     const previousTableLastSync = { ...this.tableLastSync };
 
@@ -348,13 +371,18 @@ class SyncEngine {
     this._notify();
 
     try {
-      await this._pushAll(token);
-      await this._pullAll(token);
+      await Promise.all([
+        this._pushAll(token),
+        this._pullAll(token),
+      ]);
+      await this._countPending();
       this.lastSyncAt = Date.now();
       await db.settings.put({ key: LAST_SYNC_AT_KEY, value: this.lastSyncAt });
       await db.settings.put({ key: TABLE_LAST_SYNC_KEY, value: this.tableLastSync });
       this.status = 'idle';
     } catch (err) {
+      this.lastSyncAt = previousLastSync;
+      this.tableLastSync = previousTableLastSync;
       if (err.message?.includes('401') || err.message?.includes('403')) {
         this.status = 'unauthenticated';
         await clearAuthToken();
@@ -518,138 +546,130 @@ class SyncEngine {
   }
 
   async _pullAll(token) {
-    const tables = [
-      'transactions',
-      'customers',
-      'customer_transactions',
-      'catalog_entries',
-      'suppliers',
-      'supplier_transactions',
-      'staff_members',
-      'settlements',
-    ];
-    const kvTables = ['settings', 'analytics'];
-    const allTables = [...tables, ...kvTables];
+    this._pulling = true;
+    try {
+      const tables = [
+        'transactions',
+        'customers',
+        'customer_transactions',
+        'catalog_entries',
+        'suppliers',
+        'supplier_transactions',
+        'staff_members',
+        'settlements',
+      ];
+      const kvTables = ['settings', 'analytics'];
+      const allTables = [...tables, ...kvTables];
 
-    let hasMore = true;
-    let cursor = this.lastSyncAt;
-    let pulledAny = false;
-    const pullConflicts = []; // accumulate conflicts during pull
+      let hasMore = true;
+      let cursor = this.lastSyncAt;
+      let pulledAny = false;
+      const pullConflicts = [];
 
-    // Paginated pull: keep pulling until no more pages
-    while (hasMore) {
-      const pullHeaders = { 'Authorization': `Bearer ${token}` };
-      if (this.businessId) pullHeaders['x-business-id'] = String(this.businessId);
+      while (hasMore) {
+        const pullHeaders = { 'Authorization': `Bearer ${token}` };
+        if (this.businessId) pullHeaders['x-business-id'] = String(this.businessId);
 
-      const res = await fetchWithRetry(
-        `${SYNC_API_BASE}/sync/pull?since=${cursor}&limit=200`,
-        { headers: pullHeaders },
-        3
-      );
-      if (!res.ok) throw new Error(`Pull failed: ${res.status}`);
-      const { tables: serverTables, hasMore: pageHasMore, nextCursor, business_id } = await res.json();
-      if (!serverTables) break;
+        const res = await fetchWithRetry(
+          `${SYNC_API_BASE}/sync/pull?since=${cursor}&limit=200`,
+          { headers: pullHeaders },
+          3
+        );
+        if (!res.ok) throw new Error(`Pull failed: ${res.status}`);
+        const { tables: serverTables, hasMore: pageHasMore, nextCursor, business_id } = await res.json();
+        if (!serverTables) break;
 
-      // Track business_id from server
-      if (business_id) {
-        this.businessId = business_id;
-        await db.settings.put({ key: BUSINESS_ID_KEY, value: business_id });
-      }
+        if (business_id) {
+          this.businessId = business_id;
+          await db.settings.put({ key: BUSINESS_ID_KEY, value: business_id });
+        }
 
-      await db.transaction(
-        'rw',
-        db.transactions,
-        db.customers,
-        db.customer_transactions,
-        db.catalog_entries,
-        db.suppliers,
-        db.supplier_transactions,
-        db.staff_members,
-        db.settlements,
-        db.settings,
-        db.analytics,
-        async () => {
-          for (const [name, rows] of Object.entries(serverTables)) {
-            const table = db[name];
-            if (!table || !rows?.length) continue;
+        await db.transaction(
+          'rw',
+          db.transactions,
+          db.customers,
+          db.customer_transactions,
+          db.catalog_entries,
+          db.suppliers,
+          db.supplier_transactions,
+          db.staff_members,
+          db.settlements,
+          db.settings,
+          db.analytics,
+          async () => {
+            for (const [name, rows] of Object.entries(serverTables)) {
+              const table = db[name];
+              if (!table || !rows?.length) continue;
 
-            const isKeyValueTable = name === 'settings' || name === 'analytics';
+              const isKeyValueTable = name === 'settings' || name === 'analytics';
 
-            for (const row of rows) {
-              const mapped = mapPullRow(row);
+              for (const row of rows) {
+                const mapped = mapPullRow(row);
 
-              if (isKeyValueTable) {
-                // KV tables: merge by key, keep newer updated_at
-                const local = await table.get(mapped.key);
-                if (local && (local.updated_at || 0) >= (mapped.updated_at || 0)) continue;
-                await table.put(mapped);
-                continue;
-              }
-
-              // Data tables: merge by transaction_id (UUID) for cross-device safety.
-              // Two devices can both generate localId=1, but never the same UUID.
-              let local = null;
-              if (mapped.transaction_id) {
-                local = await table.where('transaction_id').equals(mapped.transaction_id).first();
-              }
-              if (!local) {
-                // Fallback: match by integer id for legacy records without transaction_id
-                local = await table.get(mapped.id);
-              }
-
-              if (!local) {
-                // Brand new record from another device — assign a fresh local id
-                delete mapped.id;
-                await table.add(mapped);
-              } else if (local.transaction_id && mapped.transaction_id && local.transaction_id === mapped.transaction_id) {
-                // Same logical record (UUID match) — safe merge by timestamp
-                if ((local.updated_at || 0) >= (mapped.updated_at || 0)) continue;
-                // Collect conflict detail before overwriting
-                const changedFields = this._diffFields(local, mapped);
-                if (changedFields.length > 0) {
-                  pullConflicts.push({
-                    table: name,
-                    recordId: local.id,
-                    transactionId: mapped.transaction_id,
-                    changedFields,
-                    localVersion: local,
-                    serverVersion: mapped,
-                  });
+                if (isKeyValueTable) {
+                  const local = await table.get(mapped.key);
+                  if (local && (local.updated_at || 0) >= (mapped.updated_at || 0)) continue;
+                  await table.put(mapped);
+                  continue;
                 }
-                await table.put({ ...mapped, id: local.id });
-              } else {
-                // Different record sharing the same integer id (collision) — assign new local id
-                delete mapped.id;
-                await table.add(mapped);
-              }
-            }
 
-            // Track per-table last sync timestamp
-            if (rows.length > 0) {
-              const maxUpdatedAt = Math.max(...rows.map((r) => r.updatedAt || r.createdAt || 0));
-              this.tableLastSync[name] = Math.max(this.tableLastSync[name] || 0, maxUpdatedAt);
-              pulledAny = true;
+                let local = null;
+                if (mapped.transaction_id) {
+                  local = await table.where('transaction_id').equals(mapped.transaction_id).first();
+                }
+                if (!local) {
+                  local = await table.get(mapped.id);
+                }
+
+                if (!local) {
+                  delete mapped.id;
+                  await table.add(mapped);
+                } else if (local.transaction_id && mapped.transaction_id && local.transaction_id === mapped.transaction_id) {
+                  if ((local.updated_at || 0) >= (mapped.updated_at || 0)) continue;
+                  const changedFields = this._diffFields(local, mapped);
+                  if (changedFields.length > 0) {
+                    pullConflicts.push({
+                      table: name,
+                      recordId: local.id,
+                      transactionId: mapped.transaction_id,
+                      changedFields,
+                      localVersion: local,
+                      serverVersion: mapped,
+                    });
+                  }
+                  await table.put({ ...mapped, id: local.id });
+                } else {
+                  delete mapped.id;
+                  await table.add(mapped);
+                }
+              }
+
+              if (rows.length > 0) {
+                const maxUpdatedAt = Math.max(...rows.map((r) => r.updatedAt || r.createdAt || 0));
+                this.tableLastSync[name] = Math.max(this.tableLastSync[name] || 0, maxUpdatedAt);
+                pulledAny = true;
+              }
             }
           }
-        }
-      );
+        );
 
-      hasMore = !!pageHasMore;
-      if (hasMore && nextCursor) {
-        cursor = nextCursor;
-      } else {
-        hasMore = false;
+        hasMore = !!pageHasMore;
+        if (hasMore && nextCursor) {
+          cursor = nextCursor;
+        } else {
+          hasMore = false;
+        }
+
+        if (!pulledAny && !hasMore) break;
       }
 
-      // Safety: break if we've pulled too many pages
-      if (!pulledAny && !hasMore) break;
-    }
-
-    // Surface pull conflicts to the user
-    if (pullConflicts.length > 0) {
-      const count = pullConflicts.length;
-      const summary = `${count} record${count > 1 ? 's' : ''} updated elsewhere. Local edits were preserved where possible.`;
-      this._warnConflict(summary, pullConflicts);
+      if (pullConflicts.length > 0) {
+        const count = pullConflicts.length;
+        const summary = `${count} record${count > 1 ? 's' : ''} updated elsewhere. Local edits were preserved where possible.`;
+        this._warnConflict(summary, pullConflicts);
+      }
+    } finally {
+      this._pulling = false;
     }
   }
 

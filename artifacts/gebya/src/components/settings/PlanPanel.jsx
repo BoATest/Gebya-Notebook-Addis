@@ -1,14 +1,13 @@
-import { Sparkles } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 
-export default function PlanPanel({ tier, entitlements, staffCount, transactionCount, onUpgrade }) {
+export default function PlanPanel({ tier, entitlements, staffCount, transactionCount }) {
   const { lang } = useLang();
 
   if (tier === 'plus') {
     return (
       <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden px-5 py-3">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gold flex items-center justify-center font-black text-sm" style={{ background: '#fbbf24', color: '#1B4332' }}>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm" style={{ background: '#fbbf24', color: '#1B4332' }}>
             ★
           </div>
           <div className="flex-1">
@@ -59,13 +58,9 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
         </div>
       )}
 
-      <button
-        className="w-full py-2.5 rounded-xl text-sm font-bold text-white min-h-[44px]"
-        style={{ background: '#1B4332' }}
-        onClick={() => onUpgrade?.() || (lang === 'am' ? 'በቅርቡ ይመጣል' : 'Coming soon')}
-      >
-        {lang === 'am' ? 'አሁን ያሻሽሉ' : 'Upgrade'}
-      </button>
+      <div className="text-xs text-center text-gray-400 mt-3">
+        {lang === 'am' ? 'የደመወዝ እቅድ በቅርቡ' : 'Paid plans — coming soon'}
+      </div>
     </div>
   );
 }

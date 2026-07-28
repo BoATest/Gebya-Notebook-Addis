@@ -2,7 +2,7 @@ import { Download, RefreshCw, Signal, SignalHigh, Smartphone, WifiOff, X } from 
 import { useLang } from '../context/LangContext';
 
 function InstallGuideModal({ pwa }) {
-  const { t } = useLang();
+  const { lang, t } = useLang();
 
   if (!pwa.showManualGuide) return null;
 
@@ -80,7 +80,7 @@ function BannerCard({ children, tone = 'default' }) {
 }
 
 export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
-  const { t } = useLang();
+  const { lang, t } = useLang();
 
   if (!pwa) return null;
 

@@ -6,13 +6,14 @@ import { create } from 'zustand';
  */
 
 export const useSyncStore = create((set) => ({
-  status: 'idle',   // idle | syncing | error | offline | unauthenticated
+  status: 'idle',
   error: null,
   lastSyncAt: 0,
   online: true,
+  pendingCount: 0,
   conflictWarning: null,
   lastConflicts: [],
-  conflictDetails: [], // { table, recordId, transactionId, localVersion, serverVersion, changedFields[] }
+  conflictDetails: [],
 
   setSyncState: (state) => set(state),
   setConflictWarning: (warning) => set({ conflictWarning: warning }),

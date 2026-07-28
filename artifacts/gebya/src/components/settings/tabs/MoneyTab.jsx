@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import PlanPanel from '../PlanPanel';
 import PaymentChannelsSection from '../PaymentChannelsSection';
-// import BankDataSharing from '../../BankDataSharing'; // hidden until bank partnerships ready
 import DubieRulesPanel from '../DubieRulesPanel';
 import TabCard from '../TabCard';
 
@@ -16,7 +15,6 @@ export default function MoneyTab({
   staffCount,
   transactionCount,
   pendingCardId,
-  onUpgrade,
 }) {
   const [openCards, setOpenCards] = useState(() => {
     const init = new Set();
@@ -53,7 +51,7 @@ export default function MoneyTab({
           entitlements={entitlements}
           staffCount={staffCount}
           transactionCount={transactionCount}
-          onUpgrade={onUpgrade}
+
         />
       </div>
 
@@ -76,24 +74,6 @@ export default function MoneyTab({
           lang={lang}
         />
       </TabCard>
-
-      {/* Bank Data Sharing — hidden until bank partnerships are ready.
-          Restore: uncomment this TabCard and set VITE_BANK_SHARING=on in .env */}
-      {/* <TabCard
-        id="bank"
-        icon="🏦"
-        title={lang === 'am' ? 'የባንክ ውሂብ ማጋራት' : 'Bank Data Sharing'}
-        subtitle={lang === 'am' ? 'ንግድ መረጃዎን ከባንኮች ጋር ያጋሩ' : 'Share business data with banks for credit scoring'}
-        badgeTone="neutral"
-      >
-        {import.meta.env.VITE_BANK_SHARING === 'on' ? (
-          <BankDataSharing shopId={shopId} lang={lang} />
-        ) : (
-          <div className="px-5 pb-4 text-xs text-gray-400">
-            {lang === 'am' ? 'በቅርቡ ይመጣል' : 'Coming soon — requires bank partnerships'}
-          </div>
-        )}
-      </TabCard> */}
 
       <TabCard
         id="dubie"

@@ -1,8 +1,5 @@
 import db from '../../../db';
 import { formatEthiopian } from '../../../utils/ethiopianCalendar';
-import { fireToast } from '../../Toast';
-
-// ─── CSV helpers ────────────────────────────────────────────────────────────
 
 const csvCell = (value) => {
   const str = value == null ? '' : String(value);
@@ -19,78 +16,6 @@ const buildCsvSection = (title, headers, rows) =>
     .map((row) => row.join(','))
     .join('\n');
 
-// ─── JSON backup builder ─────────────────────────────────────────────────────
-
-export const buildBackupJSON = async () => {
-  const [
-    transactionsRows,
-    customerRows,
-    customerTxRows,
-    catalogRows,
-    supplierRows,
-    supplierTxRows,
-    staffRows,
-    settingsRows,
-    analyticsRows,
-    suggestionLogRows,
-    crossShopRows,
-    creditRecordsRows,
-    creditPaymentLogRows,
-    dailyClosingsRows,
-  ] = await Promise.all([
-    db.transactions.toArray(),
-    db.customers.toArray(),
-    db.customer_transactions.toArray(),
-    db.catalog_entries?.toArray?.() || [],
-    db.suppliers?.toArray?.() || [],
-    db.supplier_transactions?.toArray?.() || [],
-    db.staff_members?.toArray?.() || [],
-    db.settings?.toArray?.() || [],
-    db.analytics?.toArray?.() || [],
-    db.suggestion_log?.toArray?.() || [],
-    db.cross_shop_unmatched?.toArray?.() || [],
-    db.credit_records?.toArray?.() || [],
-    db.credit_payment_logs?.toArray?.() || [],
-    db.daily_closings?.toArray?.() || [],
-  ]);
-
-  return {
-    gebya_backup_version: 1,
-    exported_at: new Date().toISOString(),
-    app_version: '1.0',
-    counts: {
-      transactions: transactionsRows.length,
-      customers: customerRows.length,
-      customer_transactions: customerTxRows.length,
-      suppliers: supplierRows.length,
-      supplier_transactions: supplierTxRows.length,
-      catalog_entries: catalogRows.length,
-      staff_members: staffRows.length,
-      credit_records: creditRecordsRows.length,
-      credit_payment_logs: creditPaymentLogRows.length,
-      daily_closings: dailyClosingsRows.length,
-    },
-    tables: {
-      transactions: transactionsRows,
-      customers: customerRows,
-      customer_transactions: customerTxRows,
-      catalog_entries: catalogRows,
-      suppliers: supplierRows,
-      supplier_transactions: supplierTxRows,
-      staff_members: staffRows,
-      settings: settingsRows,
-      analytics: analyticsRows,
-      suggestion_log: suggestionLogRows,
-      cross_shop_unmatched: crossShopRows,
-      credit_records: creditRecordsRows,
-      credit_payment_logs: creditPaymentLogRows,
-      daily_closings: dailyClosingsRows,
-    },
-  };
-};
-
-// ─── Trigger a browser file download ────────────────────────────────────────
-
 const triggerDownload = (content, filename, mimeType) => {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -101,54 +26,6 @@ const triggerDownload = (content, filename, mimeType) => {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-};
-
-// ─── Exported actions ────────────────────────────────────────────────────────
-
-export const exportToJSON = async (lang, setLastBackupAt) => {
-  try {
-    const data = await buildBackupJSON();
-    triggerDownload(
-      JSON.stringify(data, null, 2),
-      `gebya-backup-${new Date().toISOString().split('T')[0]}.json`,
-      'application/json;charset=utf-8;'
-    );
-    try { await db.settings.put({ key: 'gebya_last_backup_at', value: Date.now() }); } catch { /* ignore */ }
-    setLastBackupAt(Date.now());
-    fireToast(lang === 'am' ? '✓ ምትኬ ወረደ' : '✓ Backup downloaded', 1800);
-  } catch (err) {
-    if (import.meta.env.DEV) console.error('JSON backup failed:', err);
-    fireToast(lang === 'am' ? 'ምትኬ አልተሳካም' : 'Backup failed', 2400);
-  }
-};
-
-export const shareBackup = async (lang, setLastBackupAt) => {
-  try {
-    const data = await buildBackupJSON();
-    const json = JSON.stringify(data, null, 2);
-    const filename = `gebya-backup-${new Date().toISOString().split('T')[0]}.json`;
-    if (navigator.canShare && typeof File === 'function') {
-      try {
-        const file = new File([json], filename, { type: 'application/json' });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: 'Gebya backup',
-            text: `Gebya backup · ${new Date().toLocaleDateString()}`,
-          });
-          try { await db.settings.put({ key: 'gebya_last_backup_at', value: Date.now() }); } catch { /* ignore */ }
-          setLastBackupAt(Date.now());
-          return;
-        }
-      } catch (shareErr) {
-        if (import.meta.env.DEV) console.warn('File share failed, falling back:', shareErr);
-      }
-    }
-    await exportToJSON(lang, setLastBackupAt);
-  } catch (err) {
-    if (import.meta.env.DEV) console.error('Share backup failed:', err);
-    fireToast(lang === 'am' ? 'ማጋራት አልተሳካም' : 'Share failed', 2400);
-  }
 };
 
 export const exportToCSV = async (transactions, lang) => {

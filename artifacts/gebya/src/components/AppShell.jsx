@@ -2083,12 +2083,10 @@ export default function AppShell() {
               onRecurringChange={setRecurringExpenses}
               onSaveCatalogEntry={handleSaveCatalogEntry}
               onToggleCatalogEntryActive={handleToggleCatalogEntryActive}
-              pwa={pwa}
               planTier={planTier}
               entitlements={entitlements}
               staffCount={(staffMembers || []).filter(m => m.active !== false).length}
               transactionCount={transactions.length}
-              onUpgrade={null}
             />
           </Suspense>
         )}

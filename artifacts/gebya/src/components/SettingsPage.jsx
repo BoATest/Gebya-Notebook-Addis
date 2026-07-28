@@ -1,8 +1,5 @@
-import { Suspense, useState, lazy, useMemo } from 'react';
-import { Search, X } from 'lucide-react';
-import { usePrivacy } from '../context/PrivacyContext';
+import { Suspense, useState, lazy } from 'react';
 import { useLang } from '../context/LangContext';
-import { useTheme } from '../context/ThemeContext';
 import { usePermissionsStore } from '../stores/permissionsStore';
 import { fireToast } from './Toast';
 
@@ -12,7 +9,6 @@ import DataTab from './settings/tabs/DataTab';
 import AdminMetricsView from './AdminMetricsView';
 import CrossShopCurationQueue from './CrossShopCurationQueue';
 
-const PwaInstallPanel = lazy(() => import('./PwaInstallPanel.jsx'));
 const AdminDashboard = lazy(() => import('./AdminDashboard.jsx'));
 
 const TABS = [
@@ -43,23 +39,24 @@ function SettingsPage({
   onRecurringChange,
   onSaveCatalogEntry,
   onToggleCatalogEntryActive,
-  pwa,
   planTier,
   entitlements,
   staffCount,
   transactionCount,
   shopId,
-  onUpgrade,
 }) {
-  const { theme, setTheme } = useTheme();
-  const { hidden, toggle } = usePrivacy();
   const { lang, toggleLang, t } = useLang();
   const hasPermission = usePermissionsStore(s => s.hasPermission);
+  const role = usePermissionsStore(s => s.role);
   const canManageTeam = hasPermission('can_manage_team');
+  const roleBadge = (() => {
+    if (!role) return null;
+    if (role === 'owner') return lang === 'am' ? 'ባለቤት' : 'Owner';
+    if (role === 'manager') return lang === 'am' ? 'ሥራ አስኪያጅ' : 'Manager';
+    return lang === 'am' ? 'ሰራተኛ' : 'Staff';
+  })();
   const [activeTab, setActiveTab] = useState('shop');
-  const [dismissInstall, setDismissInstall] = useState(false);
   const [pendingCardId, setPendingCardId] = useState(null);
-  const [settingsSearchQuery, setSettingsSearchQuery] = useState('');
 
   const [adminSection, setAdminSection] = useState(null); // null | 'metrics' | 'curation'
   const [aboutTapCount, setAboutTapCount] = useState(0);
@@ -94,10 +91,8 @@ function SettingsPage({
     return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '?';
   })();
 
-  const showInstallStrip = pwa && !pwa.isStandalone && !dismissInstall;
-
   return (
-    <div className="space-y-2 pb-4" style={{ paddingBottom: showInstallStrip ? 120 : 80 }}>
+    <div className="space-y-2 pb-4">
       {/* Topbar */}
       <div className="flex items-center justify-between px-4 pt-3 pb-1" style={{ background: 'var(--cream)' }}>
         <div className="flex items-center gap-2.5">
@@ -110,9 +105,11 @@ function SettingsPage({
           <div>
             <div className="text-sm font-black text-gray-900 flex items-center gap-1.5">
               {name || (lang === 'am' ? 'ሱቅ' : 'Shop')}
-              <span className="text-[0.55rem] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: '#fde68a', color: '#1B4332' }}>
-                {lang === 'am' ? 'ባለቤት' : 'Owner'}
-              </span>
+              {roleBadge && (
+                <span className="text-[0.55rem] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: '#fde68a', color: '#1B4332' }}>
+                  {roleBadge}
+                </span>
+              )}
             </div>
             <div className="text-[0.68rem]" style={{ color: '#6b7280' }}>
               {shopProfile?.phone || (lang === 'am' ? 'ስልክ አልተጨመረም' : 'No phone added')}
@@ -134,41 +131,6 @@ function SettingsPage({
           >
             አማ
           </button>
-        </div>
-      </div>
-
-      {/* ── Search Bar ── */}
-      <div className="px-4 pb-1" style={{ background: 'var(--cream)' }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          border: '1px solid #e5e7eb', borderRadius: 10,
-          padding: '6px 10px', minHeight: 38,
-          background: '#fff',
-        }}>
-          <Search className="w-4 h-4" style={{ color: '#9ca3af', flexShrink: 0 }} />
-          <input
-            type="text"
-            value={settingsSearchQuery}
-            onChange={e => setSettingsSearchQuery(e.target.value)}
-            placeholder={lang === 'am' ? 'በቅንብሮች ውስጥ ፈልግ...' : 'Search settings...'}
-            style={{
-              flex: 1, border: 'none', outline: 'none', fontSize: '0.8rem',
-              fontWeight: 600, color: '#374151',
-              background: 'transparent', minHeight: 28,
-            }}
-          />
-          {settingsSearchQuery && (
-            <button
-              type="button"
-              onClick={() => setSettingsSearchQuery('')}
-              style={{
-                border: 'none', background: 'none', cursor: 'pointer',
-                padding: 4, display: 'flex',
-              }}
-            >
-              <X className="w-4 h-4" style={{ color: '#9ca3af' }} />
-            </button>
-          )}
         </div>
       </div>
 
@@ -226,12 +188,6 @@ function SettingsPage({
             <DataTab
               transactions={transactions}
               customerSummaries={customerSummaries}
-              supplierSummaries={supplierSummaries}
-              pwa={pwa}
-              theme={theme}
-              setTheme={setTheme}
-              hidden={hidden}
-              toggle={toggle}
               lang={lang}
             />
           )}
@@ -321,46 +277,6 @@ function SettingsPage({
           )}
         </div>
       </div>
-
-      {/* Install strip — floats above bottom nav */}
-      {showInstallStrip && (
-        <div
-          className="fixed flex items-center gap-3 px-4 py-3 z-50"
-          style={{
-            left: '50%',
-            transform: 'translateX(-50%)',
-            bottom: 56,
-            width: '100%',
-            maxWidth: 390,
-            background: 'rgba(250,249,244,0.95)',
-            backdropFilter: 'blur(10px)',
-            borderTop: '1px solid rgba(27,67,50,0.08)',
-          }}
-        >
-          <div className="flex-1">
-            <div className="text-xs font-bold text-gray-900">
-              {lang === 'am' ? 'ጌብያ ይጫኑ' : 'Install Gebya'}
-            </div>
-            <div className="text-[11px]" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'ያለ ኢንተርኔት ይስሩ' : 'Works offline'}
-            </div>
-          </div>
-          <button
-            onClick={() => pwa?.install?.()}
-            className="px-4 py-2 rounded-lg text-xs font-bold text-white min-h-[36px]"
-            style={{ background: '#1B4332' }}
-          >
-            {lang === 'am' ? 'ጫን' : 'Install'}
-          </button>
-          <button
-            onClick={() => setDismissInstall(true)}
-            className="p-1.5 rounded-full flex items-center justify-center"
-            style={{ color: '#9ca3af' }}
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
     </div>
   );
 }

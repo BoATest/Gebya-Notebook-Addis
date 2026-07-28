@@ -1,3 +1,5 @@
+import { useSyncStore } from '../stores/syncStore';
+
 export default function OfflineStatusStrip({
   pwa,
   pendingTelegramCount = 0,
@@ -7,12 +9,24 @@ export default function OfflineStatusStrip({
   conflictWarning = null,
   conflictDetails = [],
 }) {
+  const syncStatus = useSyncStore(s => s.status);
+  const pendingCount = useSyncStore(s => s.pendingCount);
   let tone = null;
   let label = '';
   let detail = '';
   let action = null;
 
-  if (!pwa?.isOnline) {
+  if (syncStatus === 'syncing') {
+    tone = 'waiting';
+    label = lang === 'am' ? 'በማመሳሰል ላይ…' : 'Syncing…';
+  } else if (pendingCount > 0 && pwa?.isOnline) {
+    tone = 'waiting';
+    label = lang === 'am' ? 'ወደ ደመና እየጠበቀ' : 'Pending sync';
+    detail = `${pendingCount} ${lang === 'am' ? 'ሪከርድ' : 'record'}${pendingCount !== 1 ? 's' : ''}`;
+  } else if (syncStatus === 'error') {
+    tone = 'offline';
+    label = lang === 'am' ? 'ማመሳሰል አልተሳካም' : 'Sync failed';
+  } else if (!pwa?.isOnline) {
     tone = 'offline';
     label = lang === 'am' ? 'ኔትወርክ የለም' : 'Offline';
     detail = lang === 'am' ? 'በዚህ ስልክ ይቀመጣል' : 'saves on this phone';
