@@ -244,11 +244,11 @@ router.post("/push-all", async (req, res) => {
   const { title, body } = req.body;
   if (!title || typeof title !== "string" || !body || typeof body !== "string") return res.status(400).json({ error: "title and body are required" });
   const { sendPushToOwner } = await import("../services/pushNotificationSender.js");
-  const subs = await db.select({ businessId: pushSubscriptions.businessId }).from(pushSubscriptions);
-  const uniqueBusinessIds = [...new Set(subs.map(s => s.businessId))];
+  const allSubs = await db.select().from(pushSubscriptions);
+  const uniqueBusinessIds = [...new Set(allSubs.map(s => s.businessId))];
   let totalSent = 0; let totalFailed = 0;
   for (const businessId of uniqueBusinessIds) {
-    try { const result = await sendPushToOwner(businessId, { title, body, type: "announcement", id: 0 }); totalSent += result.sent; totalFailed += result.failed; } catch { totalFailed++; }
+    try { const result = await sendPushToOwner(businessId, { title, body, type: "announcement", id: 0 }, allSubs); totalSent += result.sent; totalFailed += result.failed; } catch { totalFailed++; }
   }
   return res.json({ ok: true, sent: totalSent, failed: totalFailed, businesses: uniqueBusinessIds.length });
 });

@@ -43,7 +43,7 @@ async function loadWeights() {
  */
 async function computeDataIntegrity(shopId) {
   const weights = (await loadWeights()).data_integrity;
-  const transactions = await db.transactions.toArray();
+  const transactions = await db.transactions.toArray().then(r => r.filter(t => !t.deletedAt));
 
   if (transactions.length === 0) {
     return { score: 0, factors: {}, weight_version: SCORE_VERSION };
@@ -91,7 +91,7 @@ async function computeDataIntegrity(shopId) {
 async function computeBusinessHealth(shopId) {
   const weights = (await loadWeights()).business_health;
   const customerTransactions = await db.customer_transactions.toArray();
-  const customers = await db.customers.toArray();
+  const customers = await db.customers.toArray().then(r => r.filter(c => !c.deletedAt));
 
   if (customerTransactions.length === 0) {
     return { score: 0, factors: {}, weight_version: SCORE_VERSION };
@@ -128,7 +128,7 @@ async function computeBusinessHealth(shopId) {
   const creditHealth = totalCredit > 0 ? Math.min(1, totalPaid / totalCredit) : 1;
 
   // Revenue stability: coefficient of variation of daily revenue (lower = more stable)
-  const salesTxs = await db.transactions.where('type').equals('sale').toArray();
+  const salesTxs = await db.transactions.where('type').equals('sale').toArray().then(r => r.filter(t => !t.deletedAt));
   let revenueStability = 1;
   if (salesTxs.length > 7) {
     const dailyRevenue = {};
@@ -207,7 +207,7 @@ export async function getTrustScores(shopId) {
  * This is the "internal-only" flag for the shop owner's credit view.
  */
 export async function getOverdueCustomerFlags() {
-  const customers = await db.customers.toArray();
+  const customers = await db.customers.toArray().then(r => r.filter(c => !c.deletedAt));
   const customerTransactions = await db.customer_transactions.toArray();
   const now = Date.now();
   const SIXTY_DAYS = 60 * 24 * 60 * 60 * 1000;

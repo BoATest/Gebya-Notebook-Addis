@@ -10,9 +10,9 @@ export const transactions = pgTable("transactions", {
 
   type: varchar("type", { length: 32 }).notNull(),
   amount: real("amount").notNull().default(0),
-  itemName: text("item_name"),
+  itemName: text("item_name").notNull(),
   costPrice: real("cost_price"),
-  quantity: integer("quantity").default(1),
+  quantity: integer("quantity").notNull().default(1),
   profit: real("profit"),
   isCredit: boolean("is_credit").default(false),
   customerId: integer("customer_id"),
@@ -39,7 +39,7 @@ export const transactions = pgTable("transactions", {
 
   deletedAt: bigint("deleted_at", { mode: "number" }),
 
-  businessId: integer("business_id").references(() => businesses.id, { onDelete: "restrict" }),
+  businessId: integer("business_id").notNull().references(() => businesses.id, { onDelete: "restrict" }),
   schemaVersion: integer("schema_version").default(1),
   syncVersion: integer("sync_version").default(1),
   syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow(),

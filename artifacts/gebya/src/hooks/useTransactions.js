@@ -48,7 +48,7 @@ export function useTransactions() {
     let cancelled = false;
     (async () => {
       try {
-        const rows = await db.transactions.toArray();
+        const rows = await db.transactions.toArray().then(r => r.filter(t => !t.deletedAt));
         rows.sort((a, b) => b.created_at - a.created_at);
         if (!cancelled) setTransactions(rows);
       } catch (err) {

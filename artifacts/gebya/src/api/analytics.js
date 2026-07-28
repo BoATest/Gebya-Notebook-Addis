@@ -55,9 +55,9 @@ async function request(path, options = {}) {
 export async function buildBankReportPayload(shopProfile = {}) {
   const [impactMetrics, transactions, customerTransactions, customers] = await Promise.all([
     computeImpactMetrics(),
-    db.transactions.toArray(),
+    db.transactions.toArray().then(r => r.filter(t => !t.deletedAt)),
     db.customer_transactions.toArray(),
-    db.customers.toArray(),
+    db.customers.toArray().then(r => r.filter(c => !c.deletedAt)),
   ]);
 
   // Per-customer credit summary

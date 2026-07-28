@@ -27,7 +27,7 @@ export function useSuppliers(t = FALLBACK_T) {
     (async () => {
       try {
         const [supplierRows, supplierTxRows] = await Promise.all([
-          db.suppliers?.toArray?.() || [],
+          db.suppliers?.toArray?.().then(r => r.filter(s => !s.deletedAt)) || [],
           db.supplier_transactions?.toArray?.() || [],
         ]);
         if (!cancelled) {

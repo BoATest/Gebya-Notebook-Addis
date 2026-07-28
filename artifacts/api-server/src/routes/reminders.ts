@@ -30,7 +30,7 @@ import { buildReminderMessage } from "../services/reminderMessageBuilder.js";
 import { sendTelegramTextMessage } from "../services/telegramBotService.js";
 import { createHistoryEntry } from "../services/reminderHistory.js";
 import { sendPushToOwner } from "../services/pushNotificationSender.js";
-import { verifyShopOwnership } from "./rbac.js";
+import { verifyShopOwnership, requirePermission } from "./rbac.js";
 import { db, requireDb } from "@workspace/db";
 import { customers as customersTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
@@ -109,7 +109,6 @@ function log(level: "info" | "warn" | "error", message: string, context?: Record
  */
 router.post("/run", async (req: Request, res: Response) => {
   try {
-    if (!db) throw new Error("Database not configured");
     const isVercelCron = req.headers?.["x-vercel-cron"] === "1";
     const cronSecret = req.headers?.["x-reminder-cron-secret"];
     if (isVercelCron) {
@@ -121,6 +120,8 @@ router.post("/run", async (req: Request, res: Response) => {
     } else if (!cronSecret || cronSecret !== process.env.REMINDER_CRON_SECRET) {
       return res.status(401).json({ error: "unauthorized" });
     }
+
+    if (!db) throw new Error("Database not configured");
 
     const parsed = runSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -257,7 +258,7 @@ router.post("/run", async (req: Request, res: Response) => {
  * GET /config — Get shop default reminder frequency.
  * Query: ?shopId=123
  */
-router.get("/config", verifyShopOwnership, async (req: Request, res: Response) => {
+router.get("/config", verifyShopOwnership, requirePermission("can_view_reports"), async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const frequency = await getShopDefault(shopId);
@@ -275,7 +276,7 @@ router.get("/config", verifyShopOwnership, async (req: Request, res: Response) =
  * POST /config — Set shop default reminder frequency.
  * Body: { shopId, frequency }
  */
-router.post("/config", verifyShopOwnership, async (req: Request, res: Response) => {
+router.post("/config", verifyShopOwnership, requirePermission("can_edit_settings"), async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const parsed = frequencySchema.safeParse(req.body);
@@ -302,7 +303,7 @@ router.post("/config", verifyShopOwnership, async (req: Request, res: Response) 
 /**
  * GET /config/:customerId — Get customer-specific frequency override.
  */
-router.get("/config/:customerId", verifyShopOwnership, async (req: Request, res: Response) => {
+router.get("/config/:customerId", verifyShopOwnership, requirePermission("can_view_reports"), async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const customerId = parseInt(String(req.params.customerId), 10);
@@ -330,7 +331,7 @@ router.get("/config/:customerId", verifyShopOwnership, async (req: Request, res:
  * POST /config/:customerId — Set customer-specific override.
  * Body: { frequency, shopId }
  */
-router.post("/config/:customerId", verifyShopOwnership, async (req: Request, res: Response) => {
+router.post("/config/:customerId", verifyShopOwnership, requirePermission("can_edit_settings"), async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const customerId = parseInt(String(req.params.customerId), 10);
@@ -363,7 +364,7 @@ router.post("/config/:customerId", verifyShopOwnership, async (req: Request, res
 /**
  * DELETE /config/:customerId — Clear customer override (revert to shop default).
  */
-router.delete("/config/:customerId", verifyShopOwnership, async (req: Request, res: Response) => {
+router.delete("/config/:customerId", verifyShopOwnership, requirePermission("can_edit_settings"), async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const customerId = parseInt(String(req.params.customerId), 10);
@@ -389,7 +390,7 @@ router.delete("/config/:customerId", verifyShopOwnership, async (req: Request, r
  * GET /history — Query reminder history.
  * Query: ?shopId=123&limit=50&offset=0&customerId=456
  */
-router.get("/history", verifyShopOwnership, async (req: Request, res: Response) => {
+router.get("/history", verifyShopOwnership, requirePermission("can_view_reports"), async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const limit = parseInt(String(req.query?.limit ?? "50"), 10);
@@ -416,7 +417,7 @@ router.get("/history", verifyShopOwnership, async (req: Request, res: Response) 
  * POST /test/:customerId — Send a manual test reminder to a customer.
  * Body: { shopId, balance, dueDate?, language? }
  */
-router.post("/test/:customerId", verifyShopOwnership, async (req: Request, res: Response) => {
+router.post("/test/:customerId", verifyShopOwnership, requirePermission("can_add_records"), async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const customerId = parseInt(String(req.params.customerId), 10);
@@ -486,7 +487,7 @@ router.post("/test/:customerId", verifyShopOwnership, async (req: Request, res: 
  * Body: { shopId }
  * Sets shop default to 'disabled' (can be re-enabled via POST /config).
  */
-router.post("/pause", verifyShopOwnership, async (req: Request, res: Response) => {
+router.post("/pause", verifyShopOwnership, requirePermission("can_edit_settings"), async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     await setShopDefault(shopId, "disabled");
@@ -508,7 +509,7 @@ router.post("/pause", verifyShopOwnership, async (req: Request, res: Response) =
  * Body: { shopId }
  * Sets shop default back to 'daily'.
  */
-router.post("/resume", verifyShopOwnership, async (req: Request, res: Response) => {
+router.post("/resume", verifyShopOwnership, requirePermission("can_edit_settings"), async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     await setShopDefault(shopId, "daily");
@@ -530,7 +531,7 @@ router.post("/resume", verifyShopOwnership, async (req: Request, res: Response) 
  * The shop owner triggers this from the dashboard for an instant nudge.
  * Body: { chatId, customerName, balance, dueDate?, language? }
  */
-router.post("/remind/:customerId", verifyShopOwnership, async (req: Request, res: Response) => {
+router.post("/remind/:customerId", verifyShopOwnership, requirePermission("can_add_records"), async (req: Request, res: Response) => {
   try {
     const shopId = getShopId(req);
     const customerId = parseInt(String(req.params.customerId), 10);
@@ -604,7 +605,7 @@ router.post("/remind/:customerId", verifyShopOwnership, async (req: Request, res
  * Shop owner can see who needs urgent attention.
  * Query: ?shopId=123
  */
-router.get("/critical-overdue", verifyShopOwnership, async (req: Request, res: Response) => {
+router.get("/critical-overdue", verifyShopOwnership, requirePermission("can_view_reports"), async (req: Request, res: Response) => {
   try {
     if (!db) throw new Error("Database not configured");
     const shopId = getShopId(req);
@@ -676,7 +677,7 @@ const paymentConfirmedSchema = z.object({
   language: z.enum(["am", "en"]).optional(),
 });
 
-router.post("/payment-confirmed", async (req: Request, res: Response) => {
+router.post("/payment-confirmed", verifyShopOwnership, requirePermission("can_add_records"), async (req: Request, res: Response) => {
   try {
     const parsed = paymentConfirmedSchema.safeParse(req.body);
     if (!parsed.success) {

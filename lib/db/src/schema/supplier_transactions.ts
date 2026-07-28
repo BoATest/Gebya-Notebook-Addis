@@ -12,15 +12,15 @@ export const supplierTransactions = pgTable("supplier_transactions", {
   amount: real("amount").notNull().default(0),
   type: varchar("type", { length: 32 }).notNull().default("payment"),
   note: text("note"),
-  itemName: text("item_name"),
+  itemName: text("item_name").notNull(),
   itemKind: varchar("item_kind", { length: 32 }),
-  quantity: integer("quantity").default(1),
+  quantity: integer("quantity").notNull().default(1),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }),
 
   deletedAt: bigint("deleted_at", { mode: "number" }),
 
-  businessId: integer("business_id").references(() => businesses.id, { onDelete: "restrict" }),
+  businessId: integer("business_id").notNull().references(() => businesses.id, { onDelete: "restrict" }),
   schemaVersion: integer("schema_version").default(1),
   syncVersion: integer("sync_version").default(1),
   syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow(),

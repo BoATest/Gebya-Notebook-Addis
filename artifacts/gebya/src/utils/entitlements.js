@@ -73,8 +73,8 @@ export async function getCurrentEntitlements() {
  * This is a read-only view — no mutations.
  */
 export async function computeImpactMetrics() {
-  const transactions = await db.transactions.toArray();
-  const customers = await db.customers.toArray();
+  const transactions = await db.transactions.toArray().then(r => r.filter(t => !t.deletedAt));
+  const customers = await db.customers.toArray().then(r => r.filter(c => !c.deletedAt));
   const customerTransactions = await db.customer_transactions.toArray();
   const staffMembers = await db.staff_members.toArray();
 

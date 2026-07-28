@@ -169,7 +169,8 @@ interface MutationRecord { action: "CREATE" | "UPDATE" | "DELETE"; entityType: s
 async function pushTable(
   key: string, table: any, conflictTarget: any[], deviceId: string, rows: any[],
   mapper: (row: any) => any, localIdCol: any, deviceIdCol: any,
-  syncVersionCol: any, updatedAtCol: any, businessId: number, actorStaffMemberId: number | null
+  syncVersionCol: any, updatedAtCol: any, businessId: number, actorStaffMemberId: number | null,
+  tx?: any
 ): Promise<{ count: number; conflicts: ConflictRecord[]; mutations: MutationRecord[] }> {
   const capped = (rows || []).slice(0, MAX_ROWS_PER_TABLE_PUSH);
   let count = 0;
@@ -177,23 +178,26 @@ async function pushTable(
   const mutations: MutationRecord[] = [];
   const CHUNK_SIZE = 100;
 
+  const exec = tx || db;
+
   for (let i = 0; i < capped.length; i += CHUNK_SIZE) {
     const chunk = capped.slice(i, i + CHUNK_SIZE);
 
-    const chunkResult = await db.transaction(async (tx) => {
+    const chunkResult = await db.transaction(async (innerTx) => {
       const chunkConflicts: ConflictRecord[] = [];
       const chunkMutations: MutationRecord[] = [];
       let chunkCount = 0;
+      const d = tx || innerTx;
 
       for (const row of chunk) {
         const data = mapper({ ...row, device_id: deviceId });
         data.businessId = data.businessId ?? businessId;
         const incomingVersion = data.syncVersion || 1;
         const incomingUpdatedAt = data.updatedAt || 0;
-        const existing = await tx.select().from(table).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId))).limit(1);
+        const existing = await d.select().from(table).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId))).limit(1);
 
         if (existing.length === 0) {
-          await tx.insert(table).values({ ...data, syncVersion: 1 });
+          await d.insert(table).values({ ...data, syncVersion: 1 });
           chunkCount++;
           chunkMutations.push({ action: "CREATE", entityType: key, entityId: String(data.localId) });
         } else {
@@ -208,12 +212,12 @@ async function pushTable(
           const reconcileNote = isSettlementReconcile && data.reconciliationNote ? data.reconciliationNote : null;
 
           if (incomingVersion > storedVersion) {
-            await tx.update(table).set({ ...data, syncVersion: incomingVersion + 1 }).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId)));
+            await d.update(table).set({ ...data, syncVersion: incomingVersion + 1 }).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId)));
             chunkCount++;
             const detail = reconcileNote ? `settlement reconciled: ${reconcileNote}` : undefined;
             chunkMutations.push({ action: isSoftDelete ? "DELETE" : "UPDATE", entityType: key, entityId: String(data.localId), details: detail });
           } else if (incomingVersion === storedVersion && incomingUpdatedAt > storedUpdatedAt) {
-            await tx.update(table).set({ ...data, syncVersion: storedVersion + 1 }).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId)));
+            await d.update(table).set({ ...data, syncVersion: storedVersion + 1 }).where(and(eq(deviceIdCol, deviceId), eq(localIdCol, data.localId)));
             chunkCount++;
             const detail = reconcileNote ? `settlement reconciled: ${reconcileNote}` : undefined;
             chunkMutations.push({ action: isSoftDelete ? "DELETE" : "UPDATE", entityType: key, entityId: String(data.localId), details: detail });
@@ -265,192 +269,170 @@ router.post("/push",
   const results: Record<string, { count: number; conflicts: number }> = {};
   const allConflicts: ConflictRecord[] = [];
 
-  const pushResults = await Promise.all([
-    pushTable("transactions", transactions, [transactions.deviceId, transactions.localId], device_id, tables?.transactions, mapTx, transactions.localId, transactions.deviceId, transactions.syncVersion, transactions.updatedAt, businessId, deviceResult.staffId),
-    pushTable("customers", customers, [customers.deviceId, customers.localId], device_id, tables?.customers, mapCustomer, customers.localId, customers.deviceId, customers.syncVersion, customers.updatedAt, businessId, deviceResult.staffId),
-    pushTable("customer_transactions", customerTransactions, [customerTransactions.deviceId, customerTransactions.localId], device_id, tables?.customer_transactions, mapCustomerTx, customerTransactions.localId, customerTransactions.deviceId, customerTransactions.syncVersion, customerTransactions.updatedAt, businessId, deviceResult.staffId),
-    pushTable("catalog_entries", catalogEntries, [catalogEntries.deviceId, catalogEntries.localId], device_id, tables?.catalog_entries, mapCatalog, catalogEntries.localId, catalogEntries.deviceId, catalogEntries.syncVersion, catalogEntries.updatedAt, businessId, deviceResult.staffId),
-    pushTable("suppliers", suppliers, [suppliers.deviceId, suppliers.localId], device_id, tables?.suppliers, mapSupplier, suppliers.localId, suppliers.deviceId, suppliers.syncVersion, suppliers.updatedAt, businessId, deviceResult.staffId),
-    pushTable("supplier_transactions", supplierTransactions, [supplierTransactions.deviceId, supplierTransactions.localId], device_id, tables?.supplier_transactions, mapSupplierTx, supplierTransactions.localId, supplierTransactions.deviceId, supplierTransactions.syncVersion, supplierTransactions.updatedAt, businessId, deviceResult.staffId),
-    pushTable("staff_members", staffMembers, [staffMembers.deviceId, staffMembers.localId], device_id, tables?.staff_members, mapStaff, staffMembers.localId, staffMembers.deviceId, staffMembers.syncVersion, staffMembers.updatedAt, businessId, deviceResult.staffId),
-    pushTable("settlements", settlements, [settlements.deviceId, settlements.localId], device_id, tables?.settlements, mapSettlement, settlements.localId, settlements.deviceId, settlements.syncVersion, settlements.updatedAt, businessId, deviceResult.staffId),
-  ]);
+  await db.transaction(async (tx) => {
+    const pushResults = await Promise.all([
+      pushTable("transactions", transactions, [transactions.deviceId, transactions.localId], device_id, tables?.transactions, mapTx, transactions.localId, transactions.deviceId, transactions.syncVersion, transactions.updatedAt, businessId, deviceResult.staffId, tx),
+      pushTable("customers", customers, [customers.deviceId, customers.localId], device_id, tables?.customers, mapCustomer, customers.localId, customers.deviceId, customers.syncVersion, customers.updatedAt, businessId, deviceResult.staffId, tx),
+      pushTable("customer_transactions", customerTransactions, [customerTransactions.deviceId, customerTransactions.localId], device_id, tables?.customer_transactions, mapCustomerTx, customerTransactions.localId, customerTransactions.deviceId, customerTransactions.syncVersion, customerTransactions.updatedAt, businessId, deviceResult.staffId, tx),
+      pushTable("catalog_entries", catalogEntries, [catalogEntries.deviceId, catalogEntries.localId], device_id, tables?.catalog_entries, mapCatalog, catalogEntries.localId, catalogEntries.deviceId, catalogEntries.syncVersion, catalogEntries.updatedAt, businessId, deviceResult.staffId, tx),
+      pushTable("suppliers", suppliers, [suppliers.deviceId, suppliers.localId], device_id, tables?.suppliers, mapSupplier, suppliers.localId, suppliers.deviceId, suppliers.syncVersion, suppliers.updatedAt, businessId, deviceResult.staffId, tx),
+      pushTable("supplier_transactions", supplierTransactions, [supplierTransactions.deviceId, supplierTransactions.localId], device_id, tables?.supplier_transactions, mapSupplierTx, supplierTransactions.localId, supplierTransactions.deviceId, supplierTransactions.syncVersion, supplierTransactions.updatedAt, businessId, deviceResult.staffId, tx),
+      pushTable("staff_members", staffMembers, [staffMembers.deviceId, staffMembers.localId], device_id, tables?.staff_members, mapStaff, staffMembers.localId, staffMembers.deviceId, staffMembers.syncVersion, staffMembers.updatedAt, businessId, deviceResult.staffId, tx),
+      pushTable("settlements", settlements, [settlements.deviceId, settlements.localId], device_id, tables?.settlements, mapSettlement, settlements.localId, settlements.deviceId, settlements.syncVersion, settlements.updatedAt, businessId, deviceResult.staffId, tx),
+    ]);
 
-  const allMutations: MutationRecord[] = [];
-  for (const result of pushResults as any[]) allMutations.push(...(result.mutations || []));
+    const allMutations: MutationRecord[] = [];
+    for (const result of pushResults as any[]) allMutations.push(...(result.mutations || []));
 
-  if (allMutations.length > 0) {
-    const auditRows = allMutations.map((m) => ({
-      businessId,
-      actorStaffMemberId: deviceResult.staffId ?? sql`NULL`,
-      actorDeviceId: device_id,
-      action: m.action,
-      entityType: m.entityType,
-      entityId: m.entityId,
-      details: m.details || `sync push via ${device_id}`,
-    }));
-    await db.insert(auditLog).values(auditRows as any);
+    if (allMutations.length > 0) {
+      const auditRows = allMutations.map((m) => ({
+        businessId,
+        actorStaffMemberId: deviceResult.staffId ?? sql`NULL`,
+        actorDeviceId: device_id,
+        action: m.action,
+        entityType: m.entityType,
+        entityId: m.entityId,
+        details: m.details || `sync push via ${device_id}`,
+      }));
+      await tx.insert(auditLog).values(auditRows as any);
 
-    // --- Create notifications for owner from financial + staff mutations ---
-    try {
-      const notifiableTypes: Record<string, { type: string; title: string }> = {
-        transactions: { type: "sale", title: "Sale recorded" },
-        customer_transactions: { type: "credit", title: "Credit activity" },
-        supplier_transactions: { type: "supplier_payment", title: "Supplier activity" },
-        staff_members: { type: "staff_joined", title: "Staff activity" },
-        settlements: { type: "settlement", title: "Staff settlement" },
-      };
-      const notifiable = allMutations.filter(
-        (m) => m.action === "CREATE" && notifiableTypes[m.entityType]
-      );
-      if (notifiable.length > 0) {
-        // Look up owner userId for this business
-        const ownerRows = await db
-          .select({ userId: businessMembers.userId })
-          .from(businessMembers)
-          .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.role, "owner"), eq(businessMembers.active, true)))
-          .limit(1);
-        const ownerUserId = ownerRows[0]?.userId;
-        if (ownerUserId && deviceResult.staffId) {
-          // Look up actor name from staff_members
-          const actorRows = await db
-            .select({ name: staffMembers.displayName })
-            .from(staffMembers)
-            .where(eq(staffMembers.id, deviceResult.staffId))
+      // --- Create notifications for owner from financial + staff mutations ---
+      try {
+        const notifiableTypes: Record<string, { type: string; title: string }> = {
+          transactions: { type: "sale", title: "Sale recorded" },
+          customer_transactions: { type: "credit", title: "Credit activity" },
+          supplier_transactions: { type: "supplier_payment", title: "Supplier activity" },
+          staff_members: { type: "staff_joined", title: "Staff activity" },
+          settlements: { type: "settlement", title: "Staff settlement" },
+        };
+        const notifiable = allMutations.filter(
+          (m) => m.action === "CREATE" && notifiableTypes[m.entityType]
+        );
+        if (notifiable.length > 0) {
+          const ownerRows = await tx
+            .select({ userId: businessMembers.userId })
+            .from(businessMembers)
+            .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.role, "owner"), eq(businessMembers.active, true)))
             .limit(1);
-          const actorName = actorRows[0]?.name || "Staff";
-          const notifRows = notifiable.map((m) => {
-            const meta = notifiableTypes[m.entityType];
-            let body = `${actorName} recorded activity`;
-            if (m.entityType === "transactions") body = `${actorName} recorded a sale`;
-            else if (m.entityType === "customer_transactions") body = `${actorName} recorded credit activity`;
-            else if (m.entityType === "supplier_transactions") body = `${actorName} recorded supplier activity`;
-            else if (m.entityType === "staff_members") body = `${actorName} joined the shop`;
-            else if (m.entityType === "settlements") {
-              const isReconcile = m.details?.startsWith("settlement reconciled");
-              body = isReconcile
-                ? `${actorName} reconciled a settlement`
-                : `${actorName} completed a settlement`;
+          const ownerUserId = ownerRows[0]?.userId;
+          if (ownerUserId && deviceResult.staffId) {
+            const actorRows = await tx
+              .select({ name: staffMembers.displayName })
+              .from(staffMembers)
+              .where(eq(staffMembers.id, deviceResult.staffId))
+              .limit(1);
+            const actorName = actorRows[0]?.name || "Staff";
+            const notifRows = notifiable.map((m) => {
+              const meta = notifiableTypes[m.entityType];
+              let body = `${actorName} recorded activity`;
+              if (m.entityType === "transactions") body = `${actorName} recorded a sale`;
+              else if (m.entityType === "customer_transactions") body = `${actorName} recorded credit activity`;
+              else if (m.entityType === "supplier_transactions") body = `${actorName} recorded supplier activity`;
+              else if (m.entityType === "staff_members") body = `${actorName} joined the shop`;
+              else if (m.entityType === "settlements") {
+                const isReconcile = m.details?.startsWith("settlement reconciled");
+                body = isReconcile
+                  ? `${actorName} reconciled a settlement`
+                  : `${actorName} completed a settlement`;
+              }
+              return {
+                businessId,
+                ownerUserId,
+                type: meta.type,
+                title: meta.title,
+                body,
+                entityType: m.entityType,
+                entityId: m.entityId,
+                actorName,
+                amount: null,
+                read: false,
+              };
+            });
+            const createdNotifs = await tx.insert(notifications).values(notifRows as any).returning({ id: notifications.id, type: notifications.type, title: notifications.title, body: notifications.body });
+            for (const notif of createdNotifs) {
+              sendPushToOwner(businessId, { title: notif.title, body: notif.body, type: notif.type, id: notif.id }).catch(() => {});
             }
-            return {
-              businessId,
-              ownerUserId,
-              type: meta.type,
-              title: meta.title,
-              body,
-              entityType: m.entityType,
-              entityId: m.entityId,
-              actorName,
-              amount: null,
-              read: false,
-            };
-          });
-          const createdNotifs = await db.insert(notifications).values(notifRows as any).returning({ id: notifications.id, type: notifications.type, title: notifications.title, body: notifications.body });
-          // Send push for each notification (fire-and-forget)
-          for (const notif of createdNotifs) {
-            sendPushToOwner(businessId, { title: notif.title, body: notif.body, type: notif.type, id: notif.id }).catch(() => {});
           }
         }
+      } catch (notifErr) {
+        console.error("[sync] notification creation failed:", notifErr);
       }
-    } catch (notifErr) {
-      // Don't let notification failures break sync
-      console.error("[sync] notification creation failed:", notifErr);
-    }
 
-    // ─── Notify reminder system when owner records a payment ─────
-    // Auto-stop reminders + send thank-you so customer isn't nagged
-    // after they've already paid (even if owner forgets to record later).
-    try {
-      const paymentRows = (tables?.customer_transactions || [])
-        .filter((row: any) => row.type === "payment" && row.customer_id);
+      try {
+        const paymentRows = (tables?.customer_transactions || [])
+          .filter((row: any) => row.type === "payment" && row.customer_id);
 
-      if (paymentRows.length > 0) {
-        const customerIds = [...new Set(paymentRows.map((r: any) => Number(r.customer_id)))];
-        const customerInfo = await db
-          .select({ id: customers.id, name: customers.name, displayName: customers.displayName, telegramChatId: customers.telegramChatId })
-          .from(customers)
-          .where(and(eq(customers.businessId, businessId), inArray(customers.id, customerIds)));
+        if (paymentRows.length > 0) {
+          const customerIds = [...new Set(paymentRows.map((r: any) => Number(r.customer_id)))];
+          const customerInfo = await tx
+            .select({ id: customers.id, name: customers.name, displayName: customers.displayName, telegramChatId: customers.telegramChatId })
+            .from(customers)
+            .where(and(eq(customers.businessId, businessId), inArray(customers.id, customerIds)));
 
-        const infoMap = new Map(customerInfo.map((c: any) => [c.id, c]));
+          const infoMap = new Map(customerInfo.map((c: any) => [c.id, c]));
 
-        for (const payment of paymentRows) {
-          const customerId = Number(payment.customer_id);
-          const amount = Number(payment.amount) || 0;
-          if (!customerId || customerId <= 0 || amount <= 0) continue;
+          for (const payment of paymentRows) {
+            const customerId = Number(payment.customer_id);
+            const amount = Number(payment.amount) || 0;
+            if (!customerId || customerId <= 0 || amount <= 0) continue;
 
-          const cust = infoMap.get(customerId);
-          const customerName = cust?.displayName || cust?.name || `Customer ${customerId}`;
-          const chatId = cust?.telegramChatId || "";
+            const cust = infoMap.get(customerId);
+            const customerName = cust?.displayName || cust?.name || `Customer ${customerId}`;
+            const chatId = cust?.telegramChatId || "";
 
-          // Stop reminders
-          await setLastReminderSentAt(businessId, customerId, Date.now());
+            await setLastReminderSentAt(businessId, customerId, Date.now());
+            await createHistoryEntry({
+              shopId: businessId, customerId, chatId, balanceAtSendTime: String(amount),
+              sentAt: Date.now(), status: "sent", language: "am", messageId: "payment_confirmed",
+              retryCount: 0, lastAttemptAt: Date.now(), customerNameSnapshot: customerName,
+            });
 
-          // Record in history
-          await createHistoryEntry({
-            shopId: businessId,
-            customerId,
-            chatId,
-            balanceAtSendTime: String(amount),
-            sentAt: Date.now(),
-            status: "sent",
-            language: "am",
-            messageId: "payment_confirmed",
-            retryCount: 0,
-            lastAttemptAt: Date.now(),
-            customerNameSnapshot: customerName,
-          });
+            if (chatId) {
+              const formattedAmt = Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              const msg = `🏪 ጌባያ\n\n${customerName} ሆይ፣ የ${formattedAmt} ብር ክፍያህ ተረጋግጧል። እናመሰግናለን! 🙏\n\nሂሳብህን ለማየት /balance ይጫኑ።`;
+              sendTelegramTextMessage(chatId, msg).catch(() => {});
+            }
 
-          // Send thank-you if customer has Telegram
-          if (chatId) {
             const formattedAmt = Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const msg = `🏪 ጌባያ\n\n${customerName} ሆይ፣ የ${formattedAmt} ብር ክፍያህ ተረጋግጧል። እናመሰግናለን! 🙏\n\nሂሳብህን ለማየት /balance ይጫኑ።`;
-            sendTelegramTextMessage(chatId, msg).catch(() => {});
+            sendPushToOwner(businessId, {
+              title: "Payment confirmed",
+              body: `${customerName} — ${formattedAmt} ETB payment recorded and reminders stopped.`,
+              type: "payment_confirmed", id: Date.now(),
+            }).catch(() => {});
           }
-
-          // Push-notify owner
-          const formattedAmt = Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-          sendPushToOwner(businessId, {
-            title: "Payment confirmed",
-            body: `${customerName} — ${formattedAmt} ETB payment recorded and reminders stopped.`,
-            type: "payment_confirmed",
-            id: Date.now(),
-          }).catch(() => {});
-
-          console.log(`[sync] Payment confirmed for customer ${customerId} (${businessId}): reminders stopped`);
         }
+      } catch (paymentErr) {
+        console.error("[sync] payment reminder callback failed:", paymentErr);
       }
-    } catch (paymentErr) {
-      // Don't let payment reminder failures break sync
-      console.error("[sync] payment reminder callback failed:", paymentErr);
     }
-  }
 
-  const tableKeys = ["transactions", "customers", "customer_transactions", "catalog_entries", "suppliers", "supplier_transactions", "staff_members", "settlements"];
-  for (let i = 0; i < tableKeys.length; i++) {
-    const key = tableKeys[i];
-    const result = pushResults[i];
-    if (result.count > 0 || result.conflicts.length > 0) {
-      results[key] = { count: result.count, conflicts: result.conflicts.length };
-      allConflicts.push(...result.conflicts);
+    const tableKeys = ["transactions", "customers", "customer_transactions", "catalog_entries", "suppliers", "supplier_transactions", "staff_members", "settlements"];
+    for (let i = 0; i < tableKeys.length; i++) {
+      const key = tableKeys[i];
+      const result = pushResults[i];
+      if (result.count > 0 || result.conflicts.length > 0) {
+        results[key] = { count: result.count, conflicts: result.conflicts.length };
+        allConflicts.push(...result.conflicts);
+      }
     }
-  }
 
-  for (const key of ["settings", "analytics"] as const) {
-    const rows: any[] = tables?.[key];
-    if (!Array.isArray(rows) || rows.length === 0) continue;
-    const capped = rows.slice(0, MAX_ROWS_PER_TABLE_PUSH);
-    const mapper = key === "settings" ? mapSetting : mapAnalytics;
-    const table = key === "settings" ? settings : analytics;
-    const conflictCols = key === "settings" ? [settings.deviceId, settings.key] : [analytics.deviceId, analytics.key];
-    let count = 0;
-    for (const row of capped) {
-      const data: any = mapper(row, device_id);
-      data.businessId = data.businessId ?? businessId;
-      await db.insert(table).values(data).onConflictDoUpdate({ target: conflictCols, set: data });
-      count++;
+    for (const key of ["settings", "analytics"] as const) {
+      const rows: any[] = tables?.[key];
+      if (!Array.isArray(rows) || rows.length === 0) continue;
+      const capped = rows.slice(0, MAX_ROWS_PER_TABLE_PUSH);
+      const mapper = key === "settings" ? mapSetting : mapAnalytics;
+      const table = key === "settings" ? settings : analytics;
+      const conflictCols = key === "settings" ? [settings.deviceId, settings.key] : [analytics.deviceId, analytics.key];
+      let count = 0;
+      for (const row of capped) {
+        const data: any = mapper(row, device_id);
+        data.businessId = data.businessId ?? businessId;
+        await tx.insert(table).values(data).onConflictDoUpdate({ target: conflictCols, set: data });
+        count++;
+      }
+      if (count > 0) results[key] = { count, conflicts: 0 };
     }
-    if (count > 0) results[key] = { count, conflicts: 0 };
-  }
+  });
 
   return res.json({ ok: true, device_id, business_id: businessId, results, conflicts: allConflicts.length > 0 ? allConflicts.map((c) => ({ table: c.table, localId: c.localId, serverVersion: c.serverRecord.syncVersion, serverUpdatedAt: c.serverRecord.updatedAt })) : undefined });
 });

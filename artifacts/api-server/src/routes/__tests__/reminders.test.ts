@@ -50,6 +50,11 @@ vi.mock("@workspace/db/utils/customerBalance", () => ({
   getCustomerBalances: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock("@workspace/db", () => ({
+  db: {},
+  requireDb: vi.fn(),
+}));
+
 
 vi.mock("../rbac.js", () => ({
   requirePermission: () => (_req: any, _res: any, next: any) => next(),

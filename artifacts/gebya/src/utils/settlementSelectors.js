@@ -12,7 +12,7 @@ export async function calculateExpected(staffId, periodStart, periodEnd) {
   const all = await db.transactions
     .where('created_at')
     .between(periodStart, periodEnd)
-    .toArray();
+    .toArray().then(r => r.filter(t => !t.deletedAt));
 
   const filtered = all.filter(t => {
     const sid = t.actor_staff_member_id;

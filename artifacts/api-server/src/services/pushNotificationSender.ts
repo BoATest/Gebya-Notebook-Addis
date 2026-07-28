@@ -31,7 +31,8 @@ export function getVapidPublicKey() {
 
 export async function sendPushToOwner(
   businessId: number,
-  notification: { title: string; body: string; type: string; id: number }
+  notification: { title: string; body: string; type: string; id: number },
+  preloadedSubscriptions?: { id: number; endpoint: string; p256dh: string; auth: string; businessId: number }[]
 ): Promise<{ sent: number; failed: number }> {
   if (!ensureVapid()) {
     console.warn("[push] VAPID not configured, skipping push delivery");
@@ -39,7 +40,7 @@ export async function sendPushToOwner(
   }
 
   if (!db) throw new Error("Database not configured");
-  const subscriptions = await db
+  const subscriptions = preloadedSubscriptions?.filter(s => s.businessId === businessId) ?? await db
     .select()
     .from(pushSubscriptions)
     .where(eq(pushSubscriptions.businessId, businessId));

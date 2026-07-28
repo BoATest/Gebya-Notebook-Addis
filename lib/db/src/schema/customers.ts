@@ -10,7 +10,7 @@ export const customers = pgTable("customers", {
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }),
 
-  name: text("name"),
+  name: text("name").notNull(),
   email: text("email"),
   address: text("address"),
   active: boolean("active").default(true),
@@ -26,7 +26,7 @@ export const customers = pgTable("customers", {
   telegramLinkToken: text("telegram_link_token"),
   telegramLinkedAt: bigint("telegram_linked_at", { mode: "number" }),
 
-  businessId: integer("business_id").references(() => businesses.id, { onDelete: "restrict" }),
+  businessId: integer("business_id").notNull().references(() => businesses.id, { onDelete: "restrict" }),
   schemaVersion: integer("schema_version").default(1),
   syncVersion: integer("sync_version").default(1),
   syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow(),

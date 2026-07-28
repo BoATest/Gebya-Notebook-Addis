@@ -119,7 +119,7 @@ function StaffActivityFeed({ todayRefreshKey, setTodayStaffSales, setTodayStaffT
         try {
           const todayStart = startOfLocalDay();
           const todayEnd = todayStart + 86400000;
-          const txns = await db.transactions.where('created_at').between(todayStart, todayEnd).toArray();
+          const txns = await db.transactions.where('created_at').between(todayStart, todayEnd).toArray().then(r => r.filter(t => !t.deletedAt));
           if (cancelled) return;
           const salesMap = {};
           const txnMap = {};

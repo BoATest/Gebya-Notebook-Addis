@@ -55,7 +55,7 @@ export function useCustomers() {
     (async () => {
       try {
         const [customerRows, customerTxRows] = await Promise.all([
-          db.customers.toArray(),
+          db.customers.toArray().then(r => r.filter(c => !c.deletedAt)),
           db.customer_transactions.toArray(),
         ]);
         if (!cancelled) {
