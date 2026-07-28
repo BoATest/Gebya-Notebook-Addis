@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { getAuthToken } from '../utils/syncEngine';
 import { usePermissionsStore } from './permissionsStore';
 import { resolvePermissions } from '../utils/permissions';
 
@@ -16,6 +15,7 @@ export const useAuthStore = create((set, get) => ({
   setCurrentBusiness: (businessId) => set({ currentBusinessId: businessId }),
 
   init: async () => {
+    const { getAuthToken } = await import('../utils/syncEngine');
     const token = await getAuthToken();
     if (!token) {
       set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null });
