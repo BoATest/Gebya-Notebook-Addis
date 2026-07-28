@@ -205,10 +205,7 @@ export default function AppShell() {
   const setLoading = useAppStore(s => s.setLoading);
   const activeTab = useAppStore(s => s.activeTab);
   const setActiveTab = useAppStore(s => s.setActiveTab);
-  const lastBackupAt = useAppStore(s => s.lastBackupAt);
-  const setLastBackupAt = useAppStore(s => s.setLastBackupAt);
-  const backupNudgeDismissed = useAppStore(s => s.backupNudgeDismissed);
-  const setBackupNudgeDismissed = useAppStore(s => s.setBackupNudgeDismissed);
+
   const showForm = useAppStore(s => s.showForm);
   const setShowForm = useAppStore(s => s.setShowForm);
   const selectedCustomerId = useAppStore(s => s.selectedCustomerId);
@@ -573,20 +570,7 @@ export default function AppShell() {
     };
   }, [loading, refreshQueuedTelegramRecords]);
 
-  // Launch-critical: load the last-backup timestamp once on mount so we can
-  // decide whether to surface the data-loss nudge on the Today tab.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const row = await db.settings.get('gebya_last_backup_at');
-        if (!cancelled) setLastBackupAt(row?.value ? Number(row.value) : null);
-      } catch {
-        if (!cancelled) setLastBackupAt(null);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+
 
   const trackSession = useCallback(async () => {
     try {
@@ -1954,7 +1938,6 @@ export default function AppShell() {
             yesterdayNet={yesterdayNet}
             ledgerTransactions={ledgerTransactions}
             lastSavedSnapshot={lastSavedSnapshot}
-            lastBackupAt={lastBackupAt}
             onShareReport={handleShareReport}
           />
         )}

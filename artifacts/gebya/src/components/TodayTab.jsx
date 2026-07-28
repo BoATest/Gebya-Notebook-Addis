@@ -14,7 +14,6 @@ export default function TodayTab({
   yesterdayNet,
   ledgerTransactions,
   lastSavedSnapshot,
-  lastBackupAt,
   onShareReport,
 }) {
   const { lang, t } = useLang();
@@ -22,43 +21,10 @@ export default function TodayTab({
   const setShowForm = useAppStore(s => s.setShowForm);
   const setEditTarget = useAppStore(s => s.setEditTarget);
   const setDeleteTarget = useAppStore(s => s.setDeleteTarget);
-  const backupNudgeDismissed = useAppStore(s => s.backupNudgeDismissed);
-  const setBackupNudgeDismissed = useAppStore(s => s.setBackupNudgeDismissed);
 
   return (
     <div className="space-y-4">
       <ProfitCard transactions={todayTransactions} yesterdayNet={yesterdayNet} />
-
-      {/* Data-loss backup nudge */}
-      {(() => {
-        if (backupNudgeDismissed || lastBackupAt === undefined) return null;
-        const hasData = (transactions.length + ledgerTransactions.length) >= 5;
-        if (!hasData) return null;
-        const stale = lastBackupAt === null || (Date.now() - lastBackupAt) > 7 * 86400000;
-        if (!stale) return null;
-        const neverBackedUp = lastBackupAt === null;
-        return (
-          <div style={{ background: neverBackedUp ? '#fef2f2' : '#fffbeb', border: `1px solid ${neverBackedUp ? '#fecaca' : '#fde68a'}`, borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{neverBackedUp ? '⚠️' : '⏰'}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: '0.8rem', fontWeight: 800, color: neverBackedUp ? '#991b1b' : '#92400e' }}>
-                {neverBackedUp ? (lang === 'am' ? 'የማስታወሻ ደብተርዎን ያስቀምጡ' : 'Back up your notebook') : (lang === 'am' ? 'ደብተርዎን ለማስቀመጥ ጊዜው አልፏል' : 'Backup is overdue')}
-              </p>
-              <p style={{ fontSize: '0.68rem', color: '#6b7280', marginTop: 1, lineHeight: 1.35 }}>
-                {lang === 'am' ? 'የእርስዎ መረጃ የሚገኘው በዚህ ስልክ ላይ ብቻ ነው።' : 'Your data lives only on this phone. Back it up so a lost phone doesn\'t mean lost records.'}
-              </p>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
-              <button type="button" onClick={() => setActiveTab('settings')} className="press-scale" style={{ background: neverBackedUp ? '#dc2626' : '#C4883A', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                {lang === 'am' ? 'ያስቀምጡ' : 'Back up'}
-              </button>
-              <button type="button" onClick={() => setBackupNudgeDismissed(true)} style={{ background: 'transparent', border: 'none', color: '#9ca3af', fontSize: '0.66rem', fontWeight: 600, cursor: 'pointer', padding: '2px' }}>
-                {lang === 'am' ? 'በኋላ' : 'Later'}
-              </button>
-            </div>
-          </div>
-        );
-      })()}
 
       <Suspense fallback={<PanelFallback label={t.loading} />}>
         <DailySuggestions todayTransactions={todayTransactions} onAction={(type) => setShowForm(type)} />

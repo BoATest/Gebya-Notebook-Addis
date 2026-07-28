@@ -129,7 +129,7 @@ export const clearAllData = async (setCleared, setShowClearConfirm) => {
   setTimeout(() => window.location.reload(), 800);
 };
 
-export const restoreFromJSON = async (data, setLastBackupAt) => {
+export const restoreFromJSON = async (data) => {
   if (!data?.tables) throw new Error('Invalid backup');
   const { tables } = data;
   await db.transaction(

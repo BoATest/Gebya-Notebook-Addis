@@ -88,12 +88,6 @@ addToast: (message, duration = 2400) => {
     }, duration);
   },
 
-  // ─── Backup nudge ───
-  lastBackupAt: undefined, // undefined = not loaded yet, null = loaded + no backup
-  setLastBackupAt: (v) => set({ lastBackupAt: v }),
-  backupNudgeDismissed: false,
-  setBackupNudgeDismissed: (v) => set({ backupNudgeDismissed: v }),
-
   // ─── Telegram retry ───
   pendingTelegramCount: 0,
   setPendingTelegramCount: (v) => set({ pendingTelegramCount: v }),

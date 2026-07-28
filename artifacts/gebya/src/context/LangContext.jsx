@@ -896,12 +896,6 @@ const EN_OVERRIDES = {
   greetingEvening: "Don't forget today's last sales",
 
   // Backup nudge
-  backupTitle: 'Back up your notebook',
-  backupTitleStale: 'Backup is overdue',
-  backupBody: "Your data lives only on this phone. Back it up so a lost phone doesn't mean lost records.",
-  backupAction: 'Back up',
-  backupLater: 'Later',
-
   // Today entries
   entriesHeader: 'ENTRIES',
   entriesShare: 'Share',
@@ -1410,12 +1404,7 @@ const AM_OVERRIDES = {
   greetingAfternoon: '📌 ቀጥል — ሽያጮን በሚሸጡበት ጊዜ ይመዝገቡ',
   greetingEvening: '🌙 የዛሬ የመጨረሻ ሽያጮን ያል⟿',
 
-  // Backup nudge
-  backupTitle: 'የማስታወሻ ደብተርዎን ያስቀምጡ',
-  backupTitleStale: 'ደብተርዎን ለማስቀመጥ ጊዜው አልፏል',
-  backupBody: 'የእርስዎ መረጃ የሚገኘው በዚህ ስልክ ላይ ብቻ ነው። ስልክዎ ቢጠፋ መረጃዎ እንዳይጠፋ አሁኑኑ ያስቀምጡት።',
-  backupAction: 'ያስቀምጡ',
-  backupLater: 'በኋላ',
+
 
   // Today entries
   entriesHeader: 'ምዝገባዎች',

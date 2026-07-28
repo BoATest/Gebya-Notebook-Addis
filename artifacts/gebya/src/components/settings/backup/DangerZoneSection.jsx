@@ -36,7 +36,7 @@ export default function DangerZoneSection({ totalEntries, totalCustomers, t }) {
 
   const handleRestoreConfirm = async () => {
     try {
-      await restoreFromJSON(restoreTarget, () => {});
+      await restoreFromJSON(restoreTarget);
       setRestoreTarget(null);
       setShowRestoreStep(0);
       fireToast(lang === 'am' ? '✓ መልሶ ተመለሰ — በመጫን ላይ…' : '✓ Restored — reloading…', 1800);
