@@ -36,6 +36,7 @@ import { fireToast } from './Toast';
 import CameraCapture from './CameraCapture';
 import PaymentTypeChips from './PaymentTypeChips';
 import AddProviderButton from './AddProviderButton';
+import PartialPaymentSheet from './PartialPaymentSheet';
 import { db } from '../db';
 
 function handleNumericInput(e, setter) {
@@ -222,7 +223,7 @@ function TransactionForm({
       customer_phone: (isCredit || isCreditSale || isPartialSale) ? fullPhone : null,
       due_date: (isCredit || isCreditSale || isPartialSale) ? getEffectiveDueDate() : null,
       payment_type: isCredit ? null : (isCreditSale ? 'credit' : (isPartialSale ? paymentType : paymentType)),
-      payment_provider: (!isCredit && !isCreditSale && !isPartialSale && paymentType !== 'cash') ? paymentProvider || null : null,
+      payment_provider: (!isCredit && !isCreditSale) ? (paymentType !== 'cash' ? paymentProvider || null : null) : null,
       direction: isCredit ? creditDirection : null,
       ...photoFields,
       items: null,
