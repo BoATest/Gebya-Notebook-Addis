@@ -1,7 +1,9 @@
+import { getAuthToken } from './syncEngine';
+import { useAuthStore } from '../stores/authStore';
+
 const API_BASE = (import.meta.env.VITE_API_BASE ?? '/api').replace(/\/$/, '');
 
 export async function apiFetch(path, options = {}) {
-  const { getAuthToken } = await import('./authClient');
   const token = await getAuthToken();
 
   const headers = {
@@ -11,7 +13,6 @@ export async function apiFetch(path, options = {}) {
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   try {
-    const { useAuthStore } = await import('../stores/authStore');
     const bizId = useAuthStore.getState?.().currentBusinessId;
     if (bizId) headers['x-business-id'] = String(bizId);
   } catch {}

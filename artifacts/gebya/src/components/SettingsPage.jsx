@@ -181,7 +181,6 @@ function SettingsPage({
               staffCount={staffCount}
               transactionCount={transactionCount}
               pendingCardId={pendingCardId}
-              onUpgrade={onUpgrade}
             />
           )}
           {activeTab === 'data' && (
