@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useId } from 'react';
 
 export default function TabCard({ icon, title, subtitle, badge, badgeTone, children, open: openProp, onToggle, id, defaultOpen }) {
   const [internalOpen, setInternalOpen] = useState(!!defaultOpen);
   const isControlled = openProp !== undefined;
   const open = isControlled ? openProp : internalOpen;
+  const uid = useId();
+  const panelId = id ? `${id}-panel` : `tabcard-${uid}-panel`;
+  const btnId = id ? `${id}-btn` : `tabcard-${uid}-btn`;
 
   const handleToggle = () => {
     if (isControlled) onToggle?.(!open);
@@ -21,7 +24,10 @@ export default function TabCard({ icon, title, subtitle, badge, badgeTone, child
     <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden mb-2.5">
       <button
         type="button"
+        id={btnId}
         onClick={handleToggle}
+        aria-expanded={open}
+        aria-controls={panelId}
         className="w-full text-left px-4 py-3.5 flex items-center gap-3"
       >
         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-base" style={{ background: '#fafaf5' }}>
@@ -29,18 +35,21 @@ export default function TabCard({ icon, title, subtitle, badge, badgeTone, child
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-black text-gray-900 truncate">{title}</div>
-          {subtitle && <div className="text-[11px] mt-0.5 truncate" style={{ color: '#9ca3af' }}>{subtitle}</div>}
+          {subtitle && <div className="text-[11px] mt-0.5 truncate" style={{ color: '#6b7280' }}>{subtitle}</div>}
         </div>
         {badge && (
           <span className="flex-shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full" style={{ background: tone.bg, color: tone.color }}>
             {badge}
           </span>
         )}
-        <span style={{ color: '#9ca3af', fontSize: '1.1rem', flexShrink: 0, transition: 'transform 0.2s', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+        <span style={{ color: '#6b7280', fontSize: '1.1rem', flexShrink: 0, transition: 'transform 0.2s', transform: open ? 'rotate(90deg)' : 'rotate(0deg)' }}>
           ›
         </span>
       </button>
       <div
+        id={panelId}
+        role="region"
+        aria-labelledby={btnId}
         style={{
           display: 'grid',
           gridTemplateRows: open ? '1fr' : '0fr',

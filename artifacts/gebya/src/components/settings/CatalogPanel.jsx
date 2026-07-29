@@ -78,7 +78,7 @@ export default function CatalogPanel({ catalogEntries, onSaveCatalogEntry, onTog
         />
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: '#9ca3af' }}>
+            <label className="block text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: '#6b7280' }}>
               {lang === 'am' ? 'የሽያጭ ዋጋ' : 'Sale price'}
             </label>
             <input
@@ -92,7 +92,7 @@ export default function CatalogPanel({ catalogEntries, onSaveCatalogEntry, onTog
             />
           </div>
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: '#9ca3af' }}>
+            <label className="block text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: '#6b7280' }}>
               {lang === 'am' ? 'መግዣ ዋጋ (አማራጭ)' : 'Cost (optional)'}
             </label>
             <input

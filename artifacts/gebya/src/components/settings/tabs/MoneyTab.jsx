@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
 import PlanPanel from '../PlanPanel';
 import PaymentChannelsSection from '../PaymentChannelsSection';
 import TabCard from '../TabCard';
+import useAccordion from '../useAccordion';
 
 export default function MoneyTab({
   paymentChannels,
@@ -15,22 +15,7 @@ export default function MoneyTab({
   transactionCount,
   pendingCardId,
 }) {
-  const [openCards, setOpenCards] = useState(() => {
-    const init = new Set();
-    if (pendingCardId) init.add(pendingCardId);
-    return init;
-  });
-
-  useEffect(() => {
-    if (pendingCardId && !openCards.has(pendingCardId)) {
-      setOpenCards(prev => new Set(prev).add(pendingCardId));
-    }
-  }, [pendingCardId]);
-  const toggleCard = (id) => setOpenCards(prev => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
+  const { openCards, toggleCard } = useAccordion(pendingCardId);
 
   const chTotal = (paymentChannels || []).length;
   const chOnConfigured = (paymentChannels || []).filter(c => c.enabled && (c.usePhoneFromShop || c.phone || c.account)).length;

@@ -12,7 +12,7 @@ export default function DisplayPrivacyPanel() {
     <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden divide-y divide-green-100/30">
       {/* Theme row */}
       <div className="px-5 py-3">
-        <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#9ca3af' }}>
+        <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
           {t.appearance}
         </p>
         <div className="grid grid-cols-2 gap-2">

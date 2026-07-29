@@ -147,7 +147,7 @@ export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
           className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all min-h-[48px]"
           style={{
             background: profileSaved ? '#15803d' : (editName.trim() && phoneValid && telegramValid && profileChanged ? '#C4883A' : '#e5e7eb'),
-            color: (editName.trim() && phoneValid && telegramValid && (profileChanged || profileSaved)) ? '#fff' : '#9ca3af',
+            color: (editName.trim() && phoneValid && telegramValid && (profileChanged || profileSaved)) ? '#fff' : '#6b7280',
           }}
         >
           {profileSaved ? <><Check className="w-4 h-4" /> {t.saved}</> : t.saveChanges}

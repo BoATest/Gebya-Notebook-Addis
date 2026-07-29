@@ -1,5 +1,7 @@
 const AUTH_API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
 
+export { getAuthToken } from './syncEngine';
+
 // ─── Request OTP ───
 export async function requestOtp(phoneNumber) {
   const res = await fetch(`${AUTH_API_BASE}/auth/otp`, {

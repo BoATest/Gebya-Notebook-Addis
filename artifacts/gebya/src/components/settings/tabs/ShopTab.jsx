@@ -1,9 +1,9 @@
-import { useState } from 'react';
 import ReadinessHero from '../ReadinessHero';
 import ShopProfilePanel from '../ShopProfilePanel';
 import CatalogPanel from '../CatalogPanel';
 import RecurringExpensesPanel from '../RecurringExpensesPanel';
 import TabCard from '../TabCard';
+import useAccordion from '../useAccordion';
 
 export default function ShopTab({
   shopProfile,
@@ -17,12 +17,7 @@ export default function ShopTab({
   lang,
   onNavigate,
 }) {
-  const [openCards, setOpenCards] = useState(() => new Set());
-  const toggleCard = (id) => setOpenCards(prev => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
+  const { openCards, toggleCard, openCard } = useAccordion();
 
   const activeItems = (catalogEntries || []).filter(e => e.active !== false);
   const itemsBadge = activeItems.length > 0 ? `${activeItems.length}` : (lang === 'am' ? 'ባዶ' : 'Empty');
@@ -38,10 +33,6 @@ export default function ShopTab({
     ? (lang === 'am' ? `${recurringCount} ወርሃዊ ወጪ` : `${recurringCount} monthly bills`)
     : (lang === 'am' ? 'ኪራይ፣ ኢንተርኔት፣ ወዘተ' : 'Rent, internet, electricity, etc.');
 
-  const handleOpenCard = (cardId) => {
-    if (!openCards.has(cardId)) toggleCard(cardId);
-  };
-
   return (
     <div>
       <ReadinessHero
@@ -54,7 +45,7 @@ export default function ShopTab({
           if (tabId) {
             onNavigate?.(cardId, tabId);
           } else {
-            handleOpenCard(cardId);
+            openCard(cardId);
           }
         }}
       />

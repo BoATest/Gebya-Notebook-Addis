@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Plus, X, Trash2 } from 'lucide-react';
+import { Sparkles, Plus, X, Trash2, Lock } from 'lucide-react';
 import {
   getChannelDefinition,
   updateChannel,
@@ -187,8 +187,9 @@ export default function PaymentChannelsSection({ channels, shopPhone, enabledCou
       </div>
 
       <div className="px-5 pb-4">
-        <p className="text-[10px] leading-snug" style={{ color: '#9ca3af' }}>
-          🔒 {lang === 'am'
+        <p className="text-[10px] leading-snug" style={{ color: '#6b7280' }}>
+          <Lock className="w-3 h-3 inline mr-1" style={{ verticalAlign: 'middle' }} />
+          {lang === 'am'
             ? 'መረጃው በዚህ ስልክ ላይ ብቻ ይቀመጣል። Gebya ገንዘቡን አያይም — እርስዎ በቀጥታ ይቀበላሉ።'
             : 'Stored on this phone only. Gebya never touches the money — customers pay you direct.'}
         </p>
@@ -232,7 +233,7 @@ function ChannelRow({ channel, shopPhone, onToggle, onField, onToggleSameAsShop,
       <div className="flex items-center gap-2">
         <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>{emoji}</span>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold" style={{ color: channel.enabled ? '#1a1a1a' : '#9ca3af' }}>
+          <p className="text-sm font-bold" style={{ color: channel.enabled ? '#1a1a1a' : '#6b7280' }}>
             {channel.name}
           </p>
           {ussd && channel.enabled && (
@@ -249,7 +250,7 @@ function ChannelRow({ channel, shopPhone, onToggle, onField, onToggleSameAsShop,
             aria-label={lang === 'am' ? 'አስወግድ' : 'Remove'}
             className="press-scale"
             style={{
-              padding: 4, color: '#9ca3af', background: 'transparent', border: 'none', cursor: 'pointer',
+              padding: 4, color: '#6b7280', background: 'transparent', border: 'none', cursor: 'pointer',
             }}
           >
             <Trash2 className="w-3.5 h-3.5" />
