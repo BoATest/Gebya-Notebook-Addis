@@ -29,7 +29,6 @@ function SettingsPage({
   transactions,
   customerSummaries,
   catalogEntries,
-  supplierSummaries,
   shopProfile,
   staffMembers,
   onProfileSave,
@@ -143,7 +142,7 @@ function SettingsPage({
             className="flex-1 py-2 text-xs font-black rounded-lg transition-all"
             style={{
               background: activeTab === tab.id ? '#fff' : 'transparent',
-              color: activeTab === tab.id ? '#1B4332' : '#9ca3af',
+              color: activeTab === tab.id ? '#1B4332' : '#6b7280',
               boxShadow: activeTab === tab.id ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
             }}
           >
@@ -155,6 +154,7 @@ function SettingsPage({
       {/* Tab Content */}
       <div className="px-4">
         <Suspense fallback={<SettingsPanelFallback label={t.loading} />}>
+          <div key={activeTab} className="animate-fade">
           {activeTab === 'shop' && (
             <ShopTab
               shopProfile={shopProfile}
@@ -190,6 +190,7 @@ function SettingsPage({
               lang={lang}
             />
           )}
+          </div>
         </Suspense>
 
         {/* Admin section — only in dev mode */}
@@ -266,7 +267,7 @@ function SettingsPage({
         <div
           onClick={handleAboutTap}
           className="text-center py-3 text-xs"
-          style={{ color: '#d1d5db' }}
+          style={{ color: '#6b7280' }}
         >
           Gebya v1.0
           {aboutTapCount > 0 && aboutTapCount < 5 && !devModeRevealed && (
