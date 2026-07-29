@@ -3,10 +3,13 @@ import { Request, Response } from "express";
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { users, devices, otps, businesses, businessMembers, invites } from "@workspace/db/schema";
+import { normalizePhone } from "@workspace/db/schema";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { resolvePermissions } from "@workspace/db/schema/permission-defaults";
 import { sendTelegramTextMessage } from "../services/telegramBotService.js";
+import { verifyJwt } from "./auth.js";
 
 const JOIN_CODE_SIGNING_KEY = process.env.JOIN_CODE_SIGNING_KEY || crypto.randomBytes(32).toString('hex');
 
