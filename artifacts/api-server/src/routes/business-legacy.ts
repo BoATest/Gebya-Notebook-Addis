@@ -104,7 +104,8 @@ router.post("/shops", async (req: Request, res: Response) => {
   });
 
   const joinCode = generateJoinCode();
-  const joinCodeToken = crypto.createHmac('sha256', JOIN_CODE_SIGNING_KEY).update(joinCode).digest("hex");
+  const normalizedJoinCode = joinCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const joinCodeToken = crypto.createHmac('sha256', JOIN_CODE_SIGNING_KEY).update(normalizedJoinCode).digest("hex");
   const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
   await db.insert(invites).values({
     businessId: biz.id,
@@ -361,7 +362,8 @@ router.post("/shops/:shop_id/rotate-code", async (req: Request, res: Response) =
   }
 
   const joinCode = generateJoinCode();
-  const joinCodeToken = crypto.createHash("sha256").update(joinCode).digest("hex");
+  const normalizedJoinCode = joinCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  const joinCodeToken = crypto.createHmac('sha256', JOIN_CODE_SIGNING_KEY).update(normalizedJoinCode).digest("hex");
   const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
 
   await db.insert(invites).values({

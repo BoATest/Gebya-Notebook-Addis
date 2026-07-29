@@ -7,6 +7,8 @@ import { fireToast } from './Toast';
 import ConfirmDialog from './ConfirmDialog';
 import { apiFetch, ROLE_BADGE, RoleBadge } from '../utils/shared-ui.jsx';
 import { getCurrentEntitlements } from '../utils/entitlements';
+import identityApi from '../api/identity';
+import { getAuthToken } from '../utils/syncEngine';
 
 function ActorSelector({ staffMembers, activeStaffMemberId, currentActorLabel, onSetActiveStaffMember, shopProfile, lang }) {
   return (
@@ -187,8 +189,9 @@ export default function TeamPage({
 
   const [localStaffName, setLocalStaffName] = useState('');
 
-  const [cloudMembers, setCloudMembers] = useState(null);
-  const [membersLoading, setMembersLoading] = useState(false);
+   const [cloudMembers, setCloudMembers] = useState(null);
+   const [membersLoading, setMembersLoading] = useState(false);
+   const [rotatingJoinCode, setRotatingJoinCode] = useState(false);
 
   const loadMembers = useCallback(async () => {
     setMembersLoading(true);
@@ -202,7 +205,23 @@ export default function TeamPage({
     }
   }, []);
 
-  useEffect(() => { loadMembers(); }, [loadMembers]);
+   useEffect(() => { loadMembers(); }, [loadMembers]);
+
+   const handleRotateJoinCode = useCallback(async () => {
+     setRotatingJoinCode(true);
+     try {
+       const token = await getAuthToken();
+       if (!token) return;
+       const result = await identityApi.rotateJoinCode(shopProfile?.id, token);
+       const current = shopProfile || {};
+       useShopStore.getState().setShopProfile({ ...current, join_code: result.join_code, join_url: result.join_url });
+       fireToast(lang === 'am' ? 'ኮድ ተሻከራል' : 'Join code reset', 2000);
+     } catch {
+       fireToast(lang === 'am' ? 'ኮድ አልተሻከረም' : 'Failed to reset join code', 3000);
+     } finally {
+       setRotatingJoinCode(false);
+     }
+   }, [shopProfile, lang]);
 
   const handleAddLocalStaff = async () => {
     if (!localStaffName.trim()) return;
@@ -247,21 +266,33 @@ export default function TeamPage({
             </p>
           </div>
           <div className="px-4 py-3 space-y-2">
-            {shopProfile?.join_code && (
-              <div className="flex items-center gap-2">
-                <span className="flex-1 text-lg font-black tracking-[0.3em] font-mono select-all" style={{ color: '#1B4332' }}>
-                  {shopProfile.join_code}
-                </span>
-                <button
-                  type="button"
-                  onClick={async () => { try { await navigator.clipboard.writeText(shopProfile.join_code); fireToast(lang === 'am' ? '✓ ኮድ ተቀድሷል' : '✓ Code copied', 1500); } catch {} }}
-                  className="flex-shrink-0 px-2 py-1.5 rounded-lg text-xs font-bold press-scale"
-                  style={{ background: '#e8e2d8', color: '#374151' }}
-                >
-                  {lang === 'am' ? 'ኮድ ቅዳ' : 'Copy code'}
-                </button>
-              </div>
-            )}
+             {shopProfile?.join_code && (
+               <div className="flex items-center gap-2">
+                 <span className="flex-1 text-lg font-black tracking-[0.3em] font-mono select-all" style={{ color: '#1B4332' }}>
+                   {shopProfile.join_code}
+                 </span>
+                 <button
+                   type="button"
+                   onClick={async () => { try { await navigator.clipboard.writeText(shopProfile.join_code); fireToast(lang === 'am' ? '✓ ኮድ ተቀድሷል' : '✓ Code copied', 1500); } catch {} }}
+                   className="flex-shrink-0 px-2 py-1.5 rounded-lg text-xs font-bold press-scale"
+                   style={{ background: '#e8e2d8', color: '#374151' }}
+                 >
+                   {lang === 'am' ? 'ኮድ ቅዳ' : 'Copy code'}
+                 </button>
+                 <button
+                   type="button"
+                   onClick={handleRotateJoinCode}
+                   disabled={rotatingJoinCode}
+                   className="flex-shrink-0 px-2 py-1.5 rounded-lg text-xs font-bold press-scale"
+                   style={{ background: rotatingJoinCode ? '#e5e7eb' : '#fef3c7', color: rotatingJoinCode ? '#9ca3af' : '#92400e', minWidth: 44, minHeight: 36 }}
+                   title={lang === 'am' ? 'ኮድ ለአዲስ ይቀየሩ' : 'Reset join code'}
+                 >
+                   {rotatingJoinCode
+                     ? (lang === 'am' ? 'ያስቀምጠል…' : 'Resetting…')
+                     : (lang === 'am' ? 'ኮድ ለአዲስ' : 'Reset code')}
+                 </button>
+               </div>
+             )}
             {shopProfile?.join_url && (
               <div className="flex items-center gap-2">
                 <span className="flex-1 text-xs font-mono text-gray-600 truncate">{shopProfile.join_url}</span>
