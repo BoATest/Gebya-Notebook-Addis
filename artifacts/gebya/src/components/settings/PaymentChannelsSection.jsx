@@ -1,22 +1,33 @@
-import { useState } from 'react';
-import { Sparkles, Plus, X, Trash2, Lock } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Sparkles, Search, X, Trash2 } from 'lucide-react';
 import {
   getChannelDefinition,
   updateChannel,
   removeChannel,
-  addCustomChannel,
 } from '../../utils/paymentChannels';
 import { extractSubscriberDigits } from '../../utils/phoneNumber';
 import ConfirmDialog from '../ConfirmDialog';
 
 export default function PaymentChannelsSection({ channels, shopPhone, enabledCount, configuredCount, onChange, lang }) {
-  const [showAddCustom, setShowAddCustom] = useState(false);
-  const [addKind, setAddKind] = useState('bank');
-  const [addName, setAddName] = useState('');
+  const [query, setQuery] = useState('');
   const [pendingRemoveId, setPendingRemoveId] = useState(null);
 
-  const wallets = channels.filter(c => c.kind === 'wallet');
-  const banks = channels.filter(c => c.kind === 'bank');
+  const wallets = useMemo(() => channels.filter(c => c.kind === 'wallet'), [channels]);
+  const banks = useMemo(() => channels.filter(c => c.kind === 'bank'), [channels]);
+
+  const q = query.trim().toLowerCase();
+
+  const visibleWallets = useMemo(() => {
+    if (!q) return wallets;
+    return wallets.filter(c => c.name.toLowerCase().includes(q));
+  }, [wallets, q]);
+
+  const visibleBanks = useMemo(() => {
+    if (!q) return banks;
+    return banks.filter(c => c.name.toLowerCase().includes(q));
+  }, [banks, q]);
+
+  const hasResults = visibleWallets.length > 0 || visibleBanks.length > 0;
 
   const handleToggle = (channel) => {
     onChange?.(updateChannel(channels, channel.id, { enabled: !channel.enabled }));
@@ -40,13 +51,6 @@ export default function PaymentChannelsSection({ channels, shopPhone, enabledCou
     setPendingRemoveId(null);
     if (!channelId) return;
     onChange?.(removeChannel(channels, channelId));
-  };
-  const handleAddCustom = () => {
-    const name = addName.trim();
-    if (!name) return;
-    onChange?.(addCustomChannel(channels, { kind: addKind, name }));
-    setAddName('');
-    setShowAddCustom(false);
   };
 
   return (
@@ -76,12 +80,37 @@ export default function PaymentChannelsSection({ channels, shopPhone, enabledCou
         </p>
       </div>
 
-      <div className="px-5 py-3" style={{ borderBottom: '1px solid #f0f9f4' }}>
+      <div className="px-5 py-3 border-b" style={{ borderColor: '#f0f9f4' }}>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#9ca3af' }} />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={lang === 'am' ? 'ባንኮች እና ዋሌቶችን ፈልጉ...' : 'Search banks and wallets...'}
+            className="w-full pl-9 pr-8 py-2.5 border-2 text-sm focus:outline-none"
+            style={{ borderRadius: 10, borderColor: '#e8e2d8', background: '#fff' }}
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+              style={{ color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
+              aria-label="Clear search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="px-5 py-3 border-b" style={{ borderBottom: '1px solid #f0f9f4' }}>
         <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
           📱 {lang === 'am' ? 'ሞባይል ዋሌት' : 'Mobile wallets'}
         </p>
         <div className="flex flex-col gap-2">
-          {wallets.map((c) => (
+          {visibleWallets.map((c) => (
             <ChannelRow
               key={c.id}
               channel={c}
@@ -96,12 +125,12 @@ export default function PaymentChannelsSection({ channels, shopPhone, enabledCou
         </div>
       </div>
 
-      <div className="px-5 py-3" style={{ borderBottom: '1px solid #f0f9f4' }}>
+      <div className="px-5 py-3 border-b" style={{ borderBottom: '1px solid #f0f9f4' }}>
         <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
           🏦 {lang === 'am' ? 'ባንኮች' : 'Banks'}
         </p>
         <div className="flex flex-col gap-2">
-          {banks.map((c) => (
+          {visibleBanks.map((c) => (
             <ChannelRow
               key={c.id}
               channel={c}
@@ -116,79 +145,18 @@ export default function PaymentChannelsSection({ channels, shopPhone, enabledCou
         </div>
       </div>
 
-      <div className="px-5 py-3">
-        {showAddCustom ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex gap-1.5">
-              <button
-                type="button"
-                onClick={() => setAddKind('bank')}
-                className="flex-1 py-2 text-xs font-bold border-2 rounded-lg press-scale"
-                style={{
-                  background: addKind === 'bank' ? 'rgba(196,136,58,0.15)' : '#fff',
-                  borderColor: addKind === 'bank' ? '#C4883A' : '#e8e2d8',
-                  color: addKind === 'bank' ? '#6b4f1d' : '#6b7280',
-                }}
-              >
-                🏦 {lang === 'am' ? 'ባንክ' : 'Bank'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setAddKind('wallet')}
-                className="flex-1 py-2 text-xs font-bold border-2 rounded-lg press-scale"
-                style={{
-                  background: addKind === 'wallet' ? 'rgba(196,136,58,0.15)' : '#fff',
-                  borderColor: addKind === 'wallet' ? '#C4883A' : '#e8e2d8',
-                  color: addKind === 'wallet' ? '#6b4f1d' : '#6b7280',
-                }}
-              >
-                📱 {lang === 'am' ? 'ዋሌት' : 'Wallet'}
-              </button>
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={addName}
-                onChange={(e) => setAddName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddCustom()}
-                placeholder={lang === 'am' ? 'ስም ለምሳሌ Zemen Bank' : 'e.g. Zemen Bank'}
-                autoFocus
-                className="flex-1 px-3 py-2 border-2 rounded-lg text-sm focus:outline-none"
-                style={{ borderColor: '#e8e2d8' }}
-              />
-              <button
-                onClick={handleAddCustom}
-                disabled={!addName.trim()}
-                className="px-3 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-40 press-scale"
-                style={{ background: addName.trim() ? '#C4883A' : '#e5e7eb' }}
-              >
-                {lang === 'am' ? 'ጨምር' : 'Add'}
-              </button>
-              <button
-                onClick={() => { setShowAddCustom(false); setAddName(''); }}
-                className="px-2 py-2 rounded-lg text-sm font-bold press-scale"
-                style={{ background: 'transparent', color: '#6b7280' }}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowAddCustom(true)}
-            className="w-full py-2.5 text-sm font-bold border-2 border-dashed rounded-lg press-scale flex items-center justify-center gap-1.5"
-            style={{ borderColor: '#C4883A', color: '#6b4f1d', background: 'rgba(196,136,58,0.04)' }}
-          >
-            <Plus className="w-4 h-4" />
-            {lang === 'am' ? 'ሌላ መንገድ ጨምር' : 'Add custom channel'}
-          </button>
-        )}
-      </div>
+      {!hasResults && (
+        <div className="px-5 py-8 text-center">
+          <Search className="w-8 h-8 mx-auto mb-2" style={{ color: '#e5e7eb' }} />
+          <p className="text-xs font-medium" style={{ color: '#9ca3af' }}>
+            {lang === 'am' ? 'ምንም ውጤት አልተገኘም' : 'No results'}
+          </p>
+        </div>
+      )}
 
       <div className="px-5 pb-4">
         <p className="text-[10px] leading-snug" style={{ color: '#6b7280' }}>
-          <Lock className="w-3 h-3 inline mr-1" style={{ verticalAlign: 'middle' }} />
+          🔒{' '}
           {lang === 'am'
             ? 'መረጃው በዚህ ስልክ ላይ ብቻ ይቀመጣል። Gebya ገንዘቡን አያይም — እርስዎ በቀጥታ ይቀበላሉ።'
             : 'Stored on this phone only. Gebya never touches the money — customers pay you direct.'}
