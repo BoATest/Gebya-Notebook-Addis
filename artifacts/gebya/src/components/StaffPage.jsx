@@ -293,6 +293,26 @@ export default function StaffPage({
   const [membersLoading, setMembersLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // ── Settlement state (declared early — used by memo below) ──
+  const [settlements, setSettlements] = useState([]);
+  const [settlementRefreshKey, setSettlementRefreshKey] = useState(0);
+  const [todayRefreshKey, setTodayRefreshKey] = useState(0);
+  const [settling, setSettling] = useState(null);
+  const [viewingSettlement, setViewingSettlement] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const bizRow = await db.settings.get('gebya_business_id');
+        const bizId = Number(bizRow?.value) || 0;
+        const rows = await getAllSettlements(Date.now() - 30 * 86400000, Date.now() + 86400000, bizId);
+        if (!cancelled) setSettlements(rows);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [settlementRefreshKey]);
+
   // ── Expanded / collapsed sections ──
   const hasUnresolvedSettlements = useMemo(() =>
     settlements.some(s => s.reconciliation_status === 'staff_submitted' || s.reconciliation_status === 'disputed'),
@@ -306,12 +326,6 @@ export default function StaffPage({
 
   // ── Deactivation confirm ──
   const [pendingDeactivation, setPendingDeactivation] = useState(null);
-
-  // ── Settlement state ──
-  const [settling, setSettling] = useState(null);
-  const [viewingSettlement, setViewingSettlement] = useState(null);
-  const [settlementRefreshKey, setSettlementRefreshKey] = useState(0);
-  const [todayRefreshKey, setTodayRefreshKey] = useState(0);
 
   // ── Permission editing state ──
   const [expandedMember, setExpandedMember] = useState(null);
@@ -336,21 +350,6 @@ export default function StaffPage({
   const [staffCollectTransfer, setStaffCollectTransfer] = useState('');
   const [staffCollectNote, setStaffCollectNote] = useState('');
   const [staffCollecting, setStaffCollecting] = useState(false);
-
-  // ── Settlements data ──
-  const [settlements, setSettlements] = useState([]);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const bizRow = await db.settings.get('gebya_business_id');
-        const bizId = Number(bizRow?.value) || 0;
-        const rows = await getAllSettlements(Date.now() - 30 * 86400000, Date.now() + 86400000, bizId);
-        if (!cancelled) setSettlements(rows);
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, [settlementRefreshKey]);
 
   // ── Visibility guard & periodic refresh ──
   useEffect(() => {
