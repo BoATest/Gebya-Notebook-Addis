@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Phone, ArrowRight, Check, AlertCircle, X, KeyRound } from 'lucide-react';
-import { requestOtp, verifyOtp, linkDevice } from '../utils/authClient';
+import { requestOtp, verifyOtp, linkDevice, getCurrentUser } from '../utils/authClient';
 import { getAuthToken, setAuthToken } from '../utils/syncEngine';
 import { getOrCreateCloudProofDeviceId } from '../utils/cloudProof';
 import { fireToast } from './Toast';
@@ -132,7 +132,6 @@ export default function AuthGate({ onAuthenticated, onSkip, shopPhone = '', lang
         // Reload auth to pick up new membership
         const storedToken = await getAuthToken();
         if (storedToken) {
-          const { getCurrentUser } = await import('../utils/authClient');
           try {
             const userData = await getCurrentUser(storedToken);
             onAuthenticated?.(userData.user, userData.role, userData.permissions);

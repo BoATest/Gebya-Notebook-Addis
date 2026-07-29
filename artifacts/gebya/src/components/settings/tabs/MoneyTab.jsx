@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import PlanPanel from '../PlanPanel';
 import PaymentChannelsSection from '../PaymentChannelsSection';
-import DubieRulesPanel from '../DubieRulesPanel';
 import TabCard from '../TabCard';
 
 export default function MoneyTab({
@@ -73,16 +72,6 @@ export default function MoneyTab({
           onChange={(next) => onSavePaymentChannels?.(next)}
           lang={lang}
         />
-      </TabCard>
-
-      <TabCard
-        id="dubie"
-        icon="📋"
-        title={lang === 'am' ? 'የዱቤ ህጎች' : 'Dubie Rules'}
-        subtitle={lang === 'am' ? 'ከተወሰነ ቀን በኋላ ዱቤ ምልክት ያድርጉ' : 'Auto-flag overdue after set days'}
-        badgeTone="neutral"
-      >
-        <DubieRulesPanel />
       </TabCard>
     </div>
   );

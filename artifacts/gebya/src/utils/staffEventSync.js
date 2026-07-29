@@ -1,5 +1,5 @@
 import db, { getIdentity } from '../db';
-import { getAuthToken } from './syncEngine';
+import { getAuthToken, clearAuthToken } from './syncEngine';
 import eventsApi from '../api/events';
 
 export const STAFF_EVENT_PUSH = 'staff_event_push';
@@ -238,7 +238,6 @@ async function processRow(row, token) {
         updated_at: Date.now(),
         next_attempt_at: null,
       });
-      const { clearAuthToken } = await import('./syncEngine');
       await clearAuthToken();
       notifyQueueChanged();
       return { id: row.id, status: STAFF_EVENT_STATUSES.localOnly, error: message };

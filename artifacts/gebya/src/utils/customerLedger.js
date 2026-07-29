@@ -1,3 +1,5 @@
+import { getAuthToken } from './syncEngine';
+
 function compareNumericDesc(left, right) {
   return (Number(right) || 0) - (Number(left) || 0);
 }
@@ -70,8 +72,7 @@ export function buildCustomerSummaries(customers = [], customerTransactions = []
 export async function validateBalanceIntegrity(customerId, localBalance) {
   try {
     const SYNC_API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
-    const tokenRow = await import('../db').then(m => m.default.settings.get('gebya_auth_token'));
-    const token = tokenRow?.value;
+    const token = await getAuthToken();
     if (!token) return null;
 
     const res = await fetch(`${SYNC_API_BASE}/sync/balance-check/${customerId}`, {

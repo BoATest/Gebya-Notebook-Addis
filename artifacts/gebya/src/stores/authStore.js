@@ -1,9 +1,6 @@
 import { create } from 'zustand';
 import { usePermissionsStore } from './permissionsStore';
 import { resolvePermissions } from '../utils/permissions';
-import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/syncEngine';
-import { getCurrentUser } from '../utils/authClient';
-import { setBusinesses, getBusinesses } from '../db';
 
 export const useAuthStore = create((set, get) => ({
   user: null,
@@ -18,6 +15,7 @@ export const useAuthStore = create((set, get) => ({
   setCurrentBusiness: (businessId) => set({ currentBusinessId: businessId }),
 
   init: async () => {
+    const { getAuthToken } = await import('../utils/syncEngine');
     const token = await getAuthToken();
     if (!token) {
       set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null });
@@ -25,6 +23,7 @@ export const useAuthStore = create((set, get) => ({
       return;
     }
     try {
+      const { getCurrentUser } = await import('../utils/authClient');
       const data = await getCurrentUser(token);
       const user = data.user;
       const role = data.role || null;
@@ -36,12 +35,14 @@ export const useAuthStore = create((set, get) => ({
       usePermissionsStore.getState().setPermissions(resolvedPerms, role);
 
       // Cache businesses to IndexedDB for offline availability
+      const { setBusinesses } = await import('../db');
       await setBusinesses(businesses);
 
       set({ user, checked: true, role, permissions: rawPerms, businesses, currentBusinessId });
     } catch (err) {
       // On failure, try loading cached businesses from IndexedDB for offline use
       try {
+        const { getBusinesses } = await import('../db');
         const cached = await getBusinesses();
         if (cached?.list?.length) {
           set({
@@ -52,6 +53,7 @@ export const useAuthStore = create((set, get) => ({
           return;
         }
       } catch { /* non-critical */ }
+      const { clearAuthToken } = await import('../utils/syncEngine');
       await clearAuthToken();
       usePermissionsStore.getState().resetPermissions();
       set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null });
@@ -59,6 +61,7 @@ export const useAuthStore = create((set, get) => ({
   },
 
   login: async (token, user, role, rawPermissions, businesses) => {
+    const { setAuthToken } = await import('../utils/syncEngine');
     await setAuthToken(token);
     const resolvedPerms = resolvePermissions(role, rawPermissions);
     usePermissionsStore.getState().setPermissions(resolvedPerms, role);
@@ -67,6 +70,7 @@ export const useAuthStore = create((set, get) => ({
   },
 
   logout: async () => {
+    const { clearAuthToken } = await import('../utils/syncEngine');
     await clearAuthToken();
     usePermissionsStore.getState().resetPermissions();
     set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null });
