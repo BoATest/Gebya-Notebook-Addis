@@ -13,6 +13,7 @@ import { useSmartSaleRows } from './useSmartSaleRows';
 import RecentSalesSheet from './RecentSalesSheet';
 import { getDueDateOptions } from '../../utils/ethiopianCalendar';
 import InlineDatePicker from '../InlineDatePicker';
+import { normalizeEthiopianPhone } from '../../utils/phoneNumber';
 
 const MAX_PHOTOS = 3;
 const DRAFT_KEY = 'gebya_sale_draft';
@@ -232,14 +233,8 @@ export default function ItemizedSaleView({
       const items = buildItemsArray();
       const itemNameForSave = items.map(i => i.name).join(', ').substring(0, 200);
       const photoFields = buildPhotoFields(photos);
-      const now = Date.now();
-      const normalizePhone = (phone) => {
-        if (!phone) return null;
-        const digits = phone.replace(/\D/g, '');
-        if (digits.length === 9 && /^[79]/.test(digits)) return '+251' + digits;
-        return phone;
-      };
-      const data = {
+       const now = Date.now();
+       const data = {
         type: 'sale',
         item_name: itemNameForSave,
         catalog_entry_id: items[0]?.catalog_entry_id || null,
@@ -251,7 +246,7 @@ export default function ItemizedSaleView({
         is_credit: false,
         customer_id: (isCredit || isPartial) ? creditCustomerId : null,
         customer_name: (isCredit || isPartial) ? (creditCustomerName || creditCustomerSearch) : null,
-        customer_phone: (isCredit || isPartial) ? normalizePhone(creditCustomerPhone) : null,
+        customer_phone: (isCredit || isPartial) ? normalizeEthiopianPhone(creditCustomerPhone) : null,
         due_date: (isCredit || isPartial) ? (customDueIso ? new Date(`${customDueIso}T12:00:00`).getTime() : selectedDueTs) : null,
         payment_type: paymentType === 'cash' ? 'cash' : paymentType,
         payment_provider: paymentType !== 'cash' ? paymentProvider || null : null,
@@ -684,7 +679,7 @@ export default function ItemizedSaleView({
                     return;
                   }
                   if (!onAddCustomerInline) return;
-                  const saved = await onAddCustomerInline({ display_name: name, phone: creditCustomerPhone || null });
+                   const saved = await onAddCustomerInline({ display_name: name, phone_number: creditCustomerPhone || null });
                   if (saved?.id) {
                     setCreditCustomerId(saved.id);
                     setCreditCustomerName(saved.display_name || saved.name || name);

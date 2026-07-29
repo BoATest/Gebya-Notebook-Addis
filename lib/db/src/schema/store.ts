@@ -115,7 +115,7 @@ export class InMemoryStore {
     const user: StoredUser = {
       id: randomUUID(),
       displayName: input.displayName.trim(),
-      phone: input.phone,
+      phone: normalizePhone(input.phone) ?? input.phone,
       createdAt: now,
       updatedAt: now,
     };

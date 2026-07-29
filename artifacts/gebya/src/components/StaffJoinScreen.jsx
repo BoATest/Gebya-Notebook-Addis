@@ -5,7 +5,7 @@ import { identityApi } from '../api/identity';
 import { setIdentity } from '../db';
 import db from '../db';
 import { setAuthToken } from '../utils/syncEngine';
-import { isValidEthiopianPhone, normalizeEthiopianPhone, extractSubscriberDigits } from '../utils/phoneNumber';
+import { isValidEthiopianPhone, normalizeEthiopianPhone, extractSubscriberDigits, formatEthiopianPhone } from '../utils/phoneNumber';
 
 const BANK_COPY = 'Gebya is a notebook, not a bank. Gebya does not connect to your bank. Gebya cannot withdraw money. Never enter PIN, OTP, or password. Payment method is only a label like Cash, CBE, Telebirr, or Bank Transfer. Staff phone number is for identity/contact only, not bank/payment.';
 
@@ -53,8 +53,9 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
   const [step, setStep] = useState(prefillCode ? STEP_NAME : STEP_CODE);
   const [joinCode, setJoinCode] = useState(prefillCode);
   const [displayName, setDisplayName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [phoneRequired, setPhoneRequired] = useState(false);
+   const [phone, setPhone] = useState('');
+   const [phoneTouched, setPhoneTouched] = useState(false);
+   const [phoneRequired, setPhoneRequired] = useState(false);
   const [approvalRequired, setApprovalRequired] = useState(false);
   const [shopName, setShopName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -316,23 +317,62 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">
-                {t.staffJoinPhoneLabel || 'Phone Number'} <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => { setPhone(extractSubscriberDigits(e.target.value)); setError(null); }}
-                placeholder={t.staffJoinPhonePlaceholder || '09xxxxxxxx'}
-                className="w-full px-4 py-3.5 rounded-xl border-2 text-base font-semibold focus:outline-none transition-colors"
-                style={{ borderColor: phone && !isValidEthiopianPhone(phone) ? '#ef4444' : '#d1d5db' }}
-                inputMode="numeric"
-                maxLength={9}
-              />
-              <p className="text-xs text-gray-400 mt-1.5 font-medium">
-                {t.staffJoinPhoneNote || 'Used for contact only, never for payment'}
-              </p>
-            </div>
+               <label className="block text-sm font-bold text-gray-700 mb-2">
+                 {t.staffJoinPhoneLabel || 'Phone Number'} <span className="text-red-500">*</span>
+               </label>
+               <div style={{ display: 'flex', gap: 0 }}>
+                 <div
+                   style={{
+                     display: 'flex', alignItems: 'center', justifyContent: 'center',
+                     padding: '0 12px',
+                     background: '#f5f0e8',
+                     border: `2px solid ${(phoneTouched && phone && !isValidEthiopianPhone(phone)) ? '#ef4444' : '#d1d5db'}`,
+                     borderRight: 'none',
+                     borderTopLeftRadius: 'var(--radius-md)',
+                     borderBottomLeftRadius: 'var(--radius-md)',
+                     fontSize: '0.92rem',
+                     fontWeight: 800,
+                     color: '#1B4332',
+                     minWidth: 64,
+                     minHeight: 48,
+                   }}
+                 >
+                   +251
+                 </div>
+                 <input
+                   type="tel"
+                   inputMode="numeric"
+                   value={phone}
+                   onChange={(e) => { setPhone(extractSubscriberDigits(e.target.value)); setError(null); }}
+                   onBlur={() => setPhoneTouched(true)}
+                   placeholder="9XXXXXXXX"
+                   maxLength={9}
+                   className="flex-1 px-4 py-3.5 border-2 text-base font-semibold focus:outline-none transition-colors"
+                   style={{
+                     borderRadius: '0 var(--radius-md) var(--radius-md) 0',
+                     borderColor: (phoneTouched && phone && !isValidEthiopianPhone(phone))
+                       ? '#ef4444'
+                       : '#d1d5db',
+                     minHeight: 48,
+                     fontVariantNumeric: 'tabular-nums',
+                     letterSpacing: '0.04em',
+                   }}
+                 />
+               </div>
+               {phoneTouched && phone && isValidEthiopianPhone(phone) && (
+                 <p className="text-xs mt-1.5 font-medium" style={{ color: '#1B4332' }}>
+                   {formatEthiopianPhone('+251' + phone)}
+                 </p>
+               )}
+               {phoneTouched && phone && !isValidEthiopianPhone(phone) && (
+                 <p className="text-xs text-red-500 mt-1.5 font-medium">
+                   {t.staffJoinPhoneInvalid || 'Enter a valid Ethiopian number (starts with 9 or 7, 9 digits)'}
+                 </p>
+               )}
+               <p className="text-xs text-gray-400 mt-1.5 font-medium">
+                 {t.staffJoinPhoneNote || 'Used for contact only, never for payment'}
+               </p>
+             </div>
 
             {error && (
               <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">

@@ -1,6 +1,7 @@
-import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique, index, check } from "drizzle-orm/pg-core";
 import { businesses } from "./businesses";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 
 export const customers = pgTable("customers", {
   id: serial("id").primaryKey(),
@@ -31,10 +32,11 @@ export const customers = pgTable("customers", {
   syncVersion: integer("sync_version").default(1),
   syncedAt: timestamp("synced_at", { withTimezone: true }).defaultNow(),
 }, (t) => [
-  unique("customers_device_local").on(t.deviceId, t.localId),
-  unique("customers_device_txn").on(t.deviceId, t.transactionId),
-  index("customers_business_idx").on(t.businessId),
-]);
+   unique("customers_device_local").on(t.deviceId, t.localId),
+   unique("customers_device_txn").on(t.deviceId, t.transactionId),
+   index("customers_business_idx").on(t.businessId),
+   check("customers_phone_format", sql`${t.phoneNumber} IS NULL OR ${t.phoneNumber} ~ '^\\+251[79]\\d{8}$'`),
+ ]);
 
 export const insertCustomerSchema = z.object({
   localId: z.number().optional(),

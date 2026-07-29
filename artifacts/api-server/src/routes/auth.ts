@@ -2,6 +2,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { users, devices, otps, businesses, businessMembers } from "@workspace/db/schema";
+import { normalizePhone } from "@workspace/db/schema";
 import { eq, and, gt, inArray } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
@@ -87,7 +88,10 @@ router.post("/otp", async (req, res) => {
     return res.status(400).json({ error: "phone_number is required" });
   }
 
-  const normalizedPhone = phone_number.trim().replace(/\s+/g, "");
+  const normalizedPhone = normalizePhone(phone_number);
+  if (!normalizedPhone) {
+    return res.status(400).json({ error: "Invalid Ethiopian phone number" });
+  }
 
   // Check for existing user and telegram chat_id
   const existingUser = await db.select().from(users).where(eq(users.phoneNumber, normalizedPhone)).limit(1);
@@ -142,7 +146,10 @@ router.post("/verify", async (req, res) => {
     return res.status(400).json({ error: "phone_number and otp are required" });
   }
 
-  const normalizedPhone = phone_number.trim().replace(/\s+/g, "");
+  const normalizedPhone = normalizePhone(phone_number);
+  if (!normalizedPhone) {
+    return res.status(400).json({ error: "Invalid Ethiopian phone number" });
+  }
   const codeHash = hashOtp(otp.trim());
 
   // Find the most recent unconsumed OTP for this phone

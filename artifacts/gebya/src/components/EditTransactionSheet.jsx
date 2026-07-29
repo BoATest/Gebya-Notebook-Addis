@@ -6,6 +6,7 @@ import AddProviderButton from './AddProviderButton';
 import { getDueDateOptions, formatEthiopianTime } from '../utils/ethiopianCalendar';
 import InlineDatePicker from './InlineDatePicker';
 import { fmt, fmtInput } from '../utils/numformat';
+import { normalizeEthiopianPhone } from '../utils/phoneNumber';
 import { photoSizeBytes } from '../utils/photoCapture';
 import { buildPhotoFields, createPhotoProof, normalizePhotos, MAX_PROOF_PHOTOS } from '../utils/photoProof';
 import CameraCapture from './CameraCapture';
@@ -151,7 +152,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
         profit: (!isCredit && cost > 0) ? sellingPrice - cost * qty : null,
         payment_type: isCredit ? null : paymentType,
         payment_provider: (!isCredit && paymentType !== 'cash') ? paymentProvider || null : null,
-        customer_phone: isCredit ? (phoneEntered && phoneValid ? '+251' + phoneDigits : null) : null,
+        customer_phone: isCredit ? (phoneEntered && phoneValid ? normalizeEthiopianPhone(phoneDigits) : null) : null,
         direction: isCredit ? direction : null,
         due_date: isCredit ? getEffectiveDueDate() : null,
         ...buildPhotoFields(photos),

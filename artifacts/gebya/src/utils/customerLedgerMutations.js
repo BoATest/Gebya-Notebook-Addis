@@ -1,4 +1,5 @@
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from './customerTransactionTypes.js';
+import { normalizeEthiopianPhone } from './phoneNumber';
 
 function normalizeOptionalText(value) {
   const text = String(value || '').trim();
@@ -19,7 +20,7 @@ export function normalizeCustomerDraft(payload = {}) {
   return {
     display_name: displayName,
     note: normalizeOptionalText(payload.note),
-    phone_number: normalizeOptionalText(payload.phone_number),
+    phone_number: payload.phone_number ? normalizeEthiopianPhone(payload.phone_number) : null,
     telegram_username: telegramUsername,
     telegram_notify_enabled: Boolean(payload.telegram_notify_enabled && telegramUsername),
   };

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, boolean, integer, jsonb, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, boolean, integer, jsonb, uniqueIndex, index, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
@@ -11,12 +11,14 @@ import { sql } from "drizzle-orm";
 
 // users — one row per human (owner or staff). Phone is declared, never verified.
 export const users = pgTable("users", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  displayName: text("display_name").notNull(),
-  phone: text("phone"), // nullable, never required
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+   displayName: text("display_name").notNull(),
+   phone: text("phone"), // nullable, never required
+   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+ }, (t) => [
+   check("users_phone_format", sql`${t.phone} IS NULL OR ${t.phone} ~ '^\\+251[79]\\d{8}$'`),
+ ]);
 
 // shops — exactly one per owner onboarding.
 export const shops = pgTable(
@@ -48,49 +50,50 @@ export const shops = pgTable(
 // (role='owner', staff_status='active'); the canonical owner pointer
 // lives on shops.owner_user_id.
 export const staff = pgTable(
-  "staff",
-  {
-    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-    shopId: uuid("shop_id")
-      .notNull()
-      .references(() => shops.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "restrict" }),
-    // 'owner' | 'staff' | 'trusted_staff' | 'manager'
-    // 'trusted_staff' and 'manager' are reserved for v1.1 / slice 2; UI
-    // does not expose them in v1. We accept the enum values now so we
-    // do not migrate the role column in v1.1.
-    role: text("role").notNull().default("staff"),
-    // 'active' | 'inactive' — only 'active' and 'inactive' ship in v1.
-    // 'suspended' is v1.1+ only if the field test asks.
-    staffStatus: text("staff_status").notNull().default("active"),
-    // Per-staff permission overrides. In v1 the only override is
-    // can_create_customer_credit. Default false for Basic Staff, true
-    // for owner/Trusted/Manager. Role defaults are applied by the
-    // server-side permission resolver.
-    permissions: jsonb("permissions").$type<{
-      can_create_sale?: boolean;
-      can_create_customer_credit?: boolean;
-      can_create_customer_payment?: boolean;
-      can_create_note?: boolean;
-    }>(),
-    // Phone at time of join. Immutable per staff. Used for rejoin
-    // binding; null if the staff joined without a phone.
-    phoneSnapshot: text("phone_snapshot"),
-    deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
-    deactivatedBy: uuid("deactivated_by").references(() => users.id),
-    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
-    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    // One staff per (shop, user). Rejoin re-uses the existing row.
-    shopUserUnique: uniqueIndex("staff_shop_user_unique").on(t.shopId, t.userId),
-    shopStatusIdx: index("staff_shop_status_idx").on(t.shopId, t.staffStatus),
-  }),
-);
+   "staff",
+   {
+     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+     shopId: uuid("shop_id")
+       .notNull()
+       .references(() => shops.id, { onDelete: "cascade" }),
+     userId: uuid("user_id")
+       .notNull()
+       .references(() => users.id, { onDelete: "restrict" }),
+     // 'owner' | 'staff' | 'trusted_staff' | 'manager'
+     // 'trusted_staff' and 'manager' are reserved for v1.1 / slice 2; UI
+     // does not expose them in v1. We accept the enum values now so we
+     // do not migrate the role column in v1.1.
+     role: text("role").notNull().default("staff"),
+     // 'active' | 'inactive' — only 'active' and 'inactive' ship in v1.
+     // 'suspended' is v1.1+ only if the field test asks.
+     staffStatus: text("staff_status").notNull().default("active"),
+     // Per-staff permission overrides. In v1 the only override is
+     // can_create_customer_credit. Default false for Basic Staff, true
+     // for owner/Trusted/Manager. Role defaults are applied by the
+     // server-side permission resolver.
+     permissions: jsonb("permissions").$type<{
+       can_create_sale?: boolean;
+       can_create_customer_credit?: boolean;
+       can_create_customer_payment?: boolean;
+       can_create_note?: boolean;
+     }>(),
+     // Phone at time of join. Immutable per staff. Used for rejoin
+     // binding; null if the staff joined without a phone.
+     phoneSnapshot: text("phone_snapshot"),
+     deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
+     deactivatedBy: uuid("deactivated_by").references(() => users.id),
+     joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+   },
+   (t) => ({
+     // One staff per (shop, user). Rejoin re-uses the existing row.
+     shopUserUnique: uniqueIndex("staff_shop_user_unique").on(t.shopId, t.userId),
+     shopStatusIdx: index("staff_shop_status_idx").on(t.shopId, t.staffStatus),
+     check("staff_phone_snapshot_format", sql`${t.phoneSnapshot} IS NULL OR ${t.phoneSnapshot} ~ '^\\+251[79]\\d{8}$'`),
+   }),
+ );
 
 // devices — one per phone. A staff can have many devices over time;
 // a device belongs to exactly one staff at a time.

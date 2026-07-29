@@ -2,6 +2,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { businesses, businessMembers, invites, users } from "@workspace/db/schema";
+import { normalizePhone } from "@workspace/db/schema";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import crypto from "crypto";
 import { requireRole } from "../middlewares/requireRole.js";
@@ -77,18 +78,23 @@ router.post("/invite", requireRole("owner"), async (req, res) => {
   const businessId = await getBusinessForUser(userId, getRequestedBizId(req));
   if (!businessId) return res.status(403).json({ error: "No business found" });
 
-  const token = crypto.randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
+   const normalizedInvitePhone = normalizePhone(phone_number);
+   if (!normalizedInvitePhone) {
+     return res.status(400).json({ error: "Invalid Ethiopian phone number" });
+   }
 
-  await db.insert(invites).values({
-    businessId,
-    invitedByUserId: userId,
-    phoneNumber: phone_number.trim(),
-    staffName: staff_name?.trim() || null,
-    role,
-    token,
-    expiresAt,
-  });
+   const token = crypto.randomBytes(32).toString("hex");
+   const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
+
+   await db.insert(invites).values({
+     businessId,
+     invitedByUserId: userId,
+     phoneNumber: normalizedInvitePhone,
+     staffName: staff_name?.trim() || null,
+     role,
+     token,
+     expiresAt,
+   });
 
   return res.json({
     ok: true,
