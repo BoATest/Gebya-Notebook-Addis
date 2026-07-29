@@ -4,8 +4,6 @@ import { useLang } from '../../context/LangContext';
 import { normalizeTelegram } from '../../utils/customerTelegram';
 import { isValidSubscriber, extractSubscriberDigits } from '../../utils/phoneNumber';
 
-import { BUSINESS_TYPE_OPTIONS_EN, BUSINESS_TYPE_OPTIONS_AM } from '../../constants/settings';
-
 export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
   const { lang, t } = useLang();
 
@@ -15,7 +13,6 @@ export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
     return raw.startsWith('+251') ? raw.slice(4) : raw.replace(/\D/g, '').slice(-9);
   });
   const [editTelegram, setEditTelegram] = useState(shopProfile?.telegram || '');
-  const [editBusinessType, setEditBusinessType] = useState(shopProfile?.businessType || 'retail-shop');
   const [profileSaved, setProfileSaved] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
 
@@ -24,7 +21,6 @@ export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
     setEditName(shopProfile?.name || '');
     setEditPhoneDigits(rawPhone.startsWith('+251') ? rawPhone.slice(4) : rawPhone.replace(/\D/g, '').slice(-9));
     setEditTelegram(shopProfile?.telegram || '');
-    setEditBusinessType(shopProfile?.businessType || 'retail-shop');
   }, [shopProfile]);
 
   const phoneValid = !editPhoneDigits || isValidSubscriber(editPhoneDigits);
@@ -39,7 +35,7 @@ export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
   const handleProfileSave = async () => {
     if (!editName.trim() || !phoneValid || !telegramValid) return;
     const fullPhone = editPhoneDigits ? '+251' + editPhoneDigits : '';
-    await onProfileSave(editName.trim(), fullPhone, normalizedTelegram || '', editBusinessType);
+    await onProfileSave(editName.trim(), fullPhone, normalizedTelegram || '');
     setEditTelegram(normalizedTelegram || '');
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2000);
@@ -49,8 +45,7 @@ export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
   const profileChanged = (
     editName.trim() !== (shopProfile?.name || '') ||
     currentFullPhone !== (shopProfile?.phone || '') ||
-    editTelegram.trim() !== (shopProfile?.telegram || '') ||
-    editBusinessType !== (shopProfile?.businessType || 'retail-shop')
+    editTelegram.trim() !== (shopProfile?.telegram || '')
   );
 
   return (
@@ -119,26 +114,6 @@ export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
           {!telegramValid && (
             <p className="text-xs text-red-500 mt-1 font-medium">{t.telegramFormatHint}</p>
           )}
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-gray-500 mb-1.5 flex items-center gap-1">
-            <Store className="w-3.5 h-3.5" /> {lang === 'am' ? 'የንግድ አይነት' : 'Business type'}
-          </label>
-          <select
-            value={editBusinessType}
-            onChange={e => setEditBusinessType(e.target.value)}
-            className="w-full px-4 py-3 border-2 rounded-xl text-sm font-semibold focus:outline-none bg-white"
-            style={{ borderColor: '#e8e2d8' }}
-          >
-            {(lang === 'am' ? BUSINESS_TYPE_OPTIONS_AM : BUSINESS_TYPE_OPTIONS_EN).map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-          <p className="text-xs mt-1 font-medium text-gray-400">
-            {lang === 'am'
-              ? 'ለሱቅዎ ተስማሚ ሃሳቦችን ለመስጠት እንጠቀምበታለን።'
-              : 'We use this to tailor suggestions for your shop.'}
-          </p>
         </div>
 
         <button

@@ -87,17 +87,6 @@ const P = {
   borderLight: 'var(--color-border-light)',
 };
 
-const BUSINESS_TYPE_PROMPT_LABELS = {
-  'retail-shop': 'Retail shop',
-  'shoe-market': 'Shoe market',
-  'flower-shop': 'Flower shop',
-  'women-dress-shop': 'Women dress shop',
-  grocery: 'Grocery / minimarket',
-  electronics: 'Electronics / accessories',
-  pharmacy: 'Pharmacy / cosmetics',
-  other: 'Other',
-};
-
 export default function AppShell() {
   const { hidden } = usePrivacy();
   const { lang, toggleLang, t } = useLang();
@@ -294,7 +283,6 @@ export default function AppShell() {
         db.staff_members?.limit?.(500)?.toArray?.() || [],
         db.settings.get('shop_name'),
         db.settings.get('shop_phone'),
-        db.settings.get('shop_business_type'),
         db.settings.get('enabled_payment_methods'),
         db.settings.get('recurring_expenses'),
         db.settings.get('custom_quick_amounts'),

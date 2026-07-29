@@ -27,7 +27,6 @@ async function seedMobileProofData(page) {
       const tx = db.transaction(['settings', 'customers', 'transactions', 'customer_transactions'], 'readwrite');
       tx.objectStore('settings').put({ key: 'shop_name', value: 'Mobile Proof Shop' });
       tx.objectStore('settings').put({ key: 'shop_phone', value: '' });
-      tx.objectStore('settings').put({ key: 'shop_business_type', value: 'retail-shop' });
 
       const customerReq = tx.objectStore('customers').add({
         display_name: 'Mobile Customer',

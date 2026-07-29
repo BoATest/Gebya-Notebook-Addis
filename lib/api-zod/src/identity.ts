@@ -66,7 +66,6 @@ export type LinkDeviceBodyT = z.infer<typeof LinkDeviceBody>;
 export const CreateShopBody = z.object({
   display_name: DisplayName,
   phone: z.union([z.string(), z.null()]).optional(),
-  business_type: z.string().trim().max(40).optional(),
   // v1: defaults to false; the owner can flip these later in Settings.
   phone_required: z.boolean().optional(),
   approval_required: z.boolean().optional(),

@@ -50,18 +50,16 @@ export function useShopOps({ shopProfile, setShopProfile, setEnabledProviders, s
     handleSavePaymentChannels(updated);
   }, [shopProfile, handleSavePaymentChannels, fireToast, lang]);
 
-  const handleProfileSave = useCallback(async (name, phone, telegram, businessType = 'retail-shop') => {
+  const handleProfileSave = useCallback(async (name, phone, telegram) => {
     await db.settings.put({ key: 'shop_name', value: name });
     await db.settings.put({ key: 'shop_phone', value: phone || '' });
     await db.settings.put({ key: 'shop_telegram', value: telegram || '' });
-    await db.settings.put({ key: 'shop_business_type', value: businessType || 'retail-shop' });
 
     setShopProfile({
       ...(shopProfile || {}),
       name,
       phone: phone || '',
       telegram: telegram || '',
-      businessType: businessType || 'retail-shop',
       paymentChannels: shopProfile?.paymentChannels,
       payments: shopProfile?.payments,
     });
@@ -153,7 +151,6 @@ export function useShopOps({ shopProfile, setShopProfile, setEnabledProviders, s
       id: profile?.id || profile?.shop_id || null,
       shop_id: profile?.shop_id || profile?.id || null,
       telegram: profile?.telegram || '',
-      businessType: profile?.businessType || 'retail-shop',
       role: profile?.role || 'owner',
       paymentChannels: profile?.paymentChannels || defaults,
       payments: profile?.payments || deriveLegacyFromChannels(defaults).payments,
@@ -170,7 +167,6 @@ export function useShopOps({ shopProfile, setShopProfile, setEnabledProviders, s
       name: identity?.shop_name || 'Gebya',
       phone: identity?.phone_number || '',
       telegram: '',
-      businessType: 'retail-shop',
       role: identity?.role || 'staff',
       paymentChannels: buildDefaultChannels(),
       payments: deriveLegacyFromChannels(buildDefaultChannels()).payments,

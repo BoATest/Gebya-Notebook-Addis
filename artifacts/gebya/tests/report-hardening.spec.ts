@@ -54,7 +54,6 @@ async function resetAndSeed(page: Page, options: { staff?: boolean; activeStaff?
     [
       { key: 'shop_name', value: 'Yosef' },
       { key: 'shop_phone', value: '' },
-      { key: 'shop_business_type', value: 'retail-shop' },
       { key: 'privacy_mode', value: 'visible' },
       { key: 'active_staff_member_id', value: activeStaff ? staffId : null },
     ].forEach(row => put('settings', row));

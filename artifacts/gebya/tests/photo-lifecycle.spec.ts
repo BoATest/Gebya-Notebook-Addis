@@ -41,7 +41,6 @@ async function startEnglishShop(page) {
       const tx = db.transaction('settings', 'readwrite');
       tx.objectStore('settings').put({ key: 'shop_name', value: 'Photo Proof Shop' });
       tx.objectStore('settings').put({ key: 'shop_phone', value: '' });
-      tx.objectStore('settings').put({ key: 'shop_business_type', value: 'retail-shop' });
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error);
@@ -66,7 +65,6 @@ async function seedEnglishShopWithCustomer(page, customerName = 'Photo Customer'
       const tx = db.transaction(['settings', 'customers'], 'readwrite');
       tx.objectStore('settings').put({ key: 'shop_name', value: 'Photo Proof Shop' });
       tx.objectStore('settings').put({ key: 'shop_phone', value: '' });
-      tx.objectStore('settings').put({ key: 'shop_business_type', value: 'retail-shop' });
       tx.objectStore('customers').add({
         display_name: name,
         phone_number: '',
@@ -102,7 +100,6 @@ async function seedEnglishShopWithSupplier(page, supplierName = 'Photo Supplier'
       const tx = db.transaction(['settings', 'suppliers'], 'readwrite');
       tx.objectStore('settings').put({ key: 'shop_name', value: 'Photo Proof Shop' });
       tx.objectStore('settings').put({ key: 'shop_phone', value: '' });
-      tx.objectStore('settings').put({ key: 'shop_business_type', value: 'retail-shop' });
       tx.objectStore('suppliers').add({
         display_name: name,
         phone_number: '',

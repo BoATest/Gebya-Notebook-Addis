@@ -78,7 +78,7 @@ function generateJoinCode(): string {
 // POST /api/shops — owner creates a shop
 // ---------------------------------------------------------------------------
 router.post("/shops", async (req: Request, res: Response) => {
-  const { display_name, phone, business_type, phone_required, approval_required } = req.body || {};
+  const { display_name, phone, phone_required, approval_required } = req.body || {};
   if (!display_name || typeof display_name !== "string" || display_name.trim().length === 0) {
     res.status(400).json({ error: "display_name is required" });
     return;
