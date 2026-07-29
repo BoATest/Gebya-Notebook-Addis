@@ -48,11 +48,11 @@ async function request(path, options = {}) {
 
 export const identityApi = {
   // POST /api/shops - owner creates a shop
-  async createShop({ display_name, phone, business_type, phone_required, approval_required }) {
-    return request('/shops', {
-      method: 'POST',
-      body: JSON.stringify({ display_name, phone, business_type, phone_required, approval_required }),
-    });
+   async createShop({ display_name, phone, phone_required, approval_required }) {
+     return request('/shops', {
+       method: 'POST',
+       body: JSON.stringify({ display_name, phone, phone_required, approval_required }),
+     });
   },
 
   // POST /api/shops/join - staff joins a shop

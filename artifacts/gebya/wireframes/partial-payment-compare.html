@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Partial Payment — Current vs Suggested</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: #f3f1ee;
+    padding: 24px 16px;
+    min-height: 100vh;
+  }
+  .header {
+    max-width: 800px;
+    margin: 0 auto 24px;
+    text-align: center;
+  }
+  .header h1 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #1a1a1a;
+    letter-spacing: -0.02em;
+  }
+  .header p {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  .compare-grid {
+    max-width: 800px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 640px) {
+    .compare-grid { grid-template-columns: 1fr; }
+  }
+  .phone-frame {
+    background: #fff;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04);
+    position: relative;
+  }
+  .phone-frame .status-bar {
+    padding: 12px 16px 4px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #6b7280;
+  }
+  .phone-frame .screen {
+    padding: 0 16px 20px;
+  }
+  .label-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+  }
+  .label-badge.current { background: #fef3c7; color: #92400e; }
+  .label-badge.suggested { background: #d1fae5; color: #065f46; }
+
+  /* ─── Amount hero ─── */
+  .amount-section {
+    border: 2px solid #e8e2d8;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  .amount-section .label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6b7280;
+    margin-bottom: 6px;
+  }
+  .amount-section .amount-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .amount-section .amount-row input {
+    flex: 1;
+    border: 2px solid #d7e3da;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    outline: none;
+    font-family: inherit;
+  }
+  .amount-section .amount-row input:focus { border-color: #86efac; }
+  .payment-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    border: 2px solid #edeae5;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    background: #fff;
+    color: #9ca3af;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .payment-chip.active {
+    border-color: #1B4332;
+    background: rgba(27,67,50,0.06);
+    color: #1B4332;
+  }
+  .payment-chip.partial-active {
+    border-color: #C4883A;
+    background: rgba(196,136,58,0.08);
+    color: #92400e;
+  }
+  .payment-chips {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 4px 0;
+    margin-bottom: 12px;
+  }
+  .remaining-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    background: #fef3c7;
+    color: #92400e;
+    margin-top: 6px;
+  }
+  .field-group {
+    margin-bottom: 12px;
+  }
+  .field-group label {
+    display: block;
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6b7280;
+    margin-bottom: 4px;
+  }
+  .field-group input, .field-group .input-sim {
+    width: 100%;
+    border: 2px solid #e8e2d8;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    outline: none;
+    font-family: inherit;
+    background: #fafaf6;
+    color: #9ca3af;
+  }
+  .due-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .due-chip {
+    padding: 6px 12px;
+    border: 2px solid #e8e2d8;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    background: #fff;
+    color: #374151;
+    cursor: pointer;
+  }
+  .due-chip.active { border-color: #2563eb; background: #2563eb; color: #fff; }
+  .save-btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    font-family: inherit;
+    background: #14532d;
+    color: #fff;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .save-btn.disabled { background: #e5e7eb; color: #9ca3af; }
+
+  /* ─── Problem callout ─── */
+  .problem-callout {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .problem-callout.bad { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  .problem-callout.good { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+
+  .arrow-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .arrow-row .arrow-icon { font-size: 1.2rem; }
+  .arrow-row .arrow-label { font-size: 0.65rem; font-weight: 700; color: #6b7280; }
+
+  .divider {
+    max-width: 800px;
+    margin: 32px auto;
+    border: none;
+    border-top: 2px dashed #d1ccc4;
+  }
+
+  .summary-box {
+    max-width: 800px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  }
+  .summary-box h3 {
+    font-size: 0.9rem;
+    font-weight: 800;
+    margin-bottom: 12px;
+    color: #1a1a1a;
+  }
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+  }
+  .report-table th {
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 700;
+    color: #6b7280;
+    border-bottom: 2px solid #e8e2d8;
+    text-transform: uppercase;
+    font-size: 0.6rem;
+    letter-spacing: 0.05em;
+  }
+  .report-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #f3f1ee;
+    font-weight: 600;
+  }
+  .report-table .wrong { color: #dc2626; }
+  .report-table .correct { color: #16a34a; }
+  .report-table .highlight { background: #fffbeb; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Partial Payment: Current vs Suggested</h1>
+  <p>Scenario: Customer buys 1000 ETB item, pays 300 ETB via <strong>telebirr</strong>, remaining 700 ETB as Dubie</p>
+</div>
+
+<div class="compare-grid">
+
+  <!-- ─── CURRENT ─── -->
+  <div class="phone-frame">
+    <div class="status-bar">
+      <span>9:41</span>
+      <span>📶 🔋</span>
+    </div>
+    <div class="screen">
+      <span class="label-badge current">⚠️ CURRENT</span>
+
+      <!-- Amount -->
+      <div class="amount-section">
+        <div class="label">Total amount</div>
+        <div class="amount-row">
+          <input type="text" value="1,000" readonly style="background:#f9fafb;color:#14532d;">
+          <span class="payment-chip partial-active">½ Partial</span>
+        </div>
+      </div>
+
+      <!-- Payment chips -->
+      <div class="payment-chips">
+        <span class="payment-chip">💵 Cash</span>
+        <span class="payment-chip">🏦 CBE</span>
+        <span class="payment-chip">📱 telebirr</span>
+        <span class="payment-chip">⏳ Credit</span>
+        <span class="payment-chip partial-active">½ Partial</span>
+      </div>
+
+      <!-- Amount received -->
+      <div class="field-group">
+        <label>Amount Received <span style="color:#dc2626;">*</span></label>
+        <div style="position:relative;">
+          <input type="text" value="300" style="background:#fff;color:#1a1a1a;border-color:#1B4332;">
+          <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:0.7rem;font-weight:700;color:#9ca3af;">birr</span>
+        </div>
+        <div class="remaining-badge">⏳ Remaining: 700 ETB (Dubie)</div>
+      </div>
+
+      <!-- Customer -->
+      <div class="field-group">
+        <label>Customer <span style="color:#dc2626;">*</span></label>
+        <input type="text" value="Abebe Kebede" style="background:#fff;color:#1a1a1a;border-color:#1B4332;">
+      </div>
+
+      <!-- Due date -->
+      <div class="field-group">
+        <label>Remaining Due Date <span style="color:#9ca3af;">optional</span></label>
+        <div class="due-chips">
+          <span class="due-chip active">7 days</span>
+          <span class="due-chip">15 days</span>
+          <span class="due-chip">30 days</span>
+          <span class="due-chip">📅 Pick</span>
+        </div>
+      </div>
+
+      <!-- Save -->
+      <button class="save-btn">💾 Save 1,000 ETB</button>
+
+      <!-- Problem -->
+      <div class="problem-callout bad">
+        ❌ <strong>Problem:</strong> The 300 ETB is recorded as <strong>Cash</strong> in reports, but the customer actually paid via <strong>telebirr</strong>. Report shows wrong info.
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SUGGESTED ─── -->
+  <div class="phone-frame">
+    <div class="status-bar">
+      <span>9:41</span>
+      <span>📶 🔋</span>
+    </div>
+    <div class="screen">
+      <span class="label-badge suggested">✅ SUGGESTED</span>
+
+      <!-- Amount -->
+      <div class="amount-section" style="border-color:#C4883A;">
+        <div class="label" style="color:#C4883A;">Amount Received</div>
+        <div class="amount-row">
+          <input type="text" value="300" style="background:#fff;color:#1a1a1a;border-color:#C4883A;">
+          <span class="payment-chip active" style="border-color:#C4883A;background:rgba(196,136,58,0.08);color:#92400e;">½ Partial</span>
+        </div>
+        <div class="remaining-badge">⏳ Remaining: 700 ETB (Dubie)</div>
+      </div>
+
+      <!-- Payment chips — same row, but now controls HOW the 300 was paid -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <span style="font-size:0.6rem;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;">Paid via:</span>
+      </div>
+      <div class="payment-chips">
+        <span class="payment-chip">💵 Cash</span>
+        <span class="payment-chip">🏦 CBE</span>
+        <span class="payment-chip active" style="border-color:#1B4332;background:rgba(27,67,50,0.06);color:#1B4332;">📱 telebirr</span>
+        <span class="payment-chip">⏳ Credit</span>
+        <span class="payment-chip partial-active">½ Partial</span>
+      </div>
+      <div style="font-size:0.6rem;font-weight:600;color:#065f46;margin-bottom:12px;padding:4px 8px;background:#f0fdf4;border-radius:6px;display:inline-block;">
+        → 300 ETB via telebirr
+      </div>
+
+      <!-- Customer -->
+      <div class="field-group">
+        <label>Customer (for Dubie) <span style="color:#dc2626;">*</span></label>
+        <input type="text" value="Abebe Kebede" style="background:#fff;color:#1a1a1a;border-color:#1B4332;">
+      </div>
+
+      <!-- Due date -->
+      <div class="field-group">
+        <label>Remaining Due Date <span style="color:#9ca3af;">optional</span></label>
+        <div class="due-chips">
+          <span class="due-chip active">7 days</span>
+          <span class="due-chip">15 days</span>
+          <span class="due-chip">30 days</span>
+          <span class="due-chip">📅 Pick</span>
+        </div>
+      </div>
+
+      <!-- Save -->
+      <button class="save-btn">💾 Save 1,000 ETB</button>
+
+      <!-- Good -->
+      <div class="problem-callout good">
+        ✅ <strong>Fixed:</strong> The 300 ETB is recorded as <strong>telebirr</strong> in reports. The 700 ETB is recorded as Dubie. Report is accurate.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<hr class="divider">
+
+<!-- ─── Report comparison ─── -->
+<div class="summary-box">
+  <h3>📊 Report Impact Comparison</h3>
+  <table class="report-table">
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>Current (Wrong)</th>
+        <th>Suggested (Correct)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Cash Expected</td>
+        <td class="wrong">300 ETB ✗</td>
+        <td class="correct">0 ETB ✓</td>
+      </tr>
+      <tr>
+        <td>Transfer Recorded (telebirr)</td>
+        <td class="wrong">0 ETB ✗</td>
+        <td class="correct">300 ETB ✓</td>
+      </tr>
+      <tr>
+        <td>New Dubie</td>
+        <td>700 ETB</td>
+        <td>700 ETB</td>
+      </tr>
+      <tr class="highlight">
+        <td><strong>Owner sees</strong></td>
+        <td class="wrong"><strong>"I have 300 cash in drawer"</strong> ❌</td>
+        <td class="correct"><strong>"300 in telebirr, 700 as Dubie"</strong> ✅</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<hr class="divider">
+
+<!-- ─── Key difference explanation ─── -->
+<div class="summary-box" style="margin-top:20px;">
+  <h3>🔑 The Code Change — 1 Line in TransactionForm.jsx</h3>
+  <div style="font-size:0.8rem;line-height:1.7;color:#374151;">
+    <p><strong>Current (broken) line 216:</strong></p>
+    <pre style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:0.7rem;overflow-x:auto;margin:8px 0;color:#991b1b;font-family:'Courier New',monospace;">
+payment_provider: (!isCredit && !isCreditSale && !isPartialSale && paymentType !== 'cash') ? paymentProvider || null : null,</pre>
+    
+    <p><strong>Fixed line (remove the <code>!isPartialSale</code> check):</strong></p>
+    <pre style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;font-size:0.7rem;overflow-x:auto;margin:8px 0;color:#166534;font-family:'Courier New',monospace;">
+payment_provider: (!isCredit && !isCreditSale) ? (paymentType !== 'cash' ? paymentProvider || null : null) : null,</pre>
+
+    <p><strong>Why this works:</strong> The current code has <code>&& !isPartialSale</code> which means "skip the payment provider for partial sales." Removing this allows partial sales to use whatever payment chip is selected (telebirr, CBE, etc). The report system in <code>reportSelectors.js</code> already handles this correctly because it checks <code>payment_type</code> and <code>payment_provider</code> to determine if something is cash or transfer.</p>
+    
+    <div style="margin-top:12px;padding:10px 14px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;">
+      <strong style="color:#166534;">The key insight:</strong> The chips are already there. We just remove the <code>!isPartialSale</code> exclusion so the selected chip's value is actually saved for partial sales too.
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<div class="summary-box">
+  <h3>📁 Files Affected for All 3 Tasks</h3>
+  <div style="font-size:0.8rem;line-height:1.7;color:#374151;">
+    <p><strong>Task 1 — Remove Business Type from Onboarding:</strong></p>
+    <ul style="margin:6px 0 14px 20px;">
+      <li><code>src/components/OnboardingScreen.jsx</code> — Remove dropdown (lines 342-356), remove from API call (line 116), remove db.settings.put (line 138)</li>
+      <li><code>src/api/identity.js</code> — Remove <code>business_type</code> from createShop body</li>
+      <li><code>src/constants/settings.js</code> — Keep BUSINESS_TYPE_OPTIONS for Settings only</li>
+      <li><code>src/components/settings/ShopProfilePanel.jsx</code> — Keep business type here as optional profile field</li>
+    </ul>
+
+    <p><strong>Task 2 — Partial Payment Fix:</strong></p>
+    <ul style="margin:6px 0 14px 20px;">
+      <li><code>src/components/TransactionForm.jsx</code> — 1 line change (remove <code>!isPartialSale</code> from payment_provider condition)</li>
+    </ul>
+
+    <p><strong>Task 3 — Payment Methods Settings (Search + Toggle):</strong></p>
+    <ul style="margin:6px 0 14px 20px;">
+      <li><code>src/utils/paymentChannels.js</code> — Add more Ethiopian banks and wallets to DEFAULT_CHANNEL_DEFINITIONS</li>
+      <li><code>src/components/settings/PaymentChannelsPanel.jsx</code> (or similar) — Replace chip UI with search bar + toggle switches</li>
+      <li><code>src/components/PaymentTypeChips.jsx</code> — Keep as-is (reads from enabled providers)</li>
+    </ul>
+  </div>
+
+</body>
+</html>

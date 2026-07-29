@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Partial Payment — Complete Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: #0f0f1a;
+    color: #e0e0e0;
+    padding: 24px 16px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  h1 { font-size: 1.5rem; font-weight: 800; color: #fff; letter-spacing: -0.02em; }
+  h1 span { color: #fbbf24; }
+  .subtitle { color: #9ca3af; font-size: 0.85rem; margin-top: 4px; margin-bottom: 28px; font-weight: 500; }
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 14px;
+    margin-top: 32px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    background: rgba(251,191,36,0.15);
+    color: #fbbf24;
+  }
+
+  /* ─── Phone card ─── */
+  .phone-card {
+    background: #1a1a2e;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid #2a2a4a;
+    margin-bottom: 20px;
+  }
+  .phone-card .card-header {
+    padding: 12px 16px 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #2a2a4a;
+  }
+  .phone-card .card-header .badge {
+    font-size: 0.5rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .badge.screen { background: rgba(96,165,250,0.12); color: #60a5fa; border: 1px solid rgba(96,165,250,0.2); }
+  .badge.code { background: rgba(251,191,36,0.12); color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
+  .badge.data { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.2); }
+  .phone-card .card-header .file { font-family: 'JetBrains Mono', monospace; font-size: 0.55rem; color: #6b7280; }
+
+  .phone-card .body { padding: 14px 16px 18px; }
+
+  /* ─── UI elements ─── */
+  .ui-label {
+    font-size: 0.55rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #6b7280;
+    margin-bottom: 4px;
+  }
+  .ui-amount-box {
+    border: 2px solid #2a2a4a;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+  .ui-amount-box .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ui-amount-box .row .input-sim {
+    flex: 1;
+    background: #0f0f1a;
+    border: 2px solid #2a2a4a;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .ui-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 5px 8px;
+    border: 2px solid #2a2a4a;
+    border-radius: 4px;
+    font-size: 0.55rem;
+    font-weight: 700;
+    background: transparent;
+    color: #6b7280;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .ui-chip.active { border-color: #34d399; background: rgba(52,211,153,0.08); color: #34d399; }
+  .ui-chip.partial { border-color: #fbbf24; background: rgba(251,191,36,0.08); color: #fbbf24; }
+  .ui-chip.telebirr { border-color: #60a5fa; background: rgba(96,165,250,0.08); color: #60a5fa; }
+  .ui-chip.cash { border-color: #f59e0b; background: rgba(245,158,11,0.08); color: #f59e0b; }
+
+  .ui-chips-row {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 4px 0;
+    margin-bottom: 10px;
+  }
+
+  .ui-field { margin-bottom: 10px; }
+  .ui-field .input-sim {
+    width: 100%;
+    background: #0f0f1a;
+    border: 2px solid #2a2a4a;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #e0e0e0;
+  }
+  .ui-field .input-sim.has-value { border-color: #34d399; color: #fff; }
+  .ui-field .input-sim .hint { color: #6b7280; font-weight: 400; font-size: 0.65rem; }
+
+  .ui-remaining {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    background: rgba(251,191,36,0.1);
+    color: #fbbf24;
+    margin-top: 4px;
+  }
+
+  .ui-due-row { display: flex; gap: 4px; flex-wrap: wrap; }
+  .ui-due-chip {
+    padding: 4px 8px;
+    border: 2px solid #2a2a4a;
+    border-radius: 6px;
+    font-size: 0.55rem;
+    font-weight: 700;
+    background: transparent;
+    color: #9ca3af;
+  }
+  .ui-due-chip.active { border-color: #3b82f6; background: rgba(59,130,246,0.1); color: #60a5fa; }
+
+  .ui-save-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    font-family: inherit;
+    background: #14532d;
+    color: #fff;
+    margin-top: 6px;
+    cursor: pointer;
+  }
+
+  .callout {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .callout.error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+  .callout.success { background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.3); color: #6ee7b7; }
+  .callout.info { background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3); color: #93c5fd; }
+
+  /* ─── Customer search ─── */
+  .customer-search-area {
+    margin-bottom: 10px;
+  }
+  .customer-search-area .search-row {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+  }
+  .customer-search-area .search-row input {
+    flex: 1;
+    background: #0f0f1a;
+    border: 2px solid #2a2a4a;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #e0e0e0;
+    min-height: 36px;
+  }
+  .customer-search-area .search-row .add-btn {
+    padding: 0 12px;
+    border: 2px solid #34d399;
+    border-radius: 6px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    background: rgba(52,211,153,0.08);
+    color: #34d399;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .customer-search-area .recent-chips {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .customer-search-area .recent-chips .chip {
+    padding: 4px 8px;
+    border: 2px solid #2a2a4a;
+    border-radius: 4px;
+    font-size: 0.55rem;
+    font-weight: 700;
+    background: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+  }
+  .customer-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: rgba(52,211,153,0.06);
+    border: 1px solid rgba(52,211,153,0.2);
+    border-radius: 6px;
+    margin-top: 6px;
+  }
+  .customer-card .name { flex: 1; font-size: 0.7rem; font-weight: 700; color: #fff; }
+  .customer-card .bal { font-size: 0.6rem; font-weight: 700; color: #fbbf24; }
+  .customer-card .remove { font-size: 0.65rem; color: #6b7280; cursor: pointer; padding: 2px 4px; }
+
+  /* ─── Code block ─── */
+  .code-block {
+    background: #0a0a16;
+    border-radius: 8px;
+    border: 1px solid #2a2a4a;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .code-block .code-header {
+    padding: 6px 12px;
+    background: #12122a;
+    border-bottom: 1px solid #2a2a4a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .code-block .code-header .file { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #6b7280; }
+  .code-block .code-header .action { font-size: 0.5rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+  .action.change { background: rgba(251,191,36,0.12); color: #fbbf24; }
+  .action.fix { background: rgba(52,211,153,0.12); color: #34d399; }
+  .code-block pre {
+    padding: 10px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    line-height: 1.6;
+    color: #d4d4d4;
+    overflow-x: auto;
+  }
+  .code-block .hl { background: rgba(251,191,36,0.08); display: block; margin: 0 -12px; padding: 0 12px; border-left: 2px solid #fbbf24; }
+  .code-block .hl-add { background: rgba(52,211,153,0.08); display: block; margin: 0 -12px; padding: 0 12px; border-left: 2px solid #34d399; }
+  .code-block .hl-remove { background: rgba(239,68,68,0.08); display: block; margin: 0 -12px; padding: 0 12px; border-left: 2px solid #ef4444; text-decoration: line-through; color: #fca5a5; }
+  .code-block .comment { color: #6b7280; }
+  .code-block .keyword { color: #c792ea; }
+  .code-block .string { color: #c3e88d; }
+  .code-block .num { color: #f78c6c; }
+
+  /* ─── Data flow ─── */
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #0a0a16;
+    border-radius: 8px;
+    border: 1px solid #2a2a4a;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .flow-row .arrow { color: #4a4a6a; font-size: 1rem; }
+  .flow-row .box {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.55rem;
+    font-weight: 600;
+    background: #1a1a2e;
+    border: 1px solid #2a2a4a;
+    color: #9ca3af;
+  }
+  .flow-row .box.wrong { border-color: rgba(239,68,68,0.4); color: #fca5a5; }
+  .flow-row .box.correct { border-color: rgba(52,211,153,0.4); color: #6ee7b7; }
+
+  /* ─── Report table ─── */
+  .report-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.65rem;
+    margin-top: 8px;
+  }
+  .report-table th {
+    text-align: left;
+    padding: 6px 8px;
+    font-weight: 700;
+    color: #6b7280;
+    border-bottom: 2px solid #2a2a4a;
+    text-transform: uppercase;
+    font-size: 0.5rem;
+    letter-spacing: 0.05em;
+  }
+  .report-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #1a1a2e;
+    font-weight: 600;
+  }
+  .report-table .wrong { color: #fca5a5; }
+  .report-table .correct { color: #6ee7b7; }
+  .report-table .hl-row { background: rgba(251,191,36,0.05); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+  .note-box {
+    padding: 10px 14px;
+    background: rgba(96,165,250,0.06);
+    border: 1px solid rgba(96,165,250,0.2);
+    border-radius: 8px;
+    font-size: 0.65rem;
+    line-height: 1.6;
+    color: #93c5fd;
+    margin-bottom: 14px;
+  }
+  .note-box strong { color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <h1>Partial Payment <span>Complete Flow</span></h1>
+  <p class="subtitle">Scenario: Customer "Abebe Kebede" (existing balance: 500 ETB) buys 1000 ETB item, pays 300 ETB via telebirr, remaining 700 ETB as Dubie</p>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- STEP 1: SALE FORM -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">
+    <span class="step">1</span> Sale Form — TransactionForm.jsx (sale branch)
+  </div>
+
+  <div class="two-col">
+
+    <!-- CURRENT (broken) -->
+    <div class="phone-card" style="border-color: rgba(239,68,68,0.3);">
+      <div class="card-header">
+        <span class="badge screen">⚠️ CURRENT</span>
+        <span class="file">TransactionForm.jsx</span>
+      </div>
+      <div class="body">
+
+        <div class="ui-label">Total amount</div>
+        <div class="ui-amount-box">
+          <div class="row">
+            <div class="input-sim" style="color:#9ca3af;">1,000</div>
+            <span class="ui-chip partial">½ Partial</span>
+          </div>
+        </div>
+
+        <div class="ui-label">Payment method</div>
+        <div class="ui-chips-row">
+          <span class="ui-chip cash">💵 Cash</span>
+          <span class="ui-chip">🏦 CBE</span>
+          <span class="ui-chip">📱 telebirr</span>
+          <span class="ui-chip">⏳ Credit</span>
+          <span class="ui-chip partial">½ Partial</span>
+        </div>
+
+        <div class="ui-label">Amount received <span style="color:#ef4444;">*</span></div>
+        <div class="ui-field">
+          <div class="input-sim has-value" style="position:relative;">
+            300
+            <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#6b7280;font-weight:400;font-size:0.6rem;">birr</span>
+          </div>
+          <div class="ui-remaining">⏳ Remaining: 700 ETB (Dubie)</div>
+        </div>
+
+        <!-- Customer search with existing balance -->
+        <div class="customer-search-area">
+          <div class="ui-label">Customer <span style="color:#ef4444;">*</span></div>
+          <div class="search-row">
+            <input type="text" value="Abebe Kebede" style="border-color:#34d399;color:#fff;">
+            <button class="add-btn">+ Add</button>
+          </div>
+          <div class="recent-chips">
+            <span class="chip">Almaz</span>
+            <span class="chip">Bekele</span>
+            <span class="chip">Chaltu</span>
+          </div>
+          <!-- Customer card shows existing balance -->
+          <div class="customer-card">
+            <span class="name">Abebe Kebede</span>
+            <span class="bal">BAL: 500 ETB</span>
+            <span class="remove">✕</span>
+          </div>
+        </div>
+
+        <div class="ui-label">Remaining due date</div>
+        <div class="ui-due-row">
+          <span class="ui-due-chip active">7 days</span>
+          <span class="ui-due-chip">15 days</span>
+          <span class="ui-due-chip">30 days</span>
+          <span class="ui-due-chip">📅 Pick</span>
+        </div>
+
+        <button class="ui-save-btn">💾 Save 1,000 ETB</button>
+
+        <div class="callout error">
+          ❌ <strong>Bug:</strong> The chips show Cash, CBE, telebirr — but <strong>none are used</strong> when Partial is selected. The 300 ETB is always saved as <strong>"cash"</strong> regardless of what chip is highlighted. Report will show 300 ETB as cash — wrong!
+        </div>
+      </div>
+    </div>
+
+    <!-- FIXED -->
+    <div class="phone-card" style="border-color: rgba(52,211,153,0.3);">
+      <div class="card-header">
+        <span class="badge screen">✅ FIXED</span>
+        <span class="file">TransactionForm.jsx</span>
+      </div>
+      <div class="body">
+
+        <div class="ui-label" style="color:#fbbf24;">Amount received</div>
+        <div class="ui-amount-box" style="border-color: rgba(251,191,36,0.3);">
+          <div class="row">
+            <div class="input-sim" style="color:#fff;">300</div>
+            <span class="ui-chip partial">½ Partial</span>
+          </div>
+          <div class="ui-remaining">⏳ Remaining: 700 ETB (Dubie)</div>
+        </div>
+
+        <div class="ui-label" style="color:#60a5fa;">How was the 300 ETB paid?</div>
+        <div class="ui-chips-row">
+          <span class="ui-chip cash">💵 Cash</span>
+          <span class="ui-chip">🏦 CBE</span>
+          <span class="ui-chip telebirr">📱 telebirr</span>
+          <span class="ui-chip">⏳ Credit</span>
+          <span class="ui-chip partial">½ Partial</span>
+        </div>
+        <div style="font-size:0.5rem;font-weight:600;color:#34d399;margin-bottom:10px;padding:2px 6px;background:rgba(52,211,153,0.08);border-radius:4px;display:inline-block;">
+          → 300 ETB via telebirr
+        </div>
+
+        <!-- Customer search with existing balance — same as current -->
+        <div class="customer-search-area">
+          <div class="ui-label">Customer (for Dubie) <span style="color:#ef4444;">*</span></div>
+          <div class="search-row">
+            <input type="text" value="Abebe Kebede" style="border-color:#34d399;color:#fff;">
+            <button class="add-btn">+ Add</button>
+          </div>
+          <div class="recent-chips">
+            <span class="chip">Almaz</span>
+            <span class="chip">Bekele</span>
+            <span class="chip">Chaltu</span>
+          </div>
+          <div class="customer-card">
+            <span class="name">Abebe Kebede</span>
+            <span class="bal">BAL: 500 ETB</span>
+            <span class="remove">✕</span>
+          </div>
+        </div>
+
+        <div class="ui-label">Remaining due date</div>
+        <div class="ui-due-row">
+          <span class="ui-due-chip active">7 days</span>
+          <span class="ui-due-chip">15 days</span>
+          <span class="ui-due-chip">30 days</span>
+          <span class="ui-due-chip">📅 Pick</span>
+        </div>
+
+        <button class="ui-save-btn">💾 Save 1,000 ETB</button>
+
+        <div class="callout success">
+          ✅ <strong>Fixed:</strong> The chips now control <strong>how the 300 ETB was paid</strong>. Staff clicks "telebirr" → 300 ETB saved as telebirr. The "Partial" chip stays selected. Customer's existing 500 ETB balance is shown.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- THE CODE CHANGE -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">
+    <span class="step">2</span> The Code Change — 1 Line in handleSave()
+  </div>
+
+  <div class="two-col">
+    <div class="code-block" style="border-color: rgba(239,68,68,0.3);">
+      <div class="code-header">
+        <span class="file">TransactionForm.jsx — line 225 (CURRENT)</span>
+        <span class="action change">⚠️ BROKEN</span>
+      </div>
+      <pre><span class="hl-remove">payment_provider: (!isCredit && !isCreditSale && !isPartialSale && paymentType !== 'cash') ? paymentProvider || null : null,</span>
+<span class="comment">// The "&& !isPartialSale" means: "skip payment provider for partial sales"</span>
+<span class="comment">// Result: partial sales ALWAYS save payment_provider = null</span>
+<span class="comment">// Report sees null → defaults to "cash" → WRONG!</span></pre>
+    </div>
+
+    <div class="code-block" style="border-color: rgba(52,211,153,0.3);">
+      <div class="code-header">
+        <span class="file">TransactionForm.jsx — line 225 (FIXED)</span>
+        <span class="action fix">✅ FIXED</span>
+      </div>
+      <pre><span class="hl-add">payment_provider: (!isCredit && !isCreditSale) ? (paymentType !== 'cash' ? paymentProvider || null : null) : null,</span>
+<span class="comment">// Removed "&& !isPartialSale" — now partial sales also save the selected provider</span>
+<span class="comment">// If user selected "telebirr" chip → payment_provider = "telebirr"</span>
+<span class="comment">// Report sees "telebirr" → categorizes as TRANSFER → CORRECT!</span></pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- DATA FLOW -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">
+    <span class="step">3</span> What Gets Saved to the Database?
+  </div>
+
+  <div class="flow-row" style="border-color: rgba(239,68,68,0.3);">
+    <span class="box wrong">CURRENT: payment_type="partial", payment_provider=null</span>
+    <span class="arrow">→</span>
+    <span class="box wrong">reportSelectors.js: isTransferPayment() returns false</span>
+    <span class="arrow">→</span>
+    <span class="box wrong">Report: Cash Expected = 300 ❌</span>
+  </div>
+
+  <div class="flow-row" style="border-color: rgba(52,211,153,0.3);">
+    <span class="box correct">FIXED: payment_type="telebirr", payment_provider="telebirr"</span>
+    <span class="arrow">→</span>
+    <span class="box correct">reportSelectors.js: isTransferPayment() returns true</span>
+    <span class="arrow">→</span>
+    <span class="box correct">Report: Transfer Recorded = 300 ✅</span>
+  </div>
+
+  <div class="note-box">
+    <strong>How isTransferPayment() works (reportSelectors.js):</strong><br>
+    <code>const payment = String(row?.payment_type || row?.payment_method || '').toLowerCase();</code><br>
+    <code>const provider = String(row?.payment_provider || '').toLowerCase();</code><br>
+    <code>return ['bank', 'transfer', 'mobile', 'telebirr', 'cbe', 'mpesa'].some(key => payment.includes(key) || provider.includes(key));</code><br>
+    When payment_type = "telebirr" → matches "telebirr" in the list → returns true → categorized as TRANSFER ✅
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- REPORT VIEW -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">
+    <span class="step">4</span> Report View — ReportView.jsx
+  </div>
+
+  <div class="two-col">
+    <div class="phone-card" style="border-color: rgba(239,68,68,0.3);">
+      <div class="card-header">
+        <span class="badge screen">⚠️ CURRENT REPORT</span>
+        <span class="file">ReportView.jsx</span>
+      </div>
+      <div class="body">
+        <div style="font-size:0.7rem;font-weight:800;color:#fff;margin-bottom:8px;">📊 Today's Summary</div>
+        <table class="report-table">
+          <tr><td>Total Sales</td><td style="text-align:right;">1,000 ETB</td></tr>
+          <tr><td>Cash Expected</td><td style="text-align:right;color:#fca5a5;">300 ETB ✗</td></tr>
+          <tr><td>Transfer Recorded</td><td style="text-align:right;color:#fca5a5;">0 ETB ✗</td></tr>
+          <tr><td>New Dubie</td><td style="text-align:right;">700 ETB</td></tr>
+          <tr class="hl-row"><td><strong>Owner thinks</strong></td><td style="text-align:right;color:#fca5a5;"><strong>"I have 300 cash" ❌</strong></td></tr>
+        </table>
+        <div class="callout error" style="margin-top:8px;">
+          ❌ The 300 ETB was paid via telebirr but report shows it as cash. Owner will count cash drawer and find 0 cash — confusion!
+        </div>
+      </div>
+    </div>
+
+    <div class="phone-card" style="border-color: rgba(52,211,153,0.3);">
+      <div class="card-header">
+        <span class="badge screen">✅ FIXED REPORT</span>
+        <span class="file">ReportView.jsx</span>
+      </div>
+      <div class="body">
+        <div style="font-size:0.7rem;font-weight:800;color:#fff;margin-bottom:8px;">📊 Today's Summary</div>
+        <table class="report-table">
+          <tr><td>Total Sales</td><td style="text-align:right;">1,000 ETB</td></tr>
+          <tr><td>Cash Expected</td><td style="text-align:right;color:#6ee7b7;">0 ETB ✓</td></tr>
+          <tr><td>Transfer Recorded (telebirr)</td><td style="text-align:right;color:#6ee7b7;">300 ETB ✓</td></tr>
+          <tr><td>New Dubie</td><td style="text-align:right;">700 ETB</td></tr>
+          <tr class="hl-row"><td><strong>Owner sees</strong></td><td style="text-align:right;color:#6ee7b7;"><strong>"300 in telebirr" ✅</strong></td></tr>
+        </table>
+        <div class="callout success" style="margin-top:8px;">
+          ✅ Report correctly shows 300 ETB as telebirr transfer. Owner knows to check telebirr account, not cash drawer.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- CUSTOMER LEDGER VIEW -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">
+    <span class="step">5</span> Customer Ledger — Abebe's Dubie Balance After This Transaction
+  </div>
+
+  <div class="phone-card" style="border-color: rgba(96,165,250,0.3); max-width: 540px;">
+    <div class="card-header">
+      <span class="badge screen">CUSTOMER LEDGER</span>
+      <span class="file">CustomerLedger.js</span>
+    </div>
+    <div class="body">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div>
+          <div style="font-size:0.8rem;font-weight:800;color:#fff;">Abebe Kebede</div>
+          <div style="font-size:0.55rem;color:#6b7280;">+251 91X XXX XXX</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:0.5rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Total Dubie</div>
+          <div style="font-size:1rem;font-weight:800;color:#fbbf24;">1,200 ETB</div>
+        </div>
+      </div>
+
+      <table class="report-table">
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Amount</th>
+          <th>Status</th>
+        </tr>
+        <tr>
+          <td style="color:#9ca3af;">Mar 15</td>
+          <td>🛒 Sale (telebirr 300 + Dubie 700)</td>
+          <td style="color:#fbbf24;">+700 ETB</td>
+          <td><span style="color:#fbbf24;">⏳ Partial</span></td>
+        </tr>
+        <tr>
+          <td style="color:#9ca3af;">Mar 10</td>
+          <td>🛒 Previous purchase</td>
+          <td style="color:#fbbf24;">+500 ETB</td>
+          <td><span style="color:#ef4444;">⚠️ Overdue</span></td>
+        </tr>
+        <tr style="border-top:2px solid #2a2a4a;">
+          <td></td>
+          <td style="font-weight:800;">Total Outstanding</td>
+          <td style="font-weight:800;color:#fbbf24;">1,200 ETB</td>
+          <td></td>
+        </tr>
+      </table>
+
+      <div class="callout info" style="margin-top:8px;">
+        💡 The partial payment automatically created a Dubie entry for the remaining 700 ETB. Abebe's total balance is now 1,200 ETB (500 previous + 700 new).
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SETTLEMENT / CASH COUNT -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">
+    <span class="step">6</span> End-of-Day Settlement Impact
+  </div>
+
+  <div class="two-col">
+    <div class="phone-card" style="border-color: rgba(239,68,68,0.3);">
+      <div class="card-header">
+        <span class="badge screen">⚠️ CURRENT</span>
+        <span class="file">Settlement</span>
+      </div>
+      <div class="body">
+        <div style="font-size:0.7rem;font-weight:800;color:#fff;margin-bottom:8px;">💰 Cash Count</div>
+        <table class="report-table">
+          <tr><td>Cash Expected (from report)</td><td style="text-align:right;color:#fca5a5;">300 ETB</td></tr>
+          <tr><td>Actual Cash in Drawer</td><td style="text-align:right;color:#6ee7b7;">0 ETB</td></tr>
+          <tr class="hl-row"><td><strong>Variance</strong></td><td style="text-align:right;color:#fca5a5;"><strong>-300 ETB ❌</strong></td></tr>
+        </table>
+        <div class="callout error" style="margin-top:8px;">
+          ❌ Owner counts 0 cash but report says 300 expected. Creates false alarm — owner thinks money is missing!
+        </div>
+      </div>
+    </div>
+
+    <div class="phone-card" style="border-color: rgba(52,211,153,0.3);">
+      <div class="card-header">
+        <span class="badge screen">✅ FIXED</span>
+        <span class="file">Settlement</span>
+      </div>
+      <div class="body">
+        <div style="font-size:0.7rem;font-weight:800;color:#fff;margin-bottom:8px;">💰 Cash Count</div>
+        <table class="report-table">
+          <tr><td>Cash Expected (from report)</td><td style="text-align:right;color:#6ee7b7;">0 ETB</td></tr>
+          <tr><td>Actual Cash in Drawer</td><td style="text-align:right;color:#6ee7b7;">0 ETB</td></tr>
+          <tr class="hl-row"><td><strong>Variance</strong></td><td style="text-align:right;color:#6ee7b7;"><strong>0 ETB ✅</strong></td></tr>
+        </table>
+        <div class="callout success" style="margin-top:8px;">
+          ✅ Cash matches perfectly. The 300 ETB was correctly recorded as telebirr transfer — owner checks telebirr account instead.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- FILES AFFECTED -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+
+  <div class="section-title">
+    <span class="step">📁</span> Files Affected for All 3 Tasks
+  </div>
+
+  <div class="code-block" style="border-color: rgba(251,191,36,0.3);">
+    <div class="code-header">
+      <span class="file">SUMMARY</span>
+      <span class="action change">3 tasks</span>
+    </div>
+    <pre>
+<span class="comment">// ─── TASK 1: Remove Business Type from Onboarding ─────────────</span>
+<span class="hl-remove">  src/components/OnboardingScreen.jsx     — Remove dropdown (lines 342-356), API field, db save</span>
+<span class="hl-remove">  src/api/identity.js                     — Remove business_type from createShop() body</span>
+  src/constants/settings.js              — Keep BUSINESS_TYPE_OPTIONS (used in Settings)
+  src/components/settings/ShopProfilePanel.jsx — Keep as optional profile field
+
+<span class="comment">// ─── TASK 2: Fix Partial Payment Reporting ────────────────────</span>
+<span class="hl-add">  src/components/TransactionForm.jsx      — 1 line: remove && !isPartialSale (line 225)</span>
+  (No other files needed — reportSelectors.js already handles it correctly)
+
+<span class="comment">// ─── TASK 3: Payment Methods Settings (Search + Toggle) ───────</span>
+<span class="hl-add">  src/utils/paymentChannels.js            — Add more Ethiopian banks/wallets to defaults</span>
+<span class="hl-add">  src/components/settings/ (new panel)    — Search bar + toggle switches UI</span>
+  src/components/PaymentTypeChips.jsx     — No changes needed (reads from enabled providers)</pre>
+  </div>
+
+</div>
+
+</body>
+</html>

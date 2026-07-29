@@ -278,8 +278,8 @@ export default function AppShell() {
   const loadData = useCallback(async () => {
     try {
       const [
-        txns, customerRows, customerTxRows, catalogRows, staffRows,
-        nameRow, phoneRow, businessTypeRow, epRow, reRow, customQuickAmountsRow, telegramRow,
+         txns, customerRows, customerTxRows, catalogRows, staffRows,
+         nameRow, phoneRow, epRow, reRow, customQuickAmountsRow, telegramRow,
         snapshotRow, activeStaffRow,
         // Payment receiving accounts — used by Pay-it-now /pay URLs (legacy, C.1)
         payTelebirrRow, payCbePhoneRow, payCbeAccountRow, payAwashPhoneRow,
@@ -371,11 +371,10 @@ export default function AppShell() {
       let identityForProfile = identityRow || null;
       if (!identityForProfile && nameRow?.value) {
         try {
-          const result = await identityApi.createShop({
-            display_name: nameRow.value,
-            phone: phoneRow?.value || undefined,
-            business_type: businessTypeRow?.value || 'retail-shop',
-          });
+           const result = await identityApi.createShop({
+             display_name: nameRow.value,
+             phone: phoneRow?.value || undefined,
+           });
           identityForProfile = {
             shop_id: result.shop_id,
             shop_name: result.shop_name || nameRow.value,
@@ -406,14 +405,13 @@ export default function AppShell() {
       // shopProfile.payments) keep working without changes.
       const derivedLegacy = deriveLegacyFromChannels(paymentChannels);
 
-      setShopProfile({
-        id: identityForProfile?.shop_id || null,
-        shop_id: identityForProfile?.shop_id || null,
-        name: profileName,
-        phone: phoneRow?.value || identityForProfile?.phone_number || '',
-        telegram: telegramRow?.value || '',
-        businessType: businessTypeRow?.value || 'retail-shop',
-        role: identityForProfile?.role || 'owner',
+       setShopProfile({
+         id: identityForProfile?.shop_id || null,
+         shop_id: identityForProfile?.shop_id || null,
+         name: profileName,
+         phone: phoneRow?.value || identityForProfile?.phone_number || '',
+         telegram: telegramRow?.value || '',
+         role: identityForProfile?.role || 'owner',
         staff_id: identityForProfile?.staff_id || null,
         device_id: identityForProfile?.device_id || null,
         join_code: identityForProfile?.join_code || '',

@@ -9,8 +9,6 @@ function isValidPhone(digits) {
   return /^[79]\d{8}$/.test(digits);
 }
 
-import { BUSINESS_TYPE_OPTIONS_EN, BUSINESS_TYPE_OPTIONS_AM } from '../constants/settings';
-
 function OnboardingScreen({ onComplete }) {
   const { t, lang, toggleLang } = useLang();
   const phoneOptionalLabel = t.onboardPhoneOptional || '(optional)';
@@ -20,10 +18,9 @@ function OnboardingScreen({ onComplete }) {
     t.onboardPromiseFast || 'Start with your name only',
     t.onboardPromisePrivate || 'Your records stay on this phone',
   ];
-  const businessTypeOptions = lang === 'am' ? BUSINESS_TYPE_OPTIONS_AM : BUSINESS_TYPE_OPTIONS_EN;
-  const onboardKicker = lang === 'am' ? 'ጌብያን ለመጠቀም ሁለት መንገዶች' : 'Two ways to use Gebya';
+   const onboardKicker = lang === 'am' ? 'ጌብያን ለመጠቀም ሁለት መንገዶች' : 'Two ways to use Gebya';
 
-  const handleNewShop = () => setMode('form');
+   const handleNewShop = () => setMode('form');
   const handleJoinShop = () => onComplete({ __staff_join: true });
 
   function renderEnglishOptions() {
@@ -89,10 +86,9 @@ function OnboardingScreen({ onComplete }) {
   }
 
   const [mode, setMode] = useState('choice');
-  const [name, setName] = useState('');
-  const [phoneDigits, setPhoneDigits] = useState('');
-  const [businessType, setBusinessType] = useState('retail-shop');
-  const [saving, setSaving] = useState(false);
+   const [name, setName] = useState('');
+   const [phoneDigits, setPhoneDigits] = useState('');
+   const [saving, setSaving] = useState(false);
   const [touched, setTouched] = useState({ name: false, phone: false });
 
   const nameValid = name.trim().length > 0;
@@ -110,11 +106,10 @@ function OnboardingScreen({ onComplete }) {
     setSaving(true);
     const fullPhone = phoneEntered ? `+251${phoneDigits}` : '';
     try {
-      const result = await identityApi.createShop({
-        display_name: name.trim(),
-        phone: fullPhone || undefined,
-        business_type: businessType,
-      });
+       const result = await identityApi.createShop({
+         display_name: name.trim(),
+         phone: fullPhone || undefined,
+       });
       const identity = {
         shop_id: result.shop_id,
         shop_name: result.shop_name || name.trim(),
@@ -132,35 +127,32 @@ function OnboardingScreen({ onComplete }) {
         approval_required: result.approval_required ?? false,
       };
       await setIdentity(identity);
-      await db.settings.put({ key: 'intro_seen', value: 'yes' });
-      await db.settings.put({ key: 'shop_name', value: identity.shop_name });
-      await db.settings.put({ key: 'shop_phone', value: fullPhone });
-      await db.settings.put({ key: 'shop_business_type', value: businessType });
-      // Save JWT from backend so sync engine can authenticate
+       await db.settings.put({ key: 'intro_seen', value: 'yes' });
+       await db.settings.put({ key: 'shop_name', value: identity.shop_name });
+       await db.settings.put({ key: 'shop_phone', value: fullPhone });
+       // Save JWT from backend so sync engine can authenticate
       if (result.auth_token) {
         await setAuthToken(result.auth_token);
       }
-      onComplete({
-        id: result.shop_id,
-        shop_id: result.shop_id,
-        name: identity.shop_name,
-        phone: fullPhone,
-        businessType,
-        role: 'owner',
-        join_code: result.join_code,
-        join_url: result.join_url,
-        staff_id: result.staff_id,
-        device_id: result.device_id,
-        display_name: result.display_name || name.trim(),
-        device_status: result.device_status || 'active',
-      });
+       onComplete({
+         id: result.shop_id,
+         shop_id: result.shop_id,
+         name: identity.shop_name,
+         phone: fullPhone,
+         role: 'owner',
+         join_code: result.join_code,
+         join_url: result.join_url,
+         staff_id: result.staff_id,
+         device_id: result.device_id,
+         display_name: result.display_name || name.trim(),
+         device_status: result.device_status || 'active',
+       });
     } catch {
-      await db.settings.put({ key: 'intro_seen', value: 'yes' });
-      await db.settings.put({ key: 'shop_name', value: name.trim() });
-      await db.settings.put({ key: 'shop_phone', value: fullPhone });
-      await db.settings.put({ key: 'shop_business_type', value: businessType });
-      fireToast(lang === 'am' ? 'በዚህ ስልክ ብቻ ተቀምጧል — ኢንተርኔት ሲገኝ ማገናኘት ይችላሉ' : 'Saved on this phone — connect to internet to enable sync', 5000);
-      onComplete({ name: name.trim(), phone: fullPhone, businessType });
+       await db.settings.put({ key: 'intro_seen', value: 'yes' });
+       await db.settings.put({ key: 'shop_name', value: name.trim() });
+       await db.settings.put({ key: 'shop_phone', value: fullPhone });
+       fireToast(lang === 'am' ? 'በዚህ ስልክ ብቻ ተቀምጧል — ኢንተርኔት ሲገኝ ማገናኘት ይችላሉ' : 'Saved on this phone — connect to internet to enable sync', 5000);
+       onComplete({ name: name.trim(), phone: fullPhone });
     } finally {
       setSaving(false);
     }
@@ -338,24 +330,7 @@ function OnboardingScreen({ onComplete }) {
             <p className="text-xs mt-1 font-medium" style={{ color: '#9ca3af' }}>{phoneHelper}</p>
           </div>
 
-          {/* Business type */}
-          <div className="mb-4">
-            <label className="block text-xs font-black uppercase tracking-wide mb-1.5" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'የሱቅ አይነት' : 'Business Type'}
-            </label>
-            <select
-              value={businessType}
-              onChange={(e) => setBusinessType(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl text-sm font-medium"
-              style={{ background: '#f9fafb', border: '2px solid #e5e7eb', outline: 'none' }}
-            >
-              {businessTypeOptions.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Promises */}
+           {/* Promises */}
           <div className="mb-4 space-y-2">
             {onboardingPromises.map((promise, i) => (
               <div key={i} className="flex items-start gap-2 text-xs font-medium" style={{ color: '#6b7280' }}>
