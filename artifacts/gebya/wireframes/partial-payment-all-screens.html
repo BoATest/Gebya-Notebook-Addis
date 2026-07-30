@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Partial Payment — All Screens Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: #0f0f1a;
+    color: #e0e0e0;
+    padding: 24px 16px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; font-weight: 800; color: #fff; margin-bottom: 4px; }
+  h1 span { color: #fbbf24; }
+  .subtitle { color: #9ca3af; font-size: 0.8rem; margin-bottom: 24px; }
+
+  .section-title {
+    font-size: 0.9rem; font-weight: 800; color: #fff;
+    margin: 24px 0 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 6px;
+    font-size: 0.6rem; font-weight: 800;
+    background: rgba(251,191,36,0.15); color: #fbbf24;
+  }
+  .section-title .file {
+    font-family: 'Courier New', monospace; font-size: 0.65rem; color: #6b7280;
+    margin-left: auto;
+  }
+
+  /* ─── Phone frame ─── */
+  .phone {
+    max-width: 360px; width: 100%;
+    background: #fff;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    position: relative;
+    margin: 0 auto;
+  }
+  .phone.dark { background: #1a1a2e; }
+
+  /* ─── Screens grid ─── */
+  .screens-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 20px;
+  }
+
+  /* ─── Common UI elements ─── */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid #e8e2d8;
+  }
+  .header .back { font-size: 1rem; color: #6b7280; cursor: pointer; }
+  .header h2 { font-size: 0.85rem; font-weight: 700; }
+  .header .spacer { width: 24px; }
+
+  .body { padding: 12px 14px; }
+
+  .label { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; margin-bottom: 4px; }
+  .label .req { color: #dc2626; }
+  .label .opt { color: #9ca3af; font-weight: 600; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 5px 8px; border: 2px solid #edeae5; border-radius: 4px;
+    font-size: 0.6rem; font-weight: 700;
+    background: #fff; color: #9ca3af; white-space: nowrap;
+  }
+  .chip.active { border-color: #1B4332; background: rgba(27,67,50,0.06); color: #1B4332; }
+  .chip.partial { border-color: #C4883A; background: rgba(196,136,58,0.08); color: #92400e; }
+  .chip.telebirr { border-color: #60a5fa; background: rgba(96,165,250,0.08); color: #60a5fa; }
+
+  .chips-row { display: flex; gap: 4px; overflow-x: auto; padding: 4px 0; }
+
+  .input-sim {
+    width: 100%; padding: 10px 12px;
+    border: 2px solid #e8e2d8; border-radius: 8px;
+    font-size: 0.85rem; font-weight: 600; color: #1a1a1a;
+    font-family: inherit;
+  }
+  .input-sim.green { border-color: #1B4332; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 4px;
+    font-size: 0.6rem; font-weight: 700;
+  }
+  .badge.amber { background: rgba(251,191,36,0.1); color: #fbbf24; }
+  .badge.green { background: rgba(52,211,153,0.1); color: #34d399; }
+  .badge.red { background: rgba(239,68,68,0.1); color: #fca5a5; }
+
+  .save-btn {
+    width: 100%; padding: 12px; border: none; border-radius: 10px;
+    font-size: 0.8rem; font-weight: 800; font-family: inherit;
+    background: #14532d; color: #fff; cursor: pointer;
+  }
+  .save-btn.amber { background: #C4883A; }
+
+  /* ─── Partial sheet overlay ─── */
+  .sheet-overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: #fff; z-index: 50;
+    display: flex; flex-direction: column;
+  }
+
+  /* ─── Report table ─── */
+  .report-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+  .report-table td { padding: 6px 8px; border-bottom: 1px solid #f3f1ee; }
+  .report-table .val { text-align: right; font-weight: 700; font-family: 'Courier New', monospace; }
+  .report-table .correct { color: #16a34a; }
+  .report-table .wrong { color: #dc2626; }
+
+  /* ─── Customer ledger ─── */
+  .ledger-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px; border-bottom: 1px solid #f3f1ee;
+    font-size: 0.7rem;
+  }
+  .ledger-row .type { flex: 1; }
+  .ledger-row .amount { font-weight: 700; font-family: 'Courier New', monospace; }
+  .ledger-row .status { font-size: 0.6rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+
+  /* ─── Annotation ─── */
+  .annotation {
+    padding: 10px 14px;
+    background: rgba(96,165,250,0.06);
+    border: 1px solid rgba(96,165,250,0.2);
+    border-radius: 8px;
+    font-size: 0.65rem; line-height: 1.6;
+    color: #93c5fd;
+    margin-top: 10px;
+  }
+  .annotation strong { color: #fff; }
+  .annotation .highlight { background: rgba(251,191,36,0.1); padding: 1px 4px; border-radius: 3px; color: #fbbf24; }
+
+  .screen-label {
+    text-align: center;
+    font-size: 0.7rem; font-weight: 700; color: #9ca3af;
+    margin-bottom: 8px;
+  }
+  .screen-label .status {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 0.55rem; font-weight: 800; margin-left: 6px;
+  }
+  .status.done { background: rgba(52,211,153,0.15); color: #34d399; }
+  .status.na { background: rgba(156,163,175,0.15); color: #9ca3af; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <h1>Partial Payment <span>— All Screens</span></h1>
+  <p class="subtitle">Where PartialPaymentSheet is wired in and how each screen reacts</p>
+
+  <div class="screens-grid">
+
+    <!-- ═══ 1. TransactionForm (Simple Sale) ═══ -->
+    <div>
+      <div class="screen-label">Screen 1: Simple Sale <span class="status done">✅ WIRED</span></div>
+      <div class="phone">
+        <div class="header">
+          <span class="back">←</span>
+          <h2 style="color:#16a34a">+ Sale</h2>
+          <span class="spacer"></span>
+        </div>
+        <div class="body">
+          <div style="border:1px solid #d8eadf;border-radius:10px;background:#f7fcf8;padding:10px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;">
+              <div>
+                <div class="label">Total amount</div>
+                <div style="font-size:1.3rem;font-weight:900;color:#14532d;">1,000 ETB</div>
+              </div>
+              <span style="font-size:0.6rem;font-weight:800;padding:3px 6px;border:1px solid #bbd7c5;border-radius:3px;color:#14532d;">Cash</span>
+            </div>
+            <div style="font-size:1.1rem;font-weight:800;color:#14532d;padding:8px;border:2px solid #86efac;border-radius:6px;margin-top:6px;">1,000</div>
+          </div>
+          <div class="label">Note (optional)</div>
+          <div style="display:flex;gap:6px;margin-bottom:10px;">
+            <div style="width:40px;height:40px;border:2px solid #d7e3da;border-radius:6px;display:flex;align-items:center;justify-content:center;">📷</div>
+            <input class="input-sim" value="3 shirts" style="flex:1;">
+          </div>
+          <div class="label">Payment method</div>
+          <div class="chips-row" style="margin-bottom:8px;">
+            <span class="chip active">💵 Cash</span>
+            <span class="chip">🏦 CBE</span>
+            <span class="chip">📱 telebirr</span>
+            <span class="chip">⏳ Credit</span>
+            <span class="chip partial">½ Partial ←</span>
+          </div>
+        </div>
+        <div style="padding:10px 14px;border-top:1px solid #e8e2d8;">
+          <button class="save-btn">💾 Save 1,000 ETB</button>
+        </div>
+      </div>
+      <div class="annotation">
+        <strong>TransactionForm.jsx</strong> — Clicking "½ Partial" chip calls <span class="highlight">handlePaymentTypeChange('partial')</span> which opens the PartialPaymentSheet overlay. The sale form stays clean.
+      </div>
+    </div>
+
+    <!-- ═══ 2. PartialPaymentSheet (opens from Sale) ═══ -->
+    <div>
+      <div class="screen-label">Screen 2: PartialPaymentSheet <span class="status done">✅ OPENS</span></div>
+      <div class="phone">
+        <div class="sheet-overlay">
+          <div class="header">
+            <span class="back">←</span>
+            <h2 style="color:#C4883A">½ Partial Payment</h2>
+            <span class="spacer"></span>
+          </div>
+          <div class="body">
+            <div style="padding:10px;background:#f7fcf8;border:1px solid #d8eadf;border-radius:10px;margin-bottom:12px;">
+              <div class="label">Total Amount</div>
+              <div style="font-size:1.1rem;font-weight:900;color:#14532d;">1,000 ETB</div>
+            </div>
+            <div style="margin-bottom:12px;">
+              <div class="label">Amount Received <span class="req">*</span></div>
+              <div style="position:relative;">
+                <input class="input-sim green" value="300" style="padding-right:50px;font-size:1rem;font-weight:700;">
+                <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:0.7rem;color:#9ca3af;">birr</span>
+              </div>
+              <div class="badge amber" style="margin-top:6px;">⏳ Remaining Dubie: 700 birr</div>
+            </div>
+            <div style="margin-bottom:12px;">
+              <div class="label">How was the amount paid?</div>
+              <div class="chips-row">
+                <span class="chip">💵 Cash</span>
+                <span class="chip">🏦 CBE</span>
+                <span class="chip telebirr">📱 telebirr</span>
+                <span class="chip">📱 Awash</span>
+              </div>
+              <div style="font-size:0.55rem;font-weight:600;color:#065f46;padding:3px 6px;background:rgba(52,211,153,0.08);border-radius:3px;display:inline-block;">→ 300 ETB via telebirr</div>
+            </div>
+            <div style="margin-bottom:12px;">
+              <div class="label">Customer (for remaining Dubie) <span class="req">*</span></div>
+              <div style="display:flex;gap:4px;">
+                <input class="input-sim" value="Abebe Kebede" style="flex:1;border-color:#16a34a;font-size:0.7rem;">
+                <button style="padding:0 10px;border:2px solid #16a34a;border-radius:4px;font-size:0.6rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,0.06);">+ Add</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;background:rgba(22,163,74,0.06);border-radius:4px;margin-top:6px;">
+                <span style="flex:1;font-size:0.75rem;font-weight:700;">Abebe Kebede</span>
+                <span style="font-size:0.6rem;font-weight:700;color:#C4883A;">BAL: 500 ETB</span>
+                <span style="font-size:0.7rem;color:#9ca3af;">✕</span>
+              </div>
+            </div>
+            <div>
+              <div class="label">Remaining Due Date <span class="opt">(optional)</span></div>
+              <div style="display:flex;gap:4px;">
+                <span style="padding:6px 10px;border:2px solid #2563eb;border-radius:6px;font-size:0.65rem;font-weight:700;background:#2563eb;color:#fff;">7 days</span>
+                <span style="padding:6px 10px;border:2px solid #e8e2d8;border-radius:6px;font-size:0.65rem;font-weight:700;">15 days</span>
+                <span style="padding:6px 10px;border:2px solid #e8e2d8;border-radius:6px;font-size:0.65rem;font-weight:700;">30 days</span>
+                <span style="padding:6px 10px;border:2px solid #e8e2d8;border-radius:6px;font-size:0.65rem;font-weight:700;">📅 Pick</span>
+              </div>
+            </div>
+          </div>
+          <div style="padding:10px 14px;border-top:1px solid #e8e2d8;">
+            <button class="save-btn amber">💾 Save Partial Payment</button>
+          </div>
+        </div>
+      </div>
+      <div class="annotation">
+        <strong>PartialPaymentSheet.jsx</strong> — Full-screen overlay with: Amount Received, Payment chips (controls how 300 was paid), Customer search with balance, Due date. Save button merges data with sale and calls <span class="highlight">onSave()</span>.
+      </div>
+    </div>
+
+    <!-- ═══ 3. ItemizedSaleView (Multi-item Sale) ═══ -->
+    <div>
+      <div class="screen-label">Screen 3: Multi-item Sale <span class="status done">✅ WIRED</span></div>
+      <div class="phone">
+        <div class="header">
+          <span class="back">←</span>
+          <h2 style="color:#16a34a">New Sale</h2>
+          <div style="display:flex;gap:4px;"><span>📷</span><span>📋</span></div>
+        </div>
+        <div style="padding:4px 8px;border-bottom:1px solid #edeae5;display:flex;gap:4px;font-size:0.55rem;font-weight:700;color:#bbb0a0;">
+          <span style="flex:1;">ITEM</span>
+          <span style="width:50px;text-align:center;">QTY</span>
+          <span style="width:60px;text-align:right;">PRICE</span>
+          <span style="width:60px;text-align:right;">TOTAL</span>
+        </div>
+        <div style="padding:4px 8px;font-size:0.7rem;">
+          <div style="display:flex;gap:4px;padding:4px 0;border-bottom:1px solid #f5f5f5;">
+            <span style="flex:1;font-weight:600;">Shirt</span>
+            <span style="width:50px;text-align:center;">2</span>
+            <span style="width:60px;text-align:right;">300</span>
+            <span style="width:60px;text-align:right;font-weight:700;">600</span>
+          </div>
+          <div style="display:flex;gap:4px;padding:4px 0;border-bottom:1px solid #f5f5f5;">
+            <span style="flex:1;font-weight:600;">Shoes</span>
+            <span style="width:50px;text-align:center;">1</span>
+            <span style="width:60px;text-align:right;">400</span>
+            <span style="width:60px;text-align:right;font-weight:700;">400</span>
+          </div>
+        </div>
+        <div style="padding:6px 8px;border-top:1px solid #e8e2d8;">
+          <div style="display:flex;justify-content:space-between;font-size:0.65rem;margin-bottom:4px;">
+            <span style="color:#9ca3af;">Items: 2 · Qty: 3</span>
+            <span style="color:#9ca3af;">Subtotal: <strong style="color:#374151;">1,000</strong></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;">
+            <span style="font-size:0.8rem;font-weight:900;">TOTAL</span>
+            <span style="font-size:0.9rem;font-weight:900;color:#16a34a;">1,000 ETB</span>
+          </div>
+        </div>
+        <div style="padding:4px 8px;">
+          <div class="chips-row">
+            <span class="chip active">💵 Cash</span>
+            <span class="chip">🏦 CBE</span>
+            <span class="chip">📱 telebirr</span>
+            <span class="chip">⏳ Credit</span>
+            <span class="chip partial">½ Partial ←</span>
+          </div>
+        </div>
+        <div style="padding:6px 8px;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:0.6rem;font-weight:700;color:#9ca3af;">Share</span>
+          <div style="flex:1;"></div>
+          <button style="padding:6px 10px;font-size:0.6rem;font-weight:800;background:#16a34a;color:#fff;border:none;border-radius:3px;">Complete Sale</button>
+        </div>
+      </div>
+      <div class="annotation">
+        <strong>ItemizedSaleView.jsx</strong> — Same Partial chip behavior. Clicking "½ Partial" opens the same PartialPaymentSheet. The handler <span class="highlight">handlePartialSheetSave</span> merges sheet data with items array, discount, and photos.
+      </div>
+    </div>
+
+    <!-- ═══ 4. Report View (After saving) ═══ -->
+    <div>
+      <div class="screen-label">Screen 4: Report View <span class="status done">✅ CORRECT</span></div>
+      <div class="phone">
+        <div class="header">
+          <span class="back">←</span>
+          <h2 style="color:#1B4332">📊 Today's Summary</h2>
+          <span class="spacer"></span>
+        </div>
+        <div class="body">
+          <table class="report-table">
+            <tr>
+              <td>Total Sales</td>
+              <td class="val">1,000 ETB</td>
+            </tr>
+            <tr>
+              <td>Cash Expected</td>
+              <td class="val correct">0 ETB ✓</td>
+            </tr>
+            <tr>
+              <td>Transfer Recorded (telebirr)</td>
+              <td class="val correct">300 ETB ✓</td>
+            </tr>
+            <tr>
+              <td>New Dubie</td>
+              <td class="val">700 ETB</td>
+            </tr>
+            <tr style="background:rgba(251,191,36,0.05);">
+              <td><strong>Owner sees</strong></td>
+              <td class="val correct"><strong>"300 in telebirr" ✅</strong></td>
+            </tr>
+          </table>
+          <div style="margin-top:10px;padding:8px 10px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.2);border-radius:6px;">
+            <div style="font-size:0.6rem;font-weight:700;color:#16a34a;">✅ Report is correct</div>
+            <div style="font-size:0.55rem;color:#374151;margin-top:2px;">payment_type="telebirr" → isTransferPayment() returns true → categorized as TRANSFER</div>
+          </div>
+        </div>
+      </div>
+      <div class="annotation">
+        <strong>ReportView.jsx → reportSelectors.js</strong> — The report correctly shows 300 ETB as <span class="highlight">Transfer Recorded</span> (not Cash Expected) because <code>payment_provider="telebirr"</code> is now saved for partial sales.
+      </div>
+    </div>
+
+    <!-- ═══ 5. Customer Ledger ═══ -->
+    <div>
+      <div class="screen-label">Screen 5: Customer Ledger <span class="status done">✅ AUTO</span></div>
+      <div class="phone">
+        <div class="header">
+          <span class="back">←</span>
+          <h2>Abebe Kebede</h2>
+          <span class="spacer"></span>
+        </div>
+        <div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e8e2d8;">
+          <div>
+            <div style="font-size:0.8rem;font-weight:800;">Abebe Kebede</div>
+            <div style="font-size:0.55rem;color:#9ca3af;">+251 91X XXX XXX</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:0.5rem;font-weight:700;color:#9ca3af;">TOTAL DUBIE</div>
+            <div style="font-size:1rem;font-weight:900;color:#C4883A;">1,200 ETB</div>
+          </div>
+        </div>
+        <div class="body" style="padding:0;">
+          <table class="report-table">
+            <tr>
+              <th style="text-align:left;font-size:0.55rem;color:#9ca3af;">DATE</th>
+              <th style="text-align:left;font-size:0.55rem;color:#9ca3af;">TYPE</th>
+              <th style="text-align:right;font-size:0.55rem;color:#9ca3af;">AMOUNT</th>
+              <th style="font-size:0.55rem;color:#9ca3af;">STATUS</th>
+            </tr>
+            <tr>
+              <td style="font-size:0.6rem;color:#9ca3af;">Today</td>
+              <td style="font-size:0.65rem;">🛒 Sale (telebirr 300 + Dubie 700)</td>
+              <td class="val" style="color:#C4883A;">+700</td>
+              <td><span class="badge amber">⏳ Partial</span></td>
+            </tr>
+            <tr>
+              <td style="font-size:0.6rem;color:#9ca3af;">Mar 10</td>
+              <td style="font-size:0.65rem;">🛒 Previous purchase</td>
+              <td class="val" style="color:#C4883A;">+500</td>
+              <td><span class="badge red">⚠️ Overdue</span></td>
+            </tr>
+            <tr style="border-top:2px solid #e8e2d8;">
+              <td></td>
+              <td style="font-weight:800;">Total Outstanding</td>
+              <td class="val" style="color:#C4883A;font-weight:800;">1,200</td>
+              <td></td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      <div class="annotation">
+        <strong>CustomerDetail.jsx</strong> — The partial payment automatically created a Dubie entry for the remaining 700 ETB. Abebe's total balance is now 1,200 ETB (500 previous + 700 new). The transaction shows as <span class="highlight">"Sale (telebirr 300 + Dubie 700)"</span>.
+      </div>
+    </div>
+
+    <!-- ═══ 6. Settlement / Cash Count ═══ -->
+    <div>
+      <div class="screen-label">Screen 6: End-of-Day Settlement <span class="status done">✅ CORRECT</span></div>
+      <div class="phone">
+        <div class="header">
+          <span class="back">←</span>
+          <h2 style="color:#1B4332">💰 Cash Count</h2>
+          <span class="spacer"></span>
+        </div>
+        <div class="body">
+          <table class="report-table">
+            <tr>
+              <td>Cash Expected (from report)</td>
+              <td class="val correct">0 ETB</td>
+            </tr>
+            <tr>
+              <td>Actual Cash in Drawer</td>
+              <td class="val correct">0 ETB</td>
+            </tr>
+            <tr style="background:rgba(52,211,153,0.05);">
+              <td><strong>Variance</strong></td>
+              <td class="val correct"><strong>0 ETB ✅</strong></td>
+            </tr>
+          </table>
+          <div style="margin-top:10px;padding:8px 10px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.2);border-radius:6px;">
+            <div style="font-size:0.6rem;font-weight:700;color:#16a34a;">✅ Cash matches perfectly</div>
+            <div style="font-size:0.55rem;color:#374151;margin-top:2px;">The 300 ETB was correctly recorded as telebirr transfer — owner checks telebirr account, not cash drawer.</div>
+          </div>
+          <div style="margin-top:8px;padding:8px 10px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.15);border-radius:6px;">
+            <div style="font-size:0.6rem;font-weight:700;color:#dc2626;">❌ Before the fix (what would have happened):</div>
+            <div style="font-size:0.55rem;color:#991b1b;margin-top:2px;">Cash Expected: 300 · Actual: 0 · Variance: -300 ❌ (false alarm)</div>
+          </div>
+        </div>
+      </div>
+      <div class="annotation">
+        <strong>Settlement</strong> — Before the fix, the owner would see a -300 ETB cash variance (false alarm). After the fix, cash matches perfectly because the 300 ETB was correctly recorded as <span class="highlight">telebirr transfer</span>.
+      </div>
+    </div>
+
+    <!-- ═══ 7. CustomerTransactionSheet ═══ -->
+    <div>
+      <div class="screen-label">Screen 7: Customer Payment <span class="status na">N/A — Different context</span></div>
+      <div class="phone">
+        <div class="header">
+          <span class="back">←</span>
+          <h2 style="color:#2563eb">Abebe Kebede — Payment</h2>
+          <span class="spacer"></span>
+        </div>
+        <div class="body">
+          <div style="padding:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;margin-bottom:12px;">
+            <div class="label" style="color:#2563eb;">Current Dubie Balance</div>
+            <div style="font-size:1.3rem;font-weight:900;color:#1e40af;">1,200 ETB</div>
+          </div>
+          <div class="label">Payment Amount</div>
+          <div style="position:relative;margin-bottom:10px;">
+            <input class="input-sim" value="500" style="padding-right:50px;font-size:1rem;font-weight:700;border-color:#2563eb;">
+            <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:0.7rem;color:#9ca3af;">birr</span>
+          </div>
+          <div class="label">Payment Method</div>
+          <div class="chips-row" style="margin-bottom:10px;">
+            <span class="chip active">💵 Cash</span>
+            <span class="chip">🏦 CBE</span>
+            <span class="chip">📱 telebirr</span>
+          </div>
+          <button class="save-btn" style="background:#2563eb;">💾 Save Payment</button>
+        </div>
+      </div>
+      <div class="annotation">
+        <strong>CustomerTransactionSheet.jsx</strong> — This is for <strong>customer payments</strong> (paying off existing Dubie), not partial sales. It already handles <code>payment_provider</code> correctly: <code>payment_provider: isPayment && paymentMethod !== 'cash' ? paymentProvider : null</code>. <span class="highlight">No PartialPaymentSheet needed here</span> — this is a different flow.
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ Summary ═══ -->
+  <div style="margin-top:32px;padding:16px;background:#1a1a2e;border-radius:12px;border:1px solid #2a2a4a;">
+    <h3 style="font-size:0.9rem;font-weight:800;color:#fff;margin-bottom:10px;">📋 Implementation Summary</h3>
+    <table style="width:100%;font-size:0.7rem;color:#e0e0e0;">
+      <tr style="border-bottom:1px solid #2a2a4a;">
+        <td style="padding:6px 0;"><strong>TransactionForm.jsx</strong> (Simple Sale)</td>
+        <td style="padding:6px 0;color:#34d399;">✅ PartialPaymentSheet wired in</td>
+      </tr>
+      <tr style="border-bottom:1px solid #2a2a4a;">
+        <td style="padding:6px 0;"><strong>ItemizedSaleView.jsx</strong> (Multi-item Sale)</td>
+        <td style="padding:6px 0;color:#34d399;">✅ PartialPaymentSheet wired in</td>
+      </tr>
+      <tr style="border-bottom:1px solid #2a2a4a;">
+        <td style="padding:6px 0;"><strong>CustomerTransactionSheet.jsx</strong> (Customer Payment)</td>
+        <td style="padding:6px 0;color:#9ca3af;">N/A — Different context, already correct</td>
+      </tr>
+      <tr style="border-bottom:1px solid #2a2a4a;">
+        <td style="padding:6px 0;"><strong>PaymentTypeChips.jsx</strong> (Chip component)</td>
+        <td style="padding:6px 0;color:#34d399;">✅ Has "½ Partial" chip that triggers sheet</td>
+      </tr>
+      <tr style="border-bottom:1px solid #2a2a4a;">
+        <td style="padding:6px 0;"><strong>ReportView.jsx</strong> (Report)</td>
+        <td style="padding:6px 0;color:#34d399;">✅ Correctly shows transfer vs cash</td>
+      </tr>
+      <tr style="border-bottom:1px solid #2a2a4a;">
+        <td style="padding:6px 0;"><strong>CustomerDetail.jsx</strong> (Ledger)</td>
+        <td style="padding:6px 0;color:#34d399;">✅ Auto-creates Dubie for remaining</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;"><strong>Settlement</strong> (Cash Count)</td>
+        <td style="padding:6px 0;color:#34d399;">✅ No false cash variance</td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+
+</body>
+</html>

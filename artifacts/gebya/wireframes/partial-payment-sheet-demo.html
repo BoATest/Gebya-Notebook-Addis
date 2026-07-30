@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PartialPaymentSheet — Interactive Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: #f3f1ee;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  /* ─── Phone frame (responsive) ─── */
+  .phone {
+    width: 100%;
+    max-width: 390px;
+    background: #fff;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+    position: relative;
+    min-height: 700px;
+  }
+
+  /* ─── Sale form (background) ─── */
+  .sale-form {
+    position: relative;
+  }
+  .sale-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e8e2d8;
+  }
+  .sale-header .back-btn {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border: none; background: none; cursor: pointer;
+    font-size: 1.2rem; color: #6b7280;
+  }
+  .sale-header h2 {
+    font-size: 0.9rem; font-weight: 700; color: #16a34a;
+  }
+  .sale-header .spacer { width: 36px; }
+
+  .sale-body {
+    padding: 12px 16px;
+  }
+
+  /* Amount hero */
+  .amount-hero {
+    border: 1px solid #d8eadf;
+    border-radius: 12px;
+    background: #f7fcf8;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+  .amount-hero .top-row {
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .amount-hero .label {
+    font-size: 0.7rem; font-weight: 700; color: #4b6855;
+  }
+  .amount-hero .total {
+    font-size: 1.5rem; font-weight: 900; color: #14532d; line-height: 1.2;
+  }
+  .amount-hero .badge {
+    font-size: 0.7rem; font-weight: 800;
+    padding: 4px 8px; border: 1px solid #bbd7c5; border-radius: 4px;
+    background: #fff; color: #14532d;
+  }
+  .amount-hero input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #86efac;
+    border-radius: 8px;
+    font-size: 1.3rem; font-weight: 800;
+    color: #14532d;
+    margin-top: 8px;
+    outline: none;
+    font-family: inherit;
+  }
+
+  /* Note section */
+  .note-section {
+    margin-bottom: 12px;
+  }
+  .note-section .label {
+    font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+    color: #6b7280; margin-bottom: 6px;
+  }
+  .note-section .row {
+    display: flex; gap: 8px;
+  }
+  .note-section .photo-btn {
+    width: 48px; height: 48px;
+    border: 2px solid #d7e3da; border-radius: 8px;
+    background: #fafaf6;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; cursor: pointer;
+  }
+  .note-section input {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid #d7e3da; border-radius: 8px;
+    font-size: 0.9rem; outline: none;
+    font-family: inherit;
+  }
+
+  /* Payment chips */
+  .chips-row {
+    display: flex; gap: 4px; overflow-x: auto; padding: 8px 0;
+    margin-bottom: 12px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 6px 10px;
+    border: 2px solid #edeae5; border-radius: 4px;
+    font-size: 0.65rem; font-weight: 700;
+    background: #fff; color: #9ca3af;
+    white-space: nowrap; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .chip.active {
+    border-color: #1B4332; background: rgba(27,67,50,0.06); color: #1B4332;
+  }
+  .chip.partial-active {
+    border-color: #C4883A; background: rgba(196,136,58,0.08); color: #92400e;
+  }
+
+  /* Save button */
+  .save-bar {
+    padding: 12px 16px;
+    border-top: 1px solid #e8e2d8;
+    background: #fff;
+  }
+  .save-btn {
+    width: 100%;
+    padding: 14px;
+    border: none; border-radius: 12px;
+    font-size: 0.9rem; font-weight: 800;
+    background: #14532d; color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .save-btn:disabled {
+    background: #e5e7eb; color: #9ca3af;
+  }
+  .save-hint {
+    font-size: 0.7rem; font-weight: 600; color: #6b7280;
+    text-align: center; margin-top: 6px;
+  }
+
+  /* ─── PartialPaymentSheet (overlay) ─── */
+  .partial-sheet {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #fff;
+    z-index: 50;
+    display: none;
+    flex-direction: column;
+    animation: slideUp 0.3s ease-out;
+  }
+  .partial-sheet.open {
+    display: flex;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .sheet-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e8e2d8;
+    flex-shrink: 0;
+  }
+  .sheet-header .back-btn {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border: none; background: none; cursor: pointer;
+    font-size: 1.2rem; color: #6b7280;
+  }
+  .sheet-header h2 {
+    font-size: 0.9rem; font-weight: 700; color: #C4883A;
+  }
+  .sheet-header .spacer { width: 36px; }
+
+  .sheet-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  /* Total display */
+  .total-display {
+    padding: 12px;
+    background: #f7fcf8;
+    border: 1px solid #d8eadf;
+    border-radius: 12px;
+    margin-bottom: 16px;
+  }
+  .total-display .label {
+    font-size: 0.7rem; font-weight: 700; color: #4b6855;
+  }
+  .total-display .amount {
+    font-size: 1.3rem; font-weight: 900; color: #14532d;
+  }
+
+  /* Field group */
+  .field-group {
+    margin-bottom: 16px;
+  }
+  .field-group label {
+    display: block;
+    font-size: 0.6rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #6b7280;
+    margin-bottom: 6px;
+  }
+  .field-group label .required { color: #dc2626; }
+  .field-group label .optional { color: #9ca3af; font-weight: 600; }
+
+  .amount-input-wrapper {
+    position: relative;
+  }
+  .amount-input-wrapper input {
+    width: 100%;
+    padding: 12px 60px 12px 12px;
+    border: 2px solid #1B4332; border-radius: 12px;
+    font-size: 1.1rem; font-weight: 700;
+    color: #1a1a1a; outline: none;
+    font-family: inherit;
+  }
+  .amount-input-wrapper .suffix {
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    font-size: 0.85rem; font-weight: 600; color: #9ca3af;
+  }
+
+  .remaining-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 6px;
+    font-size: 0.7rem; font-weight: 700;
+    background: rgba(251,191,36,0.1); color: #fbbf24;
+    margin-top: 8px;
+  }
+
+  /* Payment chips in sheet */
+  .sheet-chips {
+    display: flex; gap: 4px; overflow-x: auto; padding: 4px 0;
+  }
+  .payment-summary {
+    font-size: 0.65rem; font-weight: 600; color: #065f46;
+    padding: 4px 8px; background: rgba(52,211,153,0.08);
+    border-radius: 4px; display: inline-block;
+    margin-top: 6px;
+  }
+
+  /* Customer search */
+  .customer-search-row {
+    display: flex; gap: 6px;
+  }
+  .customer-search-row input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 2px solid #16a34a; border-radius: 6px;
+    font-size: 0.75rem; font-weight: 700;
+    color: #1a1a1a; outline: none;
+    font-family: inherit;
+  }
+  .customer-search-row .add-btn {
+    padding: 0 12px;
+    border: 2px solid #16a34a; border-radius: 6px;
+    font-size: 0.65rem; font-weight: 700;
+    background: rgba(22,163,74,0.06); color: #16a34a;
+    cursor: pointer; white-space: nowrap;
+  }
+
+  .recent-chips {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;
+  }
+  .recent-chip {
+    padding: 5px 10px;
+    border: 2px solid #edeae5; border-radius: 6px;
+    font-size: 0.65rem; font-weight: 700;
+    background: #fff; color: #9ca3af;
+    cursor: pointer;
+  }
+
+  .customer-card {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px;
+    background: rgba(22,163,74,0.06);
+    border: 1px solid rgba(22,163,74,0.2);
+    border-radius: 6px;
+    margin-top: 8px;
+  }
+  .customer-card .name {
+    flex: 1; font-size: 0.8rem; font-weight: 700; color: #1a1a1a;
+  }
+  .customer-card .bal {
+    font-size: 0.65rem; font-weight: 700; color: #C4883A;
+  }
+  .customer-card .remove {
+    font-size: 0.75rem; color: #9ca3af; cursor: pointer; padding: 2px 4px;
+  }
+
+  /* Due date chips */
+  .due-chips {
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .due-chip {
+    padding: 8px 12px;
+    border: 2px solid #e8e2d8; border-radius: 8px;
+    font-size: 0.75rem; font-weight: 700;
+    background: #fff; color: #374151;
+    cursor: pointer;
+  }
+  .due-chip.active {
+    border-color: #2563eb; background: #2563eb; color: #fff;
+  }
+
+  /* Sheet save button */
+  .sheet-save-bar {
+    padding: 12px 16px;
+    border-top: 1px solid #e8e2d8;
+    background: #fff;
+    flex-shrink: 0;
+  }
+  .sheet-save-btn {
+    width: 100%;
+    padding: 14px;
+    border: none; border-radius: 12px;
+    font-size: 0.9rem; font-weight: 800;
+    background: #C4883A; color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .sheet-save-btn:disabled {
+    background: #e5e7eb; color: #9ca3af;
+  }
+
+  /* Hint text */
+  .hint {
+    font-size: 0.7rem; font-weight: 600; color: #92400e;
+    text-align: center; margin-bottom: 8px;
+  }
+
+  /* Demo controls */
+  .demo-controls {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1a2e;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    z-index: 100;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .demo-controls .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #34d399;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ─── InlineDatePicker Modal (Ethiopian Calendar) ─── */
+  .date-picker-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 60;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .date-picker-overlay.open {
+    display: flex;
+  }
+  .date-picker {
+    background: #fff;
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 -8px 32px -8px rgba(0,0,0,0.25);
+    animation: slideUp 0.3s ease-out;
+  }
+  .date-picker .drag-handle {
+    width: 38px;
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 999px;
+    margin: 10px auto 6px;
+  }
+  .date-picker .dp-header {
+    padding: 0 16px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .date-picker .dp-header h3 {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #1a1a1a;
+    margin: 0;
+  }
+  .date-picker .dp-header .close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #f3f4f6;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: #6b7280;
+  }
+  .date-picker .dp-date-display {
+    margin: 0 16px 10px;
+    padding: 10px 14px;
+    background: #f7fcf8;
+    border-radius: 10px;
+    text-align: center;
+  }
+  .date-picker .dp-date-display .date-main {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #1B4332;
+    line-height: 1.3;
+  }
+  .date-picker .dp-date-display .date-weekday {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #6b7280;
+    margin-top: 2px;
+  }
+  .date-picker .dp-presets {
+    padding: 0 16px 12px;
+  }
+  .date-picker .dp-presets .presets-row {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4;
+  }
+  .date-picker .preset-chip {
+    flex-shrink: 0;
+    padding: 7px 13px;
+    min-height: 34px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .date-picker .preset-chip.today {
+    background: #1B4332;
+    color: #fff;
+    border: 2px solid #1B4332;
+  }
+  .date-picker .preset-chip.neutral {
+    background: #fff;
+    color: #1B4332;
+    border: 2px solid #d4cdc0;
+  }
+  .date-picker .dp-month-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 16px 10px;
+  }
+  .date-picker .dp-month-nav .nav-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background: #f3f4f6;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-size: 0.9rem;
+    color: #6b7280;
+  }
+  .date-picker .dp-month-nav .month-label {
+    flex: 1;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: #1a1a1a;
+  }
+  .date-picker .dp-calendar {
+    padding: 0 16px 14px;
+  }
+  .date-picker .weekday-headers {
+    display: flex;
+    margin-bottom: 4px;
+  }
+  .date-picker .weekday-headers div {
+    flex: 1;
+    text-align: center;
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: #9ca3af;
+  }
+  .date-picker .calendar-row {
+    display: flex;
+    gap: 1px;
+    margin-bottom: 1px;
+  }
+  .date-picker .calendar-cell {
+    flex: 1;
+    aspect-ratio: 1;
+    max-width: 48px;
+    margin: 0 auto;
+    border-radius: 8px;
+    background: transparent;
+    color: #374151;
+    border: 1.5px solid transparent;
+    font-size: clamp(0.6rem, 3vw, 0.8rem);
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .date-picker .calendar-cell.empty {
+    cursor: default;
+    border: 1.5px solid transparent;
+  }
+  .date-picker .calendar-cell.selected {
+    background: #1B4332;
+    color: #fff;
+    border-color: #1B4332;
+    font-weight: 800;
+  }
+  .date-picker .calendar-cell.today:not(.selected) {
+    color: #1B4332;
+  }
+  .date-picker .calendar-cell.today:not(.selected)::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #1B4332;
+  }
+  .date-picker .dp-footer {
+    flex-shrink: 0;
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    background: #fff;
+    border-top: 1px solid #e8e2d8;
+  }
+  .date-picker .dp-footer .dp-btn-row {
+    display: flex;
+    gap: 8px;
+  }
+  .date-picker .dp-footer .dp-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    min-height: 48px;
+  }
+  .date-picker .dp-footer .dp-btn.cancel {
+    background: #f3f4f6;
+    color: #6b7280;
+    border: 2px solid #e8e2d8;
+  }
+  .date-picker .dp-footer .dp-btn.confirm {
+    background: #2563eb;
+    color: #fff;
+  }
+
+  /* ─── Responsive adjustments ─── */
+  @media (max-width: 480px) {
+    body { padding: 12px; }
+    .phone { border-radius: 16px; min-height: 600px; }
+    .sale-header { padding: 10px 14px; }
+    .sale-body { padding: 10px 14px; }
+    .amount-hero .total { font-size: 1.3rem; }
+    .amount-hero input { font-size: 1.1rem; padding: 8px 10px; }
+    .save-bar { padding: 10px 14px; }
+    .sheet-header { padding: 10px 14px; }
+    .sheet-body { padding: 14px; }
+    .sheet-save-bar { padding: 10px 14px; }
+    .demo-controls {
+      position: relative;
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.7rem;
+      padding: 8px 16px;
+      border-radius: 16px;
+    }
+  }
+
+  @media (max-width: 360px) {
+    .phone { min-height: 560px; }
+    .amount-hero .total { font-size: 1.1rem; }
+    .chip { font-size: 0.55rem; padding: 4px 8px; }
+    .due-chip { font-size: 0.65rem; padding: 6px 10px; }
+    .sheet-save-btn { font-size: 0.8rem; padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="phone">
+
+  <!-- ═══ SALE FORM (background) ═══ -->
+  <div class="sale-form">
+    <div class="sale-header">
+      <button class="back-btn">←</button>
+      <h2>+ Sale</h2>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="sale-body">
+      <!-- Amount hero -->
+      <div class="amount-hero">
+        <div class="top-row">
+          <div>
+            <div class="label">Total amount</div>
+            <div class="total">1,000 ETB</div>
+          </div>
+          <span class="badge">Cash</span>
+        </div>
+        <input type="text" value="1,000" readonly>
+      </div>
+
+      <!-- Note -->
+      <div class="note-section">
+        <div class="label">Note (optional)</div>
+        <div class="row">
+          <div class="photo-btn">📷</div>
+          <input type="text" placeholder="Add details..." value="3 shirts">
+        </div>
+      </div>
+
+      <!-- Payment chips -->
+      <div class="chips-row">
+        <span class="chip active">💵 Cash</span>
+        <span class="chip">🏦 CBE</span>
+        <span class="chip">📱 telebirr</span>
+        <span class="chip">⏳ Credit</span>
+        <span class="chip" onclick="openPartialSheet()" style="cursor:pointer;">½ Partial</span>
+      </div>
+    </div>
+
+    <div class="save-bar">
+      <button class="save-btn">💾 Save 1,000 ETB</button>
+      <div class="save-hint">Saved on this phone · Syncs later</div>
+    </div>
+  </div>
+
+  <!-- ═══ PARTIAL PAYMENT SHEET (overlay) ═══ -->
+  <div class="partial-sheet" id="partialSheet">
+    <div class="sheet-header">
+      <button class="back-btn" onclick="closePartialSheet()">←</button>
+      <h2>½ Partial Payment</h2>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="sheet-body">
+      <!-- Total amount display -->
+      <div class="total-display">
+        <div class="label">Total Amount</div>
+        <div class="amount">1,000 ETB</div>
+      </div>
+
+      <!-- Amount Received -->
+      <div class="field-group">
+        <label>Amount Received <span class="required">*</span></label>
+        <div class="amount-input-wrapper">
+          <input type="text" value="300" id="receivedInput" oninput="updateRemaining()">
+          <span class="suffix">birr</span>
+        </div>
+        <div class="remaining-badge" id="remainingBadge">⏳ Remaining Dubie: 700 birr</div>
+      </div>
+
+      <!-- Payment method for collected amount -->
+      <div class="field-group">
+        <label>How was the amount paid?</label>
+        <div class="sheet-chips">
+          <span class="chip" onclick="selectPayment(this, 'cash')">💵 Cash</span>
+          <span class="chip" onclick="selectPayment(this, 'cbe')">🏦 CBE</span>
+          <span class="chip active" onclick="selectPayment(this, 'telebirr')">📱 telebirr</span>
+          <span class="chip" onclick="selectPayment(this, 'awash')">📱 Awash</span>
+        </div>
+        <div class="payment-summary" id="paymentSummary">→ 300 ETB via telebirr</div>
+      </div>
+
+      <!-- Customer search -->
+      <div class="field-group">
+        <label>Customer (for remaining Dubie) <span class="required">*</span></label>
+        <div class="customer-search-row">
+          <input type="text" value="Abebe Kebede" readonly>
+          <button class="add-btn">+ Add</button>
+        </div>
+        <div class="recent-chips">
+          <span class="recent-chip">Almaz</span>
+          <span class="recent-chip">Bekele</span>
+          <span class="recent-chip">Chaltu</span>
+        </div>
+        <div class="customer-card">
+          <span class="name">Abebe Kebede</span>
+          <span class="bal">BAL: 500 ETB</span>
+          <span class="remove">✕</span>
+        </div>
+      </div>
+
+      <!-- Due date -->
+      <div class="field-group">
+        <label>Remaining Due Date <span class="optional">(optional)</span></label>
+        <div class="due-chips">
+          <span class="due-chip active">7 days</span>
+          <span class="due-chip">15 days</span>
+          <span class="due-chip">30 days</span>
+          <span class="due-chip" onclick="openDatePicker()">📅 Pick</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sheet-save-bar">
+      <div class="hint" id="hintText"></div>
+      <button class="sheet-save-btn" onclick="savePartial()">💾 Save Partial Payment</button>
+    </div>
+  </div>
+
+  <!-- ═══ INLINE DATE PICKER MODAL (Ethiopian Calendar) ═══ -->
+  <div class="date-picker-overlay" id="datePickerOverlay">
+    <div class="date-picker">
+      <div class="drag-handle"></div>
+
+      <div class="dp-header">
+        <h3>Pick a date</h3>
+        <button class="close-btn" onclick="closeDatePicker()">✕</button>
+      </div>
+
+      <!-- Large date display -->
+      <div class="dp-date-display">
+        <div class="date-main" id="dpSelectedDate">15 ሰኔ 2016</div>
+        <div class="date-weekday" id="dpWeekday">Wednesday</div>
+      </div>
+
+      <!-- Quick preset chips -->
+      <div class="dp-presets">
+        <div class="presets-row">
+          <span class="preset-chip today" onclick="selectPreset('today')">Today</span>
+          <span class="preset-chip neutral" onclick="selectPreset('tomorrow')">Tomorrow</span>
+          <span class="preset-chip neutral" onclick="selectPreset(7)">+7 days</span>
+          <span class="preset-chip neutral" onclick="selectPreset(15)">+15 days</span>
+          <span class="preset-chip neutral" onclick="selectPreset(30)">+30 days</span>
+        </div>
+      </div>
+
+      <!-- Month navigation -->
+      <div class="dp-month-nav">
+        <button class="nav-btn" onclick="prevMonth()">‹</button>
+        <span class="month-label" id="dpMonthLabel">ሰኔ 2016</span>
+        <button class="nav-btn" onclick="nextMonth()">›</button>
+      </div>
+
+      <!-- Calendar grid -->
+      <div class="dp-calendar">
+        <div class="weekday-headers" id="dpWeekdayHeaders">
+          <div>እሑድ</div>
+          <div>ሰኞ</div>
+          <div>ማክሰ</div>
+          <div>ረቡዕ</div>
+          <div>ሐሙስ</div>
+          <div>ዓርብ</div>
+          <div>ቅዳሜ</div>
+        </div>
+        <div id="dpCalendarGrid">
+          <!-- Calendar cells generated by JavaScript -->
+        </div>
+      </div>
+
+      <!-- Footer: Cancel + Confirm -->
+      <div class="dp-footer">
+        <div class="dp-btn-row">
+          <button class="dp-btn cancel" onclick="closeDatePicker()">Cancel</button>
+          <button class="dp-btn confirm" onclick="confirmDate()">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Demo controls -->
+<div class="demo-controls">
+  <span class="dot"></span>
+  <span>Click "½ Partial" chip to open the sheet • Click "📅 Pick" for date picker</span>
+</div>
+
+<script>
+  // ─── Partial Sheet Logic ───
+  function openPartialSheet() {
+    document.getElementById('partialSheet').classList.add('open');
+  }
+
+  function closePartialSheet() {
+    document.getElementById('partialSheet').classList.remove('open');
+  }
+
+  function selectPayment(el, method) {
+    el.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    updateSummary();
+  }
+
+  function updateRemaining() {
+    const received = parseFloat(document.getElementById('receivedInput').value) || 0;
+    const total = 1000;
+    const remaining = Math.max(0, total - received);
+    const badge = document.getElementById('remainingBadge');
+
+    if (received > 0 && received < total) {
+      badge.textContent = `⏳ Remaining Dubie: ${remaining} birr`;
+      badge.style.display = 'inline-flex';
+    } else if (received >= total) {
+      badge.textContent = '⚠️ Amount received equals total — use "Cash" instead';
+      badge.style.background = 'rgba(239,68,68,0.1)';
+      badge.style.color = '#dc2626';
+    } else {
+      badge.style.display = 'none';
+    }
+    updateSummary();
+  }
+
+  function updateSummary() {
+    const received = parseFloat(document.getElementById('receivedInput').value) || 0;
+    const activeChip = document.querySelector('.sheet-chips .chip.active');
+    const methodName = activeChip ? activeChip.textContent.trim().split(' ').slice(1).join(' ') : 'Cash';
+    const summary = document.getElementById('paymentSummary');
+    if (received > 0) {
+      summary.textContent = `→ ${received} ETB via ${methodName}`;
+      summary.style.display = 'inline-block';
+    } else {
+      summary.style.display = 'none';
+    }
+  }
+
+  function savePartial() {
+    const hint = document.getElementById('hintText');
+    hint.textContent = '✅ Saved! 300 ETB via telebirr + 700 ETB Dubie for Abebe Kebede';
+    hint.style.color = '#065f46';
+
+    setTimeout(() => {
+      closePartialSheet();
+      hint.textContent = '';
+    }, 2000);
+  }
+
+  // ─── InlineDatePicker Modal Logic (Ethiopian Calendar) ───
+  const MONTHS_AM = ['መስከረም','ጥቅምት','ኅዳር','ታሕሳስ','ጥር','የካቲት','መጋቢት','ሚያዝያ','ግንቦት','ሰኔ','ሐምሌ','ነሐሴ','ጳጉሜ'];
+  const WEEKDAYS_AM = ['እሑድ','ሰኞ','ማክሰኞ','ረቡዕ','ሐሙስ','ዓርብ','ቅዳሜ'];
+  const WEEKDAYS_EN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  // Ethiopian calendar state
+  let dpYear = 2016;
+  let dpMonth = 4; // ሰኔ (June)
+  let dpDay = 15;
+  let dpSelected = { year: dpYear, month: dpMonth, day: dpDay };
+
+  // Days in Ethiopian month (simplified — 30 days for months 1-12, 5/6 for month 13)
+  function daysInEthMonth(year, month) {
+    if (month < 13) return 30;
+    return year % 4 === 3 ? 6 : 5;
+  }
+
+  // Get the weekday of the 1st of an Ethiopian month (simplified mapping)
+  // In reality this depends on the Ethiopian calendar conversion, but for wireframe
+  // purposes we approximate the offset
+  function firstDayOffset(year, month) {
+    // Simplified: each month starts on a rotating weekday
+    // This is an approximation for demo purposes
+    const baseOffset = ((year * 12 + month) % 7);
+    return baseOffset;
+  }
+
+  function openDatePicker() {
+    document.getElementById('datePickerOverlay').classList.add('open');
+    renderCalendar();
+  }
+
+  function closeDatePicker() {
+    document.getElementById('datePickerOverlay').classList.remove('open');
+  }
+
+  function selectPreset(n) {
+    // Simplified: just advance the day by n (or today/tomorrow)
+    let newDay = dpDay;
+    let newMonth = dpMonth;
+    let newYear = dpYear;
+
+    if (n === 'today') {
+      newDay = 15; newMonth = 4; newYear = 2016;
+    } else if (n === 'tomorrow') {
+      newDay = 16; newMonth = 4; newYear = 2016;
+    } else {
+      newDay = dpDay + n;
+      while (newDay > daysInEthMonth(newYear, newMonth)) {
+        newDay -= daysInEthMonth(newYear, newMonth);
+        newMonth++;
+        if (newMonth > 13) { newMonth = 1; newYear++; }
+      }
+    }
+
+    dpSelected = { year: newYear, month: newMonth, day: newDay };
+    dpYear = newYear; dpMonth = newMonth; dpDay = newDay;
+    renderCalendar();
+    updateDateDisplay();
+  }
+
+  function prevMonth() {
+    if (dpMonth === 1) { dpMonth = 13; dpYear--; }
+    else { dpMonth--; }
+    renderCalendar();
+  }
+
+  function nextMonth() {
+    if (dpMonth === 13) { dpMonth = 1; dpYear++; }
+    else { dpMonth++; }
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    const grid = document.getElementById('dpCalendarGrid');
+    const label = document.getElementById('dpMonthLabel');
+    grid.innerHTML = '';
+
+    label.textContent = `${MONTHS_AM[dpMonth - 1]} ${dpYear}`;
+
+    const offset = firstDayOffset(dpYear, dpMonth);
+    const maxDay = daysInEthMonth(dpYear, dpMonth);
+
+    // Empty cells for days before month start
+    for (let i = 0; i < offset; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'calendar-cell empty';
+      grid.appendChild(cell);
+    }
+
+    // Day cells
+    for (let d = 1; d <= maxDay; d++) {
+      const cell = document.createElement('div');
+      cell.className = 'calendar-cell';
+      cell.textContent = d;
+
+      const isToday = (d === 15 && dpMonth === 4 && dpYear === 2016);
+      const isSelected = (d === dpSelected.day && dpMonth === dpSelected.month && dpYear === dpSelected.year);
+
+      if (isToday && !isSelected) cell.classList.add('today');
+      if (isSelected) cell.classList.add('selected');
+
+      cell.onclick = function() {
+        dpSelected = { year: dpYear, month: dpMonth, day: d };
+        // Update all cells
+        document.querySelectorAll('.calendar-cell').forEach(c => {
+          c.classList.remove('selected');
+          if (c.textContent == d && dpMonth === dpSelected.month && dpYear === dpSelected.year) {
+            c.classList.add('selected');
+          }
+        });
+        updateDateDisplay();
+      };
+      grid.appendChild(cell);
+    }
+  }
+
+  function updateDateDisplay() {
+    const dateMain = document.getElementById('dpSelectedDate');
+    const weekday = document.getElementById('dpWeekday');
+    const monthName = MONTHS_AM[dpSelected.month - 1];
+    dateMain.textContent = `${dpSelected.day} ${monthName} ${dpSelected.year}`;
+
+    // Approximate weekday
+    const wdIndex = (dpSelected.day + dpSelected.month + dpSelected.year) % 7;
+    weekday.textContent = WEEKDAYS_EN[wdIndex];
+  }
+
+  function confirmDate() {
+    // In the real app, this would call onChange with the ISO date
+    // and close the picker
+    closeDatePicker();
+  }
+
+  // Initialize
+  updateRemaining();
+  updateSummary();
+</script>
+
+</body>
+</html>
