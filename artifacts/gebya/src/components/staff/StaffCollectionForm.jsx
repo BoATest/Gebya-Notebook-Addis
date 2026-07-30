@@ -30,9 +30,7 @@ export default function StaffCollectionForm({
           <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-alt)' }}>
             <span className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('My Collection', 'የእኔ ስብስብ')}</span>
             {myLastSettlement?.reconciliation_status && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: myLastSettlement.reconciliation_status === 'staff_submitted' ? 'var(--color-info-bg)' : myLastSettlement.reconciliation_status === 'owner_reviewed' ? 'var(--color-warning-bg)' : 'var(--color-danger-bg)', color: myLastSettlement.reconciliation_status === 'staff_submitted' ? 'var(--color-info)' : myLastSettlement.reconciliation_status === 'owner_reviewed' ? 'var(--color-warning)' : 'var(--color-danger)' }}>
-                {myLastSettlement.reconciliation_status === 'staff_submitted' ? t('Submitted', 'የላክ') : myLastSettlement.reconciliation_status === 'owner_reviewed' ? t('Reviewed', 'ክለሳው') : myLastSettlement.reconciliation_status === 'disputed' ? t('Disputed', 'አልተስማማም') : myLastSettlement.reconciliation_status === 'finalized' ? t('Finalized', 'ተጠናቋል') : t('Checked', 'ተፈትሟል')}
-              </span>
+              <ReconStatusBadge status={myLastSettlement.reconciliation_status} lang={lang} />
             )}
           </div>
           <div className="px-4 py-3">
@@ -169,9 +167,7 @@ export default function StaffCollectionForm({
             <div className="px-4 py-3 border-b flex items-center justify-between mb-4" style={{ borderColor: 'var(--color-border)' }}>
               <span className="text-sm font-bold text-gray-900">{t('My Collection', 'የእኔ ስብስብ')}</span>
               {myLastSettlement?.reconciliation_status && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: myLastSettlement.reconciliation_status === 'staff_submitted' ? 'var(--color-info-bg)' : myLastSettlement.reconciliation_status === 'owner_reviewed' ? 'var(--color-warning-bg)' : 'var(--color-danger-bg)', color: myLastSettlement.reconciliation_status === 'staff_submitted' ? 'var(--color-info)' : myLastSettlement.reconciliation_status === 'owner_reviewed' ? 'var(--color-warning)' : 'var(--color-danger)' }}>
-                  {myLastSettlement.reconciliation_status === 'staff_submitted' ? t('Submitted', 'የላክ') : myLastSettlement.reconciliation_status === 'owner_reviewed' ? t('Reviewed', 'ክለሳው') : myLastSettlement.reconciliation_status === 'disputed' ? t('Disputed', 'አልተስማማም') : myLastSettlement.reconciliation_status === 'finalized' ? t('Finalized', 'ተጠናቋል') : t('Checked', 'ተፈትሟል')}
-                </span>
+                <ReconStatusBadge status={myLastSettlement.reconciliation_status} lang={lang} />
               )}
             </div>
             {/* Mobile collection form content */}

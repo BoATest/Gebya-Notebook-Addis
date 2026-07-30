@@ -220,19 +220,21 @@ export default function StaffPage({
                     )}
                     {estimatesLoading && !estimate && (<div className="text-[10px] text-gray-400 mt-0.5">...</div>)}
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {isSubmitted ? (
-                      <button onClick={() => store.handleViewSettlement(m, last)}\n                        className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
-                        style={{ background: 'var(--color-info-bg)', color: 'var(--color-info)' }}>
-                        {t('Review', 'መርምር')}
-                      </button>
-                    ) : (
-                      <button onClick={() => store.setSettling(m)}\n                        className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
-                        style={{ background: 'var(--color-primary)', color: 'var(--color-bg-white)' }}>
-                        {t('Settle', 'አስተካክል')}
-                      </button>
-                    )}
-                  </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isSubmitted ? (
+                        <button onClick={() => store.handleViewSettlement(m, last)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
+                          style={{ background: 'var(--color-info-bg)', color: 'var(--color-info)' }}>
+                          {t('Review', 'መርምር')}
+                        </button>
+                      ) : (
+                        <button onClick={() => store.setSettling(m)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
+                          style={{ background: 'var(--color-primary)', color: 'var(--color-bg-white)' }}>
+                          {t('Settle', 'አስተካክል')}
+                        </button>
+                      )}
+                    </div>
                 </div>
               );
             })}
