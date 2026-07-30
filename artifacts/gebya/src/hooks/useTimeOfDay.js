@@ -1,4 +1,21 @@
+import { useState, useEffect } from 'react';
+
 export function useTimeOfDay() {
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const msUntilNextHour = (60 - new Date().getMinutes()) * 60 * 1000;
+    let intervalId;
+    const timer = setTimeout(() => {
+      setTick(t => t + 1);
+      intervalId = setInterval(() => setTick(t => t + 1), 60 * 60 * 1000);
+    }, msUntilNextHour);
+    return () => {
+      clearTimeout(timer);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, []);
+
   const hour = new Date().getHours();
   let period, greetingEn, greetingAm;
 

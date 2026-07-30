@@ -59,7 +59,8 @@ export default function SearchSheet({
     for (const entry of ledgerTransactions) {
       const itemName = String(entry.item_note || '').toLowerCase();
       const amount = String(entry.amount || '');
-      if (itemName.includes(q) || amount.includes(q)) {
+      const customerName = String(entry.customer_name || '').toLowerCase();
+      if (itemName.includes(q) || amount.includes(q) || customerName.includes(q)) {
         allResults.push({
           id: `ct-${entry.id}`,
           type: 'credit',
@@ -133,7 +134,7 @@ export default function SearchSheet({
     >
       <div
         style={{
-          background: '#fff',
+          background: 'var(--color-surface)',
           borderRadius: '0 0 20px 20px',
           padding: '20px 16px 16px',
           maxHeight: '85vh',
@@ -148,11 +149,11 @@ export default function SearchSheet({
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            background: '#f3f4f6',
+            background: 'var(--color-bg-hover)',
             borderRadius: 12,
             padding: '8px 12px',
           }}>
-            <Search className="w-4 h-4" style={{ color: '#9ca3af', flexShrink: 0 }} />
+            <Search className="w-4 h-4" style={{ color: 'var(--color-text-soft)', flexShrink: 0 }} />
             <input
               ref={inputRef}
               type="text"
@@ -166,24 +167,24 @@ export default function SearchSheet({
                 fontSize: 15,
                 fontWeight: 600,
                 outline: 'none',
-                color: '#1f2937',
+                color: 'var(--color-text)',
                 minHeight: 24,
               }}
             />
             {query && (
               <button onClick={() => setQuery('')} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 2 }}>
-                <X className="w-4 h-4" style={{ color: '#9ca3af' }} />
+                <X className="w-4 h-4" style={{ color: 'var(--color-text-soft)' }} />
               </button>
             )}
           </div>
-          <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 4, fontSize: 13, fontWeight: 700, color: '#6b7280' }}>
+          <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 4, fontSize: 13, fontWeight: 700, color: 'var(--color-text-muted)' }}>
             {lang === 'am' ? 'ዝጋ' : 'Cancel'}
           </button>
         </div>
 
         {!query ? (
           <div>
-            <p style={{ fontSize: 11, fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
+            <p style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-text-soft)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
               {lang === 'am' ? 'ለምሳሌ' : 'Try asking'}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -197,17 +198,17 @@ export default function SearchSheet({
                     alignItems: 'center',
                     gap: 8,
                     padding: '10px 12px',
-                    border: '1px solid #f3f4f6',
+                    border: '1px solid var(--color-border-light)',
                     borderRadius: 10,
                     background: '#fafaf8',
                     cursor: 'pointer',
                     textAlign: 'left',
                     fontSize: 12,
                     fontWeight: 600,
-                    color: '#374151',
+                    color: 'var(--color-text)',
                   }}
                 >
-                  <Clock className="w-3.5 h-3.5" style={{ color: '#9ca3af', flexShrink: 0 }} />
+                  <Clock className="w-3.5 h-3.5" style={{ color: 'var(--color-text-soft)', flexShrink: 0 }} />
                   <span>{lang === 'am' ? prompt.am : prompt.en}</span>
                 </button>
               ))}
@@ -226,8 +227,8 @@ export default function SearchSheet({
                     padding: '5px 10px',
                     borderRadius: 8,
                     border: 'none',
-                    background: activeFilter === f.id ? '#1B4332' : '#f3f4f6',
-                    color: activeFilter === f.id ? '#fff' : '#6b7280',
+                    background: activeFilter === f.id ? 'var(--color-primary)' : 'var(--color-bg-hover)',
+                    color: activeFilter === f.id ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
                     fontSize: 11,
                     fontWeight: 800,
                     cursor: 'pointer',
@@ -244,10 +245,10 @@ export default function SearchSheet({
               {filteredResults.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '24px 0' }}>
                   <p style={{ fontSize: 24, marginBottom: 8 }}>🔍</p>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: '#6b7280' }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-muted)' }}>
                     {lang === 'am' ? 'ምንም አልተገኘም' : 'No results found'}
                   </p>
-                  <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-soft)', marginTop: 4 }}>
                     {lang === 'am' ? 'በሌላ ቃል ይሞክሩ' : 'Try a different search term'}
                   </p>
                 </div>
@@ -260,7 +261,7 @@ export default function SearchSheet({
                       alignItems: 'center',
                       gap: 10,
                       padding: '10px 8px',
-                      borderBottom: i < filteredResults.length - 1 ? '1px solid #f3f4f6' : 'none',
+                      borderBottom: i < filteredResults.length - 1 ? '1px solid var(--color-border-light)' : 'none',
                       cursor: 'pointer',
                     }}
                     onClick={() => {
@@ -272,22 +273,22 @@ export default function SearchSheet({
                   >
                     <span style={{ fontSize: 18, flexShrink: 0 }}>{r.icon}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 13, fontWeight: 800, color: '#1f2937', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {r.label}
                       </p>
-                      <p style={{ fontSize: 10, color: '#9ca3af', marginTop: 1 }}>
+                      <p style={{ fontSize: 10, color: 'var(--color-text-soft)', marginTop: 1 }}>
                         {r.subtitle || (r.time ? new Date(r.time).toLocaleDateString() : '')}
                         {r.payment_type && ` · ${r.payment_type}`}
                       </p>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       {r.amount != null && (
-                        <p style={{ fontSize: 13, fontWeight: 900, color: '#374151' }}>
+                        <p style={{ fontSize: 13, fontWeight: 900, color: 'var(--color-text)' }}>
                           {fmt(r.amount)}
                         </p>
                       )}
                       {r.balance != null && (
-                        <p style={{ fontSize: 12, fontWeight: 700, color: r.balance > 0 ? '#d97706' : '#9ca3af' }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: r.balance > 0 ? 'var(--color-accent-amber)' : 'var(--color-text-soft)' }}>
                           {fmt(r.balance)} {lang === 'am' ? 'ብር' : 'ETB'}
                         </p>
                       )}

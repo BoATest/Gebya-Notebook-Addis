@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Eye, EyeOff, Search } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { usePrivacy } from '../context/PrivacyContext';
@@ -7,10 +7,11 @@ import { useTimeOfDay } from '../hooks/useTimeOfDay';
 import {
   ALL_SCOPE,
   buildReportRows,
+  buildStaffReportRows,
   computeReportMetrics,
   startOfLocalDay,
 } from '../utils/reportSelectors';
-import { computeCreditSummary } from '../utils/shopStory';
+import { computeCreditSummary, computeStaffSummary } from '../utils/shopStory';
 
 import HeroStatus from './HeroStatus';
 import TodayBusiness from './TodayBusiness';
@@ -51,14 +52,14 @@ function SectionHeading({ label }) {
       display: 'flex', alignItems: 'center', gap: 8,
       marginTop: 14, marginBottom: 6,
     }}>
-      <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
+      <div style={{ flex: 1, height: 1, background: 'var(--color-bg-disabled)' }} />
       <span style={{
-        fontSize: 11, fontWeight: 900, color: '#9ca3af',
+        fontSize: 11, fontWeight: 900, color: 'var(--color-text-soft)',
         letterSpacing: '0.06em', whiteSpace: 'nowrap',
       }}>
         {label}
       </span>
-      <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
+      <div style={{ flex: 1, height: 1, background: 'var(--color-bg-disabled)' }} />
     </div>
   );
 }
@@ -82,8 +83,14 @@ export default function ReportView({
     _setTimeRange(value);
     try { localStorage.setItem('gebya_report_time_range', value); } catch {}
   };
-  const [customFrom, setCustomFrom] = useState(() => new Date().toISOString().slice(0, 10));
-  const [customTo, setCustomTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [customFrom, setCustomFrom] = useState(() => {
+    const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+    return d.toISOString().slice(0, 10);
+  });
+  const [customTo, setCustomTo] = useState(() => {
+    const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+    return d.toISOString().slice(0, 10);
+  });
   const [showSearchSheet, setShowSearchSheet] = useState(false);
 
   const now = Date.now();
@@ -115,7 +122,7 @@ export default function ReportView({
       return [start, endDate.getTime()];
     }
     return [todayStart, todayStart + DAY_MS];
-  }, [timeRange, customFrom, customTo]);
+  }, [timeRange, customFrom, customTo, todayStart]);
 
   const [from, to] = rangeBounds;
 
@@ -128,6 +135,15 @@ export default function ReportView({
   const creditSummary = useMemo(
     () => computeCreditSummary(enrichedCustomerSummaries, lang),
     [enrichedCustomerSummaries, lang]
+  );
+
+  const staffRows = useMemo(
+    () => buildStaffReportRows(reportRows),
+    [reportRows]
+  );
+  const staffSummary = useMemo(
+    () => computeStaffSummary(staffRows, lang),
+    [staffRows, lang]
   );
 
   const priorMetrics = useMemo(() => {
@@ -161,9 +177,9 @@ export default function ReportView({
     return { avgSalesCount: Math.round(totalSales / 7), avgExpenses: Math.round(totalExpenses / 7) };
   }, [transactions, ledgerTransactions, todayStart, isToday]);
 
-  const isEmpty = reportRows.length === 0 && (ledgerTransactions || []).length === 0 && isToday;
+  const isEmpty = reportRows.length === 0 && (ledgerTransactions || []).length === 0;
 
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
     const header = ['date', 'type', 'amount', 'item_or_person', 'payment', 'status'];
     const csvEscape = (v) => {
       if (v == null) return '';
@@ -188,9 +204,9 @@ export default function ReportView({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
+  }, [reportRows]);
 
-  const handleAction = (actionType) => {
+  const handleAction = useCallback((actionType) => {
     if (actionType === 'count_cash') {
       const el = document.getElementById('today-business');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -204,11 +220,11 @@ export default function ReportView({
     } else if (actionType === 'view_details' || actionType === 'review') {
       document.getElementById('today-business')?.scrollIntoView({ behavior: 'smooth' });
     }
-  };
+  }, [metrics, handleClose]);
 
-  const handleClose = ({ cashInHand, cashVariance }) => {
+  const handleClose = useCallback(({ cashInHand, cashVariance }) => {
     setClosingState(prev => ({ ...prev, done: true, cashInHand, cashVariance }));
-  };
+  }, []);
 
   const timeRangeLabel = isToday
     ? (lang === 'am' ? 'ዛሬ' : 'Today')
@@ -229,15 +245,15 @@ export default function ReportView({
         gap: 10, padding: '4px 4px 10px',
       }}>
         <div style={{ minWidth: 0 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 950, color: '#1B4332', lineHeight: 1.05 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 950, color: 'var(--color-primary)', lineHeight: 1.05 }}>
             📒 {lang === 'am' ? 'ማስታወሻ ደብተር' : 'Notebook'}
           </h1>
-          <p style={{ fontSize: 12, color: '#6b7280', fontWeight: 650, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <p style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 650, marginTop: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
             <span>{getCurrentEthiopianDate()} · {shopProfile?.name || (lang === 'am' ? 'ሱቅህ' : 'Your shop')}</span>
             {isToday && (
               <span style={{
                 fontSize: 9, fontWeight: 900, padding: '1px 6px', borderRadius: 999,
-                background: '#1B4332', color: '#fff', lineHeight: '16px',
+                background: 'var(--color-primary)', color: 'var(--color-bg-white)', lineHeight: '16px',
               }}>
                 {lang === 'am' ? 'ዛሬ' : 'TODAY'}
               </span>
@@ -251,9 +267,9 @@ export default function ReportView({
           style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             minHeight: 36, minWidth: 36, borderRadius: 999,
-            border: hidden ? '1px solid #fde68a' : '1px solid #e5e7eb',
-            background: hidden ? 'rgba(196,136,58,0.10)' : '#fff',
-            color: hidden ? '#92400e' : '#6b7280',
+            border: hidden ? '1px solid #fde68a' : '1px solid var(--color-bg-disabled)',
+            background: hidden ? 'rgba(196,136,58,0.10)' : 'var(--color-surface)',
+            color: hidden ? 'var(--color-warning)' : 'var(--color-text-muted)',
             cursor: 'pointer',
           }}
         >
@@ -269,13 +285,13 @@ export default function ReportView({
           aria-label={lang === 'am' ? 'ፈልግ' : 'Search notebook'}
           style={{
             display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-            border: '1px solid #e5e7eb', borderRadius: 10, padding: '6px 10px',
-            minHeight: 38, background: '#fff', cursor: 'pointer',
-            fontSize: '0.8rem', fontWeight: 600, color: '#9ca3af',
+            border: '1px solid var(--color-bg-disabled)', borderRadius: 10, padding: '6px 10px',
+            minHeight: 38, background: 'var(--color-surface)', cursor: 'pointer',
+            fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-soft)',
             textAlign: 'left',
           }}
         >
-          <Search className="w-4 h-4" style={{ color: '#9ca3af', flexShrink: 0 }} />
+          <Search className="w-4 h-4" style={{ color: 'var(--color-text-soft)', flexShrink: 0 }} />
           <span>{lang === 'am' ? 'ፈልግ... (/)' : 'Search notebook... (/)'}</span>
         </button>
       </div>
@@ -294,7 +310,7 @@ export default function ReportView({
       {/* ── Time Range Tabs ── */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 30,
-        background: '#fafaf5', paddingTop: 4, paddingBottom: 8,
+        background: 'var(--color-surface-subtle)', paddingTop: 4, paddingBottom: 8,
       }}>
         <div style={{
           display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 4,
@@ -312,8 +328,8 @@ export default function ReportView({
               onClick={() => setTimeRange(id)}
               style={{
                 minHeight: 34, border: 'none', borderRadius: 9,
-                background: timeRange === id ? '#1B4332' : 'transparent',
-                color: timeRange === id ? '#fff' : '#6b7280',
+                background: timeRange === id ? 'var(--color-primary)' : 'transparent',
+                color: timeRange === id ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
                 fontSize: 12, fontWeight: 900, cursor: 'pointer',
               }}
             >
@@ -326,18 +342,18 @@ export default function ReportView({
       {timeRange === 'custom' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280' }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'ከ' : 'From'}
             </span>
             <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-              style={{ minHeight: 38, border: '1px solid #e5e7eb', borderRadius: 9, padding: '6px 8px', fontSize: 13 }} />
+              style={{ minHeight: 38, border: '1px solid var(--color-bg-disabled)', borderRadius: 9, padding: '6px 8px', fontSize: 13 }} />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280' }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'ወደ' : 'To'}
             </span>
             <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
-              style={{ minHeight: 38, border: '1px solid #e5e7eb', borderRadius: 9, padding: '6px 8px', fontSize: 13 }} />
+              style={{ minHeight: 38, border: '1px solid var(--color-bg-disabled)', borderRadius: 9, padding: '6px 8px', fontSize: 13 }} />
           </label>
         </div>
       )}
@@ -345,12 +361,12 @@ export default function ReportView({
       {/* ── Empty State ── */}
       {isEmpty && (
         <div style={{
-          background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+          background: 'linear-gradient(135deg, var(--color-success-bg) 0%, #ecfdf5 100%)',
           border: '1px solid #bbf7d0', borderRadius: 16, padding: 24,
           marginTop: 8, textAlign: 'center',
         }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📒</div>
-          <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1B4332', marginBottom: 8 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--color-primary)', marginBottom: 8 }}>
             {lang === 'am' ? 'ወደ ሱቅ ታሪክ እንኳን በደህና መጡ' : 'Welcome to your shop'}
           </h2>
           <p style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.6, marginBottom: 16, maxWidth: 320, margin: '0 auto 16px' }}>
@@ -358,15 +374,15 @@ export default function ReportView({
           </p>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'sale' } }))}
-              style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #1B4332', background: '#1B4332', color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+              style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid var(--color-primary)', background: 'var(--color-primary)', color: 'var(--color-bg-white)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
               🛒 {lang === 'am' ? 'ሽያጭ' : 'Sale'}
             </button>
             <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'credit' } }))}
-              style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #d97706', background: '#fff', color: '#d97706', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+              style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid var(--color-accent-amber)', background: 'var(--color-surface)', color: 'var(--color-accent-amber)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
               📝 {lang === 'am' ? 'ዱቤ' : 'Credit'}
             </button>
             <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'expense' } }))}
-              style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #dc2626', background: '#fff', color: '#dc2626', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+              style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid var(--color-danger)', background: 'var(--color-surface)', color: 'var(--color-danger)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
               📤 {lang === 'am' ? 'ወጪ' : 'Expense'}
             </button>
           </div>
@@ -388,6 +404,7 @@ export default function ReportView({
                   closingDone={closingState.done}
                   cashVariance={closingState.cashVariance}
                   overdueCount={creditSummary.overdueCount}
+                  staffRows={staffRows}
                   period={period}
                   lang={lang}
                   onAction={handleAction}
@@ -427,7 +444,8 @@ export default function ReportView({
                 <WhatINoticed
                   metrics={metrics} priorMetrics={priorMetrics}
                   overdueCount={creditSummary.overdueCount} closingDone={closingState.done}
-                  creditCollected={metrics.creditCollected} lang={lang}
+                  creditCollected={metrics.creditCollected} staffSummary={staffSummary}
+                  lang={lang}
                 />
               </ErrorBoundary>
 
@@ -438,7 +456,9 @@ export default function ReportView({
                   metrics={metrics}
                   overdueCount={creditSummary.overdueCount} overdueAmount={creditSummary.overdueAmount}
                   closingDone={closingState.done} cashVariance={closingState.cashVariance}
-                  creditCollected={metrics.creditCollected} expenseCount={metrics.expenseRows?.length || 0} lang={lang}
+                  creditCollected={metrics.creditCollected} expenseCount={metrics.expenseRows?.length || 0}
+                  staffSummary={staffSummary}
+                  lang={lang}
                 />
               </ErrorBoundary>
             </>
@@ -455,6 +475,7 @@ export default function ReportView({
                   closingDone={closingState.done}
                   cashVariance={closingState.cashVariance}
                   overdueCount={creditSummary.overdueCount}
+                  staffRows={staffRows}
                   period={period}
                   lang={lang}
                   onAction={handleAction}

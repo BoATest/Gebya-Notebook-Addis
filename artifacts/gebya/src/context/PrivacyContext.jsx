@@ -4,7 +4,13 @@ import db from '../db';
 const PrivacyContext = createContext({ hidden: false, toggle: () => {} });
 
 export function PrivacyProvider({ children }) {
-  const [hidden, setHidden] = useState(false);
+  const [hidden, setHidden] = useState(() => {
+    try {
+      const ls = localStorage.getItem('gebya_privacy_mode');
+      if (ls) return ls === 'hidden';
+    } catch {}
+    return false;
+  });
 
   useEffect(() => {
     db.settings.get('privacy_mode').then(s => {

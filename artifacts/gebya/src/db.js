@@ -426,6 +426,7 @@ db.version(16).stores({
 });
 
 // Version 18: Add daily_closings store for reconciliation / end-of-day records
+// daily_closings index list covers queried keys; all other keys are stored as-is by Dexie.
 db.version(18).stores({
   transactions: '++id, type, amount, item_name, cost_price, quantity, profit, is_credit, customer_id, customer_name, created_at, ethiopian_date, payment_type, payment_provider, updated_at, source, raw_transcript, detected_total, was_edited, transcription_provider, parsing_confidence, voice_note, raw_audio_ref, actor_role, actor_staff_member_id, actor_name_snapshot, transaction_id, device_id',
   customers: '++id, display_name, note, phone_number, telegram_username, telegram_chat_id, telegram_notify_enabled, telegram_link_token, telegram_linked_at, telegram_link_requested_at, created_at, updated_at',
@@ -729,8 +730,9 @@ export async function saveSettlement(record) {
     schema_version: record.schema_version || 1,
     device_id: record.device_id || '',
   };
-  // Attach current business_id from sync engine's persisted setting
-  if (!entry.business_id && entry.business_id !== null) {
+  // Attach current business_id from sync engine's persisted setting.
+  // Use loose equality so business_id === 0 is treated as present.
+  if (entry.business_id == null) {
     try {
       const bizRow = await db.settings.get('gebya_business_id');
       entry.business_id = bizRow?.value ? Number(bizRow.value) : null;
