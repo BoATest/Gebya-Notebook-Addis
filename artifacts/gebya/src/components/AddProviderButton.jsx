@@ -62,7 +62,7 @@ export default function AddProviderButton({ onAddProvider, existingNames = [] })
   };
 
   const handleSave = (selected) => {
-    const trimmed = (selected || name).trim();
+    const trimmed = (selected || '').trim();
     if (!trimmed) return;
     onAddProvider(kind, trimmed);
     setOpen(false);
@@ -74,9 +74,8 @@ export default function AddProviderButton({ onAddProvider, existingNames = [] })
       e.preventDefault();
       if (selectedIndex >= 0 && suggestions[selectedIndex]) {
         handleSave(suggestions[selectedIndex].name);
-      } else {
-        handleSave();
       }
+      // Require explicit selection from the built-in list; ignore freeform input
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex(i => Math.min(suggestions.length - 1, i + 1));
@@ -210,14 +209,14 @@ export default function AddProviderButton({ onAddProvider, existingNames = [] })
           <button
             type="button"
             onClick={() => handleSave()}
-            disabled={!name.trim()}
+            disabled={selectedIndex < 0}
             className="press-scale"
             style={{
               width: '100%', padding: '8px', fontSize: 12, fontWeight: 700,
               border: 'none', borderRadius: 6,
-              background: name.trim() ? '#1B4332' : '#e5e7eb',
-              color: name.trim() ? '#fff' : '#9ca3af',
-              cursor: name.trim() ? 'pointer' : 'default',
+              background: selectedIndex >= 0 ? '#1B4332' : '#e5e7eb',
+              color: selectedIndex >= 0 ? '#fff' : '#9ca3af',
+              cursor: selectedIndex >= 0 ? 'pointer' : 'default',
               flexShrink: 0,
             }}
           >
