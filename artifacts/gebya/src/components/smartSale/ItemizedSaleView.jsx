@@ -216,10 +216,10 @@ export default function ItemizedSaleView({
 
   // --- Save ---
   const isCredit = paymentType === 'credit';
-  const isPartial = paymentType === 'partial' || hasPartialAmount;
   const grandTotal = Math.max(0, totalAmount - discount);
   const partialReceivedAmount = parseFloat(parseInput(partialReceived)) || 0;
   const hasPartialAmount = partialReceivedAmount > 0 && partialReceivedAmount < grandTotal;
+  const isPartial = paymentType === 'partial' || hasPartialAmount;
   const remainingAmount = isPartial ? Math.max(0, grandTotal - partialReceivedAmount) : 0;
   const canSave = filledRows.length > 0 && totalAmount > 0 && !isSaving && (
     (!isCredit && !isPartial) ||
