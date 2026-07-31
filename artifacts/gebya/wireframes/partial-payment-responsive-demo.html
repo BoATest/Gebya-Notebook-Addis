@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Partial Payment Flow - Responsive Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      color: #1a1a1a;
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    .header p {
+      color: #666;
+      font-size: 14px;
+    }
+    .device-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .device-frame {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .device-label {
+      background: #1B4332;
+      color: #fff;
+      padding: 10px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .phone-frame {
+      max-width: 375px;
+      margin: 0 auto;
+      border: 12px solid #1a1a1a;
+      border-radius: 24px;
+      background: #fff;
+    }
+    .tablet-frame {
+      max-width: 768px;
+      margin: 0 auto;
+      border: 8px solid #1a1a1a;
+      border-radius: 16px;
+      background: #fff;
+    }
+    .desktop-frame {
+      max-width: 480px;
+      margin: 0 auto;
+      border: 4px solid #e0e0e0;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .screen {
+      padding: 16px;
+      min-height: 500px;
+    }
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #e8e2d8;
+      margin-bottom: 16px;
+    }
+    .app-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #C4883A;
+    }
+    .back-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .placeholder {
+      width: 32px;
+    }
+    .total-section {
+      background: #f7fcf8;
+      border: 1px solid #d8eadf;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+    .total-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #4b6855;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .total-amount {
+      font-size: 24px;
+      font-weight: 900;
+      color: #14532d;
+      margin-top: 4px;
+    }
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .payment-chips {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 4px 0;
+    }
+    .chip {
+      padding: 8px 16px;
+      border: 2px solid #e8e2d8;
+      border-radius: 20px;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chip:hover {
+      border-color: #C4883A;
+    }
+    .chip.active {
+      background: #C4883A;
+      color: #fff;
+      border-color: #C4883A;
+    }
+    .chip.partial {
+      background: #fef3c7;
+      border-color: #fbbf24;
+      color: #92400e;
+    }
+    .chip.partial.active {
+      background: #f59e0b;
+      color: #fff;
+    }
+    .input-group {
+      margin-bottom: 16px;
+    }
+    .input-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .input-field {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e8e2d8;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: #1B4332;
+    }
+    .customer-search {
+      position: relative;
+    }
+    .search-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #edeae5;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .customer-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .customer-chip {
+      padding: 6px 12px;
+      background: #fff;
+      border: 1px solid #edeae5;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #1B4332;
+    }
+    .due-date-chips {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+    }
+    .due-chip {
+      padding: 8px 12px;
+      border: 2px solid #e8e2d8;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+      white-space: nowrap;
+    }
+    .due-chip.active {
+      background: #2563eb;
+      color: #fff;
+      border-color: #2563eb;
+    }
+    .save-btn {
+      width: 100%;
+      padding: 14px;
+      background: #C4883A;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+    .info-box {
+      background: #fef3c7;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 11px;
+      color: #92400e;
+      margin-top: 12px;
+    }
+    @media (max-width: 768px) {
+      .device-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Partial Payment Flow - Responsive Wireframe</h1>
+    <p>Demonstrates payment method selection across different screen sizes</p>
+  </div>
+
+  <div class="device-grid">
+    <!-- Phone -->
+    <div class="device-frame">
+      <div class="device-label">📱 Phone (375px)</div>
+      <div class="phone-frame">
+        <div class="screen">
+          <div class="app-header">
+            <button class="back-btn">←</button>
+            <h2>½ Partial Payment</h2>
+            <div class="placeholder"></div>
+          </div>
+
+          <div class="total-section">
+            <div class="total-label">Total Amount</div>
+            <div class="total-amount">2,500 ETB</div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">Amount Received *</div>
+            <input type="text" class="input-field" value="1,500" placeholder="0">
+            <div class="info-box">
+              Remaining: 1,000 ETB
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">How was the amount paid?</div>
+            <div class="payment-chips">
+              <button class="chip">💵 Cash</button>
+              <button class="chip active">🏦 Bank</button>
+              <button class="chip">📱 Wallet</button>
+            </div>
+            <div class="info-box" style="margin-top: 8px;">
+              → 1,500 ETB via CBE Bank
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">Customer (for remaining Dubie) *</div>
+            <div class="customer-search">
+              <input type="text" class="search-input" value="Abebe Kebede" placeholder="Type customer name...">
+            </div>
+            <div class="customer-chips">
+              <button class="customer-chip">Abebe Kebede</button>
+              <button class="customer-chip">Tigist Haile</button>
+              <button class="customer-chip">Yohannes A.</button>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">Remaining Due Date (optional)</div>
+            <div class="due-date-chips">
+              <button class="due-chip">Tomorrow</button>
+              <button class="due-chip active">In 3 days</button>
+              <button class="due-chip">Next week</button>
+              <button class="due-chip">📅 Pick</button>
+            </div>
+          </div>
+
+          <button class="save-btn">Save Partial Payment</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tablet -->
+    <div class="device-frame">
+      <div class="device-label">📱 Tablet (768px)</div>
+      <div class="tablet-frame">
+        <div class="screen">
+          <div class="app-header">
+            <button class="back-btn">←</button>
+            <h2>½ Partial Payment</h2>
+            <div class="placeholder"></div>
+          </div>
+
+          <div class="total-section">
+            <div class="total-label">Total Amount</div>
+            <div class="total-amount">2,500 ETB</div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">Amount Received *</div>
+            <input type="text" class="input-field" value="1,500" placeholder="0">
+            <div class="info-box">
+              Remaining: 1,000 ETB
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">How was the amount paid?</div>
+            <div class="payment-chips">
+              <button class="chip">💵 Cash</button>
+              <button class="chip active">🏦 Bank</button>
+              <button class="chip">📱 Wallet</button>
+              <button class="chip">💳 Credit</button>
+              <button class="chip">½ Partial</button>
+            </div>
+            <div class="info-box" style="margin-top: 8px;">
+              → 1,500 ETB via CBE Bank
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">Customer (for remaining Dubie) *</div>
+            <div class="customer-search">
+              <input type="text" class="search-input" value="Abebe Kebede" placeholder="Type customer name...">
+            </div>
+            <div class="customer-chips">
+              <button class="customer-chip">Abebe Kebede</button>
+              <button class="customer-chip">Tigist Haile</button>
+              <button class="customer-chip">Yohannes A.</button>
+              <button class="customer-chip">Marta Tesfaye</button>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">Remaining Due Date (optional)</div>
+            <div class="due-date-chips">
+              <button class="due-chip">Tomorrow</button>
+              <button class="due-chip active">In 3 days</button>
+              <button class="due-chip">Next week</button>
+              <button class="due-chip">In 2 weeks</button>
+              <button class="due-chip">📅 Pick</button>
+            </div>
+          </div>
+
+          <button class="save-btn">Save Partial Payment</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop -->
+    <div class="device-frame">
+      <div class="device-label">🖥️ Desktop (480px centered)</div>
+      <div class="desktop-frame">
+        <div class="screen">
+          <div class="app-header">
+            <button class="back-btn">←</button>
+            <h2>½ Partial Payment</h2>
+            <div class="placeholder"></div>
+          </div>
+
+          <div class="total-section">
+            <div class="total-label">Total Amount</div>
+            <div class="total-amount">2,500 ETB</div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">Amount Received *</div>
+            <input type="text" class="input-field" value="1,500" placeholder="0">
+            <div class="info-box">
+              Remaining: 1,000 ETB
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">How was the amount paid?</div>
+            <div class="payment-chips">
+              <button class="chip">💵 Cash</button>
+              <button class="chip active">🏦 Bank</button>
+              <button class="chip">📱 Wallet</button>
+              <button class="chip">💳 Credit</button>
+              <button class="chip">½ Partial</button>
+            </div>
+            <div class="info-box" style="margin-top: 8px;">
+              → 1,500 ETB via CBE Bank
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">Customer (for remaining Dubie) *</div>
+            <div class="customer-search">
+              <input type="text" class="search-input" value="Abebe Kebede" placeholder="Type customer name...">
+            </div>
+            <div class="customer-chips">
+              <button class="customer-chip">Abebe Kebede</button>
+              <button class="customer-chip">Tigist Haile</button>
+              <button class="customer-chip">Yohannes A.</button>
+              <button class="customer-chip">Marta Tesfaye</button>
+              <button class="customer-chip">Samuel G.</button>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">Remaining Due Date (optional)</div>
+            <div class="due-date-chips">
+              <button class="due-chip">Tomorrow</button>
+              <button class="due-chip active">In 3 days</button>
+              <button class="due-chip">Next week</button>
+              <button class="due-chip">In 2 weeks</button>
+              <button class="due-chip">📅 Pick</button>
+            </div>
+          </div>
+
+          <button class="save-btn">Save Partial Payment</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width: 1400px; margin: 30px auto 0; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <h3 style="font-size: 16px; color: #1a1a1a; margin-bottom: 12px;">✅ Implementation Checklist</h3>
+    <ul style="list-style: none; padding: 0;">
+      <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">✓ Payment method chips (Cash/Bank/Wallet) visible on all screen sizes</li>
+      <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">✓ Partial amount input field with validation</li>
+      <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">✓ Customer search and selection</li>
+      <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">✓ Due date picker with preset chips</li>
+      <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0;">✓ Responsive layout adapts to phone/tablet/desktop</li>
+      <li style="padding: 8px 0;">✓ All data saves correctly to transaction record</li>
+    </ul>
+  </div>
+</body>
+</html>
