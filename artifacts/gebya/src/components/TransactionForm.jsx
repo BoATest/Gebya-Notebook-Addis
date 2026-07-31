@@ -141,9 +141,10 @@ function TransactionForm({
     : true;
 
   const isCreditSale = paymentType === 'credit';
-  const isPartialSale = paymentType === 'partial';
 
-  const partialReceivedAmount = isPartialSale ? parseFloat(parseInput(partialReceived)) || 0 : 0;
+  const partialReceivedAmount = parseFloat(parseInput(partialReceived)) || 0;
+  const hasPartialAmount = partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice;
+  const isPartialSale = paymentType === 'partial' || hasPartialAmount;
   const creditAmount = isPartialSale ? Math.max(0, sellingPrice - partialReceivedAmount) : 0;
   const needsCustomerForPartial = isPartialSale && !customerMatch;
   const recentCreditCustomers = useMemo(() =>
@@ -522,9 +523,9 @@ function TransactionForm({
                     {lang === 'am' ? 'የተቀበሉት ሙሉ ነው — "ሙሉ" ይምረጡ' : 'Amount received is the full sale — use "Paid" instead.'}
                   </p>
                 )}
-                {isPartialSale && partialReceivedAmount > 0 && paymentType !== 'cash' && paymentProvider && (
+                {isPartialSale && partialReceivedAmount > 0 && paymentType !== 'cash' && (
                   <p className="text-xs mt-1.5 font-semibold" style={{ color: '#065f46' }}>
-                    → {fmt(partialReceivedAmount)} {lang === 'am' ? 'ብር' : 'ETB'} {lang === 'am' ? 'በ' : 'via'} {paymentProvider}
+                    → {fmt(partialReceivedAmount)} {lang === 'am' ? 'ብር' : 'ETB'} {lang === 'am' ? 'በ' : 'via'} {paymentProvider || paymentType}
                   </p>
                 )}
               </div>
