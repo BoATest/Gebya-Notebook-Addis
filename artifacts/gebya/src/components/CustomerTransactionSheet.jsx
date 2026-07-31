@@ -297,7 +297,7 @@ function CustomerTransactionSheet({
   return (
     <div
       className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col"
-      style={{ background: '#ffffff' }}
+      style={{ background: 'var(--color-surface)' }}
     >
       {/* Header: back arrow + type label + customer name */}
       <div
@@ -310,18 +310,18 @@ function CustomerTransactionSheet({
           className="press-scale flex items-center justify-center"
           style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}
         >
-          <ArrowLeft className="w-5 h-5" style={{ color: '#6b7280' }} />
+          <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
         </button>
         <div className="flex-1 min-w-0 text-center">
           <h2 className="text-base font-bold truncate" style={{ color: accentColor }}>{headerLabel}</h2>
           {customer?.display_name && (
-            <p className="text-[11px] truncate" style={{ color: '#6b7280' }}>{customer.display_name}</p>
+            <p className="text-[11px] truncate" style={{ color: 'var(--color-text-muted)' }}>{customer.display_name}</p>
           )}
         </div>
         {actorLabel ? (
           <span
             className="text-[11px] font-semibold truncate"
-            style={{ color: '#6b4f1d', maxWidth: '80px', textAlign: 'right' }}
+            style={{ color: 'var(--color-warning)', maxWidth: '80px', textAlign: 'right' }}
             title={actorLabel}
           >
             {actorLabel}
@@ -338,25 +338,25 @@ function CustomerTransactionSheet({
         <div
           className="p-3 border flex items-center justify-between gap-2"
           style={{
-            background: isPayment ? '#f0fdf4' : '#fffbeb',
-            borderColor: isPayment ? '#bbf7d0' : '#fde68a',
+            background: isPayment ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
+            borderColor: isPayment ? 'var(--color-success-border)' : 'var(--color-warning-border)',
             borderRadius: 'var(--radius-md)',
           }}
         >
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
               {t.previousBalance}
             </p>
-            <p className="text-base font-bold truncate" style={{ color: '#1a1a1a' }}>
+            <p className="text-base font-bold truncate" style={{ color: 'var(--color-text)' }}>
               {fmt(currentBalance)} {t.birr}
             </p>
           </div>
-          <span className="flex-shrink-0" style={{ color: '#9ca3af' }}>→</span>
+          <span className="flex-shrink-0" style={{ color: 'var(--color-text-soft)' }}>→</span>
           <div className="min-w-0 text-right">
-            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
               {t.updatedBalance}
             </p>
-            <p className="text-base font-bold truncate" style={{ color: isPayment ? '#166534' : '#92400e' }}>
+            <p className="text-base font-bold truncate" style={{ color: isPayment ? 'var(--color-success-text)' : 'var(--color-warning)' }}>
               {fmt(updatedBalance)} {t.birr}
             </p>
           </div>
@@ -364,8 +364,8 @@ function CustomerTransactionSheet({
 
         {/* AMOUNT — the hero */}
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
-            {t.amount} <span style={{ color: '#dc2626' }}>*</span>
+          <label className="block text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-text-muted)' }}>
+            {t.amount} <span style={{ color: 'var(--color-danger)' }}>*</span>
           </label>
           <div className="relative">
             <input
@@ -377,21 +377,21 @@ function CustomerTransactionSheet({
               placeholder="0"
               className="w-full py-3 pr-20 text-3xl sm:text-4xl font-bold text-center focus:outline-none"
               style={{
-                borderBottom: `2px solid ${amount ? accentColor : '#e8e2d8'}`,
+                borderBottom: `2px solid ${amount ? accentColor : 'var(--color-border)'}`,
                 background: 'transparent',
-                color: amount ? accentColor : '#9ca3af',
+                color: amount ? accentColor : 'var(--color-text-soft)',
               }}
             />
             <span
               className="absolute right-2 top-1/2 -translate-y-1/2 text-base sm:text-lg font-semibold"
-              style={{ color: '#9ca3af' }}
+              style={{ color: 'var(--color-text-soft)' }}
             >
               {t.birr}
             </span>
           </div>
 
           {isPayment && !hasCollectableBalance && (
-            <p className="text-xs font-medium mt-2" style={{ color: '#b45309' }}>
+            <p className="text-xs font-medium mt-2" style={{ color: 'var(--color-warning)' }}>
               {t.noBalanceToRecordPayment}
             </p>
           )}
@@ -406,7 +406,7 @@ function CustomerTransactionSheet({
             banks/wallets appear only if the user enabled them in Settings. */}
         {isPayment && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'የክፍያ ዘዴ' : 'Payment Method'}
             </label>
             <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -422,9 +422,9 @@ function CustomerTransactionSheet({
                     className="flex-shrink-0 flex items-center justify-center gap-1.5 py-2 px-3 border-2 text-xs font-bold transition-all min-h-[40px] press-scale"
                     style={{
                       borderRadius: 'var(--radius-sm)',
-                      borderColor: selected ? '#1B4332' : '#e8e2d8',
-                      background: selected ? 'rgba(27,67,50,0.08)' : '#fff',
-                      color: selected ? '#1B4332' : '#6b7280',
+                      borderColor: selected ? 'var(--color-primary)' : 'var(--color-border)',
+                      background: selected ? 'rgba(27,67,50,0.08)' : 'var(--color-bg-white)',
+                      color: selected ? 'var(--color-primary)' : 'var(--color-text-muted)',
                       whiteSpace: 'nowrap',
                     }}
                   >
@@ -442,7 +442,7 @@ function CustomerTransactionSheet({
 
         {/* Note (optional) + Photo button inline (credit only — proof of goods) */}
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+          <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
             {isPayment ? t.paymentNoteOptional : t.itemNoteOptional}
           </label>
           <div className="flex gap-2 items-stretch">
@@ -452,7 +452,7 @@ function CustomerTransactionSheet({
               onChange={e => setItemNote(e.target.value)}
               placeholder={isPayment ? t.paymentNotePlaceholder : t.creditItemPlaceholder}
               className="flex-1 min-w-0 p-3 border-2 focus:outline-none text-base"
-              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+              style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)' }}
             />
             {/* Product proof photos - credits only (payments stay photo-free). */}
             {!isPayment && (
@@ -465,7 +465,7 @@ function CustomerTransactionSheet({
                   width: 56,
                   border: '2px solid #e8e2d8',
                   borderRadius: 'var(--radius-md)',
-                  background: photos.length > 0 ? '#f0fdf4' : '#fafaf6',
+                  background: photos.length > 0 ? 'var(--color-success-bg)' : 'var(--color-surface-subtle)',
                   opacity: photos.length > 0 ? 0.55 : 1,
                   position: 'relative',
                 }}
@@ -473,7 +473,7 @@ function CustomerTransactionSheet({
               >
                 {photoLoading
                   ? <span className="text-sm">...</span>
-                  : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? '#16a34a' : '#6b7280' }} />
+                  : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-text-muted)' }} />
                 }
                 {photos.length < MAX_PROOF_PHOTOS && (
                   <span
@@ -487,7 +487,7 @@ function CustomerTransactionSheet({
                       padding: '0 5px',
                       borderRadius: 999,
                        background: accentColor,
-                      color: '#fff',
+                      color: 'var(--color-bg-white)',
                       border: '2px solid #fff',
                       fontSize: 10,
                       fontWeight: 900,
@@ -504,13 +504,13 @@ function CustomerTransactionSheet({
 
           {!isPayment && photos.length > 0 && (
             <div className="mt-2 p-2"
-              style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}
+              style={{ background: 'var(--color-surface-subtle)', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold" style={{ color: '#1a1a1a' }}>
+                <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
                   {lang === 'am' ? '\u134E\u1276' : 'Proof photos'}
                 </p>
-                <p className="text-[10px] font-bold" style={{ color: '#6b7280' }}>
+                <p className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>
                   {photos.length} {lang === 'am' ? 'ፎቶዎች' : 'photos'}
                 </p>
               </div>
@@ -538,13 +538,13 @@ function CustomerTransactionSheet({
                         minHeight: 28,
                         borderRadius: 999,
                         border: '1px solid #e8e2d8',
-                        background: '#fff',
+                        background: 'var(--color-surface)',
                       }}
                       aria-label={lang === 'am' ? '\u134E\u1276 \u12A0\u1235\u12C8\u130D\u12F5' : `Remove photo ${index + 1}`}
                     >
-                      <X className="w-3.5 h-3.5" style={{ color: '#6b7280' }} />
+                      <X className="w-3.5 h-3.5" style={{ color: 'var(--color-text-muted)' }} />
                     </button>
-                    <p className="text-[10px] text-center mt-1" style={{ color: '#9ca3af' }}>
+                    <p className="text-[10px] text-center mt-1" style={{ color: 'var(--color-text-soft)' }}>
                       {Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB
                     </p>
                   </div>
@@ -553,7 +553,7 @@ function CustomerTransactionSheet({
             </div>
           )}
           {!isPayment && photoError && (
-            <p className="text-xs mt-1 font-medium" style={{ color: '#dc2626' }}>
+            <p className="text-xs mt-1 font-medium" style={{ color: 'var(--color-danger)' }}>
               {photoError}
             </p>
           )}
@@ -561,7 +561,7 @@ function CustomerTransactionSheet({
           {/* Quick item chips from catalog (credit only — saves can tap to auto-fill note + amount) */}
           {!isPayment && topCatalogItems.length > 0 && (
             <div className="mt-2">
-              <p className="text-[10px] font-medium mb-1" style={{ color: '#6b7280' }}>
+              <p className="text-[10px] font-medium mb-1" style={{ color: 'var(--color-text-muted)' }}>
                 {lang === 'am' ? 'ፈጣን ዕቃዎች:' : 'Quick items:'}
               </p>
               <div className="flex gap-1.5 overflow-x-auto pb-1 items-center">
@@ -572,10 +572,10 @@ function CustomerTransactionSheet({
                     onClick={() => handleQuickItem(entry)}
                     className="flex-shrink-0 px-3 py-1.5 text-xs font-bold border press-scale"
                     style={{
-                      borderColor: '#e8e2d8',
+                      borderColor: 'var(--color-border)',
                       borderRadius: 'var(--radius-sm)',
-                      background: '#fff',
-                      color: '#374151',
+                      background: 'var(--color-surface)',
+                      color: 'var(--color-text)',
                     }}
                   >
                     {entry.name}
@@ -593,7 +593,7 @@ function CustomerTransactionSheet({
               type="button"
               onClick={() => setShowBreakdown(v => !v)}
               className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[36px]"
-              style={{ color: '#C4883A' }}
+              style={{ color: 'var(--color-accent-amber)' }}
             >
               {showBreakdown ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               {validLineItems.length > 0
@@ -604,12 +604,12 @@ function CustomerTransactionSheet({
             {showBreakdown && (
               <div
                 className="mt-2 p-3 border space-y-3"
-                style={{ background: 'var(--color-bg)', borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)' }}
+                style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)' }}
               >
                 {/* Tap saved item chips to add a line */}
                 {topCatalogItems.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
                       {lang === 'am' ? 'ለማከል ይጫኑ' : 'Tap saved item to add'}
                     </p>
                     <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -620,16 +620,16 @@ function CustomerTransactionSheet({
                           onClick={() => addFromCatalogToBreakdown(entry)}
                           className="flex-shrink-0 px-2.5 py-1.5 text-xs font-bold border press-scale flex items-center gap-1"
                           style={{
-                            borderColor: '#e8e2d8',
+                            borderColor: 'var(--color-border)',
                             borderRadius: 'var(--radius-sm)',
-                            background: '#fff',
-                            color: '#374151',
+                            background: 'var(--color-surface)',
+                            color: 'var(--color-text)',
                           }}
                         >
                           <Plus className="w-3 h-3" />
                           {entry.name}
                           {entry.default_price != null && (
-                            <span className="ml-1 font-normal" style={{ color: '#9ca3af' }}>
+                            <span className="ml-1 font-normal" style={{ color: 'var(--color-text-soft)' }}>
                               {fmt(entry.default_price)}
                             </span>
                           )}
@@ -650,7 +650,7 @@ function CustomerTransactionSheet({
                           onChange={e => updateLineItem(line.id, 'name', e.target.value)}
                           placeholder={lang === 'am' ? `ዕቃ ${idx + 1}` : `item ${idx + 1}`}
                           className="flex-1 min-w-0 px-2 py-2 border focus:outline-none text-sm"
-                          style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }}
+                          style={{ borderRadius: 'var(--radius-sm)', borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
                         />
                         <input
                           type="text"
@@ -659,7 +659,7 @@ function CustomerTransactionSheet({
                           onChange={e => handleLineItemAmount(line.id, e)}
                           placeholder="0"
                           className="w-20 px-2 py-2 border focus:outline-none text-sm text-right font-bold"
-                          style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }}
+                          style={{ borderRadius: 'var(--radius-sm)', borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
                         />
                         <button
                           type="button"
@@ -668,7 +668,7 @@ function CustomerTransactionSheet({
                           style={{ minWidth: '32px', minHeight: '32px' }}
                           aria-label={lang === 'am' ? 'አስወግድ' : 'Remove'}
                         >
-                          <X className="w-4 h-4" style={{ color: '#9ca3af' }} />
+                          <X className="w-4 h-4" style={{ color: 'var(--color-text-soft)' }} />
                         </button>
                       </div>
                     ))}
@@ -681,10 +681,10 @@ function CustomerTransactionSheet({
                   onClick={() => addLineItem()}
                   className="w-full py-2 text-xs font-bold border border-dashed press-scale flex items-center justify-center gap-1"
                   style={{
-                    borderColor: '#c9bfa8',
+                    borderColor: 'var(--color-border)',
                     borderRadius: 'var(--radius-sm)',
-                    background: '#faf9f7',
-                    color: '#6b7280',
+                    background: 'var(--color-surface-subtle)',
+                    color: 'var(--color-text-muted)',
                   }}
                 >
                   <Plus className="w-4 h-4" />
@@ -696,7 +696,7 @@ function CustomerTransactionSheet({
                 {/* Totals · sync-to-sum button */}
                 {validLineItems.length > 0 && (
                   <div className="text-xs pt-2 space-y-1" style={{ borderTop: '1px solid #e8e2d8' }}>
-                    <div className="flex justify-between" style={{ color: '#374151' }}>
+                    <div className="flex justify-between" style={{ color: 'var(--color-text)' }}>
                       <span>{lang === 'am' ? 'የዕቃዎች ድምር' : 'Items total'}:</span>
                       <span className="font-bold">{fmt(lineItemsTotal)} {lang === 'am' ? 'ብር' : 'birr'}</span>
                     </div>
@@ -706,7 +706,7 @@ function CustomerTransactionSheet({
                         onClick={syncAmountToBreakdownSum}
                         className="w-full flex justify-between items-center px-1.5 py-1 press-scale"
                         style={{
-                          color: breakdownDelta > 0 ? '#C4883A' : '#dc2626',
+                          color: breakdownDelta > 0 ? 'var(--color-accent-amber)' : 'var(--color-danger)',
                           background: breakdownDelta > 0 ? 'rgba(196,136,58,0.08)' : 'rgba(220,38,38,0.06)',
                           borderRadius: 'var(--radius-sm)',
                         }}
@@ -721,7 +721,7 @@ function CustomerTransactionSheet({
                         onClick={syncAmountToBreakdownSum}
                         className="w-full flex justify-between items-center px-1.5 py-1 press-scale"
                         style={{
-                          color: '#16a34a',
+                          color: 'var(--color-success)',
                           background: 'rgba(22,163,74,0.06)',
                           borderRadius: 'var(--radius-sm)',
                         }}
@@ -740,7 +740,7 @@ function CustomerTransactionSheet({
         {/* Due date — compact chip row */}
         {!isPayment && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
               {t.dueDateOptional}
             </label>
             <div className="flex gap-2 mb-2">
@@ -751,10 +751,10 @@ function CustomerTransactionSheet({
                   <button key={option.value} type="button" onClick={() => setDueDate(optionDate)} className="press-scale"
                     style={{
                       padding: '8px 12px', minWidth: 70, minHeight: 40,
-                      border: `2px solid ${active ? accentColor : '#e8e2d8'}`,
+                      border: `2px solid ${active ? accentColor : 'var(--color-border)'}`,
                       borderRadius: 8,
-                      background: active ? accentColor : '#fff',
-                      color: active ? '#fff' : '#374151',
+                      background: active ? accentColor : 'var(--color-bg-white)',
+                      color: active ? 'var(--color-bg-white)' : 'var(--color-text)',
                       fontSize: '0.8rem', fontWeight: 700,
                       cursor: 'pointer', flexShrink: 0,
                     }}>
@@ -765,10 +765,10 @@ function CustomerTransactionSheet({
               <button type="button" onClick={() => setShowDatePicker(true)} className="press-scale"
                 style={{
                   padding: '8px 12px', minWidth: 70, minHeight: 40,
-                  border: `2px solid ${dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? accentColor : '#e8e2d8'}`,
+                  border: `2px solid ${dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? accentColor : 'var(--color-border)'}`,
                   borderRadius: 8,
-                  background: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? accentColor : '#fff',
-                  color: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? '#fff' : '#374151',
+                  background: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? accentColor : 'var(--color-bg-white)',
+                  color: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? 'var(--color-bg-white)' : 'var(--color-text)',
                   fontSize: '0.8rem', fontWeight: 700,
                   cursor: 'pointer', flexShrink: 0,
                   display: 'flex', alignItems: 'center', gap: 4,
@@ -794,8 +794,8 @@ function CustomerTransactionSheet({
           disabled={!canSave}
           className="w-full p-3 font-bold text-white text-base flex items-center justify-center gap-2 transition-all press-scale"
           style={{
-            background: canSave ? accentColor : '#e5e7eb',
-            color: canSave ? '#fff' : '#9ca3af',
+            background: canSave ? accentColor : 'var(--color-bg-disabled)',
+            color: canSave ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
             cursor: canSave ? 'pointer' : 'not-allowed',
             borderRadius: 'var(--radius-md)',
           }}
@@ -818,15 +818,15 @@ function CustomerTransactionSheet({
             <div className="flex items-start gap-3 mb-4">
               <div
                 className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
-                style={{ background: '#fef3c7' }}
+                style={{ background: 'var(--color-warning-bg)' }}
               >
-                <AlertTriangle className="w-5 h-5" style={{ color: '#d97706' }} />
+                <AlertTriangle className="w-5 h-5" style={{ color: 'var(--color-accent-amber)' }} />
               </div>
               <div>
-                <h3 className="text-base font-bold" style={{ color: '#1f2937' }}>
+                <h3 className="text-base font-bold" style={{ color: 'var(--color-text)' }}>
                   {lang === 'am' ? 'የጨረ ክፍያ' : 'Overpayment'}
                 </h3>
-                <p className="text-xs mt-1" style={{ color: '#6b7280' }}>
+                <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
                   {lang === 'am'
                     ? `እርስዎ ክፍያ ከዚህ በላይ ይኸውና የሚከፈለው መጠን ከ${fmt(currentBalance)} ዱቤ በላይ ነው።`
                     : `Your payment exceeds the current balance of ${fmt(currentBalance)} birr.`}
@@ -837,32 +837,32 @@ function CustomerTransactionSheet({
             <div
               className="p-3 mb-4"
               style={{
-                background: '#fffbeb',
+                background: 'var(--color-warning-bg)',
                 border: '1px solid #fde68a',
                 borderRadius: 'var(--radius-md)',
               }}
             >
               <div className="flex justify-between items-center mb-1">
-                <span className="text-xs" style={{ color: '#6b7280' }}>
+                <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                   {lang === 'am' ? 'የክፍያ መጠን' : 'Payment amount'}
                 </span>
-                <span className="text-sm font-bold" style={{ color: '#1f2937' }}>
+                <span className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
                   {fmt(parsedAmount)} {t.birr}
                 </span>
               </div>
               <div className="flex justify-between items-center mb-1">
-                <span className="text-xs" style={{ color: '#6b7280' }}>
+                <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
                   {lang === 'am' ? 'የተከፈለ ድምር' : 'Current balance'}
                 </span>
-                <span className="text-sm font-bold" style={{ color: '#1f2937' }}>
+                <span className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
                   {fmt(currentBalance)} {t.birr}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs font-bold" style={{ color: '#d97706' }}>
+                <span className="text-xs font-bold" style={{ color: 'var(--color-accent-amber)' }}>
                   {lang === 'am' ? 'ትርፍ' : 'Excess'}
                 </span>
-                <span className="text-sm font-black" style={{ color: '#d97706' }}>
+                <span className="text-sm font-black" style={{ color: 'var(--color-accent-amber)' }}>
                   {fmt(Math.max(0, parsedAmount - currentBalance))} {t.birr}
                 </span>
               </div>
@@ -873,7 +873,7 @@ function CustomerTransactionSheet({
                 type="button"
                 onClick={() => { setShowOverpaymentConfirm(false); setPendingPaymentAmount(null); }}
                 className="flex-1 py-2.5 border-2 text-sm font-bold press-scale"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8', color: '#6b7280' }}
+                style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
               >
                 {lang === 'am' ? 'ሰርዝ' : 'Cancel'}
               </button>
@@ -881,7 +881,7 @@ function CustomerTransactionSheet({
                 type="button"
                 onClick={() => { setShowOverpaymentConfirm(false); }}
                 className="flex-1 py-2.5 border-2 text-sm font-black press-scale"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: '#1B4332', background: '#1B4332', color: '#fff' }}
+                style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-primary)', background: 'var(--color-primary)', color: 'var(--color-bg-white)' }}
               >
                 {lang === 'am' ? 'ቀጥል' : 'Continue'}
               </button>

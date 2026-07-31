@@ -58,13 +58,13 @@ export default function BusinessSelector({ shopProfile, currentBusinessId }) {
         <div
           style={{
             position: 'absolute', top: '100%', left: 0, right: 0,
-            background: '#fff', border: '1px solid #e5e7eb',
+            background: 'var(--color-surface)', border: '1px solid #e5e7eb',
             borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
             zIndex: 100, marginTop: 6, overflow: 'hidden',
             minWidth: 200,
           }}
         >
-          <div style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          <div style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, color: 'var(--color-text-soft)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             {t('Switch shop', 'ሱቅ ቀይር')}
           </div>
           {businesses.map(biz => {
@@ -76,17 +76,17 @@ export default function BusinessSelector({ shopProfile, currentBusinessId }) {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   width: '100%', padding: '10px 14px',
-                  background: active ? '#f3f4f6' : 'transparent',
+                  background: active ? 'var(--color-bg-hover)' : 'transparent',
                   border: 'none', cursor: active ? 'default' : 'pointer',
                   fontSize: 14, fontWeight: active ? 600 : 400,
-                  color: '#1a1a1a', textAlign: 'left',
+                  color: 'var(--color-text)', textAlign: 'left',
                   borderBottom: '1px solid #f3f4f6',
                 }}
               >
                 <span style={{
                   width: 28, height: 28, borderRadius: 8,
-                  background: active ? '#1B4332' : '#e5e7eb',
-                  color: active ? '#fff' : '#6b7280',
+                  background: active ? 'var(--color-primary)' : 'var(--color-bg-disabled)',
+                  color: active ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 12, fontWeight: 700, flexShrink: 0,
                 }}>
@@ -94,7 +94,7 @@ export default function BusinessSelector({ shopProfile, currentBusinessId }) {
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="truncate" style={{ fontSize: 14, fontWeight: active ? 600 : 400 }}>{biz.name}</div>
-                  <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-soft)', marginTop: 1 }}>
                     {String(biz.role || '').replace(/_/g, ' ')}
                   </div>
                 </div>

@@ -383,20 +383,20 @@ export default function ItemizedSaleView({
   })();
 
   return (
-    <div className="fixed inset-x-0 top-0 bottom-[60px] max-w-md mx-auto flex flex-col" style={{ background: '#fff' }}>
+    <div className="fixed inset-x-0 top-0 bottom-[60px] max-w-md mx-auto flex flex-col" style={{ background: 'var(--color-surface)' }}>
       {/* Responsive: hide Total column on screens <360px */}
       <style>{`@media (max-width: 359px) { .total-col { display: none !important; } }`}</style>
       {/* Draft recovery banner */}
       {showDraftBanner && draft && (
-        <div className="flex-shrink-0 px-2 py-1.5 flex items-center justify-between" style={{ background: '#fef3c7' }}>
-          <span className="text-[11px] font-bold" style={{ color: '#92400e' }}>
+        <div className="flex-shrink-0 px-2 py-1.5 flex items-center justify-between" style={{ background: 'var(--color-warning-bg)' }}>
+          <span className="text-[11px] font-bold" style={{ color: 'var(--color-warning)' }}>
             {lang === 'am' ? 'ያልተጠናቀቀ ሽያጭ ተገኝቷል' : 'Unfinished sale'}
           </span>
           <div className="flex gap-2">
-            <button onClick={restoreDraft} className="text-[11px] font-bold px-1.5" style={{ color: '#14532d' }}>
+            <button onClick={restoreDraft} className="text-[11px] font-bold px-1.5" style={{ color: 'var(--color-success-text)' }}>
               {lang === 'am' ? 'ወደነበረበት መልስ' : 'Restore'}
             </button>
-            <button onClick={discardDraft} className="text-[11px] font-bold px-1.5" style={{ color: '#dc2626' }}>
+            <button onClick={discardDraft} className="text-[11px] font-bold px-1.5" style={{ color: 'var(--color-danger)' }}>
               {lang === 'am' ? 'አስወግድ' : 'Discard'}
             </button>
           </div>
@@ -412,9 +412,9 @@ export default function ItemizedSaleView({
           className="press-scale flex items-center justify-center"
           style={{ minWidth: '44px', minHeight: '44px' }}
         >
-          <ArrowLeft className="w-4 h-4" style={{ color: '#6b7280' }} />
+          <ArrowLeft className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
         </button>
-        <h2 className="text-sm font-bold" style={{ color: '#16a34a' }}>
+        <h2 className="text-sm font-bold" style={{ color: 'var(--color-success)' }}>
           {lang === 'am' ? 'አዲስ ሽያጭ' : 'New Sale'}
         </h2>
         <div className="flex items-center gap-1">
@@ -429,10 +429,10 @@ export default function ItemizedSaleView({
             {photoLoading ? (
               <span className="text-xs">...</span>
             ) : (
-              <Camera className="w-4 h-4" style={{ color: photos.length > 0 ? '#16a34a' : '#9ca3af' }} />
+              <Camera className="w-4 h-4" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-text-soft)' }} />
             )}
             {photos.length > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 text-[8px] font-black" style={{ color: '#16a34a' }}>
+              <span className="absolute -top-0.5 -right-0.5 text-[8px] font-black" style={{ color: 'var(--color-success)' }}>
                 {photos.length}
               </span>
             )}
@@ -452,11 +452,11 @@ export default function ItemizedSaleView({
       {/* Photo indicators — inline, no background */}
       {photos.length > 0 && (
         <div className="flex-shrink-0 px-2 py-0.5 flex items-center gap-1.5">
-          <span className="text-[10px] font-bold" style={{ color: '#16a34a' }}>
+          <span className="text-[10px] font-bold" style={{ color: 'var(--color-success)' }}>
             📷 {photos.length}
           </span>
           {photos.map(p => (
-            <button key={p.id} onClick={() => handleRemovePhoto(p.id)} className="text-[9px]" style={{ color: '#dc2626' }}>
+            <button key={p.id} onClick={() => handleRemovePhoto(p.id)} className="text-[9px]" style={{ color: 'var(--color-danger)' }}>
               ✕
             </button>
           ))}
@@ -464,22 +464,22 @@ export default function ItemizedSaleView({
       )}
       {photoError && (
         <div className="flex-shrink-0 px-2 py-0.5">
-          <span className="text-[10px] font-semibold" style={{ color: '#dc2626' }}>{photoError}</span>
+          <span className="text-[10px] font-semibold" style={{ color: 'var(--color-danger)' }}>{photoError}</span>
         </div>
       )}
 
       {/* Column headers — like notebook column labels */}
       <div className="flex-shrink-0 px-2 flex gap-1 items-center" style={{ borderBottom: '1px solid #edeae5' }}>
-        <span className="text-[10px] font-bold uppercase tracking-widest truncate" style={{ flex: '34 0 0%', color: '#bbb0a0', minWidth: 0 }}>
+        <span className="text-[10px] font-bold uppercase tracking-widest truncate" style={{ flex: '34 0 0%', color: 'var(--color-text-soft)', minWidth: 0 }}>
           {lang === 'am' ? 'ንጥል' : 'Item'}
         </span>
-        <span className="text-[10px] font-bold text-center uppercase tracking-widest flex-shrink-0" style={{ width: '64px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-center uppercase tracking-widest flex-shrink-0" style={{ width: '64px', color: 'var(--color-text-soft)' }}>
           {lang === 'am' ? 'ብዛት' : 'Qty'}
         </span>
-        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0" style={{ width: '84px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0" style={{ width: '84px', color: 'var(--color-text-soft)' }}>
           {lang === 'am' ? 'ዋጋ' : 'Price'}
         </span>
-        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0 total-col" style={{ width: '88px', color: '#bbb0a0' }}>
+        <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0 total-col" style={{ width: '88px', color: 'var(--color-text-soft)' }}>
           {lang === 'am' ? 'ጠቅላላ' : 'Total'}
         </span>
       </div>
@@ -510,7 +510,7 @@ export default function ItemizedSaleView({
             <button
               onClick={() => addEmptyRows(3)}
               className="w-full py-2 text-[11px] font-bold press-scale flex items-center justify-center gap-1"
-              style={{ color: '#6b7280', border: '1px dashed #d1d5db', borderRadius: '4px', minHeight: '40px', background: '#fafafa' }}
+              style={{ color: 'var(--color-text-muted)', border: '1px dashed #d1d5db', borderRadius: '4px', minHeight: '40px', background: 'var(--color-surface-subtle)' }}
             >
               <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span>
               <span>{lang === 'am' ? '3 ተጨማሪ ረድፎች' : 'Add 3 Rows'}</span>
@@ -520,25 +520,25 @@ export default function ItemizedSaleView({
       </div>
 
       {/* Bottom bar — no borders, like the bottom margin of a notebook page */}
-      <div className="flex-shrink-0" style={{ background: '#fff' }}>
+      <div className="flex-shrink-0" style={{ background: 'var(--color-surface)' }}>
         {/* Running Summary — compact, no internal borders */}
         <div className="px-2 py-1 space-y-0.5">
           <div className="flex justify-between items-center text-[11px]">
-            <span style={{ color: '#9ca3af' }}>
-              {lang === 'am' ? 'እቃዎች' : 'Items'}: <span className="font-bold" style={{ color: '#374151' }}>{filledRows.length}</span>
+            <span style={{ color: 'var(--color-text-soft)' }}>
+              {lang === 'am' ? 'እቃዎች' : 'Items'}: <span className="font-bold" style={{ color: 'var(--color-text)' }}>{filledRows.length}</span>
               <span className="ml-2">
-                {lang === 'am' ? 'ብዛት' : 'Qty'}: <span className="font-bold" style={{ color: '#374151' }}>{totalQty}</span>
+                {lang === 'am' ? 'ብዛት' : 'Qty'}: <span className="font-bold" style={{ color: 'var(--color-text)' }}>{totalQty}</span>
               </span>
             </span>
-            <span className="text-[11px]" style={{ color: '#9ca3af' }}>
-              {lang === 'am' ? 'ድምር' : 'Subtotal'}: <span className="font-bold" style={{ color: '#374151' }}>{fmt(totalAmount)}</span>
+            <span className="text-[11px]" style={{ color: 'var(--color-text-soft)' }}>
+              {lang === 'am' ? 'ድምር' : 'Subtotal'}: <span className="font-bold" style={{ color: 'var(--color-text)' }}>{fmt(totalAmount)}</span>
             </span>
           </div>
           {showDiscount && (
-            <div className="flex justify-between items-center" style={{ background: '#fef3c7', borderRadius: '3px', padding: '2px 6px', border: '1px solid #fcd34d' }}>
-              <span className="text-[11px]" style={{ color: '#92400e' }}>{lang === 'am' ? 'ቅናሽ' : 'Discount'}</span>
+            <div className="flex justify-between items-center" style={{ background: 'var(--color-warning-bg)', borderRadius: '3px', padding: '2px 6px', border: '1px solid #fcd34d' }}>
+              <span className="text-[11px]" style={{ color: 'var(--color-warning)' }}>{lang === 'am' ? 'ቅናሽ' : 'Discount'}</span>
               <div className="flex items-center gap-1">
-                <span className="text-[11px]" style={{ color: '#dc2626' }}>−</span>
+                <span className="text-[11px]" style={{ color: 'var(--color-danger)' }}>−</span>
                 <input
                   ref={discountRef}
                   type="text"
@@ -560,14 +560,14 @@ export default function ItemizedSaleView({
             <button
               onClick={() => setShowDiscount(true)}
               className="text-[11px] font-bold press-scale"
-              style={{ color: '#6b7280', border: '1px solid #e8e2d8', borderRadius: '3px', padding: '4px 10px', minHeight: '34px' }}
+              style={{ color: 'var(--color-text-muted)', border: '1px solid #e8e2d8', borderRadius: '3px', padding: '4px 10px', minHeight: '34px' }}
             >
               + {lang === 'am' ? 'ቅናሽ' : 'Discount'}
             </button>
           )}
           <div className="flex justify-between items-center pt-0.5">
-            <span className="text-[13px] font-black" style={{ color: '#111827' }}>{lang === 'am' ? 'ጠቅላላ' : 'TOTAL'}</span>
-            <span className="text-base font-black" style={{ color: '#16a34a' }}>
+            <span className="text-[13px] font-black" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ጠቅላላ' : 'TOTAL'}</span>
+            <span className="text-base font-black" style={{ color: 'var(--color-success)' }}>
               {fmt(grandTotal)} ETB
             </span>
           </div>
@@ -576,8 +576,8 @@ export default function ItemizedSaleView({
         {/* Partial amount received — partial mode only (below TOTAL, above customer fields) */}
         {isPartial && (
           <div className="px-2 py-1.5">
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'የተቀበሉት መጠን' : 'Amount Received'} <span style={{ color: '#dc2626' }}>*</span>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+              {lang === 'am' ? 'የተቀበሉት መጠን' : 'Amount Received'} <span style={{ color: 'var(--color-danger)' }}>*</span>
             </label>
             <div className="relative">
               <input
@@ -587,24 +587,24 @@ export default function ItemizedSaleView({
                 onChange={e => setPartialReceived(e.target.value.replace(/[^\d.]/g, ''))}
                 placeholder="0"
                 className="w-full p-3 pr-16 border-2 focus:outline-none text-base"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: partialReceivedAmount > 0 && partialReceivedAmount < grandTotal ? '#1B4332' : '#e8e2d8' }}
+                style={{ borderRadius: 'var(--radius-md)', borderColor: partialReceivedAmount > 0 && partialReceivedAmount < grandTotal ? 'var(--color-primary)' : 'var(--color-border)' }}
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-base font-semibold" style={{ color: '#9ca3af' }}>
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-base font-semibold" style={{ color: 'var(--color-text-soft)' }}>
                 {lang === 'am' ? 'ብር' : 'birr'}
               </span>
             </div>
             {partialReceivedAmount > 0 && partialReceivedAmount < grandTotal && (
-              <p className="text-xs mt-1.5 font-semibold" style={{ color: '#C4883A' }}>
+              <p className="text-xs mt-1.5 font-semibold" style={{ color: 'var(--color-accent-amber)' }}>
                 {lang === 'am' ? 'ቀሪ ዱቤ' : 'Credit owed'}: {fmt(remainingAmount)} {lang === 'am' ? 'ብር' : 'birr'}
               </p>
             )}
             {partialReceivedAmount >= grandTotal && grandTotal > 0 && (
-              <p className="text-xs mt-1.5 font-medium" style={{ color: '#dc2626' }}>
+              <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--color-danger)' }}>
                 {lang === 'am' ? 'የተቀበሉት ሙሉ ነው — "ጥሬ" ይምረጡ' : 'Amount received is the full sale — use Cash instead.'}
               </p>
             )}
             {isPartial && partialReceivedAmount > 0 && paymentType !== 'cash' && paymentProvider && (
-              <p className="text-xs mt-1.5 font-semibold" style={{ color: '#065f46' }}>
+              <p className="text-xs mt-1.5 font-semibold" style={{ color: 'var(--color-success-text)' }}>
                 → {fmt(partialReceivedAmount)} {lang === 'am' ? 'ብር' : 'ETB'} {lang === 'am' ? 'በ' : 'via'} {paymentProvider}
               </p>
             )}
@@ -624,10 +624,10 @@ export default function ItemizedSaleView({
                   onChange={e => setCreditCustomerSearch(e.target.value)}
                   placeholder={lang === 'am' ? 'ደንበኛ ፈልግ...' : 'Customer name...'}
                   className="w-full px-2 py-1.5 text-[11px] border font-bold"
-                  style={{ borderColor: creditCustomerId ? '#16a34a' : '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '38px' }}
+                  style={{ borderColor: creditCustomerId ? 'var(--color-success)' : 'var(--color-border-light)', borderRadius: 'var(--radius-sm)', minHeight: '38px' }}
                 />
                 {creditCustomerSearch && !creditCustomerId && (
-                  <div className="absolute z-10 top-full left-0 right-0 bg-white border shadow-sm max-h-[160px] overflow-y-auto" style={{ borderColor: '#edeae5', borderRadius: '0 0 var(--radius-sm) var(--radius-sm)' }}>
+                  <div className="absolute z-10 top-full left-0 right-0 bg-white border shadow-sm max-h-[160px] overflow-y-auto" style={{ borderColor: 'var(--color-border-light)', borderRadius: '0 0 var(--radius-sm) var(--radius-sm)' }}>
                     {filteredCustomers.length > 0 ? (
                       <>
                         {filteredCustomers.slice(0, 6).map(c => (
@@ -642,10 +642,10 @@ export default function ItemizedSaleView({
                               setCreditCustomerSearch(cname);
                             }}
                             className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-b flex items-center gap-2"
-                            style={{ borderColor: '#f3f4f6', minHeight: '40px' }}
+                            style={{ borderColor: 'var(--color-border-light)', minHeight: '40px' }}
                           >
                             <span>{c.display_name || c.name}</span>
-                            {c.phone && <span className="text-[10px]" style={{ color: '#9ca3af' }}>{c.phone}</span>}
+                            {c.phone && <span className="text-[10px]" style={{ color: 'var(--color-text-soft)' }}>{c.phone}</span>}
                           </button>
                         ))}
                         {onAddCustomerInline && (
@@ -662,14 +662,14 @@ export default function ItemizedSaleView({
                               }
                             }}
                             className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-t border-dashed"
-                            style={{ borderColor: '#16a34a', color: '#16a34a', minHeight: '40px' }}
+                            style={{ borderColor: 'var(--color-success)', color: 'var(--color-success)', minHeight: '40px' }}
                           >
                             + {lang === 'am' ? 'እንደ አዲስ ደንበኛ አክል' : 'Add as new customer'}
                           </button>
                         )}
                       </>
                     ) : (
-                      <div className="px-2.5 py-2.5 text-[11px]" style={{ color: '#9ca3af' }}>
+                      <div className="px-2.5 py-2.5 text-[11px]" style={{ color: 'var(--color-text-soft)' }}>
                         {lang === 'am' ? 'ደንበኛ አልተገኘም' : 'No customer found'}
                       </div>
                     )}
@@ -693,7 +693,7 @@ export default function ItemizedSaleView({
                   }
                 }}
                 className="flex-shrink-0 px-3 text-[11px] font-bold border press-scale"
-                style={{ borderColor: '#16a34a', color: '#16a34a', borderRadius: 'var(--radius-sm)', minHeight: '38px', background: 'rgba(22,163,74,0.06)' }}
+                style={{ borderColor: 'var(--color-success)', color: 'var(--color-success)', borderRadius: 'var(--radius-sm)', minHeight: '38px', background: 'rgba(22,163,74,0.06)' }}
               >
                 <span className="text-[14px] mr-1">+</span>{lang === 'am' ? 'አክል' : 'Add'}
               </button>
@@ -714,7 +714,7 @@ export default function ItemizedSaleView({
                       setCreditCustomerSearch(cname);
                     }}
                     className="px-2.5 py-1.5 text-[11px] font-bold border press-scale"
-                    style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: '#fff' }}
+                    style={{ borderColor: 'var(--color-border-light)', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: 'var(--color-surface)' }}
                   >
                     {c.display_name || c.name}
                   </button>
@@ -726,8 +726,8 @@ export default function ItemizedSaleView({
             {creditCustomerId && (
               <div className="flex items-center gap-2 px-2.5 py-2" style={{ background: 'rgba(22,163,74,0.06)', borderRadius: 'var(--radius-sm)', minHeight: '42px' }}>
                 <span className="text-[13px] font-bold flex-1">{creditCustomerName}</span>
-                {creditCustomerPhone && <span className="text-[10px]" style={{ color: '#6b7280' }}>{creditCustomerPhone}</span>}
-                <span className="text-[10px] font-bold" style={{ color: '#6b7280' }}>
+                {creditCustomerPhone && <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{creditCustomerPhone}</span>}
+                <span className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>
                   {lang === 'am' ? 'ዱቤ' : 'BAL'} {fmt(creditCustomerBalance)}
                 </span>
                 <button
@@ -740,7 +740,7 @@ export default function ItemizedSaleView({
                     setSelectedDueTs(null);
                     setCustomDueIso('');
                   }}
-                  className="text-[12px] font-bold press-scale px-1" style={{ color: '#9ca3af', minHeight: '30px' }}
+                  className="text-[12px] font-bold press-scale px-1" style={{ color: 'var(--color-text-soft)', minHeight: '30px' }}
                 >
                   ✕
                 </button>
@@ -749,7 +749,7 @@ export default function ItemizedSaleView({
 
             {/* Due date — compact chip row */}
             <div>
-              <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#9ca3af' }}>
+              <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-soft)' }}>
                 {lang === 'am' ? 'መክፈያ ቀን' : 'Due date'}
               </div>
               <div className="flex gap-2 mb-2">
@@ -760,10 +760,10 @@ export default function ItemizedSaleView({
                       onClick={() => { setSelectedDueTs(opt.value); setCustomDueIso(''); }} className="press-scale"
                       style={{
                         padding: '8px 12px', minWidth: 70, minHeight: 40,
-                        border: `2px solid ${active ? '#16a34a' : '#e8e2d8'}`,
+                        border: `2px solid ${active ? 'var(--color-success)' : 'var(--color-border)'}`,
                         borderRadius: 8,
-                        background: active ? '#16a34a' : '#fff',
-                        color: active ? '#fff' : '#374151',
+                        background: active ? 'var(--color-success)' : 'var(--color-bg-white)',
+                        color: active ? 'var(--color-bg-white)' : 'var(--color-text)',
                         fontSize: '0.8rem', fontWeight: 700,
                         cursor: 'pointer', flexShrink: 0,
                       }}>
@@ -774,10 +774,10 @@ export default function ItemizedSaleView({
                 <button type="button" onClick={() => setShowDatePicker(true)} className="press-scale"
                   style={{
                     padding: '8px 12px', minWidth: 70, minHeight: 40,
-                    border: `2px solid ${customDueIso ? '#16a34a' : '#e8e2d8'}`,
+                    border: `2px solid ${customDueIso ? 'var(--color-success)' : 'var(--color-border)'}`,
                     borderRadius: 8,
-                    background: customDueIso ? '#16a34a' : '#fff',
-                    color: customDueIso ? '#fff' : '#374151',
+                    background: customDueIso ? 'var(--color-success)' : 'var(--color-bg-white)',
+                    color: customDueIso ? 'var(--color-bg-white)' : 'var(--color-text)',
                     fontSize: '0.8rem', fontWeight: 700,
                     cursor: 'pointer', flexShrink: 0,
                     display: 'flex', alignItems: 'center', gap: 4,
@@ -815,14 +815,14 @@ export default function ItemizedSaleView({
 
         {/* Share toggle + Preview + Complete — single row */}
         <div className="px-2 pb-1 flex items-center gap-2">
-          <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none press-scale" style={{ color: shareAuto ? '#16a34a' : '#9ca3af', whiteSpace: 'nowrap', minHeight: '44px', padding: '0 2px' }}>
+          <label className="flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none press-scale" style={{ color: shareAuto ? 'var(--color-success)' : 'var(--color-text-soft)', whiteSpace: 'nowrap', minHeight: '44px', padding: '0 2px' }}>
             <input
               type="checkbox"
               checked={shareAuto}
               onChange={(e) => setShareAuto(e.target.checked)}
               className="sr-only"
             />
-            <div className="relative w-7 h-4 rounded-full transition-colors flex-shrink-0" style={{ background: shareAuto ? '#16a34a' : '#d1d5db' }}>
+            <div className="relative w-7 h-4 rounded-full transition-colors flex-shrink-0" style={{ background: shareAuto ? 'var(--color-success)' : 'var(--color-text-soft)' }}>
               <div className="absolute top-[2px] left-[2px] w-3 h-3 rounded-full bg-white transition-transform" style={{ transform: shareAuto ? 'translateX(12px)' : 'translateX(0)' }} />
             </div>
             {lang === 'am' ? 'አጋራ' : 'Share'}
@@ -830,7 +830,7 @@ export default function ItemizedSaleView({
 
           {showPhonePrompt && (
             <div className="flex items-center gap-1 flex-1">
-              <span className="text-[10px]" style={{ color: '#9ca3af' }}>
+              <span className="text-[10px]" style={{ color: 'var(--color-text-soft)' }}>
                 {lang === 'am' ? 'ስልክ:' : 'Phone:'}
               </span>
               <input
@@ -863,7 +863,7 @@ export default function ItemizedSaleView({
                   }
                 }}
                 className="text-[10px] font-bold px-1.5 py-0.5"
-                style={{ color: '#16a34a', background: '#f0fdf4', borderRadius: '3px' }}
+                style={{ color: 'var(--color-success)', background: 'var(--color-success-bg)', borderRadius: '3px' }}
               >
                 {lang === 'am' ? 'ተቀጥል' : 'Done'}
               </button>
@@ -877,12 +877,12 @@ export default function ItemizedSaleView({
             onClick={() => setShowReceipt(true)}
             disabled={!canSave}
             className="px-2.5 py-1.5 text-[11px] font-bold press-scale"
-            style={{ color: canSave ? '#6b7280' : '#d1d5db', cursor: canSave ? 'pointer' : 'not-allowed', minHeight: '36px' }}
+            style={{ color: canSave ? 'var(--color-text-muted)' : 'var(--color-text-soft)', cursor: canSave ? 'pointer' : 'not-allowed', minHeight: '36px' }}
           >
             📄 {lang === 'am' ? 'ቅድመ-እይታ' : 'Preview'}
           </button>
 
-          <span className="text-[16px]" style={{ color: '#e5e7eb' }}>·</span>
+          <span className="text-[16px]" style={{ color: 'var(--color-bg-disabled)' }}>·</span>
 
           <button
             type="button"
@@ -890,8 +890,8 @@ export default function ItemizedSaleView({
             disabled={!canSave}
             className="px-4 py-1.5 font-black text-[11px] flex items-center justify-center gap-1 transition-all press-scale"
             style={{
-              background: canSave ? '#16a34a' : '#e5e7eb',
-              color: canSave ? '#fff' : '#9ca3af',
+              background: canSave ? 'var(--color-success)' : 'var(--color-bg-disabled)',
+              color: canSave ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
               cursor: canSave ? 'pointer' : 'not-allowed',
               borderRadius: '3px',
               minHeight: '36px',
@@ -908,42 +908,42 @@ export default function ItemizedSaleView({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.2)' }} onClick={() => setShowReceipt(false)}>
           <div className="bg-white w-full max-w-sm p-4" style={{ fontFamily: 'monospace' }} onClick={e => e.stopPropagation()}>
             <div className="text-center mb-2">
-              <p className="text-sm font-black" style={{ color: '#111827' }}>{actorLabel || 'Shop'}</p>
+              <p className="text-sm font-black" style={{ color: 'var(--color-text)' }}>{actorLabel || 'Shop'}</p>
               {shopProfile?.phone && (
-                <p className="text-[10px]" style={{ color: '#6b7280' }}>{shopProfile.phone}</p>
+                <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{shopProfile.phone}</p>
               )}
-              <p className="text-[9px]" style={{ color: '#6b7280' }}>{new Date().toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>
+              <p className="text-[9px]" style={{ color: 'var(--color-text-muted)' }}>{new Date().toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>
             </div>
-            <div className="border-t border-b py-1 mb-1.5" style={{ borderColor: '#d1d5db' }}>
-              <div className="flex justify-between text-[10px] font-bold mb-0.5" style={{ color: '#6b7280' }}>
+            <div className="border-t border-b py-1 mb-1.5" style={{ borderColor: 'var(--color-text-soft)' }}>
+              <div className="flex justify-between text-[10px] font-bold mb-0.5" style={{ color: 'var(--color-text-muted)' }}>
                 <span style={{ flex: 2 }}>{lang === 'am' ? 'ንጥል' : 'Item'}</span>
                 <span style={{ width: '28px', textAlign: 'center' }}>{lang === 'am' ? 'ብ' : 'Qty'}</span>
                 <span style={{ width: '56px', textAlign: 'right' }}>{lang === 'am' ? 'ድምር' : 'Total'}</span>
               </div>
               {buildItemsArray().map((it, i) => (
                 <div key={i} className="flex justify-between text-[11px] py-0.5">
-                  <span className="truncate" style={{ flex: 2, color: '#374151' }}>{it.name}</span>
-                  <span style={{ width: '28px', textAlign: 'center', color: '#374151' }}>{it.qty}</span>
-                  <span style={{ width: '56px', textAlign: 'right', fontWeight: 'bold', color: '#111827' }}>{fmt(it.amount)}</span>
+                  <span className="truncate" style={{ flex: 2, color: 'var(--color-text)' }}>{it.name}</span>
+                  <span style={{ width: '28px', textAlign: 'center', color: 'var(--color-text)' }}>{it.qty}</span>
+                  <span style={{ width: '56px', textAlign: 'right', fontWeight: 'bold', color: 'var(--color-text)' }}>{fmt(it.amount)}</span>
                 </div>
               ))}
             </div>
             <div className="space-y-0.5 text-[11px] mb-2">
               <div className="flex justify-between">
-                <span style={{ color: '#6b7280' }}>{lang === 'am' ? 'ድምር' : 'Subtotal'}</span>
+                <span style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ድምር' : 'Subtotal'}</span>
                 <span className="font-bold">{fmt(totalAmount)}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between">
-                  <span style={{ color: '#6b7280' }}>{lang === 'am' ? 'ቅናሽ' : 'Discount'}</span>
-                  <span style={{ color: '#dc2626' }}>−{fmt(discount)}</span>
+                  <span style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ቅናሽ' : 'Discount'}</span>
+                  <span style={{ color: 'var(--color-danger)' }}>−{fmt(discount)}</span>
                 </div>
               )}
-              <div className="flex justify-between border-t pt-0.5" style={{ borderColor: '#d1d5db' }}>
+              <div className="flex justify-between border-t pt-0.5" style={{ borderColor: 'var(--color-text-soft)' }}>
                 <span className="font-bold">{lang === 'am' ? 'ጠቅላላ' : 'Grand Total'}</span>
                 <span className="font-bold">{fmt(grandTotal)} ETB</span>
               </div>
-              <div className="flex justify-between" style={{ color: '#6b7280' }}>
+              <div className="flex justify-between" style={{ color: 'var(--color-text-muted)' }}>
                 <span>{lang === 'am' ? 'ክፍያ' : 'Payment'}</span>
                 <span>{paymentType === 'cash' ? 'Cash' : paymentProvider || paymentType}</span>
               </div>
@@ -951,7 +951,7 @@ export default function ItemizedSaleView({
             <button
               onClick={() => setShowReceipt(false)}
               className="w-full py-1.5 text-[10px] font-bold press-scale"
-              style={{ color: '#6b7280', minHeight: '36px' }}
+              style={{ color: 'var(--color-text-muted)', minHeight: '36px' }}
             >
               {lang === 'am' ? 'ዝጋ' : 'Close'}
             </button>
@@ -963,24 +963,24 @@ export default function ItemizedSaleView({
       {showDiscardConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.3)' }}>
           <div className="bg-white rounded-xl p-4 max-w-sm w-full">
-            <h3 className="text-sm font-bold mb-1.5" style={{ color: '#111827' }}>
+            <h3 className="text-sm font-bold mb-1.5" style={{ color: 'var(--color-text)' }}>
               {lang === 'am' ? 'ሽያጩን ይተው?' : 'Discard Sale?'}
             </h3>
-            <p className="text-[11px] mb-3" style={{ color: '#6b7280' }}>
+            <p className="text-[11px] mb-3" style={{ color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'ያልተቀመጠ ሁሉ ይጠፋል' : 'Unsaved data will be lost'}
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowDiscardConfirm(false)}
                 className="flex-1 py-2 text-[11px] font-bold border-2 press-scale"
-                style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)', minHeight: '40px' }}
+                style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', minHeight: '40px' }}
               >
                 {lang === 'am' ? 'ቀጥል' : 'Continue'}
               </button>
               <button
                 onClick={confirmDiscard}
                 className="flex-1 py-2 text-[11px] font-bold text-white press-scale"
-                style={{ background: '#dc2626', borderRadius: 'var(--radius-md)', minHeight: '40px' }}
+                style={{ background: 'var(--color-danger)', borderRadius: 'var(--radius-md)', minHeight: '40px' }}
               >
                 {lang === 'am' ? 'ተው' : 'Discard'}
               </button>

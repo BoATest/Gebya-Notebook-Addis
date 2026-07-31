@@ -51,9 +51,9 @@ export default function DangerZoneSection({ totalEntries, totalCustomers, t }) {
 
   return (
     <>
-      <label className="w-full flex items-center gap-4 px-5 py-4 active:bg-amber-50 transition-colors min-h-[64px] cursor-pointer" style={{ background: '#fff' }}>
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#fef3c7' }}>
-          <Trash2 className="w-5 h-5" style={{ color: '#92400e' }} />
+      <label className="w-full flex items-center gap-4 px-5 py-4 active:bg-amber-50 transition-colors min-h-[64px] cursor-pointer" style={{ background: 'var(--color-surface)' }}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-warning-bg)' }}>
+          <Trash2 className="w-5 h-5" style={{ color: 'var(--color-warning)' }} />
         </div>
         <div className="flex-1">
           <div className="font-bold text-gray-800">{lang === 'am' ? 'ከምትኬ ፋይል መልሰው ይጫኑ' : 'Restore from backup file'}</div>
@@ -68,7 +68,7 @@ export default function DangerZoneSection({ totalEntries, totalCustomers, t }) {
         onClick={() => setShowClearStep(1)}
         className="w-full flex items-center gap-4 px-5 py-4 active:bg-red-50 transition-colors min-h-[64px] text-left"
       >
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#fff1f2' }}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-danger-bg)' }}>
           <Trash2 className="w-5 h-5 text-red-600" />
         </div>
         <div className="flex-1">
@@ -130,7 +130,7 @@ export default function DangerZoneSection({ totalEntries, totalCustomers, t }) {
       {cleared && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-white rounded-3xl p-8 text-center shadow-2xl">
-            <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: '#fff1f2' }}>
+            <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'var(--color-danger-bg)' }}>
               <Trash2 className="w-6 h-6 text-red-600" />
             </div>
             <p className="font-bold text-gray-800">{t.dataCleared}</p>

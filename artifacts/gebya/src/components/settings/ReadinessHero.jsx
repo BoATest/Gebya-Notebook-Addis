@@ -53,7 +53,7 @@ export default function ReadinessHero({ shopProfile, paymentChannels = [], catal
     return (
       <div
         className="rounded-2xl overflow-hidden"
-        style={{ background: '#d1fae5', color: '#065f46' }}
+        style={{ background: 'var(--color-success-bg)', color: 'var(--color-success-text)' }}
       >
         <div
           className="px-4 py-3.5 flex items-center gap-3 cursor-pointer"
@@ -70,7 +70,7 @@ export default function ReadinessHero({ shopProfile, paymentChannels = [], catal
         {expanded && (
           <div className="px-4 pb-3 space-y-1.5">
             {checks.map((check, idx) => (
-              <div key={`done-${check.key}-${idx}`} className="flex items-center gap-2 text-xs font-bold" style={{ color: '#065f46' }}>
+              <div key={`done-${check.key}-${idx}`} className="flex items-center gap-2 text-xs font-bold" style={{ color: 'var(--color-success-text)' }}>
                 <span style={{ fontSize: '0.8rem' }}>✓</span>
                 <span className="flex-1">{check.label}</span>
               </div>
@@ -84,7 +84,7 @@ export default function ReadinessHero({ shopProfile, paymentChannels = [], catal
   return (
     <div
       className="rounded-2xl overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #1B4332 0%, #2d6a4f 100%)', color: '#fff' }}
+      style={{ background: 'linear-gradient(135deg, #1B4332 0%, #2d6a4f 100%)', color: 'var(--color-bg-white)' }}
     >
       <div
         className="px-4 py-3.5 flex items-center gap-3 cursor-pointer"
@@ -92,7 +92,7 @@ export default function ReadinessHero({ shopProfile, paymentChannels = [], catal
       >
         <div
           className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0"
-          style={{ background: '#C4883A', border: '2px solid rgba(255,255,255,0.25)' }}
+          style={{ background: 'var(--color-accent-amber)', border: '2px solid rgba(255,255,255,0.25)' }}
         >
           {initials}
         </div>
@@ -115,7 +115,7 @@ export default function ReadinessHero({ shopProfile, paymentChannels = [], catal
               className="flex items-center gap-2.5 rounded-xl px-3 py-2.5"
               style={{ background: 'rgba(255,255,255,0.08)' }}
             >
-              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#fbbf24' }} />
+              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--color-warning)' }} />
               <span className="text-xs font-bold flex-1">{check.label}</span>
               <button
                 onClick={(e) => {
@@ -123,7 +123,7 @@ export default function ReadinessHero({ shopProfile, paymentChannels = [], catal
                   onAction?.(check.key, check.tab);
                 }}
                 className="text-xs font-black px-2.5 py-1 rounded-full"
-                style={{ background: '#fde68a', color: '#1B4332', border: 'none', cursor: 'pointer' }}
+                style={{ background: 'var(--color-warning-border)', color: 'var(--color-primary)', border: 'none', cursor: 'pointer' }}
               >
                 {check.cta}
               </button>

@@ -63,7 +63,7 @@ export default function TimelineView({
         <div style={{ flex: 1, position: 'relative' }}>
           <Search className="w-4 h-4" style={{
             position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
-            color: '#9ca3af',
+            color: 'var(--color-text-soft)',
           }} />
           <input
             type="text"
@@ -79,7 +79,7 @@ export default function TimelineView({
               fontSize: 12,
               fontWeight: 600,
               outline: 'none',
-              background: '#fafaf8',
+              background: 'var(--color-surface-subtle)',
             }}
           />
           {searchQuery && (
@@ -91,7 +91,7 @@ export default function TimelineView({
                 background: 'none', border: 'none', cursor: 'pointer', padding: 2,
               }}
             >
-              <X className="w-3.5 h-3.5" style={{ color: '#9ca3af' }} />
+              <X className="w-3.5 h-3.5" style={{ color: 'var(--color-text-soft)' }} />
             </button>
           )}
         </div>
@@ -101,8 +101,8 @@ export default function TimelineView({
           style={{
             minHeight: 36, padding: '4px 12px',
             border: '1px solid #e5e7eb', borderRadius: 10,
-            background: '#fff', fontSize: 11, fontWeight: 800,
-            color: '#6b7280', cursor: 'pointer',
+            background: 'var(--color-surface)', fontSize: 11, fontWeight: 800,
+            color: 'var(--color-text-muted)', cursor: 'pointer',
           }}
         >
           {lang === 'am' ? 'ላክ' : 'Export'}
@@ -120,8 +120,8 @@ export default function TimelineView({
               padding: '4px 10px',
               borderRadius: 999,
               border: 'none',
-              background: activeFilter === f ? '#1B4332' : '#f3f4f6',
-              color: activeFilter === f ? '#fff' : '#6b7280',
+              background: activeFilter === f ? 'var(--color-primary)' : 'var(--color-bg-hover)',
+              color: activeFilter === f ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
               fontSize: 11,
               fontWeight: 800,
               cursor: 'pointer',
@@ -134,13 +134,13 @@ export default function TimelineView({
 
       {/* Entries */}
       {filtered.length === 0 ? (
-        <p style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af', textAlign: 'center', padding: '20px 0' }}>
+        <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-soft)', textAlign: 'center', padding: '20px 0' }}>
           {searchQuery
             ? (lang === 'am' ? 'ምንም አልተገኘም' : 'No matching entries')
             : (lang === 'am' ? 'ምንም እንቅስቃሴ የለም' : 'No entries yet')}
         </p>
       ) : (
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #ece6d6', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--color-surface)', borderRadius: 12, border: '1px solid #ece6d6', overflow: 'hidden' }}>
           {filtered.map((row, i) => (
             <div key={row.report_id || row.id || i} style={{
               display: 'flex',
@@ -156,10 +156,10 @@ export default function TimelineView({
                 {kindEmoji[row.report_kind] || '📄'}
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#1f2937', truncate: true }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)', truncate: true }}>
                   {row.title || row.item_name || row.customer_name || (lang === 'am' ? 'መዝገብ' : 'Record')}
                 </p>
-                <p style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af', marginTop: 1 }}>
+                <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-text-soft)', marginTop: 1 }}>
                   {row.created_at ? formatEthiopianTime(row.created_at) : ''}
                   {row.actor_name ? ` · ${row.actor_name}` : ''}
                   {` · ${paymentLabel(row)}`}
@@ -168,7 +168,7 @@ export default function TimelineView({
               <span style={{
                 fontSize: 13,
                 fontWeight: 800,
-                color: row.report_kind === 'expense' ? '#dc2626' : '#059669',
+                color: row.report_kind === 'expense' ? 'var(--color-danger)' : 'var(--color-success)',
                 flexShrink: 0,
               }}>
                 {hidden ? '••••' : `${fmt(row.amount || 0)} ETB`}

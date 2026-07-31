@@ -51,7 +51,7 @@ export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
   return (
     <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
       <div className="px-5 pt-5 pb-4 space-y-3">
-        <div className="rounded-xl px-4 py-3 text-xs font-medium" style={{ background: '#FAF8F5', color: '#5b6470', border: '1px solid #e8e2d8' }}>
+        <div className="rounded-xl px-4 py-3 text-xs font-medium" style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)', border: '1px solid #e8e2d8' }}>
           {lang === 'am'
             ? 'ይህ የዚህ ስልክ ዋና ባለቤት መለያ ነው። እዚህ የሚደረጉ ለውጦች መላውን ሱቅ ማስታወሻ ይነካሉ።'
             : "This profile is the main owner identity for this phone's notebook. Changes here affect the whole shop notebook."}
@@ -66,7 +66,7 @@ export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
             onChange={e => setEditName(e.target.value)}
             placeholder={t.onboardNamePlaceholder || 'e.g. Tigist'}
             className="w-full px-4 py-3 border-2 rounded-xl text-sm font-semibold focus:outline-none"
-            style={{ borderColor: editName.trim() ? '#C4883A' : '#e8e2d8' }}
+            style={{ borderColor: editName.trim() ? 'var(--color-accent-amber)' : 'var(--color-border)' }}
           />
         </div>
         <div>
@@ -76,7 +76,7 @@ export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
           <div className="flex gap-0">
             <div
               className="flex items-center justify-center px-3 py-3 rounded-l-xl border-2 border-r-0 text-sm font-bold"
-              style={{ background: '#f5f0e8', borderColor: (phoneTouched && !phoneValid) ? '#dc2626' : '#e8e2d8', color: '#1B4332', minWidth: '64px' }}
+              style={{ background: 'var(--color-surface-muted)', borderColor: (phoneTouched && !phoneValid) ? 'var(--color-danger)' : 'var(--color-border)', color: 'var(--color-primary)', minWidth: '64px' }}
             >
               +251
             </div>
@@ -89,7 +89,7 @@ export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
               placeholder="9XXXXXXXX"
               maxLength={9}
               className="flex-1 px-4 py-3 border-2 rounded-r-xl text-sm focus:outline-none"
-              style={{ borderColor: (phoneTouched && !phoneValid) ? '#dc2626' : (phoneValid ? '#C4883A' : '#e8e2d8') }}
+              style={{ borderColor: (phoneTouched && !phoneValid) ? 'var(--color-danger)' : (phoneValid ? 'var(--color-accent-amber)' : 'var(--color-border)') }}
             />
           </div>
           {phoneTouched && !phoneValid && editPhoneDigits.length > 0 && (
@@ -109,7 +109,7 @@ export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
             onChange={e => setEditTelegram(e.target.value)}
             placeholder={t.telegramPlaceholder}
             className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none"
-            style={{ borderColor: telegramValid ? '#e8e2d8' : '#dc2626' }}
+            style={{ borderColor: telegramValid ? 'var(--color-border)' : 'var(--color-danger)' }}
           />
           {!telegramValid && (
             <p className="text-xs text-red-500 mt-1 font-medium">{t.telegramFormatHint}</p>
@@ -121,8 +121,8 @@ export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
           disabled={!editName.trim() || !phoneValid || !telegramValid || (!profileChanged && !profileSaved)}
           className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all min-h-[48px]"
           style={{
-            background: profileSaved ? '#15803d' : (editName.trim() && phoneValid && telegramValid && profileChanged ? '#C4883A' : '#e5e7eb'),
-            color: (editName.trim() && phoneValid && telegramValid && (profileChanged || profileSaved)) ? '#fff' : '#6b7280',
+            background: profileSaved ? 'var(--color-success-text)' : (editName.trim() && phoneValid && telegramValid && profileChanged ? 'var(--color-accent-amber)' : 'var(--color-bg-disabled)'),
+            color: (editName.trim() && phoneValid && telegramValid && (profileChanged || profileSaved)) ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
           }}
         >
           {profileSaved ? <><Check className="w-4 h-4" /> {t.saved}</> : t.saveChanges}

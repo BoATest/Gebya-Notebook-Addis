@@ -22,7 +22,7 @@ export default function ExportPanel({ transactions }) {
           onClick={handleExportCSV}
           disabled={exporting}
           className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 min-h-[48px] disabled:opacity-50"
-          style={{ background: '#f5f5f5', color: '#374151' }}
+          style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text)' }}
         >
           <Download className="w-4 h-4" />
           {exporting ? (lang === 'am' ? 'በማውረድ ላይ...' : 'Downloading...') : (lang === 'am' ? 'ወደ CSV ያውርዱ' : 'Export to CSV')}

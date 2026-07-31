@@ -75,12 +75,12 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
       {/* Header */}
       <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center gap-3" style={{ borderBottom: '1px solid #e8e2d8' }}>
         <button onClick={onClose} className="press-scale flex items-center justify-center" style={{ minWidth: '44px', minHeight: '44px' }}>
-          <ArrowLeft className="w-5 h-5" style={{ color: '#6b7280' }} />
+          <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
         </button>
-        <h2 className="text-base font-bold flex-1" style={{ color: '#111827' }}>
+        <h2 className="text-base font-bold flex-1" style={{ color: 'var(--color-text)' }}>
           {lang === 'am' ? 'የዛሬ ሽያጭ' : "Today's Sales"}
         </h2>
-        <span className="text-xs font-bold" style={{ color: '#9ca3af' }}>
+        <span className="text-xs font-bold" style={{ color: 'var(--color-text-soft)' }}>
           {todaySales.length}
         </span>
       </div>
@@ -88,14 +88,14 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
       {/* Search */}
       <div className="flex-shrink-0 px-3 sm:px-4 py-2">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#9ca3af' }} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--color-text-soft)' }} />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={lang === 'am' ? 'ፈልግ...' : 'Search...'}
             className="w-full pl-9 pr-3 py-2.5 border-2 text-sm focus:outline-none"
-            style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8', minHeight: '44px' }}
+            style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)', minHeight: '44px' }}
           />
         </div>
       </div>
@@ -104,7 +104,7 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
       <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-2">
         {sales.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-sm font-bold" style={{ color: '#374151' }}>
+            <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
               {search.trim()
                 ? (lang === 'am' ? 'ለፍለጋውምንም ውጤት የለም' : 'No matching sales')
                 : (lang === 'am' ? 'ዛሬ ሽያጭ የለም' : 'No sales today')}
@@ -113,7 +113,7 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
         ) : (
           sales.map(group => (
             <div key={group.date} className="mb-3">
-              <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: '#6b7280' }}>
+              <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
                 {formatDateLabel(group.date, lang)}
               </p>
               <div className="space-y-1">
@@ -125,26 +125,26 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
                     <div
                       key={tx.id}
                       className="p-2.5 border text-left"
-                      style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', background: '#fff', cursor: 'pointer' }}
+                      style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', cursor: 'pointer' }}
                       onClick={() => handleRowTap(tx)}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold truncate" style={{ color: '#111827' }}>
+                          <p className="text-sm font-bold truncate" style={{ color: 'var(--color-text)' }}>
                             {tx.item_name || (lang === 'am' ? 'ሽያጭ' : 'Sale')}
                           </p>
-                          <p className="text-[11px] truncate" style={{ color: '#6b7280' }}>
+                          <p className="text-[11px] truncate" style={{ color: 'var(--color-text-muted)' }}>
                             {tx.customer_name && <span>{tx.customer_name} · </span>}
                             {paymentLabel} · {formatTime(tx.created_at)}
                           </p>
                           {tx.items && tx.items.length > 1 && (
-                            <p className="text-[10px]" style={{ color: '#9ca3af' }}>
+                            <p className="text-[10px]" style={{ color: 'var(--color-text-soft)' }}>
                               {tx.items.length} {lang === 'am' ? 'ንጥሎች' : 'items'}
                             </p>
                           )}
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-sm font-black" style={{ color: '#14532d' }}>
+                          <span className="text-sm font-black" style={{ color: 'var(--color-success-text)' }}>
                             {fmt(tx.amount)} ETB
                           </span>
                           <button
@@ -153,7 +153,7 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
                             style={{ minWidth: '36px', minHeight: '36px' }}
                             aria-label={lang === 'am' ? 'አጋራ' : 'Share'}
                           >
-                            <Share2 className="w-3.5 h-3.5" style={{ color: '#6b7280' }} onClick={(e) => { e.stopPropagation(); handleShareAgain(tx); }} />
+                            <Share2 className="w-3.5 h-3.5" style={{ color: 'var(--color-text-muted)' }} onClick={(e) => { e.stopPropagation(); handleShareAgain(tx); }} />
                           </button>
                         </div>
                       </div>
@@ -170,7 +170,7 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
           <button
             onClick={onHistory}
             className="text-xs font-bold underline press-scale"
-            style={{ color: '#6b7280' }}
+            style={{ color: 'var(--color-text-muted)' }}
           >
             {lang === 'am' ? 'ሁሉንም ታሪክ ይመልከቱ' : 'See All History'}
           </button>

@@ -126,31 +126,31 @@ function SupplierList({ suppliers = [], onSelectSupplier, onAddSupplier }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{
               fontSize: '0.62rem', fontWeight: 800,
-              color: '#dc2626', letterSpacing: '0.12em', textTransform: 'uppercase',
+              color: 'var(--color-danger)', letterSpacing: '0.12em', textTransform: 'uppercase',
             }}>
               {lang === 'am' ? 'ለአቅራቢዎች ለመክፈል' : 'I owe (suppliers)'}
             </p>
             <p style={{
               fontFamily: 'Manrope, system-ui, sans-serif',
               fontSize: '1.85rem', fontWeight: 800,
-              color: totalOwed > 0 ? '#dc2626' : '#9ca3af',
+              color: totalOwed > 0 ? 'var(--color-danger)' : 'var(--color-text-soft)',
               lineHeight: 1, marginTop: 4,
               letterSpacing: '-0.02em',
               fontVariantNumeric: 'tabular-nums',
             }}>
               −{fmt(totalOwed)}
-              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#9ca3af', marginLeft: 4 }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-soft)', marginLeft: 4 }}>
                 {lang === 'am' ? 'ብር' : 'birr'}
               </span>
             </p>
-            <p style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 4 }}>
+            <p style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
               {enriched.length} {lang === 'am'
                 ? 'አቅራቢ'
                 : (enriched.length === 1 ? 'supplier' : 'suppliers')}
               {counts.aging > 0 && (
                 <>
-                  <span style={{ color: '#9ca3af', margin: '0 4px' }}>·</span>
-                  <span style={{ color: '#dc2626', fontWeight: 700 }}>
+                  <span style={{ color: 'var(--color-text-soft)', margin: '0 4px' }}>·</span>
+                  <span style={{ color: 'var(--color-danger)', fontWeight: 700 }}>
                     {counts.aging} {lang === 'am' ? 'ቆይቷል' : 'open ≥14d'}
                   </span>
                 </>
@@ -165,7 +165,7 @@ function SupplierList({ suppliers = [], onSelectSupplier, onAddSupplier }) {
       <div style={{ position: 'relative' }}>
         <Search
           className="w-4 h-4"
-          style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}
+          style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-soft)' }}
         />
         <input
           type="text"
@@ -178,7 +178,7 @@ function SupplierList({ suppliers = [], onSelectSupplier, onAddSupplier }) {
             paddingLeft: 36, paddingRight: 16,
             paddingTop: 12, paddingBottom: 12,
             fontSize: '0.88rem',
-            background: '#fff',
+            background: 'var(--color-surface)',
             border: '1px solid #ece6d6',
             borderRadius: 10,
             outline: 'none',
@@ -216,18 +216,18 @@ function SupplierList({ suppliers = [], onSelectSupplier, onAddSupplier }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {filteredSuppliers.length === 0 ? (
           <div style={{
-            background: '#fff', border: '1px solid #ece6d6', borderRadius: 12,
+            background: 'var(--color-surface)', border: '1px solid #ece6d6', borderRadius: 12,
             padding: '20px 16px', textAlign: 'center',
           }}>
-            <Truck className="w-8 h-8 mx-auto mb-2" style={{ color: '#d1d5db' }} />
-            <p style={{ fontSize: '0.88rem', color: '#6b7280', fontWeight: 700 }}>
+            <Truck className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--color-text-soft)' }} />
+            <p style={{ fontSize: '0.88rem', color: 'var(--color-text-muted)', fontWeight: 700 }}>
               {suppliers.length === 0
                 ? (lang === 'am' ? 'ምንም አቅራቢ የለም' : 'No suppliers yet')
                 : hasQuery
                   ? (lang === 'am' ? 'ምንም አልተገኘም' : 'No matches')
                   : (lang === 'am' ? 'ይህ ምድብ ባዶ ነው' : 'This filter is empty')}
             </p>
-            <p style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 4, maxWidth: 280, margin: '4px auto 0' }}>
+            <p style={{ fontSize: '0.72rem', color: 'var(--color-text-soft)', marginTop: 4, maxWidth: 280, margin: '4px auto 0' }}>
               {lang === 'am'
                 ? 'ከአቅራቢ የሚገዙትን ዱቤ እዚህ ይመዝግቡ።'
                 : 'Track what you buy on credit from your wholesalers and suppliers here.'}
@@ -246,7 +246,7 @@ function SupplierList({ suppliers = [], onSelectSupplier, onAddSupplier }) {
       </div>
 
       <p style={{
-        fontSize: '0.65rem', color: '#9ca3af',
+        fontSize: '0.65rem', color: 'var(--color-text-soft)',
         textAlign: 'center', fontStyle: 'italic',
         padding: '4px 0 8px',
       }}>
@@ -310,7 +310,7 @@ function SupplierRow({ supplier, lang, onClick }) {
       onClick={onClick}
       className="press-scale"
       style={{
-        background: '#fff',
+        background: 'var(--color-surface)',
         border: '1px solid #ece6d6',
         borderRadius: 12,
         padding: 12,
@@ -342,7 +342,7 @@ function SupplierRow({ supplier, lang, onClick }) {
             width: '100%', height: '100%',
             background: grad,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: '0.9rem', fontWeight: 800,
+            color: 'var(--color-bg-white)', fontSize: '0.9rem', fontWeight: 800,
           }}>{initials}</div>
         )}
         {/* Tiny overdue dot when ≥30 days */}
@@ -350,7 +350,7 @@ function SupplierRow({ supplier, lang, onClick }) {
           <div style={{
             position: 'absolute', bottom: -1, right: -1,
             width: 12, height: 12, borderRadius: '50%',
-            background: '#dc2626',
+            background: 'var(--color-danger)',
             border: '2px solid #fff',
           }} />
         )}
@@ -359,20 +359,20 @@ function SupplierRow({ supplier, lang, onClick }) {
       {/* Name + meta */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
-          fontSize: '0.92rem', fontWeight: 800, color: '#1f2937',
+          fontSize: '0.92rem', fontWeight: 800, color: 'var(--color-text)',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {supplier.display_name}
         </p>
         <div style={{
           display: 'flex', gap: 6, alignItems: 'center',
-          fontSize: '0.7rem', color: '#9ca3af', marginTop: 2,
+          fontSize: '0.7rem', color: 'var(--color-text-soft)', marginTop: 2,
         }}>
           <span>{supplier.transaction_count || 0} {lang === 'am' ? 'መዝገብ' : 'entries'}</span>
           {urgency.tone === 'overdue' && (
             <>
               <span>·</span>
-              <span style={{ color: '#dc2626', fontWeight: 700 }}>
+              <span style={{ color: 'var(--color-danger)', fontWeight: 700 }}>
                 ⏰ {urgency.days}d {lang === 'am' ? 'ቆይቷል' : 'open'}
               </span>
             </>
@@ -380,7 +380,7 @@ function SupplierRow({ supplier, lang, onClick }) {
           {urgency.tone === 'aging' && (
             <>
               <span>·</span>
-              <span style={{ color: '#b8842c', fontWeight: 700 }}>
+              <span style={{ color: 'var(--color-accent-amber)', fontWeight: 700 }}>
                 {urgency.days}d
               </span>
             </>
@@ -392,13 +392,13 @@ function SupplierRow({ supplier, lang, onClick }) {
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
         <p style={{
           fontSize: '0.95rem', fontWeight: 800,
-          color: hasBalance ? '#dc2626' : '#9ca3af',
+          color: hasBalance ? 'var(--color-danger)' : 'var(--color-text-soft)',
           fontFamily: 'Manrope, system-ui, sans-serif',
           fontVariantNumeric: 'tabular-nums',
         }}>
           {hasBalance ? `−${fmt(balance)}` : '✓ 0'}
         </p>
-        <p style={{ fontSize: '0.6rem', color: '#9ca3af', marginTop: 2 }}>
+        <p style={{ fontSize: '0.6rem', color: 'var(--color-text-soft)', marginTop: 2 }}>
           {lang === 'am' ? 'ብር' : 'birr'}
         </p>
       </div>

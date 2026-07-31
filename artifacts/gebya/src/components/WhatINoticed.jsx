@@ -25,12 +25,12 @@ export default function WhatINoticed({
           gap: 8,
           padding: '8px 12px',
           borderRadius: 10,
-          background: '#f0fdf4',
+          background: 'var(--color-success-bg)',
           border: '1px solid #bbf7d0',
           marginBottom: 4,
         }}>
           <span style={{ fontSize: 14, flexShrink: 0 }}>💡</span>
-          <p style={{ fontSize: 12, fontWeight: 600, color: '#1f2937', lineHeight: 1.4 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', lineHeight: 1.4 }}>
             {rec}
           </p>
         </div>

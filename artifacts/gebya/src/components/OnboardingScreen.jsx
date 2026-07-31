@@ -35,7 +35,7 @@ function OnboardingScreen({ onComplete }) {
           <span className="text-3xl">🏪</span>
           <div>
             <div className="font-black text-gray-900">Shop Owner</div>
-            <div className="text-sm font-medium" style={{ color: '#6b7280' }}>Create your own notebook</div>
+            <div className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>Create your own notebook</div>
           </div>
         </button>
         <button
@@ -47,7 +47,7 @@ function OnboardingScreen({ onComplete }) {
           <span className="text-3xl">👥</span>
           <div>
             <div className="font-black text-gray-900">Join a Shop</div>
-            <div className="text-sm font-medium" style={{ color: '#6b7280' }}>Connect as a staff member</div>
+            <div className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>Connect as a staff member</div>
           </div>
         </button>
       </div>
@@ -66,7 +66,7 @@ function OnboardingScreen({ onComplete }) {
           <span className="text-3xl">🏪</span>
           <div>
             <div className="font-black text-gray-900">የሱቅ ባለቤት</div>
-            <div className="text-sm font-medium" style={{ color: '#6b7280' }}>የራስዎን ማስታወሻ ይፍጠሩ</div>
+            <div className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>የራስዎን ማስታወሻ ይፍጠሩ</div>
           </div>
         </button>
         <button
@@ -78,7 +78,7 @@ function OnboardingScreen({ onComplete }) {
           <span className="text-3xl">👥</span>
           <div>
             <div className="font-black text-gray-900">ሱቅ ይቀላቀሉ</div>
-            <div className="text-sm font-medium" style={{ color: '#6b7280' }}>እንደ ሰራተኛ ይገናኙ</div>
+            <div className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>እንደ ሰራተኛ ይገናኙ</div>
           </div>
         </button>
       </div>
@@ -162,7 +162,7 @@ function OnboardingScreen({ onComplete }) {
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-start px-4 py-5 texture-noise overflow-y-auto"
-        style={{ background: '#1B4332' }}
+        style={{ background: 'var(--color-primary)' }}
       >
         <div className="w-full max-w-sm">
           {/* Language toggle */}
@@ -177,7 +177,7 @@ function OnboardingScreen({ onComplete }) {
                 border: '1px solid rgba(255,255,255,0.25)',
                 borderRadius: 999,
                 padding: '6px 12px',
-                color: '#fff',
+                color: 'var(--color-bg-white)',
                 fontSize: '0.78rem',
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -208,7 +208,7 @@ function OnboardingScreen({ onComplete }) {
             className="bg-white p-6 animate-slide-up"
             style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)' }}
           >
-            <p className="text-xs font-black uppercase tracking-[0.18em] mb-2" style={{ color: '#C4883A' }}>
+            <p className="text-xs font-black uppercase tracking-[0.18em] mb-2" style={{ color: 'var(--color-accent-amber)' }}>
               {onboardKicker}
             </p>
             <h2 className="text-2xl font-black text-gray-900 mb-2 font-sans">
@@ -229,7 +229,7 @@ function OnboardingScreen({ onComplete }) {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-start px-4 py-5 texture-noise overflow-y-auto"
-      style={{ background: '#1B4332' }}
+      style={{ background: 'var(--color-primary)' }}
     >
       <div className="w-full max-w-sm">
         {/* Back */}
@@ -244,7 +244,7 @@ function OnboardingScreen({ onComplete }) {
               border: '1px solid rgba(255,255,255,0.25)',
               borderRadius: 999,
               padding: '6px 12px',
-              color: '#fff',
+              color: 'var(--color-bg-white)',
               fontSize: '0.78rem',
               fontWeight: 700,
               cursor: 'pointer',
@@ -276,7 +276,7 @@ function OnboardingScreen({ onComplete }) {
 
           {/* Name */}
           <div className="mb-4">
-            <label className="block text-xs font-black uppercase tracking-wide mb-1.5" style={{ color: '#6b7280' }}>
+            <label className="block text-xs font-black uppercase tracking-wide mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'ስም' : 'Your Name'} *
             </label>
             <input
@@ -287,14 +287,14 @@ function OnboardingScreen({ onComplete }) {
               placeholder={lang === 'am' ? 'ስምዎን ያስገቡ' : 'Enter your name'}
               className="w-full px-4 py-3 rounded-xl text-sm font-medium"
               style={{
-                background: '#f9fafb',
-                border: `2px solid ${touched.name && !nameValid ? '#ef4444' : '#e5e7eb'}`,
+                background: 'var(--color-bg-active)',
+                border: `2px solid ${touched.name && !nameValid ? 'var(--color-danger)' : 'var(--color-bg-disabled)'}`,
                 outline: 'none',
               }}
               autoFocus
             />
             {touched.name && !nameValid && (
-              <p className="text-xs font-medium mt-1" style={{ color: '#ef4444' }}>
+              <p className="text-xs font-medium mt-1" style={{ color: 'var(--color-danger)' }}>
                 {lang === 'am' ? 'እባክዎ ስም ያስገቡ' : 'Please enter your name'}
               </p>
             )}
@@ -302,11 +302,11 @@ function OnboardingScreen({ onComplete }) {
 
           {/* Phone */}
           <div className="mb-4">
-            <label className="block text-xs font-black uppercase tracking-wide mb-1.5" style={{ color: '#6b7280' }}>
-              {lang === 'am' ? 'ስልክ ቁጥር' : 'Phone Number'} <span style={{ color: '#9ca3af', fontWeight: 500 }}>{phoneOptionalLabel}</span>
+            <label className="block text-xs font-black uppercase tracking-wide mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+              {lang === 'am' ? 'ስልክ ቁጥር' : 'Phone Number'} <span style={{ color: 'var(--color-text-soft)', fontWeight: 500 }}>{phoneOptionalLabel}</span>
             </label>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold px-3 py-3 rounded-xl" style={{ background: '#f3f4f6', color: '#6b7280' }}>+251</span>
+              <span className="text-sm font-bold px-3 py-3 rounded-xl" style={{ background: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' }}>+251</span>
               <input
                 type="tel"
                 value={phoneDigits}
@@ -315,26 +315,26 @@ function OnboardingScreen({ onComplete }) {
                 placeholder="912345678"
                 className="flex-1 px-4 py-3 rounded-xl text-sm font-medium"
                 style={{
-                  background: '#f9fafb',
-                  border: `2px solid ${touched.phone && phoneEntered && !phoneValid ? '#ef4444' : '#e5e7eb'}`,
+                  background: 'var(--color-bg-active)',
+                  border: `2px solid ${touched.phone && phoneEntered && !phoneValid ? 'var(--color-danger)' : 'var(--color-bg-disabled)'}`,
                   outline: 'none',
                 }}
                 inputMode="numeric"
               />
             </div>
             {touched.phone && phoneEntered && !phoneValid && (
-              <p className="text-xs font-medium mt-1" style={{ color: '#ef4444' }}>
+              <p className="text-xs font-medium mt-1" style={{ color: 'var(--color-danger)' }}>
                 {lang === 'am' ? 'እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ' : 'Enter a valid phone number'}
               </p>
             )}
-            <p className="text-xs mt-1 font-medium" style={{ color: '#9ca3af' }}>{phoneHelper}</p>
+            <p className="text-xs mt-1 font-medium" style={{ color: 'var(--color-text-soft)' }}>{phoneHelper}</p>
           </div>
 
            {/* Promises */}
           <div className="mb-4 space-y-2">
             {onboardingPromises.map((promise, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs font-medium" style={{ color: '#6b7280' }}>
-                <span style={{ color: '#16a34a' }}>✓</span>
+              <div key={i} className="flex items-start gap-2 text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+                <span style={{ color: 'var(--color-success)' }}>✓</span>
                 {promise}
               </div>
             ))}
@@ -347,8 +347,8 @@ function OnboardingScreen({ onComplete }) {
             disabled={!canProceed || saving}
             className="w-full py-3.5 rounded-xl font-black text-sm min-h-[48px] press-scale"
             style={{
-              background: canProceed && !saving ? '#1B4332' : '#d1d5db',
-              color: canProceed && !saving ? '#fff' : '#9ca3af',
+              background: canProceed && !saving ? 'var(--color-primary)' : 'var(--color-text-soft)',
+              color: canProceed && !saving ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
               cursor: canProceed && !saving ? 'pointer' : 'not-allowed',
             }}
           >

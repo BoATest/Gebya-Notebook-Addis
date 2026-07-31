@@ -59,7 +59,7 @@ export default function TransferSheet({
       <div
         style={{
           width: '100%', maxWidth: 480,
-          background: '#fff',
+          background: 'var(--color-surface)',
           borderRadius: '20px 20px 0 0',
           maxHeight: '85vh',
           display: 'flex', flexDirection: 'column',
@@ -67,7 +67,7 @@ export default function TransferSheet({
           animation: 'gebya-slide-up 0.25s ease',
         }}
       >
-        <div style={{ width: 38, height: 4, background: '#e5e7eb', borderRadius: 999, margin: '10px auto 0', flexShrink: 0 }} />
+        <div style={{ width: 38, height: 4, background: 'var(--color-bg-disabled)', borderRadius: 999, margin: '10px auto 0', flexShrink: 0 }} />
 
         <div style={{
           padding: '8px 16px 10px',
@@ -75,8 +75,8 @@ export default function TransferSheet({
           borderBottom: '1px solid #f3f4f6',
           flexShrink: 0,
         }}>
-          <p style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1a1a1a', margin: 0 }}>
-            <ArrowRightLeft className="w-4 h-4" style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle', color: '#C4883A' }} />
+          <p style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-text)', margin: 0 }}>
+            <ArrowRightLeft className="w-4 h-4" style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle', color: 'var(--color-accent-amber)' }} />
             {lang === 'am' ? 'ዱቤ ማስተላለፍ' : 'Transfer Credit'}
           </p>
           <button
@@ -84,39 +84,39 @@ export default function TransferSheet({
             onClick={onClose}
             style={{
               width: 32, height: 32, borderRadius: '50%',
-              background: '#f3f4f6', border: 'none',
+              background: 'var(--color-bg-hover)', border: 'none',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer',
             }}
           >
-            <X className="w-4 h-4" style={{ color: '#6b7280' }} />
+            <X className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
           </button>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
           {/* Source customer */}
           <div style={{ marginBottom: 16 }}>
-            <p style={{ fontSize: '0.62rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
+            <p style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--color-text-soft)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
               {lang === 'am' ? 'ከ' : 'From'}
             </p>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '10px 12px', borderRadius: 10,
-              border: '1px solid #ece6d6', background: '#fafaf5',
+              border: '1px solid #ece6d6', background: 'var(--color-surface-subtle)',
             }}>
               <div style={{
                 width: 32, height: 32, borderRadius: '50%',
-                background: '#1B4332', color: '#fff',
+                background: 'var(--color-primary)', color: 'var(--color-bg-white)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '0.7rem', fontWeight: 800, flexShrink: 0,
               }}>
                 {(sourceCustomer?.display_name || sourceCustomer?.name || '?')[0]}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1f2937' }}>
+                <p style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text)' }}>
                   {sourceCustomer?.display_name || sourceCustomer?.name}
                 </p>
-                <p style={{ fontSize: '0.7rem', color: '#6b7280' }}>
+                <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
                   {lang === 'am' ? 'የአሁን ዱቤ' : 'Current balance'}: {fmt(sourceBalance)} {lang === 'am' ? 'ብር' : 'birr'}
                 </p>
               </div>
@@ -125,24 +125,24 @@ export default function TransferSheet({
 
           {/* Target customer search */}
           <div style={{ marginBottom: 16 }}>
-            <p style={{ fontSize: '0.62rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
+            <p style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--color-text-soft)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
               {lang === 'am' ? 'ለማን' : 'To'}
             </p>
             {targetCustomer ? (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '10px 12px', borderRadius: 10,
-                border: '1px solid #16a34a', background: '#f0fdf4',
+                border: '1px solid #16a34a', background: 'var(--color-success-bg)',
               }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: '50%',
-                  background: '#16a34a', color: '#fff',
+                  background: 'var(--color-success)', color: 'var(--color-bg-white)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '0.7rem', fontWeight: 800, flexShrink: 0,
                 }}>
                   {(targetCustomer.display_name || targetCustomer.name || '?')[0]}
                 </div>
-                <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 700, color: '#1f2937' }}>
+                <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text)' }}>
                   {targetCustomer.display_name || targetCustomer.name}
                 </span>
                 <button
@@ -150,7 +150,7 @@ export default function TransferSheet({
                   onClick={() => { setTargetCustomer(null); setTargetQuery(''); }}
                   style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4 }}
                 >
-                  <X className="w-4 h-4" style={{ color: '#9ca3af' }} />
+                  <X className="w-4 h-4" style={{ color: 'var(--color-text-soft)' }} />
                 </button>
               </div>
             ) : (
@@ -160,7 +160,7 @@ export default function TransferSheet({
                   border: '1px solid #e5e7eb', borderRadius: 10,
                   padding: '6px 10px', minHeight: 38,
                 }}>
-                  <Search className="w-4 h-4" style={{ color: '#9ca3af', flexShrink: 0 }} />
+                  <Search className="w-4 h-4" style={{ color: 'var(--color-text-soft)', flexShrink: 0 }} />
                   <input
                     type="text"
                     value={targetQuery}
@@ -168,7 +168,7 @@ export default function TransferSheet({
                     placeholder={lang === 'am' ? 'የደንበኛ ስም ይተይቡ...' : 'Type customer name...'}
                     style={{
                       flex: 1, border: 'none', outline: 'none', fontSize: '0.8rem',
-                      fontWeight: 600, color: '#374151',
+                      fontWeight: 600, color: 'var(--color-text)',
                       background: 'transparent', minHeight: 28,
                     }}
                   />
@@ -186,9 +186,9 @@ export default function TransferSheet({
                         style={{
                           width: '100%', padding: '10px 12px', textAlign: 'left',
                           border: 'none', borderBottom: '1px solid #f3f4f6',
-                          background: '#fff', cursor: 'pointer',
+                          background: 'var(--color-surface)', cursor: 'pointer',
                           display: 'flex', alignItems: 'center', gap: 8,
-                          fontSize: '0.82rem', fontWeight: 600, color: '#1f2937',
+                          fontSize: '0.82rem', fontWeight: 600, color: 'var(--color-text)',
                           minHeight: 44,
                         }}
                       >
@@ -203,15 +203,15 @@ export default function TransferSheet({
 
           {/* Amount */}
           <div style={{ marginBottom: 24 }}>
-            <p style={{ fontSize: '0.62rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
+            <p style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--color-text-soft)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
               {lang === 'am' ? 'መጠን' : 'Amount'}
             </p>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
-              border: `1px solid ${isValidAmount ? '#16a34a' : '#e5e7eb'}`,
+              border: `1px solid ${isValidAmount ? 'var(--color-success)' : 'var(--color-bg-disabled)'}`,
               borderRadius: 10, padding: '6px 12px', minHeight: 44,
             }}>
-              <span style={{ fontSize: '1rem', fontWeight: 700, color: '#6b7280' }}>
+              <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-text-muted)' }}>
                 {lang === 'am' ? 'ብር' : 'birr'}
               </span>
               <input
@@ -222,7 +222,7 @@ export default function TransferSheet({
                 placeholder="0"
                 style={{
                   flex: 1, border: 'none', outline: 'none', fontSize: '1.1rem',
-                  fontWeight: 800, color: '#1f2937', textAlign: 'right',
+                  fontWeight: 800, color: 'var(--color-text)', textAlign: 'right',
                   background: 'transparent', minHeight: 36,
                   fontFamily: 'JetBrains Mono, monospace',
                   fontVariantNumeric: 'tabular-nums',
@@ -238,8 +238,8 @@ export default function TransferSheet({
                     onClick={() => setAmount(fmtInput(String(v)))}
                     style={{
                       padding: '4px 10px', borderRadius: 6, border: '1px solid #e5e7eb',
-                      background: '#f9fafb', fontSize: '0.72rem', fontWeight: 600,
-                      color: '#374151', cursor: 'pointer', minHeight: 30,
+                      background: 'var(--color-bg-active)', fontSize: '0.72rem', fontWeight: 600,
+                      color: 'var(--color-text)', cursor: 'pointer', minHeight: 30,
                     }}
                   >
                     {fmt(v)}
@@ -248,7 +248,7 @@ export default function TransferSheet({
               </div>
             )}
             {rawAmount > sourceBalance && (
-              <p style={{ fontSize: '0.7rem', color: '#dc2626', marginTop: 4 }}>
+              <p style={{ fontSize: '0.7rem', color: 'var(--color-danger)', marginTop: 4 }}>
                 {lang === 'am' ? 'መጠኑ ከዱቤው ይበልጣል' : 'Amount exceeds available balance'}
               </p>
             )}
@@ -262,8 +262,8 @@ export default function TransferSheet({
             style={{
               width: '100%', padding: '14px', borderRadius: 12,
               border: 'none', fontSize: '0.85rem', fontWeight: 800,
-              background: canSave ? '#1B4332' : '#e5e7eb',
-              color: canSave ? '#fff' : '#9ca3af',
+              background: canSave ? 'var(--color-primary)' : 'var(--color-bg-disabled)',
+              color: canSave ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
               cursor: canSave ? 'pointer' : 'not-allowed',
               minHeight: 50,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,

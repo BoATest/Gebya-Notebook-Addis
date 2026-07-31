@@ -108,15 +108,15 @@ export default function ClosingSection({
           <div style={{
             padding: 16,
             borderRadius: 10,
-            background: '#dcfce7',
+            background: 'var(--color-success-bg)',
             border: '1px solid #bbf7d0',
             textAlign: 'center',
           }}>
             <p style={{ fontSize: 20, marginBottom: 8 }}>✅</p>
-            <p style={{ fontSize: 14, fontWeight: 900, color: '#16a34a' }}>
+            <p style={{ fontSize: 14, fontWeight: 900, color: 'var(--color-success)' }}>
               {lang === 'am' ? 'ቀንዎ ተጠናቅቋል' : 'Day closed successfully'}
             </p>
-            <p style={{ fontSize: 12, color: '#166534', marginTop: 4 }}>
+            <p style={{ fontSize: 12, color: 'var(--color-success-text)', marginTop: 4 }}>
               {lang === 'am' ? 'በ' : 'by'} {todayClosing.actor_name_snapshot || 'Owner'} · {fmt((todayClosing.actual_cash || 0) + (todayClosing.actual_transfer || 0))} ETB
             </p>
           </div>
@@ -125,28 +125,28 @@ export default function ClosingSection({
             {/* Expected amounts */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
           <div style={{
-            background: '#f9fafb',
+            background: 'var(--color-bg-active)',
             borderRadius: 8,
             padding: 10,
             textAlign: 'center',
           }}>
-            <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase' }}>
+            <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
               {lang === 'am' ? 'የሚጠበቅ ጥሬ' : 'Expected cash'}
             </p>
-            <p style={{ fontSize: 18, fontWeight: 900, color: '#374151', marginTop: 4 }}>
+            <p style={{ fontSize: 18, fontWeight: 900, color: 'var(--color-text)', marginTop: 4 }}>
               {fmt(cashExpected)}
             </p>
           </div>
           <div style={{
-            background: '#f9fafb',
+            background: 'var(--color-bg-active)',
             borderRadius: 8,
             padding: 10,
             textAlign: 'center',
           }}>
-            <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase' }}>
+            <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
               {lang === 'am' ? 'የሚጠበቅ ዝውውር' : 'Expected transfer'}
             </p>
-            <p style={{ fontSize: 18, fontWeight: 900, color: '#374151', marginTop: 4 }}>
+            <p style={{ fontSize: 18, fontWeight: 900, color: 'var(--color-text)', marginTop: 4 }}>
               {fmt(transferRecorded)}
             </p>
           </div>
@@ -155,7 +155,7 @@ export default function ClosingSection({
         {/* Input fields */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#374151' }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-text)' }}>
               {lang === 'am' ? 'በእጅ ጥሬ ገንዘብ' : 'Actual cash'}
             </span>
             <input
@@ -177,7 +177,7 @@ export default function ClosingSection({
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#374151' }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-text)' }}>
               {lang === 'am' ? 'ትራንስፈር' : 'Actual transfer'}
             </span>
             <input
@@ -207,16 +207,16 @@ export default function ClosingSection({
             borderRadius: 10,
             textAlign: 'center',
             marginBottom: 12,
-            background: isBalanced ? '#dcfce7' : '#fef2f2',
-            border: `1px solid ${isBalanced ? '#bbf7d0' : '#fecaca'}`,
+            background: isBalanced ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+            border: `1px solid ${isBalanced ? 'var(--color-success-border)' : 'var(--color-danger-border)'}`,
           }}>
-            <p style={{ fontSize: 10, fontWeight: 800, color: '#6b7280' }}>
+            <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'ልዩነት' : 'Difference'}
             </p>
             <p style={{
               fontSize: 20,
               fontWeight: 950,
-              color: isBalanced ? '#16a34a' : '#dc2626',
+              color: isBalanced ? 'var(--color-success)' : 'var(--color-danger)',
               marginTop: 4,
             }}>
               {isBalanced
@@ -237,8 +237,8 @@ export default function ClosingSection({
             minHeight: 44,
             border: 'none',
             borderRadius: 10,
-            background: (actualCashVal > 0 || actualTransferVal > 0) ? '#1B4332' : '#e5e7eb',
-            color: (actualCashVal > 0 || actualTransferVal > 0) ? '#fff' : '#9ca3af',
+            background: (actualCashVal > 0 || actualTransferVal > 0) ? 'var(--color-primary)' : 'var(--color-bg-disabled)',
+            color: (actualCashVal > 0 || actualTransferVal > 0) ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
             fontSize: 14,
             fontWeight: 900,
             cursor: (actualCashVal > 0 || actualTransferVal > 0) ? 'pointer' : 'not-allowed',
@@ -248,7 +248,7 @@ export default function ClosingSection({
         </button>
 
         {closingMessage && (
-          <p style={{ color: '#15803d', fontSize: 12, fontWeight: 800, marginTop: 8, textAlign: 'center' }}>
+          <p style={{ color: 'var(--color-success-text)', fontSize: 12, fontWeight: 800, marginTop: 8, textAlign: 'center' }}>
             {closingMessage}
           </p>
         )}
@@ -256,7 +256,7 @@ export default function ClosingSection({
         {/* Past closings */}
         {closings.length > 0 && (
           <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f3f4f6' }}>
-            <p style={{ fontSize: 10, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+            <p style={{ fontSize: 10, fontWeight: 900, color: 'var(--color-text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
               {lang === 'am' ? 'ያለፉ ማውጫዎች' : 'Past closings'}
             </p>
             {closings.slice(0, 3).map((c, i) => (
@@ -265,14 +265,14 @@ export default function ClosingSection({
                 justifyContent: 'space-between',
                 fontSize: 11,
                 fontWeight: 650,
-                color: '#374151',
+                color: 'var(--color-text)',
                 padding: '6px 0',
                 borderBottom: i < closings.length - 1 ? '1px solid #f3f4f6' : 'none',
               }}>
                 <span>
                   {new Date(c.closed_at).toLocaleDateString()} · {c.actor_name_snapshot || ''}
                 </span>
-                <span style={{ color: '#15803d' }}>
+                <span style={{ color: 'var(--color-success-text)' }}>
                   {fmt((c.actual_cash || 0) + (c.actual_transfer || 0))} ETB
                 </span>
               </div>

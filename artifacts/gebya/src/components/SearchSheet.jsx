@@ -200,7 +200,7 @@ export default function SearchSheet({
                     padding: '10px 12px',
                     border: '1px solid var(--color-border-light)',
                     borderRadius: 10,
-                    background: '#fafaf8',
+                    background: 'var(--color-surface-subtle)',
                     cursor: 'pointer',
                     textAlign: 'left',
                     fontSize: 12,

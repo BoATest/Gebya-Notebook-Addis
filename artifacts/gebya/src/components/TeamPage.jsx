@@ -12,7 +12,7 @@ import { getAuthToken } from '../utils/syncEngine';
 
 function ActorSelector({ staffMembers, activeStaffMemberId, currentActorLabel, onSetActiveStaffMember, shopProfile, lang }) {
   return (
-    <div className="rounded-xl border px-4 py-3" style={{ borderColor: '#e8e2d8', background: '#fcfbf8' }}>
+    <div className="rounded-xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-subtle)' }}>
       <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">
         {lang === 'am' ? 'አሁን ሪኮርድ እያደረጉ ያሉ' : 'Recording as'}
       </div>
@@ -24,7 +24,7 @@ function ActorSelector({ staffMembers, activeStaffMemberId, currentActorLabel, o
         value={activeStaffMemberId || ''}
         onChange={(e) => onSetActiveStaffMember?.(e.target.value || null)}
         className="w-full px-4 py-3 border-2 rounded-xl text-sm focus:outline-none bg-white"
-        style={{ borderColor: '#e8e2d8' }}
+        style={{ borderColor: 'var(--color-border)' }}
       >
         <option value="">Owner ({shopProfile?.name || 'Owner'})</option>
         {(staffMembers || []).filter(m => m.active !== false).map(m => (
@@ -59,7 +59,7 @@ function PermissionToggle({ keyName, value, onChange, lang }) {
         type="button"
         onClick={() => onChange(keyName, !value)}
         className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
-        style={{ background: value ? '#1B4332' : '#e5e7eb' }}
+        style={{ background: value ? 'var(--color-primary)' : 'var(--color-bg-disabled)' }}
       >
         <span
           className="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform"
@@ -112,12 +112,12 @@ function MemberPermissionPanel({ member, onUpdatePermission, lang }) {
   };
 
   return (
-    <div className="border-b last:border-0" style={{ borderColor: '#f0ece4' }}>
+    <div className="border-b last:border-0" style={{ borderColor: 'var(--color-border-light)' }}>
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
         className="w-full px-4 py-3 flex items-center justify-between text-left"
-        style={{ background: member.active ? '#fff' : '#f9fafb' }}
+        style={{ background: member.active ? 'var(--color-bg-white)' : 'var(--color-bg-active)' }}
       >
         <div>
           <div className="text-sm font-bold text-gray-900">{member.phoneNumber || 'Staff member'}</div>
@@ -127,14 +127,14 @@ function MemberPermissionPanel({ member, onUpdatePermission, lang }) {
         </div>
         <div className="flex items-center gap-2">
           <RoleBadge role={member.role} />
-          <span className={`text-[10px] font-bold rounded-full px-2 py-0.5`} style={{ background: member.active ? '#ecfdf5' : '#f3f4f6', color: member.active ? '#166534' : '#6b7280' }}>
+          <span className={`text-[10px] font-bold rounded-full px-2 py-0.5`} style={{ background: member.active ? 'var(--color-success-bg)' : 'var(--color-bg-hover)', color: member.active ? 'var(--color-success-text)' : 'var(--color-text-muted)' }}>
             {member.active ? (lang === 'am' ? 'ንቁ' : 'Active') : (lang === 'am' ? 'ተሰናብቷል' : 'Inactive')}
           </span>
           {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
         </div>
       </button>
       {expanded && (
-        <div className="px-4 pb-3 space-y-1" style={{ background: '#fafaf9' }}>
+        <div className="px-4 pb-3 space-y-1" style={{ background: 'var(--color-surface-subtle)' }}>
           <div className="flex items-center gap-1.5 mb-2">
             <Shield className="w-3.5 h-3.5 text-gray-400" />
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
@@ -251,8 +251,8 @@ export default function TeamPage({
 
       {/* Join code — visible to owners: lets staff join by entering the code */}
       {canManageTeam && (shopProfile?.join_code || shopProfile?.join_url) && (
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#e8e2d8', background: '#fff' }}>
-          <div className="px-4 py-3 border-b" style={{ borderColor: '#f0ece4', background: '#fcfbf8' }}>
+        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
+          <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface-subtle)' }}>
             <div className="flex items-center gap-2">
               <KeyRound className="w-4 h-4 text-amber-600" />
               <span className="text-sm font-black text-gray-900">
@@ -268,14 +268,14 @@ export default function TeamPage({
           <div className="px-4 py-3 space-y-2">
              {shopProfile?.join_code && (
                <div className="flex items-center gap-2">
-                 <span className="flex-1 text-lg font-black tracking-[0.3em] font-mono select-all" style={{ color: '#1B4332' }}>
+                 <span className="flex-1 text-lg font-black tracking-[0.3em] font-mono select-all" style={{ color: 'var(--color-primary)' }}>
                    {shopProfile.join_code}
                  </span>
                  <button
                    type="button"
                    onClick={async () => { try { await navigator.clipboard.writeText(shopProfile.join_code); fireToast(lang === 'am' ? '✓ ኮድ ተቀድሷል' : '✓ Code copied', 1500); } catch {} }}
                    className="flex-shrink-0 px-2 py-1.5 rounded-lg text-xs font-bold press-scale"
-                   style={{ background: '#e8e2d8', color: '#374151' }}
+                   style={{ background: 'var(--color-border)', color: 'var(--color-text)' }}
                  >
                    {lang === 'am' ? 'ኮድ ቅዳ' : 'Copy code'}
                  </button>
@@ -284,7 +284,7 @@ export default function TeamPage({
                    onClick={handleRotateJoinCode}
                    disabled={rotatingJoinCode}
                    className="flex-shrink-0 px-2 py-1.5 rounded-lg text-xs font-bold press-scale"
-                   style={{ background: rotatingJoinCode ? '#e5e7eb' : '#fef3c7', color: rotatingJoinCode ? '#9ca3af' : '#92400e', minWidth: 44, minHeight: 36 }}
+                   style={{ background: rotatingJoinCode ? 'var(--color-bg-disabled)' : 'var(--color-warning-bg)', color: rotatingJoinCode ? 'var(--color-text-soft)' : 'var(--color-warning)', minWidth: 44, minHeight: 36 }}
                    title={lang === 'am' ? 'ኮድ ለአዲስ ይቀየሩ' : 'Reset join code'}
                  >
                    {rotatingJoinCode
@@ -300,7 +300,7 @@ export default function TeamPage({
                   type="button"
                   onClick={async () => { try { await navigator.clipboard.writeText(shopProfile.join_url); fireToast(lang === 'am' ? '✓ ሊንክ ተቀድሷል' : '✓ Link copied', 1500); } catch {} }}
                   className="flex-shrink-0 px-2 py-1.5 rounded-lg text-xs font-bold press-scale"
-                  style={{ background: '#f5f0e8', color: '#374151' }}
+                  style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text)' }}
                 >
                   {lang === 'am' ? 'ሊንክ ቅዳ' : 'Copy link'}
                 </button>
@@ -312,8 +312,8 @@ export default function TeamPage({
 
       {/* Team members list — visible to everyone, but permission editing only for owners */}
       {cloudMembers !== null && (
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#e8e2d8' }}>
-          <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: '#f0ece4', background: '#fcfbf8' }}>
+        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface-subtle)' }}>
             <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
               {lang === 'am' ? 'የቡድን አባላት' : 'Team members'}
             </span>
@@ -336,8 +336,8 @@ export default function TeamPage({
         </div>
       )}
 
-      <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#e8e2d8' }}>
-        <div className="px-4 py-3 border-b" style={{ borderColor: '#f0ece4', background: '#fcfbf8' }}>
+      <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface-subtle)' }}>
           <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
             {lang === 'am' ? 'የዚህ ስልክ ሰራተኞች (Attribution)' : 'This-phone staff labels'}
           </span>
@@ -353,7 +353,7 @@ export default function TeamPage({
               onChange={e => setLocalStaffName(e.target.value)}
               placeholder={lang === 'am' ? 'የሰራተኛ ስም' : 'Staff name'}
               className="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-              style={{ borderColor: localStaffName.trim() ? '#C4883A' : '#e8e2d8' }}
+              style={{ borderColor: localStaffName.trim() ? 'var(--color-accent-amber)' : 'var(--color-border)' }}
               onKeyDown={e => e.key === 'Enter' && handleAddLocalStaff()}
             />
             <button
@@ -361,13 +361,13 @@ export default function TeamPage({
               onClick={handleAddLocalStaff}
               disabled={!localStaffName.trim()}
               className="px-4 py-2.5 rounded-xl text-sm font-bold min-h-[44px]"
-              style={{ background: localStaffName.trim() ? '#1B4332' : '#e5e7eb', color: localStaffName.trim() ? '#fff' : '#9ca3af' }}
+              style={{ background: localStaffName.trim() ? 'var(--color-primary)' : 'var(--color-bg-disabled)', color: localStaffName.trim() ? 'var(--color-bg-white)' : 'var(--color-text-soft)' }}
             >
               {lang === 'am' ? 'ጨምር' : 'Add'}
             </button>
           </div>
           {(staffMembers || []).map(member => (
-            <div key={member.id} className="flex items-center justify-between px-3 py-2 rounded-xl border" style={{ borderColor: '#e8e2d8', background: member.active === false ? '#f9fafb' : '#fff' }}>
+            <div key={member.id} className="flex items-center justify-between px-3 py-2 rounded-xl border" style={{ borderColor: 'var(--color-border)', background: member.active === false ? 'var(--color-bg-active)' : 'var(--color-bg-white)' }}>
               <div>
                 <span className="text-sm font-bold text-gray-900">{member.display_name}</span>
                 <span className="ml-2 text-xs text-gray-400">{member.active === false ? (lang === 'am' ? 'ተሰናብቷል' : 'Inactive') : (member.role || 'staff')}</span>
@@ -376,7 +376,7 @@ export default function TeamPage({
                 type="button"
                 onClick={() => member.active === false ? onReactivateStaffMember?.(member.id) : onDeactivateStaffMember?.(member.id)}
                 className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
-                style={{ background: '#f5f5f5', color: '#6b7280' }}
+                style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)' }}
               >
                 {member.active === false ? (lang === 'am' ? 'ንቁ አድርግ' : 'Reactivate') : (lang === 'am' ? 'አቁም' : 'Deactivate')}
               </button>

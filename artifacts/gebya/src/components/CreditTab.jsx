@@ -51,7 +51,7 @@ export default function CreditTab({
         }}>
           <div style={{
             display: 'inline-flex',
-            background: '#f3f4f6',
+            background: 'var(--color-bg-hover)',
             borderRadius: 999,
             padding: 3,
             gap: 2,
@@ -67,8 +67,8 @@ export default function CreditTab({
                 border: 'none',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
-                background: creditView === 'customers' ? '#1a1a1a' : 'transparent',
-                color: creditView === 'customers' ? '#fff' : '#6b7280',
+                background: creditView === 'customers' ? 'var(--color-text)' : 'transparent',
+                color: creditView === 'customers' ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
               }}
             >
               {t.customersLabel}
@@ -84,8 +84,8 @@ export default function CreditTab({
                 border: 'none',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
-                background: creditView === 'suppliers' ? '#1a1a1a' : 'transparent',
-                color: creditView === 'suppliers' ? '#fff' : '#6b7280',
+                background: creditView === 'suppliers' ? 'var(--color-text)' : 'transparent',
+                color: creditView === 'suppliers' ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
               }}
             >
               {t.suppliersLabel}
@@ -116,8 +116,8 @@ export default function CreditTab({
                 fontSize: '0.7rem', fontWeight: 600,
                 border: '1px solid #e5e7eb',
                 cursor: 'pointer',
-                background: '#fff',
-                color: '#6b7280',
+                background: 'var(--color-surface)',
+                color: 'var(--color-text-muted)',
                 marginLeft: 8,
               }}
             >
@@ -146,8 +146,8 @@ export default function CreditTab({
                 fontSize: '0.7rem', fontWeight: 600,
                 border: '1px solid #e5e7eb',
                 cursor: 'pointer',
-                background: '#fff',
-                color: '#6b7280',
+                background: 'var(--color-surface)',
+                color: 'var(--color-text-muted)',
                 marginLeft: 4,
               }}
             >
@@ -179,8 +179,8 @@ export default function CreditTab({
                 fontSize: '0.7rem', fontWeight: 600,
                 border: '1px solid #e5e7eb',
                 cursor: 'pointer',
-                background: '#fff',
-                color: '#6b7280',
+                background: 'var(--color-surface)',
+                color: 'var(--color-text-muted)',
                 marginLeft: 8,
               }}
             >

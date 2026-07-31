@@ -321,8 +321,8 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
             <div
               className="p-3 space-y-2"
               style={{
-                background: hasLinkedBorrower ? '#f0fdf4' : '#f8fafc',
-                border: `1px solid ${hasLinkedBorrower ? '#bbf7d0' : '#e2e8f0'}`,
+                background: hasLinkedBorrower ? 'var(--color-success-bg)' : 'var(--color-bg-hover)',
+                border: `1px solid ${hasLinkedBorrower ? 'var(--color-success-border)' : 'var(--color-border-light)'}`,
                 borderRadius: 'var(--radius-md)',
               }}
             >
@@ -333,19 +333,19 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
               </p>
               <div className="grid gap-1.5 text-xs" style={{ color: 'var(--color-text-muted)' }}>
                 <p>
-                  <strong style={{ color: hasLinkedBorrower ? '#047857' : '#1B4332' }}>
+                  <strong style={{ color: hasLinkedBorrower ? 'var(--color-success-text)' : 'var(--color-primary)' }}>
                     {hasLinkedBorrower ? '✓' : '1.'}
                   </strong>{' '}
                   {lang === 'am' ? 'ሊንኩን ይክፈቱ ወይም QR ያሳዩ' : 'Open the link or show the QR'}
                 </p>
                 <p>
-                  <strong style={{ color: hasLinkedBorrower ? '#047857' : '#1B4332' }}>
+                  <strong style={{ color: hasLinkedBorrower ? 'var(--color-success-text)' : 'var(--color-primary)' }}>
                     {hasLinkedBorrower ? '✓' : '2.'}
                   </strong>{' '}
                   {lang === 'am' ? 'ደንበኛው በቴሌግራም Start ይጫናል' : 'Customer taps Start in Telegram'}
                 </p>
                 <p>
-                  <strong style={{ color: hasLinkedBorrower ? '#047857' : '#1B4332' }}>
+                  <strong style={{ color: hasLinkedBorrower ? 'var(--color-success-text)' : 'var(--color-primary)' }}>
                     {hasLinkedBorrower ? '✓' : '3.'}
                   </strong>{' '}
                   {hasLinkedBorrower
@@ -365,7 +365,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
                 rel="noopener noreferrer"
                 className="w-full block p-4 text-center font-black text-base text-white press-scale"
                 style={{
-                  background: '#1B4332',
+                  background: 'var(--color-primary)',
                   borderRadius: 'var(--radius-md)',
                   textDecoration: 'none',
                   boxShadow: '0 4px 0 #0f2b20, var(--shadow-sm)',
@@ -390,9 +390,9 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
                 onClick={() => setShowQR(v => !v)}
                 className="w-full p-3 text-sm font-bold border-2 press-scale flex items-center justify-center gap-2"
                 style={{
-                  background: showQR ? 'rgba(196,136,58,0.08)' : '#fff',
-                  borderColor: showQR ? '#C4883A' : '#e8e2d8',
-                  color: showQR ? '#6b4f1d' : '#374151',
+                  background: showQR ? 'rgba(196,136,58,0.08)' : 'var(--color-bg-white)',
+                  borderColor: showQR ? 'var(--color-accent-amber)' : 'var(--color-border)',
+                  color: showQR ? 'var(--color-warning)' : 'var(--color-text)',
                   borderRadius: 'var(--radius-md)',
                   minHeight: 48,
                 }}
@@ -429,7 +429,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
                     type="button"
                     onClick={handleCopy}
                     className="mt-2.5 px-3 py-2 text-xs font-bold border press-scale inline-flex items-center gap-1.5"
-                    style={{ background: '#fff', borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)', color: '#374151' }}
+                    style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)' }}
                   >
                     <Copy className="w-3.5 h-3.5" />
                     {lang === 'am' ? 'አገናኝ ቅዳ' : 'Copy link'}
@@ -463,7 +463,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
           {!linkingAvailable && (
             <div
               className="p-3"
-              style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 'var(--radius-md)' }}
+              style={{ background: 'var(--color-warning-bg)', border: '1px solid #fed7aa', borderRadius: 'var(--radius-md)' }}
             >
               <p className="text-sm font-bold text-gray-900">
                 {telegramServiceAvailable
@@ -484,9 +484,9 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
             onClick={() => setShowManualFallback(v => !v)}
             className="w-full px-3 py-2 text-xs font-bold border press-scale flex items-center justify-between"
             style={{
-              background: !linkingAvailable ? '#fff' : '#fafaf5',
-              borderColor: showManualFallback ? '#C4883A' : '#e8e2d8',
-              color: showManualFallback ? '#6b4f1d' : '#6b7280',
+              background: !linkingAvailable ? 'var(--color-bg-white)' : 'var(--color-surface-subtle)',
+              borderColor: showManualFallback ? 'var(--color-accent-amber)' : 'var(--color-border)',
+              color: showManualFallback ? 'var(--color-warning)' : 'var(--color-text-muted)',
               borderRadius: 'var(--radius-sm)',
               minHeight: 40,
             }}
@@ -511,10 +511,10 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
                 onChange={(e) => setManualTelegram(e.target.value)}
                 placeholder={t.customerTelegramPlaceholder}
                 className="w-full p-3 border-2 focus:outline-none text-sm"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: telegramValid ? '#e8e2d8' : '#dc2626' }}
+                style={{ borderRadius: 'var(--radius-md)', borderColor: telegramValid ? 'var(--color-border)' : 'var(--color-danger)' }}
               />
               {!telegramValid && (
-                <p className="text-[11px]" style={{ color: '#dc2626' }}>
+                <p className="text-[11px]" style={{ color: 'var(--color-danger)' }}>
                   {t.telegramFormatHint}
                 </p>
               )}
@@ -529,9 +529,9 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
               disabled={resending}
               className="w-full p-2.5 text-xs font-bold border press-scale flex items-center justify-center gap-2 disabled:opacity-50"
               style={{
-                background: '#fff',
-                borderColor: '#e8e2d8',
-                color: '#374151',
+                background: 'var(--color-surface)',
+                borderColor: 'var(--color-border)',
+                color: 'var(--color-text)',
                 borderRadius: 'var(--radius-sm)',
                 minHeight: 40,
               }}
@@ -552,7 +552,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
             disabled={saving || !telegramValid}
             className="w-full p-3 font-black text-white text-base flex items-center justify-center gap-2 min-h-[52px] press-scale disabled:opacity-50"
             style={{
-              background: '#1B4332',
+              background: 'var(--color-primary)',
               borderRadius: 'var(--radius-md)',
               boxShadow: '0 3px 0 #0f2b20, var(--shadow-sm)',
             }}

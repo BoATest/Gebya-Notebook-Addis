@@ -182,7 +182,7 @@ function SupplierTransactionSheet({
   return (
     <div
       className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col"
-      style={{ background: '#ffffff' }}
+      style={{ background: 'var(--color-surface)' }}
     >
       {/* Header */}
       <div
@@ -195,16 +195,16 @@ function SupplierTransactionSheet({
           className="press-scale flex items-center justify-center"
           style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}
         >
-          <ArrowLeft className="w-5 h-5" style={{ color: '#6b7280' }} />
+          <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
         </button>
         <div className="flex-1 min-w-0 text-center">
           <h2 className="text-base font-bold truncate" style={{ color: accentColor }}>{headerLabel}</h2>
           {supplier?.display_name && (
-            <p className="text-[11px] truncate" style={{ color: '#6b7280' }}>{supplier.display_name}</p>
+            <p className="text-[11px] truncate" style={{ color: 'var(--color-text-muted)' }}>{supplier.display_name}</p>
           )}
         </div>
         {actorLabel ? (
-          <span className="text-[11px] font-semibold truncate" style={{ color: '#6b4f1d', maxWidth: '80px', textAlign: 'right' }} title={actorLabel}>
+          <span className="text-[11px] font-semibold truncate" style={{ color: 'var(--color-warning)', maxWidth: '80px', textAlign: 'right' }} title={actorLabel}>
             {actorLabel}
           </span>
         ) : (
@@ -219,25 +219,25 @@ function SupplierTransactionSheet({
         <div
           className="p-3 border flex items-center justify-between gap-2"
           style={{
-            background: isPayment ? '#f0fdf4' : '#fef2f2',
-            borderColor: isPayment ? '#bbf7d0' : '#fecaca',
+            background: isPayment ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
+            borderColor: isPayment ? 'var(--color-success-border)' : 'var(--color-danger-border)',
             borderRadius: 'var(--radius-md)',
           }}
         >
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'አሁን ለመክፈል' : 'Currently owed'}
             </p>
-            <p className="text-base font-bold truncate" style={{ color: '#1a1a1a' }}>
+            <p className="text-base font-bold truncate" style={{ color: 'var(--color-text)' }}>
               {fmt(currentBalance)} {lang === 'am' ? 'ብር' : 'birr'}
             </p>
           </div>
-          <span className="flex-shrink-0" style={{ color: '#9ca3af' }}>→</span>
+          <span className="flex-shrink-0" style={{ color: 'var(--color-text-soft)' }}>→</span>
           <div className="min-w-0 text-right">
-            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'ከዚህ በኋላ' : 'After'}
             </p>
-            <p className="text-base font-bold truncate" style={{ color: isPayment ? '#166534' : '#991b1b' }}>
+            <p className="text-base font-bold truncate" style={{ color: isPayment ? 'var(--color-success-text)' : 'var(--color-danger-text)' }}>
               {fmt(updatedBalance)} {lang === 'am' ? 'ብር' : 'birr'}
             </p>
           </div>
@@ -245,8 +245,8 @@ function SupplierTransactionSheet({
 
         {/* Amount hero */}
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
-            {lang === 'am' ? 'መጠን' : 'Amount'} <span style={{ color: '#dc2626' }}>*</span>
+          <label className="block text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-text-muted)' }}>
+            {lang === 'am' ? 'መጠን' : 'Amount'} <span style={{ color: 'var(--color-danger)' }}>*</span>
           </label>
           <div className="relative">
             <input
@@ -258,14 +258,14 @@ function SupplierTransactionSheet({
               placeholder="0"
               className="w-full py-3 pr-20 text-3xl sm:text-4xl font-bold text-center focus:outline-none"
               style={{
-                borderBottom: `2px solid ${amount ? accentColor : '#e8e2d8'}`,
+                borderBottom: `2px solid ${amount ? accentColor : 'var(--color-border)'}`,
                 background: 'transparent',
-                color: amount ? accentColor : '#9ca3af',
+                color: amount ? accentColor : 'var(--color-text-soft)',
               }}
             />
             <span
               className="absolute right-2 top-1/2 -translate-y-1/2 text-base sm:text-lg font-semibold"
-              style={{ color: '#9ca3af' }}
+              style={{ color: 'var(--color-text-soft)' }}
             >
               {lang === 'am' ? 'ብር' : 'birr'}
             </span>
@@ -275,7 +275,7 @@ function SupplierTransactionSheet({
             banks/wallets appear only if the user enabled them in Settings. */}
         {isPayment && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'የክፍያ ዘዴ' : 'Payment Method'}
             </label>
             <div className="flex gap-1.5 overflow-x-auto pb-1">
@@ -291,9 +291,9 @@ function SupplierTransactionSheet({
                     className="flex-shrink-0 flex items-center justify-center gap-1.5 py-2 px-3 border-2 text-xs font-bold transition-all min-h-[40px] press-scale"
                     style={{
                       borderRadius: 'var(--radius-sm)',
-                      borderColor: selected ? '#1B4332' : '#e8e2d8',
-                      background: selected ? 'rgba(27,67,50,0.08)' : '#fff',
-                      color: selected ? '#1B4332' : '#6b7280',
+                      borderColor: selected ? 'var(--color-primary)' : 'var(--color-border)',
+                      background: selected ? 'rgba(27,67,50,0.08)' : 'var(--color-bg-white)',
+                      color: selected ? 'var(--color-primary)' : 'var(--color-text-muted)',
                       whiteSpace: 'nowrap',
                     }}
                   >
@@ -310,7 +310,7 @@ function SupplierTransactionSheet({
         )}
 
         {!hasOutstanding && isPayment && (
-            <p className="text-xs font-medium mt-2" style={{ color: '#b45309' }}>
+            <p className="text-xs font-medium mt-2" style={{ color: 'var(--color-warning)' }}>
               {lang === 'am' ? 'ለመክፈል ምንም የለም' : 'Nothing outstanding to pay'}
             </p>
           )}
@@ -322,7 +322,7 @@ function SupplierTransactionSheet({
 
           {/* Note (optional) — available for both payment and purchase */}
           <div className="mt-3">
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'መልእክት (አማራጭ)' : 'Note (optional)'}
             </label>
             <textarea
@@ -331,7 +331,7 @@ function SupplierTransactionSheet({
               placeholder={lang === 'am' ? 'ለምሳሌ የትንዳገብ ወቅታዊ ሁኔታ' : 'e.g. current stock status'}
               rows={2}
               className="w-full p-3 border-2 focus:outline-none text-base resize-none"
-              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+              style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)' }}
             />
           </div>
         </div>
@@ -339,7 +339,7 @@ function SupplierTransactionSheet({
         {/* Item / note + product photo (only for purchases — Commit D) */}
         {!isPayment && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'ምን ገዙ (አማራጭ)' : 'What did you buy (optional)'}
             </label>
             <div className="flex gap-2 items-stretch">
@@ -349,7 +349,7 @@ function SupplierTransactionSheet({
                 onChange={(e) => setItemName(e.target.value)}
                 placeholder={lang === 'am' ? 'ለምሳሌ 5 ቦርሳ ቡና' : 'e.g. 5 bags coffee'}
                 className="flex-1 p-3 border-2 focus:outline-none text-base"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+                style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)' }}
               />
               {/* 56px inline photo button — B2: opens rear-camera capture modal */}
               <button
@@ -361,7 +361,7 @@ function SupplierTransactionSheet({
                   width: 56, height: 56,
                   borderRadius: 'var(--radius-md)',
                   border: '2px solid #e8e2d8',
-                  background: photos.length > 0 ? '#f0fdf4' : '#fef2f2',
+                  background: photos.length > 0 ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
                   opacity: photos.length > 0 ? 0.55 : 1,
                   flexShrink: 0,
                   position: 'relative',
@@ -371,7 +371,7 @@ function SupplierTransactionSheet({
               >
                 {photoLoading
                   ? <span className="text-sm">...</span>
-                  : <Camera className="w-5 h-5" style={{ color: photos.length > 0 ? '#16a34a' : '#dc2626' }} />
+                  : <Camera className="w-5 h-5" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-danger)' }} />
                 }
                 <span
                   aria-hidden="true"
@@ -384,7 +384,7 @@ function SupplierTransactionSheet({
                     padding: '0 5px',
                     borderRadius: 999,
                      background: accentColor,
-                    color: '#fff',
+                    color: 'var(--color-bg-white)',
                     border: '2px solid #fff',
                     fontSize: 10,
                     fontWeight: 900,
@@ -397,12 +397,12 @@ function SupplierTransactionSheet({
               </button>
             </div>
             {photos.length > 0 && (
-              <div className="mt-2 p-2" style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
+              <div className="mt-2 p-2" style={{ background: 'var(--color-surface-subtle)', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold" style={{ color: '#1a1a1a' }}>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
                     {lang === 'am' ? '\u134E\u1276' : 'Proof photos'}
                   </p>
-                  <p className="text-[10px] font-bold" style={{ color: '#6b7280' }}>
+                  <p className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>
                      {photos.length} {lang === 'am' ? 'ፎቶዎች' : 'photos'}
                   </p>
                 </div>
@@ -430,13 +430,13 @@ function SupplierTransactionSheet({
                           minHeight: 28,
                           borderRadius: 999,
                           border: '1px solid #e8e2d8',
-                          background: '#fff',
+                          background: 'var(--color-surface)',
                         }}
                         aria-label={lang === 'am' ? '\u134E\u1276 \u12A0\u1235\u12C8\u130D\u12F5' : `Remove photo ${index + 1}`}
                       >
-                        <X className="w-3.5 h-3.5" style={{ color: '#6b7280' }} />
+                        <X className="w-3.5 h-3.5" style={{ color: 'var(--color-text-muted)' }} />
                       </button>
-                      <p className="text-[10px] text-center mt-1" style={{ color: '#9ca3af' }}>
+                      <p className="text-[10px] text-center mt-1" style={{ color: 'var(--color-text-soft)' }}>
                         {Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB
                       </p>
                     </div>
@@ -445,12 +445,12 @@ function SupplierTransactionSheet({
               </div>
             )}
             {photoError && (
-              <p style={{ fontSize: '0.7rem', color: '#dc2626', marginTop: 4 }}>{photoError}</p>
+              <p style={{ fontSize: '0.7rem', color: 'var(--color-danger)', marginTop: 4 }}>{photoError}</p>
             )}
 
             {/* Due date — compact chip row */}
             <div className="mt-3">
-              <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+              <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
                 {lang === 'am' ? 'የሚከፈልበት ቀን' : 'Due date (optional)'}
               </label>
               <div className="flex gap-2 mb-2">
@@ -461,10 +461,10 @@ function SupplierTransactionSheet({
                     <button key={opt.value} type="button" onClick={() => setDueDate(optionDate)} className="press-scale"
                       style={{
                         padding: '8px 12px', minWidth: 70, minHeight: 40,
-                        border: `2px solid ${active ? '#1B4332' : '#e8e2d8'}`,
+                        border: `2px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
                         borderRadius: 8,
-                        background: active ? '#1B4332' : '#fff',
-                        color: active ? '#fff' : '#374151',
+                        background: active ? 'var(--color-primary)' : 'var(--color-bg-white)',
+                        color: active ? 'var(--color-bg-white)' : 'var(--color-text)',
                         fontSize: '0.8rem', fontWeight: 700,
                         cursor: 'pointer', flexShrink: 0,
                       }}>
@@ -475,10 +475,10 @@ function SupplierTransactionSheet({
                 <button type="button" onClick={() => setShowDatePicker(true)} className="press-scale"
                   style={{
                     padding: '8px 12px', minWidth: 70, minHeight: 40,
-                    border: `2px solid ${dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? '#1B4332' : '#e8e2d8'}`,
+                    border: `2px solid ${dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? 'var(--color-primary)' : 'var(--color-border)'}`,
                     borderRadius: 8,
-                    background: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? '#1B4332' : '#fff',
-                    color: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? '#fff' : '#374151',
+                    background: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? 'var(--color-primary)' : 'var(--color-bg-white)',
+                    color: dueDate && !dueDateOptions.some(o => new Date(o.value).toISOString().slice(0, 10) === dueDate) ? 'var(--color-bg-white)' : 'var(--color-text)',
                     fontSize: '0.8rem', fontWeight: 700,
                     cursor: 'pointer', flexShrink: 0,
                     display: 'flex', alignItems: 'center', gap: 4,
@@ -505,8 +505,8 @@ function SupplierTransactionSheet({
           disabled={!canSave}
           className="w-full p-3 font-bold text-white text-base flex items-center justify-center gap-2 transition-all press-scale"
           style={{
-            background: canSave ? accentColor : '#e5e7eb',
-            color: canSave ? '#fff' : '#9ca3af',
+            background: canSave ? accentColor : 'var(--color-bg-disabled)',
+            color: canSave ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
             cursor: canSave ? 'pointer' : 'not-allowed',
             borderRadius: 'var(--radius-md)',
           }}

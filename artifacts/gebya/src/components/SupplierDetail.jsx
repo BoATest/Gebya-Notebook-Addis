@@ -89,7 +89,7 @@ function SupplierDetail({
       {/* ═══ 1. COMPACT DARK HEADER ══════════════════════════════════════════ */}
       <div style={{
         background: 'linear-gradient(135deg, #1a1a1a 0%, #2a1010 100%)',
-        color: '#fff',
+        color: 'var(--color-bg-white)',
         borderRadius: 14,
         padding: '10px 14px 14px',
         boxShadow: '0 4px 16px -4px rgba(220,38,38,0.25)',
@@ -102,7 +102,7 @@ function SupplierDetail({
             className="press-scale"
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              background: 'transparent', border: 'none', color: '#fff',
+              background: 'transparent', border: 'none', color: 'var(--color-bg-white)',
               fontSize: '0.88rem', fontWeight: 700,
               cursor: 'pointer', padding: '6px 0',
               minHeight: 44,
@@ -115,7 +115,7 @@ function SupplierDetail({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {hasBalance && daysOldest > 30 && (
               <span style={{
-                background: '#fee2e2', color: '#991b1b',
+                background: 'var(--color-danger-bg)', color: 'var(--color-danger-text)',
                 padding: '2px 8px', borderRadius: 999,
                 fontSize: '0.62rem', fontWeight: 800,
                 letterSpacing: '0.04em', flexShrink: 0,
@@ -137,7 +137,7 @@ function SupplierDetail({
                   borderRadius: '50%',
                   background: 'rgba(255,255,255,0.12)',
                   border: '1px solid rgba(255,255,255,0.2)',
-                  color: '#fff',
+                  color: 'var(--color-bg-white)',
                   cursor: 'pointer',
                   flexShrink: 0,
                 }}
@@ -172,18 +172,18 @@ function SupplierDetail({
                 background: grad,
                 padding: 0, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontSize: '1rem', fontWeight: 800,
+                color: 'var(--color-bg-white)', fontSize: '1rem', fontWeight: 800,
               }}
             >
               {initials}
               <span style={{
                 position: 'absolute', bottom: -2, right: -2,
                 width: 16, height: 16, borderRadius: '50%',
-                background: '#fff',
+                background: 'var(--color-surface)',
                 border: '1.5px solid #1a1a1a',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '0.55rem',
-                color: '#1a1a1a',
+                color: 'var(--color-text)',
               }}>📷</span>
             </button>
           )}
@@ -196,7 +196,7 @@ function SupplierDetail({
               {supplier.phone_number ? (
                 <a
                   href={`tel:${supplier.phone_number}`}
-                  style={{ color: '#fff', textDecoration: 'none' }}
+                  style={{ color: 'var(--color-bg-white)', textDecoration: 'none' }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   📞 {supplier.phone_number}
@@ -220,7 +220,7 @@ function SupplierDetail({
       {/* ═══ 2. BALANCE BLOCK ══════════════════════════════════════════ */}
       <div
         style={{
-          background: '#fff',
+          background: 'var(--color-surface)',
           border: '1px solid #ece6d6',
           borderRadius: 12,
           padding: 14,
@@ -232,7 +232,7 @@ function SupplierDetail({
             <span
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
-                background: '#dc2626', color: '#fff',
+                background: 'var(--color-danger)', color: 'var(--color-bg-white)',
                 fontSize: '0.62rem', fontWeight: 800,
                 padding: '3px 8px', borderRadius: 999,
                 letterSpacing: '0.06em', textTransform: 'uppercase',
@@ -244,36 +244,36 @@ function SupplierDetail({
           )}
           <p style={{
             fontSize: '0.6rem', fontWeight: 800,
-            color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: 'var(--color-text-soft)', letterSpacing: '0.1em', textTransform: 'uppercase',
           }}>
             {lang === 'am' ? 'ለመክፈል' : 'I owe'}
           </p>
           <p style={{
             fontFamily: 'Manrope, system-ui, sans-serif',
             fontSize: '1.85rem', fontWeight: 800,
-            color: hasBalance ? '#dc2626' : '#9ca3af',
+            color: hasBalance ? 'var(--color-danger)' : 'var(--color-text-soft)',
             lineHeight: 1, marginTop: 4,
             letterSpacing: '-0.02em',
             fontVariantNumeric: 'tabular-nums',
           }}>
             {fmt(balance)}
-            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#9ca3af', marginLeft: 4 }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-soft)', marginLeft: 4 }}>
               {lang === 'am' ? 'ብር' : 'birr'}
             </span>
           </p>
         </div>
         <div style={{
           display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end',
-          gap: 4, fontSize: '0.7rem', color: '#6b7280',
+          gap: 4, fontSize: '0.7rem', color: 'var(--color-text-muted)',
         }}>
           <span>
-            <strong style={{ color: '#1f2937', fontWeight: 700 }}>{supplier.transaction_count || 0}</strong>{' '}
+            <strong style={{ color: 'var(--color-text)', fontWeight: 700 }}>{supplier.transaction_count || 0}</strong>{' '}
             {lang === 'am' ? 'መዝገብ' : 'entries'}
           </span>
           {oldestPurchase && (
             <span>
               {lang === 'am' ? 'የመጀመሪያ ግዢ' : 'First purchase'}:{' '}
-              <strong style={{ color: '#1f2937', fontWeight: 700 }}>
+              <strong style={{ color: 'var(--color-text)', fontWeight: 700 }}>
                 {formatEthiopian(oldestPurchase.created_at)}
               </strong>
             </span>
@@ -283,7 +283,7 @@ function SupplierDetail({
 
       {/* ═══ 3. HISTORY ══════════════════════════════════════════ */}
       <div style={{
-        background: '#fff',
+        background: 'var(--color-surface)',
         border: '1px solid #ece6d6',
         borderRadius: 12,
         padding: 12,
@@ -291,7 +291,7 @@ function SupplierDetail({
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
           <h3 style={{
             fontSize: '0.65rem', fontWeight: 800,
-            color: '#9ca3af', letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: 'var(--color-text-soft)', letterSpacing: '0.12em', textTransform: 'uppercase',
           }}>
             {lang === 'am' ? 'መዝገብ' : 'History'} · {historyRows.length} {lang === 'am' ? 'መዝገብ' : 'entries'}
           </h3>
@@ -299,11 +299,11 @@ function SupplierDetail({
 
         {historyRows.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '16px 8px' }}>
-            <Truck className="w-7 h-7 mx-auto mb-2" style={{ color: '#d1d5db' }} />
-            <p style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 600 }}>
+            <Truck className="w-7 h-7 mx-auto mb-2" style={{ color: 'var(--color-text-soft)' }} />
+            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-soft)', fontWeight: 600 }}>
               {lang === 'am' ? 'መዝገብ የለም' : 'No entries yet'}
             </p>
-            <p style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 4 }}>
+            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-soft)', marginTop: 4 }}>
               {lang === 'am'
                 ? 'ከዚህ አቅራቢ ግዢዎችን ይመዝግቡ።'
                 : 'Record what you buy on credit from this supplier.'}
@@ -326,13 +326,13 @@ function SupplierDetail({
                     <div
                       key={`date_${txDate}_${idx}`}
                       style={{
-                        background: '#fff5f5',
+                        background: 'var(--color-danger-bg)',
                         border: '1px solid #fecaca',
                         borderRadius: 8,
                         padding: '5px 10px',
                         fontSize: '0.62rem',
                         fontWeight: 800,
-                        color: '#991b1b',
+                        color: 'var(--color-danger-text)',
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
                         display: 'flex',
@@ -343,7 +343,7 @@ function SupplierDetail({
                     >
                       <span>📅 {txDate}</span>
                       {sameDayCount > 1 && (
-                        <span style={{ color: '#9ca3af', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
+                        <span style={{ color: 'var(--color-text-soft)', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
                           {sameDayCount} {lang === 'am' ? 'መዝገብ' : 'entries'}
                         </span>
                       )}
@@ -375,13 +375,13 @@ function SupplierDetail({
           className="press-scale"
           style={{
             flex: 1, padding: '12px 0', minHeight: 48,
-            background: '#dc2626', border: 'none', borderRadius: 14,
+            background: 'var(--color-danger)', border: 'none', borderRadius: 14,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             cursor: 'pointer',
           }}
         >
-          <CreditCard className="w-4 h-4" style={{ color: '#fff', strokeWidth: 2.5 }} />
-          <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#fff' }}>
+          <CreditCard className="w-4 h-4" style={{ color: 'var(--color-bg-white)', strokeWidth: 2.5 }} />
+          <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--color-bg-white)' }}>
             {lang === 'am' ? 'ግዢ ጨምር (+)' : 'PURCHASE (+)'}
           </span>
         </button>
@@ -392,20 +392,20 @@ function SupplierDetail({
           className="press-scale"
           style={{
             flex: 1, padding: '12px 0', minHeight: 48,
-            background: '#16a34a', border: 'none', borderRadius: 14,
+            background: 'var(--color-success)', border: 'none', borderRadius: 14,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             cursor: hasBalance ? 'pointer' : 'not-allowed',
             opacity: hasBalance ? 1 : 0.5,
           }}
         >
-          <Wallet className="w-4 h-4" style={{ color: '#fff', strokeWidth: 2.5 }} />
-          <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#fff' }}>
+          <Wallet className="w-4 h-4" style={{ color: 'var(--color-bg-white)', strokeWidth: 2.5 }} />
+          <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--color-bg-white)' }}>
             {lang === 'am' ? 'ክፍያ (-)' : 'PAY (-)'}
           </span>
         </button>
       </div>
 
-      <p style={{ fontSize: '0.65rem', color: '#9ca3af', textAlign: 'center', fontStyle: 'italic', padding: '4px 0' }}>
+      <p style={{ fontSize: '0.65rem', color: 'var(--color-text-soft)', textAlign: 'center', fontStyle: 'italic', padding: '4px 0' }}>
         🔒 {lang === 'am' ? 'መረጃው በዚህ ስልክ ብቻ ይቀመጣል' : 'Saved on this phone only'}
       </p>
     </div>
@@ -428,7 +428,7 @@ function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
       onKeyDown={(e) => { if (e.key === 'Enter') onSelectTransaction?.(tx); }}
       style={{
         padding: '12px 14px',
-        background: '#fff',
+        background: 'var(--color-surface)',
         borderBottom: isLast ? 'none' : '1px solid #f5f1ea',
         borderLeft: `3px solid ${borderColor}`,
         cursor: 'pointer',
@@ -442,7 +442,7 @@ function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
         {/* Compact date */}
         <span style={{
-          fontSize: '0.72rem', color: '#6b7280', fontWeight: 600,
+          fontSize: '0.72rem', color: 'var(--color-text-muted)', fontWeight: 600,
           whiteSpace: 'nowrap', flexShrink: 0,
           fontVariantNumeric: 'tabular-nums',
         }}>
@@ -450,7 +450,7 @@ function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
         </span>
         {/* Description */}
         <span style={{
-          fontSize: '0.82rem', color: '#1f2937', fontWeight: 500,
+          fontSize: '0.82rem', color: 'var(--color-text)', fontWeight: 500,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {tx.item_name || tx.item_note || (isPayment

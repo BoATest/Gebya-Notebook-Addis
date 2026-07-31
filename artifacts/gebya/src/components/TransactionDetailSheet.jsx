@@ -64,7 +64,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
       <div
         style={{
           width: '100%', maxWidth: 480,
-          background: '#fff',
+          background: 'var(--color-surface)',
           borderRadius: '20px 20px 0 0',
           maxHeight: '85vh',
           display: 'flex', flexDirection: 'column',
@@ -73,7 +73,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
         }}
       >
         {/* Drag handle */}
-        <div style={{ width: 38, height: 4, background: '#e5e7eb', borderRadius: 999, margin: '10px auto 0', flexShrink: 0 }} />
+        <div style={{ width: 38, height: 4, background: 'var(--color-bg-disabled)', borderRadius: 999, margin: '10px auto 0', flexShrink: 0 }} />
 
         {/* Header */}
         <div style={{
@@ -82,7 +82,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
           borderBottom: '1px solid #f3f4f6',
           flexShrink: 0,
         }}>
-          <p style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1a1a1a', margin: 0 }}>
+          <p style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-text)', margin: 0 }}>
             {currentLang === 'am' ? 'የግብይት ዝርዝር' : 'Transaction Detail'}
           </p>
           <button
@@ -91,12 +91,12 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             aria-label="Close"
             style={{
               width: 32, height: 32, borderRadius: '50%',
-              background: '#f3f4f6', border: 'none',
+              background: 'var(--color-bg-hover)', border: 'none',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer',
             }}
           >
-            <X className="w-4 h-4" style={{ color: '#6b7280' }} />
+            <X className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
           </button>
         </div>
 
@@ -109,8 +109,8 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
               display: 'inline-block',
               padding: '3px 10px', borderRadius: 999,
               fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.06em',
-              background: isPayment ? '#d1fae5' : '#fef3c7',
-              color: isPayment ? '#047857' : '#92400e',
+              background: isPayment ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
+              color: isPayment ? 'var(--color-success-text)' : 'var(--color-warning)',
               marginBottom: 8,
             }}>
               {typeLabel}
@@ -124,17 +124,17 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             }}>
               {sign}{fmt(tx.amount || 0)}
             </p>
-            <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 4 }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-soft)', marginTop: 4 }}>
               {currentLang === 'am' ? 'ብር' : 'birr'}
             </p>
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
               marginTop: 8,
               padding: '4px 10px', borderRadius: 8,
-              background: '#f9fafb', border: '1px solid #f3f4f6',
+              background: 'var(--color-bg-active)', border: '1px solid #f3f4f6',
             }}>
-              <Calendar className="w-3.5 h-3.5" style={{ color: '#9ca3af' }} />
-              <span style={{ fontSize: '0.78rem', color: '#374151', fontWeight: 600 }}>
+              <Calendar className="w-3.5 h-3.5" style={{ color: 'var(--color-text-soft)' }} />
+              <span style={{ fontSize: '0.78rem', color: 'var(--color-text)', fontWeight: 600 }}>
                 {formatEthiopian(tx.created_at)} · {formatEthiopianTime(tx.created_at)}
               </span>
             </div>
@@ -147,12 +147,12 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             {tx.item_note && (
               <div style={{
                 padding: '10px 12px', marginBottom: 10,
-                background: '#fafaf5', border: '1px solid #f3f4f6', borderRadius: 10,
+                background: 'var(--color-surface-subtle)', border: '1px solid #f3f4f6', borderRadius: 10,
               }}>
-                <p style={{ fontSize: '0.6rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
+                <p style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--color-text-soft)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
                   {currentLang === 'am' ? 'ማስታወሻ / ዝርዝር' : 'Description / Note'}
                 </p>
-                <p style={{ fontSize: '0.85rem', color: '#1f2937', lineHeight: 1.4, margin: 0 }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--color-text)', lineHeight: 1.4, margin: 0 }}>
                   {tx.item_note}
                 </p>
               </div>
@@ -161,7 +161,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             {/* Due date */}
             {!isPayment && tx.due_date && (
               <DetailRow
-                icon={<Calendar className="w-4 h-4" style={{ color: '#C4883A' }} />}
+                icon={<Calendar className="w-4 h-4" style={{ color: 'var(--color-accent-amber)' }} />}
                 label={currentLang === 'am' ? 'የመጨረሻ ቀን' : 'Due Date'}
                 value={formatEthiopian(tx.due_date)}
                 lang={currentLang}
@@ -197,7 +197,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             {/* Recorded by */}
             {tx.actor_name_snapshot && (
               <DetailRow
-                icon={<User className="w-4 h-4" style={{ color: '#6b7280' }} />}
+                icon={<User className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />}
                 label={currentLang === 'am' ? 'የተመዘገበው' : 'Recorded by'}
                 value={tx.actor_name_snapshot}
                 lang={currentLang}
@@ -212,14 +212,14 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Wallet className="w-4 h-4" style={{ color: '#374151' }} />
-                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#374151' }}>
+                  <Wallet className="w-4 h-4" style={{ color: 'var(--color-text)' }} />
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text)' }}>
                     {currentLang === 'am' ? 'ቀሪ ቀሪ' : 'Balance After'}
                   </span>
                 </div>
                 <span style={{
                   fontFamily: 'JetBrains Mono, monospace',
-                  fontSize: '0.9rem', fontWeight: 700, color: '#1a1a1a',
+                  fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)',
                   fontVariantNumeric: 'tabular-nums',
                 }}>
                   {fmt(tx.balance_after || 0)}
@@ -237,23 +237,23 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '6px 10px', borderRadius: 8,
-                  background: '#f3f4f6', border: 'none',
+                  background: 'var(--color-bg-hover)', border: 'none',
                   cursor: 'pointer', width: '100%',
                 }}
               >
                 <span style={{ fontSize: '0.85rem' }}>🧺</span>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text)' }}>
                   {items.length} {currentLang === 'am' ? 'ዕቃዎች' : 'items'}
                 </span>
                 {expandedItems
-                  ? <ChevronUp className="w-3.5 h-3.5" style={{ color: '#9ca3af', marginLeft: 'auto' }} />
-                  : <ChevronDown className="w-3.5 h-3.5" style={{ color: '#9ca3af', marginLeft: 'auto' }} />
+                  ? <ChevronUp className="w-3.5 h-3.5" style={{ color: 'var(--color-text-soft)', marginLeft: 'auto' }} />
+                  : <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--color-text-soft)', marginLeft: 'auto' }} />
                 }
               </button>
               {expandedItems && (
                 <div style={{
                   marginTop: 6, padding: '8px 10px',
-                  background: '#fff', border: '1px solid #e8e2d8',
+                  background: 'var(--color-surface)', border: '1px solid #e8e2d8',
                   borderLeft: '3px solid #C4883A', borderRadius: 8,
                 }}>
                   {items.map((item, i) => (
@@ -262,10 +262,10 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
                       padding: '4px 0',
                       borderBottom: i < items.length - 1 ? '1px solid #f3f4f6' : 'none',
                     }}>
-                      <span style={{ fontSize: '0.82rem', color: '#4b5563' }}>• {item.name}</span>
+                      <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>• {item.name}</span>
                       <span style={{
                         fontFamily: 'JetBrains Mono, monospace',
-                        fontSize: '0.82rem', fontWeight: 700, color: '#C4883A',
+                        fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-accent-amber)',
                         fontVariantNumeric: 'tabular-nums',
                       }}>
                         {fmt(item.amount || 0)}
@@ -281,14 +281,14 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
           {hasPhoto && (
             <div style={{
               padding: '10px 12px', marginBottom: 12,
-              background: '#fafaf5', border: '1px solid #f3f4f6', borderRadius: 10,
+              background: 'var(--color-surface-subtle)', border: '1px solid #f3f4f6', borderRadius: 10,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <Image className="w-4 h-4" style={{ color: '#6b7280' }} />
-                <span style={{ fontSize: '0.78rem', color: '#6b7280', fontWeight: 600 }}>
+                <Image className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
+                <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
                   {currentLang === 'am' ? 'የዕቃ ፎቶ' : 'Photo proof'}
                 </span>
-                <span style={{ fontSize: '0.72rem', color: '#9ca3af', marginLeft: 'auto' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--color-text-soft)', marginLeft: 'auto' }}>
                   {photoList.length} {currentLang === 'am' ? 'ፎቶ' : 'photo(s)'}
                 </span>
               </div>
@@ -303,7 +303,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
                       width: 64, height: 64, borderRadius: 8,
                       overflow: 'hidden', border: '1px solid #e8e2d8',
                       padding: 0, cursor: 'pointer', flexShrink: 0,
-                      background: '#fff',
+                      background: 'var(--color-surface)',
                     }}
                   >
                     <img
@@ -340,7 +340,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
                   zIndex: 101,
                 }}
               >
-                <X className="w-5 h-5" style={{ color: '#fff' }} />
+                <X className="w-5 h-5" style={{ color: 'var(--color-bg-white)' }} />
               </button>
               <img
                 src={fullscreenPhoto}
@@ -366,9 +366,9 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             onClick={() => onEdit?.(tx)}
             style={{
               width: '100%', padding: '12px',
-              background: '#fef3c7', border: '1.5px solid #fde68a',
+              background: 'var(--color-warning-bg)', border: '1.5px solid #fde68a',
               borderRadius: 10,
-              fontSize: '0.85rem', fontWeight: 800, color: '#92400e',
+              fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-warning)',
               cursor: 'pointer', minHeight: 44,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               marginBottom: 8,
@@ -384,9 +384,9 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             onClick={() => setShowDeleteConfirm(true)}
             style={{
               width: '100%', padding: '12px',
-              background: '#fff', border: '1.5px solid #fecaca',
+              background: 'var(--color-surface)', border: '1.5px solid #fecaca',
               borderRadius: 10,
-              fontSize: '0.85rem', fontWeight: 700, color: '#dc2626',
+              fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-danger)',
               cursor: 'pointer', minHeight: 44,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             }}
@@ -401,7 +401,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
           <div
             style={{
               position: 'absolute', inset: 0,
-              background: '#fff',
+              background: 'var(--color-surface)',
               borderRadius: '20px 20px 0 0',
               display: 'flex', flexDirection: 'column',
               alignItems: 'center', justifyContent: 'center',
@@ -412,16 +412,16 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
           >
             <div style={{
               width: 64, height: 64, borderRadius: '50%',
-              background: '#fef2f2', border: '2px solid #fecaca',
+              background: 'var(--color-danger-bg)', border: '2px solid #fecaca',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               marginBottom: 16,
             }}>
-              <Trash2 className="w-7 h-7" style={{ color: '#dc2626' }} />
+              <Trash2 className="w-7 h-7" style={{ color: 'var(--color-danger)' }} />
             </div>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#1a1a1a', margin: '0 0 6px' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-text)', margin: '0 0 6px' }}>
               {currentLang === 'am' ? 'ይህን ግብይት ሰርዝ?' : 'Delete this transaction?'}
             </h3>
-            <p style={{ fontSize: '0.82rem', color: '#6b7280', margin: '0 0 24px', maxWidth: 260, lineHeight: 1.4 }}>
+            <p style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)', margin: '0 0 24px', maxWidth: 260, lineHeight: 1.4 }}>
               {currentLang === 'am'
                 ? (customerBalance > 0
                   ? `ይህ ደንበኛ ${fmt(customerBalance)} ብር ዕዳ አለበት። ይህን ማስወገድ ቀሪ ሂሳባቸውን ይቀንሳል።`
@@ -438,7 +438,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
               }}
               style={{
                 width: '100%', padding: '14px',
-                background: '#dc2626', color: '#fff',
+                background: 'var(--color-danger)', color: 'var(--color-bg-white)',
                 border: 'none', borderRadius: 12,
                 fontSize: '0.95rem', fontWeight: 800,
                 cursor: 'pointer', marginBottom: 10,
@@ -452,7 +452,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
               onClick={() => setShowDeleteConfirm(false)}
               style={{
                 width: '100%', padding: '14px',
-                background: '#f3f4f6', color: '#374151',
+                background: 'var(--color-bg-hover)', color: 'var(--color-text)',
                 border: 'none', borderRadius: 12,
                 fontSize: '0.9rem', fontWeight: 700,
                 cursor: 'pointer',
@@ -478,9 +478,9 @@ function DetailRow({ icon, label, value }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {icon}
-        <span style={{ fontSize: '0.82rem', color: '#6b7280' }}>{label}</span>
+        <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>{label}</span>
       </div>
-      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1f2937' }}>{value}</span>
+      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-text)' }}>{value}</span>
     </div>
   );
 }

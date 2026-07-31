@@ -205,7 +205,7 @@ function PayPage() {
     return (
       <div style={pageStyle()}>
         <div style={cardStyle()}>
-          <p style={{ fontSize: '1rem', color: '#1f2937', textAlign: 'center' }}>
+          <p style={{ fontSize: '1rem', color: 'var(--color-text)', textAlign: 'center' }}>
             This is a Gebya payment link page. Open a real link from a shop's reminder.
           </p>
         </div>
@@ -221,26 +221,26 @@ function PayPage() {
 
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 18 }}>
-          <p style={{ fontSize: '0.7rem', fontWeight: 800, color: '#92400e', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+          <p style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--color-warning)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
             {t.title}
           </p>
           <h1 style={{
             fontFamily: 'Manrope, system-ui, sans-serif',
-            fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: '#1f2937',
+            fontSize: '1.6rem', fontWeight: 800, marginTop: 4, color: 'var(--color-text)',
             letterSpacing: '-0.02em',
           }}>
             {params.to || '—'}
           </h1>
           {params.from && (
-            <p style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: 4 }}>
-              {t.from} <strong style={{ color: '#1f2937' }}>{params.from}</strong>
+            <p style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+              {t.from} <strong style={{ color: 'var(--color-text)' }}>{params.from}</strong>
             </p>
           )}
         </div>
 
         {/* Amount card */}
         <div style={{
-          background: '#fff',
+          background: 'var(--color-surface)',
           border: '1px solid #ece6d6',
           borderRadius: 14,
           padding: 22,
@@ -250,24 +250,24 @@ function PayPage() {
         }}>
           <p style={{
             fontSize: '0.7rem', fontWeight: 800,
-            color: '#92400e', letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: 'var(--color-warning)', letterSpacing: '0.1em', textTransform: 'uppercase',
           }}>
             {t.youOwe}
           </p>
           <p style={{
             fontFamily: 'Manrope, system-ui, sans-serif',
-            fontSize: '2.4rem', fontWeight: 800, color: '#b8842c',
+            fontSize: '2.4rem', fontWeight: 800, color: 'var(--color-accent-amber)',
             margin: '8px 0 4px',
             letterSpacing: '-0.02em',
             fontVariantNumeric: 'tabular-nums',
           }}>
             {amountDisplay}
-            <span style={{ fontSize: '1rem', color: '#9ca3af', marginLeft: 6, fontWeight: 600 }}>
+            <span style={{ fontSize: '1rem', color: 'var(--color-text-soft)', marginLeft: 6, fontWeight: 600 }}>
               {t.birr}
             </span>
           </p>
           {params.ref && (
-            <p style={{ fontSize: '0.62rem', color: '#9ca3af', marginTop: 4, fontFamily: 'JetBrains Mono, monospace' }}>
+            <p style={{ fontSize: '0.62rem', color: 'var(--color-text-soft)', marginTop: 4, fontFamily: 'JetBrains Mono, monospace' }}>
               ref · {params.ref}
             </p>
           )}
@@ -348,7 +348,7 @@ function PayPage() {
                 full bank-transfer card with the account number. Otherwise it
                 falls back to a generic contact card with the shop's phone/Telegram. */}
             <div style={{
-              background: '#fff',
+              background: 'var(--color-surface)',
               border: '1px solid #ece6d6',
               borderRadius: 12,
               padding: 14,
@@ -357,12 +357,12 @@ function PayPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
                 <div style={{
                   width: 40, height: 40, borderRadius: 10,
-                  background: '#1a1a1a', color: '#fff',
+                  background: 'var(--color-text)', color: 'var(--color-bg-white)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '1.2rem',
                   flexShrink: 0,
                 }}>🏦</div>
-                <p style={{ flex: 1, fontSize: '0.92rem', fontWeight: 700, color: '#1f2937' }}>
+                <p style={{ flex: 1, fontSize: '0.92rem', fontWeight: 700, color: 'var(--color-text)' }}>
                   {params.bk_n ? params.bk_n : t.bankName}
                 </p>
               </div>
@@ -382,7 +382,7 @@ function PayPage() {
               {/* Contact rows */}
               {(params.phone || params.tg) ? (
                 <>
-                  <p style={{ fontSize: '0.7rem', color: '#6b7280', margin: '8px 0 6px' }}>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', margin: '8px 0 6px' }}>
                     {t.bankSubWithPhone}:
                   </p>
                   {params.phone && (
@@ -407,7 +407,7 @@ function PayPage() {
                   )}
                 </>
               ) : !params.bk_a && (
-                <p style={{ fontSize: '0.78rem', color: '#6b7280' }}>
+                <p style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
                   {t.bankSubNoContact}
                 </p>
               )}
@@ -423,16 +423,16 @@ function PayPage() {
             style={{
               marginTop: 18,
               padding: 14,
-              background: '#f0fdf4',
+              background: 'var(--color-success-bg)',
               border: '1px solid #86efac',
               borderRadius: 12,
               textAlign: 'center',
             }}
           >
-            <p style={{ fontSize: '0.62rem', fontWeight: 800, color: '#047857', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
+            <p style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--color-success-text)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
               {t.iPaidTitle}
             </p>
-            <p style={{ fontSize: '0.78rem', color: '#065f46', marginBottom: 10 }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--color-success-text)', marginBottom: 10 }}>
               {t.iPaidSub}
             </p>
             <button
@@ -441,8 +441,8 @@ function PayPage() {
               style={{
                 width: '100%',
                 padding: '12px',
-                background: '#16a34a',
-                color: '#fff',
+                background: 'var(--color-success)',
+                color: 'var(--color-bg-white)',
                 border: 'none',
                 borderRadius: 10,
                 fontSize: '0.95rem',
@@ -461,11 +461,11 @@ function PayPage() {
             style={{
               marginTop: 18,
               padding: 14,
-              background: '#dbeafe',
+              background: 'var(--color-info-bg)',
               border: '1px solid #93c5fd',
               borderRadius: 10,
               fontSize: '0.78rem',
-              color: '#1e3a8a',
+              color: 'var(--color-info-text)',
               textAlign: 'center',
               lineHeight: 1.55,
             }}
@@ -489,7 +489,7 @@ function PayPage() {
           >
             <div
               style={{
-                background: '#fff',
+                background: 'var(--color-surface)',
                 borderRadius: 18,
                 padding: 22,
                 width: '100%', maxWidth: 380,
@@ -500,12 +500,12 @@ function PayPage() {
               <h3
                 style={{
                   fontSize: '1.1rem', fontWeight: 800,
-                  color: '#065f46', textAlign: 'center', marginBottom: 6,
+                  color: 'var(--color-success-text)', textAlign: 'center', marginBottom: 6,
                 }}
               >
                 {t.iPaidConfirmTitle}
               </h3>
-              <p style={{ fontSize: '0.85rem', color: '#6b7280', textAlign: 'center', marginBottom: 16 }}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', textAlign: 'center', marginBottom: 16 }}>
                 {t.iPaidConfirmBody}
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -523,7 +523,7 @@ function PayPage() {
                     }}
                     style={{
                       width: '100%', padding: 14,
-                      background: '#0088cc', color: '#fff',
+                      background: '#0088cc', color: 'var(--color-bg-white)',
                       border: 'none', borderRadius: 12,
                       fontSize: '0.95rem', fontWeight: 800,
                       cursor: 'pointer', minHeight: 48,
@@ -546,7 +546,7 @@ function PayPage() {
                     }}
                     style={{
                       width: '100%', padding: 14,
-                      background: '#16a34a', color: '#fff',
+                      background: 'var(--color-success)', color: 'var(--color-bg-white)',
                       border: 'none', borderRadius: 12,
                       fontSize: '0.95rem', fontWeight: 800,
                       cursor: 'pointer', minHeight: 48,
@@ -561,7 +561,7 @@ function PayPage() {
                   onClick={() => setShowPaidConfirm(false)}
                   style={{
                     width: '100%', padding: 14,
-                    background: '#f3f4f6', color: '#374151',
+                    background: 'var(--color-bg-hover)', color: 'var(--color-text)',
                     border: 'none', borderRadius: 12,
                     fontSize: '0.9rem', fontWeight: 700,
                     cursor: 'pointer', minHeight: 48,
@@ -578,11 +578,11 @@ function PayPage() {
         <div style={{
           marginTop: 18,
           padding: 14,
-          background: '#f0fdf4',
+          background: 'var(--color-success-bg)',
           border: '1px solid #a3e9c1',
           borderRadius: 10,
           fontSize: '0.78rem',
-          color: '#064e3b',
+          color: 'var(--color-success-text)',
           textAlign: 'center',
           lineHeight: 1.55,
         }}>
@@ -592,7 +592,7 @@ function PayPage() {
         {/* Footer */}
         <p style={{
           textAlign: 'center', marginTop: 18,
-          fontSize: '0.7rem', color: '#9ca3af',
+          fontSize: '0.7rem', color: 'var(--color-text-soft)',
         }}>
           {t.poweredBy}
         </p>
@@ -654,8 +654,8 @@ function ChannelCard({
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCardClick(e); }}
       style={{
         width: '100%',
-        background: featured ? 'linear-gradient(135deg, #f0fdf4 0%, #fff 100%)' : '#fff',
-        border: `1px solid ${featured ? '#a3e9c1' : '#ece6d6'}`,
+        background: featured ? 'linear-gradient(135deg, #f0fdf4 0%, #fff 100%)' : 'var(--color-bg-white)',
+        border: `1px solid ${featured ? 'var(--color-success-border)' : 'var(--color-border)'}`,
         borderRadius: 12,
         padding: 14,
         marginBottom: 6,
@@ -674,7 +674,7 @@ function ChannelCard({
           {icon}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1f2937', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <p style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: 6 }}>
             {name}
             {tag && (
               <span style={{
@@ -688,9 +688,9 @@ function ChannelCard({
               </span>
             )}
           </p>
-          <p style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 2 }}>{sub}</p>
+          <p style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: 2 }}>{sub}</p>
         </div>
-        <span style={{ fontSize: '1.1rem', color: '#9ca3af' }}>→</span>
+        <span style={{ fontSize: '1.1rem', color: 'var(--color-text-soft)' }}>→</span>
       </div>
 
       {/* Account-number row (Commit C.1) — visible when shopkeeper has set
@@ -712,7 +712,7 @@ function ChannelCard({
               flex: 1,
               fontSize: '0.92rem',
               fontWeight: 800,
-              color: '#1f2937',
+              color: 'var(--color-text)',
               fontFamily: 'JetBrains Mono, ui-monospace, SFMono-Regular, monospace',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               letterSpacing: '0.02em',
@@ -725,8 +725,8 @@ function ChannelCard({
             data-copy-button
             onClick={(e) => { e.stopPropagation(); onCopy?.(accountValue, accountKey); }}
             style={{
-              background: copiedKey === accountKey ? '#047857' : '#1a1a1a',
-              color: '#fff',
+              background: copiedKey === accountKey ? 'var(--color-success-text)' : 'var(--color-text)',
+              color: 'var(--color-bg-white)',
               padding: '5px 12px',
               borderRadius: 6,
               fontSize: '0.72rem', fontWeight: 800,
@@ -754,7 +754,7 @@ function ChannelCard({
           }}
         >
           {secondaryLabel && (
-            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#6b7280', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--color-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               {secondaryLabel}
             </span>
           )}
@@ -763,7 +763,7 @@ function ChannelCard({
               flex: 1,
               fontSize: '0.88rem',
               fontWeight: 800,
-              color: '#1f2937',
+              color: 'var(--color-text)',
               fontFamily: 'JetBrains Mono, ui-monospace, SFMono-Regular, monospace',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}
@@ -775,8 +775,8 @@ function ChannelCard({
             data-copy-button
             onClick={(e) => { e.stopPropagation(); onCopy?.(secondaryValue, secondaryKey); }}
             style={{
-              background: copiedKey === secondaryKey ? '#047857' : '#1a1a1a',
-              color: '#fff',
+              background: copiedKey === secondaryKey ? 'var(--color-success-text)' : 'var(--color-text)',
+              color: 'var(--color-bg-white)',
               padding: '5px 12px',
               borderRadius: 6,
               fontSize: '0.7rem', fontWeight: 800,
@@ -798,21 +798,21 @@ function ContactRow({ label, value, onCopy, copied, copyLabel, copiedLabel }) {
     <div style={{
       display: 'flex', alignItems: 'center', gap: 8,
       padding: '8px 10px',
-      background: '#f9f6f0',
+      background: 'var(--color-surface-soft)',
       border: '1px solid #ece6d6',
       borderRadius: 8,
       marginBottom: 4,
     }}>
       <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{label}</span>
-      <span style={{ flex: 1, fontSize: '0.88rem', fontWeight: 700, color: '#1f2937', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span style={{ flex: 1, fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {value}
       </span>
       <button
         type="button"
         onClick={onCopy}
         style={{
-          background: copied ? '#047857' : '#1a1a1a',
-          color: '#fff',
+          background: copied ? 'var(--color-success-text)' : 'var(--color-text)',
+          color: 'var(--color-bg-white)',
           padding: '4px 10px',
           borderRadius: 6,
           fontSize: '0.7rem', fontWeight: 800,

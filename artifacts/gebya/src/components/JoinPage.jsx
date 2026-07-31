@@ -219,7 +219,7 @@ export default function JoinPage() {
 
   if (status === 'checking') {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#FAF8F5' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--color-surface-muted)' }}>
         <div className="text-center">
           <div className="w-10 h-10 border-2 border-green-700 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-sm text-gray-500">...</p>
@@ -230,9 +230,9 @@ export default function JoinPage() {
 
   if (status === 'joined') {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: '#FAF8F5' }}>
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--color-surface-muted)' }}>
         <div className="bg-white rounded-3xl p-8 w-full max-w-sm text-center shadow-lg">
-          <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: '#ecfdf5' }}>
+          <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'var(--color-success-bg)' }}>
             <Check className="w-8 h-8 text-green-700" />
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-1">{tx.joined}</h2>
@@ -244,16 +244,16 @@ export default function JoinPage() {
 
   if (status === 'error') {
     return (
-      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: '#FAF8F5' }}>
+      <div className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--color-surface-muted)' }}>
         <div className="bg-white rounded-3xl p-8 w-full max-w-sm text-center shadow-lg">
-          <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: '#fef2f2' }}>
+          <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: 'var(--color-danger-bg)' }}>
             <AlertCircle className="w-8 h-8 text-red-700" />
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">
             {lang === 'am' ? 'ይቅርታ' : 'Sorry'}
           </h2>
           <p className="text-sm text-gray-500 mb-4">{error}</p>
-          <a href="/" className="inline-block px-6 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: '#1B4332' }}>
+          <a href="/" className="inline-block px-6 py-2.5 rounded-xl text-sm font-bold text-white" style={{ background: 'var(--color-primary)' }}>
             {lang === 'am' ? 'ወደ ጌባያ ይሂዱ' : 'Go to Gebya'}
           </a>
         </div>
@@ -263,23 +263,23 @@ export default function JoinPage() {
 
   // status === 'login'
   return (
-    <div className="min-h-screen flex items-center justify-center px-6" style={{ background: '#FAF8F5' }}>
+    <div className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--color-surface-muted)' }}>
       <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-lg">
         <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-xl mx-auto mb-3 flex items-center justify-center" style={{ background: '#f0fdf4' }}>
+          <div className="w-12 h-12 rounded-xl mx-auto mb-3 flex items-center justify-center" style={{ background: 'var(--color-success-bg)' }}>
             <Building2 className="w-6 h-6 text-green-700" />
           </div>
           <h2 className="text-xl font-bold text-gray-900">{tx.joinTitle(businessName)}</h2>
           <p className="text-sm text-gray-500 mt-1">{tx.joinSubtitle}</p>
           {role && (
-            <span className="inline-block mt-2 text-xs font-bold px-3 py-1 rounded-full" style={{ background: '#fef3c7', color: '#92400e' }}>
+            <span className="inline-block mt-2 text-xs font-bold px-3 py-1 rounded-full" style={{ background: 'var(--color-warning-bg)', color: 'var(--color-warning)' }}>
               {role === 'cashier' ? (lang === 'am' ? 'ካሸር' : 'Cashier') : (lang === 'am' ? 'ተመልካች' : 'Viewer')}
             </span>
           )}
         </div>
 
         {error && (
-          <div className="mb-4 rounded-xl px-4 py-3 text-xs font-medium flex items-center gap-2" style={{ background: '#fef2f2', color: '#991b1b' }}>
+          <div className="mb-4 rounded-xl px-4 py-3 text-xs font-medium flex items-center gap-2" style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger-text)' }}>
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             {error}
           </div>
@@ -290,7 +290,7 @@ export default function JoinPage() {
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1.5">{tx.phoneLabel}</label>
               <div className="flex gap-0">
-                <div className="flex items-center justify-center px-3 py-3 rounded-l-xl border-2 border-r-0 text-sm font-bold" style={{ background: '#f5f0e8', borderColor: '#e8e2d8', color: '#1B4332', minWidth: '64px' }}>
+                <div className="flex items-center justify-center px-3 py-3 rounded-l-xl border-2 border-r-0 text-sm font-bold" style={{ background: 'var(--color-surface-muted)', borderColor: 'var(--color-border)', color: 'var(--color-primary)', minWidth: '64px' }}>
                   +251
                 </div>
                 <input
@@ -306,7 +306,7 @@ export default function JoinPage() {
                   placeholder={tx.phonePlaceholder}
                   maxLength={9}
                   className="flex-1 px-4 py-3 border-2 rounded-r-xl text-sm focus:outline-none"
-                  style={{ borderColor: error ? '#fca5a5' : '#e8e2d8' }}
+                  style={{ borderColor: error ? 'var(--color-danger-border)' : 'var(--color-border)' }}
                   autoFocus
                 />
               </div>
@@ -315,7 +315,7 @@ export default function JoinPage() {
               onClick={handleRequestOtp}
               disabled={loading || !isValidLocalPhone(phone)}
               className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all min-h-[48px]"
-              style={{ background: loading ? '#e5e7eb' : '#1B4332', color: loading ? '#9ca3af' : '#fff' }}
+              style={{ background: loading ? 'var(--color-bg-disabled)' : 'var(--color-primary)', color: loading ? 'var(--color-text-soft)' : 'var(--color-bg-white)' }}
             >
               {loading ? '...' : <><ArrowRight className="w-4 h-4" /> {tx.continue}</>}
             </button>
@@ -334,7 +334,7 @@ export default function JoinPage() {
                 placeholder={tx.otpPlaceholder}
                 maxLength={6}
                 className="w-full px-4 py-3 border-2 rounded-xl text-sm font-bold tracking-widest text-center focus:outline-none"
-                style={{ borderColor: '#e8e2d8' }}
+                style={{ borderColor: 'var(--color-border)' }}
                 autoFocus
               />
             </div>
@@ -342,7 +342,7 @@ export default function JoinPage() {
               onClick={handleVerifyOtp}
               disabled={loading || otp.length !== 6}
               className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all min-h-[48px]"
-              style={{ background: loading ? '#e5e7eb' : '#1B4332', color: loading ? '#9ca3af' : '#fff' }}
+              style={{ background: loading ? 'var(--color-bg-disabled)' : 'var(--color-primary)', color: loading ? 'var(--color-text-soft)' : 'var(--color-bg-white)' }}
             >
               {loading ? '...' : <><Check className="w-4 h-4" /> {tx.verify}</>}
             </button>
@@ -350,7 +350,7 @@ export default function JoinPage() {
               <button
                 onClick={() => setStep('phone')}
                 className="flex-1 py-2.5 rounded-xl text-xs font-bold min-h-[40px]"
-                style={{ background: '#f5f5f5', color: '#374151' }}
+                style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text)' }}
               >
                 {tx.back}
               </button>
@@ -358,7 +358,7 @@ export default function JoinPage() {
                 onClick={handleRequestOtp}
                 disabled={loading}
                 className="flex-1 py-2.5 rounded-xl text-xs font-bold min-h-[40px]"
-                style={{ background: '#FAF8F5', color: '#1B4332', border: '1px solid #e8e2d8' }}
+                style={{ background: 'var(--color-surface-muted)', color: 'var(--color-primary)', border: '1px solid #e8e2d8' }}
               >
                 {tx.resend}
               </button>

@@ -15,7 +15,7 @@ function MoneyRow({ label, value, color = '#1f2937', bold = false, suffix = ' ET
       padding: '10px 0',
       borderBottom: '1px solid #f3f4f6',
     }}>
-      <span style={{ fontSize: 13, color: '#374151', fontWeight: bold ? 800 : 600 }}>
+      <span style={{ fontSize: 13, color: 'var(--color-text)', fontWeight: bold ? 800 : 600 }}>
         {label}
       </span>
       <span style={{
@@ -34,19 +34,19 @@ function ExpenseBar({ name, amount, maxAmount }) {
   const width = maxAmount > 0 ? (amount / maxAmount) * 100 : 0;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-      <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 700, width: 70, textAlign: 'right', flexShrink: 0 }}>
+      <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 700, width: 70, textAlign: 'right', flexShrink: 0 }}>
         {name}
       </span>
-      <div style={{ flex: 1, height: 8, background: '#f3f4f6', borderRadius: 4, overflow: 'hidden' }}>
+      <div style={{ flex: 1, height: 8, background: 'var(--color-bg-hover)', borderRadius: 4, overflow: 'hidden' }}>
         <div style={{
           width: `${Math.min(width, 100)}%`,
           height: '100%',
-          background: '#1B4332',
+          background: 'var(--color-primary)',
           borderRadius: 4,
           transition: 'width 0.3s',
         }} />
       </div>
-      <span style={{ fontSize: 11, fontWeight: 800, color: '#374151', width: 60, fontVariantNumeric: 'tabular-nums' }}>
+      <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-text)', width: 60, fontVariantNumeric: 'tabular-nums' }}>
         {fmt(amount)}
       </span>
     </div>
@@ -77,7 +77,7 @@ export default function MoneySection({ money, expenseBreakdown = [], hidden = fa
           value={money.expenses}
           color="#dc2626"
         />
-        <div style={{ height: 1, background: '#e5e7eb', margin: '4px 0' }} />
+        <div style={{ height: 1, background: 'var(--color-bg-disabled)', margin: '4px 0' }} />
         <MoneyRow
           label={lang === 'am' ? 'የሚጠበቅ ጥሬ ገንዘብ' : 'Cash expected'}
           value={money.cashExpected}
@@ -87,7 +87,7 @@ export default function MoneySection({ money, expenseBreakdown = [], hidden = fa
           value={money.transferRecorded}
           color="#d97706"
         />
-        <div style={{ height: 1, background: '#e5e7eb', margin: '4px 0' }} />
+        <div style={{ height: 1, background: 'var(--color-bg-disabled)', margin: '4px 0' }} />
         <MoneyRow
           label={lang === 'am' ? 'የተሰጠ ዱቤ' : 'Credit extended'}
           value={money.creditExtended}
@@ -101,7 +101,7 @@ export default function MoneySection({ money, expenseBreakdown = [], hidden = fa
 
         {showProfit && (
           <>
-            <div style={{ height: 1, background: '#e5e7eb', margin: '4px 0' }} />
+            <div style={{ height: 1, background: 'var(--color-bg-disabled)', margin: '4px 0' }} />
             <MoneyRow
               label={lang === 'am' ? 'የተጠላ ቀሪ' : 'Estimated earnings'}
               value={money.totalProfit}
@@ -114,7 +114,7 @@ export default function MoneySection({ money, expenseBreakdown = [], hidden = fa
         {/* Expense breakdown */}
         {expenseBreakdown.length > 0 && (
           <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f3f4f6' }}>
-            <p style={{ fontSize: 10, fontWeight: 900, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+            <p style={{ fontSize: 10, fontWeight: 900, color: 'var(--color-text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
               {lang === 'am' ? 'ወጪ ማጠቃለያ' : 'Expense breakdown'}
             </p>
             {expenseBreakdown.slice(0, 5).map((item, i) => (

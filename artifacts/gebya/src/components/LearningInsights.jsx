@@ -39,7 +39,7 @@ export default function LearningInsights() {
 
   return (
     <div className="space-y-1.5">
-      <p className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#6b7280' }}>
+      <p className="text-[11px] font-black uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>
         {lang === 'am' ? '\u1348\u1275\u1295\u1235 \u12A0\u1295\u12F3' : 'Insights'}
       </p>
       {insights.map((insight, i) => (
@@ -47,18 +47,18 @@ export default function LearningInsights() {
           key={`${insight.type}-${insight.catalog_entry_id}-${i}`}
           className="flex items-start gap-2 p-2.5 border"
           style={{
-            borderColor: '#e8e2d8',
+            borderColor: 'var(--color-border)',
             borderRadius: 'var(--radius-sm)',
-            background: '#fafaf8',
+            background: 'var(--color-surface-subtle)',
             fontSize: 12,
           }}
         >
           <span className="text-base flex-shrink-0 mt-0.5">{icon(insight.type)}</span>
           <div className="min-w-0">
-            <p className="font-bold" style={{ color: '#111827' }}>
+            <p className="font-bold" style={{ color: 'var(--color-text)' }}>
               {insight.message}
             </p>
-            <p className="text-xs mt-0.5" style={{ color: '#6b7280' }}>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
               {insight.detail}
             </p>
           </div>

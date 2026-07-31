@@ -319,7 +319,7 @@ export default function StaffPage({
 
       {/* Settlement Sheet */}
       {store.settling && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(2px)' }}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'var(--color-overlay)', backdropFilter: 'blur(2px)' }}>
           <div className="w-full max-w-md rounded-2xl bg-white px-4 pb-6 pt-2 max-h-[90vh] overflow-y-auto" style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
             <div className="w-9 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
             <SettlementSheet

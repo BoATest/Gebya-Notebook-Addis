@@ -74,9 +74,9 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
                 minWidth: '56px',
                 minHeight: '38px',
                 borderRadius: '2px',
-                borderColor: selected ? '#1B4332' : '#edeae5',
-                background: selected ? 'rgba(27,67,50,0.06)' : '#fff',
-                color: selected ? '#1B4332' : '#9ca3af',
+                borderColor: selected ? 'var(--color-primary)' : 'var(--color-border-light)',
+                background: selected ? 'rgba(27,67,50,0.06)' : 'var(--color-bg-white)',
+                color: selected ? 'var(--color-primary)' : 'var(--color-text-soft)',
                 whiteSpace: 'nowrap',
               }}
             >

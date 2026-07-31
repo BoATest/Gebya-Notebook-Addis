@@ -24,22 +24,22 @@ function CustomerRow({ customer, hidden = false, lang = 'en', onAction }) {
           width: 32,
           height: 32,
           borderRadius: '50%',
-          background: isOverdue ? '#fef2f2' : '#f3f4f6',
+          background: isOverdue ? 'var(--color-danger-bg)' : 'var(--color-bg-hover)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 12,
           fontWeight: 900,
-          color: isOverdue ? '#dc2626' : '#6b7280',
+          color: isOverdue ? 'var(--color-danger)' : 'var(--color-text-muted)',
           flexShrink: 0,
         }}>
           {(customer.display_name || customer.name || 'C').charAt(0).toUpperCase()}
         </div>
         <div style={{ minWidth: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 800, color: '#1f2937', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {customer.display_name || customer.name || (lang === 'am' ? 'ደንበኛ' : 'Customer')}
           </p>
-          <p style={{ fontSize: 10, color: isOverdue ? '#dc2626' : '#9ca3af' }}>
+          <p style={{ fontSize: 10, color: isOverdue ? 'var(--color-danger)' : 'var(--color-text-soft)' }}>
             {isOverdue
               ? (lang === 'am' ? `${daysOverdue} ቀን አልፏል` : `${daysOverdue} days overdue`)
               : (lang === 'am' ? 'በጊዜው ውስጥ' : 'On time')
@@ -51,7 +51,7 @@ function CustomerRow({ customer, hidden = false, lang = 'en', onAction }) {
         <span style={{
           fontSize: 14,
           fontWeight: 900,
-          color: isOverdue ? '#dc2626' : '#d97706',
+          color: isOverdue ? 'var(--color-danger)' : 'var(--color-accent-amber)',
           fontVariantNumeric: 'tabular-nums',
         }}>
           {hidden ? '••••' : fmt(customer.balance)}
@@ -64,10 +64,10 @@ function CustomerRow({ customer, hidden = false, lang = 'en', onAction }) {
               padding: '4px 8px',
               borderRadius: 6,
               border: '1px solid #e5e7eb',
-              background: '#fff',
+              background: 'var(--color-surface)',
               fontSize: 10,
               fontWeight: 800,
-              color: '#1B4332',
+              color: 'var(--color-primary)',
               cursor: 'pointer',
             }}
           >
@@ -93,26 +93,26 @@ export default function CreditSection({ credit, hidden = false, lang = 'en', onA
         {/* Summary */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
           <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: 9, fontWeight: 800, color: '#dc2626', textTransform: 'uppercase' }}>
+            <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--color-danger)', textTransform: 'uppercase' }}>
               {lang === 'am' ? 'የዘገዩ' : 'Overdue'}
             </p>
-            <p style={{ fontSize: 16, fontWeight: 900, color: '#dc2626', marginTop: 2 }}>
+            <p style={{ fontSize: 16, fontWeight: 900, color: 'var(--color-danger)', marginTop: 2 }}>
               {credit.overdueCount}
             </p>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: 9, fontWeight: 800, color: '#d97706', textTransform: 'uppercase' }}>
+            <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--color-accent-amber)', textTransform: 'uppercase' }}>
               {lang === 'am' ? 'ጠቅላላ' : 'Total owed'}
             </p>
-            <p style={{ fontSize: 16, fontWeight: 900, color: '#d97706', marginTop: 2 }}>
+            <p style={{ fontSize: 16, fontWeight: 900, color: 'var(--color-accent-amber)', marginTop: 2 }}>
               {hidden ? '••••' : fmt(credit.totalOwed)}
             </p>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <p style={{ fontSize: 9, fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase' }}>
+            <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--color-text-soft)', textTransform: 'uppercase' }}>
               {lang === 'am' ? 'ደንበኛ' : 'Customers'}
             </p>
-            <p style={{ fontSize: 16, fontWeight: 900, color: '#374151', marginTop: 2 }}>
+            <p style={{ fontSize: 16, fontWeight: 900, color: 'var(--color-text)', marginTop: 2 }}>
               {credit.totalCount}
             </p>
           </div>
@@ -121,7 +121,7 @@ export default function CreditSection({ credit, hidden = false, lang = 'en', onA
         {/* Overdue customers */}
         {credit.overdue.length > 0 && (
           <div>
-            <p style={{ fontSize: 10, fontWeight: 900, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+            <p style={{ fontSize: 10, fontWeight: 900, color: 'var(--color-danger)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
               {lang === 'am' ? 'የዘገዩ' : 'Overdue'}
             </p>
             {credit.overdue.slice(0, 5).map((customer, i) => (
@@ -133,7 +133,7 @@ export default function CreditSection({ credit, hidden = false, lang = 'en', onA
         {/* Due customers (not overdue) */}
         {credit.dueToday.length > 0 && (
           <div style={{ marginTop: credit.overdue.length > 0 ? 12 : 0 }}>
-            <p style={{ fontSize: 10, fontWeight: 900, color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+            <p style={{ fontSize: 10, fontWeight: 900, color: 'var(--color-accent-amber)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
               {lang === 'am' ? 'በጊዜው ውስጥ' : 'Due soon'}
             </p>
             {credit.dueToday.slice(0, 3).map((customer, i) => (
@@ -152,10 +152,10 @@ export default function CreditSection({ credit, hidden = false, lang = 'en', onA
               marginTop: 8,
               border: '1px solid #e5e7eb',
               borderRadius: 8,
-              background: '#fafaf5',
+              background: 'var(--color-surface-subtle)',
               fontSize: 12,
               fontWeight: 800,
-              color: '#1B4332',
+              color: 'var(--color-primary)',
               cursor: 'pointer',
             }}
           >

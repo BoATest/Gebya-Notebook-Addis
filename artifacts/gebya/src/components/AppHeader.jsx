@@ -40,7 +40,7 @@ export default function AppHeader({
           className="flex-shrink-0 press-scale flex items-center justify-center rounded-full font-bold text-white"
           aria-label="Open profile"
           style={{
-            width: '36px', height: '36px', background: '#6b7280',
+            width: '36px', height: '36px', background: 'var(--color-text-muted)',
             fontSize: '14px', letterSpacing: '0.02em',
           }}
         >
@@ -48,13 +48,13 @@ export default function AppHeader({
         </button>
 
         <div className="flex-1 min-w-0">
-          <h1 className="text-sm sm:text-base font-bold tracking-tight leading-tight truncate" style={{ color: '#1a1a1a' }}>
+          <h1 className="text-sm sm:text-base font-bold tracking-tight leading-tight truncate" style={{ color: 'var(--color-text)' }}>
             <BusinessSelector shopProfile={shopProfile} currentBusinessId={currentBusinessId} />
           </h1>
           <button
             onClick={() => setShowActorPicker(!showActorPicker)}
             className="flex items-center gap-1 text-[10px] sm:text-xs font-medium mt-0.5 truncate press-scale"
-            style={{ color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            style={{ color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
           >
             {T('Recording as', 'እየመዘገቡ ያሉት')} {currentActorLabel || 'Owner'}
             <ChevronDown className="w-3 h-3" />
@@ -69,10 +69,10 @@ export default function AppHeader({
           >
             <div
               className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-72 bg-white rounded-2xl overflow-hidden shadow-xl border"
-              style={{ borderColor: '#e8e2d8' }}
+              style={{ borderColor: 'var(--color-border)' }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="px-4 py-3 text-xs font-black uppercase tracking-wide text-gray-500 border-b" style={{ borderColor: '#f0ece4' }}>
+              <div className="px-4 py-3 text-xs font-black uppercase tracking-wide text-gray-500 border-b" style={{ borderColor: 'var(--color-border-light)' }}>
                 {T('Switch actor', 'ተጠቃሚ ቀይር')}
               </div>
               <div className="py-1">
@@ -80,7 +80,7 @@ export default function AppHeader({
                   onClick={() => { onSetActiveStaffMember?.(null); setShowActorPicker(false); }}
                   className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-50"
                 >
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0" style={{ background: '#1B4332' }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0" style={{ background: 'var(--color-primary)' }}>
                     {shopProfile.name?.charAt(0)?.toUpperCase() || 'O'}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -95,7 +95,7 @@ export default function AppHeader({
                     onClick={() => { onSetActiveStaffMember?.(m.id); setShowActorPicker(false); }}
                     className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-gray-50"
                   >
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style={{ background: '#f0fdf4', color: '#16a34a' }}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0" style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)' }}>
                       {(m.display_name || 'S').charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -113,18 +113,18 @@ export default function AppHeader({
         <button
           onClick={toggleLang}
           className="flex items-center flex-shrink-0 press-scale"
-          style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '2px' }}
+          style={{ background: 'var(--color-surface)', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '2px' }}
           aria-label={lang === 'en' ? 'Switch to Amharic' : 'Switch to English'}
         >
           <span style={{
-            background: lang === 'en' ? '#1B4332' : 'transparent',
-            color: lang === 'en' ? '#fff' : '#9ca3af',
+            background: lang === 'en' ? 'var(--color-primary)' : 'transparent',
+            color: lang === 'en' ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
             fontWeight: lang === 'en' ? 700 : 600,
             padding: '3px 8px', borderRadius: '6px', fontSize: '11px', transition: 'all 0.18s',
           }}>EN</span>
           <span style={{
-            background: lang === 'am' ? '#1B4332' : 'transparent',
-            color: lang === 'am' ? '#fff' : '#9ca3af',
+            background: lang === 'am' ? 'var(--color-primary)' : 'transparent',
+            color: lang === 'am' ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
             fontWeight: lang === 'am' ? 700 : 600,
             padding: '3px 7px', borderRadius: '6px', fontSize: '11px', transition: 'all 0.18s',
           }}>አማ</span>
@@ -136,12 +136,12 @@ export default function AppHeader({
           aria-label={lang === 'am' ? 'ማስጠንቂቾች' : 'Notifications'}
           style={{ position: 'relative', minWidth: '44px', minHeight: '44px', padding: '8px' }}
         >
-          <Bell className="w-5 h-5" style={{ color: unreadNotifCount > 0 ? '#1B4332' : '#9ca3af' }} />
+          <Bell className="w-5 h-5" style={{ color: unreadNotifCount > 0 ? 'var(--color-primary)' : 'var(--color-text-soft)' }} />
           {unreadNotifCount > 0 && (
             <span style={{
               position: 'absolute', top: 6, right: 6,
               minWidth: 14, height: 14, borderRadius: 999,
-              background: '#dc2626', color: '#fff',
+              background: 'var(--color-danger)', color: 'var(--color-bg-white)',
               fontSize: '0.5rem', fontWeight: 800,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: '0 3px',
@@ -157,7 +157,7 @@ export default function AppHeader({
           aria-label="Settings"
           style={{ minWidth: '44px', minHeight: '44px', padding: '8px' }}
         >
-          <Settings className="w-5 h-5" style={{ color: '#6b7280' }} />
+          <Settings className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
         </button>
       </div>
       <OfflineStatusStrip

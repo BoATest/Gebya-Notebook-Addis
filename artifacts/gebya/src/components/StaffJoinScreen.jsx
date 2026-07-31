@@ -325,14 +325,14 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
                    style={{
                      display: 'flex', alignItems: 'center', justifyContent: 'center',
                      padding: '0 12px',
-                     background: '#f5f0e8',
-                     border: `2px solid ${(phoneTouched && phone && !isValidEthiopianPhone(phone)) ? '#ef4444' : '#d1d5db'}`,
+                     background: 'var(--color-surface-muted)',
+                     border: `2px solid ${(phoneTouched && phone && !isValidEthiopianPhone(phone)) ? 'var(--color-danger)' : 'var(--color-text-soft)'}`,
                      borderRight: 'none',
                      borderTopLeftRadius: 'var(--radius-md)',
                      borderBottomLeftRadius: 'var(--radius-md)',
                      fontSize: '0.92rem',
                      fontWeight: 800,
-                     color: '#1B4332',
+                     color: 'var(--color-primary)',
                      minWidth: 64,
                      minHeight: 48,
                    }}
@@ -351,8 +351,8 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
                    style={{
                      borderRadius: '0 var(--radius-md) var(--radius-md) 0',
                      borderColor: (phoneTouched && phone && !isValidEthiopianPhone(phone))
-                       ? '#ef4444'
-                       : '#d1d5db',
+                       ? 'var(--color-danger)'
+                       : 'var(--color-text-soft)',
                      minHeight: 48,
                      fontVariantNumeric: 'tabular-nums',
                      letterSpacing: '0.04em',
@@ -360,7 +360,7 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
                  />
                </div>
                {phoneTouched && phone && isValidEthiopianPhone(phone) && (
-                 <p className="text-xs mt-1.5 font-medium" style={{ color: '#1B4332' }}>
+                 <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--color-primary)' }}>
                    {formatEthiopianPhone('+251' + phone)}
                  </p>
                )}

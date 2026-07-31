@@ -23,7 +23,7 @@ export default function TodayStory({
 
   return (
     <div style={{
-      background: '#fff',
+      background: 'var(--color-surface)',
       borderRadius: 12,
       border: '1px solid #ece6d6',
       padding: '14px 16px',
@@ -32,7 +32,7 @@ export default function TodayStory({
       <p style={{
         fontSize: 13,
         fontWeight: 500,
-        color: '#4b5563',
+        color: 'var(--color-text-muted)',
         lineHeight: 1.6,
         fontStyle: 'italic',
       }}>

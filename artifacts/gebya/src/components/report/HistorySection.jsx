@@ -38,10 +38,10 @@ function TransactionRow({ tx, hidden = false, lang = 'en', onEdit }) {
       }}
     >
       <div style={{ minWidth: 0 }}>
-        <p style={{ fontSize: 13, fontWeight: 900, color: '#1f2937', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <p style={{ fontSize: 13, fontWeight: 900, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {tx.title || tx.item_name || tx.note || (lang === 'am' ? 'መዝገብ' : 'Record')}
         </p>
-        <p style={{ fontSize: 10, color: '#9ca3af' }}>
+        <p style={{ fontSize: 10, color: 'var(--color-text-soft)' }}>
           {tx.report_kind === 'credit' ? '📝 Dubie' : tx.report_kind === 'collection' ? '💰 Collection' : tx.payment_type || 'Cash'} · {time}
         </p>
       </div>
@@ -90,7 +90,7 @@ export default function HistorySection({
             left: 12,
             top: '50%',
             transform: 'translateY(-50%)',
-            color: '#9ca3af',
+            color: 'var(--color-text-soft)',
           }} />
           <input
             type="text"
@@ -101,7 +101,7 @@ export default function HistorySection({
               width: '100%',
               minHeight: 40,
               padding: '8px 36px 8px 36px',
-              border: `1px solid ${localQuery ? '#1B4332' : '#e5e7eb'}`,
+              border: `1px solid ${localQuery ? 'var(--color-primary)' : 'var(--color-bg-disabled)'}`,
               borderRadius: 10,
               fontSize: 13,
               outline: 'none',
@@ -121,7 +121,7 @@ export default function HistorySection({
                 cursor: 'pointer',
               }}
             >
-              <X className="w-4 h-4" style={{ color: '#9ca3af' }} />
+              <X className="w-4 h-4" style={{ color: 'var(--color-text-soft)' }} />
             </button>
           )}
         </div>
@@ -143,10 +143,10 @@ export default function HistorySection({
               padding: 10,
               borderRadius: 10,
               border: '1px solid #e5e7eb',
-              background: '#fff',
+              background: 'var(--color-surface)',
               fontSize: 12,
               fontWeight: 800,
-              color: '#374151',
+              color: 'var(--color-text)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -164,10 +164,10 @@ export default function HistorySection({
               padding: 10,
               borderRadius: 10,
               border: '1px solid #e5e7eb',
-              background: '#fff',
+              background: 'var(--color-surface)',
               fontSize: 12,
               fontWeight: 800,
-              color: '#374151',
+              color: 'var(--color-text)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',

@@ -55,7 +55,7 @@ export default function SettlementAlertBanner({ lang = 'en', onFocus, isStaffVie
   return (
     <div onClick={onFocus}
       style={{
-        background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10,
+        background: 'var(--color-danger-bg)', border: '1px solid #fecaca', borderRadius: 10,
         padding: '10px 14px', marginBottom: 12, cursor: 'pointer',
         transition: 'background 0.15s',
       }}
@@ -64,16 +64,16 @@ export default function SettlementAlertBanner({ lang = 'en', onFocus, isStaffVie
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <p style={{ fontSize: 12, fontWeight: 800, color: '#dc2626', margin: 0 }}>
+          <p style={{ fontSize: 12, fontWeight: 800, color: 'var(--color-danger)', margin: 0 }}>
             {t('Settlement variances need review', 'የማስተካከያ ልዩነቶች መገምገም ያስፈልጋቸዋል')}
           </p>
           {alerts.map((a, i) => (
-            <p key={i} style={{ fontSize: 11, color: '#991b1b', margin: '2px 0 0' }}>
+            <p key={i} style={{ fontSize: 11, color: 'var(--color-danger-text)', margin: '2px 0 0' }}>
               {a.name} · {a.date} · {a.variance >= 0 ? '+' : ''}{fmt(a.variance)} ETB
             </p>
           ))}
         </div>
-        <span style={{ color: '#dc2626', fontSize: 16 }}>›</span>
+        <span style={{ color: 'var(--color-danger)', fontSize: 16 }}>›</span>
       </div>
     </div>
   );

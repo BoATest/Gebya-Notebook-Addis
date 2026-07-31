@@ -101,7 +101,7 @@ export default function StaffInviteAcceptScreen({ onJoined, onDismiss }) {
       <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center">
         {accepted ? (
           <div className="py-6 space-y-3 animate-elastic">
-            <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center" style={{ background: '#d1fae5' }}>
+            <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center" style={{ background: 'var(--color-success-bg)' }}>
               <Check className="w-8 h-8 text-green-700" />
             </div>
             <h2 className="text-xl font-black text-gray-900">
@@ -113,7 +113,7 @@ export default function StaffInviteAcceptScreen({ onJoined, onDismiss }) {
           </div>
         ) : declined ? (
           <div className="py-6 space-y-3">
-            <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center" style={{ background: '#fef2f2' }}>
+            <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center" style={{ background: 'var(--color-danger-bg)' }}>
               <X className="w-8 h-8 text-red-500" />
             </div>
             <p className="text-sm text-gray-600">
@@ -122,7 +122,7 @@ export default function StaffInviteAcceptScreen({ onJoined, onDismiss }) {
           </div>
         ) : (
           <div className="space-y-5">
-            <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center" style={{ background: '#1B4332' }}>
+            <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center" style={{ background: 'var(--color-primary)' }}>
               <span className="text-2xl font-black text-white">ው</span>
             </div>
             <h2 className="text-xl font-black text-gray-900">
@@ -134,7 +134,7 @@ export default function StaffInviteAcceptScreen({ onJoined, onDismiss }) {
                 : `The owner of ${activeInvite.business_name} has invited you to join as ${roleLabel}. Do you want to join?`}
             </p>
 
-            <div className="w-full rounded-xl px-4 py-3" style={{ background: '#f5f0e8' }}>
+            <div className="w-full rounded-xl px-4 py-3" style={{ background: 'var(--color-surface-muted)' }}>
               <div className="text-xs font-bold text-gray-500 uppercase tracking-wide">
                 {lang === 'am' ? 'ሚና' : 'Role'}
               </div>
@@ -147,7 +147,7 @@ export default function StaffInviteAcceptScreen({ onJoined, onDismiss }) {
                 onClick={handleDecline}
                 disabled={saving}
                 className="flex-1 py-3 rounded-xl text-sm font-bold min-h-[48px]"
-                style={{ background: '#f5f5f5', color: '#6b7280', border: '1px solid #e5e7eb' }}
+                style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)', border: '1px solid #e5e7eb' }}
               >
                 {lang === 'am' ? 'አልቀላቀልም' : 'Decline'}
               </button>
@@ -156,7 +156,7 @@ export default function StaffInviteAcceptScreen({ onJoined, onDismiss }) {
                 onClick={handleAccept}
                 disabled={saving}
                 className="flex-1 py-3 rounded-xl text-sm font-bold min-h-[48px]"
-                style={{ background: saving ? '#e5e7eb' : '#1B4332', color: saving ? '#9ca3af' : '#fff' }}
+                style={{ background: saving ? 'var(--color-bg-disabled)' : 'var(--color-primary)', color: saving ? 'var(--color-text-soft)' : 'var(--color-bg-white)' }}
               >
                 {saving ? '...' : (lang === 'am' ? 'ተቀላቀል' : 'Accept & Join')}
               </button>

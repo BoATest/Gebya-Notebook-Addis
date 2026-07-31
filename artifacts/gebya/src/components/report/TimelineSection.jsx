@@ -40,10 +40,10 @@ function TimelineRow({ item, hidden = false, lang = 'en', onAction }) {
     >
       <span style={{ fontSize: 16, flexShrink: 0 }}>{kindIcon}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 13, fontWeight: 800, color: '#1f2937', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {item.label}
         </p>
-        <p style={{ fontSize: 10, color: '#9ca3af' }}>
+        <p style={{ fontSize: 10, color: 'var(--color-text-soft)' }}>
           {time} · {item.staff} · {item.payment === 'transfer' ? '📱' : '💵'}
         </p>
       </div>

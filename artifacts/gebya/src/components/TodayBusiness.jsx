@@ -27,7 +27,7 @@ export default function TodayBusiness({
 
   return (
     <div style={{
-      background: '#fff',
+      background: 'var(--color-surface)',
       borderRadius: 12,
       border: '1px solid #ece6d6',
       overflow: 'hidden',
@@ -48,16 +48,16 @@ export default function TodayBusiness({
         }}
       >
         <div style={{ textAlign: 'left' }}>
-          <p style={{ fontSize: 20, fontWeight: 950, color: '#1a1a1a', lineHeight: 1.1 }}>
+          <p style={{ fontSize: 20, fontWeight: 950, color: 'var(--color-text)', lineHeight: 1.1 }}>
             ETB {H(total)}
           </p>
-          <p style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', marginTop: 2 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', marginTop: 2 }}>
             {lang === 'am'
               ? `ዛሬ ጠቅላላ ሽያጭ${staffCount > 0 ? ` (${staffCount + 1} ሰው)` : ''}`
               : `Total sales${staffCount > 0 ? ` (you + ${staffCount} staff)` : ''}`}
           </p>
         </div>
-        {expanded ? <ChevronUp className="w-4 h-4" style={{ color: '#9ca3af' }} /> : <ChevronDown className="w-4 h-4" style={{ color: '#9ca3af' }} />}
+        {expanded ? <ChevronUp className="w-4 h-4" style={{ color: 'var(--color-text-soft)' }} /> : <ChevronDown className="w-4 h-4" style={{ color: 'var(--color-text-soft)' }} />}
       </button>
 
       {expanded && (
@@ -66,7 +66,7 @@ export default function TodayBusiness({
           <Row label={lang === 'am' ? '📱 ዲጂታል' : '📱 Digital'} value={digital} hidden={hidden} />
           <Row label={lang === 'am' ? '📤 ወጪ' : '📤 Expenses'} value={expenses} hidden={hidden} color="#dc2626" />
           <Row label={lang === 'am' ? '💰 የዕዳ መሰብሰብ' : '💰 Collections'} value={collections} hidden={hidden} />
-          <div style={{ height: 1, background: '#e5e7eb', margin: '6px 0' }} />
+          <div style={{ height: 1, background: 'var(--color-bg-disabled)', margin: '6px 0' }} />
           <Row label={lang === 'am' ? '💵 ሊኖርህ የሚገባ ገንዘብ' : '💵 Cash you should have'} value={cashYouShouldHave} hidden={hidden} bold />
           {closingState.done && (
             <>
@@ -82,7 +82,7 @@ export default function TodayBusiness({
           )}
           {!closingState.done && (
             <div style={{ marginTop: 8 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', display: 'block', marginBottom: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>
                 {lang === 'am' ? 'በእጅህ ያለ ገንዘብ' : 'Cash in hand'}
               </label>
               <div style={{ display: 'flex', gap: 6 }}>
@@ -105,7 +105,7 @@ export default function TodayBusiness({
                   }}
                   style={{
                     padding: '6px 14px', borderRadius: 8, border: 'none',
-                    background: '#1B4332', color: '#fff',
+                    background: 'var(--color-primary)', color: 'var(--color-bg-white)',
                     fontSize: 12, fontWeight: 800, cursor: 'pointer',
                   }}
                 >
@@ -128,11 +128,11 @@ function Row({ label, value, hidden, color, bold }) {
       alignItems: 'center',
       padding: '3px 0',
     }}>
-      <span style={{ fontSize: 12, fontWeight: 600, color: '#4b5563' }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)' }}>{label}</span>
       <span style={{
         fontSize: 13,
         fontWeight: bold ? 800 : 700,
-        color: color || '#1f2937',
+        color: color || 'var(--color-text)',
       }}>
         {hidden ? '••••' : `ETB ${fmt(value || 0)}`}
       </span>

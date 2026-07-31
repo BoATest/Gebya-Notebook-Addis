@@ -89,12 +89,12 @@ export default function BankDataSharing({ shopId, lang }) {
   return (
     <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
       <div className="px-5 py-4">
-        <p style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>{t.title}</p>
-        <p style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: 2 }}>{t.subtitle}</p>
+        <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text)' }}>{t.title}</p>
+        <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: 2 }}>{t.subtitle}</p>
       </div>
 
       {error && (
-        <div className="mx-5 mb-3 px-3 py-2 rounded-lg text-xs" style={{ background: '#fef2f2', color: '#dc2626' }}>
+        <div className="mx-5 mb-3 px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}>
           {error}
         </div>
       )}
@@ -103,14 +103,14 @@ export default function BankDataSharing({ shopId, lang }) {
         <div className="px-5 pb-4 text-xs text-gray-400">Loading...</div>
       ) : shares.length === 0 && !showGrant ? (
         <div className="px-5 pb-4">
-          <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: 12 }}>{t.noShares}</p>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-soft)', marginBottom: 12 }}>{t.noShares}</p>
           <button
             type="button"
             onClick={() => setShowGrant(true)}
             className="press-scale"
             style={{
               width: '100%', padding: '10px 0', borderRadius: 12, border: '1px dashed #1B4332',
-              background: 'rgba(27,67,50,0.04)', color: '#1B4332', fontSize: '0.8rem', fontWeight: 600,
+              background: 'rgba(27,67,50,0.04)', color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 600,
               cursor: 'pointer',
             }}
           >
@@ -124,10 +124,10 @@ export default function BankDataSharing({ shopId, lang }) {
             return (
               <div key={share.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                 <div>
-                  <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151' }}>
+                  <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text)' }}>
                     {bank ? (lang === 'am' ? bank.nameAm : bank.name) : share.bankName}
                   </p>
-                  <p style={{ fontSize: '0.65rem', color: '#9ca3af' }}>
+                  <p style={{ fontSize: '0.65rem', color: 'var(--color-text-soft)' }}>
                     {t.active} · {share.shareCreditData ? 'Dubie' : ''}
                     {share.shareSalesData ? ' · Sales' : ''}
                     {share.shareCustomerData ? ' · PII' : ''}
@@ -137,7 +137,7 @@ export default function BankDataSharing({ shopId, lang }) {
                   type="button"
                   onClick={() => handleRevoke(share.id)}
                   style={{
-                    fontSize: '0.7rem', color: '#dc2626', background: 'none',
+                    fontSize: '0.7rem', color: 'var(--color-danger)', background: 'none',
                     border: '1px solid #fecaca', borderRadius: 6, padding: '4px 10px',
                     cursor: 'pointer',
                   }}
@@ -155,7 +155,7 @@ export default function BankDataSharing({ shopId, lang }) {
               className="press-scale"
               style={{
                 width: '100%', padding: '10px 0', borderRadius: 12, border: '1px dashed #1B4332',
-                background: 'rgba(27,67,50,0.04)', color: '#1B4332', fontSize: '0.8rem', fontWeight: 600,
+                background: 'rgba(27,67,50,0.04)', color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 600,
                 cursor: 'pointer', marginTop: 8,
               }}
             >
@@ -168,7 +168,7 @@ export default function BankDataSharing({ shopId, lang }) {
       {showGrant && (
         <div className="px-5 pb-4 space-y-3">
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151' }}>{t.selectBank}</label>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text)' }}>{t.selectBank}</label>
             <select
               value={selectedBank}
               onChange={(e) => setSelectedBank(e.target.value)}
@@ -185,22 +185,22 @@ export default function BankDataSharing({ shopId, lang }) {
           </div>
 
           <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text)', marginBottom: 6, display: 'block' }}>
               {t.shareOptions}
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.75rem', color: '#374151', marginBottom: 4 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.75rem', color: 'var(--color-text)', marginBottom: 4 }}>
               <input type="checkbox" checked={opts.sales} onChange={(e) => setOpts({ ...opts, sales: e.target.checked })} />
               {t.salesData}
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.75rem', color: '#374151', marginBottom: 4 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.75rem', color: 'var(--color-text)', marginBottom: 4 }}>
               <input type="checkbox" checked={opts.credit} onChange={(e) => setOpts({ ...opts, credit: e.target.checked })} />
               {t.creditData}
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.75rem', color: '#374151', marginBottom: 4 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.75rem', color: 'var(--color-text)', marginBottom: 4 }}>
               <input type="checkbox" checked={opts.customer} onChange={(e) => setOpts({ ...opts, customer: e.target.checked })} />
               {t.customerData}
             </label>
-            <p style={{ fontSize: '0.65rem', color: '#9ca3af', marginTop: 4 }}>{t.customerDataHint}</p>
+            <p style={{ fontSize: '0.65rem', color: 'var(--color-text-soft)', marginTop: 4 }}>{t.customerDataHint}</p>
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
@@ -209,7 +209,7 @@ export default function BankDataSharing({ shopId, lang }) {
               onClick={() => setShowGrant(false)}
               style={{
                 flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid #d1d5db',
-                background: '#fff', fontSize: '0.8rem', cursor: 'pointer',
+                background: 'var(--color-surface)', fontSize: '0.8rem', cursor: 'pointer',
               }}
             >
               {t.cancel}
@@ -221,8 +221,8 @@ export default function BankDataSharing({ shopId, lang }) {
               className="press-scale"
               style={{
                 flex: 1, padding: '8px 0', borderRadius: 8, border: 'none',
-                background: selectedBank ? '#1B4332' : '#d1d5db',
-                color: '#fff', fontSize: '0.8rem', fontWeight: 600,
+                background: selectedBank ? 'var(--color-primary)' : 'var(--color-text-soft)',
+                color: 'var(--color-bg-white)', fontSize: '0.8rem', fontWeight: 600,
                 cursor: selectedBank ? 'pointer' : 'not-allowed',
               }}
             >

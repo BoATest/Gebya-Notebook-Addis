@@ -58,7 +58,7 @@ function ProfitCard({ transactions, yesterdayNet }) {
     <div
       className="px-3 sm:px-4 py-3"
       style={{
-        background: '#ffffff',
+        background: 'var(--color-surface)',
         border: '1px solid #e8e2d8',
         borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-xs)',
@@ -66,9 +66,9 @@ function ProfitCard({ transactions, yesterdayNet }) {
     >
       {/* Eyebrow + privacy toggle */}
       <div className="flex items-center justify-between mb-1.5">
-        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
           {lang === 'am' ? 'ዛሬ · ቀሪ' : 'TODAY · NET'}
-          <span className="ml-2 font-normal normal-case tracking-normal" style={{ color: '#9ca3af' }}>
+          <span className="ml-2 font-normal normal-case tracking-normal" style={{ color: 'var(--color-text-soft)' }}>
             {getCurrentEthiopianDate()} · {todayDateShort}
           </span>
         </p>
@@ -81,7 +81,7 @@ function ProfitCard({ transactions, yesterdayNet }) {
             background: hidden ? 'rgba(196,136,58,0.10)' : 'transparent',
             border: hidden ? '1px solid #fde68a' : '1px solid transparent',
             borderRadius: '999px',
-            color: hidden ? '#92400e' : '#9ca3af',
+            color: hidden ? 'var(--color-warning)' : 'var(--color-text-soft)',
             fontSize: '11px',
             fontWeight: hidden ? 700 : 500,
           }}
@@ -123,17 +123,17 @@ function ProfitCard({ transactions, yesterdayNet }) {
 
       {/* Sales + Spent chips */}
       <div className="flex gap-4 text-sm font-semibold mt-1.5">
-        <span style={{ color: '#16a34a' }}>
+        <span style={{ color: 'var(--color-success)' }}>
           {lang === 'am' ? 'ሽያጭ' : 'Sales'} {hidden ? '••••' : fmt(salesTotal)}
         </span>
-        <span style={{ color: '#dc2626' }}>
+        <span style={{ color: 'var(--color-danger)' }}>
           {lang === 'am' ? 'ወጪ' : 'Spent'} {hidden ? '••••' : fmt(expensesTotal)}
         </span>
       </div>
 
       {/* Trust line — explicit, professional: data is YOURS, not ours.
           Tax filing is the shopkeeper's choice, not the app's job. */}
-      <p className="text-[10px] mt-2 pt-2 border-t" style={{ color: '#9ca3af', borderColor: 'rgba(0,0,0,0.05)' }}>
+      <p className="text-[10px] mt-2 pt-2 border-t" style={{ color: 'var(--color-text-soft)', borderColor: 'rgba(0,0,0,0.05)' }}>
         🔒 {lang === 'am'
           ? 'በዚህ ስልክ ብቻ ይቀመጣል። ለማንም አንልክም።'
           : 'Saved on this phone only. We never send your numbers anywhere.'}

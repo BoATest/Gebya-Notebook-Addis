@@ -60,7 +60,7 @@ export default function DataTab({
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden px-5 py-4 text-sm text-gray-500">
           <p className="font-bold text-gray-800 mb-1">Gebya · የንግድ ማስታወሻ</p>
           <p className="text-xs mb-2">Business Notebook for Ethiopian shopkeepers</p>
-          <p className="text-xs" style={{ color: '#6b7280' }}>
+          <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
             {lang === 'am' ? 'ሁሉም ውሂብ በዚህ ስልክ ላይ ብቻ ይቀመጣል' : 'All data stays on this phone only'}
           </p>
         </div>

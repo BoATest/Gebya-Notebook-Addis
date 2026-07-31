@@ -97,7 +97,7 @@ function SettingsPage({
         <div className="flex items-center gap-2.5">
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm text-white"
-            style={{ background: '#1B4332' }}
+            style={{ background: 'var(--color-primary)' }}
           >
             {initials}
           </div>
@@ -105,17 +105,17 @@ function SettingsPage({
             <div className="text-sm font-black text-gray-900 flex items-center gap-1.5">
               {name || (lang === 'am' ? 'ሱቅ' : 'Shop')}
               {roleBadge && (
-                <span className="text-[0.55rem] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: '#fde68a', color: '#1B4332' }}>
+                <span className="text-[0.55rem] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: 'var(--color-warning-border)', color: 'var(--color-primary)' }}>
                   {roleBadge}
                 </span>
               )}
             </div>
-            <div className="text-[0.68rem]" style={{ color: '#6b7280' }}>
+            <div className="text-[0.68rem]" style={{ color: 'var(--color-text-muted)' }}>
               {shopProfile?.phone || (lang === 'am' ? 'ስልክ አልተጨመረም' : 'No phone added')}
             </div>
           </div>
         </div>
-        <div className="flex rounded-full p-0.5 text-xs font-black" style={{ background: '#efece2' }}>
+        <div className="flex rounded-full p-0.5 text-xs font-black" style={{ background: 'var(--color-border-light)' }}>
           <button
             onClick={() => lang !== 'en' && toggleLang()}
             className={`px-2.5 py-1 rounded-full ${lang === 'en' ? 'text-white' : ''}`}
@@ -141,8 +141,8 @@ function SettingsPage({
             onClick={() => setActiveTab(tab.id)}
             className="flex-1 py-2 text-xs font-black rounded-lg transition-all"
             style={{
-              background: activeTab === tab.id ? '#fff' : 'transparent',
-              color: activeTab === tab.id ? '#1B4332' : '#6b7280',
+              background: activeTab === tab.id ? 'var(--color-bg-white)' : 'transparent',
+              color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
               boxShadow: activeTab === tab.id ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
             }}
           >
@@ -196,7 +196,7 @@ function SettingsPage({
         {/* Admin section — only in dev mode */}
         {devModeRevealed && (
           <div className="bg-white rounded-2xl border border-amber-200 overflow-hidden mt-4">
-            <div className="px-4 py-3 text-xs font-black uppercase tracking-wider" style={{ color: '#92400e' }}>
+            <div className="px-4 py-3 text-xs font-black uppercase tracking-wider" style={{ color: 'var(--color-warning)' }}>
               {lang === 'am' ? 'የልማት ሁነታ' : 'Dev Mode'}
             </div>
             <div className="flex gap-2 px-4 pb-3">
@@ -230,20 +230,20 @@ function SettingsPage({
 
         {/* My Profile card — for staff without manage_team permission */}
         {!canManageTeam && staffMembers && staffMembers.length > 0 && (
-          <div className="bg-white rounded-2xl border overflow-hidden mt-4" style={{ borderColor: '#e8e2d8' }}>
-            <div className="px-4 py-3 border-b" style={{ borderColor: '#f0ece4', background: '#fcfbf8' }}>
+          <div className="bg-white rounded-2xl border overflow-hidden mt-4" style={{ borderColor: 'var(--color-border)' }}>
+            <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface-subtle)' }}>
               <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
                 {lang === 'am' ? 'የእኔ መገለጫ' : 'MY PROFILE'}
               </span>
             </div>
             <div className="px-4 py-3 space-y-2">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white" style={{ background: '#1B4332' }}>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white" style={{ background: 'var(--color-primary)' }}>
                   {(shopProfile?.name || 'S').charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <div className="text-sm font-bold text-gray-900">{shopProfile?.name || 'Staff'}</div>
-                  <div className="text-xs font-medium" style={{ color: '#6b7280' }}>
+                  <div className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
                     {lang === 'am' ? 'ሰራተኛ' : 'Staff'} · {shopProfile?.role || 'staff'}
                   </div>
                 </div>
@@ -253,7 +253,7 @@ function SettingsPage({
               </div>
               {staffMembers.filter(m => m.active !== false).map(m => (
                 <div key={m.id} className="flex items-center gap-2 py-1">
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: '#f3f4f6', color: '#6b7280' }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ background: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' }}>
                     {(m.display_name || 'S').charAt(0).toUpperCase()}
                   </div>
                   <span className="text-xs font-medium text-gray-700">{m.display_name}</span>
@@ -267,11 +267,11 @@ function SettingsPage({
         <div
           onClick={handleAboutTap}
           className="text-center py-3 text-xs"
-          style={{ color: '#6b7280' }}
+          style={{ color: 'var(--color-text-muted)' }}
         >
           Gebya v1.0
           {aboutTapCount > 0 && aboutTapCount < 5 && !devModeRevealed && (
-            <span className="ml-2" style={{ color: '#C4883A' }}>
+            <span className="ml-2" style={{ color: 'var(--color-accent-amber)' }}>
               · {5 - aboutTapCount} {lang === 'am' ? 'ተጨማሪ መታ' : 'more taps'}
             </span>
           )}

@@ -93,9 +93,9 @@ export default function AddProviderButton({ onAddProvider, existingNames = [] })
         onClick={handleToggle}
         className="shrink-0 px-3 py-2 rounded-full text-sm font-bold border-2 border-dashed press-scale"
         style={{
-          borderColor: open ? '#1B4332' : '#c9bfa8',
-          background: open ? 'rgba(27,67,50,0.06)' : '#faf9f7',
-          color: open ? '#1B4332' : '#9ca3af',
+          borderColor: open ? 'var(--color-primary)' : 'var(--color-border)',
+          background: open ? 'rgba(27,67,50,0.06)' : 'var(--color-surface-subtle)',
+          color: open ? 'var(--color-primary)' : 'var(--color-text-soft)',
           whiteSpace: 'nowrap',
           minHeight: 38,
         }}
@@ -114,7 +114,7 @@ export default function AddProviderButton({ onAddProvider, existingNames = [] })
               ? `calc(var(--popup-right, 0px))`
               : `calc(var(--popup-right, 0px))`,
             zIndex: 9999,
-            background: '#fff',
+            background: 'var(--color-surface)',
             border: '1px solid #e8e2d8',
             borderRadius: 8,
             padding: 10,
@@ -134,9 +134,9 @@ export default function AddProviderButton({ onAddProvider, existingNames = [] })
               style={{
                 flex: 1, padding: '6px 10px', fontSize: 11, fontWeight: 700,
                 border: '1px solid', borderRadius: 6,
-                borderColor: kind === 'bank' ? '#1B4332' : '#edeae5',
-                background: kind === 'bank' ? 'rgba(27,67,50,0.06)' : '#fff',
-                color: kind === 'bank' ? '#1B4332' : '#9ca3af',
+                borderColor: kind === 'bank' ? 'var(--color-primary)' : 'var(--color-border-light)',
+                background: kind === 'bank' ? 'rgba(27,67,50,0.06)' : 'var(--color-bg-white)',
+                color: kind === 'bank' ? 'var(--color-primary)' : 'var(--color-text-soft)',
               }}
             >
               🏦 {lang === 'am' ? 'ባንክ' : 'Bank'}
@@ -148,9 +148,9 @@ export default function AddProviderButton({ onAddProvider, existingNames = [] })
               style={{
                 flex: 1, padding: '6px 10px', fontSize: 11, fontWeight: 700,
                 border: '1px solid', borderRadius: 6,
-                borderColor: kind === 'wallet' ? '#1B4332' : '#edeae5',
-                background: kind === 'wallet' ? 'rgba(27,67,50,0.06)' : '#fff',
-                color: kind === 'wallet' ? '#1B4332' : '#9ca3af',
+                borderColor: kind === 'wallet' ? 'var(--color-primary)' : 'var(--color-border-light)',
+                background: kind === 'wallet' ? 'rgba(27,67,50,0.06)' : 'var(--color-bg-white)',
+                color: kind === 'wallet' ? 'var(--color-primary)' : 'var(--color-text-soft)',
               }}
             >
               📱 {lang === 'am' ? 'ዋሌት' : 'Wallet'}
@@ -196,8 +196,8 @@ export default function AddProviderButton({ onAddProvider, existingNames = [] })
                       fontSize: 12,
                       textAlign: 'left',
                       border: 'none',
-                      background: i === selectedIndex ? 'rgba(27,67,50,0.08)' : '#fff',
-                      color: '#1a1a1a',
+                      background: i === selectedIndex ? 'rgba(27,67,50,0.08)' : 'var(--color-bg-white)',
+                      color: 'var(--color-text)',
                     }}
                   >
                     {s.kind === 'bank' ? '🏦 ' : '📱 '}{s.name}
@@ -214,8 +214,8 @@ export default function AddProviderButton({ onAddProvider, existingNames = [] })
             style={{
               width: '100%', padding: '8px', fontSize: 12, fontWeight: 700,
               border: 'none', borderRadius: 6,
-              background: selectedIndex >= 0 ? '#1B4332' : '#e5e7eb',
-              color: selectedIndex >= 0 ? '#fff' : '#9ca3af',
+              background: selectedIndex >= 0 ? 'var(--color-primary)' : 'var(--color-bg-disabled)',
+              color: selectedIndex >= 0 ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
               cursor: selectedIndex >= 0 ? 'pointer' : 'default',
               flexShrink: 0,
             }}

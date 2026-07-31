@@ -58,7 +58,7 @@ export default function TopbarIdentity({ className = '' }) {
         {/* Shop initial */}
         <div
           className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
-          style={{ background: 'rgba(255,255,255,0.2)', color: '#fff' }}
+          style={{ background: 'rgba(255,255,255,0.2)', color: 'var(--color-bg-white)' }}
         >
           {(ident.shop_name || 'S').charAt(0).toUpperCase()}
         </div>
@@ -136,7 +136,7 @@ export default function TopbarIdentity({ className = '' }) {
                     <span
                       key={action}
                       className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={{ background: 'rgba(27,67,50,0.08)', color: '#1B4332' }}
+                      style={{ background: 'rgba(27,67,50,0.08)', color: 'var(--color-primary)' }}
                     >
                       {action}
                     </span>
@@ -150,7 +150,7 @@ export default function TopbarIdentity({ className = '' }) {
           {!isOwner && (
             <div
               className="mx-3 mb-3 px-3 py-2 rounded-xl text-xs font-medium leading-relaxed"
-              style={{ background: 'rgba(27,67,50,0.05)', color: '#6b7280' }}
+              style={{ background: 'rgba(27,67,50,0.05)', color: 'var(--color-text-muted)' }}
             >
               <div className="flex items-start gap-1.5">
                 <Shield className="w-3.5 h-3.5 text-green-600 flex-shrink-0 mt-0.5" />

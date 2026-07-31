@@ -12,7 +12,7 @@ export default function DisplayPrivacyPanel() {
     <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden divide-y divide-green-100/30">
       {/* Theme row */}
       <div className="px-5 py-3">
-        <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>
+        <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-text-muted)' }}>
           {t.appearance}
         </p>
         <div className="grid grid-cols-2 gap-2">
@@ -28,8 +28,8 @@ export default function DisplayPrivacyPanel() {
                 onClick={() => setTheme(option.id)}
                 className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold min-h-[48px] transition-all"
                 style={{
-                  background: active ? '#1B4332' : '#f5f5f5',
-                  color: active ? '#fff' : '#374151',
+                  background: active ? 'var(--color-primary)' : 'var(--color-surface-muted)',
+                  color: active ? 'var(--color-bg-white)' : 'var(--color-text)',
                   border: active ? '1px solid #1B4332' : '1px solid #e8e2d8',
                 }}
               >
@@ -46,7 +46,7 @@ export default function DisplayPrivacyPanel() {
         className="w-full flex items-center gap-4 px-5 py-4 active:bg-green-50 transition-colors min-h-[64px] text-left"
       >
         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: hidden ? 'rgba(196,136,58,0.12)' : '#dcfce7' }}>
+          style={{ background: hidden ? 'rgba(196,136,58,0.12)' : 'var(--color-success-bg)' }}>
           {hidden ? <EyeOff className="w-5 h-5 text-green-800" /> : <Eye className="w-5 h-5 text-green-700" />}
         </div>
         <div className="flex-1">

@@ -231,7 +231,7 @@ function TopProductsList({ transactions, title }) {
   if (topByQty.length === 0) return null;
 
   return (
-    <div className="px-4 py-3" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}>
+    <div className="px-4 py-3" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}>
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs font-bold text-gray-500">🏆 {title}</p>
         <div className="flex gap-1">
@@ -239,8 +239,8 @@ function TopProductsList({ transactions, title }) {
             onClick={() => setTab('qty')}
             className="text-xs px-2 py-0.5 rounded-full font-bold transition-all press-scale"
             style={{
-              background: tab === 'qty' ? '#1B4332' : '#f5f5f5',
-              color: tab === 'qty' ? '#fff' : '#9ca3af',
+              background: tab === 'qty' ? 'var(--color-primary)' : 'var(--color-surface-muted)',
+              color: tab === 'qty' ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
             }}
           >
             {t.byQuantity}
@@ -249,8 +249,8 @@ function TopProductsList({ transactions, title }) {
             onClick={() => setTab('rev')}
             className="text-xs px-2 py-0.5 rounded-full font-bold transition-all press-scale"
             style={{
-              background: tab === 'rev' ? '#1B4332' : '#f5f5f5',
-              color: tab === 'rev' ? '#fff' : '#9ca3af',
+              background: tab === 'rev' ? 'var(--color-primary)' : 'var(--color-surface-muted)',
+              color: tab === 'rev' ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
             }}
           >
             {t.byRevenue}
@@ -263,7 +263,7 @@ function TopProductsList({ transactions, title }) {
             <span className="text-sm flex-shrink-0">{medals[i] || `${i + 1}.`}</span>
             <span className="text-sm font-semibold text-gray-700 flex-1 truncate">{p.name}</span>
             <span className="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-              style={{ background: 'rgba(27,67,50,0.1)', color: '#1B4332' }}>
+              style={{ background: 'rgba(27,67,50,0.1)', color: 'var(--color-primary)' }}>
               {tab === 'qty' ? `×${p.qty}` : `${fmt(p.revenue)} ${t.birr}`}
             </span>
           </div>
@@ -279,7 +279,7 @@ function StatsSummary({ transactions }) {
   const netProfit = hasCost ? profit : revenue - expenseTotal;
 
   return (
-    <div className="px-4 py-3 space-y-2" style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}>
+    <div className="px-4 py-3 space-y-2" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}>
       <div className="flex justify-between items-center">
         <span className="text-xs text-gray-500">{t.totalSales}</span>
         <span className="text-sm font-bold text-green-700">
@@ -322,7 +322,7 @@ function TxRow({ tx, onEdit, t, lang }) {
             {tx.quantity > 1 && <span className="text-xs text-gray-400">×{tx.quantity}</span>}
             {tx.customer_name && <p className="text-xs text-gray-400">{tx.customer_name}</p>}
             {tx.actor_name_snapshot && <p className="text-xs text-gray-500">Entered by {tx.actor_name_snapshot}</p>}
-            {tx.updated_at && <p className="text-xs" style={{ color: '#C4883A' }}>{t.edited}</p>}
+            {tx.updated_at && <p className="text-xs" style={{ color: 'var(--color-accent-amber)' }}>{t.edited}</p>}
           </div>
         </button>
         {(tx.photo || (Array.isArray(tx.photos) && tx.photos.length > 0)) && (
@@ -339,10 +339,10 @@ function TxRow({ tx, onEdit, t, lang }) {
             onClick={(e) => { e.stopPropagation(); setBreakdownOpen(v => !v); }}
             className="flex-shrink-0 px-1.5 py-0.5 text-[10px] font-bold border press-scale flex items-center gap-0.5"
             style={{
-              borderColor: breakdownOpen ? '#1B4332' : '#e8e2d8',
+              borderColor: breakdownOpen ? 'var(--color-primary)' : 'var(--color-border)',
               borderRadius: '999px',
-              background: breakdownOpen ? 'rgba(27,67,50,0.08)' : '#fff',
-              color: breakdownOpen ? '#1B4332' : '#6b7280',
+              background: breakdownOpen ? 'rgba(27,67,50,0.08)' : 'var(--color-bg-white)',
+              color: breakdownOpen ? 'var(--color-primary)' : 'var(--color-text-muted)',
             }}
             aria-label="Show items"
           >
@@ -379,7 +379,7 @@ function TxRow({ tx, onEdit, t, lang }) {
         >
           {tx.items.map((it, i) => (
             <div key={i} className="flex justify-between items-baseline text-xs">
-              <span className="truncate min-w-0" style={{ color: '#374151' }}>• {it.name}</span>
+              <span className="truncate min-w-0" style={{ color: 'var(--color-text)' }}>• {it.name}</span>
               <span className="font-semibold flex-shrink-0 ml-2" style={{ color: amountColor }}>
                 {fmt(it.amount || 0)} {lang === 'am' ? 'ብር' : 'birr'}
               </span>
@@ -390,7 +390,7 @@ function TxRow({ tx, onEdit, t, lang }) {
             const delta = (Number(tx.amount) || 0) - sum;
             if (Math.abs(delta) < 0.01) return null;
             return (
-              <div className="flex justify-between items-baseline text-[10px] pt-1 mt-1" style={{ borderTop: '1px dashed rgba(0,0,0,0.08)', color: '#C4883A' }}>
+              <div className="flex justify-between items-baseline text-[10px] pt-1 mt-1" style={{ borderTop: '1px dashed rgba(0,0,0,0.08)', color: 'var(--color-accent-amber)' }}>
                 <span>{delta > 0 ? (lang === 'am' ? 'ቀሪ' : 'Unaccounted') : (lang === 'am' ? 'በላይ' : 'Excess')}</span>
                 <span className="font-semibold">{fmt(Math.abs(delta))} {lang === 'am' ? 'ብር' : 'birr'}</span>
               </div>
@@ -424,8 +424,8 @@ function MonthBucketedDayList({ dayGroups, onEdit, expandedGroups, toggleGroup, 
               style={{
                 background: isCurrentMonth
                   ? 'linear-gradient(135deg, #1B4332 0%, #2d6a4f 100%)'
-                  : '#1f2937',
-                color: '#fff',
+                  : 'var(--color-text)',
+                color: 'var(--color-bg-white)',
                 borderRadius: expanded ? 'var(--radius-md) var(--radius-md) 0 0' : 'var(--radius-md)',
                 boxShadow: 'var(--shadow-xs)',
               }}
@@ -443,7 +443,7 @@ function MonthBucketedDayList({ dayGroups, onEdit, expandedGroups, toggleGroup, 
               </div>
               <div className="flex items-center gap-2">
                 <div className="text-right">
-                  <div className="text-sm font-black" style={{ color: stats.profit >= 0 ? '#86efac' : '#fca5a5' }}>
+                  <div className="text-sm font-black" style={{ color: stats.profit >= 0 ? 'var(--color-success-border)' : 'var(--color-danger-border)' }}>
                     {stats.hasCost
                       ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}`
                       : fmt(stats.revenue)} {t.birr}
@@ -487,8 +487,8 @@ function MonthBucketedDayList({ dayGroups, onEdit, expandedGroups, toggleGroup, 
           onClick={() => setMonthLimit(prev => prev + 6)}
           className="w-full py-2.5 text-xs font-bold text-center transition-all press-scale border rounded-xl"
           style={{
-            borderColor: '#C4883A',
-            color: '#6b4f1d',
+            borderColor: 'var(--color-accent-amber)',
+            color: 'var(--color-warning)',
             background: 'rgba(196,136,58,0.04)',
           }}
         >
@@ -512,25 +512,25 @@ function DayGroupList({ groups, onEdit, expandedGroups, toggleGroup, t, lang }) 
             key={group.date}
             className="border overflow-hidden transition-all animate-slide-up"
             style={{
-              background: '#fff',
+              background: 'var(--color-surface)',
               borderColor: 'var(--color-border)',
               boxShadow: 'var(--shadow-xs)',
               borderRadius: 'var(--radius-md)',
             }}
           >
             <button className="w-full px-4 py-3 flex justify-between items-center"
-              style={{ background: isToday ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
+              style={{ background: isToday ? 'rgba(27,67,50,0.05)' : 'var(--color-surface-subtle)' }}
               onClick={() => toggleGroup(key)}>
               <div>
                 <span className="font-bold text-gray-800 text-sm font-sans">
                   {isToday ? t.today : formatEthiopian(group.date)}
                 </span>
                 {!isToday && (
-                  <span className="text-xs ml-2" style={{ color: '#9ca3af' }}>
+                  <span className="text-xs ml-2" style={{ color: 'var(--color-text-soft)' }}>
                     {new Date(group.date).toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })}
                   </span>
                 )}
-                <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-soft)' }}>
                   {group.transactions.length} {t.entries}
                 </div>
               </div>
@@ -539,7 +539,7 @@ function DayGroupList({ groups, onEdit, expandedGroups, toggleGroup, t, lang }) 
                   <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
                     {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}` : fmt(stats.revenue)} {t.birr}
                   </div>
-                  <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? t.profit : t.revenue}</div>
+                  <div className="text-xs" style={{ color: 'var(--color-text-soft)' }}>{stats.hasCost ? t.profit : t.revenue}</div>
                 </div>
                 {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
               </div>
@@ -572,15 +572,15 @@ function WeekGroupList({ groups: allGroups, onEdit, expandedGroups, toggleGroup,
         const isCurrentWeek = Date.now() >= group.weekStart && Date.now() <= group.weekStart + 7 * 86400000;
         return (
           <div key={group.weekStart} className="border overflow-hidden animate-slide-up"
-            style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}>
+            style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}>
             <button className="w-full px-4 py-3 flex justify-between items-center"
-              style={{ background: isCurrentWeek ? 'rgba(27,67,50,0.05)' : '#fafafa' }}
+              style={{ background: isCurrentWeek ? 'rgba(27,67,50,0.05)' : 'var(--color-surface-subtle)' }}
               onClick={() => toggleGroup(key)}>
               <div>
                 <span className="font-bold text-gray-800 text-sm font-sans">
                   {isCurrentWeek ? t.thisWeek : `${formatEthiopian(group.weekStart)} – ${formatEthiopian(weekEnd.getTime())}`}
                 </span>
-                <div className="text-xs mt-0.5" style={{ color: '#9ca3af' }}>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-soft)' }}>
                   {group.transactions.length} {t.entries}
                 </div>
               </div>
@@ -589,7 +589,7 @@ function WeekGroupList({ groups: allGroups, onEdit, expandedGroups, toggleGroup,
                   <div className={`text-sm font-black ${stats.profit >= 0 ? 'text-green-700' : 'text-red-500'}`}>
                     {stats.hasCost ? `${stats.profit >= 0 ? '+' : ''}${fmt(stats.profit)}` : fmt(stats.revenue)} {t.birr}
                   </div>
-                  <div className="text-xs" style={{ color: '#9ca3af' }}>{stats.hasCost ? t.profit : t.revenue}</div>
+                  <div className="text-xs" style={{ color: 'var(--color-text-soft)' }}>{stats.hasCost ? t.profit : t.revenue}</div>
                 </div>
                 {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
               </div>
@@ -611,8 +611,8 @@ function WeekGroupList({ groups: allGroups, onEdit, expandedGroups, toggleGroup,
           onClick={() => setWeekLimit(prev => prev + 10)}
           className="w-full py-2.5 text-xs font-bold text-center transition-all press-scale border rounded-xl"
           style={{
-            borderColor: '#C4883A',
-            color: '#6b4f1d',
+            borderColor: 'var(--color-accent-amber)',
+            color: 'var(--color-warning)',
             background: 'rgba(196,136,58,0.04)',
           }}
         >
@@ -627,15 +627,15 @@ function EmptyState({ hasSearch, searchQuery, t }) {
   if (hasSearch) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Search className="w-12 h-12 mb-3" style={{ color: '#e5e7eb' }} />
-        <p className="text-base font-medium" style={{ color: '#9ca3af' }}>{t.noSearchResults} "{searchQuery}"</p>
+        <Search className="w-12 h-12 mb-3" style={{ color: 'var(--color-bg-disabled)' }} />
+        <p className="text-base font-medium" style={{ color: 'var(--color-text-soft)' }}>{t.noSearchResults} "{searchQuery}"</p>
       </div>
     );
   }
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
-      <Calendar className="w-12 h-12 mb-3" style={{ color: '#e5e7eb' }} />
-      <p className="text-base font-medium" style={{ color: '#9ca3af' }}>{t.noSalesThisPeriod}</p>
+      <Calendar className="w-12 h-12 mb-3" style={{ color: 'var(--color-bg-disabled)' }} />
+      <p className="text-base font-medium" style={{ color: 'var(--color-text-soft)' }}>{t.noSalesThisPeriod}</p>
     </div>
   );
 }
@@ -647,7 +647,7 @@ function ActorAuditSummary({ rows, t }) {
     <div className="space-y-2">
       <div className="px-1">
         <h3 className="text-sm font-black text-gray-800">Staff sales audit</h3>
-        <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>
+        <p className="text-xs mt-1" style={{ color: 'var(--color-text-soft)' }}>
           Review sales, transaction count, and item volume by the person who entered each record.
         </p>
       </div>
@@ -656,12 +656,12 @@ function ActorAuditSummary({ rows, t }) {
           <div
             key={row.id}
             className="px-4 py-3 border"
-            style={{ background: '#fff', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
+            style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-xs)' }}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-black text-gray-900">{row.label}</p>
-                <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>
+                <p className="text-xs mt-1" style={{ color: 'var(--color-text-soft)' }}>
                   {row.transactionCount} {t.entries} · {row.salesCount} sales · {row.itemsSold} items sold
                 </p>
               </div>
@@ -728,8 +728,8 @@ function HistoryView({ transactions, onEdit }) {
             onClick={() => setPeriod(p.id)}
             className="flex-1 py-2 text-sm font-bold transition-all press-scale"
             style={{
-              background: period === p.id ? '#1B4332' : 'transparent',
-              color: period === p.id ? '#fff' : '#6b7280',
+              background: period === p.id ? 'var(--color-primary)' : 'transparent',
+              color: period === p.id ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
               borderRadius: 'var(--radius-sm)',
             }}
           >
@@ -739,7 +739,7 @@ function HistoryView({ transactions, onEdit }) {
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#9ca3af' }} />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--color-text-soft)' }} />
         <input
           type="text"
           value={searchQuery}
@@ -747,10 +747,10 @@ function HistoryView({ transactions, onEdit }) {
           placeholder={t.searchPlaceholder}
           className="w-full pl-9 pr-9 py-2.5 text-sm bg-white border outline-none transition-all"
           style={{
-            borderColor: hasSearch ? '#1B4332' : 'var(--color-border)',
+            borderColor: hasSearch ? 'var(--color-primary)' : 'var(--color-border)',
             borderRadius: 'var(--radius-md)',
             boxShadow: 'var(--shadow-xs)',
-            color: '#374151',
+            color: 'var(--color-text)',
           }}
         />
         {hasSearch && (
@@ -759,7 +759,7 @@ function HistoryView({ transactions, onEdit }) {
             className="absolute right-3 top-1/2 -translate-y-1/2 press-scale"
             aria-label="Clear search"
           >
-            <X className="w-4 h-4" style={{ color: '#9ca3af' }} />
+            <X className="w-4 h-4" style={{ color: 'var(--color-text-soft)' }} />
           </button>
         )}
       </div>
@@ -772,10 +772,10 @@ function HistoryView({ transactions, onEdit }) {
             onChange={e => setActorFilter(e.target.value)}
             className="w-full px-3 py-2.5 text-sm bg-white border outline-none"
             style={{
-              borderColor: actorFilter ? '#1B4332' : 'var(--color-border)',
+              borderColor: actorFilter ? 'var(--color-primary)' : 'var(--color-border)',
               borderRadius: 'var(--radius-md)',
               boxShadow: 'var(--shadow-xs)',
-              color: '#374151',
+              color: 'var(--color-text)',
             }}
           >
             <option value="">All sellers</option>
@@ -799,8 +799,8 @@ function HistoryView({ transactions, onEdit }) {
                 <button key={val} onClick={() => setGrouping(val)}
                   className="px-3 py-1 text-xs font-bold transition-all press-scale"
                   style={{
-                    background: grouping === val ? '#1B4332' : '#f0f0f0',
-                    color: grouping === val ? '#fff' : '#6b7280',
+                    background: grouping === val ? 'var(--color-primary)' : 'var(--color-bg-hover)',
+                    color: grouping === val ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
                     borderRadius: '99px',
                   }}>
                   {lbl}
@@ -812,14 +812,14 @@ function HistoryView({ transactions, onEdit }) {
           {filteredTransactions.length === 0 ? (
             hasSearch ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <Search className="w-12 h-12 mb-4" style={{ color: '#e5e7eb' }} />
-                <p className="text-base font-medium" style={{ color: '#9ca3af' }}>{t.noSearchResults} "{searchQuery}"</p>
+                <Search className="w-12 h-12 mb-4" style={{ color: 'var(--color-bg-disabled)' }} />
+                <p className="text-base font-medium" style={{ color: 'var(--color-text-soft)' }}>{t.noSearchResults} "{searchQuery}"</p>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <Calendar className="w-16 h-16 mb-4" style={{ color: '#e5e7eb' }} />
-                <p className="text-lg font-medium" style={{ color: '#9ca3af' }}>{t.noRecords}</p>
-                <p className="text-sm mt-1" style={{ color: '#d1d5db' }}>{t.startRecording}</p>
+                <Calendar className="w-16 h-16 mb-4" style={{ color: 'var(--color-bg-disabled)' }} />
+                <p className="text-lg font-medium" style={{ color: 'var(--color-text-soft)' }}>{t.noRecords}</p>
+                <p className="text-sm mt-1" style={{ color: 'var(--color-text-soft)' }}>{t.startRecording}</p>
               </div>
             )
           ) : grouping === 'day' ? (

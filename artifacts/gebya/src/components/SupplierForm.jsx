@@ -83,7 +83,7 @@ function SupplierForm({ existing = null, onSave, onDone }) {
                   ? (lang === 'am' ? 'አቅራቢ አስተካክል' : 'Edit supplier')
                   : (lang === 'am' ? 'አቅራቢ አክል' : 'Add supplier')}
               </h2>
-              <p className="text-sm mt-1" style={{ color: '#6b7280' }}>
+              <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
                 {lang === 'am' ? 'የምትገዙበት ሰው' : 'Someone you buy from on credit'}
               </p>
             </div>
@@ -109,7 +109,7 @@ function SupplierForm({ existing = null, onSave, onDone }) {
                 width: 100, height: 100, borderRadius: '50%',
                 overflow: 'hidden', position: 'relative',
                 border: photo ? '3px solid #dc2626' : '3px dashed #c9bfa8',
-                background: photo ? '#fff' : '#fef2f2',
+                background: photo ? 'var(--color-bg-white)' : 'var(--color-danger-bg)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 marginBottom: 10,
               }}
@@ -118,7 +118,7 @@ function SupplierForm({ existing = null, onSave, onDone }) {
                 <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : displayName.trim() ? (
                 <span style={{
-                  fontSize: '2rem', fontWeight: 800, color: '#991b1b',
+                  fontSize: '2rem', fontWeight: 800, color: 'var(--color-danger-text)',
                   fontFamily: 'Manrope, system-ui, sans-serif',
                 }}>{initials}</span>
               ) : (
@@ -129,7 +129,7 @@ function SupplierForm({ existing = null, onSave, onDone }) {
                 <div style={{
                   position: 'absolute', bottom: 3, right: 3,
                   width: 24, height: 24, borderRadius: '50%',
-                  background: '#dc2626', color: '#fff',
+                  background: 'var(--color-danger)', color: 'var(--color-bg-white)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   border: '2px solid #fff',
                 }}>
@@ -139,14 +139,14 @@ function SupplierForm({ existing = null, onSave, onDone }) {
             </div>
 
             {!photo && (
-              <p style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: 8 }}>
+              <p style={{ fontSize: '0.7rem', color: 'var(--color-text-soft)', marginBottom: 8 }}>
                 {lang === 'am' ? 'ፎቶ ይውሰዱ (አማራጭ)' : 'Take a photo (optional)'}
               </p>
             )}
 
             {photo ? (
               <div className="space-y-2 w-full">
-                <p style={{ fontSize: '0.7rem', color: '#047857', fontWeight: 600, textAlign: 'center' }}>
+                <p style={{ fontSize: '0.7rem', color: 'var(--color-success-text)', fontWeight: 600, textAlign: 'center' }}>
                   ✓ {lang === 'am'
                     ? `ፎቶ ተጨምሯል · ~${photoKb} KB · በዚህ ስልክ ብቻ`
                     : `Photo added · ~${photoKb} KB · on this phone only`}
@@ -156,7 +156,7 @@ function SupplierForm({ existing = null, onSave, onDone }) {
                     type="button"
                     onClick={() => setShowCamera(true)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 border-2 rounded-xl font-bold text-xs cursor-pointer press-scale"
-                    style={{ borderColor: '#e8e2d8', color: '#4b5563', background: '#fff' }}
+                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)', background: 'var(--color-surface)' }}
                   >
                     <Camera className="w-3.5 h-3.5" />
                     {lang === 'am' ? 'መልሰው ይውሰዱ' : 'Replace'}
@@ -165,7 +165,7 @@ function SupplierForm({ existing = null, onSave, onDone }) {
                     type="button"
                     onClick={() => setPhoto(null)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 border-2 rounded-xl font-bold text-xs press-scale"
-                    style={{ borderColor: '#fecaca', color: '#dc2626', background: '#fff' }}
+                    style={{ borderColor: 'var(--color-danger-border)', color: 'var(--color-danger)', background: 'var(--color-surface)' }}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     {lang === 'am' ? 'አስወግድ' : 'Remove'}
@@ -178,7 +178,7 @@ function SupplierForm({ existing = null, onSave, onDone }) {
                   type="button"
                   onClick={() => setShowCamera(true)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 border-2 rounded-xl font-bold text-sm cursor-pointer press-scale"
-                  style={{ borderColor: '#dc2626', color: '#dc2626', background: '#fff' }}
+                  style={{ borderColor: 'var(--color-danger)', color: 'var(--color-danger)', background: 'var(--color-surface)' }}
                 >
                   <Camera className="w-4 h-4" />
                   {lang === 'am' ? 'ፎቶ ይምረጡ' : 'Add Photo'}
@@ -186,7 +186,7 @@ function SupplierForm({ existing = null, onSave, onDone }) {
               </div>
             )}
             {photoError && (
-              <p style={{ fontSize: '0.7rem', color: '#dc2626', marginTop: 6 }}>
+              <p style={{ fontSize: '0.7rem', color: 'var(--color-danger)', marginTop: 6 }}>
                 {photoError}
               </p>
             )}
@@ -203,7 +203,7 @@ function SupplierForm({ existing = null, onSave, onDone }) {
               placeholder={lang === 'am' ? 'ለምሳሌ ቡና ቤት ኪሮስ' : 'e.g. Kiros Coffee Wholesale'}
               autoFocus={!editing}
               className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px]"
-              style={{ borderRadius: 'var(--radius-md)', borderColor: displayName.trim() ? '#dc2626' : '#e8e2d8' }}
+              style={{ borderRadius: 'var(--radius-md)', borderColor: displayName.trim() ? 'var(--color-danger)' : 'var(--color-border)' }}
             />
           </div>
 
@@ -211,7 +211,7 @@ function SupplierForm({ existing = null, onSave, onDone }) {
           <div>
             <label className="block text-gray-700 font-semibold mb-2 text-sm">
               📞 {lang === 'am' ? 'ስልክ' : 'Phone'}
-              <span className="font-normal text-xs ml-1" style={{ color: '#9ca3af' }}>
+              <span className="font-normal text-xs ml-1" style={{ color: 'var(--color-text-soft)' }}>
                 ({lang === 'am' ? 'አማራጭ' : 'optional'})
               </span>
             </label>
@@ -220,14 +220,14 @@ function SupplierForm({ existing = null, onSave, onDone }) {
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   padding: '0 12px',
-                  background: '#f5f0e8',
-                  border: `2px solid ${(phoneTouched && !phoneValid) ? '#dc2626' : '#e8e2d8'}`,
+                  background: 'var(--color-surface-muted)',
+                  border: `2px solid ${(phoneTouched && !phoneValid) ? 'var(--color-danger)' : 'var(--color-border)'}`,
                   borderRight: 'none',
                   borderTopLeftRadius: 'var(--radius-md)',
                   borderBottomLeftRadius: 'var(--radius-md)',
                   fontSize: '0.92rem',
                   fontWeight: 800,
-                  color: '#991b1b',
+                  color: 'var(--color-danger-text)',
                   minWidth: 64,
                   minHeight: 48,
                 }}
@@ -246,10 +246,10 @@ function SupplierForm({ existing = null, onSave, onDone }) {
                 style={{
                   borderRadius: '0 var(--radius-md) var(--radius-md) 0',
                   borderColor: (phoneTouched && !phoneValid)
-                    ? '#dc2626'
+                    ? 'var(--color-danger)'
                     : phoneValid && phoneDigits
-                      ? '#dc2626'
-                      : '#e8e2d8',
+                      ? 'var(--color-danger)'
+                      : 'var(--color-border)',
                   minHeight: 48,
                   fontVariantNumeric: 'tabular-nums',
                   letterSpacing: '0.04em',
@@ -257,7 +257,7 @@ function SupplierForm({ existing = null, onSave, onDone }) {
               />
             </div>
             {phoneTouched && !phoneValid && phoneDigits.length > 0 && (
-              <p className="text-xs font-medium mt-1" style={{ color: '#dc2626' }}>
+              <p className="text-xs font-medium mt-1" style={{ color: 'var(--color-danger)' }}>
                 {lang === 'am'
                   ? 'ስልክ 9 ወይም 7 ይጀምር — 9 አኃዝ መሆን አለበት'
                   : 'Phone must start with 9 or 7 — 9 digits total'}
@@ -275,11 +275,11 @@ function SupplierForm({ existing = null, onSave, onDone }) {
               placeholder={lang === 'am' ? 'ለምሳሌ ጥቅል ቡና አከፋፋይ' : 'e.g. wholesale coffee distributor'}
               rows={2}
               className="w-full p-3 border-2 focus:outline-none text-sm resize-none"
-              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+              style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)' }}
             />
           </div>
 
-          <p className="text-[10px] text-center font-medium pt-1" style={{ color: '#9ca3af' }}>
+          <p className="text-[10px] text-center font-medium pt-1" style={{ color: 'var(--color-text-soft)' }}>
             🔒 {lang === 'am' ? 'መረጃው በዚህ ስልክ ላይ ብቻ ይቀመጣል' : 'Stored on this phone only'}
           </p>
         </div>
@@ -290,8 +290,8 @@ function SupplierForm({ existing = null, onSave, onDone }) {
             disabled={!canSave}
             className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 min-h-[56px] press-scale"
             style={{
-              background: canSave ? '#dc2626' : '#e5e7eb',
-              color: canSave ? '#fff' : '#9ca3af',
+              background: canSave ? 'var(--color-danger)' : 'var(--color-bg-disabled)',
+              color: canSave ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
               borderRadius: 'var(--radius-md)',
             }}
           >

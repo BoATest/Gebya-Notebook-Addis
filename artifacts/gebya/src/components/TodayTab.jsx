@@ -48,8 +48,8 @@ export default function TodayTab({
 
         {todayTransactions.length === 0 ? (
           <div className="px-4 py-8 text-center">
-            <p className="text-sm font-medium" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ገና ምንም ምዝገባ የለም' : 'No entries yet'}</p>
-            <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>{lang === 'am' ? 'ለመጀመር ከላይ ይጫኑ' : 'Tap above to start'}</p>
+            <p className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ገና ምንም ምዝገባ የለም' : 'No entries yet'}</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-soft)' }}>{lang === 'am' ? 'ለመጀመር ከላይ ይጫኑ' : 'Tap above to start'}</p>
             {transactions.length === 0 && ledgerTransactions.length === 0 && (
               <div style={{
                 marginTop: 16,
@@ -58,10 +58,10 @@ export default function TodayTab({
                 border: '1px solid #bbf7d0',
                 borderRadius: 12,
               }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: '#1B4332', marginBottom: 12 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary)', marginBottom: 12 }}>
                   {lang === 'am' ? '📒 ደብተርዎን ጀምር' : '📒 Start your notebook'}
                 </p>
-                <p style={{ fontSize: 11, color: '#4b5563', marginBottom: 12, lineHeight: 1.5 }}>
+                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
                   {lang === 'am'
                     ? 'ሽያጭ ወይም ወጪ መዝግብ። ሁሉም መረጃ በዚህ ስልክ ላይ ይቀመጣል።'
                     : 'Record sales and expenses. All data stays on this phone.'
@@ -72,8 +72,8 @@ export default function TodayTab({
                   onClick={() => setActiveTab('credit')}
                   className="press-scale"
                   style={{
-                    background: '#1B4332',
-                    color: '#fff', border: 'none', borderRadius: 8,
+                    background: 'var(--color-primary)',
+                    color: 'var(--color-bg-white)', border: 'none', borderRadius: 8,
                     padding: '8px 16px', fontSize: 12, fontWeight: 800,
                     cursor: 'pointer',
                   }}

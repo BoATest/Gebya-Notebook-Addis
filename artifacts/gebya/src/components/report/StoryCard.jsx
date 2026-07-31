@@ -74,7 +74,7 @@ export default function StoryCard({ story, hidden = false, lang = 'en' }) {
           {story.observations.map((obs, i) => (
             <p key={i} style={{
               fontSize: 12,
-              color: '#4b5563',
+              color: 'var(--color-text-muted)',
               fontWeight: 600,
               lineHeight: 1.5,
               marginTop: i > 0 ? 4 : 0,
@@ -122,26 +122,26 @@ export default function StoryCard({ story, hidden = false, lang = 'en' }) {
         }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: 9, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase' }}>
+              <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
                 {lang === 'am' ? 'ሽያጭ' : 'Sold'}
               </p>
-              <p style={{ fontSize: 14, fontWeight: 900, color: '#16a34a', marginTop: 2 }}>
+              <p style={{ fontSize: 14, fontWeight: 900, color: 'var(--color-success)', marginTop: 2 }}>
                 {hidden ? '••••' : fmt(story.metrics?.totalSold || 0)}
               </p>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: 9, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase' }}>
+              <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
                 {lang === 'am' ? 'ወጪ' : 'Spent'}
               </p>
-              <p style={{ fontSize: 14, fontWeight: 900, color: '#dc2626', marginTop: 2 }}>
+              <p style={{ fontSize: 14, fontWeight: 900, color: 'var(--color-danger)', marginTop: 2 }}>
                 {hidden ? '••••' : fmt(story.metrics?.spentToday || 0)}
               </p>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <p style={{ fontSize: 9, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase' }}>
+              <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
                 {lang === 'am' ? 'ሽያጭ ብዛት' : 'Sales'}
               </p>
-              <p style={{ fontSize: 14, fontWeight: 900, color: '#374151', marginTop: 2 }}>
+              <p style={{ fontSize: 14, fontWeight: 900, color: 'var(--color-text)', marginTop: 2 }}>
                 {story.metrics?.saleRows?.length || 0}
               </p>
             </div>

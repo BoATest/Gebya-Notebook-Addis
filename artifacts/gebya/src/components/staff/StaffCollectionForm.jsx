@@ -155,7 +155,7 @@ export default function StaffCollectionForm({
       {isMobile && openCollectionSheet && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center"
-          style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(2px)' }}
+          style={{ background: 'var(--color-overlay)', backdropFilter: 'blur(2px)' }}
           onClick={() => setOpenCollectionSheet(false)}
         >
           <div

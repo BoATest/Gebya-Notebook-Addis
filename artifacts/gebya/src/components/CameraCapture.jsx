@@ -128,7 +128,7 @@ function CameraCapture({ open, onCapture, onClose, lang = 'en' }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 90, background: '#000', display: 'flex', flexDirection: 'column' }}>
       {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', color: '#fff' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', color: 'var(--color-bg-white)' }}>
         <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>
           {lang === 'am' ? 'ፎቶ ያንሱ' : 'Take a photo'}
         </span>
@@ -138,7 +138,7 @@ function CameraCapture({ open, onCapture, onClose, lang = 'en' }) {
           aria-label={lang === 'am' ? 'ዝጋ' : 'Close'}
           style={{
             width: 40, height: 40, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff',
+            background: 'rgba(255,255,255,0.15)', border: 'none', color: 'var(--color-bg-white)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
           }}
         >
@@ -163,7 +163,7 @@ function CameraCapture({ open, onCapture, onClose, lang = 'en' }) {
             )}
           </>
         ) : (
-          <div style={{ textAlign: 'center', color: '#fff', padding: 24, maxWidth: 320 }}>
+          <div style={{ textAlign: 'center', color: 'var(--color-bg-white)', padding: 24, maxWidth: 320 }}>
             <Camera className="w-12 h-12 mx-auto mb-3" style={{ opacity: 0.5 }} />
             <p style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 6 }}>
               {error === 'denied'
@@ -179,7 +179,7 @@ function CameraCapture({ open, onCapture, onClose, lang = 'en' }) {
               className="press-scale"
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8,
-                background: '#fff', color: '#1a1a1a',
+                background: 'var(--color-surface)', color: 'var(--color-text)',
                 padding: '12px 18px', borderRadius: 12,
                 fontSize: '0.9rem', fontWeight: 800, cursor: 'pointer',
               }}
@@ -206,7 +206,7 @@ function CameraCapture({ open, onCapture, onClose, lang = 'en' }) {
             }}
             aria-label={lang === 'am' ? 'ጋለሪ' : 'Gallery'}
           >
-            <ImageIcon className="w-5 h-5" style={{ color: '#fff' }} />
+            <ImageIcon className="w-5 h-5" style={{ color: 'var(--color-bg-white)' }} />
             <input type="file" accept="image/*" onChange={handleFallbackFile} className="hidden" />
           </label>
 
@@ -218,7 +218,7 @@ function CameraCapture({ open, onCapture, onClose, lang = 'en' }) {
             aria-label={lang === 'am' ? 'ፎቶ አንሳ' : 'Capture'}
             style={{
               width: 74, height: 74, borderRadius: '50%',
-              background: '#fff',
+              background: 'var(--color-surface)',
               border: '4px solid rgba(255,255,255,0.4)',
               cursor: ready && !busy ? 'pointer' : 'not-allowed',
               opacity: ready && !busy ? 1 : 0.5,
@@ -226,7 +226,7 @@ function CameraCapture({ open, onCapture, onClose, lang = 'en' }) {
               flexShrink: 0,
             }}
           >
-            <Camera className="w-7 h-7" style={{ color: '#1a1a1a' }} />
+            <Camera className="w-7 h-7" style={{ color: 'var(--color-text)' }} />
           </button>
 
           {/* Flip camera */}
@@ -241,7 +241,7 @@ function CameraCapture({ open, onCapture, onClose, lang = 'en' }) {
               cursor: 'pointer', flexShrink: 0,
             }}
           >
-            <RefreshCw className="w-5 h-5" style={{ color: '#fff' }} />
+            <RefreshCw className="w-5 h-5" style={{ color: 'var(--color-bg-white)' }} />
           </button>
         </div>
       )}

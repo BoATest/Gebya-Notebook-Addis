@@ -41,8 +41,8 @@ export default function RecurringExpensesPanel({ recurring, onRecurringChange })
           <div className="space-y-2 mb-3">
             {recurring.map(re => (
               <div key={re.id} className="flex items-center gap-3 p-3 rounded-xl"
-                style={{ background: '#FAF8F5', border: '1.5px solid var(--color-border)' }}>
-                <RefreshCw className="w-4 h-4 flex-shrink-0" style={{ color: '#C4883A' }} />
+                style={{ background: 'var(--color-surface-muted)', border: '1.5px solid var(--color-border)' }}>
+                <RefreshCw className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-accent-amber)' }} />
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-800 text-sm truncate">{re.name}</p>
                   <p className="text-xs text-gray-500">{fmt(re.amount)} {t.birr} - {FREQ_LABELS[re.freq] || re.freq}</p>
@@ -62,19 +62,19 @@ export default function RecurringExpensesPanel({ recurring, onRecurringChange })
           <button
             onClick={() => setShowReForm(true)}
             className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 border-2 border-dashed transition-all min-h-[48px]"
-            style={{ borderColor: '#e8e2d8', color: '#C4883A', background: '#FAF8F5' }}
+            style={{ borderColor: 'var(--color-border)', color: 'var(--color-accent-amber)', background: 'var(--color-surface-muted)' }}
           >
             <Plus className="w-4 h-4" /> {t.addRecurring}
           </button>
         ) : (
-          <div className="space-y-2 p-3 rounded-xl border" style={{ background: '#FAF8F5', borderColor: 'var(--color-border)' }}>
+          <div className="space-y-2 p-3 rounded-xl border" style={{ background: 'var(--color-surface-muted)', borderColor: 'var(--color-border)' }}>
             <input
               type="text"
               value={reName}
               onChange={e => setReName(e.target.value)}
               placeholder={t.expenseName}
               className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-              style={{ borderColor: '#e8e2d8' }}
+              style={{ borderColor: 'var(--color-border)' }}
             />
             <div className="relative">
               <input
@@ -89,7 +89,7 @@ export default function RecurringExpensesPanel({ recurring, onRecurringChange })
                 }}
                 placeholder={t.amount}
                 className="w-full px-3 py-2.5 pr-14 border-2 rounded-xl text-sm focus:outline-none"
-                style={{ borderColor: '#e8e2d8' }}
+                style={{ borderColor: 'var(--color-border)' }}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium">{t.birr}</span>
             </div>
@@ -101,9 +101,9 @@ export default function RecurringExpensesPanel({ recurring, onRecurringChange })
                   onClick={() => setReFreq(f)}
                   className="flex-1 py-2 rounded-lg text-xs font-bold border-2 transition-all min-h-[40px]"
                   style={{
-                    borderColor: reFreq === f ? '#C4883A' : '#e8e2d8',
-                    background: reFreq === f ? 'rgba(196,136,58,0.15)' : '#fff',
-                    color: reFreq === f ? '#1B4332' : '#6b7280',
+                    borderColor: reFreq === f ? 'var(--color-accent-amber)' : 'var(--color-border)',
+                    background: reFreq === f ? 'rgba(196,136,58,0.15)' : 'var(--color-bg-white)',
+                    color: reFreq === f ? 'var(--color-primary)' : 'var(--color-text-muted)',
                   }}
                 >
                   {FREQ_LABELS[f]}
@@ -113,7 +113,7 @@ export default function RecurringExpensesPanel({ recurring, onRecurringChange })
             <div className="flex gap-2">
               <button
                 onClick={() => { setShowReForm(false); setReName(''); setReAmount(''); setReFreq('monthly'); }}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold min-h-[44px]" style={{ background: '#f5f5f5', color: '#6b7280' }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold min-h-[44px]" style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)' }}
               >
                 {t.cancel}
               </button>
@@ -121,7 +121,7 @@ export default function RecurringExpensesPanel({ recurring, onRecurringChange })
                 onClick={addRecurring}
                 disabled={!reName.trim() || !parseFloat(parseInput(reAmount))}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 min-h-[44px]"
-                style={{ background: '#C4883A' }}
+                style={{ background: 'var(--color-accent-amber)' }}
               >
                 {t.add}
               </button>

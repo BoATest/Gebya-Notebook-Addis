@@ -37,9 +37,9 @@ export default function DubieRulesPanel({ onChange }) {
                 onClick={() => { setOverdueDays(d); setDirty(true); }}
                 className="flex-1 py-2.5 rounded-lg text-sm font-bold border-2 min-h-[40px]"
                 style={{
-                  borderColor: overdueDays === d ? '#1B4332' : '#e8e2d8',
-                  background: overdueDays === d ? '#1B4332' : '#fff',
-                  color: overdueDays === d ? '#fff' : '#6b7280',
+                  borderColor: overdueDays === d ? 'var(--color-primary)' : 'var(--color-border)',
+                  background: overdueDays === d ? 'var(--color-primary)' : 'var(--color-bg-white)',
+                  color: overdueDays === d ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
                 }}
               >
                 {d === 0 ? (lang === 'am' ? 'ምንም' : 'None') : `${d} ${lang === 'am' ? 'ቀን' : 'days'}`}

@@ -33,7 +33,7 @@ export default function Chapter({
     <section
       className={`chapter ${className}`}
       style={{
-        background: '#fff',
+        background: 'var(--color-surface)',
         border: '1px solid var(--color-border, #ece6d6)',
         borderRadius: 'var(--radius-md, 12px)',
         boxShadow: 'var(--shadow-xs, 0 2px 8px -4px rgba(0,0,0,0.08))',
@@ -63,7 +63,7 @@ export default function Chapter({
             <h3 style={{
               fontSize: 13,
               fontWeight: 900,
-              color: '#1f2937',
+              color: 'var(--color-text)',
               lineHeight: 1.2,
             }}>
               {title}
@@ -72,8 +72,8 @@ export default function Chapter({
               <span style={{
                 fontSize: 10,
                 fontWeight: 800,
-                color: '#fff',
-                background: badge.color || '#1B4332',
+                color: 'var(--color-bg-white)',
+                background: badge.color || 'var(--color-primary)',
                 padding: '2px 6px',
                 borderRadius: 999,
                 lineHeight: 1.3,
@@ -85,7 +85,7 @@ export default function Chapter({
           {subtitle && (
             <p style={{
               fontSize: 11,
-              color: '#9ca3af',
+              color: 'var(--color-text-soft)',
               fontWeight: 600,
               marginTop: 2,
             }}>
@@ -98,7 +98,7 @@ export default function Chapter({
           <ChevronDown
             className="w-4 h-4"
             style={{
-              color: '#d1d5db',
+              color: 'var(--color-text-soft)',
               transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
               transition: 'transform 0.2s ease-in-out',
               flexShrink: 0,

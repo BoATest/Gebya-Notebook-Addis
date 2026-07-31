@@ -70,7 +70,7 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
       {/* Unsettled staff alerts */}
       {unsettled.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 10, fontWeight: 900, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+          <p style={{ fontSize: 10, fontWeight: 900, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
             {t('Ready to settle', 'ለማስተካከል ዝግጁ')}
           </p>
           {unsettled.map(staff => {
@@ -79,37 +79,37 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
               <div key={staff.id} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 padding: '10px 12px', marginBottom: 6,
-                background: hasStaffSubmission ? '#f0f9ff' : '#fff', borderRadius: 10,
+                background: hasStaffSubmission ? 'var(--color-info-bg)' : 'var(--color-bg-white)', borderRadius: 10,
                 border: currentSettlingStaff === String(staff.id) ? '2px solid #1B4332' : '1px solid #e5e7eb',
                 borderLeft: hasStaffSubmission ? '3px solid #0369a1' : undefined,
               }}>
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 13, fontWeight: 900, color: '#1f2937', margin: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 900, color: 'var(--color-text)', margin: 0 }}>
                     {staff.name || staff.displayName}
                     {hasStaffSubmission && (
-                      <span style={{ fontSize: 10, marginLeft: 6, color: '#0369a1' }}>
+                      <span style={{ fontSize: 10, marginLeft: 6, color: 'var(--color-info)' }}>
                         📨 {t('submitted', 'ልኳል')}
                       </span>
                     )}
                   </p>
                   {staff.lastSettlement?.reconciliation_status === 'staff_submitted' ? (
-                    <p style={{ fontSize: 11, color: '#0369a1', margin: '2px 0 0' }}>
+                    <p style={{ fontSize: 11, color: 'var(--color-info)', margin: '2px 0 0' }}>
                       {t('Staff reported:', 'ሰራተኛ ያስረከበው:')} {fmt(staff.lastSettlement.staff_reported_cash || 0)} ETB
                       {staff.lastSettlement.staff_reported_transfer > 0 && (
                         <span> + {t('transfer:', 'ዝውውር:')} {fmt(staff.lastSettlement.staff_reported_transfer)} ETB</span>
                       )}
                     </p>
                   ) : staff.daysSince !== null ? (
-                    <p style={{ fontSize: 11, color: '#f59e0b', margin: '2px 0 0' }}>
+                    <p style={{ fontSize: 11, color: 'var(--color-warning)', margin: '2px 0 0' }}>
                       {t('Last settled', 'መጨረሻ የተስተካከለ')} {staff.daysSince} {t('days ago', 'ቀናት በፊት')}
                     </p>
                   ) : (
-                    <p style={{ fontSize: 11, color: '#ef4444', margin: '2px 0 0' }}>
+                    <p style={{ fontSize: 11, color: 'var(--color-danger)', margin: '2px 0 0' }}>
                       {t('Never settled', 'እስካሁን አልተስተካከለም')}
                     </p>
                   )}
                   {staff.lastSettlement && staff.lastSettlement.final_variance !== 0 && (
-                    <p style={{ fontSize: 11, color: '#f59e0b', margin: '2px 0 0' }}>
+                    <p style={{ fontSize: 11, color: 'var(--color-warning)', margin: '2px 0 0' }}>
                       {t('Variance:', 'ልዩነት:')} {fmt(staff.lastSettlement.final_variance)} ETB
                     </p>
                   )}
@@ -117,7 +117,7 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
                 <button
                   onClick={() => hasStaffSubmission ? onViewSettlement?.(staff.lastSettlement, staff) : onSettle(staff)}
                   style={{
-                    background: hasStaffSubmission ? '#0369a1' : '#1B4332', color: '#fff', border: 'none',
+                    background: hasStaffSubmission ? 'var(--color-info)' : 'var(--color-primary)', color: 'var(--color-bg-white)', border: 'none',
                     borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 800,
                     cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 8,
                   }}
@@ -131,7 +131,7 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
       {/* Recent settlements */}
       {settlements.length > 0 && (
         <div>
-          <p style={{ fontSize: 10, fontWeight: 900, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+          <p style={{ fontSize: 10, fontWeight: 900, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
             {t('Past settlements', 'ያለፉ ማስተካከያዎች')}
           </p>
           <div style={{ maxHeight: viewAll ? 400 : 240, overflowY: 'auto' }}>
@@ -142,11 +142,11 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
                 <div key={s.id || i} onClick={() => onViewSettlement?.(s, staff)}
                   style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '8px 10px', fontSize: 11, fontWeight: 650, color: '#374151',
+                    padding: '8px 10px', fontSize: 11, fontWeight: 650, color: 'var(--color-text)',
                     borderBottom: '1px solid #f3f4f6', cursor: 'pointer',
                     borderRadius: 6, transition: 'background 0.1s',
-                    background: rStatus === 'staff_submitted' ? '#f0f9ff' :
-                                rStatus === 'disputed' ? '#fef2f2' : 'transparent',
+                    background: rStatus === 'staff_submitted' ? 'var(--color-info-bg)' :
+                                rStatus === 'disputed' ? 'var(--color-danger-bg)' : 'transparent',
                   }}
                   onMouseEnter={e => e.currentTarget.style.background = rStatus === 'staff_submitted' ? '#e0f2fe' : rStatus === 'disputed' ? '#fee2e2' : '#f9fafb'}
                   onMouseLeave={e => e.currentTarget.style.background = rStatus === 'staff_submitted' ? '#f0f9ff' : rStatus === 'disputed' ? '#fef2f2' : 'transparent'}
@@ -156,7 +156,7 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
                       {new Date(s.settled_at).toLocaleDateString()} · {staff?.name || staff?.displayName || `#${s.staff_id}`}
                     </span>
                     {(s.staff_reported_cash != null || s.reconciliation_note) && (
-                      <span style={{ display: 'block', fontSize: 10, color: '#6b7280', marginTop: 2 }}>
+                      <span style={{ display: 'block', fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2 }}>
                         {s.staff_reported_cash != null && `${t('Staff:', 'ሰራተኛ:')} ${fmt(s.staff_reported_cash)} ETB`}
                         {s.reconciliation_note && ` 📝 ${s.reconciliation_note}`}
                       </span>
@@ -164,7 +164,7 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <ReconBadge status={rStatus} />
-                    <span style={{ color: '#9ca3af', fontSize: 14 }}>›</span>
+                    <span style={{ color: 'var(--color-text-soft)', fontSize: 14 }}>›</span>
                   </div>
                 </div>
               );
@@ -172,14 +172,14 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
           </div>
           {settlements.length > 10 && (
             <button onClick={() => setViewAll(!viewAll)}
-              style={{ background: 'none', border: 'none', color: '#1B4332', fontSize: 11, fontWeight: 800, cursor: 'pointer', padding: '8px 0', width: '100%', textAlign: 'center' }}
+              style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: 11, fontWeight: 800, cursor: 'pointer', padding: '8px 0', width: '100%', textAlign: 'center' }}
             >{viewAll ? t('Show less', 'አጠር አድርግ') : t('View all', 'ሁሉንም እይ')}</button>
           )}
         </div>
       )}
 
       {settlements.length === 0 && unsettled.length === 0 && (
-        <p style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', padding: 16 }}>
+        <p style={{ fontSize: 12, color: 'var(--color-text-soft)', textAlign: 'center', padding: 16 }}>
           {t('No settlement data yet', 'እስካሁን ምንም የማስተካከያ መረጃ የለም')}
         </p>
       )}

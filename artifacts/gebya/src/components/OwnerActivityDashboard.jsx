@@ -80,8 +80,8 @@ function ConflictsCard({ lang }) {
   if (!lastConflicts || lastConflicts.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#f59e0b', background: '#fffbeb' }}>
-      <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: '#fcd34d', background: '#fef3c7' }}>
+    <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-warning)', background: 'var(--color-warning-bg)' }}>
+      <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-warning-border)', background: 'var(--color-warning-bg)' }}>
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-amber-600" />
           <span className="text-xs font-black text-amber-800">
@@ -102,7 +102,7 @@ function ConflictsCard({ lang }) {
       </div>
       <div className="px-4 py-3 space-y-2">
         {lastConflicts.map((conflict, idx) => (
-          <div key={idx} className="rounded-xl border px-3 py-2" style={{ borderColor: '#fcd34d', background: '#fff' }}>
+          <div key={idx} className="rounded-xl border px-3 py-2" style={{ borderColor: 'var(--color-warning-border)', background: 'var(--color-surface)' }}>
             <div className="text-xs font-bold text-amber-900">
               {conflict.table} · localId {conflict.localId}
             </div>
@@ -205,8 +205,8 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
   return (
     <div className="space-y-4 pb-4">
       {/* Summary bar */}
-      <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#e8e2d8', background: '#fff' }}>
-        <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: '#f0ece4', background: '#fcfbf8' }}>
+      <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
+        <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface-subtle)' }}>
           <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
             {lang === 'am' ? 'የዛሬ ሪኮርዶች' : 'Today\'s activity'}
           </span>
@@ -219,9 +219,9 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
         ) : (
           <div className="px-4 py-3 space-y-2">
             {todayTotalsByStaff.map(row => (
-              <div key={row.name + row.id} className="flex items-center justify-between rounded-xl border px-3 py-2" style={{ borderColor: '#f0ece4', background: '#fcfbf8' }}>
+              <div key={row.name + row.id} className="flex items-center justify-between rounded-xl border px-3 py-2" style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface-subtle)' }}>
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ background: '#1B4332' }}>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white" style={{ background: 'var(--color-primary)' }}>
                     {row.name.charAt(0).toUpperCase()}
                   </div>
                   <span className="text-sm font-bold text-gray-900">{row.name}</span>
@@ -241,12 +241,12 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
       <ConflictsCard lang={lang} />
 
       {/* Blocked actions */}
-      <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#fecaca', background: '#fff' }}>
+      <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-danger-border)', background: 'var(--color-surface)' }}>
         <button
           type="button"
           onClick={() => setShowBlocked(!showBlocked)}
           className="w-full px-4 py-3 border-b flex items-center justify-between"
-          style={{ borderColor: '#fecaca', background: '#fef2f2' }}
+          style={{ borderColor: 'var(--color-danger-border)', background: 'var(--color-danger-bg)' }}
         >
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-red-600" />
@@ -267,10 +267,10 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
               </div>
             ) : (
               filteredViolations.map(row => (
-                <div key={row.id} className="rounded-xl border px-3 py-2" style={{ borderColor: '#fecaca', background: '#fff' }}>
+                <div key={row.id} className="rounded-xl border px-3 py-2" style={{ borderColor: 'var(--color-danger-border)', background: 'var(--color-surface)' }}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black text-white" style={{ background: '#b91c1c' }}>
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black text-white" style={{ background: 'var(--color-danger-text)' }}>
                         {row.actorStaffMemberId ? staffOptions.find(o => o.id === row.actorStaffMemberId)?.name?.charAt(0) || 'S' : 'D'}
                       </div>
                       <span className="text-sm font-bold text-gray-900">
@@ -293,7 +293,7 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
       </div>
 
       {/* Filters */}
-      <div className="rounded-2xl border px-4 py-3" style={{ borderColor: '#e8e2d8', background: '#fff' }}>
+      <div className="rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
         <div className="flex items-center gap-2 mb-2">
           <Filter className="w-4 h-4 text-gray-400" />
           <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
@@ -301,15 +301,15 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
           </span>
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <select value={staffFilter} onChange={e => setStaffFilter(e.target.value)} className="px-2 py-2 border rounded-xl text-xs bg-white" style={{ borderColor: '#e8e2d8' }}>
+          <select value={staffFilter} onChange={e => setStaffFilter(e.target.value)} className="px-2 py-2 border rounded-xl text-xs bg-white" style={{ borderColor: 'var(--color-border)' }}>
             <option value="all">{lang === 'am' ? 'ሁሉም ሰራተኞች' : 'All staff'}</option>
             {staffOptions.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
           </select>
-          <select value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="px-2 py-2 border rounded-xl text-xs bg-white" style={{ borderColor: '#e8e2d8' }}>
+          <select value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="px-2 py-2 border rounded-xl text-xs bg-white" style={{ borderColor: 'var(--color-border)' }}>
             <option value="today">{lang === 'am' ? 'ዛሬ' : 'Today'}</option>
             <option value="all">{lang === 'am' ? 'ሁሉም' : 'All'}</option>
           </select>
-          <select value={actionFilter} onChange={e => setActionFilter(e.target.value)} className="px-2 py-2 border rounded-xl text-xs bg-white" style={{ borderColor: '#e8e2d8' }}>
+          <select value={actionFilter} onChange={e => setActionFilter(e.target.value)} className="px-2 py-2 border rounded-xl text-xs bg-white" style={{ borderColor: 'var(--color-border)' }}>
             <option value="all">{lang === 'am' ? 'ሁሉም' : 'All'}</option>
             <option value="CREATE">{lang === 'am' ? 'መውጫ' : 'Created'}</option>
             <option value="UPDATE">{lang === 'am' ? 'ማሻሻል' : 'Updated'}</option>
@@ -319,8 +319,8 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
       </div>
 
       {/* Activity feed */}
-      <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#e8e2d8', background: '#fff' }}>
-        <div className="px-4 py-3 border-b" style={{ borderColor: '#f0ece4', background: '#fcfbf8' }}>
+      <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
+        <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface-subtle)' }}>
           <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
             {lang === 'am' ? 'የቅርብ እንቅስቃሴዎች' : 'Recent activity'}
           </span>
@@ -330,7 +330,7 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
             {lang === 'am' ? 'ምንም እንቅስቃሴ አልተገኘም' : 'No matching activity'}
           </div>
         ) : (
-          <div className="divide-y" style={{ borderColor: '#f3f4f6' }}>
+          <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
             {filteredActivity.slice(0, 100).map(row => {
               const dayLabel = relativeDayLabel(row.createdAt, lang);
               const timeStr = formatTime(row.createdAt, lang);
@@ -345,7 +345,7 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
                 <div key={row.id} className="px-4 py-2.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black text-white" style={{ background: '#1B4332' }}>
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black text-white" style={{ background: 'var(--color-primary)' }}>
                         {actorName.charAt(0).toUpperCase()}
                       </div>
                       <span className="text-xs font-bold text-gray-700">{actorName}</span>

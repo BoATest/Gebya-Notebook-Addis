@@ -104,21 +104,21 @@ function BankLoginForm({ onLogin }) {
         <div style={{
           width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, #1B4332 0%, #2D6A4F 100%)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
-          fontSize: '1.4rem', color: '#fff', fontWeight: 900,
+          fontSize: '1.4rem', color: 'var(--color-bg-white)', fontWeight: 900,
         }}>
           GB
         </div>
-        <h1 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#374151', marginBottom: 4 }}>
+        <h1 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: 4 }}>
           Gebya Bank Portal
         </h1>
-        <p style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+        <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
           View merchant analytics and credit data
         </p>
       </div>
 
       {error && (
         <div style={{
-          padding: '10px 14px', borderRadius: 10, background: '#fef2f2', color: '#dc2626',
+          padding: '10px 14px', borderRadius: 10, background: 'var(--color-danger-bg)', color: 'var(--color-danger)',
           fontSize: '0.75rem', marginBottom: 16,
         }}>
           {error}
@@ -134,7 +134,7 @@ function BankLoginForm({ onLogin }) {
           disabled={otpSent}
           style={{
             padding: '12px 16px', borderRadius: 10, border: '1px solid #d1d5db',
-            fontSize: '0.85rem', background: otpSent ? '#f9fafb' : '#fff',
+            fontSize: '0.85rem', background: otpSent ? 'var(--color-bg-active)' : 'var(--color-bg-white)',
           }}
         />
 
@@ -158,8 +158,8 @@ function BankLoginForm({ onLogin }) {
           disabled={loading || !phone || (otpSent && otp.length < 6)}
           style={{
             padding: '12px 0', borderRadius: 10, border: 'none',
-            background: (!phone || (otpSent && otp.length < 6)) ? '#d1d5db' : '#1B4332',
-            color: '#fff', fontSize: '0.85rem', fontWeight: 700,
+            background: (!phone || (otpSent && otp.length < 6)) ? 'var(--color-text-soft)' : 'var(--color-primary)',
+            color: 'var(--color-bg-white)', fontSize: '0.85rem', fontWeight: 700,
             cursor: (!phone || (otpSent && otp.length < 6)) ? 'not-allowed' : 'pointer',
           }}
         >
@@ -183,11 +183,11 @@ function ShopList({ onSelect }) {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div style={{ padding: 20, textAlign: 'center', color: '#9ca3af' }}>Loading shops...</div>;
+  if (loading) return <div style={{ padding: 20, textAlign: 'center', color: 'var(--color-text-soft)' }}>Loading shops...</div>;
   if (shops.length === 0) return (
     <div style={{ padding: 40, textAlign: 'center' }}>
       <p style={{ fontSize: '2rem', marginBottom: 12 }}>🏪</p>
-      <p style={{ fontSize: '0.85rem', color: '#6b7280' }}>No shops have shared data with your bank yet.</p>
+      <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>No shops have shared data with your bank yet.</p>
     </div>
   );
 
@@ -201,16 +201,16 @@ function ShopList({ onSelect }) {
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '14px 16px', borderRadius: 12, border: '1px solid #e5e7eb',
-            background: '#fff', cursor: 'pointer', textAlign: 'left',
+            background: 'var(--color-surface)', cursor: 'pointer', textAlign: 'left',
           }}
         >
           <div>
-            <p style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>{shop.shop_name}</p>
-            <p style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
+            <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text)' }}>{shop.shop_name}</p>
+            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-soft)' }}>
               Shared {shop.shareCreditData ? '· Credit' : ''} {shop.shareSalesData ? '· Sales' : ''}
             </p>
           </div>
-          <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>→</span>
+          <span style={{ color: 'var(--color-text-soft)', fontSize: '0.8rem' }}>→</span>
         </button>
       ))}
     </div>
@@ -232,11 +232,11 @@ function ShopReport({ businessId, onBack }) {
       .finally(() => setLoading(false));
   }, [businessId]);
 
-  if (loading) return <div style={{ padding: 20, textAlign: 'center', color: '#9ca3af' }}>Loading report...</div>;
+  if (loading) return <div style={{ padding: 20, textAlign: 'center', color: 'var(--color-text-soft)' }}>Loading report...</div>;
   if (error) return (
     <div style={{ padding: 20, textAlign: 'center' }}>
-      <p style={{ color: '#dc2626', fontSize: '0.85rem', marginBottom: 12 }}>{error}</p>
-      <button onClick={onBack} style={{ fontSize: '0.8rem', color: '#1B4332', background: 'none', border: 'none', cursor: 'pointer' }}>
+      <p style={{ color: 'var(--color-danger)', fontSize: '0.85rem', marginBottom: 12 }}>{error}</p>
+      <button onClick={onBack} style={{ fontSize: '0.8rem', color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer' }}>
         ← Back to shops
       </button>
     </div>
@@ -250,21 +250,21 @@ function ShopReport({ businessId, onBack }) {
     <div style={{ padding: '0 4px' }}>
       <button
         onClick={onBack}
-        style={{ fontSize: '0.8rem', color: '#1B4332', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 16 }}
+        style={{ fontSize: '0.8rem', color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 16 }}
       >
         ← Back to shops
       </button>
 
-      <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#374151', marginBottom: 4 }}>{report.shop.name}</h2>
+      <h2 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-text)', marginBottom: 4 }}>{report.shop.name}</h2>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <p style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
+        <p style={{ fontSize: '0.7rem', color: 'var(--color-text-soft)' }}>
           Report generated {new Date(report.generated_at).toLocaleDateString()}
         </p>
         <button
           onClick={() => exportReportCsv(report)}
           style={{
             padding: '6px 12px', borderRadius: 8, border: '1px solid #d1d5db',
-            background: '#fff', fontSize: '0.75rem', color: '#374151', cursor: 'pointer',
+            background: 'var(--color-surface)', fontSize: '0.75rem', color: 'var(--color-text)', cursor: 'pointer',
           }}
         >
           Download CSV
@@ -280,9 +280,9 @@ function ShopReport({ businessId, onBack }) {
           { label: 'Customers with Credit', value: s.total_customers_with_credit, color: '#7c3aed' },
         ].map((kpi) => (
           <div key={kpi.label} style={{
-            padding: '14px', borderRadius: 12, background: '#f9fafb', border: '1px solid #e5e7eb',
+            padding: '14px', borderRadius: 12, background: 'var(--color-bg-active)', border: '1px solid #e5e7eb',
           }}>
-            <p style={{ fontSize: '0.65rem', color: '#6b7280', marginBottom: 4 }}>{kpi.label}</p>
+            <p style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', marginBottom: 4 }}>{kpi.label}</p>
             <p style={{ fontSize: '1rem', fontWeight: 800, color: kpi.color }}>{kpi.value}</p>
           </div>
         ))}
@@ -290,16 +290,16 @@ function ShopReport({ businessId, onBack }) {
 
       {/* Monthly Trend */}
       <div style={{ marginBottom: 20 }}>
-        <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: 10 }}>Monthly Trend</h3>
+        <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: 10 }}>Monthly Trend</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {report.monthly_summary.filter((m) => m.transaction_count > 0).map((m) => (
             <div key={m.month} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '10px 12px', borderRadius: 8, background: '#f9fafb',
+              padding: '10px 12px', borderRadius: 8, background: 'var(--color-bg-active)',
               fontSize: '0.75rem',
             }}>
-              <span style={{ color: '#374151', fontWeight: 600 }}>{m.month}</span>
-              <span style={{ color: '#6b7280' }}>
+              <span style={{ color: 'var(--color-text)', fontWeight: 600 }}>{m.month}</span>
+              <span style={{ color: 'var(--color-text-muted)' }}>
                 Sales: birr{fmt(m.total_sales_birr)} · Credit: birr{fmt(m.credit_extended_birr)}
               </span>
             </div>
@@ -310,7 +310,7 @@ function ShopReport({ businessId, onBack }) {
       {/* Customer Breakdown */}
       {report.customer_summaries.length > 0 && (
         <div>
-          <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', marginBottom: 10 }}>
+          <h3 style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text)', marginBottom: 10 }}>
             Customer Credit ({report.customer_summaries.length})
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -320,14 +320,14 @@ function ShopReport({ businessId, onBack }) {
                 fontSize: '0.75rem',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontWeight: 700, color: '#374151' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--color-text)' }}>
                     {c.display_name || `Customer ${c.customer_id}`}
                   </span>
-                  <span style={{ color: c.outstanding_balance > 0 ? '#dc2626' : '#16a34a', fontWeight: 700 }}>
+                  <span style={{ color: c.outstanding_balance > 0 ? 'var(--color-danger)' : 'var(--color-success)', fontWeight: 700 }}>
                     birr{fmt(c.outstanding_balance)} outstanding
                   </span>
                 </div>
-                <div style={{ color: '#6b7280', fontSize: '0.7rem' }}>
+                <div style={{ color: 'var(--color-text-muted)', fontSize: '0.7rem' }}>
                   Repaid: {c.repayment_rate}% · {c.credit_count} credits · {c.oldest_credit_days} days oldest
                 </div>
               </div>
@@ -368,29 +368,29 @@ export default function BankDashboard() {
     setSelectedShop(null);
   }, []);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}>Loading...</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-soft)' }}>Loading...</div>;
   if (!user) return <BankLoginForm onLogin={handleLogin} />;
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--color-bg-hover)' }}>
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 20px', background: '#fff', borderBottom: '1px solid #e5e7eb',
+        padding: '16px 20px', background: 'var(--color-surface)', borderBottom: '1px solid #e5e7eb',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
             width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #1B4332 0%, #2D6A4F 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.7rem', color: '#fff', fontWeight: 900,
+            fontSize: '0.7rem', color: 'var(--color-bg-white)', fontWeight: 900,
           }}>
             GB
           </div>
-          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#374151' }}>Bank Portal</span>
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text)' }}>Bank Portal</span>
         </div>
         <button
           onClick={handleLogout}
-          style={{ fontSize: '0.75rem', color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer' }}
+          style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
         >
           Logout
         </button>

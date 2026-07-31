@@ -25,7 +25,7 @@ export default function TrustCard({ totalEntries, todayCount, lastSavedSnapshot,
             </p>
             {totalEntries > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
-                <span className="px-2.5 py-1 text-xs font-black" style={{ background: 'rgba(27,67,50,0.08)', color: '#1B4332', borderRadius: '999px' }}>
+                <span className="px-2.5 py-1 text-xs font-black" style={{ background: 'rgba(27,67,50,0.08)', color: 'var(--color-primary)', borderRadius: '999px' }}>
                   {todayCount} {t.trustTodayCount || 'saved today'}
                 </span>
                 {savedAt && (
@@ -36,7 +36,7 @@ export default function TrustCard({ totalEntries, todayCount, lastSavedSnapshot,
               </div>
             )}
             {savedLabel && (
-              <p className="text-xs mt-2 font-semibold truncate font-sans" style={{ color: '#C4883A' }}>
+              <p className="text-xs mt-2 font-semibold truncate font-sans" style={{ color: 'var(--color-accent-amber)' }}>
                 {savedLabel}
               </p>
             )}
@@ -51,7 +51,7 @@ export default function TrustCard({ totalEntries, todayCount, lastSavedSnapshot,
           <button
             onClick={onStartSale}
             className="flex-shrink-0 px-3 py-2 text-xs font-black text-white min-h-[40px] press-scale"
-            style={{ background: '#1B4332', borderRadius: 'var(--radius-sm)' }}
+            style={{ background: 'var(--color-primary)', borderRadius: 'var(--radius-sm)' }}
           >
             {t.trustCardAction || 'Record your first sale'}
           </button>

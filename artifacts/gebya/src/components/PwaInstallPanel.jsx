@@ -36,14 +36,14 @@ function InstallGuideModal({ pwa }) {
         </div>
         <div className="px-5 py-4 space-y-3">
           <div className="p-4 border" style={{ background: 'var(--color-surface-soft)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)' }}>
-            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide mb-3" style={{ color: '#1B4332' }}>
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--color-primary)' }}>
               <Smartphone className="w-4 h-4" />
               {pwa.isStandalone ? t.installAlreadyInstalled : t.installGuideDeviceTitle}
             </div>
             <div className="space-y-2">
               {steps.map((step, index) => (
                 <div key={`${index}-${step}`} className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0" style={{ background: '#1B4332' }}>
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black text-white flex-shrink-0" style={{ background: 'var(--color-primary)' }}>
                     {index + 1}
                   </span>
                   <p className="text-sm text-gray-700">{step}</p>
@@ -99,7 +99,7 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
       <button
         onClick={pwa.promptInstall}
         className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 min-h-[44px] press-scale"
-        style={{ background: '#1B4332' }}
+        style={{ background: 'var(--color-primary)' }}
       >
         <Download className="w-4 h-4" />
         {pwa.canPromptInstall ? t.installNow : t.installHowTo}
@@ -124,8 +124,8 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
         <section>
           <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden" style={{ background: 'var(--color-surface)' }}>
             <div className="px-5 py-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: '#d1fae5' }}>
-                <Smartphone className="w-5 h-5" style={{ color: '#16a34a' }} />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-success-bg)' }}>
+                <Smartphone className="w-5 h-5" style={{ color: 'var(--color-success)' }} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-gray-800">{t.installAlreadyInstalled}</div>
@@ -146,7 +146,7 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
             <div className="px-5 py-4 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(27,67,50,0.08)' }}>
-                  <Smartphone className="w-5 h-5" style={{ color: '#1B4332' }} />
+                  <Smartphone className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-gray-800">{t.installBannerTitle}</div>
@@ -183,7 +183,7 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
               <button
                 onClick={pwa.applyUpdate}
                 className="w-full py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 min-h-[44px] press-scale"
-                style={{ background: '#1B4332' }}
+                style={{ background: 'var(--color-primary)' }}
               >
                 <RefreshCw className="w-4 h-4" />
                 {t.refreshApp}
@@ -249,9 +249,9 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
           <div className="px-4 py-4 space-y-3">
             <div className="flex items-start gap-3">
               {pwa.canPromptInstall ? (
-                <Download className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: '#1B4332' }} />
+                <Download className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--color-primary)' }} />
               ) : (
-                <Signal className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: '#1B4332' }} />
+                <Signal className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--color-primary)' }} />
               )}
               <div className="flex-1">
                 <p className="font-bold text-gray-900">{t.installBannerTitle}</p>

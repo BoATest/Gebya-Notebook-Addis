@@ -38,7 +38,7 @@ export default function HeroStatus({
       padding: '16px 18px',
       marginTop: 4,
     }}>
-      <p style={{ fontSize: 13, fontWeight: 700, color: '#1B4332', marginBottom: 6, lineHeight: 1.4 }}>
+      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary)', marginBottom: 6, lineHeight: 1.4 }}>
         {hidden ? '••••••' : status.sentence}
       </p>
       <button
@@ -51,8 +51,8 @@ export default function HeroStatus({
           padding: '8px 16px',
           borderRadius: 10,
           border: 'none',
-          background: '#1B4332',
-          color: '#fff',
+          background: 'var(--color-primary)',
+          color: 'var(--color-bg-white)',
           fontSize: 13,
           fontWeight: 800,
           cursor: 'pointer',

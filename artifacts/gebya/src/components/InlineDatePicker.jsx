@@ -187,7 +187,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
       >
         <div
           style={{
-            background: '#fff',
+            background: 'var(--color-surface)',
             borderTopLeftRadius: 24, borderTopRightRadius: 24,
             width: '100%', maxWidth: 480,
             maxHeight: '100%',
@@ -197,35 +197,35 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
         >
           <div style={{ overflowY: 'auto', flex: 1, WebkitOverflowScrolling: 'touch' }}>
             {/* Drag handle */}
-            <div style={{ width: 38, height: 4, background: '#e5e7eb', borderRadius: 999, margin: '10px auto 6px' }} />
+            <div style={{ width: 38, height: 4, background: 'var(--color-bg-disabled)', borderRadius: 999, margin: '10px auto 6px' }} />
 
             {/* Header */}
             <div style={{ padding: '0 16px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1a1a1a', margin: 0 }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-text)', margin: 0 }}>
                 {lang === 'am' ? 'የቀን ምረጫ' : 'Pick a date'}
               </h3>
               <button type="button" onClick={onClose} aria-label="Close"
                 style={{
                   width: 32, height: 32, borderRadius: 8,
-                  background: '#f3f4f6', border: 'none',
+                  background: 'var(--color-bg-hover)', border: 'none',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer',
                 }}>
-                <X className="w-4 h-4" style={{ color: '#6b7280' }} />
+                <X className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
               </button>
             </div>
 
             {/* Large date display */}
             <div style={{
               margin: '0 16px 10px', padding: '10px 14px',
-              background: '#fafaf5', borderRadius: 10,
+              background: 'var(--color-surface-subtle)', borderRadius: 10,
               textAlign: 'center',
             }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#1B4332', lineHeight: 1.3 }}>
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-primary)', lineHeight: 1.3 }}>
                 {pending.day} {pendingMonthName} {pending.year}{weekdayLabel ? ` - ${weekdayLabel}` : ''}
               </div>
               {weekdayLabelAM && (
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#6b7280', marginTop: 2 }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-muted)', marginTop: 2 }}>
                   {weekdayLabelAM}
                 </div>
               )}
@@ -240,7 +240,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                 }}
                   style={{
                     flexShrink: 0, padding: '7px 13px', minHeight: 34,
-                    background: '#1B4332', color: '#fff',
+                    background: 'var(--color-primary)', color: 'var(--color-bg-white)',
                     border: '2px solid #1B4332', borderRadius: 8,
                     fontSize: '0.78rem', fontWeight: 800,
                     cursor: 'pointer',
@@ -250,7 +250,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                 <button type="button" onClick={() => setDateNDaysFromToday(1)}
                   style={{
                     flexShrink: 0, padding: '7px 13px', minHeight: 34,
-                    background: '#fff', color: '#1B4332',
+                    background: 'var(--color-surface)', color: 'var(--color-primary)',
                     border: '2px solid #d4cdc0', borderRadius: 8,
                     fontSize: '0.78rem', fontWeight: 800,
                     cursor: 'pointer',
@@ -261,7 +261,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                   <button key={n} type="button" onClick={() => setDateNDaysFromToday(n)}
                     style={{
                       flexShrink: 0, padding: '7px 13px', minHeight: 34,
-                      background: '#fff', color: '#1B4332',
+                      background: 'var(--color-surface)', color: 'var(--color-primary)',
                       border: '2px solid #d4cdc0', borderRadius: 8,
                       fontSize: '0.78rem', fontWeight: 800,
                       cursor: 'pointer',
@@ -281,15 +281,15 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                 aria-label={lang === 'am' ? 'ያለፈ ወር' : 'Previous month'}
                 style={{
                   width: 30, height: 30, borderRadius: 6,
-                  background: '#f3f4f6', border: 'none',
+                  background: 'var(--color-bg-hover)', border: 'none',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer', flexShrink: 0,
                 }}>
-                <ChevronLeft className="w-3.5 h-3.5" style={{ color: '#374151' }} />
+                <ChevronLeft className="w-3.5 h-3.5" style={{ color: 'var(--color-text)' }} />
               </button>
               <span style={{
                 flex: 1, textAlign: 'center',
-                fontSize: '0.85rem', fontWeight: 800, color: '#1a1a1a',
+                fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-text)',
               }}>
                 {months[viewMonth - 1]} {viewYear}
               </span>
@@ -297,11 +297,11 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                 aria-label={lang === 'am' ? 'ቀጣይ ወር' : 'Next month'}
                 style={{
                   width: 30, height: 30, borderRadius: 6,
-                  background: '#f3f4f6', border: 'none',
+                  background: 'var(--color-bg-hover)', border: 'none',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer', flexShrink: 0,
                 }}>
-                <ChevronRight className="w-3.5 h-3.5" style={{ color: '#374151' }} />
+                <ChevronRight className="w-3.5 h-3.5" style={{ color: 'var(--color-text)' }} />
               </button>
             </div>
 
@@ -311,7 +311,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                 {weekdayHeaders.map((h, i) => (
                   <div key={i} style={{
                     flex: 1, textAlign: 'center',
-                    fontSize: '0.55rem', fontWeight: 700, color: '#9ca3af',
+                    fontSize: '0.55rem', fontWeight: 700, color: 'var(--color-text-soft)',
                   }}>
                     {h}
                   </div>
@@ -330,9 +330,9 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                           style={{
                             flex: 1, aspectRatio: '1',
                             borderRadius: 8,
-                            background: sel ? '#1B4332' : 'transparent',
-                            color: sel ? '#fff' : '#374151',
-                            border: `1.5px solid ${sel ? '#1B4332' : 'transparent'}`,
+                            background: sel ? 'var(--color-primary)' : 'transparent',
+                            color: sel ? 'var(--color-bg-white)' : 'var(--color-text)',
+                            border: `1.5px solid ${sel ? 'var(--color-primary)' : 'transparent'}`,
                             fontSize: 'clamp(0.65rem, 3.5vw, 0.9rem)', fontWeight: sel ? 800 : 500,
                           cursor: 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -344,7 +344,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                           <span style={{
                             position: 'absolute', bottom: 1,
                             width: 4, height: 4, borderRadius: '50%',
-                            background: '#1B4332',
+                            background: 'var(--color-primary)',
                           }} />
                         )}
                       </button>
@@ -359,13 +359,13 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
           <div style={{
             flexShrink: 0,
             padding: '12px 16px calc(12px + env(safe-area-inset-bottom, 0px))',
-            background: '#fff',
+            background: 'var(--color-surface)',
             borderTop: '1px solid #f0ede8',
           }}>
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="button" onClick={onClose}
                 style={{
-                  flex: 1, padding: '12px', background: '#fff', color: '#374151',
+                  flex: 1, padding: '12px', background: 'var(--color-surface)', color: 'var(--color-text)',
                   border: '2px solid #e5e7eb', borderRadius: 10, fontSize: '0.9rem', fontWeight: 700,
                   cursor: 'pointer', minHeight: 48,
                 }}>
@@ -373,7 +373,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
               </button>
               <button type="button" onClick={handleModalSet}
                 style={{
-                  flex: 2, padding: '12px', background: '#1B4332', color: '#fff',
+                  flex: 2, padding: '12px', background: 'var(--color-primary)', color: 'var(--color-bg-white)',
                   border: 'none', borderRadius: 10, fontSize: '0.95rem', fontWeight: 800,
                   cursor: 'pointer', minHeight: 48,
                   boxShadow: '0 4px 12px rgba(27,67,50,0.3)',
@@ -394,7 +394,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
   return (
     <div style={{
       padding: '10px 12px',
-      background: '#fafaf5',
+      background: 'var(--color-surface-subtle)',
       border: '1px solid #e8e2d8',
       borderRadius: 10,
     }}>
@@ -406,26 +406,26 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
           disabled={inlineMonth <= 1} aria-label="Previous month"
           style={{
             width: 32, height: 32, borderRadius: 8,
-            background: '#fff', border: '1px solid #e8e2d8',
+            background: 'var(--color-surface)', border: '1px solid #e8e2d8',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: inlineMonth <= 1 ? 'not-allowed' : 'pointer',
             opacity: inlineMonth <= 1 ? 0.4 : 1, flexShrink: 0,
           }}>
-          <ChevronLeft className="w-4 h-4" style={{ color: '#374151' }} />
+          <ChevronLeft className="w-4 h-4" style={{ color: 'var(--color-text)' }} />
         </button>
-        <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#1B4332', textAlign: 'center' }}>
+        <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--color-primary)', textAlign: 'center' }}>
           {months[inlineMonth - 1]} {parts.year}
         </span>
         <button type="button" onClick={() => handleInlineMonthChange(1)}
           disabled={inlineMonth >= 13} aria-label="Next month"
           style={{
             width: 32, height: 32, borderRadius: 8,
-            background: '#fff', border: '1px solid #e8e2d8',
+            background: 'var(--color-surface)', border: '1px solid #e8e2d8',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: inlineMonth >= 13 ? 'not-allowed' : 'pointer',
             opacity: inlineMonth >= 13 ? 0.4 : 1, flexShrink: 0,
           }}>
-          <ChevronRight className="w-4 h-4" style={{ color: '#374151' }} />
+          <ChevronRight className="w-4 h-4" style={{ color: 'var(--color-text)' }} />
         </button>
         <button type="button" onClick={() => {
           const today = gregorianISOToEthiopianParts('');
@@ -436,9 +436,9 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
         }}
           style={{
             width: 32, height: 32, borderRadius: 8,
-            background: '#1B4332', border: 'none',
+            background: 'var(--color-primary)', border: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', flexShrink: 0, color: '#fff',
+            cursor: 'pointer', flexShrink: 0, color: 'var(--color-bg-white)',
             fontSize: '0.65rem', fontWeight: 800,
           }}
           title={lang === 'am' ? 'ዛሬ' : 'Today'}>
@@ -459,9 +459,9 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
               onClick={() => handleInlineDaySelect(d)}
               style={{
                 minWidth: 36, height: 36, borderRadius: 8,
-                background: active ? '#C4883A' : '#fff',
-                color: active ? '#fff' : '#374151',
-                border: `1.5px solid ${active ? '#C4883A' : '#e8e2d8'}`,
+                background: active ? 'var(--color-accent-amber)' : 'var(--color-bg-white)',
+                color: active ? 'var(--color-bg-white)' : 'var(--color-text)',
+                border: `1.5px solid ${active ? 'var(--color-accent-amber)' : 'var(--color-border)'}`,
                 fontSize: '0.82rem', fontWeight: active ? 800 : 600,
                 fontVariantNumeric: 'tabular-nums',
                 cursor: 'pointer', flexShrink: 0,

@@ -130,7 +130,7 @@ function CustomerDetail({
       <div
         style={{
           background: 'linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%)',
-          color: '#fff',
+          color: 'var(--color-bg-white)',
           padding: '8px 14px 12px',
           marginLeft: -12, marginRight: -12, marginTop: -12,
         }}
@@ -143,7 +143,7 @@ function CustomerDetail({
             className="press-scale"
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
-              background: 'transparent', border: 'none', color: '#fff',
+              background: 'transparent', border: 'none', color: 'var(--color-bg-white)',
               fontSize: '0.85rem', fontWeight: 700,
               cursor: 'pointer', padding: '8px 10px',
               minHeight: 44, minWidth: 44,
@@ -158,7 +158,7 @@ function CustomerDetail({
             {/* Compact status pill — saves vertical space */}
             {(customer.has_overdue && customer.overdue_days > 0) && (
               <span style={{
-                background: '#fee2e2', color: '#991b1b',
+                background: 'var(--color-danger-bg)', color: 'var(--color-danger-text)',
                 padding: '2px 8px', borderRadius: 999,
                 fontSize: '0.62rem', fontWeight: 800,
                 letterSpacing: '0.04em',
@@ -184,7 +184,7 @@ function CustomerDetail({
                   borderRadius: '50%',
                   background: 'rgba(255,255,255,0.12)',
                   border: '1px solid rgba(255,255,255,0.2)',
-                  color: '#fff',
+                  color: 'var(--color-bg-white)',
                   cursor: 'pointer',
                   flexShrink: 0,
                 }}
@@ -204,7 +204,7 @@ function CustomerDetail({
                   borderRadius: '50%',
                   background: 'rgba(255,255,255,0.12)',
                   border: '1px solid rgba(255,255,255,0.2)',
-                  color: '#fff',
+                  color: 'var(--color-bg-white)',
                   cursor: 'pointer',
                   flexShrink: 0,
                 }}
@@ -240,7 +240,7 @@ function CustomerDetail({
                 background: grad,
                 padding: 0, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontSize: '1rem', fontWeight: 800,
+                color: 'var(--color-bg-white)', fontSize: '1rem', fontWeight: 800,
               }}
             >
               {initials}
@@ -248,11 +248,11 @@ function CustomerDetail({
               <span style={{
                 position: 'absolute', bottom: -2, right: -2,
                 width: 16, height: 16, borderRadius: '50%',
-                background: '#fff',
+                background: 'var(--color-surface)',
                 border: '1.5px solid #1a1a1a',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '0.55rem',
-                color: '#1a1a1a',
+                color: 'var(--color-text)',
               }}>📷</span>
             </button>
           )}
@@ -267,7 +267,7 @@ function CustomerDetail({
               {customer.phone_number ? (
                 <a
                   href={`tel:${customer.phone_number}`}
-                  style={{ color: '#fff', textDecoration: 'none' }}
+                  style={{ color: 'var(--color-bg-white)', textDecoration: 'none' }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   📞 {customer.phone_number}
@@ -294,8 +294,8 @@ function CustomerDetail({
           onClick={onOpenTelegramConnect}
           className="press-scale"
           style={{
-            background: tg === 'linked' ? '#f0fdf4' : tg === 'manual' ? '#fffbeb' : '#fff',
-            border: `1px solid ${tg === 'linked' ? '#a3e9c1' : tg === 'manual' ? '#fde68a' : '#ece6d6'}`,
+            background: tg === 'linked' ? 'var(--color-success-bg)' : tg === 'manual' ? 'var(--color-warning-bg)' : 'var(--color-bg-white)',
+            border: `1px solid ${tg === 'linked' ? 'var(--color-success-border)' : tg === 'manual' ? 'var(--color-warning-border)' : 'var(--color-border)'}`,
             borderRadius: 10,
             padding: '8px 12px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -312,13 +312,13 @@ function CustomerDetail({
             <MessageCircle
               className="w-4 h-4"
               style={{
-                color: tg === 'linked' ? '#047857' : tg === 'manual' ? '#92400e' : '#9ca3af',
+                color: tg === 'linked' ? 'var(--color-success-text)' : tg === 'manual' ? 'var(--color-warning)' : 'var(--color-text-soft)',
                 flexShrink: 0,
               }}
             />
             <p style={{
               fontSize: '0.75rem', fontWeight: 700, flex: 1, minWidth: 0,
-              color: tg === 'linked' ? '#047857' : tg === 'manual' ? '#92400e' : '#1a1a1a',
+              color: tg === 'linked' ? 'var(--color-success-text)' : tg === 'manual' ? 'var(--color-warning)' : 'var(--color-text)',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>
               {tg === 'linked'
@@ -330,8 +330,8 @@ function CustomerDetail({
           </div>
           <span
             style={{
-              background: tg === 'linked' ? '#047857' : tg === 'manual' ? '#92400e' : '#1a1a1a',
-              color: '#fff',
+              background: tg === 'linked' ? 'var(--color-success-text)' : tg === 'manual' ? 'var(--color-warning)' : 'var(--color-text)',
+              color: 'var(--color-bg-white)',
               padding: '5px 10px', borderRadius: 6,
               fontSize: '0.68rem', fontWeight: 800,
               flexShrink: 0,
@@ -356,11 +356,11 @@ function CustomerDetail({
             style={{
               flex: 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              background: '#f0fdf4',
+              background: 'var(--color-success-bg)',
               border: '1px solid #a3e9c1',
               borderRadius: 10,
               padding: '10px 0',
-              color: '#047857',
+              color: 'var(--color-success-text)',
               fontWeight: 700,
               fontSize: '0.78rem',
               textDecoration: 'none',
@@ -378,11 +378,11 @@ function CustomerDetail({
             style={{
               flex: 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              background: '#eff6ff',
+              background: 'var(--color-info-bg)',
               border: '1px solid #bfdbfe',
               borderRadius: 10,
               padding: '10px 0',
-              color: '#1d4ed8',
+              color: 'var(--color-info)',
               fontWeight: 700,
               fontSize: '0.78rem',
               cursor: 'pointer',
@@ -398,7 +398,7 @@ function CustomerDetail({
       {/* ═══ 3. BALANCE BLOCK ══════════════════════════════════════════ */}
       <div
         style={{
-          background: '#fff',
+          background: 'var(--color-surface)',
           border: '1px solid #ece6d6',
           borderRadius: 12,
           padding: 14,
@@ -413,7 +413,7 @@ function CustomerDetail({
             <span
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
-                background: '#dc2626', color: '#fff',
+                background: 'var(--color-danger)', color: 'var(--color-bg-white)',
                 fontSize: '0.62rem', fontWeight: 800,
                 padding: '3px 8px', borderRadius: 999,
                 letterSpacing: '0.06em', textTransform: 'uppercase',
@@ -425,30 +425,30 @@ function CustomerDetail({
           )}
           <p style={{
             fontSize: '0.6rem', fontWeight: 800,
-            color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase',
+            color: 'var(--color-text-soft)', letterSpacing: '0.1em', textTransform: 'uppercase',
           }}>
             {lang === 'am' ? 'ለእኔ ይከፍላሉ' : 'Owes me'}
           </p>
           <p style={{
             fontFamily: 'Manrope, system-ui, sans-serif',
             fontSize: '1.85rem', fontWeight: 800,
-            color: customer.has_overdue ? '#dc2626' : hasBalance ? '#b8842c' : '#9ca3af',
+            color: customer.has_overdue ? 'var(--color-danger)' : hasBalance ? 'var(--color-accent-amber)' : 'var(--color-text-soft)',
             lineHeight: 1, marginTop: 4,
             letterSpacing: '-0.02em',
             fontVariantNumeric: 'tabular-nums',
           }}>
             {fmt(balance)}
-            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#9ca3af', marginLeft: 4 }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-soft)', marginLeft: 4 }}>
               {lang === 'am' ? 'ብር' : 'birr'}
             </span>
           </p>
         </div>
         <div style={{
           display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end',
-          gap: 4, fontSize: '0.7rem', color: '#6b7280',
+          gap: 4, fontSize: '0.7rem', color: 'var(--color-text-muted)',
         }}>
           <span>
-            <strong style={{ color: '#1f2937', fontWeight: 700 }}>{customer.transaction_count || 0}</strong>{' '}
+            <strong style={{ color: 'var(--color-text)', fontWeight: 700 }}>{customer.transaction_count || 0}</strong>{' '}
             {lang === 'am' ? 'መዝገብ' : 'entries'}
           </span>
           {/* On-time rate as a percentage when there's enough data — clearer
@@ -462,7 +462,7 @@ function CustomerDetail({
                   {pct}%
                 </strong>{' '}
                 {lang === 'am' ? 'በወቅቱ' : 'on time'}
-                <span style={{ color: '#9ca3af', marginLeft: 3, fontSize: '0.62rem' }}>
+                <span style={{ color: 'var(--color-text-soft)', marginLeft: 3, fontSize: '0.62rem' }}>
                   ({customer.on_time_count}/{customer.on_time_eligible})
                 </span>
               </span>
@@ -471,13 +471,13 @@ function CustomerDetail({
           {customer.avg_pay_days !== null && customer.avg_pay_days !== undefined && (
             <span>
               {lang === 'am' ? 'አማካይ ክፍያ' : 'Avg pay'}:{' '}
-              <strong style={{ color: '#1f2937', fontWeight: 700 }}>{customer.avg_pay_days}d</strong>
+              <strong style={{ color: 'var(--color-text)', fontWeight: 700 }}>{customer.avg_pay_days}d</strong>
             </span>
           )}
           {customer.latest_due_date && (
             <span>
               {lang === 'am' ? 'መጨረሻ ቀን' : 'Due'}:{' '}
-              <strong style={{ color: '#1f2937', fontWeight: 700 }}>
+              <strong style={{ color: 'var(--color-text)', fontWeight: 700 }}>
                 {formatEthiopian(customer.latest_due_date)}
               </strong>
             </span>
@@ -492,7 +492,7 @@ function CustomerDetail({
               className="press-scale"
               style={{
                 width: '100%', padding: '12px',
-                background: '#1B4332', color: '#fff',
+                background: 'var(--color-primary)', color: 'var(--color-bg-white)',
                 border: 'none', borderRadius: 10,
                 fontSize: '0.82rem', fontWeight: 800,
                 cursor: 'pointer', minHeight: 44,
@@ -519,12 +519,12 @@ function CustomerDetail({
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '10px 14px', borderRadius: 10,
-                  background: isMissed ? '#fef2f2' : '#fffbeb',
-                  border: `1px solid ${isMissed ? '#fecaca' : '#fde68a'}`,
+                  background: isMissed ? 'var(--color-danger-bg)' : 'var(--color-warning-bg)',
+                  border: `1px solid ${isMissed ? 'var(--color-danger-border)' : 'var(--color-warning-border)'}`,
                 }}>
                   <span style={{
                     fontSize: '0.78rem', fontWeight: 600,
-                    color: isMissed ? '#991b1b' : '#92400e',
+                    color: isMissed ? 'var(--color-danger-text)' : 'var(--color-warning)',
                     display: 'flex', alignItems: 'center', gap: 6,
                   }}>
                     📅 {isMissed
@@ -547,7 +547,7 @@ function CustomerDetail({
                     onClick={() => onClearPromise(customer.id)}
                     style={{
                       background: 'none', border: 'none',
-                      fontSize: '0.65rem', fontWeight: 700, color: '#6b7280',
+                      fontSize: '0.65rem', fontWeight: 700, color: 'var(--color-text-muted)',
                       cursor: 'pointer', padding: '4px 8px',
                     }}
                   >
@@ -575,7 +575,7 @@ function CustomerDetail({
                     style={{
                       background: 'none', border: '1px dashed #d1d5db',
                       borderRadius: 8, padding: '8px 14px',
-                      fontSize: '0.72rem', fontWeight: 600, color: '#9ca3af',
+                      fontSize: '0.72rem', fontWeight: 600, color: 'var(--color-text-soft)',
                       cursor: 'pointer',
                     }}
                   >
@@ -601,7 +601,7 @@ function CustomerDetail({
       {/* ═══ 5. HISTORY ══════════════════════════════════════════ */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 4px 4px' }}>
-          <p style={{ fontSize: '0.62rem', fontWeight: 800, color: '#9ca3af', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+          <p style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--color-text-soft)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             {lang === 'am' ? 'መዝገብ' : 'History'} · {historyRows.length} {lang === 'am' ? 'መዝገብ' : 'entries'}
           </p>
           {/* Commit P: stronger discoverability hint for edit/delete */}
@@ -609,8 +609,8 @@ function CustomerDetail({
             style={{
               fontSize: '0.65rem',
               fontWeight: 700,
-              background: '#f5f1ea',
-              color: '#6b4f1d',
+              background: 'var(--color-surface-muted)',
+              color: 'var(--color-warning)',
               padding: '2px 8px',
               borderRadius: 999,
               border: '1px solid #ece6d6',
@@ -623,20 +623,20 @@ function CustomerDetail({
         {historyRows.length === 0 ? (
           <div style={{
             padding: 24,
-            background: '#fff',
+            background: 'var(--color-surface)',
             border: '1px solid #ece6d6',
             borderRadius: 12,
             textAlign: 'center',
           }}>
-            <p style={{ fontSize: '0.85rem', color: '#9ca3af' }}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-soft)' }}>
               {lang === 'am' ? 'መዝገብ የለም' : 'No entries yet'}
             </p>
-            <p style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: 8 }}>
+            <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: 8 }}>
               {lang === 'am' ? 'ለመጀመር ዱቤ ይጨምሩ' : 'Tap + Credit to start'}
             </p>
           </div>
         ) : (
-          <div style={{ background: '#fff', border: '1px solid #ece6d6', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--color-surface)', border: '1px solid #ece6d6', borderRadius: 12, overflow: 'hidden' }}>
             {/* Commit C.5: Same-day grouping. We emit a sticky-style date
                 header whenever the row's date changes from the previous row.
                 Reduces visual noise when many entries share a date. */}
@@ -654,13 +654,13 @@ function CustomerDetail({
                     <div
                       key={`date_${txDate}_${idx}`}
                       style={{
-                        background: '#faf8f3',
+                        background: 'var(--color-surface-soft)',
                         borderTop: idx === 0 ? 'none' : '1px solid #f5f1ea',
                         borderBottom: '1px solid #f5f1ea',
                         padding: '6px 14px',
                         fontSize: '0.65rem',
                         fontWeight: 800,
-                        color: '#6b7280',
+                        color: 'var(--color-text-muted)',
                         letterSpacing: '0.04em',
                         textTransform: 'uppercase',
                         display: 'flex',
@@ -670,7 +670,7 @@ function CustomerDetail({
                     >
                       <span>📅 {txDate}</span>
                       {sameDayCount > 1 && (
-                        <span style={{ color: '#9ca3af', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
+                        <span style={{ color: 'var(--color-text-soft)', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
                           {sameDayCount} {lang === 'am' ? 'መዝገብ' : 'entries'}
                         </span>
                       )}
@@ -696,7 +696,7 @@ function CustomerDetail({
 
       {/* ═══ 6. TRUST LINE ══════════════════════════════════════════ */}
       <p style={{
-        textAlign: 'center', fontSize: '0.66rem', color: '#9ca3af',
+        textAlign: 'center', fontSize: '0.66rem', color: 'var(--color-text-soft)',
         padding: '8px 14px 4px',
       }}>
         🔒 {lang === 'am'
@@ -724,7 +724,7 @@ function CustomerDetail({
               background: 'none',
               border: 'none',
               fontSize: '0.7rem',
-              color: customer.archived_at ? '#047857' : '#9ca3af',
+              color: customer.archived_at ? 'var(--color-success-text)' : 'var(--color-text-soft)',
               fontWeight: 600,
               cursor: 'pointer',
               padding: '6px 12px',
@@ -759,7 +759,7 @@ function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
       return (
         <span style={{
           fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.03em',
-          background: '#d1fae5', color: '#047857',
+          background: 'var(--color-success-bg)', color: 'var(--color-success-text)',
           padding: '2px 7px', borderRadius: 6, whiteSpace: 'nowrap',
         }}>
           ✓ {lang === 'am' ? 'ተከፍሏል' : 'Paid'}
@@ -772,7 +772,7 @@ function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
       return (
         <span style={{
           fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.03em',
-          background: '#fef3c7', color: '#92400e',
+          background: 'var(--color-warning-bg)', color: 'var(--color-warning)',
           padding: '2px 7px', borderRadius: 6, whiteSpace: 'nowrap',
         }}>
           {fmt(paid)}/{fmt(creditAmount)}
@@ -783,7 +783,7 @@ function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
       return (
         <span style={{
           fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.03em',
-          background: '#dbeafe', color: '#1d4ed8',
+          background: 'var(--color-info-bg)', color: 'var(--color-info)',
           padding: '2px 7px', borderRadius: 6, whiteSpace: 'nowrap',
         }}>
           ✓ {lang === 'am'
@@ -803,7 +803,7 @@ function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
       onKeyDown={(e) => { if (e.key === 'Enter') onSelectTransaction?.(tx); }}
       style={{
         padding: '12px 14px',
-        background: '#fff',
+        background: 'var(--color-surface)',
         borderBottom: isLast ? 'none' : '1px solid #f5f1ea',
         borderLeft: `3px solid ${borderColor}`,
         cursor: 'pointer',
@@ -817,7 +817,7 @@ function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
         {/* Compact date */}
         <span style={{
-          fontSize: '0.72rem', color: '#6b7280', fontWeight: 600,
+          fontSize: '0.72rem', color: 'var(--color-text-muted)', fontWeight: 600,
           whiteSpace: 'nowrap', flexShrink: 0,
           fontVariantNumeric: 'tabular-nums',
         }}>
@@ -826,7 +826,7 @@ function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
         {/* Description + status badge */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
           <span style={{
-            fontSize: '0.82rem', color: '#1f2937', fontWeight: 500,
+            fontSize: '0.82rem', color: 'var(--color-text)', fontWeight: 500,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {tx.item_note || (isPayment

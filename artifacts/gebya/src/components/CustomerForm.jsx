@@ -105,7 +105,7 @@ function CustomerForm({ onSave, onDone, existing }) {
                   ? (lang === 'am' ? 'ደንበኛ አስተካክል' : 'Edit customer')
                   : (lang === 'am' ? 'ደንበኛ አክል' : 'Add customer')}
               </h2>
-              <p className="text-xs mt-0.5" style={{ color: '#6b7280' }}>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
                 {lang === 'am'
                   ? 'ስም ብቻ ግዴታ ነው። ሌላው ሁሉ አማራጭ።'
                   : 'Only name is required. The rest is optional.'}
@@ -132,7 +132,7 @@ function CustomerForm({ onSave, onDone, existing }) {
               position: 'relative',
               overflow: 'hidden',
               border: photo ? '2px solid #047857' : '2px dashed #c9bfa8',
-              background: photo ? '#fff' : '#f5f1ea',
+              background: photo ? 'var(--color-bg-white)' : 'var(--color-surface-muted)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
             }}
@@ -143,7 +143,7 @@ function CustomerForm({ onSave, onDone, existing }) {
               <div style={{
                 width: '100%', height: '100%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#b8842c',
+                color: 'var(--color-accent-amber)',
                 fontSize: displayName.trim() ? '1.2rem' : '1.5rem',
                 fontWeight: 800,
               }}>
@@ -154,7 +154,7 @@ function CustomerForm({ onSave, onDone, existing }) {
               <div style={{
                 position: 'absolute', bottom: -2, right: -2,
                 width: 22, height: 22, borderRadius: '50%',
-                background: '#047857', color: '#fff',
+                background: 'var(--color-success-text)', color: 'var(--color-bg-white)',
                 border: '2px solid #fff',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
@@ -166,9 +166,9 @@ function CustomerForm({ onSave, onDone, existing }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             {photo ? (
               <>
-                <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#047857' }}>
+                <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-success-text)' }}>
                   ✓ {lang === 'am' ? 'ፎቶ ተጨምሯል' : 'Photo added'}
-                  <span style={{ fontWeight: 500, color: '#9ca3af', marginLeft: 6 }}>
+                  <span style={{ fontWeight: 500, color: 'var(--color-text-soft)', marginLeft: 6 }}>
                     {Math.round(photoSizeBytes(photo) / 1024)} KB
                   </span>
                 </p>
@@ -179,8 +179,8 @@ function CustomerForm({ onSave, onDone, existing }) {
                     className="cursor-pointer press-scale"
                     style={{
                       padding: '4px 10px', fontSize: '0.7rem', fontWeight: 700,
-                      background: '#fff', border: '1px solid #ece6d6',
-                      borderRadius: 6, color: '#1a1a1a',
+                      background: 'var(--color-surface)', border: '1px solid #ece6d6',
+                      borderRadius: 6, color: 'var(--color-text)',
                       display: 'inline-flex', alignItems: 'center', gap: 3,
                     }}
                   >
@@ -193,8 +193,8 @@ function CustomerForm({ onSave, onDone, existing }) {
                     className="press-scale"
                     style={{
                       padding: '4px 10px', fontSize: '0.7rem', fontWeight: 700,
-                      background: '#fef2f2', border: '1px solid #fecaca',
-                      borderRadius: 6, color: '#dc2626',
+                      background: 'var(--color-danger-bg)', border: '1px solid #fecaca',
+                      borderRadius: 6, color: 'var(--color-danger)',
                       display: 'inline-flex', alignItems: 'center', gap: 3,
                       cursor: 'pointer',
                     }}
@@ -206,10 +206,10 @@ function CustomerForm({ onSave, onDone, existing }) {
               </>
             ) : (
               <>
-                <p style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1a1a1a' }}>
+                <p style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-text)' }}>
                   {lang === 'am' ? 'ፎቶ (አማራጭ)' : 'Photo (optional)'}
                 </p>
-                <p style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: 1 }}>
+                <p style={{ fontSize: '0.68rem', color: 'var(--color-text-soft)', marginTop: 1 }}>
                   {lang === 'am' ? 'በቆጣሪው ላይ ለማወቅ ይረዳዎታል' : 'recognize them faster at the counter'}
                 </p>
                 <div style={{ marginTop: 4 }}>
@@ -219,7 +219,7 @@ function CustomerForm({ onSave, onDone, existing }) {
                     className="cursor-pointer press-scale"
                     style={{
                       padding: '5px 10px', fontSize: '0.72rem', fontWeight: 700,
-                      background: '#1a1a1a', color: '#fff',
+                      background: 'var(--color-text)', color: 'var(--color-bg-white)',
                       borderRadius: 6,
                       display: 'inline-flex', alignItems: 'center', gap: 3,
                     }}
@@ -231,12 +231,12 @@ function CustomerForm({ onSave, onDone, existing }) {
               </>
             )}
             {photoLoading && (
-              <p style={{ fontSize: '0.65rem', color: '#b8842c', marginTop: 2 }}>
+              <p style={{ fontSize: '0.65rem', color: 'var(--color-accent-amber)', marginTop: 2 }}>
                 {lang === 'am' ? 'ፎቶ እያዘጋጀ…' : 'Compressing…'}
               </p>
             )}
             {photoError && (
-              <p style={{ fontSize: '0.65rem', color: '#dc2626', marginTop: 2 }}>
+              <p style={{ fontSize: '0.65rem', color: 'var(--color-danger)', marginTop: 2 }}>
                 {photoError}
               </p>
             )}
@@ -248,7 +248,7 @@ function CustomerForm({ onSave, onDone, existing }) {
 
           {/* Name (required) */}
           <div>
-            <label className="block font-semibold mb-1 text-sm" style={{ color: '#374151' }}>
+            <label className="block font-semibold mb-1 text-sm" style={{ color: 'var(--color-text)' }}>
               {lang === 'am' ? 'ስም' : 'Name'} <span className="text-red-500">*</span>
             </label>
             <input
@@ -260,7 +260,7 @@ function CustomerForm({ onSave, onDone, existing }) {
               className="w-full p-3 border-2 focus:outline-none text-base"
               style={{
                 borderRadius: 'var(--radius-md)',
-                borderColor: displayName.trim() ? '#1B4332' : '#e8e2d8',
+                borderColor: displayName.trim() ? 'var(--color-primary)' : 'var(--color-border)',
                 minHeight: 48,
               }}
             />
@@ -268,9 +268,9 @@ function CustomerForm({ onSave, onDone, existing }) {
 
           {/* Phone — Commit C.3: prominent, with +251 prefix, validated */}
           <div>
-            <label className="block font-semibold mb-1 text-sm" style={{ color: '#374151' }}>
+            <label className="block font-semibold mb-1 text-sm" style={{ color: 'var(--color-text)' }}>
               📞 {lang === 'am' ? 'ስልክ' : 'Phone'}
-              <span className="font-normal text-xs ml-1" style={{ color: '#9ca3af' }}>
+              <span className="font-normal text-xs ml-1" style={{ color: 'var(--color-text-soft)' }}>
                 ({lang === 'am' ? 'ለማስታወሻ' : 'for reminders'})
               </span>
             </label>
@@ -280,14 +280,14 @@ function CustomerForm({ onSave, onDone, existing }) {
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   padding: '0 12px',
-                  background: '#f5f0e8',
-                  border: `2px solid ${(phoneTouched && !phoneValid) ? '#dc2626' : '#e8e2d8'}`,
+                  background: 'var(--color-surface-muted)',
+                  border: `2px solid ${(phoneTouched && !phoneValid) ? 'var(--color-danger)' : 'var(--color-border)'}`,
                   borderRight: 'none',
                   borderTopLeftRadius: 'var(--radius-md)',
                   borderBottomLeftRadius: 'var(--radius-md)',
                   fontSize: '0.92rem',
                   fontWeight: 800,
-                  color: '#1B4332',
+                  color: 'var(--color-primary)',
                   minWidth: 64,
                   minHeight: 48,
                 }}
@@ -306,10 +306,10 @@ function CustomerForm({ onSave, onDone, existing }) {
                 style={{
                   borderRadius: '0 var(--radius-md) var(--radius-md) 0',
                   borderColor: (phoneTouched && !phoneValid)
-                    ? '#dc2626'
+                    ? 'var(--color-danger)'
                     : phoneValid && phoneDigits
-                      ? '#1B4332'
-                      : '#e8e2d8',
+                      ? 'var(--color-primary)'
+                      : 'var(--color-border)',
                   minHeight: 48,
                   fontVariantNumeric: 'tabular-nums',
                   letterSpacing: '0.04em',
@@ -317,14 +317,14 @@ function CustomerForm({ onSave, onDone, existing }) {
               />
             </div>
             {phoneTouched && !phoneValid && phoneDigits.length > 0 && (
-              <p className="text-xs font-medium mt-1" style={{ color: '#dc2626' }}>
+              <p className="text-xs font-medium mt-1" style={{ color: 'var(--color-danger)' }}>
                 {lang === 'am'
                   ? 'ስልክ 9 ወይም 7 ይጀምር — 9 አኃዝ መሆን አለበት'
                   : 'Phone must start with 9 or 7 — 9 digits total'}
               </p>
             )}
             {!phoneTouched && phoneDigits.length === 0 && (
-              <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-soft)' }}>
                 {lang === 'am'
                   ? 'በዘጠኝ ወይም ሰባት የሚጀምር 9 አኃዝ'
                   : '9 digits, starts with 9 or 7'}
@@ -334,9 +334,9 @@ function CustomerForm({ onSave, onDone, existing }) {
 
           {/* Telegram (optional) */}
           <div>
-            <label className="block font-semibold mb-1 text-sm" style={{ color: '#374151' }}>
+            <label className="block font-semibold mb-1 text-sm" style={{ color: 'var(--color-text)' }}>
               💬 {lang === 'am' ? 'ቴሌግራም' : 'Telegram'}
-              <span className="font-normal text-xs ml-1" style={{ color: '#9ca3af' }}>
+              <span className="font-normal text-xs ml-1" style={{ color: 'var(--color-text-soft)' }}>
                 ({lang === 'am' ? 'አማራጭ' : 'optional'})
               </span>
             </label>
@@ -348,12 +348,12 @@ function CustomerForm({ onSave, onDone, existing }) {
               className="w-full p-3 border-2 focus:outline-none text-sm"
               style={{
                 borderRadius: 'var(--radius-md)',
-                borderColor: telegramValid ? '#e8e2d8' : '#dc2626',
+                borderColor: telegramValid ? 'var(--color-border)' : 'var(--color-danger)',
                 minHeight: 48,
               }}
             />
             {!telegramValid && (
-              <p className="text-xs font-medium mt-1" style={{ color: '#dc2626' }}>
+              <p className="text-xs font-medium mt-1" style={{ color: 'var(--color-danger)' }}>
                 {t.telegramFormatHint}
               </p>
             )}
@@ -361,9 +361,9 @@ function CustomerForm({ onSave, onDone, existing }) {
 
           {/* Note (optional) */}
           <div>
-            <label className="block font-semibold mb-1 text-sm" style={{ color: '#374151' }}>
+            <label className="block font-semibold mb-1 text-sm" style={{ color: 'var(--color-text)' }}>
               {lang === 'am' ? 'ማስታወሻ' : 'Note'}
-              <span className="font-normal text-xs ml-1" style={{ color: '#9ca3af' }}>
+              <span className="font-normal text-xs ml-1" style={{ color: 'var(--color-text-soft)' }}>
                 ({lang === 'am' ? 'አማራጭ' : 'optional'})
               </span>
             </label>
@@ -373,7 +373,7 @@ function CustomerForm({ onSave, onDone, existing }) {
               placeholder={t.customerNotePlaceholder}
               rows={2}
               className="w-full p-3 border-2 focus:outline-none text-sm resize-none"
-              style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+              style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)' }}
             />
           </div>
         </div>
@@ -385,8 +385,8 @@ function CustomerForm({ onSave, onDone, existing }) {
             disabled={!canSave || saving}
             className="w-full p-3 font-black text-white text-base flex items-center justify-center gap-2 min-h-[52px] press-scale"
             style={{
-              background: canSave ? '#1B4332' : '#e5e7eb',
-              color: canSave ? '#fff' : '#9ca3af',
+              background: canSave ? 'var(--color-primary)' : 'var(--color-bg-disabled)',
+              color: canSave ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
               borderRadius: 'var(--radius-md)',
               boxShadow: canSave ? '0 3px 0 #0f2b20, var(--shadow-sm)' : 'none',
             }}

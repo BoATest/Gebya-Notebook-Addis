@@ -25,11 +25,11 @@ function AttentionItem({ item, lang = 'en', onAction }) {
         flexShrink: 0,
       }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 13, fontWeight: 800, color: '#1f2937' }}>
+        <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-text)' }}>
           {item.message}
         </p>
         {item.detail && (
-          <p style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+          <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>
             {item.detail}
           </p>
         )}
@@ -42,8 +42,8 @@ function AttentionItem({ item, lang = 'en', onAction }) {
             padding: '6px 12px',
             borderRadius: 8,
             border: item.actionType === 'primary' ? 'none' : '1px solid #1B4332',
-            background: item.actionType === 'primary' ? '#1B4332' : '#fff',
-            color: item.actionType === 'primary' ? '#fff' : '#1B4332',
+            background: item.actionType === 'primary' ? 'var(--color-primary)' : 'var(--color-bg-white)',
+            color: item.actionType === 'primary' ? 'var(--color-bg-white)' : 'var(--color-primary)',
             fontSize: 11,
             fontWeight: 800,
             cursor: 'pointer',

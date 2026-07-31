@@ -128,7 +128,7 @@ export default function ItemRow({
     >
       <div
         className="absolute inset-y-0 right-0 flex items-center"
-        style={{ width: '80px', background: '#dc2626' }}
+        style={{ width: '80px', background: 'var(--color-danger)' }}
       >
         <button
           type="button"
@@ -146,7 +146,7 @@ export default function ItemRow({
           minHeight: ROW_H,
           transform: swiped ? 'translateX(-80px)' : 'translateX(0)',
           transition: swiped ? 'transform 0.2s ease' : 'none',
-          background: isPlaceholder ? 'rgba(249,250,251,0.6)' : '#fff',
+          background: isPlaceholder ? 'rgba(249,250,251,0.6)' : 'var(--color-bg-white)',
           borderBottom: isPlaceholder ? '1px dashed #e5e7eb' : '1px solid #edeae5',
           padding: '0',
           opacity: isPlaceholder ? 0.75 : 1,
@@ -198,7 +198,7 @@ export default function ItemRow({
             onFocus={handleQtyFocus}
             onKeyDown={handleQtyKeyDown}
             className="w-full px-0.5 text-xs text-center font-bold bg-transparent focus:outline-none"
-            style={{ minHeight: ROW_H, border: 'none', color: isPlaceholder ? '#d1d5db' : '#111827' }}
+            style={{ minHeight: ROW_H, border: 'none', color: isPlaceholder ? 'var(--color-text-soft)' : 'var(--color-text)' }}
           />
         </div>
 
@@ -216,13 +216,13 @@ export default function ItemRow({
             onKeyDown={handlePriceKeyDown}
             placeholder="0"
             className="w-full px-0.5 text-xs text-right font-bold bg-transparent focus:outline-none"
-            style={{ minHeight: ROW_H, border: 'none', color: isPlaceholder ? '#d1d5db' : '#111827' }}
+            style={{ minHeight: ROW_H, border: 'none', color: isPlaceholder ? 'var(--color-text-soft)' : 'var(--color-text)' }}
           />
         </div>
 
         <div
           className="flex items-center justify-end text-[13px] font-black flex-shrink-0 total-col"
-          style={{ width: '88px', color: row.lineTotal > 0 ? '#14532d' : '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          style={{ width: '88px', color: row.lineTotal > 0 ? 'var(--color-success-text)' : 'var(--color-text-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
         >
           {row.lineTotal > 0 ? fmt(row.lineTotal) : '—'}
         </div>
@@ -233,7 +233,7 @@ export default function ItemRow({
           <span
             onClick={handleLastPriceTap}
             className="text-[9px] cursor-pointer"
-            style={{ color: '#c4b9a8' }}
+            style={{ color: 'var(--color-text-soft)' }}
           >
             {fmt(lastPrice)}
           </span>

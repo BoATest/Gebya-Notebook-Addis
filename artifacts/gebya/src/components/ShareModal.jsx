@@ -48,7 +48,7 @@ export default function ShareModal({ summary, telegram, onClose, t }) {
             <button
               onClick={handleNativeShare}
               className="w-full py-3 font-bold text-sm flex items-center justify-center gap-2 min-h-[48px] hover-lift press-scale"
-              style={{ background: 'var(--color-accent-amber)', color: '#fff', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
+              style={{ background: 'var(--color-accent-amber)', color: 'var(--color-bg-white)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
             >
               <Share2 className="w-4 h-4" /> {t.shareViaDevice}
             </button>
@@ -57,7 +57,7 @@ export default function ShareModal({ summary, telegram, onClose, t }) {
             <button
               onClick={() => window.open(`https://t.me/${handle}?text=${encoded}`, '_blank')}
               className="w-full py-3 font-bold text-sm flex items-center justify-center gap-2 min-h-[48px] hover-lift press-scale"
-              style={{ background: '#2481cc', color: '#fff', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
+              style={{ background: '#2481cc', color: 'var(--color-bg-white)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
             >
               ✈️ {t.openTelegram}
             </button>

@@ -29,7 +29,7 @@ export default function AppBottomNav({
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-40 border-t"
-      style={{ background: '#ffffff', borderColor: '#e5e7eb' }}
+      style={{ background: 'var(--color-surface)', borderColor: 'var(--color-bg-disabled)' }}
     >
       <div className="flex">
           {['today', 'credit', 'history', ...(showStaffTab ? ['staff'] : []), 'settings'].map(tabId => {
@@ -40,7 +40,7 @@ export default function AppBottomNav({
               key={tabId}
               onClick={() => onTabChange(tabId)}
               className="flex-1 flex flex-col items-center gap-1 py-2 min-h-[56px] press-scale"
-              style={{ color: isActive ? '#1B4332' : '#9ca3af' }}
+              style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text-soft)' }}
             >
               <div style={{ position: 'relative' }}>
                 <Icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 2} />
@@ -48,7 +48,7 @@ export default function AppBottomNav({
                   <span style={{
                     position: 'absolute', top: -4, right: -8,
                     minWidth: 16, height: 16, borderRadius: 999,
-                    background: '#dc2626', color: '#fff',
+                    background: 'var(--color-danger)', color: 'var(--color-bg-white)',
                     fontSize: '0.55rem', fontWeight: 800,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     padding: '0 4px', border: '1.5px solid #fff',
@@ -60,7 +60,7 @@ export default function AppBottomNav({
                   <span style={{
                     position: 'absolute', top: -4, right: -8,
                     minWidth: 16, height: 16, borderRadius: 999,
-                    background: '#1B4332', color: '#fff',
+                    background: 'var(--color-primary)', color: 'var(--color-bg-white)',
                     fontSize: '0.55rem', fontWeight: 800,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     padding: '0 4px', border: '1.5px solid #fff',

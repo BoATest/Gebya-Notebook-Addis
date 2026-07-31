@@ -78,7 +78,7 @@ export default function AuthRequiredPrompt({ lang, onClose }) {
         </div>
 
         {error && (
-          <div className="mb-3 rounded-xl px-3 py-2 text-xs font-medium" style={{ background: '#fef2f2', color: '#991b1b' }}>
+          <div className="mb-3 rounded-xl px-3 py-2 text-xs font-medium" style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger-text)' }}>
             {error}
           </div>
         )}
@@ -86,7 +86,7 @@ export default function AuthRequiredPrompt({ lang, onClose }) {
         {step === 'phone' && (
           <div className="space-y-3">
             <div className="flex gap-0">
-              <div className="flex items-center justify-center px-3 py-3 rounded-l-xl border-2 border-r-0 text-sm font-bold" style={{ background: '#f5f0e8', borderColor: '#e8e2d8', color: '#1B4332', minWidth: '64px' }}>
+              <div className="flex items-center justify-center px-3 py-3 rounded-l-xl border-2 border-r-0 text-sm font-bold" style={{ background: 'var(--color-surface-muted)', borderColor: 'var(--color-border)', color: 'var(--color-primary)', minWidth: '64px' }}>
                 +251
               </div>
               <input
@@ -97,7 +97,7 @@ export default function AuthRequiredPrompt({ lang, onClose }) {
                 placeholder="9XX XXX XXX"
                 maxLength={9}
                 className="flex-1 px-4 py-3 border-2 rounded-r-xl text-sm focus:outline-none"
-                style={{ borderColor: error ? '#fca5a5' : '#e8e2d8' }}
+                style={{ borderColor: error ? 'var(--color-danger-border)' : 'var(--color-border)' }}
                 autoFocus
               />
             </div>
@@ -105,7 +105,7 @@ export default function AuthRequiredPrompt({ lang, onClose }) {
               onClick={handleRequestOtp}
               disabled={loading || phone.length !== 9}
               className="w-full py-3 rounded-xl font-bold text-sm min-h-[48px]"
-              style={{ background: loading ? '#e5e7eb' : '#1B4332', color: loading ? '#9ca3af' : '#fff' }}
+              style={{ background: loading ? 'var(--color-bg-disabled)' : 'var(--color-primary)', color: loading ? 'var(--color-text-soft)' : 'var(--color-bg-white)' }}
             >
               {loading ? '...' : t.continue}
             </button>
@@ -123,20 +123,20 @@ export default function AuthRequiredPrompt({ lang, onClose }) {
               placeholder="6-digit code"
               maxLength={6}
               className="w-full px-4 py-3 border-2 rounded-xl text-sm font-bold tracking-widest text-center focus:outline-none"
-              style={{ borderColor: '#e8e2d8' }}
+              style={{ borderColor: 'var(--color-border)' }}
               autoFocus
             />
             <button
               onClick={handleVerify}
               disabled={loading || otp.length !== 6}
               className="w-full py-3 rounded-xl font-bold text-sm min-h-[48px]"
-              style={{ background: loading ? '#e5e7eb' : '#1B4332', color: loading ? '#9ca3af' : '#fff' }}
+              style={{ background: loading ? 'var(--color-bg-disabled)' : 'var(--color-primary)', color: loading ? 'var(--color-text-soft)' : 'var(--color-bg-white)' }}
             >
               {loading ? '...' : t.verify}
             </button>
             <div className="flex gap-2">
-              <button onClick={() => { setStep('phone'); setOtp(''); setError(null); }} className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{ background: '#f5f5f5' }}>{t.back}</button>
-              <button onClick={handleRequestOtp} disabled={loading} className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{ background: '#FAF8F5', border: '1px solid #e8e2d8' }}>{t.resend}</button>
+              <button onClick={() => { setStep('phone'); setOtp(''); setError(null); }} className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{ background: 'var(--color-surface-muted)' }}>{t.back}</button>
+              <button onClick={handleRequestOtp} disabled={loading} className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{ background: 'var(--color-surface-muted)', border: '1px solid #e8e2d8' }}>{t.resend}</button>
             </div>
             <button onClick={onClose} className="w-full py-2.5 text-xs font-bold text-gray-400">{t.skip}</button>
           </div>

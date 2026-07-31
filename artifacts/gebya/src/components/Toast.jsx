@@ -54,7 +54,7 @@ export function ToastContainer() {
             <button
               onClick={() => { t.onUndo(); dismiss(t.id); }}
               className="flex-shrink-0 px-3 py-1 font-black text-xs press-scale font-sans"
-              style={{ background: 'rgba(255,255,255,0.22)', color: '#fff', minHeight: '32px', borderRadius: 'var(--radius-sm)' }}
+              style={{ background: 'rgba(255,255,255,0.22)', color: 'var(--color-bg-white)', minHeight: '32px', borderRadius: 'var(--radius-sm)' }}
             >
               Undo
             </button>

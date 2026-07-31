@@ -35,7 +35,7 @@ export default function AdminMetricsView({ shopId }) {
     return () => { mounted = false; };
   }, [shopId]);
 
-  if (loading) return <div className="p-4 text-sm" style={{ color: '#6b7280' }}>Loading metrics...</div>;
+  if (loading) return <div className="p-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>Loading metrics...</div>;
   if (!metrics) return null;
 
   const rows = [
@@ -54,36 +54,36 @@ export default function AdminMetricsView({ shopId }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#6b7280' }}>
+      <p className="text-[11px] font-black uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>
         {lang === 'am' ? '\u1218\u1295\u130D\u1295\u1233 \u1230\u1276\u128A\u1276' : 'Impact Metrics'}
       </p>
-      <p className="text-[10px] italic" style={{ color: '#9ca3af' }}>
+      <p className="text-[10px] italic" style={{ color: 'var(--color-text-soft)' }}>
         Behavioral consistency signal, unvalidated
       </p>
-      <div className="border divide-y" style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)' }}>
+      <div className="border divide-y" style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-sm)' }}>
         {rows.map((row) => (
           <div key={row.label} className="flex justify-between px-3 py-2">
-            <span className="text-xs font-bold" style={{ color: '#374151' }}>{row.label}</span>
-            <span className="text-xs font-black" style={{ color: '#111827' }}>{row.value}</span>
+            <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>{row.label}</span>
+            <span className="text-xs font-black" style={{ color: 'var(--color-text)' }}>{row.value}</span>
           </div>
         ))}
       </div>
       {trustScores && (
-        <div className="border p-3" style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-sm)' }}>
-          <p className="text-[11px] font-black uppercase tracking-wide mb-2" style={{ color: '#6b7280' }}>
+        <div className="border p-3" style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-sm)' }}>
+          <p className="text-[11px] font-black uppercase tracking-wide mb-2" style={{ color: 'var(--color-text-muted)' }}>
             {lang === 'am' ? '\u1233\u1295\u1293 \u12E8\u121A\u130D\u1295\u1233' : 'Trust Scores'}
           </p>
           <div className="flex gap-4">
             <div>
-              <p className="text-[10px]" style={{ color: '#6b7280' }}>Data Integrity</p>
-              <p className="text-lg font-black" style={{ color: '#14532d' }}>{trustScores.data_integrity_score}/100</p>
+              <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>Data Integrity</p>
+              <p className="text-lg font-black" style={{ color: 'var(--color-success-text)' }}>{trustScores.data_integrity_score}/100</p>
             </div>
             <div>
-              <p className="text-[10px]" style={{ color: '#6b7280' }}>Business Health</p>
-              <p className="text-lg font-black" style={{ color: '#14532d' }}>{trustScores.business_health_score}/100</p>
+              <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>Business Health</p>
+              <p className="text-lg font-black" style={{ color: 'var(--color-success-text)' }}>{trustScores.business_health_score}/100</p>
             </div>
           </div>
-          <p className="text-[9px] mt-1" style={{ color: '#9ca3af' }}>
+          <p className="text-[9px] mt-1" style={{ color: 'var(--color-text-soft)' }}>
             v{trustScores.score_version} | computed {new Date(trustScores.computed_at).toLocaleDateString()}
           </p>
         </div>

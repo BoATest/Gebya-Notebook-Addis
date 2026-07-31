@@ -197,11 +197,11 @@ export default function NotificationPanel({ onClose }) {
           style={{ borderBottom: '1px solid #e8e2d8' }}
         >
           <div className="min-w-0">
-            <h2 className="text-base font-bold" style={{ color: '#1a1a1a' }}>
+            <h2 className="text-base font-bold" style={{ color: 'var(--color-text)' }}>
               {lang === 'am' ? 'ማስጠንቂቾች' : 'Notifications'}
             </h2>
             {unreadCount > 0 && (
-              <p className="text-[11px] mt-0.5" style={{ color: '#6b7280' }}>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
                 {unreadCount} {lang === 'am' ? 'አዲስ' : 'unread'}
               </p>
             )}
@@ -211,7 +211,7 @@ export default function NotificationPanel({ onClose }) {
               <button
                 onClick={handleMarkAllRead}
                 className="text-[11px] font-bold px-3 py-1.5 press-scale"
-                style={{ color: '#1B4332', background: '#f0fdf4', borderRadius: 8 }}
+                style={{ color: 'var(--color-primary)', background: 'var(--color-success-bg)', borderRadius: 8 }}
               >
                 {lang === 'am' ? 'ሁሉንም አንብብ' : 'Mark all read'}
               </button>
@@ -222,20 +222,20 @@ export default function NotificationPanel({ onClose }) {
               className="press-scale flex items-center justify-center"
               style={{ minWidth: '36px', minHeight: '36px' }}
             >
-              <X className="w-5 h-5" style={{ color: '#6b7280' }} />
+              <X className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
             </button>
           </div>
         </div>
 
         {/* Push enable banner */}
         {showEnablePush && (
-          <div className="mx-4 mt-3 p-3 flex items-start gap-3 flex-shrink-0" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10 }}>
+          <div className="mx-4 mt-3 p-3 flex items-start gap-3 flex-shrink-0" style={{ background: 'var(--color-success-bg)', border: '1px solid #bbf7d0', borderRadius: 10 }}>
             <span className="text-lg flex-shrink-0">🔔</span>
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-bold" style={{ color: '#166534' }}>
+              <p className="text-[12px] font-bold" style={{ color: 'var(--color-success-text)' }}>
                 {lang === 'am' ? 'የተሳሰሩ ማስጠንቂቾችን ያግኙ' : 'Get instant alerts'}
               </p>
-              <p className="text-[11px] mt-0.5" style={{ color: '#15803d' }}>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-success-text)' }}>
                 {lang === 'am'
                   ? 'ሰራተኞች ሲያመለኩ በስልክዎ ላይ ይታያቸዋል'
                   : 'Know when staff record sales, even when the app is closed'}
@@ -244,14 +244,14 @@ export default function NotificationPanel({ onClose }) {
                 <button
                   onClick={handleEnablePush}
                   className="text-[11px] font-bold px-3 py-1.5 press-scale"
-                  style={{ background: '#1B4332', color: '#fff', borderRadius: 6 }}
+                  style={{ background: 'var(--color-primary)', color: 'var(--color-bg-white)', borderRadius: 6 }}
                 >
                   {lang === 'am' ? 'አብራ' : 'Enable'}
                 </button>
                 <button
                   onClick={handleDismissPush}
                   className="text-[11px] font-bold px-3 py-1.5"
-                  style={{ color: '#6b7280', background: 'transparent', border: 'none' }}
+                  style={{ color: 'var(--color-text-muted)', background: 'transparent', border: 'none' }}
                 >
                   {lang === 'am' ? 'አይፈልግም' : 'No thanks'}
                 </button>
@@ -264,15 +264,15 @@ export default function NotificationPanel({ onClose }) {
         <div className="flex-1 overflow-y-auto" onScroll={handleScroll}>
           {loading && notifications.length === 0 ? (
             <div className="flex items-center justify-center py-16">
-              <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#1B4332', borderTopColor: 'transparent' }} />
+              <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
               <span className="text-3xl mb-3">🔔</span>
-              <p className="text-sm font-bold" style={{ color: '#6b7280' }}>
+              <p className="text-sm font-bold" style={{ color: 'var(--color-text-muted)' }}>
                 {lang === 'am' ? 'ማስጠንቂቾች የሉዎትም' : 'No notifications yet'}
               </p>
-              <p className="text-xs mt-1" style={{ color: '#9ca3af' }}>
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-soft)' }}>
                 {lang === 'am'
                   ? 'ሰራተኞች ስለ ሽያጭ እና ክፍያ ሲያመለኩ እዚህ ይታያቸዋል'
                   : "You'll see alerts when staff record sales and payments"}
@@ -282,7 +282,7 @@ export default function NotificationPanel({ onClose }) {
             groups.map((group) => (
               <div key={group.label}>
                 <div className="px-4 pt-3 pb-1">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#9ca3af' }}>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-soft)' }}>
                     {group.label}
                   </h3>
                 </div>
@@ -300,7 +300,7 @@ export default function NotificationPanel({ onClose }) {
                       className="flex-shrink-0 flex items-center justify-center rounded-full"
                       style={{
                         width: 36, height: 36,
-                        background: TYPE_BG[notif.type] || '#f3f4f6',
+                        background: TYPE_BG[notif.type] || 'var(--color-bg-hover)',
                         fontSize: '16px',
                       }}
                     >
@@ -308,23 +308,23 @@ export default function NotificationPanel({ onClose }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-[13px] font-bold truncate" style={{ color: '#1a1a1a' }}>
+                        <p className="text-[13px] font-bold truncate" style={{ color: 'var(--color-text)' }}>
                           {notif.title}
                         </p>
                         {!notif.read && (
-                          <span className="flex-shrink-0 w-2 h-2 rounded-full" style={{ background: '#1B4332' }} />
+                          <span className="flex-shrink-0 w-2 h-2 rounded-full" style={{ background: 'var(--color-primary)' }} />
                         )}
                       </div>
-                      <p className="text-[12px] mt-0.5 leading-snug" style={{ color: '#4b5563' }}>
+                      <p className="text-[12px] mt-0.5 leading-snug" style={{ color: 'var(--color-text-muted)' }}>
                         {notif.body}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         {notif.amount != null && (
-                          <span className="text-[11px] font-bold" style={{ color: TYPE_TEXT[notif.type] || '#6b7280' }}>
+                          <span className="text-[11px] font-bold" style={{ color: TYPE_TEXT[notif.type] || 'var(--color-text-muted)' }}>
                             {fmt(notif.amount)} {lang === 'am' ? 'ብር' : 'birr'}
                           </span>
                         )}
-                        <span className="text-[10px]" style={{ color: '#9ca3af' }}>
+                        <span className="text-[10px]" style={{ color: 'var(--color-text-soft)' }}>
                           {timeAgo(notif.createdAt, lang)}
                         </span>
                       </div>
@@ -336,7 +336,7 @@ export default function NotificationPanel({ onClose }) {
           )}
           {loadingMore && (
             <div className="flex justify-center py-4">
-              <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#1B4332', borderTopColor: 'transparent' }} />
+              <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
             </div>
           )}
         </div>

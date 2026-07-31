@@ -16,7 +16,7 @@ const C = {
 };
 
 function Skeleton({ h = 12, w = '100%' }) {
-  return <div style={{ height: h, width: w, background: '#f0f0f0', borderRadius: 4, animation: 'pulse 1.5s infinite' }} />;
+  return <div style={{ height: h, width: w, background: 'var(--color-bg-hover)', borderRadius: 4, animation: 'pulse 1.5s infinite' }} />;
 }
 
 function StatusBadge({ status, lang }) {
@@ -224,7 +224,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
 
   return (
     <div style={{
-      background: '#f9fafb', borderRadius: C.radiusLg, padding: 16, border: `1px solid ${C.grayBorder}`,
+      background: 'var(--color-bg-active)', borderRadius: C.radiusLg, padding: 16, border: `1px solid ${C.grayBorder}`,
       fontFamily: C.font,
     }}>
       {/* Header */}
@@ -250,7 +250,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       </div>
 
       {/* Summary card */}
-      <div style={{ background: '#fff', borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
+      <div style={{ background: 'var(--color-surface)', borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
           {[
             { label: t('Cash', 'ጥሬ'), value: fmt(expected.expectedCash), color: C.text },
@@ -291,7 +291,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
               <span style={{ fontSize: 10, color: C.blue }}>{t('vs Expected', 'ከሚጠበቀው ጋር')}</span>
               <span style={{
                 fontSize: 14, fontWeight: 900,
-                color: staffTotal === expected.expectedTotal ? '#16a34a' : C.red,
+                color: staffTotal === expected.expectedTotal ? 'var(--color-success)' : C.red,
               }}>
                 {staffTotal === expected.expectedTotal
                   ? `${t('Matched', 'ተመጣጣኚ')} ✓`
@@ -309,7 +309,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
             <button onClick={() => { setActualCash(String(staffCash)); setActualTransfer(String(staffTransfer)); }}
               style={{
                 width: '100%', marginTop: 10, padding: '10px 0', borderRadius: C.radius,
-                background: C.green, color: '#fff', border: 'none',
+                background: C.green, color: 'var(--color-bg-white)', border: 'none',
                 fontSize: 12, fontWeight: 800, cursor: 'pointer', letterSpacing: '0.3px',
               }}
             >{t('Use staff amounts', 'የሰራተኛውን መጠን ተጠቀም')}</button>
@@ -333,7 +333,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       )}
 
       {/* Actual inputs */}
-      <div style={{ background: '#fff', borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
+      <div style={{ background: 'var(--color-surface)', borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
         <p style={{ fontSize: 9, fontWeight: 800, color: C.gray, textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 10px' }}>
           {isReview ? t('Owner confirmation', 'የባለቤት ማረጋገጫ') : t('Actual (counted)', 'ትክክለኛው')}
         </p>
@@ -344,7 +344,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
               onChange={e => setActualCash(e.target.value)}
               readOnly={readOnly}
               placeholder="0"
-              style={{ minHeight: 44, border: `2px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '6px 10px', fontSize: 18, fontWeight: 900, textAlign: 'center', outline: 'none', background: readOnly ? C.grayLight : '#fff', transition: 'border-color 0.15s', boxSizing: 'border-box' }}
+              style={{ minHeight: 44, border: `2px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '6px 10px', fontSize: 18, fontWeight: 900, textAlign: 'center', outline: 'none', background: readOnly ? C.grayLight : 'var(--color-bg-white)', transition: 'border-color 0.15s', boxSizing: 'border-box' }}
               onFocus={e => { if (!readOnly) e.target.style.borderColor = C.green; }}
               onBlur={e => { if (!readOnly) e.target.style.borderColor = C.grayBorder; }}
             />
@@ -358,7 +358,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
               onChange={e => setActualTransfer(e.target.value)}
               readOnly={readOnly}
               placeholder="0"
-              style={{ minHeight: 44, border: `2px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '6px 10px', fontSize: 18, fontWeight: 900, textAlign: 'center', outline: 'none', background: readOnly ? C.grayLight : '#fff', transition: 'border-color 0.15s', boxSizing: 'border-box' }}
+              style={{ minHeight: 44, border: `2px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '6px 10px', fontSize: 18, fontWeight: 900, textAlign: 'center', outline: 'none', background: readOnly ? C.grayLight : 'var(--color-bg-white)', transition: 'border-color 0.15s', boxSizing: 'border-box' }}
               onFocus={e => { if (!readOnly) e.target.style.borderColor = C.green; }}
               onBlur={e => { if (!readOnly) e.target.style.borderColor = C.grayBorder; }}
             />
@@ -398,7 +398,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 4 }}>
             {totalVariance === 0
-              ? <CheckCircle className="w-4 h-4" style={{ color: '#16a34a' }} />
+              ? <CheckCircle className="w-4 h-4" style={{ color: 'var(--color-success)' }} />
               : <AlertCircle className="w-4 h-4" style={{ color: C.red }} />
             }
             <span style={{ fontSize: 9, fontWeight: 800, color: C.gray, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
@@ -407,7 +407,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           </div>
           <p style={{
             fontSize: 24, fontWeight: 950,
-            color: totalVariance === 0 ? '#16a34a' : C.red,
+            color: totalVariance === 0 ? 'var(--color-success)' : C.red,
             margin: '4px 0 0',
           }}>
             {totalVariance === 0
@@ -425,7 +425,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       )}
 
       {/* Adjustments */}
-      <div style={{ background: '#fff', borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
+      <div style={{ background: 'var(--color-surface)', borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
         <p style={{ fontSize: 9, fontWeight: 800, color: C.gray, textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 10px' }}>
           {t('Adjustments', 'ማስተካከያ')}
           {!readOnly && <span style={{ fontWeight: 400, color: C.textFaint, textTransform: 'none' }}> ({t('owner only', 'የባለቤት')})</span>}
@@ -462,7 +462,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         {!readOnly && (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <select value={adjustmentType} onChange={e => setAdjustmentType(e.target.value)}
-              style={{ fontSize: 11, border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '7px 8px', outline: 'none', background: '#fff', minHeight: 34 }}
+              style={{ fontSize: 11, border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '7px 8px', outline: 'none', background: 'var(--color-surface)', minHeight: 34 }}
             >
               <option value="expense">{t('Expense', 'ወጪ')}</option>
               <option value="credit_to_owner">{t('Credit to owner', 'ለባለቤት ክሬዲት')}</option>
@@ -478,7 +478,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
               style={{ fontSize: 11, border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '7px 8px', flex: 1, minWidth: 80, outline: 'none', minHeight: 34, boxSizing: 'border-box' }}
             />
             <button onClick={handleAddAdjustment}
-              style={{ background: C.green, color: '#fff', border: 'none', borderRadius: C.radius, padding: '7px 12px', fontSize: 14, fontWeight: 800, cursor: 'pointer', minHeight: 34, lineHeight: 1 }}
+              style={{ background: C.green, color: 'var(--color-bg-white)', border: 'none', borderRadius: C.radius, padding: '7px 12px', fontSize: 14, fontWeight: 800, cursor: 'pointer', minHeight: 34, lineHeight: 1 }}
             >+</button>
           </div>
         )}
@@ -486,7 +486,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
 
       {/* Reconciliation timeline */}
       {recLog.length > 0 && (
-        <div style={{ background: '#fff', borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
+        <div style={{ background: 'var(--color-surface)', borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
           <p style={{ fontSize: 9, fontWeight: 800, color: C.gray, textTransform: 'uppercase', letterSpacing: '0.3px', margin: '0 0 12px' }}>
             {t('Timeline', 'የእንቅስቃሴ ምዝግብ')}
           </p>
@@ -548,7 +548,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           readOnly={readOnly}
           placeholder={t('Notes (optional)', 'ማስታወሻ')}
           rows={2}
-          style={{ width: '100%', border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '8px 10px', fontSize: 12, outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: readOnly ? C.grayLight : '#fff', fontFamily: C.font, lineHeight: 1.5 }}
+          style={{ width: '100%', border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, padding: '8px 10px', fontSize: 12, outline: 'none', resize: 'vertical', boxSizing: 'border-box', background: readOnly ? C.grayLight : 'var(--color-bg-white)', fontFamily: C.font, lineHeight: 1.5 }}
         />
       </div>
 
@@ -577,7 +577,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       {/* Actions */}
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={onCancel}
-          style={{ flex: 1, minHeight: 44, border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, background: '#fff', color: C.text, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
+          style={{ flex: 1, minHeight: 44, border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, background: 'var(--color-surface)', color: C.text, fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
         >{t('Back', 'ተመለስ')}</button>
 
         {isView && existingSettlement?.reconciliation_status === 'finalized' && (
@@ -591,7 +591,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
               onSaved?.();
             } catch { setError(t('Failed to re-open', 'እንደገና መክፈት አልተሳካም')); }
           }}
-            style={{ flex: 1, minHeight: 44, border: `1px solid ${C.amberBorder}`, borderRadius: C.radius, background: C.amberLight, color: '#92400e', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
+            style={{ flex: 1, minHeight: 44, border: `1px solid ${C.amberBorder}`, borderRadius: C.radius, background: C.amberLight, color: 'var(--color-warning)', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}
           >{t('Re-open', 'እንደገና ክፈት')}</button>
         )}
 
@@ -610,7 +610,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
               style={{
                 flex: existingSettlement?.reconciliation_status === 'staff_submitted' ? 2 : 1, minHeight: 44, border: 'none', borderRadius: C.radius,
                 background: saving ? C.textFaint : C.green,
-                color: '#fff',
+                color: 'var(--color-bg-white)',
                 fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer',
                 letterSpacing: '0.3px',
               }}
@@ -627,7 +627,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
             style={{
               flex: 2, minHeight: 44, border: 'none', borderRadius: C.radius,
               background: saving ? C.textFaint : C.green,
-              color: '#fff',
+              color: 'var(--color-bg-white)',
               fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer',
               letterSpacing: '0.3px',
             }}

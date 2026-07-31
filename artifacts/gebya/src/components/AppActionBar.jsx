@@ -44,7 +44,7 @@ function TodayActionBar({
             onPointerCancel={() => onPointerCancel?.()}
             className="flex-1 py-2.5 sm:py-3 min-h-[44px] sm:min-h-[48px] flex items-center justify-center gap-1.5 sm:gap-2 transition-all min-w-0"
             style={{
-              background: pressed ? `${b.color}15` : '#ffffff',
+              background: pressed ? `${b.color}15` : 'var(--color-bg-white)',
               border: `1.5px solid ${b.color}`,
               borderRadius: 'var(--radius-md)',
               transform: pressed ? 'scale(0.98)' : 'none',
@@ -72,8 +72,8 @@ function CreditListActionBar({ creditView, onAddCustomer, onAddSupplier }) {
           boxShadow: '0 6px 18px rgba(26,102,255,0.25)',
         }}
       >
-        <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: '#ffffff', strokeWidth: 2.5 }} />
-        <span className="font-bold text-xs sm:text-sm truncate" style={{ color: '#ffffff', textTransform: 'uppercase' }}>
+        <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: 'var(--color-bg-white)', strokeWidth: 2.5 }} />
+        <span className="font-bold text-xs sm:text-sm truncate" style={{ color: 'var(--color-bg-white)', textTransform: 'uppercase' }}>
           {t.addCustomer}
         </span>
       </button>
@@ -85,12 +85,12 @@ function CreditListActionBar({ creditView, onAddCustomer, onAddSupplier }) {
       onClick={onAddSupplier}
       className="w-full py-2.5 sm:py-3 min-h-[44px] sm:min-h-[48px] flex items-center justify-center gap-1.5 sm:gap-2 transition-all press-scale"
       style={{
-        background: '#dc2626', border: 'none', borderRadius: 14,
+        background: 'var(--color-danger)', border: 'none', borderRadius: 14,
         boxShadow: '0 6px 18px rgba(220,38,38,0.25)',
       }}
     >
-      <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: '#ffffff', strokeWidth: 2.5 }} />
-      <span className="font-bold text-xs sm:text-sm truncate" style={{ color: '#ffffff', textTransform: 'uppercase' }}>
+      <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: 'var(--color-bg-white)', strokeWidth: 2.5 }} />
+      <span className="font-bold text-xs sm:text-sm truncate" style={{ color: 'var(--color-bg-white)', textTransform: 'uppercase' }}>
         {t.addSupplier}
       </span>
     </button>
@@ -107,8 +107,8 @@ function CreditDetailActionBar({ selectedCustomer, onAddCredit, onRecordPayment 
         className="flex-1 py-2.5 sm:py-3 min-h-[44px] sm:min-h-[48px] flex items-center justify-center gap-1.5 sm:gap-2 transition-all min-w-0 press-scale"
         style={{ background: '#E75645', border: 'none', borderRadius: 14 }}
       >
-        <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: '#ffffff', strokeWidth: 2.5 }} />
-        <span className="font-bold text-xs sm:text-sm truncate" style={{ color: '#1a1a1a' }}>
+        <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: 'var(--color-bg-white)', strokeWidth: 2.5 }} />
+        <span className="font-bold text-xs sm:text-sm truncate" style={{ color: 'var(--color-text)' }}>
           {t.creditGave}
         </span>
       </button>
@@ -121,8 +121,8 @@ function CreditDetailActionBar({ selectedCustomer, onAddCredit, onRecordPayment 
           opacity: Number(selectedCustomer.balance) > 0 ? 1 : 0.5,
         }}
       >
-        <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: '#ffffff', strokeWidth: 2.5 }} />
-        <span className="font-bold text-xs sm:text-sm truncate" style={{ color: Number(selectedCustomer.balance) > 0 ? '#1a1a1a' : '#374151' }}>
+        <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: 'var(--color-bg-white)', strokeWidth: 2.5 }} />
+        <span className="font-bold text-xs sm:text-sm truncate" style={{ color: Number(selectedCustomer.balance) > 0 ? 'var(--color-text)' : 'var(--color-text)' }}>
           {t.creditGot}
         </span>
       </button>
@@ -153,7 +153,7 @@ export default function AppActionBar({
   if (activeTab === 'today') {
     return (
       <div className="fixed left-0 right-0 max-w-md mx-auto z-30 px-3 py-2 border-t"
-        style={{ bottom: '60px', background: '#ffffff', borderColor: '#e5e7eb' }}
+        style={{ bottom: '60px', background: 'var(--color-surface)', borderColor: 'var(--color-bg-disabled)' }}
       >
         <TodayActionBar
           customerSummaries={customerSummaries}
@@ -174,7 +174,7 @@ export default function AppActionBar({
   if (activeTab === 'credit' && !selectedCustomer && !selectedSupplier) {
     return (
       <div className="fixed left-0 right-0 max-w-md mx-auto z-30 px-3 py-2 border-t"
-        style={{ bottom: '60px', background: '#ffffff', borderColor: '#e5e7eb' }}
+        style={{ bottom: '60px', background: 'var(--color-surface)', borderColor: 'var(--color-bg-disabled)' }}
       >
         <CreditListActionBar creditView={creditView} onAddCustomer={onAddCustomer} onAddSupplier={onAddSupplier} />
       </div>
@@ -184,7 +184,7 @@ export default function AppActionBar({
   if (activeTab === 'credit' && selectedCustomer) {
     return (
       <div className="fixed left-0 right-0 max-w-md mx-auto z-30 px-3 py-2 border-t"
-        style={{ bottom: '60px', background: '#ffffff', borderColor: '#e5e7eb' }}
+        style={{ bottom: '60px', background: 'var(--color-surface)', borderColor: 'var(--color-bg-disabled)' }}
       >
         <CreditDetailActionBar selectedCustomer={selectedCustomer} onAddCredit={onAddCredit} onRecordPayment={onRecordPayment} />
       </div>

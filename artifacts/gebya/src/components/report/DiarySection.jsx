@@ -33,7 +33,7 @@ export default function DiarySection({ diary, lang = 'en' }) {
         <p style={{
           fontSize: 10,
           fontWeight: 800,
-          color: '#92400e',
+          color: 'var(--color-warning)',
           textTransform: 'uppercase',
           letterSpacing: '0.06em',
           marginBottom: 8,
@@ -42,7 +42,7 @@ export default function DiarySection({ diary, lang = 'en' }) {
         </p>
         <p style={{
           fontSize: 14,
-          color: '#1f2937',
+          color: 'var(--color-text)',
           lineHeight: 1.6,
           fontStyle: 'italic',
         }}>

@@ -52,7 +52,7 @@ export default function StaffReportSheet({
 
   return (
     <div>
-      <p style={{ fontSize: 12, fontWeight: 900, color: '#1f2937', marginBottom: 8 }}>
+      <p style={{ fontSize: 12, fontWeight: 900, color: 'var(--color-text)', marginBottom: 8 }}>
         {lang === 'am' ? '📋 የሰራተኞች ገንዘብ መሰብሰብ' : '📋 STAFF CASH COLLECTION'}
       </p>
 
@@ -66,16 +66,16 @@ export default function StaffReportSheet({
             borderBottom: '1px solid #f3f4f6',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: '#1f2937' }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--color-text)' }}>
                 👤 {staff.name}
               </span>
-              <span style={{ fontSize: 10, fontWeight: 600, color: '#6b7280' }}>
+              <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-text-muted)' }}>
                 {staff.records} {lang === 'am' ? 'ሽያጮች' : 'sales'}
               </span>
             </div>
 
             {confirmed ? (
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#059669' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-success)' }}>
                 ✅ {lang === 'am' ? 'ተረጋግጧል' : 'Confirmed'} —
                 {lang === 'am'
                 ? ` ጥሬ፦ ${fmt(closingState.staffReports[staff.id].cashReceived)} · ዲጂ፦ ${fmt(closingState.staffReports[staff.id].digitalReceived)}`
@@ -83,7 +83,7 @@ export default function StaffReportSheet({
               </div>
             ) : (
               <>
-                <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 6 }}>
+                <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 6 }}>
                   {lang === 'am'
                     ? `ጥሬ ይጠበቃል፦ ${fmt(staff.cash || 0)} ETB · ዲጂ፦ ${fmt(staff.transfer || 0)} ETB`
                     : `Cash expected: ${fmt(staff.cash || 0)} ETB · Digital: ${fmt(staff.transfer || 0)} ETB`}
@@ -116,7 +116,7 @@ export default function StaffReportSheet({
                     onClick={() => handleConfirm(staff.id)}
                     style={{
                       padding: '6px 12px', borderRadius: 8, border: 'none',
-                      background: '#1B4332', color: '#fff',
+                      background: 'var(--color-primary)', color: 'var(--color-bg-white)',
                       fontSize: 11, fontWeight: 800, cursor: 'pointer',
                       whiteSpace: 'nowrap',
                     }}
@@ -131,8 +131,8 @@ export default function StaffReportSheet({
       })}
 
       <div style={{
-        marginTop: 10, padding: 8, background: '#f9fafb', borderRadius: 8,
-        fontSize: 11, fontWeight: 700, color: '#4b5563',
+        marginTop: 10, padding: 8, background: 'var(--color-bg-active)', borderRadius: 8,
+        fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)',
       }}>
         {lang === 'am'
           ? `📊 ጠቅላላ ከሰራተኞች፦ ጥሬ ${fmt(totalCashConfirmed)} / ${fmt(totalCashExpected)} · ዲጂ ${fmt(totalDigitalConfirmed)} / ${fmt(totalDigitalExpected)}`

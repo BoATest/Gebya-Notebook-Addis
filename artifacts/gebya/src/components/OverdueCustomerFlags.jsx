@@ -38,19 +38,19 @@ export default function OverdueCustomerFlags() {
     <div
       className="border p-3 mb-3"
       style={{
-        borderColor: '#fecaca',
+        borderColor: 'var(--color-danger-border)',
         borderRadius: 'var(--radius-sm)',
-        background: '#fef2f2',
+        background: 'var(--color-danger-bg)',
       }}
     >
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#991b1b' }}>
+        <p className="text-[11px] font-black uppercase tracking-wide" style={{ color: 'var(--color-danger-text)' }}>
           {lang === 'am' ? '\u1240\u1273\u1293 \u12A0\u1295\u12F3 \u1233\u1276\u128B\u1276\u1289\u1289' : 'Overdue Customers'}
         </p>
         <button
           onClick={() => setDismissed(true)}
           className="text-[10px] font-bold"
-          style={{ color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer' }}
+          style={{ color: 'var(--color-text-soft)', background: 'none', border: 'none', cursor: 'pointer' }}
         >
           {lang === 'am' ? '\u12AB\u1295\u12F3' : 'Dismiss'}
         </button>
@@ -60,26 +60,26 @@ export default function OverdueCustomerFlags() {
           <div
             key={flag.customer_id}
             className="flex items-center justify-between text-xs"
-            style={{ color: '#111827' }}
+            style={{ color: 'var(--color-text)' }}
           >
             <div className="min-w-0">
               <span className="font-bold">{flag.display_name}</span>
-              <span className="ml-1" style={{ color: '#6b7280' }}>
+              <span className="ml-1" style={{ color: 'var(--color-text-muted)' }}>
                 — {fmtBirr(flag.outstanding_amount)} ETB
               </span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span style={{ color: flag.risk_level === 'high' ? '#dc2626' : '#d97706', fontSize: 10, fontWeight: 700 }}>
+              <span style={{ color: flag.risk_level === 'high' ? 'var(--color-danger)' : 'var(--color-accent-amber)', fontSize: 10, fontWeight: 700 }}>
                 {flag.oldest_unpaid_days}d
               </span>
               {flag.has_recent_payment && (
-                <span style={{ color: '#16a34a', fontSize: 9 }}>recent pay</span>
+                <span style={{ color: 'var(--color-success)', fontSize: 9 }}>recent pay</span>
               )}
             </div>
           </div>
         ))}
         {flags.length > 5 && (
-          <p className="text-[10px]" style={{ color: '#9ca3af' }}>
+          <p className="text-[10px]" style={{ color: 'var(--color-text-soft)' }}>
             +{flags.length - 5} {lang === 'am' ? '\u12E8\u121A\u130D\u1295\u1233' : 'more'}
           </p>
         )}

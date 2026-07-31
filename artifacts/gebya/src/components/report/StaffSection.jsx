@@ -22,22 +22,22 @@ function StaffRow({ staff, hidden = false, lang = 'en' }) {
           width: 32,
           height: 32,
           borderRadius: '50%',
-          background: '#f0fdf4',
+          background: 'var(--color-success-bg)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 12,
           fontWeight: 900,
-          color: '#16a34a',
+          color: 'var(--color-success)',
           flexShrink: 0,
         }}>
           {(staff.name || 'S').charAt(0).toUpperCase()}
         </div>
         <div style={{ minWidth: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 800, color: '#1f2937', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {staff.name}
           </p>
-          <p style={{ fontSize: 10, color: '#9ca3af' }}>
+          <p style={{ fontSize: 10, color: 'var(--color-text-soft)' }}>
             {staff.records} {lang === 'am' ? 'መዝገብ' : 'entries'}
           </p>
         </div>
@@ -45,7 +45,7 @@ function StaffRow({ staff, hidden = false, lang = 'en' }) {
       <span style={{
         fontSize: 14,
         fontWeight: 900,
-        color: '#16a34a',
+        color: 'var(--color-success)',
         fontVariantNumeric: 'tabular-nums',
       }}>
         {hidden ? '••••' : fmt(staff.sold)}

@@ -314,19 +314,19 @@ function TransactionForm({
 
         <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 pb-28 space-y-3">
           {/* Total amount hero */}
-          <section className="border" style={{ borderColor: '#d8eadf', borderRadius: 'var(--radius-md)', background: '#f7fcf8' }}>
+          <section className="border" style={{ borderColor: 'var(--color-success-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-success-bg)' }}>
             <div className="px-3 py-2.5 flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-bold" style={{ color: '#4b6855' }}>{lang === 'am' ? 'ጠቅላላ መጠን' : 'Total amount'}</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--color-success-text)' }}>{lang === 'am' ? 'ጠቅላላ መጠን' : 'Total amount'}</p>
                 <p className="text-2xl font-black leading-tight" style={{ color: sellingPrice > 0 ? 'var(--color-success-text)' : 'var(--color-text-soft)' }}>{fmt(sellingPrice)} ETB</p>
               </div>
-              <span className="px-2.5 py-1.5 text-xs font-black border" style={{ borderColor: '#bbd7c5', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', color: 'var(--color-success-text)' }}>{paymentLabel}</span>
+              <span className="px-2.5 py-1.5 text-xs font-black border" style={{ borderColor: 'var(--color-success-border)', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', color: 'var(--color-success-text)' }}>{paymentLabel}</span>
             </div>
             <div className="px-3 pb-3">
               <input ref={amountInputRef} type="text" inputMode="decimal" autoFocus value={fmtInput(amount)}
                 onChange={event => handleNumericInput(event, setAmount)}
                 placeholder="0" className="w-full px-3 py-3 border-2 focus:outline-none text-2xl font-black"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: amount ? '#86efac' : '#d7e3da', color: amount ? 'var(--color-success-text)' : 'var(--color-text-soft)' }} />
+                style={{ borderRadius: 'var(--radius-md)', borderColor: amount ? 'var(--color-success-border)' : 'var(--color-border)', color: amount ? 'var(--color-success-text)' : 'var(--color-text-soft)' }} />
             </div>
           </section>
 
@@ -336,17 +336,17 @@ function TransactionForm({
             <div className="flex gap-2 items-stretch">
               <button type="button" onClick={() => setShowCamera(true)}
                 className="press-scale flex items-center justify-center flex-shrink-0"
-                style={{ width: 48, minHeight: 48, border: '2px solid #d7e3da', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? 'var(--color-success-bg)' : '#fafaf6' }}
+                style={{ width: 48, minHeight: 48, border: '2px solid #d7e3da', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? 'var(--color-success-bg)' : 'var(--color-surface-subtle)' }}
                 aria-label={lang === 'am' ? 'ፎቶ አክል' : 'Take or choose photo'}>
                 {photoLoading ? <span className="text-xs">...</span> : <Camera className="w-5 h-5" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-text-muted)' }} />}
               </button>
               <input type="text" value={item} onChange={e => setItem(e.target.value)}
                 placeholder={lang === 'am' ? 'ዝርዝሩን ይመዝቡ...' : 'Add details...'}
                 className="flex-1 min-w-0 px-3 py-3 border-2 focus:outline-none text-base"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: item ? '#86efac' : '#d7e3da' }} />
+                style={{ borderRadius: 'var(--radius-md)', borderColor: item ? 'var(--color-success-border)' : 'var(--color-border)' }} />
             </div>
             {photos.length > 0 && (
-              <div className="p-2" style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
+              <div className="p-2" style={{ background: 'var(--color-surface-subtle)', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ፎቶ' : 'Proof photos'}</p>
                   <p className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>{photoCountLabel(photos.length, lang)}</p>
@@ -708,7 +708,7 @@ function TransactionForm({
                   <div>{re.name}</div><div className="font-normal text-[10px]" style={{ color: 'var(--color-accent-amber)' }}>{fmt(re.amount)} {lang === 'am' ? 'ብር' : 'birr'}</div></button>
               ))}
               <button type="button" onClick={() => openAddRecurring('')} className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale flex items-center justify-center"
-                style={{ borderRadius: 'var(--radius-sm)', borderColor: '#c9bfa8', borderStyle: 'dashed', background: 'var(--color-surface-subtle)', color: 'var(--color-text-soft)', minWidth: '40px' }}><Plus className="w-4 h-4" /></button>
+                style={{ borderRadius: 'var(--radius-sm)', borderColor: 'var(--color-border)', borderStyle: 'dashed', background: 'var(--color-surface-subtle)', color: 'var(--color-text-soft)', minWidth: '40px' }}><Plus className="w-4 h-4" /></button>
             </div>
             {addRecurringHint && <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--color-accent-amber)' }}>{lang === 'am' ? 'በቅንብሮች ውስጥ ሌሎች ተደጋጋሚ ወጪዎችን ማከል ይችላሉ' : 'You can add more recurring expenses in Settings'}</p>}
           </div>
@@ -719,10 +719,10 @@ function TransactionForm({
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {[lang === 'am' ? 'ኪራይ' : 'Rent', lang === 'am' ? 'እቁብ' : 'እቁብ'].map(demoName => (
                 <button key={demoName} type="button" onClick={() => openAddRecurring(demoName)} className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale"
-                  style={{ borderRadius: 'var(--radius-sm)', borderColor: '#c9bfa8', borderStyle: 'dashed', background: 'var(--color-surface-subtle)', color: 'var(--color-text-soft)' }}>{demoName}</button>
+                  style={{ borderRadius: 'var(--radius-sm)', borderColor: 'var(--color-border)', borderStyle: 'dashed', background: 'var(--color-surface-subtle)', color: 'var(--color-text-soft)' }}>{demoName}</button>
               ))}
               <button type="button" onClick={() => openAddRecurring('')} className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale flex items-center justify-center"
-                style={{ borderRadius: 'var(--radius-sm)', borderColor: '#c9bfa8', borderStyle: 'dashed', background: 'var(--color-surface-subtle)', color: 'var(--color-text-soft)', minWidth: '40px' }}><Plus className="w-4 h-4" /></button>
+                style={{ borderRadius: 'var(--radius-sm)', borderColor: 'var(--color-border)', borderStyle: 'dashed', background: 'var(--color-surface-subtle)', color: 'var(--color-text-soft)', minWidth: '40px' }}><Plus className="w-4 h-4" /></button>
             </div>
           </div>
         )}
@@ -751,14 +751,14 @@ function TransactionForm({
               <button type="button" onClick={() => setShowCamera(true)}
                 aria-label={lang === 'am' ? 'ፎቶ አክል' : 'Take or choose photo'}
                 className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
-                style={{ width: '56px', border: '2px solid #e8e2d8', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? 'var(--color-success-bg)' : '#fafaf6', position: 'relative' }}>
+                style={{ width: '56px', border: '2px solid #e8e2d8', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? 'var(--color-success-bg)' : 'var(--color-surface-subtle)', position: 'relative' }}>
                 {photoLoading ? <span className="text-sm">...</span> : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-text-muted)' }} />}
                 <span aria-hidden="true" style={{ position: 'absolute', top: -7, right: -7, minWidth: 24, height: 20, padding: '0 5px', borderRadius: 999, background: 'var(--color-success)', color: 'var(--color-bg-white)', border: '2px solid #fff', fontSize: 10, fontWeight: 900, lineHeight: '16px', textAlign: 'center' }}>+</span>
               </button>
             )}
           </div>
           {photos.length > 0 && (
-            <div className="mt-2 p-2" style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
+            <div className="mt-2 p-2" style={{ background: 'var(--color-surface-subtle)', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ፎቶ' : 'Proof photos'}</p>
                 <p className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>{photoCountLabel(photos.length, lang)}</p>
@@ -803,7 +803,7 @@ function TransactionForm({
             <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ደንበኛ' : 'CUSTOMER'}</label>
             <div className="relative">
               <input type="text" value={customerQuery} onChange={e => { setCustomerQuery(e.target.value); setCustomerMatch(null); }} placeholder={lang === 'am' ? 'ስም ይተይቡ...' : 'Type customer name...'}
-                className="w-full p-3 border-2 focus:outline-none text-base" style={{ borderRadius: 'var(--radius-md)', borderColor: customerQuery ? '#86efac' : 'var(--color-border)' }} />
+                className="w-full p-3 border-2 focus:outline-none text-base" style={{ borderRadius: 'var(--radius-md)', borderColor: customerQuery ? 'var(--color-success-border)' : 'var(--color-border)' }} />
               {customerQuery.trim() && (
                 <div className="absolute z-20 left-0 right-0 mt-1 bg-white border shadow-lg" style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', maxHeight: '160px', overflowY: 'auto' }}>
                   {customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).slice(0, 6).map(c => (
@@ -815,7 +815,7 @@ function TransactionForm({
                   ))}
                   {onAddCustomerInline && customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).length === 0 && (
                     <button type="button" onClick={async () => { const name = customerQuery.trim(); if (!name) return; const saved = await onAddCustomerInline({ display_name: name }); if (saved?.id) { setCustomerMatch(saved); setCustomerQuery(saved.display_name || saved.name || ''); } }}
-                      className="w-full px-3 py-2.5 text-left text-sm font-bold press-scale flex items-center gap-2" style={{ background: '#f7fcf8', color: 'var(--color-success-text)' }}>
+                      className="w-full px-3 py-2.5 text-left text-sm font-bold press-scale flex items-center gap-2" style={{ background: 'var(--color-success-bg)', color: 'var(--color-success-text)' }}>
                       <Plus className="w-4 h-4" /> {lang === 'am' ? 'አዲስ ደንበኛ ይመልከቱ' : 'Add new customer'}: <span className="truncate" style={{ color: 'var(--color-primary)' }}>{customerQuery.trim()}</span>
                     </button>
                   )}

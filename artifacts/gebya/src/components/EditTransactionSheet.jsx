@@ -179,11 +179,11 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
           <div className="flex justify-between items-center">
             <div>
               <div className="flex items-center gap-2">
-                <Pencil className="w-4 h-4" style={{ color: '#C4883A' }} />
+                <Pencil className="w-4 h-4" style={{ color: 'var(--color-accent-amber)' }} />
                 <h2 className="text-xl font-black text-gray-900 font-sans">{typeLabels[type] || t.editEntryLabel}</h2>
               </div>
               {lastEdited && (
-                <p className="text-xs mt-0.5 font-sans" style={{ color: '#9ca3af' }}>{t.editedAt} {lastEdited}</p>
+                <p className="text-xs mt-0.5 font-sans" style={{ color: 'var(--color-text-soft)' }}>{t.editedAt} {lastEdited}</p>
               )}
             </div>
             <button onClick={onClose} aria-label={t.close}
@@ -202,7 +202,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
               <div className="p-3 space-y-2"
                 style={{ background: 'rgba(27,67,50,0.04)', borderRadius: 'var(--radius-md)', border: '1px solid #e8e2d8' }}
               >
-                <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+                <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
                   🧺 {editableItems.length === 1 ? '1 item' : `${editableItems.length} items`}
                 </p>
 
@@ -216,7 +216,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                         onChange={(e) => updateBreakdownLine(line.id, 'name', e.target.value)}
                         placeholder="item"
                         className="flex-1 min-w-0 px-2 py-2 border focus:outline-none text-sm"
-                        style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }}
+                        style={{ borderRadius: 'var(--radius-sm)', borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
                       />
                       <input
                         type="text"
@@ -230,7 +230,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                         }}
                         placeholder="0"
                         className="w-20 px-2 py-2 border focus:outline-none text-sm text-right font-bold"
-                        style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff' }}
+                        style={{ borderRadius: 'var(--radius-sm)', borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
                       />
                       <button
                         type="button"
@@ -239,7 +239,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                         style={{ minWidth: '32px', minHeight: '32px' }}
                         aria-label="Remove line"
                       >
-                        <X className="w-4 h-4" style={{ color: '#9ca3af' }} />
+                        <X className="w-4 h-4" style={{ color: 'var(--color-text-soft)' }} />
                       </button>
                     </div>
                   ))}
@@ -250,10 +250,10 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                   onClick={addBreakdownLine}
                   className="w-full py-2 text-xs font-bold border border-dashed press-scale flex items-center justify-center gap-1"
                   style={{
-                    borderColor: '#c9bfa8',
+                    borderColor: 'var(--color-border)',
                     borderRadius: 'var(--radius-sm)',
-                    background: '#faf9f7',
-                    color: '#6b7280',
+                    background: 'var(--color-surface-subtle)',
+                    color: 'var(--color-text-muted)',
                   }}
                 >
                   <Plus className="w-4 h-4" />
@@ -263,7 +263,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                 {/* Totals + delta hint */}
                 {validBreakdown.length > 0 && (
                   <div className="text-xs pt-2 space-y-0.5" style={{ borderTop: '1px solid #e8e2d8' }}>
-                    <div className="flex justify-between" style={{ color: '#374151' }}>
+                    <div className="flex justify-between" style={{ color: 'var(--color-text)' }}>
                       <span>Items total</span>
                       <span className="font-bold">{fmt(breakdownSum)} {t.birr || 'birr'}</span>
                     </div>
@@ -273,7 +273,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                         onClick={() => setAmount(String(breakdownSum))}
                         className="w-full flex justify-between items-center px-1.5 py-1 mt-1 press-scale"
                         style={{
-                          color: breakdownDelta > 0 ? '#C4883A' : '#dc2626',
+                          color: breakdownDelta > 0 ? 'var(--color-accent-amber)' : 'var(--color-danger)',
                           background: breakdownDelta > 0 ? 'rgba(196,136,58,0.08)' : 'rgba(220,38,38,0.06)',
                           borderRadius: 'var(--radius-sm)',
                         }}
@@ -301,9 +301,9 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                     className="p-3 border-2 text-center transition-all min-h-[56px] press-scale"
                     style={{
                       borderRadius: 'var(--radius-sm)',
-                      borderColor: direction === d.id ? '#1B4332' : '#e8e2d8',
-                      background: direction === d.id ? 'rgba(27,67,50,0.07)' : '#fff',
-                      color: direction === d.id ? '#1B4332' : '#4b5563',
+                      borderColor: direction === d.id ? 'var(--color-primary)' : 'var(--color-border)',
+                      background: direction === d.id ? 'rgba(27,67,50,0.07)' : 'var(--color-bg-white)',
+                      color: direction === d.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
                     }}>
                     <div className="font-bold text-sm font-sans">{d.label}</div>
                     <div className="text-xs opacity-70 mt-0.5 font-sans">{d.sub}</div>
@@ -323,7 +323,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                 value={item}
                 onChange={e => setItem(e.target.value)}
                 className="flex-1 p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+                style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)' }}
               />
               {!isCredit && (
                 <button
@@ -335,7 +335,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                     minHeight: 52,
                     border: '2px solid #e8e2d8',
                     borderRadius: 'var(--radius-md)',
-                    background: photos.length > 0 ? '#f0fdf4' : '#fafaf6',
+                    background: photos.length > 0 ? 'var(--color-success-bg)' : 'var(--color-surface-subtle)',
                      opacity: photos.length > 0 ? 0.55 : 1,
                     position: 'relative',
                   }}
@@ -343,7 +343,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                 >
                   {photoLoading
                     ? <span className="text-sm">...</span>
-                    : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? '#16a34a' : '#6b7280' }} />
+                    : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-text-muted)' }} />
                   }
                   <span
                     aria-hidden="true"
@@ -356,7 +356,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                       padding: '0 5px',
                       borderRadius: 999,
                        background: accent.btn,
-                      color: '#fff',
+                      color: 'var(--color-bg-white)',
                       border: '2px solid #fff',
                       fontSize: 10,
                       fontWeight: 900,
@@ -370,20 +370,20 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
               )}
             </div>
             {!isCredit && photoError && (
-              <p className="text-xs mt-1" style={{ color: '#dc2626' }}>
+              <p className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>
                 {photoError}
               </p>
             )}
             {!isCredit && photos.length > 0 && (
               <div
                 className="mt-2 p-2"
-                style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}
+                style={{ background: 'var(--color-surface-subtle)', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold" style={{ color: '#1a1a1a' }}>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
                     {lang === 'am' ? '\u134E\u1276' : 'Proof photos'}
                   </p>
-                  <p className="text-[10px] font-bold" style={{ color: '#6b7280' }}>
+                  <p className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>
                     {photos.length} {lang === 'am' ? 'ፎቶዎች' : 'photos'}
                   </p>
                 </div>
@@ -411,13 +411,13 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                           minHeight: 28,
                           borderRadius: 999,
                           border: '1px solid #e8e2d8',
-                          background: '#fff',
+                          background: 'var(--color-surface)',
                         }}
                         aria-label={lang === 'am' ? '\u134E\u1276 \u12A0\u1235\u12C8\u130D\u12F5' : `Remove photo ${index + 1}`}
                       >
-                        <X className="w-3.5 h-3.5" style={{ color: '#6b7280' }} />
+                        <X className="w-3.5 h-3.5" style={{ color: 'var(--color-text-muted)' }} />
                       </button>
-                      <p className="text-[10px] text-center mt-1" style={{ color: '#9ca3af' }}>
+                      <p className="text-[10px] text-center mt-1" style={{ color: 'var(--color-text-soft)' }}>
                         {Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB
                       </p>
                     </div>
@@ -445,7 +445,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                 }}
                 min="1"
                 className="w-full p-4 border-2 focus:outline-none text-base min-h-[52px] font-sans"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+                style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)' }}
               />
             </div>
           )}
@@ -460,7 +460,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                 onChange={e => handleNumericInput(e, setAmount)}
                 placeholder="0"
                 className="w-full p-4 pr-16 border-2 focus:outline-none text-base min-h-[52px] font-sans"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+                style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)' }}
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
             </div>
@@ -474,7 +474,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
               <div className="flex gap-0">
                 <div
                   className="flex items-center justify-center px-3 py-3 border-2 border-r-0 text-sm font-bold flex-shrink-0 font-sans"
-                  style={{ background: 'rgba(27,67,50,0.06)', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : '#e8e2d8', color: '#1B4332', minWidth: '64px', borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)' }}
+                  style={{ background: 'rgba(27,67,50,0.06)', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? 'var(--color-danger)' : 'var(--color-border)', color: 'var(--color-primary)', minWidth: '64px', borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)' }}
                 >
                   +251
                 </div>
@@ -490,7 +490,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                   placeholder="9XXXXXXXX"
                   maxLength={9}
                   className="flex-1 p-4 border-2 text-base focus:outline-none min-h-[52px] font-sans"
-                  style={{ borderRadius: '0 var(--radius-sm) var(--radius-sm) 0', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : (phoneEntered && phoneValid ? '#1B4332' : '#e8e2d8') }}
+                  style={{ borderRadius: '0 var(--radius-sm) var(--radius-sm) 0', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? 'var(--color-danger)' : (phoneEntered && phoneValid ? 'var(--color-primary)' : 'var(--color-border)') }}
                 />
               </div>
               {phoneTouched && phoneEntered && !phoneValid && (
@@ -512,10 +512,10 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                     <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)} className="press-scale font-sans"
                       style={{
                         padding: '8px 12px', minWidth: 70, minHeight: 40,
-                        border: `2px solid ${active ? '#1B4332' : '#e8e2d8'}`,
+                        border: `2px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
                         borderRadius: 8,
-                        background: active ? '#1B4332' : '#fff',
-                        color: active ? '#fff' : '#4b5563',
+                        background: active ? 'var(--color-primary)' : 'var(--color-bg-white)',
+                        color: active ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
                         fontSize: '0.8rem', fontWeight: 700,
                         cursor: 'pointer', flexShrink: 0,
                       }}>
@@ -526,10 +526,10 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                 <button type="button" onClick={() => setShowDatePicker(true)} className="press-scale font-sans"
                   style={{
                     padding: '8px 12px', minWidth: 70, minHeight: 40,
-                    border: `2px solid ${selectedDue === 'custom' ? '#1B4332' : '#e8e2d8'}`,
+                    border: `2px solid ${selectedDue === 'custom' ? 'var(--color-primary)' : 'var(--color-border)'}`,
                     borderRadius: 8,
-                    background: selectedDue === 'custom' ? '#1B4332' : '#fff',
-                    color: selectedDue === 'custom' ? '#fff' : '#4b5563',
+                    background: selectedDue === 'custom' ? 'var(--color-primary)' : 'var(--color-bg-white)',
+                    color: selectedDue === 'custom' ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
                     fontSize: '0.8rem', fontWeight: 700,
                     cursor: 'pointer', flexShrink: 0,
                     display: 'flex', alignItems: 'center', gap: 4,
@@ -567,7 +567,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
             <div>
               <button type="button" onClick={() => setShowAdvanced(v => !v)}
                 className="flex items-center gap-1 text-sm font-semibold py-1 min-h-[44px] font-sans"
-                style={{ color: '#C4883A' }}>
+                style={{ color: 'var(--color-accent-amber)' }}>
                 {showAdvanced ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 {t.advancedOptional}
               </button>
@@ -575,7 +575,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
               {showAdvanced && (
                 <div className="mt-2 p-4 border animate-slide-up" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)' }}>
                   <label className="block text-gray-600 text-sm font-semibold mb-2 font-sans">
-                    {t.costPriceLabel} <span style={{ color: '#9ca3af' }}>{t.perUnit}</span>
+                    {t.costPriceLabel} <span style={{ color: 'var(--color-text-soft)' }}>{t.perUnit}</span>
                   </label>
                   <div className="relative">
                     <input
@@ -585,18 +585,18 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                       onChange={e => handleNumericInput(e, setCostPrice)}
                       placeholder="0"
                       className="w-full p-4 pr-16 border-2 focus:outline-none text-base min-h-[52px] font-sans"
-                      style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }}
+                      style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)' }}
                     />
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
                   </div>
                   {belowCost && (
-                    <div className="mt-3 flex items-start gap-2 p-3" style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)' }}>
-                      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: '#d97706' }} />
-                      <p className="text-xs font-sans" style={{ color: '#92400e' }}>{t.sellingBelowCostShort}</p>
+                    <div className="mt-3 flex items-start gap-2 p-3" style={{ background: 'var(--color-warning-bg)', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)' }}>
+                      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--color-accent-amber)' }} />
+                      <p className="text-xs font-sans" style={{ color: 'var(--color-warning)' }}>{t.sellingBelowCostShort}</p>
                     </div>
                   )}
                   {cost > 0 && !belowCost && sellingPrice > 0 && (
-                    <div className="mt-3 p-3 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', borderRadius: 'var(--radius-sm)' }}>
+                    <div className="mt-3 p-3 border" style={{ background: 'var(--color-success-bg)', borderColor: 'var(--color-success-border)', borderRadius: 'var(--radius-sm)' }}>
                       <p className="text-xs text-green-700 font-semibold font-sans">
                         {t.profitLabel} {fmt(sellingPrice - cost * qty)} {t.birr}
                       </p>
@@ -612,8 +612,8 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
           <button onClick={handleSave} disabled={!canSave || saving}
             className="w-full p-4 font-black text-white text-base flex items-center justify-center gap-2 transition-all min-h-[56px] active:scale-95 press-scale font-sans"
             style={{
-              background: canSave ? accent.btn : '#e5e7eb',
-              color: canSave ? '#fff' : '#9ca3af',
+              background: canSave ? accent.btn : 'var(--color-bg-disabled)',
+              color: canSave ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
               borderRadius: 'var(--radius-md)',
               boxShadow: canSave ? `0 4px 0 ${accent.shadow}, var(--shadow-sm)` : 'none',
             }}>

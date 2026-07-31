@@ -95,12 +95,12 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
           style={{ borderBottom: '1px solid #e8e2d8' }}
         >
           <div className="min-w-0 flex items-center gap-2">
-            <Bell className="w-5 h-5 flex-shrink-0" style={{ color: '#C4883A' }} />
+            <Bell className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--color-accent-amber)' }} />
             <div className="min-w-0">
-              <h2 className="text-base font-bold truncate" style={{ color: '#1a1a1a' }}>
+              <h2 className="text-base font-bold truncate" style={{ color: 'var(--color-text)' }}>
                 {lang === 'am' ? 'ማስታወሻ ላክ' : 'Send reminder'}
               </h2>
-              <p className="text-[11px] truncate" style={{ color: '#6b7280' }}>
+              <p className="text-[11px] truncate" style={{ color: 'var(--color-text-muted)' }}>
                 {customer?.display_name}
                 {lastReminded && <span> · {lang === 'am' ? 'መጨረሻ' : 'last'}: {lastReminded}</span>}
               </p>
@@ -112,7 +112,7 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
             className="press-scale flex items-center justify-center"
             style={{ minWidth: '36px', minHeight: '36px' }}
           >
-            <X className="w-5 h-5" style={{ color: '#6b7280' }} />
+            <X className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
           </button>
         </div>
 
@@ -122,22 +122,22 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
           <div
             className="p-3 border flex items-center justify-between gap-2"
             style={{
-              background: '#fffbeb',
-              borderColor: '#fde68a',
+              background: 'var(--color-warning-bg)',
+              borderColor: 'var(--color-warning-border)',
               borderRadius: 'var(--radius-md)',
             }}
           >
-            <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#92400e' }}>
+            <p className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--color-warning)' }}>
               {lang === 'am' ? 'ቀሪ ዱቤ' : 'Outstanding'}
             </p>
-            <p className="text-lg font-bold" style={{ color: '#92400e' }}>
+            <p className="text-lg font-bold" style={{ color: 'var(--color-warning)' }}>
               {fmt(Number(customer?.balance || 0))} {t.birr || 'birr'}
             </p>
           </div>
 
           {/* Template tone picker */}
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'አንደ ምን ያስታውሱ' : 'Tone'}
             </label>
             <div className="flex gap-1.5">
@@ -151,9 +151,9 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
                     className="flex-1 flex flex-col items-center gap-0.5 py-2 px-1 border-2 text-xs font-bold transition-all min-h-[48px] press-scale"
                     style={{
                       borderRadius: 'var(--radius-sm)',
-                      borderColor: active ? '#C4883A' : '#e8e2d8',
-                      background: active ? 'rgba(196,136,58,0.08)' : '#fff',
-                      color: active ? '#6b4f1d' : '#6b7280',
+                      borderColor: active ? 'var(--color-accent-amber)' : 'var(--color-border)',
+                      background: active ? 'rgba(196,136,58,0.08)' : 'var(--color-bg-white)',
+                      color: active ? 'var(--color-warning)' : 'var(--color-text-muted)',
                     }}
                   >
                     <span className="text-base leading-none">{tpl.emoji}</span>
@@ -167,14 +167,14 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
           {/* Message preview + edit */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#6b7280' }}>
+              <label className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
                 {lang === 'am' ? 'መልዕክት' : 'Message'}
               </label>
               <button
                 type="button"
                 onClick={handleCopy}
                 className="press-scale flex items-center gap-1 text-[11px] font-bold"
-                style={{ color: copied ? '#16a34a' : '#6b7280', minHeight: '28px', padding: '0 4px' }}
+                style={{ color: copied ? 'var(--color-success)' : 'var(--color-text-muted)', minHeight: '28px', padding: '0 4px' }}
               >
                 {copied
                   ? <><CheckCircle2 className="w-3.5 h-3.5" /> {lang === 'am' ? 'ተቀዳ' : 'Copied'}</>
@@ -189,11 +189,11 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
               className="w-full p-3 border-2 focus:outline-none text-sm resize-none"
               style={{
                 borderRadius: 'var(--radius-md)',
-                borderColor: '#e8e2d8',
+                borderColor: 'var(--color-border)',
                 lineHeight: '1.5',
               }}
             />
-            <p className="text-[10px] mt-1" style={{ color: '#9ca3af' }}>
+            <p className="text-[10px] mt-1" style={{ color: 'var(--color-text-soft)' }}>
               {lang === 'am'
                 ? 'መልዕክቱን ማርትዕ ይችላሉ።'
                 : 'You can edit the message before sending.'}
@@ -202,7 +202,7 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
 
           {/* Channel picker */}
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'በምን ይላኩ' : 'Send via'}
             </label>
             {hasAnyChannel ? (
@@ -222,20 +222,20 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
                       style={{
                         borderRadius: 'var(--radius-sm)',
                         borderColor: active
-                          ? '#1B4332'
+                          ? 'var(--color-primary)'
                           : isTelegram
-                            ? '#C4883A'
-                            : '#e8e2d8',
+                            ? 'var(--color-accent-amber)'
+                            : 'var(--color-border)',
                         background: active
                           ? 'rgba(27,67,50,0.1)'
                           : isTelegram
                             ? 'rgba(196,136,58,0.08)'
-                            : '#fff',
+                            : 'var(--color-bg-white)',
                         color: active
-                          ? '#1B4332'
+                          ? 'var(--color-primary)'
                           : isTelegram
-                            ? '#6b4f1d'
-                            : '#6b7280',
+                            ? 'var(--color-warning)'
+                            : 'var(--color-text-muted)',
                       }}
                     >
                       <span className="text-base">{info.emoji}</span>
@@ -244,8 +244,8 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
                         <span
                           className="absolute -top-1.5 -right-1.5 text-[9px] font-bold px-1 py-0.5 leading-none"
                           style={{
-                            background: '#C4883A',
-                            color: '#fff',
+                            background: 'var(--color-accent-amber)',
+                            color: 'var(--color-bg-white)',
                             borderRadius: '999px',
                           }}
                         >
@@ -258,10 +258,10 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
               </div>
             ) : (
               <div className="p-3 text-xs" style={{
-                background: '#fffbeb',
+                background: 'var(--color-warning-bg)',
                 border: '1px solid #fde68a',
                 borderRadius: 'var(--radius-sm)',
-                color: '#92400e',
+                color: 'var(--color-warning)',
               }}>
                 {lang === 'am'
                   ? 'ስልክ ወይም ቴሌግራም አልተመዘገበም። የደንበኛውን ገጽ ላይ መረጃ ይጨምሩ።'
@@ -269,7 +269,7 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
               </div>
             )}
             {effectiveChannel === 'telegram' && (
-              <p className="text-[10px] mt-1.5" style={{ color: '#9ca3af' }}>
+              <p className="text-[10px] mt-1.5" style={{ color: 'var(--color-text-soft)' }}>
                 {lang === 'am'
                   ? 'ቴሌግራም መልዕክት አስቀድሞ አይሞላም — መልዕክቱ በ Clipboard ይቀመጣል፣ ለጥፍ ።'
                   : 'Telegram won\'t pre-fill — the message will be copied to clipboard, paste it.'}
@@ -285,8 +285,8 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
             disabled={!effectiveChannel || sending || !message.trim()}
             className="w-full p-3 font-bold text-white text-base flex items-center justify-center gap-2 press-scale transition-all"
             style={{
-              background: (effectiveChannel && !sending && message.trim()) ? '#C4883A' : '#e5e7eb',
-              color: (effectiveChannel && !sending && message.trim()) ? '#fff' : '#9ca3af',
+              background: (effectiveChannel && !sending && message.trim()) ? 'var(--color-accent-amber)' : 'var(--color-bg-disabled)',
+              color: (effectiveChannel && !sending && message.trim()) ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
               cursor: (effectiveChannel && !sending && message.trim()) ? 'pointer' : 'not-allowed',
               borderRadius: 'var(--radius-md)',
             }}

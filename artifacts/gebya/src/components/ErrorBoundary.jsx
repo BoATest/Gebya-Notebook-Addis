@@ -86,7 +86,7 @@ class ErrorBoundary extends Component {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#FAF8F5',
+            background: 'var(--color-surface-muted)',
             padding: '24px',
             fontFamily: 'system-ui, sans-serif',
           }}
@@ -95,7 +95,7 @@ class ErrorBoundary extends Component {
             style={{
               width: 48, height: 48,
               border: '4px solid #ece6d6',
-              borderTopColor: '#1B4332',
+              borderTopColor: 'var(--color-primary)',
               borderRadius: '50%',
               animation: 'gebya-spin 0.9s linear infinite',
               marginBottom: 18,
@@ -104,13 +104,13 @@ class ErrorBoundary extends Component {
           <h1
             style={{
               fontSize: '1.05rem', fontWeight: 800,
-              color: '#1B4332', marginBottom: 6,
+              color: 'var(--color-primary)', marginBottom: 6,
               textAlign: 'center',
             }}
           >
             Updating to the latest version…
           </h1>
-          <p style={{ fontSize: '0.85rem', color: '#6b7280', textAlign: 'center', maxWidth: 320 }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', textAlign: 'center', maxWidth: 320 }}>
             One moment — refreshing to load the newest code.
           </p>
           <style>{`@keyframes gebya-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
@@ -128,7 +128,7 @@ class ErrorBoundary extends Component {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#fdf8f0',
+          background: 'var(--color-warning-bg)',
           padding: '24px',
           fontFamily: 'system-ui, sans-serif',
         }}
@@ -138,7 +138,7 @@ class ErrorBoundary extends Component {
           style={{
             fontSize: '1.25rem',
             fontWeight: 900,
-            color: '#7c3d12',
+            color: 'var(--color-warning)',
             marginBottom: '8px',
             textAlign: 'center',
           }}
@@ -148,7 +148,7 @@ class ErrorBoundary extends Component {
         <p
           style={{
             fontSize: '0.875rem',
-            color: '#9ca3af',
+            color: 'var(--color-text-soft)',
             marginBottom: '16px',
             textAlign: 'center',
           }}
@@ -160,11 +160,11 @@ class ErrorBoundary extends Component {
             maxWidth: '480px',
             width: '100%',
             padding: '12px',
-            background: '#fff',
+            background: 'var(--color-surface)',
             border: '1px solid #f5c993',
             borderRadius: '8px',
             fontSize: '0.75rem',
-            color: '#7c3d12',
+            color: 'var(--color-warning)',
             fontFamily: 'monospace',
             wordBreak: 'break-word',
             marginBottom: '16px',
@@ -178,8 +178,8 @@ class ErrorBoundary extends Component {
           <button
             onClick={() => this.handleReload()}
             style={{
-              background: '#7c3d12',
-              color: '#fff',
+              background: 'var(--color-warning)',
+              color: 'var(--color-bg-white)',
               border: 'none',
               borderRadius: '16px',
               padding: '14px 24px',
@@ -194,8 +194,8 @@ class ErrorBoundary extends Component {
           <button
             onClick={() => this.handleCopy()}
             style={{
-              background: '#fff',
-              color: '#7c3d12',
+              background: 'var(--color-surface)',
+              color: 'var(--color-warning)',
               border: '1px solid #7c3d12',
               borderRadius: '16px',
               padding: '14px 24px',

@@ -21,7 +21,7 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
     return (
       <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden px-5 py-3">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm" style={{ background: '#fbbf24', color: '#1B4332' }}>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm" style={{ background: 'var(--color-warning)', color: 'var(--color-primary)' }}>
             ★
           </div>
           <div className="flex-1">
@@ -52,9 +52,9 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
 
   return (
     <>
-      <div className="bg-white rounded-2xl border overflow-hidden px-5 py-4" style={{ borderColor: nearLimit ? '#fca5a5' : '#fde68a' }}>
+      <div className="bg-white rounded-2xl border overflow-hidden px-5 py-4" style={{ borderColor: nearLimit ? 'var(--color-danger-border)' : 'var(--color-warning-border)' }}>
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm" style={{ background: '#fbbf24', color: '#1B4332' }}>
+          <div className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm" style={{ background: 'var(--color-warning)', color: 'var(--color-primary)' }}>
             ★
           </div>
           <div className="flex-1">
@@ -66,11 +66,11 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
         {entitlements.max_staff !== Infinity && (
           <div className="mb-2">
             <div className="flex justify-between text-xs font-semibold mb-1">
-              <span style={{ color: '#6b7280' }}>{lang === 'am' ? 'ሰራተኞች' : 'Staff'}</span>
-              <span style={{ color: '#374151' }}>{staffCount}/{entitlements.max_staff}</span>
+              <span style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ሰራተኞች' : 'Staff'}</span>
+              <span style={{ color: 'var(--color-text)' }}>{staffCount}/{entitlements.max_staff}</span>
             </div>
-            <div className="h-1.5 rounded-full" style={{ background: '#f3f4f6' }}>
-              <div className="h-full rounded-full" style={{ width: `${Math.min(staffPct || 0, 100)}%`, background: (staffPct || 0) >= 100 ? '#ef4444' : '#fbbf24' }} />
+            <div className="h-1.5 rounded-full" style={{ background: 'var(--color-bg-hover)' }}>
+              <div className="h-full rounded-full" style={{ width: `${Math.min(staffPct || 0, 100)}%`, background: (staffPct || 0) >= 100 ? 'var(--color-danger)' : 'var(--color-warning)' }} />
             </div>
           </div>
         )}
@@ -78,11 +78,11 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
         {entitlements.max_transactions_per_month !== Infinity && (
           <div className="mb-3">
             <div className="flex justify-between text-xs font-semibold mb-1">
-              <span style={{ color: '#6b7280' }}>{lang === 'am' ? 'ወርሃዊ ግብይቶች' : 'Monthly tx'}</span>
-              <span style={{ color: '#374151' }}>{transactionCount}/{entitlements.max_transactions_per_month}</span>
+              <span style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ወርሃዊ ግብይቶች' : 'Monthly tx'}</span>
+              <span style={{ color: 'var(--color-text)' }}>{transactionCount}/{entitlements.max_transactions_per_month}</span>
             </div>
-            <div className="h-1.5 rounded-full" style={{ background: '#f3f4f6' }}>
-              <div className="h-full rounded-full" style={{ width: `${Math.min(txPct || 0, 100)}%`, background: (txPct || 0) >= 100 ? '#ef4444' : '#fbbf24' }} />
+            <div className="h-1.5 rounded-full" style={{ background: 'var(--color-bg-hover)' }}>
+              <div className="h-full rounded-full" style={{ width: `${Math.min(txPct || 0, 100)}%`, background: (txPct || 0) >= 100 ? 'var(--color-danger)' : 'var(--color-warning)' }} />
             </div>
           </div>
         )}
@@ -91,7 +91,7 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
           type="button"
           onClick={() => setShowModal(true)}
           className="w-full mt-3 py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all press-scale"
-          style={{ background: '#C4883A', color: '#fff' }}
+          style={{ background: 'var(--color-accent-amber)', color: 'var(--color-bg-white)' }}
         >
           <Sparkles className="w-3.5 h-3.5" />
           {lang === 'am' ? 'ወደ Plus አሻሽል' : 'Upgrade to Plus'}
@@ -111,7 +111,7 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm" style={{ background: '#fbbf24', color: '#1B4332' }}>
+                <div className="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm" style={{ background: 'var(--color-warning)', color: 'var(--color-primary)' }}>
                   ★
                 </div>
                 <span className="text-lg font-black text-gray-900">Gebya Plus</span>
@@ -120,7 +120,7 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
                 type="button"
                 onClick={() => setShowModal(false)}
                 className="p-1.5 rounded-full press-scale"
-                style={{ background: '#f3f4f6', color: '#6b7280' }}
+                style={{ background: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' }}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -133,7 +133,7 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
             <div className="space-y-2 mb-5">
               {PLUS_FEATURES.map(f => (
                 <div key={f.key} className="flex items-center gap-2.5 text-sm">
-                  <Check className="w-4 h-4 flex-shrink-0" style={{ color: '#16a34a' }} />
+                  <Check className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-success)' }} />
                   <span className="font-medium text-gray-800">{lang === 'am' ? f.am : f.en}</span>
                 </div>
               ))}
@@ -144,14 +144,14 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
               onClick={handleUpgrade}
               disabled={upgrading}
               className="w-full py-3 rounded-xl text-sm font-black text-white transition-all press-scale disabled:opacity-50"
-              style={{ background: '#1B4332' }}
+              style={{ background: 'var(--color-primary)' }}
             >
               {upgrading
                 ? (lang === 'am' ? 'በመስራት ላይ...' : 'Upgrading...')
                 : (lang === 'am' ? 'ወደ Plus አሻሽል' : 'Upgrade Now')}
             </button>
 
-            <p className="text-[10px] text-center mt-3" style={{ color: '#6b7280' }}>
+            <p className="text-[10px] text-center mt-3" style={{ color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'ከዚህ ስልክ ጋር የተያያዘ ነው። ምንም ክፍያ አይጠየቅም።' : 'Tied to this device. No payment is taken.'}
             </p>
           </div>

@@ -33,7 +33,7 @@ export default function ConfirmDialog({
         <div className="flex flex-col items-center px-5 pt-5 pb-4 text-center">
           <div
             className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
-            style={{ background: tone === 'danger' ? '#fef2f2' : '#f0fdf4' }}
+            style={{ background: tone === 'danger' ? 'var(--color-danger-bg)' : 'var(--color-success-bg)' }}
           >
             <AlertTriangle className="w-6 h-6" style={{ color: confirmBg }} />
           </div>

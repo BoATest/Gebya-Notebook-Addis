@@ -168,13 +168,13 @@ function CustomerList({
       <div className="space-y-4">
         <div
           className="px-3 py-10 text-center"
-          style={{ background: '#fff', border: '1px solid #ece6d6', borderRadius: 'var(--radius-md)' }}
+          style={{ background: 'var(--color-surface)', border: '1px solid #ece6d6', borderRadius: 'var(--radius-md)' }}
         >
           <div style={{ fontSize: '3rem', lineHeight: 1, marginBottom: 12 }}>📒</div>
-          <p className="text-lg font-black" style={{ color: '#1a1a1a', marginBottom: 4 }}>
+          <p className="text-lg font-black" style={{ color: 'var(--color-text)', marginBottom: 4 }}>
             {lang === 'am' ? 'ምንም ደንበኛ የለም' : 'No customers yet'}
           </p>
-          <p className="text-sm mb-4" style={{ color: '#6b7280', maxWidth: '260px', margin: '0 auto 18px' }}>
+          <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)', maxWidth: '260px', margin: '0 auto 18px' }}>
             {lang === 'am'
               ? 'ለማን ዱቤ እንዳለ ይያዙ። ይከፍሉ ሲቻላቸው ይከታተሉ።'
               : 'Track who owes you. Send reminders. Mark payments.'}
@@ -182,7 +182,7 @@ function CustomerList({
         </div>
 
         {/* Faded example rows so user knows what's coming */}
-        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#9ca3af', paddingLeft: 4 }}>
+        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-soft)', paddingLeft: 4 }}>
           {lang === 'am' ? 'ምን እንደሚመስል' : 'What it will look like'}
         </p>
         <div style={{ opacity: 0.55 }}>
@@ -195,7 +195,7 @@ function CustomerList({
               className="flex items-center gap-2"
               style={{
                 padding: '10px 14px',
-                background: '#fff',
+                background: 'var(--color-surface)',
                 border: '1px dashed #e5e7eb',
                 borderRadius: 10,
                 marginBottom: 6,
@@ -207,26 +207,26 @@ function CustomerList({
                   width: 40, height: 40, borderRadius: '50%',
                   background: gradientFor(ex.name),
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontWeight: 800, fontSize: '0.95rem',
+                  color: 'var(--color-bg-white)', fontWeight: 800, fontSize: '0.95rem',
                   flexShrink: 0,
                 }}
               >
                 {initialsOf(ex.name)}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1f2937' }}>{ex.name}</p>
+                <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)' }}>{ex.name}</p>
                 <p style={{ fontSize: '0.68rem', color: ex.urg }}>{ex.status}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem', fontWeight: 700, color: ex.urg }}>
                   {fmt(ex.amt)}
                 </p>
-                <p style={{ fontSize: '0.6rem', color: '#9ca3af' }}>{lang === 'am' ? 'ብር' : 'birr'}</p>
+                <p style={{ fontSize: '0.6rem', color: 'var(--color-text-soft)' }}>{lang === 'am' ? 'ብር' : 'birr'}</p>
               </div>
             </div>
           ))}
         </div>
-        <p className="text-xs" style={{ color: '#6b4f1d', fontStyle: 'italic', paddingLeft: 4 }}>
+        <p className="text-xs" style={{ color: 'var(--color-warning)', fontStyle: 'italic', paddingLeft: 4 }}>
           ↑ {lang === 'am' ? 'እነዚህ ምሳሌዎች ናቸው' : 'these are examples · add a real customer to start'}
         </p>
       </div>
@@ -244,7 +244,7 @@ function CustomerList({
       {/* ═══ HERO CARD ══════════════════════════════════════════ */}
       <div
         style={{
-          background: '#fff',
+          background: 'var(--color-surface)',
           border: '1px solid #ece6d6',
           borderRadius: 12,
           padding: 14,
@@ -255,20 +255,20 @@ function CustomerList({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
           <p style={{
             fontSize: '0.6rem', fontWeight: 800,
-            color: '#92400e', letterSpacing: '0.1em',
+            color: 'var(--color-warning)', letterSpacing: '0.1em',
             textTransform: 'uppercase', margin: 0,
           }}>
             {lang === 'am' ? 'ሊሰበሰብ የሚገባው ጠቅላላ' : 'Total owed to me'}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <span style={{ fontSize: '0.65rem', color: '#6b7280', fontWeight: 600 }}>
+            <span style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
               {customers.length}{lang === 'am' ? ' ደንበኞች' : ' cust'}
-              {counts.overdue > 0 && <span style={{ color: '#dc2626' }}> · {counts.overdue} {lang === 'am' ? 'የዘገዩ' : 'od'}</span>}
+              {counts.overdue > 0 && <span style={{ color: 'var(--color-danger)' }}> · {counts.overdue} {lang === 'am' ? 'የዘገዩ' : 'od'}</span>}
             </span>
             {streak > 0 && (
               <span style={{
                 background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-                color: '#92400e',
+                color: 'var(--color-warning)',
                 padding: '2px 7px', borderRadius: 999,
                 fontSize: '0.6rem', fontWeight: 800,
                 border: '1px solid rgba(146,64,14,0.15)',
@@ -285,7 +285,7 @@ function CustomerList({
               style={{
                 background: hidden ? 'rgba(196,136,58,0.10)' : 'transparent',
                 border: hidden ? '1px solid #fde68a' : '1px solid transparent',
-                color: hidden ? '#92400e' : '#9ca3af',
+                color: hidden ? 'var(--color-warning)' : 'var(--color-text-soft)',
                 padding: '0 6px',
                 minWidth: 28, minHeight: 28,
                 borderRadius: 999,
@@ -302,13 +302,13 @@ function CustomerList({
         <p style={{
           fontFamily: 'Manrope, system-ui, sans-serif',
           fontSize: '1.75rem', fontWeight: 800,
-          color: hidden ? '#d1d5db' : '#b8842c',
+          color: hidden ? 'var(--color-text-soft)' : 'var(--color-accent-amber)',
           lineHeight: 1.05, margin: 0,
           letterSpacing: '-0.02em',
           fontVariantNumeric: 'tabular-nums',
         }}>
           {heroAmount}
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#9ca3af', marginLeft: 4 }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-soft)', marginLeft: 4 }}>
             {lang === 'am' ? 'ብር' : 'birr'}
           </span>
         </p>
@@ -317,7 +317,7 @@ function CustomerList({
       {/* ═══ SEARCH + ADD ══════════════════════════════════════════ */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <div style={{ flex: 1, position: 'relative' }}>
-          <Search className="w-4 h-4" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#b8842c' }} />
+          <Search className="w-4 h-4" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-accent-amber)' }} />
           <input
             type="text"
             value={query}
@@ -326,9 +326,9 @@ function CustomerList({
             autoCapitalize="words"
             style={{
               width: '100%', padding: '10px 12px 10px 34px',
-              background: '#fff', border: '1px solid #ece6d6',
+              background: 'var(--color-surface)', border: '1px solid #ece6d6',
               borderRadius: 10, fontSize: '0.85rem',
-              outline: 'none', color: '#1f2937',
+              outline: 'none', color: 'var(--color-text)',
             }}
           />
         </div>
@@ -356,13 +356,13 @@ function CustomerList({
                 borderRadius: 999,
                 fontSize: '0.7rem', fontWeight: active ? 800 : 600,
                 background: active
-                  ? (isOverdue ? '#fef2f2' : '#1a1a1a')
-                  : '#fff',
+                  ? (isOverdue ? 'var(--color-danger-bg)' : 'var(--color-text)')
+                  : 'var(--color-bg-white)',
                 color: active
-                  ? (isOverdue ? '#dc2626' : '#fff')
-                  : '#4b5563',
+                  ? (isOverdue ? 'var(--color-danger)' : 'var(--color-bg-white)')
+                  : 'var(--color-text-muted)',
                 border: active
-                  ? `1px solid ${isOverdue ? '#fecaca' : '#1a1a1a'}`
+                  ? `1px solid ${isOverdue ? 'var(--color-danger-border)' : 'var(--color-text)'}`
                   : '1px solid #ece6d6',
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 4,
@@ -391,10 +391,10 @@ function CustomerList({
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '6px 10px', margin: '2px 0',
-            background: '#fef2f2', borderRadius: 8,
+            background: 'var(--color-danger-bg)', borderRadius: 8,
             border: '1px solid #fecaca',
           }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: 5 }}>
               🎯 {lang === 'am'
                 ? `${chaseCount} ትኩረት ይፈልጋሉ${missedPromiseCount > 0 ? ` · ${missedPromiseCount} የጠበቁት አልፏል` : ''}`
                 : `${chaseCount} need attention${missedPromiseCount > 0 ? ` · ${missedPromiseCount} missed promise` : ''}`}
@@ -404,7 +404,7 @@ function CustomerList({
                 type="button"
                 onClick={onBulkRemind}
                 style={{
-                  background: '#dc2626', color: '#fff', border: 'none',
+                  background: 'var(--color-danger)', color: 'var(--color-bg-white)', border: 'none',
                   borderRadius: 6, padding: '4px 10px',
                   fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer',
                 }}
@@ -417,10 +417,10 @@ function CustomerList({
       })()}
 
       {/* Sort + count line */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px', fontSize: '0.7rem', color: '#6b7280' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px', fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
         <span>
           {lang === 'am' ? 'ቅደም ተከተል፦' : 'Sort:'}{' '}
-          <strong style={{ color: '#1f2937' }}>
+          <strong style={{ color: 'var(--color-text)' }}>
             {lang === 'am' ? 'ከፍተኛ መዘግየት' : 'Most overdue'}
           </strong>
         </span>
@@ -452,9 +452,9 @@ function CustomerList({
               onKeyDown={(e) => { if (e.key === 'Enter') onSelectCustomer?.(customer); }}
               style={{
                 padding: '10px 14px',
-                background: '#fff',
+                background: 'var(--color-surface)',
                 borderBottom: '1px solid #f5f1ea',
-                borderLeft: `4px solid ${isArchived ? '#d1d5db' : urg}`,
+                borderLeft: `4px solid ${isArchived ? 'var(--color-text-soft)' : urg}`,
                 display: 'flex', alignItems: 'center', gap: 10,
                 cursor: 'pointer',
                 minHeight: 60,
@@ -477,7 +477,7 @@ function CustomerList({
                   <div style={{
                     width: '100%', height: '100%',
                     background: gradientFor(customer.display_name),
-                    color: '#fff', fontWeight: 800, fontSize: '0.95rem',
+                    color: 'var(--color-bg-white)', fontWeight: 800, fontSize: '0.95rem',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
                     {initials}
@@ -488,7 +488,7 @@ function CustomerList({
                     position: 'absolute', bottom: 0, right: 0,
                     width: 11, height: 11, borderRadius: '50%',
                     border: '2px solid #fff',
-                    background: dot === 'overdue' ? '#dc2626' : '#10b981',
+                    background: dot === 'overdue' ? 'var(--color-danger)' : 'var(--color-success)',
                   }} />
                 )}
 
@@ -498,7 +498,7 @@ function CustomerList({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{
                   fontSize: '0.9rem', fontWeight: 700,
-                  color: '#1f2937', lineHeight: 1.2,
+                  color: 'var(--color-text)', lineHeight: 1.2,
                   display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap',
                 }}>
                   {customer.display_name}
@@ -506,7 +506,7 @@ function CustomerList({
                     <span style={{
                       fontSize: '0.58rem', fontWeight: 800,
                       padding: '1px 6px',
-                      background: '#dc2626', color: '#fff',
+                      background: 'var(--color-danger)', color: 'var(--color-bg-white)',
                       borderRadius: 3, letterSpacing: '0.04em',
                     }}>
                       {customer.overdue_days}{lang === 'am' ? 'ቀን ያለፈው' : 'd OD'}
@@ -516,7 +516,7 @@ function CustomerList({
                     <span style={{
                       fontSize: '0.58rem', fontWeight: 800,
                       padding: '1px 6px',
-                      background: '#fef2f2', color: '#dc2626',
+                      background: 'var(--color-danger-bg)', color: 'var(--color-danger)',
                       borderRadius: 3, border: '1px solid #fecaca',
                     }}>
                       🔴 {lang === 'am' ? 'የጠበቁት አልፏል' : 'Missed'}
@@ -524,26 +524,26 @@ function CustomerList({
                   )}
                 </p>
                 <p style={{
-                  fontSize: '0.68rem', color: '#6b7280',
+                  fontSize: '0.68rem', color: 'var(--color-text-muted)',
                   marginTop: 2,
                 }}>
                   {isOverdue && canRemind && (
-                    <span style={{ color: '#dc2626', fontWeight: 600 }}>
+                    <span style={{ color: 'var(--color-danger)', fontWeight: 600 }}>
                       {lang === 'am' ? 'ያለፈ ጊዜ' : 'Overdue'}
                     </span>
                   )}
                   {!isOverdue && hasBalance && canRemind && (
-                    <span style={{ color: '#047857' }}>
+                    <span style={{ color: 'var(--color-success-text)' }}>
                       {lang === 'am' ? 'መታወቂያ አለ' : 'Can remind'}
                     </span>
                   )}
                   {!hasBalance && (
-                    <span style={{ color: '#9ca3af' }}>
+                    <span style={{ color: 'var(--color-text-soft)' }}>
                       {lang === 'am' ? 'የተፈተነ' : 'Settled'}
                     </span>
                   )}
                   {customer.last_reminded_at && (
-                    <span style={{ color: '#6b7280', marginLeft: 4 }}>
+                    <span style={{ color: 'var(--color-text-muted)', marginLeft: 4 }}>
                       🔔 {daysAgoLabel(customer.last_reminded_at, lang)}
                     </span>
                   )}
@@ -559,7 +559,7 @@ function CustomerList({
                   aria-label={lang === 'am' ? 'አስታውስ' : 'Remind'}
                   style={{
                     width: 32, height: 32, borderRadius: 8,
-                    background: '#fef3c7', color: '#b8842c',
+                    background: 'var(--color-warning-bg)', color: 'var(--color-accent-amber)',
                     border: '1px solid #fde68a',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', flexShrink: 0,
@@ -574,12 +574,12 @@ function CustomerList({
                 <p style={{
                   fontFamily: 'JetBrains Mono, monospace',
                   fontSize: '0.95rem', fontWeight: 700,
-                  color: hidden ? '#d1d5db' : (isOverdue ? '#dc2626' : (hasBalance ? '#b8842c' : '#9ca3af')),
+                  color: hidden ? 'var(--color-text-soft)' : (isOverdue ? 'var(--color-danger)' : (hasBalance ? 'var(--color-accent-amber)' : 'var(--color-text-soft)')),
                   fontVariantNumeric: 'tabular-nums',
                 }}>
                   {hidden ? '••••' : fmt(balance)}
                 </p>
-                <p style={{ fontSize: '0.6rem', color: '#9ca3af', marginTop: 1 }}>
+                <p style={{ fontSize: '0.6rem', color: 'var(--color-text-soft)', marginTop: 1 }}>
                   {lang === 'am' ? 'ብር' : 'birr'}
                 </p>
               </div>
@@ -593,13 +593,13 @@ function CustomerList({
             className="flex flex-col items-center justify-center text-center"
             style={{
               padding: '40px 20px',
-              background: '#fff',
+              background: 'var(--color-surface)',
               border: '1px solid #ece6d6',
               borderRadius: 'var(--radius-md)',
             }}
           >
-            <Users className="w-8 h-8 mb-2" style={{ color: '#d1d5db' }} />
-            <p className="text-sm" style={{ color: '#9ca3af' }}>
+            <Users className="w-8 h-8 mb-2" style={{ color: 'var(--color-text-soft)' }} />
+            <p className="text-sm" style={{ color: 'var(--color-text-soft)' }}>
               {hasQuery
                 ? (lang === 'am' ? 'ምንም አልተገኘም' : 'No matches')
                 : (lang === 'am' ? 'በዚህ ምድብ ምንም የለም' : 'Nothing in this filter')}
@@ -613,7 +613,7 @@ function CustomerList({
         <div
           style={{
             position: 'sticky', bottom: 0,
-            background: '#1a1a1a', color: '#fff',
+            background: 'var(--color-text)', color: 'var(--color-bg-white)',
             padding: '10px 14px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             borderTop: '2px solid #f59e0b',
@@ -624,7 +624,7 @@ function CustomerList({
           }}
         >
           <p style={{ fontSize: '0.78rem' }}>
-            <strong style={{ color: '#fbbf24', fontWeight: 800 }}>
+            <strong style={{ color: 'var(--color-warning)', fontWeight: 800 }}>
               {counts.overdue} {lang === 'am' ? 'የዘገዩ' : 'overdue'}
             </strong>
             {' · '}
@@ -635,7 +635,7 @@ function CustomerList({
             onClick={onBulkRemind}
             className="press-scale"
             style={{
-              background: '#fbbf24', color: '#1a1a1a',
+              background: 'var(--color-warning)', color: 'var(--color-text)',
               padding: '7px 14px', borderRadius: 6,
               fontSize: '0.78rem', fontWeight: 800,
               cursor: 'pointer',

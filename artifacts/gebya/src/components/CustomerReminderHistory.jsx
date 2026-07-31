@@ -84,7 +84,7 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
   return (
     <div
       style={{
-        background: '#fff',
+        background: 'var(--color-surface)',
         border: '1px solid #ece6d6',
         borderRadius: 12,
         overflow: 'hidden',
@@ -99,7 +99,7 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
         className="w-full text-left flex items-center justify-between gap-2 press-scale"
         style={{
           padding: '10px 14px',
-          background: expanded ? '#faf8f3' : 'transparent',
+          background: expanded ? 'var(--color-surface-soft)' : 'transparent',
           borderBottom: expanded ? '1px solid #f5f1ea' : 'none',
           cursor: 'pointer',
           minHeight: 44,
@@ -111,7 +111,7 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
             role="status"
             style={{
               fontSize: '0.72rem', fontWeight: 700,
-              color: '#6b7280',
+              color: 'var(--color-text-muted)',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}
           >
@@ -122,15 +122,15 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
           {total > 0 && (
             <span style={{
               fontSize: '0.6rem', fontWeight: 700,
-              background: '#f0fdf4', color: '#166534',
+              background: 'var(--color-success-bg)', color: 'var(--color-success-text)',
               padding: '2px 6px', borderRadius: 999,
             }}>
               {sentCount}/{total}
             </span>
           )}
           {expanded
-            ? <ChevronUp className="w-4 h-4" style={{ color: '#9ca3af' }} />
-            : <ChevronDown className="w-4 h-4" style={{ color: '#9ca3af' }} />
+            ? <ChevronUp className="w-4 h-4" style={{ color: 'var(--color-text-soft)' }} />
+            : <ChevronDown className="w-4 h-4" style={{ color: 'var(--color-text-soft)' }} />
           }
         </div>
       </button>
@@ -140,16 +140,16 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
         <div style={{ padding: '8px 0' }}>
           {loading && (
             <div className="flex items-center justify-center py-6">
-              <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#1B4332', borderTopColor: 'transparent' }} />
+              <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-primary)', borderTopColor: 'transparent' }} />
             </div>
           )}
 
           {error && (
-            <div style={{ margin: '0 14px', padding: '8px 12px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 12, color: '#991b1b', fontWeight: 600 }}>
+            <div style={{ margin: '0 14px', padding: '8px 12px', background: 'var(--color-danger-bg)', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 12, color: 'var(--color-danger-text)', fontWeight: 600 }}>
               {lang === 'am' ? 'ስህተት፦ ' : 'Error: '}{error}
               <button
                 onClick={fetchHistory}
-                style={{ marginLeft: 8, color: '#1B4332', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}
+                style={{ marginLeft: 8, color: 'var(--color-primary)', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}
               >
                 {lang === 'am' ? 'እንደገና ሞክር' : 'Retry'}
               </button>
@@ -158,7 +158,7 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
 
           {!loading && !error && entries.length === 0 && (
             <div className="text-center py-4">
-              <p style={{ fontSize: 12, color: '#9ca3af' }}>
+              <p style={{ fontSize: 12, color: 'var(--color-text-soft)' }}>
                 {lang === 'am' ? 'ምንም ማስታወሻ ታሪክ የለም' : 'No reminder history'}
               </p>
             </div>
@@ -181,11 +181,11 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
                     }}
                   >
                     <div className="min-w-0 flex-1">
-                      <p style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>
+                      <p style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600 }}>
                         {formatDate(entry.sentAt, lang)}
                       </p>
                       {entry.failureReason && (
-                        <p style={{ fontSize: 10, color: '#dc2626', marginTop: 1, wordBreak: 'break-word' }}>
+                        <p style={{ fontSize: 10, color: 'var(--color-danger)', marginTop: 1, wordBreak: 'break-word' }}>
                           {lang === 'am' ? 'ስህተት፦ ' : 'Error: '}{entry.failureReason}
                         </p>
                       )}
@@ -217,8 +217,8 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
                 className="w-full press-scale"
                 style={{
                   padding: '8px 12px',
-                  background: '#1B4332',
-                  color: '#fff',
+                  background: 'var(--color-primary)',
+                  color: 'var(--color-bg-white)',
                   border: 'none',
                   borderRadius: 8,
                   fontSize: 12, fontWeight: 700,

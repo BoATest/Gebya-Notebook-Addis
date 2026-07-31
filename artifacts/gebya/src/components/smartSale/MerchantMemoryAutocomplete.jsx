@@ -205,13 +205,13 @@ export default function MerchantMemoryAutocomplete({
     <div
       ref={listRef}
       className={`border overflow-hidden ${className}`}
-      style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', background: '#fff' }}
+      style={{ borderColor: 'var(--color-border-light)', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)' }}
       role="listbox"
     >
       {/* Quick Repeat — last completed sale's items, names preserved exactly */}
       {quickRepeatItems.length > 0 && (
         <>
-          <div className="px-2 py-1 text-[8px] font-bold uppercase tracking-widest" style={{ color: '#bbb0a0', background: '#faf9f7' }}>
+          <div className="px-2 py-1 text-[8px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-soft)', background: 'var(--color-surface-subtle)' }}>
             {lang === 'am' ? 'የመጨረሻ ሽያጭ' : 'LAST SALE'}
           </div>
           {quickRepeatItems.map((item, idx) => {
@@ -232,17 +232,17 @@ export default function MerchantMemoryAutocomplete({
                 onMouseEnter={() => setHighlightIndex(idx)}
                 className="w-full px-2 py-1.5 text-left flex items-center justify-between gap-2"
                 style={{
-                  background: isHighlighted ? '#f0fdf4' : '#fff',
+                  background: isHighlighted ? 'var(--color-success-bg)' : 'var(--color-bg-white)',
                   minHeight: '32px',
                   borderBottom: '1px solid #f3f4f6',
                 }}
               >
-                <span className="text-[11px] font-bold truncate" style={{ color: '#111827' }}>
+                <span className="text-[11px] font-bold truncate" style={{ color: 'var(--color-text)' }}>
                   {item.isUnknown && <span className="mr-1">+</span>}
                   {item.entry.name}
                 </span>
                 {item.entry.last_price > 0 && (
-                  <span className="text-[10px] font-bold flex-shrink-0" style={{ color: '#9ca3af' }}>
+                  <span className="text-[10px] font-bold flex-shrink-0" style={{ color: 'var(--color-text-soft)' }}>
                     {fmt(item.entry.last_price)}
                   </span>
                 )}
@@ -269,25 +269,25 @@ export default function MerchantMemoryAutocomplete({
             onMouseEnter={() => setHighlightIndex(listIdx)}
             className="w-full px-2 py-1.5 text-left flex items-center justify-between gap-2"
             style={{
-              background: isHighlighted ? '#f0fdf4' : '#fff',
+              background: isHighlighted ? 'var(--color-success-bg)' : 'var(--color-bg-white)',
               minHeight: '32px',
               borderBottom: '1px solid #f3f4f6',
             }}
           >
             <span className="min-w-0">
-              <span className="block text-[11px] font-bold truncate" style={{ color: '#111827' }}>
+              <span className="block text-[11px] font-bold truncate" style={{ color: 'var(--color-text)' }}>
                 {isSessionRecent && <span className="mr-0.5 text-[10px]">🕒</span>}
                 {wasInLastSale && <span className="mr-0.5 text-[10px]">↩</span>}
                 {entry.name}
               </span>
               {(entry.code || entry.sku || entry.item_code) && (
-                <span className="block text-[9px] truncate" style={{ color: '#9ca3af' }}>
+                <span className="block text-[9px] truncate" style={{ color: 'var(--color-text-soft)' }}>
                   {entry.code || entry.sku || entry.item_code}
                 </span>
               )}
             </span>
             {lastPrice > 0 && (
-              <span className="text-[10px] font-bold flex-shrink-0" style={{ color: '#9ca3af' }}>
+              <span className="text-[10px] font-bold flex-shrink-0" style={{ color: 'var(--color-text-soft)' }}>
                 {fmt(lastPrice)}
               </span>
             )}
@@ -303,12 +303,12 @@ export default function MerchantMemoryAutocomplete({
           onMouseEnter={() => setHighlightIndex(totalItems)}
           className="w-full px-2 py-1.5 text-left flex items-center gap-2"
           style={{
-            background: highlightIndex === totalItems ? '#f0fdf4' : '#faf9f7',
+            background: highlightIndex === totalItems ? 'var(--color-success-bg)' : 'var(--color-surface-subtle)',
             minHeight: '32px',
           }}
         >
           <span className="text-[11px]">+</span>
-          <span className="text-[11px] font-bold" style={{ color: '#1B4332' }}>
+          <span className="text-[11px] font-bold" style={{ color: 'var(--color-primary)' }}>
             {lang === 'am' ? `አስታውስ "${query}"` : `Remember "${query}"`}
           </span>
         </button>
