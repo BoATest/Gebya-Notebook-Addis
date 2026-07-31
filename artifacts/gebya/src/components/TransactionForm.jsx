@@ -71,10 +71,10 @@ function TransactionForm({
   }[type] || (lang === 'am' ? '+ ሽያጭ' : '+ Sale');
 
   const accentColor = {
-    sale: '#16a34a',
-    expense: '#dc2626',
-    credit: '#2563eb',
-  }[type] || '#16a34a';
+    sale: 'var(--color-success)',
+    expense: 'var(--color-danger)',
+    credit: 'var(--color-info)',
+  }[type] || 'var(--color-success)';
 
   const isCredit = type === 'credit';
   const isExpense = type === 'expense';

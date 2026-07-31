@@ -47,8 +47,8 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
   const typeLabel = isPayment
     ? (currentLang === 'am' ? 'ክፍያ' : 'PAYMENT')
     : (currentLang === 'am' ? 'ዱቤ' : 'CREDIT');
-  const typeColor = isPayment ? '#047857' : '#C4883A';
-  const amountColor = isPayment ? '#047857' : '#C4883A';
+  const typeColor = isPayment ? 'var(--color-success-text)' : 'var(--color-accent-amber)';
+  const amountColor = isPayment ? 'var(--color-success-text)' : 'var(--color-accent-amber)';
   const sign = isPayment ? '−' : '+';
 
   return (

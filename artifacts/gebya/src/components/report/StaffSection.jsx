@@ -61,7 +61,7 @@ export default function StaffSection({ staffSummary, hidden = false, lang = 'en'
     <Chapter
       title={lang === 'am' ? 'ሰራተኛ' : 'Staff'}
       subtitle={lang === 'am' ? 'ማን ምን ከፍተዋል?' : 'How is everyone doing?'}
-      badge={{ text: `${staffSummary.count}`, color: '#1B4332' }}
+      badge={{ text: `${staffSummary.count}`, color: 'var(--color-primary)' }}
       defaultExpanded={false}
     >
       <div style={{ marginTop: 8 }}>

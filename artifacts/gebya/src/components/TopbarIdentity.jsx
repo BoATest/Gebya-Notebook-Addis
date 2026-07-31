@@ -4,9 +4,9 @@ import { useLang } from '../context/LangContext';
 import { getIdentity } from '../db';
 
 const ROLE_COLORS = {
-  owner: { bg: 'rgba(27,67,50,0.15)', text: '#bbf7d0', label: 'Owner' },
-  manager: { bg: 'rgba(196,136,58,0.15)', text: '#fcd34d', label: 'Manager' },
-  trusted_staff: { bg: 'rgba(196,136,58,0.15)', text: '#fcd34d', label: 'Trusted' },
+  owner: { bg: 'rgba(27,67,50,0.15)', text: 'var(--color-success-border)', label: 'Owner' },
+  manager: { bg: 'rgba(196,136,58,0.15)', text: 'var(--color-warning-border)', label: 'Manager' },
+  trusted_staff: { bg: 'rgba(196,136,58,0.15)', text: 'var(--color-warning-border)', label: 'Trusted' },
   basic_staff: { bg: 'rgba(255,255,255,0.1)', text: 'rgba(255,255,255,0.6)', label: 'Staff' },
 };
 

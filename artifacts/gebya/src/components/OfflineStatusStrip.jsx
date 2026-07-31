@@ -106,10 +106,10 @@ export default function OfflineStatusStrip({
   if (!tone) return null;
 
   const styles = {
-    offline: { background: '#fff7ed', border: '#fed7aa', color: '#9a3412' },
-    waiting: { background: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
-    update:  { background: '#ecfdf5', border: '#bbf7d0', color: '#166534' },
-    ready:   { background: '#f0fdf4', border: '#bbf7d0', color: '#166534' },
+    offline: { background: 'var(--color-warning-bg)', border: 'var(--color-warning-border)', color: '#9a3412' },
+    waiting: { background: 'var(--color-info-bg)', border: 'var(--color-info-border)', color: 'var(--color-info)' },
+    update:  { background: 'var(--color-success-bg)', border: 'var(--color-success-border)', color: 'var(--color-success-text)' },
+    ready:   { background: 'var(--color-success-bg)', border: 'var(--color-success-border)', color: 'var(--color-success-text)' },
   }[tone];
 
   return (

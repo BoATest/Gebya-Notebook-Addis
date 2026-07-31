@@ -19,7 +19,7 @@ export default function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
 
   const isExpense = tx.type === 'expense';
   const isCredit = tx.type === 'credit';
-  const amountColor = isExpense ? '#dc2626' : isCredit ? '#2563eb' : '#16a34a';
+  const amountColor = isExpense ? 'var(--color-danger)' : isCredit ? 'var(--color-info)' : 'var(--color-success)';
   const sign = isExpense ? '−' : '+';
   const method = isCredit
     ? (lang === 'am' ? 'ዱቤ' : 'credit')

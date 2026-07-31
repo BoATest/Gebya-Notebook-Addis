@@ -51,11 +51,11 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
 
   function ReconBadge({ status }) {
     const STATUSES = {
-      staff_submitted: { label: t('Staff sent', 'ሰራተኛ ልኳል'), bg: '#e0f2fe', color: '#0369a1' },
-      owner_reviewed: { label: t('Reviewed', 'ተመልክቷል'), bg: '#fef3c7', color: '#92400e' },
-      disputed: { label: t('Disputed', 'አልተስማማም'), bg: '#fef2f2', color: '#b91c1c' },
-      finalized: { label: t('Finalized', 'ተጠናቋል'), bg: '#dcfce7', color: '#166534' },
-      checked: { label: t('Checked', 'ተፈትሟል'), bg: '#f3f4f6', color: '#6b7280' },
+      staff_submitted: { label: t('Staff sent', 'ሰራተኛ ልኳል'), bg: 'var(--color-info-bg)', color: 'var(--color-info)' },
+      owner_reviewed: { label: t('Reviewed', 'ተመልክቷል'), bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' },
+      disputed: { label: t('Disputed', 'አልተስማማም'), bg: 'var(--color-danger-bg)', color: 'var(--color-danger-text)' },
+      finalized: { label: t('Finalized', 'ተጠናቋል'), bg: 'var(--color-success-border)', color: 'var(--color-success-text)' },
+      checked: { label: t('Checked', 'ተፈትሟል'), bg: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' },
     };
     const s = STATUSES[status] || STATUSES.checked;
     return (
@@ -148,8 +148,8 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
                     background: rStatus === 'staff_submitted' ? 'var(--color-info-bg)' :
                                 rStatus === 'disputed' ? 'var(--color-danger-bg)' : 'transparent',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = rStatus === 'staff_submitted' ? '#e0f2fe' : rStatus === 'disputed' ? '#fee2e2' : '#f9fafb'}
-                  onMouseLeave={e => e.currentTarget.style.background = rStatus === 'staff_submitted' ? '#f0f9ff' : rStatus === 'disputed' ? '#fef2f2' : 'transparent'}
+                  onMouseEnter={e => e.currentTarget.style.background = rStatus === 'staff_submitted' ? 'var(--color-info-bg)' : rStatus === 'disputed' ? 'var(--color-danger-bg)' : 'var(--color-bg-active)'}
+                  onMouseLeave={e => e.currentTarget.style.background = rStatus === 'staff_submitted' ? 'var(--color-info-bg)' : rStatus === 'disputed' ? 'var(--color-danger-bg)' : 'transparent'}
                 >
                   <div style={{ flex: 1 }}>
                     <span>

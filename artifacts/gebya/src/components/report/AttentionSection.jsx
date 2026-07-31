@@ -6,7 +6,7 @@
 import Chapter from './Chapter';
 
 function AttentionItem({ item, lang = 'en', onAction }) {
-  const dotColor = item.severity === 'urgent' ? '#dc2626' : '#d97706';
+  const dotColor = item.severity === 'urgent' ? 'var(--color-danger)' : 'var(--color-accent-amber)';
 
   return (
     <div style={{
@@ -64,7 +64,7 @@ export default function AttentionSection({ items = [], lang = 'en', onAction }) 
     <Chapter
       title={lang === 'am' ? 'ትኩረት' : 'Attention'}
       subtitle={lang === 'am' ? 'ምን ይፈልጋል?' : 'What needs you?'}
-      badge={{ text: items.length, color: '#d97706' }}
+      badge={{ text: items.length, color: 'var(--color-accent-amber)' }}
       defaultExpanded={true}
     >
       <div style={{ marginTop: 4 }}>

@@ -87,13 +87,13 @@ function gradientFor(name) {
 
 // Urgency color by overdue days / recency
 function urgencyColor(customer) {
-  if (customer?.has_overdue) return '#dc2626';      // red
+  if (customer?.has_overdue) return 'var(--color-danger)';      // red
   const last = customer?.last_activity_at;
-  if (!last) return '#e5e7eb';                       // gray
+  if (!last) return 'var(--color-bg-disabled)';                       // gray
   const days = Math.floor((Date.now() - last) / (24 * 60 * 60 * 1000));
-  if (days <= 2) return '#10b981';                   // green
-  if (days <= 14) return '#f59e0b';                  // amber
-  return '#e5e7eb';                                  // gray
+  if (days <= 2) return 'var(--color-success)';                   // green
+  if (days <= 14) return 'var(--color-warning)';                  // amber
+  return 'var(--color-bg-disabled)';                                  // gray
 }
 
 // Status dot — same urgency colors, simpler binary semantics
@@ -187,8 +187,8 @@ function CustomerList({
         </p>
         <div style={{ opacity: 0.55 }}>
           {[
-            { name: 'Abebe Tilahun', status: lang === 'am' ? 'መታወቂያ አለ' : 'Can remind', amt: 4500, urg: '#f59e0b' },
-            { name: 'Tigist Kebede',  status: lang === 'am' ? 'ያለፈ ጊዜ' : 'Overdue', amt: 3200, urg: '#dc2626' },
+            { name: 'Abebe Tilahun', status: lang === 'am' ? 'መታወቂያ አለ' : 'Can remind', amt: 4500, urg: 'var(--color-warning)' },
+            { name: 'Tigist Kebede',  status: lang === 'am' ? 'ያለፈ ጊዜ' : 'Overdue', amt: 3200, urg: 'var(--color-danger)' },
           ].map((ex, i) => (
             <div
               key={i}

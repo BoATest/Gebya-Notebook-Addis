@@ -30,7 +30,7 @@ function ProfitCard({ transactions, yesterdayNet }) {
   const net = salesTotal - expensesTotal;
 
   const heroStyle = heroFontSize(net);
-  const netColor = net >= 0 ? '#16a34a' : '#dc2626';
+  const netColor = net >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
   const sign = net > 0 ? '+' : (net < 0 ? '−' : '');
   const absNet = Math.abs(net);
 
@@ -41,7 +41,7 @@ function ProfitCard({ transactions, yesterdayNet }) {
     const up = pct >= 0;
     trend = {
       arrow: up ? '▲' : '▼',
-      color: up ? '#16a34a' : '#dc2626',
+      color: up ? 'var(--color-success)' : 'var(--color-danger)',
       sign: up ? '+' : '−',
       pct: Math.abs(Math.round(pct)),
     };

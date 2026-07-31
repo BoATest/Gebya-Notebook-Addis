@@ -218,7 +218,7 @@ function buildActorAuditSummary(transactions) {
 }
 
 const typeIcon  = { sale: '💰', expense: '🛒', credit: '👥' };
-const typeColor = { sale: '#15803d', expense: '#dc2626', credit: '#C4883A' };
+const typeColor = { sale: 'var(--color-success-text)', expense: 'var(--color-danger)', credit: 'var(--color-accent-amber)' };
 const medals    = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣'];
 
 function TopProductsList({ transactions, title }) {

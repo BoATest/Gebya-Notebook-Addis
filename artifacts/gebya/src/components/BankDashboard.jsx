@@ -274,9 +274,9 @@ function ShopReport({ businessId, onBack }) {
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
         {[
-          { label: 'Total Sales', value: ` birr${fmt(m.total_sales_birr)}`, color: '#1B4332' },
-          { label: 'Outstanding Credit', value: ` birr${fmt(s.total_outstanding_birr)}`, color: '#dc2626' },
-          { label: 'Recovery Rate', value: `${s.average_repayment_rate}%`, color: '#2563eb' },
+          { label: 'Total Sales', value: ` birr${fmt(m.total_sales_birr)}`, color: 'var(--color-primary)' },
+          { label: 'Outstanding Credit', value: ` birr${fmt(s.total_outstanding_birr)}`, color: 'var(--color-danger)' },
+          { label: 'Recovery Rate', value: `${s.average_repayment_rate}%`, color: 'var(--color-info)' },
           { label: 'Customers with Credit', value: s.total_customers_with_credit, color: '#7c3aed' },
         ].map((kpi) => (
           <div key={kpi.label} style={{

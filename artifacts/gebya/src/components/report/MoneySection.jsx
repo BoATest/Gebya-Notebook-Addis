@@ -6,7 +6,7 @@
 import { fmt } from '../../utils/numformat';
 import Chapter from './Chapter';
 
-function MoneyRow({ label, value, color = '#1f2937', bold = false, suffix = ' ETB' }) {
+function MoneyRow({ label, value, color = 'var(--color-text)', bold = false, suffix = ' ETB' }) {
   return (
     <div style={{
       display: 'flex',
@@ -69,13 +69,13 @@ export default function MoneySection({ money, expenseBreakdown = [], hidden = fa
         <MoneyRow
           label={lang === 'am' ? 'ሽያጭ' : 'Sales'}
           value={money.sales}
-          color="#16a34a"
+          color='var(--color-success)'
           bold
         />
         <MoneyRow
           label={lang === 'am' ? 'ወጪ' : 'Expenses'}
           value={money.expenses}
-          color="#dc2626"
+          color='var(--color-danger)'
         />
         <div style={{ height: 1, background: 'var(--color-bg-disabled)', margin: '4px 0' }} />
         <MoneyRow
@@ -85,18 +85,18 @@ export default function MoneySection({ money, expenseBreakdown = [], hidden = fa
         <MoneyRow
           label={lang === 'am' ? 'የሚጠበቅ ትራንስፈር' : 'Transfer expected'}
           value={money.transferRecorded}
-          color="#d97706"
+          color='var(--color-accent-amber)'
         />
         <div style={{ height: 1, background: 'var(--color-bg-disabled)', margin: '4px 0' }} />
         <MoneyRow
           label={lang === 'am' ? 'የተሰጠ ዱቤ' : 'Credit extended'}
           value={money.creditExtended}
-          color="#d97706"
+          color='var(--color-accent-amber)'
         />
         <MoneyRow
           label={lang === 'am' ? 'የተሰበሰበ ዱቤ' : 'Credit collected'}
           value={money.creditCollected}
-          color="#16a34a"
+          color='var(--color-success)'
         />
 
         {showProfit && (
@@ -105,7 +105,7 @@ export default function MoneySection({ money, expenseBreakdown = [], hidden = fa
             <MoneyRow
               label={lang === 'am' ? 'የተጠላ ቀሪ' : 'Estimated earnings'}
               value={money.totalProfit}
-              color={money.totalProfit >= 0 ? '#16a34a' : '#dc2626'}
+              color={money.totalProfit >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}
               bold
             />
           </>

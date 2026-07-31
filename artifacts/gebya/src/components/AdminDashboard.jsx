@@ -24,7 +24,7 @@ function Section({ title, subtitle, children }) {
 }
 
 function StatRow({ label, value, tone }) {
-  const color = tone === 'green' ? '#166534' : tone === 'amber' ? '#92400e' : tone === 'red' ? '#991b1b' : '#111827';
+  const color = tone === 'green' ? 'var(--color-success-text)' : tone === 'amber' ? 'var(--color-warning)' : tone === 'red' ? 'var(--color-danger-text)' : 'var(--color-text)';
   return (
     <div className="flex justify-between items-center py-1.5">
       <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>{label}</span>
@@ -33,7 +33,7 @@ function StatRow({ label, value, tone }) {
   );
 }
 
-function Bar({ value, max, color = '#1B4332' }) {
+function Bar({ value, max, color = 'var(--color-primary)' }) {
   const w = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   return (<div className="w-full h-1.5 rounded-full" style={{ background: 'var(--color-bg-hover)' }}><div className="h-full rounded-full" style={{ width: `${w}%`, background: color }} /></div>);
 }
@@ -72,7 +72,7 @@ export default function AdminDashboard() {
     <div className="space-y-4 pb-8">
       <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--color-bg-hover)' }}>
         {[{ id: 'overview', label: 'Overview' }, { id: 'shops', label: 'Shops' }, { id: 'features', label: 'Features' }, { id: 'actions', label: 'Actions' }].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className="flex-1 py-2 rounded-lg text-xs font-bold transition-all" style={tab === t.id ? { background: '#1B4332', color: '#fff' } : { color: '#6b7280' }}>{t.label}</button>
+          <button key={t.id} onClick={() => setTab(t.id)} className="flex-1 py-2 rounded-lg text-xs font-bold transition-all" style={tab === t.id ? { background: 'var(--color-primary)', color: 'var(--color-bg-white)' } : { color: 'var(--color-text-muted)' }}>{t.label}</button>
         ))}
       </div>
 

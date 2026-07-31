@@ -282,12 +282,12 @@ function PayPage() {
           <ChannelCard
             icon="💛"
             iconBg="#ffeb3b"
-            iconColor="#1f2937"
+            iconColor='var(--color-text)'
             name={t.telebirrName}
             sub={(params.tb || params.phone) ? t.telebirrSubWithPhone : t.telebirrSubGeneric}
             tag={t.telebirrTag}
             tagBg="#d1f4e0"
-            tagColor="#047857"
+            tagColor='var(--color-success-text)'
             accountValue={params.tb || params.phone}
             accountKey="tb"
             copyLabel={t.copy}
@@ -305,7 +305,7 @@ function PayPage() {
           <ChannelCard
             icon="💜"
             iconBg="#5d3a98"
-            iconColor="#fff"
+            iconColor='var(--color-bg-white)'
             name={t.cbeName}
             sub={(params.cbe_p || params.cbe) ? t.cbeSubWithPhone : t.cbeSubGeneric}
             accountValue={params.cbe_p || params.cbe}
@@ -326,7 +326,7 @@ function PayPage() {
           <ChannelCard
             icon="🟡"
             iconBg="#d4af37"
-            iconColor="#1f2937"
+            iconColor='var(--color-text)'
             name={t.awashName}
             sub={(params.aw_p || params.awash) ? t.awashSubWithPhone : t.awashSubGeneric}
             accountValue={params.aw_p || params.awash}
@@ -605,22 +605,22 @@ function PayPage() {
 function pageStyle() {
   return {
     minHeight: '100svh',
-    background: '#f9f6f0',
+    background: 'var(--color-surface-soft)',
     fontFamily: "'Inter', 'Noto Sans Ethiopic', system-ui, sans-serif",
-    color: '#1f2937',
+    color: 'var(--color-text)',
     padding: 0,
   };
 }
 function cardStyle() {
   return {
     maxWidth: 480, margin: '40px auto', padding: 24,
-    background: '#fff', border: '1px solid #ece6d6', borderRadius: 14,
+    background: 'var(--color-surface)', border: '1px solid #ece6d6', borderRadius: 14,
   };
 }
 function sectionLabelStyle() {
   return {
     fontSize: '0.62rem', fontWeight: 800,
-    color: '#9ca3af', letterSpacing: '0.12em', textTransform: 'uppercase',
+    color: 'var(--color-text-soft)', letterSpacing: '0.12em', textTransform: 'uppercase',
     margin: '12px 4px 6px',
   };
 }

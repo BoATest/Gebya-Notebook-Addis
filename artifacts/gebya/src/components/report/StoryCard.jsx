@@ -10,21 +10,21 @@ import { fmt } from '../../utils/numformat';
 const STYLES = {
   healthy: {
     bg: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
-    border: '#bbf7d0',
-    headlineColor: '#1B4332',
-    numberColor: '#16a34a',
+    border: 'var(--color-success-border)',
+    headlineColor: 'var(--color-primary)',
+    numberColor: 'var(--color-success)',
   },
   warning: {
     bg: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
-    border: '#fde68a',
-    headlineColor: '#92400e',
-    numberColor: '#d97706',
+    border: 'var(--color-warning-border)',
+    headlineColor: 'var(--color-warning)',
+    numberColor: 'var(--color-accent-amber)',
   },
   urgent: {
     bg: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
-    border: '#fecaca',
-    headlineColor: '#991b1b',
-    numberColor: '#dc2626',
+    border: 'var(--color-danger-border)',
+    headlineColor: 'var(--color-danger-text)',
+    numberColor: 'var(--color-danger)',
   },
 };
 

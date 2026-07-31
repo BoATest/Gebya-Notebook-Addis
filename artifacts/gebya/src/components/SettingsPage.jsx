@@ -119,14 +119,14 @@ function SettingsPage({
           <button
             onClick={() => lang !== 'en' && toggleLang()}
             className={`px-2.5 py-1 rounded-full ${lang === 'en' ? 'text-white' : ''}`}
-            style={lang === 'en' ? { background: '#1B4332' } : { color: '#6b7280' }}
+            style={lang === 'en' ? { background: 'var(--color-primary)' } : { color: 'var(--color-text-muted)' }}
           >
             EN
           </button>
           <button
             onClick={() => lang !== 'am' && toggleLang()}
             className={`px-2.5 py-1 rounded-full ${lang === 'am' ? 'text-white' : ''}`}
-            style={lang === 'am' ? { background: '#1B4332' } : { color: '#6b7280' }}
+            style={lang === 'am' ? { background: 'var(--color-primary)' } : { color: 'var(--color-text-muted)' }}
           >
             አማ
           </button>
@@ -203,21 +203,21 @@ function SettingsPage({
               <button
                 onClick={() => setAdminSection(adminSection === 'metrics' ? null : 'metrics')}
                 className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${adminSection === 'metrics' ? 'text-white' : ''}`}
-                style={adminSection === 'metrics' ? { background: '#1B4332' } : { background: '#f3f4f6', color: '#374151' }}
+                style={adminSection === 'metrics' ? { background: 'var(--color-primary)' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
               >
                 {lang === 'am' ? 'ሜትሪክስ' : 'Metrics'}
               </button>
               <button
                 onClick={() => setAdminSection(adminSection === 'curation' ? null : 'curation')}
                 className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${adminSection === 'curation' ? 'text-white' : ''}`}
-                style={adminSection === 'curation' ? { background: '#1B4332' } : { background: '#f3f4f6', color: '#374151' }}
+                style={adminSection === 'curation' ? { background: 'var(--color-primary)' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
               >
                 {lang === 'am' ? 'ማስተካከያ ወረፋ' : 'Curation'}
               </button>
               <button
                 onClick={() => setAdminSection(adminSection === 'admin' ? null : 'admin')}
                 className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${adminSection === 'admin' ? 'text-white' : ''}`}
-                style={adminSection === 'admin' ? { background: '#1B4332' } : { background: '#f3f4f6', color: '#374151' }}
+                style={adminSection === 'admin' ? { background: 'var(--color-primary)' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
               >
                 Admin
               </button>

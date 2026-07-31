@@ -64,7 +64,7 @@ export default function TodayBusiness({
         <div style={{ padding: '0 16px 14px', borderTop: '1px solid #f3f4f6', paddingTop: 10 }}>
           <Row label={lang === 'am' ? '💵 ጥሬ ገንዘብ' : '💵 Cash'} value={cashExpected} hidden={hidden} />
           <Row label={lang === 'am' ? '📱 ዲጂታል' : '📱 Digital'} value={digital} hidden={hidden} />
-          <Row label={lang === 'am' ? '📤 ወጪ' : '📤 Expenses'} value={expenses} hidden={hidden} color="#dc2626" />
+          <Row label={lang === 'am' ? '📤 ወጪ' : '📤 Expenses'} value={expenses} hidden={hidden} color='var(--color-danger)' />
           <Row label={lang === 'am' ? '💰 የዕዳ መሰብሰብ' : '💰 Collections'} value={collections} hidden={hidden} />
           <div style={{ height: 1, background: 'var(--color-bg-disabled)', margin: '6px 0' }} />
           <Row label={lang === 'am' ? '💵 ሊኖርህ የሚገባ ገንዘብ' : '💵 Cash you should have'} value={cashYouShouldHave} hidden={hidden} bold />
@@ -75,7 +75,7 @@ export default function TodayBusiness({
                 label={lang === 'am' ? '📊 ልዩነት' : '📊 Difference'}
                 value={diff}
                 hidden={hidden}
-                color={diff === 0 ? '#059669' : diff > 0 ? '#d97706' : '#dc2626'}
+                color={diff === 0 ? 'var(--color-success)' : diff > 0 ? 'var(--color-accent-amber)' : 'var(--color-danger)'}
                 bold
               />
             </>

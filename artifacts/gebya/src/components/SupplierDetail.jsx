@@ -416,9 +416,9 @@ function SupplierDetail({
 function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
   const isPayment = tx.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT;
 
-  const amountColor = isPayment ? '#166534' : '#dc2626';
+  const amountColor = isPayment ? 'var(--color-success-text)' : 'var(--color-danger)';
   const sign = isPayment ? '−' : '+';
-  const borderColor = isPayment ? '#166534' : '#dc2626';
+  const borderColor = isPayment ? 'var(--color-success-text)' : 'var(--color-danger)';
 
   return (
     <div

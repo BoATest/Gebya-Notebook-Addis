@@ -42,29 +42,29 @@ const TYPE_ICONS = {
 };
 
 const TYPE_BG = {
-  sale: '#dcfce7',
-  credit: '#fef3c7',
-  supplier_payment: '#dbeafe',
+  sale: 'var(--color-success-border)',
+  credit: 'var(--color-warning-bg)',
+  supplier_payment: 'var(--color-info-bg)',
   supplier_purchase: '#e0e7ff',
   staff_joined: '#f3e8ff',
-  rbac_violation: '#fee2e2',
-  test: '#f0fdf4',
+  rbac_violation: 'var(--color-danger-bg)',
+  test: 'var(--color-success-bg)',
   expense: '#fce7f3',
-  payment: '#d1fae5',
-  device_approval: '#e0f2fe',
+  payment: 'var(--color-success-bg)',
+  device_approval: 'var(--color-info-bg)',
 };
 
 const TYPE_TEXT = {
-  sale: '#166534',
-  credit: '#92400e',
+  sale: 'var(--color-success-text)',
+  credit: 'var(--color-warning)',
   supplier_payment: '#1e40af',
   supplier_purchase: '#3730a3',
   staff_joined: '#6b21a8',
-  rbac_violation: '#991b1b',
-  test: '#166534',
+  rbac_violation: 'var(--color-danger-text)',
+  test: 'var(--color-success-text)',
   expense: '#9d174d',
-  payment: '#065f46',
-  device_approval: '#075985',
+  payment: 'var(--color-success-text)',
+  device_approval: 'var(--color-info)',
 };
 
 const STALE_THRESHOLD_MS = 60_000; // 60 seconds

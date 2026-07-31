@@ -455,7 +455,7 @@ function CustomerDetail({
               than "0/1" fraction notation. Commit C.1 polish. */}
           {customer.on_time_eligible > 0 && (() => {
             const pct = Math.round((customer.on_time_count / customer.on_time_eligible) * 100);
-            const pctColor = pct >= 80 ? '#047857' : pct >= 50 ? '#b8842c' : '#dc2626';
+            const pctColor = pct >= 80 ? 'var(--color-success-text)' : pct >= 50 ? 'var(--color-accent-amber)' : 'var(--color-danger)';
             return (
               <span>
                 <strong style={{ color: pctColor, fontWeight: 700 }}>
@@ -747,9 +747,9 @@ function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
   const isPayment = tx.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT;
   const isCredit = tx.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD;
 
-  const amountColor = isPayment ? '#047857' : '#b8842c';
+  const amountColor = isPayment ? 'var(--color-success-text)' : 'var(--color-accent-amber)';
   const sign = isPayment ? '−' : '+';
-  const borderColor = isPayment ? '#047857' : '#C4883A';
+  const borderColor = isPayment ? 'var(--color-success-text)' : 'var(--color-accent-amber)';
 
   const allocationStatus = isCredit ? getCreditAllocationStatus(tx) : null;
   const settlement = isPayment ? getPaymentSettlementCount(tx) : null;

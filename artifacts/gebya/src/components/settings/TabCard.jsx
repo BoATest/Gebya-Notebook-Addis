@@ -14,9 +14,9 @@ export default function TabCard({ icon, title, subtitle, badge, badgeTone, child
   };
 
   const toneStyles = {
-    ok: { bg: '#d1fae5', color: '#065f46' },
-    warn: { bg: '#fef3c7', color: '#92400e' },
-    neutral: { bg: '#f3f4f6', color: '#6b7280' },
+    ok: { bg: 'var(--color-success-bg)', color: 'var(--color-success-text)' },
+    warn: { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' },
+    neutral: { bg: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' },
   };
   const tone = toneStyles[badgeTone] || toneStyles.neutral;
 

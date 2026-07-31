@@ -111,10 +111,10 @@ export function bigramSimilarity(a, b) {
 }
 
 export const ROLE_BADGE = {
-  owner: { label: 'Owner', bg: '#fef3c7', color: '#92400e' },
-  manager: { label: 'Manager', bg: '#fef3c7', color: '#92400e' },
-  cashier: { label: 'Sales Staff', bg: '#f3f4f6', color: '#4b5563' },
-  viewer: { label: 'Auditor', bg: '#f3f4f6', color: '#4b5563' },
+  owner: { label: 'Owner', bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' },
+  manager: { label: 'Manager', bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' },
+  cashier: { label: 'Sales Staff', bg: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' },
+  viewer: { label: 'Auditor', bg: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' },
 };
 
 export function RoleBadge({ role }) {

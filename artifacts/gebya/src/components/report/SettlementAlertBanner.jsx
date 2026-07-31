@@ -59,8 +59,8 @@ export default function SettlementAlertBanner({ lang = 'en', onFocus, isStaffVie
         padding: '10px 14px', marginBottom: 12, cursor: 'pointer',
         transition: 'background 0.15s',
       }}
-      onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'}
-      onMouseLeave={e => e.currentTarget.style.background = '#fef2f2'}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--color-danger-bg)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'var(--color-danger-bg)'}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>

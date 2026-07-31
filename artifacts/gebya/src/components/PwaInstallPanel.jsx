@@ -67,9 +67,9 @@ function InstallGuideModal({ pwa }) {
 function BannerCard({ children, tone = 'default' }) {
   const styles = {
     default: { background: 'var(--color-surface)', borderColor: 'var(--color-border)' },
-    success: { background: '#f0fdf4', borderColor: '#bbf7d0' },
-    warning: { background: '#fff7ed', borderColor: '#fed7aa' },
-    offline: { background: '#fef2f2', borderColor: '#fecaca' },
+    success: { background: 'var(--color-success-bg)', borderColor: 'var(--color-success-border)' },
+    warning: { background: 'var(--color-warning-bg)', borderColor: 'var(--color-warning-border)' },
+    offline: { background: 'var(--color-danger-bg)', borderColor: 'var(--color-danger-border)' },
   };
 
   return (

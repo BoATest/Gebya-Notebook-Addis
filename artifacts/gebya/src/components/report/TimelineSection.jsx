@@ -19,7 +19,7 @@ function TimelineRow({ item, hidden = false, lang = 'en', onAction }) {
     expense: '📤',
   }[item.kind] || '📋';
 
-  const amountColor = item.kind === 'expense' ? '#dc2626' : '#16a34a';
+  const amountColor = item.kind === 'expense' ? 'var(--color-danger)' : 'var(--color-success)';
 
   return (
     <button
@@ -67,7 +67,7 @@ export default function TimelineSection({ timeline = [], hidden = false, lang = 
     <Chapter
       title={lang === 'am' ? 'የዛሬ ታሪክ' : "Today's Timeline"}
       subtitle={lang === 'am' ? 'ምን ሆነ?' : 'What happened?'}
-      badge={{ text: timeline.length, color: '#6b7280' }}
+      badge={{ text: timeline.length, color: 'var(--color-text-muted)' }}
       defaultExpanded={false}
     >
       <div style={{ marginTop: 4 }}>

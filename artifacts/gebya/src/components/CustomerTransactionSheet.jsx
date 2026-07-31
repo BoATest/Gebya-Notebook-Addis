@@ -185,7 +185,7 @@ function CustomerTransactionSheet({
   };
 
   // Color accent: credit-add (amber for liability) vs payment (green for settled)
-  const accentColor = isPayment ? '#16a34a' : '#C4883A';
+  const accentColor = isPayment ? 'var(--color-success)' : 'var(--color-accent-amber)';
   const headerLabel = isEditing
     ? (lang === 'am'
         ? (isPayment ? '✏️ ክፍያ ማስተካከያ' : '✏️ ዱቤ ማስተካከያ')

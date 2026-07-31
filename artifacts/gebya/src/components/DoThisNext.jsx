@@ -63,7 +63,7 @@ function ActionCard({ item, lang, onAction, expandedContent }) {
       border: `1px solid ${
         item.urgency === 'urgent' ? 'var(--color-danger-border)' : item.urgency === 'warning' ? 'var(--color-warning-border)' : 'var(--color-bg-disabled)'
       }`,
-      background: item.urgency === 'urgent' ? 'var(--color-danger-bg)' : item.urgency === 'warning' ? '#fffbeb' : 'var(--color-bg-active)',
+      background: item.urgency === 'urgent' ? 'var(--color-danger-bg)' : item.urgency === 'warning' ? 'var(--color-warning-bg)' : 'var(--color-bg-active)',
       marginBottom: 6,
       overflow: 'hidden',
     }}>

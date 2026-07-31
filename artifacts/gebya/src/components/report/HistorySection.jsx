@@ -16,7 +16,7 @@ function TransactionRow({ tx, hidden = false, lang = 'en', onEdit }) {
     : '';
 
   const isOut = tx.report_kind === 'expense';
-  const amountColor = isOut ? '#dc2626' : '#16a34a';
+  const amountColor = isOut ? 'var(--color-danger)' : 'var(--color-success)';
 
   return (
     <button
@@ -80,7 +80,7 @@ export default function HistorySection({
       defaultExpanded={false}
       expanded={expanded}
       onToggle={setExpanded}
-      badge={{ text: `${transactions.length}`, color: '#6b7280' }}
+      badge={{ text: `${transactions.length}`, color: 'var(--color-text-muted)' }}
     >
       <div style={{ marginTop: 8 }}>
         {/* Search bar */}

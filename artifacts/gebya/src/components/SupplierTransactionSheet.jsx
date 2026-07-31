@@ -114,7 +114,7 @@ function SupplierTransactionSheet({
   const overPayment = isPayment && parsedAmount > balanceForCompare;
   const canSave = parsedAmount > 0 && !overPayment && hasOutstanding && !saving;
 
-  const accentColor = isPayment ? '#16a34a' : '#dc2626'; // Commit D: red for purchase (supplier side)
+  const accentColor = isPayment ? 'var(--color-success)' : 'var(--color-danger)'; // Commit D: red for purchase (supplier side)
   const headerLabel = editing
     ? (isPayment
         ? (lang === 'am' ? '✏️ ክፍያ አስተካክል' : '✏️ Edit payment')

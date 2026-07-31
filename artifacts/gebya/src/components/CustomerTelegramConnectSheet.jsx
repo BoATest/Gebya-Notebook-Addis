@@ -249,24 +249,24 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
   const statusChip = (() => {
     if (hasLinkedBorrower) {
       return {
-        bg: '#d1fae5', color: '#065f46', icon: <CheckCircle2 className="w-4 h-4" />,
+        bg: 'var(--color-success-bg)', color: 'var(--color-success-text)', icon: <CheckCircle2 className="w-4 h-4" />,
         text: lang === 'am' ? '✓ ተገናኝቷል' : '✓ Linked',
       };
     }
     if (!linkingAvailable) {
       return {
-        bg: '#fef3c7', color: '#92400e', icon: <AlertTriangle className="w-4 h-4" />,
+        bg: 'var(--color-warning-bg)', color: 'var(--color-warning)', icon: <AlertTriangle className="w-4 h-4" />,
         text: lang === 'am' ? 'አገልግሎት አይገኝም' : 'Service unavailable',
       };
     }
     if (hasPendingLink) {
       return {
-        bg: '#dbeafe', color: '#1e3a8a', icon: <MessageCircle className="w-4 h-4" />,
+        bg: 'var(--color-info-bg)', color: 'var(--color-info-text)', icon: <MessageCircle className="w-4 h-4" />,
         text: lang === 'am' ? 'የደንበኛ ምላሽ በመጠበቅ ላይ' : 'Waiting for customer',
       };
     }
     return {
-      bg: '#dcfce7', color: '#166534', icon: <CheckCircle2 className="w-4 h-4" />,
+      bg: 'var(--color-success-border)', color: 'var(--color-success-text)', icon: <CheckCircle2 className="w-4 h-4" />,
       text: safeBotStatus.bot_username
         ? `🤖 ${safeBotStatus.bot_username}`
         : (lang === 'am' ? '🤖 ቦት ዝግጁ' : '🤖 Bot ready'),
@@ -417,7 +417,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
                     className="inline-flex p-3 bg-white"
                     style={{ background: 'var(--color-surface)', borderRadius: '16px', border: '1px solid #f0e1bc' }}
                   >
-                    <QRCodeSVG value={inviteLink} size={148} bgColor="#ffffff" fgColor="#1B4332" />
+                    <QRCodeSVG value={inviteLink} size={148} bgColor='var(--color-bg-white)' fgColor='var(--color-primary)' />
                   </div>
                   <p className="text-xs mt-2.5" style={{ color: 'var(--color-text-muted)' }}>
                     {lang === 'am'

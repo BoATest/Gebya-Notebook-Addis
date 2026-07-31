@@ -46,7 +46,7 @@ function initialsFor(name = '?') {
 // 14-29 = amber, < 14 = green. No outstanding balance → "cleared".
 function urgencyFor(supplier) {
   const balance = Number(supplier.balance || 0);
-  if (balance <= 0) return { stripe: '#d1d5db', tone: 'cleared', days: 0 };
+  if (balance <= 0) return { stripe: 'var(--color-text-soft)', tone: 'cleared', days: 0 };
   // Approximate oldest open purchase by walking transactions newest→oldest
   // and subtracting payments greedily (FIFO settlement).
   const txs = (supplier.transactions || []).slice();
@@ -68,11 +68,11 @@ function urgencyFor(supplier) {
       break;
     }
   }
-  if (!oldestOpenAt) return { stripe: '#86efac', tone: 'recent', days: 0 };
+  if (!oldestOpenAt) return { stripe: 'var(--color-success-border)', tone: 'recent', days: 0 };
   const days = Math.floor((Date.now() - oldestOpenAt) / (1000 * 60 * 60 * 24));
-  if (days >= 30) return { stripe: '#dc2626', tone: 'overdue', days };
-  if (days >= 14) return { stripe: '#fbbf24', tone: 'aging', days };
-  return { stripe: '#86efac', tone: 'recent', days };
+  if (days >= 30) return { stripe: 'var(--color-danger)', tone: 'overdue', days };
+  if (days >= 14) return { stripe: 'var(--color-warning)', tone: 'aging', days };
+  return { stripe: 'var(--color-success-border)', tone: 'recent', days };
 }
 
 function SupplierList({ suppliers = [], onSelectSupplier, onAddSupplier }) {
@@ -260,9 +260,9 @@ function SupplierList({ suppliers = [], onSelectSupplier, onAddSupplier }) {
 
 function FilterChip({ label, active, onClick, count, tone }) {
   const palette = {
-    neutral: { activeBg: '#1a1a1a', activeColor: '#fff', idleBg: '#f3f4f6', idleColor: '#6b7280' },
-    red:     { activeBg: '#dc2626', activeColor: '#fff', idleBg: '#fef2f2', idleColor: '#991b1b' },
-    green:   { activeBg: '#16a34a', activeColor: '#fff', idleBg: '#f0fdf4', idleColor: '#166534' },
+    neutral: { activeBg: 'var(--color-text)', activeColor: 'var(--color-bg-white)', idleBg: 'var(--color-bg-hover)', idleColor: 'var(--color-text-muted)' },
+    red:     { activeBg: 'var(--color-danger)', activeColor: 'var(--color-bg-white)', idleBg: 'var(--color-danger-bg)', idleColor: 'var(--color-danger-text)' },
+    green:   { activeBg: 'var(--color-success)', activeColor: 'var(--color-bg-white)', idleBg: 'var(--color-success-bg)', idleColor: 'var(--color-success-text)' },
   };
   const p = palette[tone] || palette.neutral;
   return (
@@ -300,7 +300,7 @@ function FilterChip({ label, active, onClick, count, tone }) {
 function SupplierRow({ supplier, lang, onClick }) {
   const balance = Math.max(Number(supplier.balance || 0), 0);
   const hasBalance = balance > 0;
-  const urgency = supplier._urgency || { stripe: '#d1d5db', tone: 'cleared', days: 0 };
+  const urgency = supplier._urgency || { stripe: 'var(--color-text-soft)', tone: 'cleared', days: 0 };
   const initials = initialsFor(supplier.display_name);
   const grad = pickGradient(supplier.display_name || '');
 

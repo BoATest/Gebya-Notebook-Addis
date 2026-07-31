@@ -6,12 +6,12 @@ import useCalculatedExpected from '../../utils/useCalculatedExpected';
 import { fmt } from '../../utils/numformat';
 
 const C = {
-  green: '#1B4332', greenLight: '#f0fdf4', greenBorder: '#bbf7d0',
-  amber: '#C4883A', amberLight: '#fffbeb', amberBorder: '#fde68a',
-  red: '#dc2626', redLight: '#fef2f2', redBorder: '#fecaca',
-  blue: '#0369a1', blueLight: '#f0f9ff', blueBorder: '#bae6fd',
-  gray: '#6b7280', grayLight: '#f9fafb', grayBorder: '#e5e7eb',
-  text: '#1f2937', textMuted: '#6b7280', textFaint: '#9ca3af',
+  green: 'var(--color-primary)', greenLight: 'var(--color-success-bg)', greenBorder: 'var(--color-success-border)',
+  amber: 'var(--color-accent-amber)', amberLight: 'var(--color-warning-bg)', amberBorder: 'var(--color-warning-border)',
+  red: 'var(--color-danger)', redLight: 'var(--color-danger-bg)', redBorder: 'var(--color-danger-border)',
+  blue: 'var(--color-info)', blueLight: 'var(--color-info-bg)', blueBorder: 'var(--color-info-border)',
+  gray: 'var(--color-text-muted)', grayLight: 'var(--color-bg-active)', grayBorder: 'var(--color-bg-disabled)',
+  text: 'var(--color-text)', textMuted: 'var(--color-text-muted)', textFaint: 'var(--color-text-soft)',
   radius: 8, radiusLg: 12, font: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
 };
 
@@ -22,10 +22,10 @@ function Skeleton({ h = 12, w = '100%' }) {
 function StatusBadge({ status, lang }) {
   const t = (en, am) => lang === 'am' ? am : en;
   const map = {
-    finalized: { label: t('Finalized', 'ተጠናቋል'), bg: C.greenLight, color: '#16a34a' },
+    finalized: { label: t('Finalized', 'ተጠናቋል'), bg: C.greenLight, color: 'var(--color-success)' },
     staff_submitted: { label: t('Staff sent', 'ሰራተኛ ልኳል'), bg: C.blueLight, color: C.blue },
-    owner_reviewed: { label: t('Reviewed', 'ተመልክቷል'), bg: C.amberLight, color: '#d97706' },
-    checked: { label: t('Checked', 'ተፈትሟል'), bg: '#f3f4f6', color: C.gray },
+    owner_reviewed: { label: t('Reviewed', 'ተመልክቷል'), bg: C.amberLight, color: 'var(--color-accent-amber)' },
+    checked: { label: t('Checked', 'ተፈትሟል'), bg: 'var(--color-bg-hover)', color: C.gray },
     disputed: { label: t('Disputed', 'አከራካሪ'), bg: C.redLight, color: C.red },
   };
   const s = map[status] || map.checked;
@@ -371,18 +371,18 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
           <button onClick={() => { setActualCash(String(expected.expectedCash)); setActualTransfer(String(expected.expectedTransfer)); }}
             style={{ background: C.grayLight, color: C.text, border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'background 0.15s' }}
-            onMouseEnter={e => e.target.style.background = '#e5e7eb'}
+            onMouseEnter={e => e.target.style.background = 'var(--color-bg-disabled)'}
             onMouseLeave={e => e.target.style.background = C.grayLight}
           >{t('Expected total', 'የሚጠበቅ ድምር')} {fmt(expected.expectedTotal)}</button>
           <button onClick={() => setActualCash(String(expected.expectedCash))}
             style={{ background: C.grayLight, color: C.text, border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'background 0.15s' }}
-            onMouseEnter={e => e.target.style.background = '#e5e7eb'}
+            onMouseEnter={e => e.target.style.background = 'var(--color-bg-disabled)'}
             onMouseLeave={e => e.target.style.background = C.grayLight}
           >{t('Expected cash', 'የሚጠበቅ ጥሬ')} {fmt(expected.expectedCash)}</button>
           {expected.expectedTransfer > 0 && (
             <button onClick={() => setActualTransfer(String(expected.expectedTransfer))}
               style={{ background: C.grayLight, color: C.text, border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'background 0.15s' }}
-              onMouseEnter={e => e.target.style.background = '#e5e7eb'}
+              onMouseEnter={e => e.target.style.background = 'var(--color-bg-disabled)'}
               onMouseLeave={e => e.target.style.background = C.grayLight}
             >{t('Expected transfer', 'የሚጠበቅ ዝውውር')} {fmt(expected.expectedTransfer)}</button>
           )}
@@ -494,7 +494,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
             {recLog.map((entry, i) => {
               const isStaff = entry.actor === 'staff';
               const dotBg = isStaff ? C.blueLight : C.amberLight;
-              const iconColor = isStaff ? C.blue : '#92400e';
+              const iconColor = isStaff ? C.blue : 'var(--color-warning)';
               const entryBg = isStaff ? C.blueLight : C.amberLight;
               return (
                 <div key={i} style={{ position: 'relative', paddingBottom: i < recLog.length - 1 ? 16 : 0 }}>

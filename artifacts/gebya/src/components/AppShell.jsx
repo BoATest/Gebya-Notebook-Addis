@@ -80,9 +80,9 @@ const P = {
   bg: 'var(--color-bg)',
   header: 'var(--color-primary)',
   actionBar: 'var(--color-primary-dark)',
-  amber: '#C4883A',
+  amber: 'var(--color-accent-amber)',
   amberLight: 'rgba(196,136,58,0.12)',
-  coral: '#D4654A',
+  coral: 'var(--color-accent-coral)',
   border: 'var(--color-border)',
   borderLight: 'var(--color-border-light)',
 };

@@ -10,10 +10,10 @@ import { remindersApi } from '../api/reminders';
 import { formatEthiopianTime } from '../utils/ethiopianCalendar';
 
 const STATUS_CONFIG = {
-  sent:    { en: 'Sent',    am: 'ተልኳል',    bg: '#ecfdf5', border: '#86efac', color: '#166534' },
-  queued:  { en: 'Queued',  am: 'በመጠባበቅ',  bg: '#eff6ff', border: '#bfdbfe', color: '#1d4ed8' },
-  failed:  { en: 'Failed',  am: 'አልተሳካም',  bg: '#fef2f2', border: '#fca5a5', color: '#991b1b' },
-  skipped: { en: 'Skipped', am: 'ተሻረ',     bg: '#f9fafb', border: '#e5e7eb', color: '#6b7280' },
+  sent:    { en: 'Sent',    am: 'ተልኳል',    bg: 'var(--color-success-bg)', border: 'var(--color-success-border)', color: 'var(--color-success-text)' },
+  queued:  { en: 'Queued',  am: 'በመጠባበቅ',  bg: 'var(--color-info-bg)', border: 'var(--color-info-border)', color: 'var(--color-info)' },
+  failed:  { en: 'Failed',  am: 'አልተሳካም',  bg: 'var(--color-danger-bg)', border: 'var(--color-danger-border)', color: 'var(--color-danger-text)' },
+  skipped: { en: 'Skipped', am: 'ተሻረ',     bg: 'var(--color-bg-active)', border: 'var(--color-bg-disabled)', color: 'var(--color-text-muted)' },
 };
 
 function formatDate(ts, lang) {

@@ -99,7 +99,7 @@ export default function ClosingSection({
         ? (lang === 'am' ? 'ቀንዎ ተጠናቅቋል' : 'Day closed successfully')
         : (lang === 'am' ? 'ቀንዎን ማጠቃለያ ይችላሉ?' : 'Can you close today?')
       }
-      badge={todayClosing ? { text: '✓', color: '#16a34a' } : null}
+      badge={todayClosing ? { text: '✓', color: 'var(--color-success)' } : null}
       defaultExpanded={!todayClosing}
     >
       <div style={{ marginTop: 8 }}>

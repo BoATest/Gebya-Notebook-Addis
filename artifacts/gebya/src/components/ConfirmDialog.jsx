@@ -19,7 +19,7 @@ export default function ConfirmDialog({
   const { lang } = useLang();
   if (!open) return null;
 
-  const confirmBg = tone === 'danger' ? '#dc2626' : '#1B4332';
+  const confirmBg = tone === 'danger' ? 'var(--color-danger)' : 'var(--color-primary)';
 
   return (
     <div

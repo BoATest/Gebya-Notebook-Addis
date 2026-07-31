@@ -86,7 +86,7 @@ export default function CreditSection({ credit, hidden = false, lang = 'en', onA
     <Chapter
       title={lang === 'am' ? 'ዱቤ እና ደንበኛ' : 'Credit & Customers'}
       subtitle={lang === 'am' ? 'ማን ይሄዳል?' : 'Who owes you?'}
-      badge={credit.overdueCount > 0 ? { text: credit.overdueCount, color: '#dc2626' } : null}
+      badge={credit.overdueCount > 0 ? { text: credit.overdueCount, color: 'var(--color-danger)' } : null}
       defaultExpanded={true}
     >
       <div style={{ marginTop: 8 }}>

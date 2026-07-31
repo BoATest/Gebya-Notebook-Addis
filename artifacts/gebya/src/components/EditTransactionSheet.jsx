@@ -19,9 +19,9 @@ function handleNumericInput(e, setter) {
 }
 
 const ACCENT = {
-  sale:    { btn: '#2d6a4f', shadow: '#1B4332' },
-  expense: { btn: '#dc2626', shadow: '#b91c1c' },
-  credit:  { btn: '#C4883A', shadow: '#96662b' },
+  sale:    { btn: 'var(--color-primary-light)', shadow: 'var(--color-primary)' },
+  expense: { btn: 'var(--color-danger)', shadow: 'var(--color-danger-text)' },
+  credit:  { btn: 'var(--color-accent-amber)', shadow: '#96662b' },
 };
 
 function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, onUpdate, onClose }) {
@@ -197,7 +197,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
 
           {/* Multi-item breakdown — editable when transaction has items OR when user wants to add one */}
           {!isCredit && (hadBreakdown || editableItems.length > 0) && (() => {
-            const accentBdColor = type === 'expense' ? '#dc2626' : '#16a34a';
+            const accentBdColor = type === 'expense' ? 'var(--color-danger)' : 'var(--color-success)';
             return (
               <div className="p-3 space-y-2"
                 style={{ background: 'rgba(27,67,50,0.04)', borderRadius: 'var(--radius-md)', border: '1px solid #e8e2d8' }}
