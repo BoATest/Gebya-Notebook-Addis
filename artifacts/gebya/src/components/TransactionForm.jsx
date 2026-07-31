@@ -267,6 +267,9 @@ function TransactionForm({
     setPhoneTouched(false);
     setSelectedDue(null);
     setCustomDue('');
+    setPartialReceived('');
+    setPaymentType('cash');
+    setPaymentProvider('');
     setTimeout(() => { amountInputRef.current?.focus(); }, 50);
   }
 
@@ -296,15 +299,15 @@ function TransactionForm({
       : (photos.length > 0 ? (lang === 'am' ? 'ለፎቶ ሽያጭ መጠን ያክሉ' : 'Add amount to save photo sale') : (lang === 'am' ? 'አስቀምጥ' : 'Save'));
 
     return (
-      <div className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col" style={{ background: '#ffffff' }}>
+      <div className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col" style={{ background: 'var(--color-surface)' }}>
         {/* Header */}
         <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e8e2d8' }}>
           <button onClick={onDone} aria-label={lang === 'am' ? 'ተመለስ' : 'Back'} className="press-scale flex items-center justify-center" style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}>
-            <ArrowLeft className="w-5 h-5" style={{ color: '#6b7280' }} />
+            <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
           </button>
           <div className="text-center min-w-0">
             <h2 className="text-base font-bold" style={{ color: accentColor }}>{headerLabel}</h2>
-            {actorLabel && <p className="text-[11px] font-semibold truncate" style={{ color: '#6b7280', maxWidth: '220px' }}>{lang === 'am' ? `በ${actorLabel} እየተመዘገበ` : `Recording as ${actorLabel}`}</p>}
+            {actorLabel && <p className="text-[11px] font-semibold truncate" style={{ color: 'var(--color-text-muted)', maxWidth: '220px' }}>{lang === 'am' ? `በ${actorLabel} እየተመዘገበ` : `Recording as ${actorLabel}`}</p>}
           </div>
           <div style={{ width: '36px' }} />
         </div>
@@ -315,27 +318,27 @@ function TransactionForm({
             <div className="px-3 py-2.5 flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-bold" style={{ color: '#4b6855' }}>{lang === 'am' ? 'ጠቅላላ መጠን' : 'Total amount'}</p>
-                <p className="text-2xl font-black leading-tight" style={{ color: sellingPrice > 0 ? '#14532d' : '#9ca3af' }}>{fmt(sellingPrice)} ETB</p>
+                <p className="text-2xl font-black leading-tight" style={{ color: sellingPrice > 0 ? 'var(--color-success-text)' : 'var(--color-text-soft)' }}>{fmt(sellingPrice)} ETB</p>
               </div>
-              <span className="px-2.5 py-1.5 text-xs font-black border" style={{ borderColor: '#bbd7c5', borderRadius: 'var(--radius-sm)', background: '#fff', color: '#14532d' }}>{paymentLabel}</span>
+              <span className="px-2.5 py-1.5 text-xs font-black border" style={{ borderColor: '#bbd7c5', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', color: 'var(--color-success-text)' }}>{paymentLabel}</span>
             </div>
             <div className="px-3 pb-3">
               <input ref={amountInputRef} type="text" inputMode="decimal" autoFocus value={fmtInput(amount)}
                 onChange={event => handleNumericInput(event, setAmount)}
                 placeholder="0" className="w-full px-3 py-3 border-2 focus:outline-none text-2xl font-black"
-                style={{ borderRadius: 'var(--radius-md)', borderColor: amount ? '#86efac' : '#d7e3da', color: amount ? '#14532d' : '#9ca3af' }} />
+                style={{ borderRadius: 'var(--radius-md)', borderColor: amount ? '#86efac' : '#d7e3da', color: amount ? 'var(--color-success-text)' : 'var(--color-text-soft)' }} />
             </div>
           </section>
 
           {/* Note (optional) + photo */}
           <section className="space-y-2">
-            <p className="text-[11px] font-black uppercase tracking-wide" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ማስታወሻ (አማራጭ)' : 'Note (optional)'}</p>
+            <p className="text-[11px] font-black uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ማስታወሻ (አማራጭ)' : 'Note (optional)'}</p>
             <div className="flex gap-2 items-stretch">
               <button type="button" onClick={() => setShowCamera(true)}
                 className="press-scale flex items-center justify-center flex-shrink-0"
-                style={{ width: 48, minHeight: 48, border: '2px solid #d7e3da', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? '#f0fdf4' : '#fafaf6' }}
+                style={{ width: 48, minHeight: 48, border: '2px solid #d7e3da', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? 'var(--color-success-bg)' : '#fafaf6' }}
                 aria-label={lang === 'am' ? 'ፎቶ አክል' : 'Take or choose photo'}>
-                {photoLoading ? <span className="text-xs">...</span> : <Camera className="w-5 h-5" style={{ color: photos.length > 0 ? '#16a34a' : '#4b5563' }} />}
+                {photoLoading ? <span className="text-xs">...</span> : <Camera className="w-5 h-5" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-text-muted)' }} />}
               </button>
               <input type="text" value={item} onChange={e => setItem(e.target.value)}
                 placeholder={lang === 'am' ? 'ዝርዝሩን ይመዝቡ...' : 'Add details...'}
@@ -345,23 +348,23 @@ function TransactionForm({
             {photos.length > 0 && (
               <div className="p-2" style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold" style={{ color: '#1a1a1a' }}>{lang === 'am' ? 'ፎቶ' : 'Proof photos'}</p>
-                  <p className="text-[10px] font-bold" style={{ color: '#6b7280' }}>{photoCountLabel(photos.length, lang)}</p>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ፎቶ' : 'Proof photos'}</p>
+                  <p className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>{photoCountLabel(photos.length, lang)}</p>
                 </div>
                 <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
                   {photos.map((entry) => (
                     <div key={entry.id} className="relative flex-shrink-0">
                       <img src={entry.dataUrl} alt="" className="w-14 h-14 object-cover" style={{ borderRadius: 6 }} />
                       <button type="button" onClick={() => handleRemovePhoto(entry.id)} className="press-scale flex items-center justify-center"
-                        style={{ position: 'absolute', top: -6, right: -6, minWidth: 28, minHeight: 28, borderRadius: 999, border: '1px solid #e8e2d8', background: '#fff' }}>
-                        <X className="w-3.5 h-3.5" style={{ color: '#6b7280' }} /></button>
-                      <p className="text-[10px] text-center mt-1" style={{ color: '#9ca3af' }}>{Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB</p>
+                        style={{ position: 'absolute', top: -6, right: -6, minWidth: 28, minHeight: 28, borderRadius: 999, border: '1px solid #e8e2d8', background: 'var(--color-surface)' }}>
+                        <X className="w-3.5 h-3.5" style={{ color: 'var(--color-text-muted)' }} /></button>
+                      <p className="text-[10px] text-center mt-1" style={{ color: 'var(--color-text-soft)' }}>{Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB</p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-            {photoError && <p className="text-xs font-semibold" style={{ color: '#dc2626' }}>{photoError}</p>}
+            {photoError && <p className="text-xs font-semibold" style={{ color: 'var(--color-danger)' }}>{photoError}</p>}
           </section>
 
           {/* Payment chips */}
@@ -384,31 +387,31 @@ function TransactionForm({
             <>
               {/* Customer search + Add button */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ደንበኛ' : 'CUSTOMER'}</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ደንበኛ' : 'CUSTOMER'}</label>
                 <div className="flex gap-1.5">
                   <div className="relative flex-1">
                     <input type="text" value={customerQuery} onChange={e => { setCustomerQuery(e.target.value); setCustomerMatch(null); }} placeholder={lang === 'am' ? 'ስም ይተይቡ...' : 'Type customer name...'}
-                      className="w-full px-2 py-1.5 text-[11px] border font-bold" style={{ borderColor: customerQuery ? '#16a34a' : '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '38px' }} />
+                      className="w-full px-2 py-1.5 text-[11px] border font-bold" style={{ borderColor: customerQuery ? 'var(--color-success)' : 'var(--color-border-light)', borderRadius: 'var(--radius-sm)', minHeight: '38px' }} />
                     {customerQuery.trim() && !customerMatch && (
-                      <div className="absolute z-20 left-0 right-0 mt-1 bg-white border shadow-sm max-h-[160px] overflow-y-auto" style={{ borderColor: '#edeae5', borderRadius: '0 0 var(--radius-sm) var(--radius-sm)' }}>
+                      <div className="absolute z-20 left-0 right-0 mt-1 bg-white border shadow-sm max-h-[160px] overflow-y-auto" style={{ borderColor: 'var(--color-border-light)', borderRadius: '0 0 var(--radius-sm) var(--radius-sm)' }}>
                         {customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).length > 0 ? (
                           <>
                             {customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).slice(0, 6).map(c => (
                               <button key={c.id} type="button" onClick={() => { setCustomerMatch(c); setCustomerQuery(c.display_name || c.name || ''); }}
-                                className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-b flex items-center gap-2" style={{ borderColor: '#f3f4f6', minHeight: '40px' }}>
+                                className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-b flex items-center gap-2" style={{ borderColor: 'var(--color-border-light)', minHeight: '40px' }}>
                                 <span>{c.display_name || c.name}</span>
                                 
                               </button>
                             ))}
                             {onAddCustomerInline && (
                               <button type="button" onClick={async () => { const name = customerQuery.trim(); if (!name) return; const saved = await onAddCustomerInline({ display_name: name }); if (saved?.id) { setCustomerMatch(saved); setCustomerQuery(saved.display_name || saved.name || ''); } }}
-                                className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-t border-dashed" style={{ borderColor: '#16a34a', color: '#16a34a', minHeight: '40px' }}>
+                                className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-t border-dashed" style={{ borderColor: 'var(--color-success)', color: 'var(--color-success)', minHeight: '40px' }}>
                                 + {lang === 'am' ? 'እንደ አዲስ ደንበኛ አክል' : 'Add as new customer'}
                               </button>
                             )}
                           </>
                         ) : (
-                          <div className="px-2.5 py-2.5 text-[11px]" style={{ color: '#9ca3af' }}>
+                          <div className="px-2.5 py-2.5 text-[11px]" style={{ color: 'var(--color-text-soft)' }}>
                             {lang === 'am' ? 'ደንበኛ አልተገኘም' : 'No customer found'}
                           </div>
                         )}
@@ -417,7 +420,7 @@ function TransactionForm({
                   </div>
                   <button type="button" onClick={async () => { const name = customerQuery.trim(); if (!name) return; if (!onAddCustomerInline) return; const saved = await onAddCustomerInline({ display_name: name }); if (saved?.id) { setCustomerMatch(saved); setCustomerQuery(saved.display_name || saved.name || ''); } }}
                     className="flex-shrink-0 px-3 text-[11px] font-bold border press-scale"
-                    style={{ borderColor: '#16a34a', color: '#16a34a', borderRadius: 'var(--radius-sm)', minHeight: '38px', background: 'rgba(22,163,74,0.06)' }}>
+                    style={{ borderColor: 'var(--color-success)', color: 'var(--color-success)', borderRadius: 'var(--radius-sm)', minHeight: '38px', background: 'rgba(22,163,74,0.06)' }}>
                     <span className="text-[14px] mr-1">+</span>{lang === 'am' ? 'አክል' : 'Add'}
                   </button>
                 </div>
@@ -428,7 +431,7 @@ function TransactionForm({
                 <div className="flex flex-wrap gap-1.5">
                   {recentCreditCustomers.map(c => (
                     <button key={c.id} type="button" onClick={() => { setCustomerMatch(c); setCustomerQuery(c.display_name || c.name || ''); }}
-                      className="px-2.5 py-1.5 text-[11px] font-bold border press-scale" style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: '#fff' }}>
+                      className="px-2.5 py-1.5 text-[11px] font-bold border press-scale" style={{ borderColor: 'var(--color-border-light)', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: 'var(--color-surface)' }}>
                       {c.display_name || c.name}
                     </button>
                   ))}
@@ -439,17 +442,17 @@ function TransactionForm({
               {customerMatch && (
                 <div className="flex items-center gap-2 px-2.5 py-2" style={{ background: 'rgba(22,163,74,0.06)', borderRadius: 'var(--radius-sm)', minHeight: '42px' }}>
                   <span className="text-[13px] font-bold flex-1">{customerMatch.display_name || customerMatch.name}</span>
-                  <span className="text-[10px] font-bold" style={{ color: '#6b7280' }}>
+                  <span className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>
                     {lang === 'am' ? 'ዱቤ' : 'BAL'} {fmt(customerMatch.balance || 0)}
                   </span>
-                  <button type="button" onClick={() => { setCustomerMatch(null); setCustomerQuery(''); }} className="text-[12px] font-bold press-scale px-1" style={{ color: '#9ca3af', minHeight: '30px' }}>✕</button>
+                  <button type="button" onClick={() => { setCustomerMatch(null); setCustomerQuery(''); }} className="text-[12px] font-bold press-scale px-1" style={{ color: 'var(--color-text-soft)', minHeight: '30px' }}>✕</button>
                 </div>
               )}
 
               {/* Due date — compact chip row */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-                  {lang === 'am' ? 'መቼ ይከፍላል?' : 'WHEN IS IT DUE?'} <span style={{ color: '#9ca3af', fontWeight: 600 }}>({lang === 'am' ? 'አማራጭ' : 'optional'})</span>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                  {lang === 'am' ? 'መቼ ይከፍላል?' : 'WHEN IS IT DUE?'} <span style={{ color: 'var(--color-text-soft)', fontWeight: 600 }}>({lang === 'am' ? 'አማራጭ' : 'optional'})</span>
                 </label>
                 <div className="flex gap-2 mb-2">
                   {dueDateOptions.map(opt => {
@@ -459,10 +462,10 @@ function TransactionForm({
                         className="press-scale"
                         style={{
                           padding: '8px 12px', minWidth: 70, minHeight: 40,
-                          border: `2px solid ${active ? accentColor : '#e8e2d8'}`,
+                          border: `2px solid ${active ? accentColor : 'var(--color-border)'}`,
                           borderRadius: 8,
-                          background: active ? accentColor : '#fff',
-                          color: active ? '#fff' : '#374151',
+                          background: active ? accentColor : 'var(--color-bg-white)',
+                          color: active ? 'var(--color-bg-white)' : 'var(--color-text)',
                           fontSize: '0.8rem', fontWeight: 700,
                           cursor: 'pointer', flexShrink: 0,
                         }}>
@@ -474,10 +477,10 @@ function TransactionForm({
                     className="press-scale"
                     style={{
                       padding: '8px 12px', minWidth: 70, minHeight: 40,
-                      border: `2px solid ${selectedDue === 'custom' && customDue ? accentColor : '#e8e2d8'}`,
+                      border: `2px solid ${selectedDue === 'custom' && customDue ? accentColor : 'var(--color-border)'}`,
                       borderRadius: 8,
-                      background: selectedDue === 'custom' && customDue ? accentColor : '#fff',
-                      color: selectedDue === 'custom' && customDue ? '#fff' : '#374151',
+                      background: selectedDue === 'custom' && customDue ? accentColor : 'var(--color-bg-white)',
+                      color: selectedDue === 'custom' && customDue ? 'var(--color-bg-white)' : 'var(--color-text)',
                       fontSize: '0.8rem', fontWeight: 700,
                       cursor: 'pointer', flexShrink: 0,
                       display: 'flex', alignItems: 'center', gap: 4,
@@ -496,8 +499,8 @@ function TransactionForm({
             <>
               {/* Amount received */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-                  {lang === 'am' ? 'የተቀበሉት መጠን' : 'Amount Received'} <span style={{ color: '#dc2626' }}>*</span>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                  {lang === 'am' ? 'የተቀበሉት መጠን' : 'Amount Received'} <span style={{ color: 'var(--color-danger)' }}>*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -507,24 +510,24 @@ function TransactionForm({
                     onChange={e => setPartialReceived(e.target.value.replace(/[^\d.]/g, ''))}
                     placeholder="0"
                     className="w-full p-3 pr-16 border-2 focus:outline-none text-base"
-                    style={{ borderRadius: 'var(--radius-md)', borderColor: partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice ? '#1B4332' : '#e8e2d8' }}
+                    style={{ borderRadius: 'var(--radius-md)', borderColor: partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice ? 'var(--color-primary)' : 'var(--color-border)' }}
                   />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-base font-semibold" style={{ color: '#9ca3af' }}>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-base font-semibold" style={{ color: 'var(--color-text-soft)' }}>
                     {lang === 'am' ? 'ብር' : 'birr'}
                   </span>
                 </div>
                 {partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice && (
-                  <p className="text-xs mt-1.5 font-semibold" style={{ color: '#C4883A' }}>
+                  <p className="text-xs mt-1.5 font-semibold" style={{ color: 'var(--color-accent-amber)' }}>
                     {lang === 'am' ? 'ቀሪ ዱቤ' : 'Credit owed'}: {fmt(creditAmount)} {lang === 'am' ? 'ብር' : 'birr'}
                   </p>
                 )}
                 {partialReceivedAmount >= sellingPrice && sellingPrice > 0 && (
-                  <p className="text-xs mt-1.5 font-medium" style={{ color: '#dc2626' }}>
+                  <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--color-danger)' }}>
                     {lang === 'am' ? 'የተቀበሉት ሙሉ ነው — "ሙሉ" ይምረጡ' : 'Amount received is the full sale — use "Paid" instead.'}
                   </p>
                 )}
                 {isPartialSale && partialReceivedAmount > 0 && paymentType !== 'cash' && (
-                  <p className="text-xs mt-1.5 font-semibold" style={{ color: '#065f46' }}>
+                  <p className="text-xs mt-1.5 font-semibold" style={{ color: 'var(--color-success-text)' }}>
                     → {fmt(partialReceivedAmount)} {lang === 'am' ? 'ብር' : 'ETB'} {lang === 'am' ? 'በ' : 'via'} {paymentProvider || paymentType}
                   </p>
                 )}
@@ -532,31 +535,31 @@ function TransactionForm({
 
               {/* Customer search + Add button */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ደንበኛ' : 'CUSTOMER'}</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ደንበኛ' : 'CUSTOMER'}</label>
                 <div className="flex gap-1.5">
                   <div className="relative flex-1">
                     <input type="text" value={customerQuery} onChange={e => { setCustomerQuery(e.target.value); setCustomerMatch(null); }} placeholder={lang === 'am' ? 'ስም ይተይቡ...' : 'Type customer name...'}
-                      className="w-full px-2 py-1.5 text-[11px] border font-bold" style={{ borderColor: customerQuery ? '#16a34a' : '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '38px' }} />
+                      className="w-full px-2 py-1.5 text-[11px] border font-bold" style={{ borderColor: customerQuery ? 'var(--color-success)' : 'var(--color-border-light)', borderRadius: 'var(--radius-sm)', minHeight: '38px' }} />
                     {customerQuery.trim() && !customerMatch && (
-                      <div className="absolute z-20 left-0 right-0 mt-1 bg-white border shadow-sm max-h-[160px] overflow-y-auto" style={{ borderColor: '#edeae5', borderRadius: '0 0 var(--radius-sm) var(--radius-sm)' }}>
+                      <div className="absolute z-20 left-0 right-0 mt-1 bg-white border shadow-sm max-h-[160px] overflow-y-auto" style={{ borderColor: 'var(--color-border-light)', borderRadius: '0 0 var(--radius-sm) var(--radius-sm)' }}>
                         {customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).length > 0 ? (
                           <>
                             {customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).slice(0, 6).map(c => (
                               <button key={c.id} type="button" onClick={() => { setCustomerMatch(c); setCustomerQuery(c.display_name || c.name || ''); }}
-                                className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-b flex items-center gap-2" style={{ borderColor: '#f3f4f6', minHeight: '40px' }}>
+                                className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-b flex items-center gap-2" style={{ borderColor: 'var(--color-border-light)', minHeight: '40px' }}>
                                 <span>{c.display_name || c.name}</span>
                                 
                               </button>
                             ))}
                             {onAddCustomerInline && (
                               <button type="button" onClick={async () => { const name = customerQuery.trim(); if (!name) return; const saved = await onAddCustomerInline({ display_name: name }); if (saved?.id) { setCustomerMatch(saved); setCustomerQuery(saved.display_name || saved.name || ''); } }}
-                                className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-t border-dashed" style={{ borderColor: '#16a34a', color: '#16a34a', minHeight: '40px' }}>
+                                className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-t border-dashed" style={{ borderColor: 'var(--color-success)', color: 'var(--color-success)', minHeight: '40px' }}>
                                 + {lang === 'am' ? 'እንደ አዲስ ደንበኛ አክል' : 'Add as new customer'}
                               </button>
                             )}
                           </>
                         ) : (
-                          <div className="px-2.5 py-2.5 text-[11px]" style={{ color: '#9ca3af' }}>
+                          <div className="px-2.5 py-2.5 text-[11px]" style={{ color: 'var(--color-text-soft)' }}>
                             {lang === 'am' ? 'ደንበኛ አልተገኘም' : 'No customer found'}
                           </div>
                         )}
@@ -565,7 +568,7 @@ function TransactionForm({
                   </div>
                   <button type="button" onClick={async () => { const name = customerQuery.trim(); if (!name) return; if (!onAddCustomerInline) return; const saved = await onAddCustomerInline({ display_name: name }); if (saved?.id) { setCustomerMatch(saved); setCustomerQuery(saved.display_name || saved.name || ''); } }}
                     className="flex-shrink-0 px-3 text-[11px] font-bold border press-scale"
-                    style={{ borderColor: '#16a34a', color: '#16a34a', borderRadius: 'var(--radius-sm)', minHeight: '38px', background: 'rgba(22,163,74,0.06)' }}>
+                    style={{ borderColor: 'var(--color-success)', color: 'var(--color-success)', borderRadius: 'var(--radius-sm)', minHeight: '38px', background: 'rgba(22,163,74,0.06)' }}>
                     <span className="text-[14px] mr-1">+</span>{lang === 'am' ? 'አክል' : 'Add'}
                   </button>
                 </div>
@@ -576,7 +579,7 @@ function TransactionForm({
                 <div className="flex flex-wrap gap-1.5">
                   {recentCreditCustomers.map(c => (
                     <button key={c.id} type="button" onClick={() => { setCustomerMatch(c); setCustomerQuery(c.display_name || c.name || ''); }}
-                      className="px-2.5 py-1.5 text-[11px] font-bold border press-scale" style={{ borderColor: '#edeae5', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: '#fff' }}>
+                      className="px-2.5 py-1.5 text-[11px] font-bold border press-scale" style={{ borderColor: 'var(--color-border-light)', borderRadius: 'var(--radius-sm)', minHeight: '34px', background: 'var(--color-surface)' }}>
                       {c.display_name || c.name}
                     </button>
                   ))}
@@ -587,17 +590,17 @@ function TransactionForm({
               {customerMatch && (
                 <div className="flex items-center gap-2 px-2.5 py-2" style={{ background: 'rgba(22,163,74,0.06)', borderRadius: 'var(--radius-sm)', minHeight: '42px' }}>
                   <span className="text-[13px] font-bold flex-1">{customerMatch.display_name || customerMatch.name}</span>
-                  <span className="text-[10px] font-bold" style={{ color: '#6b7280' }}>
+                  <span className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>
                     {lang === 'am' ? 'ዱቤ' : 'BAL'} {fmt(customerMatch.balance || 0)}
                   </span>
-                  <button type="button" onClick={() => { setCustomerMatch(null); setCustomerQuery(''); }} className="text-[12px] font-bold press-scale px-1" style={{ color: '#9ca3af', minHeight: '30px' }}>✕</button>
+                  <button type="button" onClick={() => { setCustomerMatch(null); setCustomerQuery(''); }} className="text-[12px] font-bold press-scale px-1" style={{ color: 'var(--color-text-soft)', minHeight: '30px' }}>✕</button>
                 </div>
               )}
 
               {/* Due date — compact chip row */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
-                  {lang === 'am' ? 'የቀሪው መክፈያ ቀን' : 'REMAINING DUE DATE'} <span style={{ color: '#9ca3af', fontWeight: 600 }}>({lang === 'am' ? 'አማራጭ' : 'optional'})</span>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
+                  {lang === 'am' ? 'የቀሪው መክፈያ ቀን' : 'REMAINING DUE DATE'} <span style={{ color: 'var(--color-text-soft)', fontWeight: 600 }}>({lang === 'am' ? 'አማራጭ' : 'optional'})</span>
                 </label>
                 <div className="flex gap-2 mb-2">
                   {dueDateOptions.map(opt => {
@@ -607,10 +610,10 @@ function TransactionForm({
                         className="press-scale"
                         style={{
                           padding: '8px 12px', minWidth: 70, minHeight: 40,
-                          border: `2px solid ${active ? accentColor : '#e8e2d8'}`,
+                          border: `2px solid ${active ? accentColor : 'var(--color-border)'}`,
                           borderRadius: 8,
-                          background: active ? accentColor : '#fff',
-                          color: active ? '#fff' : '#374151',
+                          background: active ? accentColor : 'var(--color-bg-white)',
+                          color: active ? 'var(--color-bg-white)' : 'var(--color-text)',
                           fontSize: '0.8rem', fontWeight: 700,
                           cursor: 'pointer', flexShrink: 0,
                         }}>
@@ -622,10 +625,10 @@ function TransactionForm({
                     className="press-scale"
                     style={{
                       padding: '8px 12px', minWidth: 70, minHeight: 40,
-                      border: `2px solid ${selectedDue === 'custom' && customDue ? accentColor : '#e8e2d8'}`,
+                      border: `2px solid ${selectedDue === 'custom' && customDue ? accentColor : 'var(--color-border)'}`,
                       borderRadius: 8,
-                      background: selectedDue === 'custom' && customDue ? accentColor : '#fff',
-                      color: selectedDue === 'custom' && customDue ? '#fff' : '#374151',
+                      background: selectedDue === 'custom' && customDue ? accentColor : 'var(--color-bg-white)',
+                      color: selectedDue === 'custom' && customDue ? 'var(--color-bg-white)' : 'var(--color-text)',
                       fontSize: '0.8rem', fontWeight: 700,
                       cursor: 'pointer', flexShrink: 0,
                       display: 'flex', alignItems: 'center', gap: 4,
@@ -641,14 +644,14 @@ function TransactionForm({
         </div>
 
         {/* Save button */}
-        <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid #e8e2d8', background: '#fff' }}>
-          {!canSave && sellingPrice > 0 && isCreditSale && <p className="text-xs font-semibold text-center mb-2" style={{ color: '#92400e' }}>{lang === 'am' ? 'ከላይ ደንበኛ ይምረጡ ወይም ያክሉ' : 'Add or pick a customer above'}</p>}
+        <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid #e8e2d8', background: 'var(--color-surface)' }}>
+          {!canSave && sellingPrice > 0 && isCreditSale && <p className="text-xs font-semibold text-center mb-2" style={{ color: 'var(--color-warning)' }}>{lang === 'am' ? 'ከላይ ደንበኛ ይምረጡ ወይም ያክሉ' : 'Add or pick a customer above'}</p>}
           <button type="button" onClick={handleSave} disabled={!canSave} className="w-full p-3 font-black text-base flex items-center justify-center gap-2 transition-all press-scale"
-            style={{ background: (justSaved && !canSave) ? '#16a34a' : (canSave ? '#14532d' : '#e5e7eb'), color: ((justSaved && !canSave) || canSave) ? '#fff' : '#9ca3af', cursor: canSave ? 'pointer' : 'default', borderRadius: 'var(--radius-md)' }}>
+            style={{ background: (justSaved && !canSave) ? 'var(--color-success)' : (canSave ? 'var(--color-success-text)' : 'var(--color-bg-disabled)'), color: ((justSaved && !canSave) || canSave) ? 'var(--color-bg-white)' : 'var(--color-text-soft)', cursor: canSave ? 'pointer' : 'default', borderRadius: 'var(--radius-md)' }}>
             {(justSaved && !canSave)
               ? <><Check className="w-5 h-5" />{lang === 'am' ? 'ተቀምጧል' : 'Saved'}</>
               : <><Save className="w-5 h-5" />{saleSaveLabel}</>}</button>
-          <p className="text-[11px] font-semibold text-center mt-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'በዚህ ስልክ ተቀምጧል · በኋላ ይመሳሰላል' : 'Saved on this phone · Syncs later'}</p>
+          <p className="text-[11px] font-semibold text-center mt-1.5" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'በዚህ ስልክ ተቀምጧል · በኋላ ይመሳሰላል' : 'Saved on this phone · Syncs later'}</p>
         </div>
 
         {/* Camera capture modal (was missing from the sale branch) */}
@@ -664,19 +667,19 @@ function TransactionForm({
 
   // ═══════════════════ EXPENSE / CREDIT FORM ══════════════════════
   return (
-    <div className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col" style={{ background: '#ffffff' }}>
+    <div className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col" style={{ background: 'var(--color-surface)' }}>
       {/* Header */}
       <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e8e2d8' }}>
         <button onClick={onDone} aria-label={lang === 'am' ? 'ተመለስ' : 'Back'} className="press-scale flex items-center justify-center" style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}>
-          <ArrowLeft className="w-5 h-5" style={{ color: '#6b7280' }} />
+          <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
         </button>
         <h2 className="text-base font-bold" style={{ color: accentColor }}>{headerLabel}</h2>
         {isExpense ? (
-          <button onClick={resetFormInternal} className="text-xs font-bold press-scale px-2 py-1" style={{ color: '#9ca3af', minWidth: '36px', textAlign: 'right' }}>
+          <button onClick={resetFormInternal} className="text-xs font-bold press-scale px-2 py-1" style={{ color: 'var(--color-text-soft)', minWidth: '36px', textAlign: 'right' }}>
             {lang === 'am' ? 'አጽዳ' : 'Clear'}
           </button>
         ) : actorLabel ? (
-          <span className="text-[11px] font-semibold truncate" style={{ color: '#6b4f1d', maxWidth: '100px', textAlign: 'right' }} title={actorLabel}>{actorLabel}</span>
+          <span className="text-[11px] font-semibold truncate" style={{ color: 'var(--color-warning)', maxWidth: '100px', textAlign: 'right' }} title={actorLabel}>{actorLabel}</span>
         ) : <div style={{ width: '36px' }} />}
       </div>
 
@@ -684,11 +687,11 @@ function TransactionForm({
       <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 pb-2 space-y-4">
         {isCredit && (
           <div>
-            <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>{lang === 'am' ? 'አቅጣጫ' : 'DIRECTION'}</label>
+            <label className="block text-xs font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'አቅጣጫ' : 'DIRECTION'}</label>
             <div className="grid grid-cols-2 gap-2">
               {[{ id: 'owes_me', label: lang === 'am' ? 'ያበደርኩት' : 'They owe me' }, { id: 'i_owe', label: lang === 'am' ? 'የተበደርኩት' : 'I owe them' }].map(d => (
                 <button key={d.id} type="button" onClick={() => setCreditDirection(d.id)} className="p-3 border-2 text-center transition-all min-h-[48px] press-scale text-sm font-bold"
-                  style={{ borderRadius: 'var(--radius-md)', borderColor: creditDirection === d.id ? accentColor : '#e8e2d8', background: creditDirection === d.id ? `${accentColor}10` : '#fff', color: creditDirection === d.id ? accentColor : '#6b7280' }}>{d.label}</button>
+                  style={{ borderRadius: 'var(--radius-md)', borderColor: creditDirection === d.id ? accentColor : 'var(--color-border)', background: creditDirection === d.id ? `${accentColor}10` : 'var(--color-bg-white)', color: creditDirection === d.id ? accentColor : 'var(--color-text-muted)' }}>{d.label}</button>
               ))}
             </div>
           </div>
@@ -697,77 +700,77 @@ function TransactionForm({
         {/* Recurring quick-fill (expense only) */}
         {isExpense && recurringExpenses && recurringExpenses.length > 0 && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ፈጣን ሙላ' : 'QUICK-FILL'}</label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ፈጣን ሙላ' : 'QUICK-FILL'}</label>
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {recurringExpenses.map(re => (
                 <button key={re.id} type="button" onClick={() => { setItem(re.name); setAmount(String(re.amount)); setAmountDisplay(String(re.amount)); }} className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale"
-                  style={{ borderRadius: 'var(--radius-sm)', borderColor: '#e8e2d8', background: '#fff', color: '#1B4332' }}>
-                  <div>{re.name}</div><div className="font-normal text-[10px]" style={{ color: '#C4883A' }}>{fmt(re.amount)} {lang === 'am' ? 'ብር' : 'birr'}</div></button>
+                  style={{ borderRadius: 'var(--radius-sm)', borderColor: 'var(--color-border)', background: 'var(--color-surface)', color: 'var(--color-primary)' }}>
+                  <div>{re.name}</div><div className="font-normal text-[10px]" style={{ color: 'var(--color-accent-amber)' }}>{fmt(re.amount)} {lang === 'am' ? 'ብር' : 'birr'}</div></button>
               ))}
               <button type="button" onClick={() => openAddRecurring('')} className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale flex items-center justify-center"
-                style={{ borderRadius: 'var(--radius-sm)', borderColor: '#c9bfa8', borderStyle: 'dashed', background: '#faf9f7', color: '#9ca3af', minWidth: '40px' }}><Plus className="w-4 h-4" /></button>
+                style={{ borderRadius: 'var(--radius-sm)', borderColor: '#c9bfa8', borderStyle: 'dashed', background: 'var(--color-surface-subtle)', color: 'var(--color-text-soft)', minWidth: '40px' }}><Plus className="w-4 h-4" /></button>
             </div>
-            {addRecurringHint && <p className="text-xs mt-1.5 font-medium" style={{ color: '#C4883A' }}>{lang === 'am' ? 'በቅንብሮች ውስጥ ሌሎች ተደጋጋሚ ወጪዎችን ማከል ይችላሉ' : 'You can add more recurring expenses in Settings'}</p>}
+            {addRecurringHint && <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--color-accent-amber)' }}>{lang === 'am' ? 'በቅንብሮች ውስጥ ሌሎች ተደጋጋሚ ወጪዎችን ማከል ይችላሉ' : 'You can add more recurring expenses in Settings'}</p>}
           </div>
         )}
         {isExpense && (!recurringExpenses || recurringExpenses.length === 0) && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ፈጣን ሙላ' : 'QUICK-FILL (EXAMPLES)'}</label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ፈጣን ሙላ' : 'QUICK-FILL (EXAMPLES)'}</label>
             <div className="flex gap-1.5 overflow-x-auto pb-1">
               {[lang === 'am' ? 'ኪራይ' : 'Rent', lang === 'am' ? 'እቁብ' : 'እቁብ'].map(demoName => (
                 <button key={demoName} type="button" onClick={() => openAddRecurring(demoName)} className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale"
-                  style={{ borderRadius: 'var(--radius-sm)', borderColor: '#c9bfa8', borderStyle: 'dashed', background: '#faf9f7', color: '#9ca3af' }}>{demoName}</button>
+                  style={{ borderRadius: 'var(--radius-sm)', borderColor: '#c9bfa8', borderStyle: 'dashed', background: 'var(--color-surface-subtle)', color: 'var(--color-text-soft)' }}>{demoName}</button>
               ))}
               <button type="button" onClick={() => openAddRecurring('')} className="flex-shrink-0 px-3 py-1.5 border text-xs font-bold press-scale flex items-center justify-center"
-                style={{ borderRadius: 'var(--radius-sm)', borderColor: '#c9bfa8', borderStyle: 'dashed', background: '#faf9f7', color: '#9ca3af', minWidth: '40px' }}><Plus className="w-4 h-4" /></button>
+                style={{ borderRadius: 'var(--radius-sm)', borderColor: '#c9bfa8', borderStyle: 'dashed', background: 'var(--color-surface-subtle)', color: 'var(--color-text-soft)', minWidth: '40px' }}><Plus className="w-4 h-4" /></button>
             </div>
           </div>
         )}
 
         {/* AMOUNT */}
         <div>
-          <label className="block text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#6b7280' }}>{lang === 'am' ? 'መጠን' : 'AMOUNT'}</label>
+          <label className="block text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'መጠን' : 'AMOUNT'}</label>
           <div className="relative">
             <input ref={amountInputRef} type="text" inputMode="decimal" value={fmtInput(amountDisplay || amount)}
               onChange={e => { let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, ''); const parts = raw.split('.'); if (parts.length > 2) raw = parts[0] + '.' + parts.slice(1).join(''); setAmountDisplay(raw); setAmount(raw); }}
               placeholder="0"
               className="w-full py-3 pr-20 text-3xl sm:text-4xl font-bold text-center focus:outline-none"
-              style={{ borderBottom: `2px solid ${amountDisplay ? accentColor : '#e8e2d8'}`, background: 'transparent', color: amountDisplay ? accentColor : '#9ca3af' }} />
-            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-base sm:text-lg font-semibold" style={{ color: '#9ca3af' }}>{lang === 'am' ? 'ብር' : 'birr'}</span>
+              style={{ borderBottom: `2px solid ${amountDisplay ? accentColor : 'var(--color-border)'}`, background: 'transparent', color: amountDisplay ? accentColor : 'var(--color-text-soft)' }} />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-base sm:text-lg font-semibold" style={{ color: 'var(--color-text-soft)' }}>{lang === 'am' ? 'ብር' : 'birr'}</span>
           </div>
 
         </div>
 
         {/* ITEM / NAME + photo button */}
         <div>
-          <label className="block text-[10px] font-bold tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{itemLabel}</label>
+          <label className="block text-[10px] font-bold tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>{itemLabel}</label>
           <div className="flex gap-2 items-stretch">
             <input type="text" value={item} onChange={e => setItem(e.target.value)} placeholder={itemPlaceholder}
-              className="flex-1 min-w-0 p-3 border-2 focus:outline-none text-base" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
+              className="flex-1 min-w-0 p-3 border-2 focus:outline-none text-base" style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)' }} />
             {!isCredit && (
               <button type="button" onClick={() => setShowCamera(true)}
                 aria-label={lang === 'am' ? 'ፎቶ አክል' : 'Take or choose photo'}
                 className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
-                style={{ width: '56px', border: '2px solid #e8e2d8', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? '#f0fdf4' : '#fafaf6', position: 'relative' }}>
-                {photoLoading ? <span className="text-sm">...</span> : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? '#16a34a' : '#6b7280' }} />}
-                <span aria-hidden="true" style={{ position: 'absolute', top: -7, right: -7, minWidth: 24, height: 20, padding: '0 5px', borderRadius: 999, background: '#16a34a', color: '#fff', border: '2px solid #fff', fontSize: 10, fontWeight: 900, lineHeight: '16px', textAlign: 'center' }}>+</span>
+                style={{ width: '56px', border: '2px solid #e8e2d8', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? 'var(--color-success-bg)' : '#fafaf6', position: 'relative' }}>
+                {photoLoading ? <span className="text-sm">...</span> : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-text-muted)' }} />}
+                <span aria-hidden="true" style={{ position: 'absolute', top: -7, right: -7, minWidth: 24, height: 20, padding: '0 5px', borderRadius: 999, background: 'var(--color-success)', color: 'var(--color-bg-white)', border: '2px solid #fff', fontSize: 10, fontWeight: 900, lineHeight: '16px', textAlign: 'center' }}>+</span>
               </button>
             )}
           </div>
           {photos.length > 0 && (
             <div className="mt-2 p-2" style={{ background: '#fafaf6', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold" style={{ color: '#1a1a1a' }}>{lang === 'am' ? 'ፎቶ' : 'Proof photos'}</p>
-                <p className="text-[10px] font-bold" style={{ color: '#6b7280' }}>{photoCountLabel(photos.length, lang)}</p>
+                <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ፎቶ' : 'Proof photos'}</p>
+                <p className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>{photoCountLabel(photos.length, lang)}</p>
               </div>
               <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
                 {photos.map((entry, index) => (
                   <div key={entry.id} className="relative flex-shrink-0">
                     <img src={entry.dataUrl} alt="" className="w-14 h-14 object-cover" style={{ borderRadius: 6 }} />
                     <button type="button" onClick={() => handleRemovePhoto(entry.id)} className="press-scale flex items-center justify-center"
-                      style={{ position: 'absolute', top: -6, right: -6, minWidth: 28, minHeight: 28, borderRadius: 999, border: '1px solid #e8e2d8', background: '#fff' }}>
-                      <X className="w-3.5 h-3.5" style={{ color: '#6b7280' }} /></button>
-                    <p className="text-[10px] text-center mt-1" style={{ color: '#9ca3af' }}>{Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB</p>
+                      style={{ position: 'absolute', top: -6, right: -6, minWidth: 28, minHeight: 28, borderRadius: 999, border: '1px solid #e8e2d8', background: 'var(--color-surface)' }}>
+                      <X className="w-3.5 h-3.5" style={{ color: 'var(--color-text-muted)' }} /></button>
+                    <p className="text-[10px] text-center mt-1" style={{ color: 'var(--color-text-soft)' }}>{Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB</p>
                   </div>
                 ))}
               </div>
@@ -778,7 +781,7 @@ function TransactionForm({
         {/* Payment chips (expense only) — lets us track which account we paid from */}
         {isExpense && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
               {lang === 'am' ? 'የክፍያ ዘዴ' : 'Payment Method'}
             </label>
             <div className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar">
@@ -797,23 +800,23 @@ function TransactionForm({
         {/* Customer */}
         {(isCredit || isCreditSale) && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ደንበኛ' : 'CUSTOMER'}</label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ደንበኛ' : 'CUSTOMER'}</label>
             <div className="relative">
               <input type="text" value={customerQuery} onChange={e => { setCustomerQuery(e.target.value); setCustomerMatch(null); }} placeholder={lang === 'am' ? 'ስም ይተይቡ...' : 'Type customer name...'}
-                className="w-full p-3 border-2 focus:outline-none text-base" style={{ borderRadius: 'var(--radius-md)', borderColor: customerQuery ? '#86efac' : '#e8e2d8' }} />
+                className="w-full p-3 border-2 focus:outline-none text-base" style={{ borderRadius: 'var(--radius-md)', borderColor: customerQuery ? '#86efac' : 'var(--color-border)' }} />
               {customerQuery.trim() && (
-                <div className="absolute z-20 left-0 right-0 mt-1 bg-white border shadow-lg" style={{ borderColor: '#e8e2d8', borderRadius: 'var(--radius-md)', maxHeight: '160px', overflowY: 'auto' }}>
+                <div className="absolute z-20 left-0 right-0 mt-1 bg-white border shadow-lg" style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', maxHeight: '160px', overflowY: 'auto' }}>
                   {customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).slice(0, 6).map(c => (
                     <button key={c.id} type="button" onClick={() => { setCustomerMatch(c); setCustomerQuery(c.display_name || c.name || ''); }}
-                      className="w-full px-3 py-2.5 text-left border-b press-scale flex items-center justify-between gap-2" style={{ borderColor: '#f3f4f6', background: '#fff' }}>
-                      <span className="text-sm font-semibold truncate" style={{ color: '#111827' }}>{c.display_name || c.name}</span>
-                      {c.balance > 0 && <span className="text-xs font-bold flex-shrink-0" style={{ color: '#C4883A' }}>{fmt(c.balance)} {lang === 'am' ? 'ብር' : 'ETB'}</span>}
+                      className="w-full px-3 py-2.5 text-left border-b press-scale flex items-center justify-between gap-2" style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface)' }}>
+                      <span className="text-sm font-semibold truncate" style={{ color: 'var(--color-text)' }}>{c.display_name || c.name}</span>
+                      {c.balance > 0 && <span className="text-xs font-bold flex-shrink-0" style={{ color: 'var(--color-accent-amber)' }}>{fmt(c.balance)} {lang === 'am' ? 'ብር' : 'ETB'}</span>}
                     </button>
                   ))}
                   {onAddCustomerInline && customers.filter(c => { const q = customerQuery.trim().toLowerCase(); return !q || (c.display_name || c.name || '').toLowerCase().includes(q); }).length === 0 && (
                     <button type="button" onClick={async () => { const name = customerQuery.trim(); if (!name) return; const saved = await onAddCustomerInline({ display_name: name }); if (saved?.id) { setCustomerMatch(saved); setCustomerQuery(saved.display_name || saved.name || ''); } }}
-                      className="w-full px-3 py-2.5 text-left text-sm font-bold press-scale flex items-center gap-2" style={{ background: '#f7fcf8', color: '#14532d' }}>
-                      <Plus className="w-4 h-4" /> {lang === 'am' ? 'አዲስ ደንበኛ ይመልከቱ' : 'Add new customer'}: <span className="truncate" style={{ color: '#1B4332' }}>{customerQuery.trim()}</span>
+                      className="w-full px-3 py-2.5 text-left text-sm font-bold press-scale flex items-center gap-2" style={{ background: '#f7fcf8', color: 'var(--color-success-text)' }}>
+                      <Plus className="w-4 h-4" /> {lang === 'am' ? 'አዲስ ደንበኛ ይመልከቱ' : 'Add new customer'}: <span className="truncate" style={{ color: 'var(--color-primary)' }}>{customerQuery.trim()}</span>
                     </button>
                   )}
                 </div>
@@ -825,14 +828,14 @@ function TransactionForm({
         {/* Phone */}
         {(isCredit || isCreditSale) && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ስልክ (አማራጭ)' : 'PHONE (OPTIONAL)'}</label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ስልክ (አማራጭ)' : 'PHONE (OPTIONAL)'}</label>
             <div className="flex gap-0">
               <div className="flex items-center justify-center px-3 py-3 border-2 border-r-0 text-sm font-bold flex-shrink-0"
-                style={{ background: 'rgba(27,67,50,0.06)', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : '#e8e2d8', color: '#1B4332', minWidth: '60px', borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)' }}>+251</div>
+                style={{ background: 'rgba(27,67,50,0.06)', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? 'var(--color-danger)' : 'var(--color-border)', color: 'var(--color-primary)', minWidth: '60px', borderRadius: 'var(--radius-sm) 0 0 var(--radius-sm)' }}>+251</div>
               <input type="tel" inputMode="numeric" value={phoneDigits} onChange={e => { const raw = e.target.value.replace(/\D/g, ''); if (raw.length <= 9) setPhoneDigits(raw); }}
                 onBlur={() => setPhoneTouched(true)}
                 placeholder="9XXXXXXXX" maxLength={9} className="flex-1 p-3 border-2 text-base focus:outline-none"
-                style={{ borderRadius: '0 var(--radius-sm) var(--radius-sm) 0', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? '#dc2626' : (phoneEntered && phoneValid ? '#1B4332' : '#e8e2d8') }} />
+                style={{ borderRadius: '0 var(--radius-sm) var(--radius-sm) 0', borderColor: (phoneTouched && phoneEntered && !phoneValid) ? 'var(--color-danger)' : (phoneEntered && phoneValid ? 'var(--color-primary)' : 'var(--color-border)') }} />
             </div>
           </div>
         )}
@@ -840,7 +843,7 @@ function TransactionForm({
         {/* Due date */}
         {(isCredit || isCreditSale) && (
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{lang === 'am' ? 'መቼ ይከፍላል?' : 'WHEN IS IT DUE?'} <span style={{ color: '#dc2626' }}>*</span></label>
+            <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'መቼ ይከፍላል?' : 'WHEN IS IT DUE?'} <span style={{ color: 'var(--color-danger)' }}>*</span></label>
             <div className="flex gap-2 mb-2">
               {dueDateOptions.map(opt => {
                 const active = selectedDue === opt.value;
@@ -848,10 +851,10 @@ function TransactionForm({
                   <button key={opt.value} type="button" onClick={() => setSelectedDue(opt.value)} className="press-scale"
                     style={{
                       padding: '8px 12px', minWidth: 70, minHeight: 40,
-                      border: `2px solid ${active ? accentColor : '#e8e2d8'}`,
+                      border: `2px solid ${active ? accentColor : 'var(--color-border)'}`,
                       borderRadius: 8,
-                      background: active ? accentColor : '#fff',
-                      color: active ? '#fff' : '#374151',
+                      background: active ? accentColor : 'var(--color-bg-white)',
+                      color: active ? 'var(--color-bg-white)' : 'var(--color-text)',
                       fontSize: '0.8rem', fontWeight: 700,
                       cursor: 'pointer', flexShrink: 0,
                     }}>
@@ -862,10 +865,10 @@ function TransactionForm({
               <button type="button" onClick={() => { setSelectedDue('custom'); setShowDatePicker(true); }} className="press-scale"
                 style={{
                   padding: '8px 12px', minWidth: 70, minHeight: 40,
-                  border: `2px solid ${selectedDue === 'custom' ? accentColor : '#e8e2d8'}`,
+                  border: `2px solid ${selectedDue === 'custom' ? accentColor : 'var(--color-border)'}`,
                   borderRadius: 8,
-                  background: selectedDue === 'custom' ? accentColor : '#fff',
-                  color: selectedDue === 'custom' ? '#fff' : '#374151',
+                  background: selectedDue === 'custom' ? accentColor : 'var(--color-bg-white)',
+                  color: selectedDue === 'custom' ? 'var(--color-bg-white)' : 'var(--color-text)',
                   fontSize: '0.8rem', fontWeight: 700,
                   cursor: 'pointer', flexShrink: 0,
                   display: 'flex', alignItems: 'center', gap: 4,
@@ -873,7 +876,7 @@ function TransactionForm({
                 📅 <span>{lang === 'am' ? 'ምረጥ' : 'Pick'}</span>
               </button>
             </div>
-            {!hasDueDate && <p className="text-xs mt-1.5 font-medium" style={{ color: '#C4883A' }}>{lang === 'am' ? 'የመክፍያ ቀን ይምረጡ' : 'Please select a due date'}</p>}
+            {!hasDueDate && <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--color-accent-amber)' }}>{lang === 'am' ? 'የመክፍያ ቀን ይምረጡ' : 'Please select a due date'}</p>}
           </div>
         )}
 
@@ -890,10 +893,10 @@ function TransactionForm({
           else if (isCredit && !hasDueDate) blocker = lang === 'am' ? '↑ የመክፈያ ቀን ይምረጡ' : '↑ Pick due date';
           else if (phoneEntered && !phoneValid) blocker = lang === 'am' ? '↑ ስልክ ስህተት' : '↑ Phone format invalid';
           if (!blocker) return null;
-          return <p style={{ fontSize: '0.78rem', color: '#92400e', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 10px', marginBottom: 8, fontWeight: 600, textAlign: 'center' }}>{blocker}</p>;
+          return <p style={{ fontSize: '0.78rem', color: 'var(--color-warning)', background: 'var(--color-warning-bg)', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 10px', marginBottom: 8, fontWeight: 600, textAlign: 'center' }}>{blocker}</p>;
         })()}
         <button onClick={handleSave} disabled={!canSave} className="w-full p-3 font-bold text-white text-base flex items-center justify-center gap-2 transition-all press-scale"
-          style={{ background: (justSaved && !canSave) ? '#16a34a' : (canSave ? accentColor : '#e5e7eb'), color: ((justSaved && !canSave) || canSave) ? '#fff' : '#9ca3af', cursor: canSave ? 'pointer' : 'default', borderRadius: 'var(--radius-md)' }}>
+          style={{ background: (justSaved && !canSave) ? 'var(--color-success)' : (canSave ? accentColor : 'var(--color-bg-disabled)'), color: ((justSaved && !canSave) || canSave) ? 'var(--color-bg-white)' : 'var(--color-text-soft)', cursor: canSave ? 'pointer' : 'default', borderRadius: 'var(--radius-md)' }}>
           {(justSaved && !canSave)
             ? <><Check className="w-5 h-5" />{lang === 'am' ? 'ተቀምጧል' : 'Saved'}</>
             : <><Save className="w-5 h-5" />{saveButtonText}</>}</button>
@@ -904,36 +907,36 @@ function TransactionForm({
         <div className="fixed inset-0 flex items-end sm:items-center justify-center" style={{ zIndex: 60, background: 'rgba(0,0,0,0.4)' }}>
           <div className="bg-white w-full max-w-md p-5 sm:p-6" style={{ borderRadius: 'var(--radius-xl) var(--radius-xl) 0 0' }}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-bold" style={{ color: '#1a1a1a' }}>{lang === 'am' ? 'ተደጋጋሚ ወጪ አክል' : 'Add recurring expense'}</h3>
-              <button onClick={() => setShowAddRecurring(false)} className="press-scale flex items-center justify-center" style={{ minWidth: '36px', minHeight: '36px' }}><X className="w-4 h-4" style={{ color: '#6b7280' }} /></button>
+              <h3 className="text-base font-bold" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ተደጋጋሚ ወጪ አክል' : 'Add recurring expense'}</h3>
+              <button onClick={() => setShowAddRecurring(false)} className="press-scale flex items-center justify-center" style={{ minWidth: '36px', minHeight: '36px' }}><X className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} /></button>
             </div>
-            <p className="text-xs mb-4" style={{ color: '#6b7280' }}>{lang === 'am' ? 'ይህን ወጪ ለሚቀጥሉ ጊዜያት አስቀምጥ' : 'Save this as a recurring expense to reuse it anytime'}</p>
+            <p className="text-xs mb-4" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ይህን ወጪ ለሚቀጥሉ ጊዜያት አስቀምጥ' : 'Save this as a recurring expense to reuse it anytime'}</p>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>{lang === 'am' ? 'ምን ላይ ወጪ?' : 'What did you spend on?'}</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ምን ላይ ወጪ?' : 'What did you spend on?'}</label>
                 <input type="text" value={popupName} onChange={e => setPopupName(e.target.value)} placeholder={lang === 'am' ? 'ዝርዝሩን ይመዝቡ...' : 'Add details...'}
-                  className="w-full p-2.5 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
+                  className="w-full p-2.5 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)' }} />
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>{lang === 'am' ? 'ጠቅላላ ስንት?' : 'How much total?'}</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ጠቅላላ ስንት?' : 'How much total?'}</label>
                 <div className="relative">
                   <input type="text" inputMode="decimal" value={fmtInput(popupAmount)} onChange={e => handleNumericInput(e, setPopupAmount)} placeholder="0"
-                    className="w-full p-2.5 pr-12 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: '#e8e2d8' }} />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: '#9ca3af' }}>{lang === 'am' ? 'ብር' : 'birr'}</span>
+                    className="w-full p-2.5 pr-12 border-2 focus:outline-none text-sm" style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)' }} />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm" style={{ color: 'var(--color-text-soft)' }}>{lang === 'am' ? 'ብር' : 'birr'}</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1" style={{ color: '#374151' }}>{lang === 'am' ? 'ድግግሞሽ' : 'Frequency'}</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ድግግሞሽ' : 'Frequency'}</label>
                 <div className="flex gap-2">
                   {[{ id: 'daily', label: lang === 'am' ? 'ዕለታዊ' : 'Daily' }, { id: 'weekly', label: lang === 'am' ? 'ሳምንታዊ' : 'Weekly' }, { id: 'monthly', label: lang === 'am' ? 'ወርሃዊ' : 'Monthly' }].map(f => (
                     <button key={f.id} type="button" onClick={() => setPopupFreq(f.id)} className="flex-1 py-2 text-xs font-bold border-2 press-scale"
-                      style={{ borderRadius: 'var(--radius-sm)', borderColor: popupFreq === f.id ? '#dc2626' : '#e8e2d8', background: popupFreq === f.id ? 'rgba(220,38,38,0.08)' : '#fff', color: popupFreq === f.id ? '#dc2626' : '#6b7280' }}>{f.label}</button>
+                      style={{ borderRadius: 'var(--radius-sm)', borderColor: popupFreq === f.id ? 'var(--color-danger)' : 'var(--color-border)', background: popupFreq === f.id ? 'rgba(220,38,38,0.08)' : 'var(--color-bg-white)', color: popupFreq === f.id ? 'var(--color-danger)' : 'var(--color-text-muted)' }}>{f.label}</button>
                   ))}
                 </div>
               </div>
             </div>
             <button onClick={handleAddAndUse} disabled={!popupName.trim() || !parseFloat(parseInput(popupAmount))} className="w-full mt-4 p-3 font-bold text-base flex items-center justify-center gap-2 press-scale"
-              style={{ borderRadius: 'var(--radius-md)', background: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#dc2626' : '#e5e7eb', color: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? '#fff' : '#9ca3af' }}>
+              style={{ borderRadius: 'var(--radius-md)', background: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? 'var(--color-danger)' : 'var(--color-bg-disabled)', color: (popupName.trim() && parseFloat(parseInput(popupAmount))) ? 'var(--color-bg-white)' : 'var(--color-text-soft)' }}>
               <Plus className="w-5 h-5" />{lang === 'am' ? 'አስቀምጥ እና ተጠቀም' : 'Add & Use'}</button>
           </div>
         </div>
