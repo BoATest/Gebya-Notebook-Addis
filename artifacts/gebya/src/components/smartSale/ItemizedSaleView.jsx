@@ -602,6 +602,11 @@ export default function ItemizedSaleView({
                 {lang === 'am' ? 'የተቀበሉት ሙሉ ነው — "ጥሬ" ይምረጡ' : 'Amount received is the full sale — use Cash instead.'}
               </p>
             )}
+            {isPartial && partialReceivedAmount > 0 && paymentType !== 'cash' && paymentProvider && (
+              <p className="text-xs mt-1.5 font-semibold" style={{ color: '#065f46' }}>
+                → {fmt(partialReceivedAmount)} {lang === 'am' ? 'ብር' : 'ETB'} {lang === 'am' ? 'በ' : 'via'} {paymentProvider}
+              </p>
+            )}
           </div>
         )}
 
