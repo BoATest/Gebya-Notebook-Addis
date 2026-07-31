@@ -216,9 +216,10 @@ export default function ItemizedSaleView({
 
   // --- Save ---
   const isCredit = paymentType === 'credit';
-  const isPartial = paymentType === 'partial';
+  const isPartial = paymentType === 'partial' || hasPartialAmount;
   const grandTotal = Math.max(0, totalAmount - discount);
-  const partialReceivedAmount = isPartial ? parseFloat(parseInput(partialReceived)) || 0 : 0;
+  const partialReceivedAmount = parseFloat(parseInput(partialReceived)) || 0;
+  const hasPartialAmount = partialReceivedAmount > 0 && partialReceivedAmount < grandTotal;
   const remainingAmount = isPartial ? Math.max(0, grandTotal - partialReceivedAmount) : 0;
   const canSave = filledRows.length > 0 && totalAmount > 0 && !isSaving && (
     (!isCredit && !isPartial) ||
@@ -254,7 +255,7 @@ export default function ItemizedSaleView({
         ...photoFields,
         items,
         settlement_mode: isCredit ? 'credit' : (isPartial ? 'partial' : 'paid'),
-        cash_received: isCredit ? 0 : (isPartial ? partialReceivedAmount : (paymentType === 'cash' ? grandTotal : 0)),
+        cash_received: isCredit ? 0 : (isPartial ? (paymentType === 'cash' ? partialReceivedAmount : 0) : (paymentType === 'cash' ? grandTotal : 0)),
         credit_amount: isPartial ? remainingAmount : (isCredit ? grandTotal : 0),
         sale_settlement_mode: isCredit ? 'credit' : (isPartial ? 'partial' : 'paid'),
         paid_amount: isCredit ? 0 : (isPartial ? partialReceivedAmount : grandTotal),
@@ -1008,3 +1009,4 @@ export default function ItemizedSaleView({
     </div>
   );
 }
+

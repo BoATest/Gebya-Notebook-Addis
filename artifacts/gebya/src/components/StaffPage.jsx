@@ -278,6 +278,8 @@ export default function StaffPage({
       {canManageTeam && (
         <StaffAllMembers
           staffMembers={staffMembers}
+          combinedStaffList={combinedStaffList}
+          filteredMembers={filteredMembers}
           canManageTeam={canManageTeam}
           onSaveStaffMember={onSaveStaffMember}
           onUpdateStaffMember={onUpdateStaffMember}

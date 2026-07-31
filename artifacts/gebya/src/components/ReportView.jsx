@@ -206,6 +206,10 @@ export default function ReportView({
     URL.revokeObjectURL(url);
   }, [reportRows]);
 
+  const handleClose = useCallback(({ cashInHand, cashVariance }) => {
+    setClosingState(prev => ({ ...prev, done: true, cashInHand, cashVariance }));
+  }, []);
+
   const handleAction = useCallback((actionType) => {
     if (actionType === 'count_cash') {
       const el = document.getElementById('today-business');
@@ -221,10 +225,6 @@ export default function ReportView({
       document.getElementById('today-business')?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [metrics, handleClose]);
-
-  const handleClose = useCallback(({ cashInHand, cashVariance }) => {
-    setClosingState(prev => ({ ...prev, done: true, cashInHand, cashVariance }));
-  }, []);
 
   const timeRangeLabel = isToday
     ? (lang === 'am' ? 'ዛሬ' : 'Today')

@@ -234,7 +234,7 @@ function TransactionForm({
       settlement_due_date: (isCreditSale || isPartialSale) ? getEffectiveDueDate() : null,
       credit_amount: isPartialSale ? creditAmount : (isCreditSale ? sellingPrice : 0),
       settlement_mode: isCreditSale ? 'credit' : (isPartialSale ? 'partial' : 'paid'),
-      cash_received: isCreditSale ? 0 : (isPartialSale ? partialReceivedAmount : sellingPrice),
+      cash_received: isCreditSale ? 0 : (isPartialSale ? (paymentType === 'cash' ? partialReceivedAmount : 0) : (paymentType === 'cash' ? sellingPrice : 0)),
       entered_total: type === 'sale' && sellingPrice > 0 ? sellingPrice : null,
       items_subtotal: null,
       amount_basis: null,
