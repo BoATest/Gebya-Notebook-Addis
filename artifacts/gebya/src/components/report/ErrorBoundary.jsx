@@ -21,7 +21,7 @@ export default class ErrorBoundary extends Component {
       return (
         <div style={{
           background: 'var(--color-danger-bg)',
-          border: '1px solid #fecaca',
+          border: '1px solid var(--color-danger-border)',
           borderRadius: 12,
           padding: 16,
           marginBottom: 12,
@@ -36,7 +36,7 @@ export default class ErrorBoundary extends Component {
               marginTop: 8,
               padding: '6px 12px',
               borderRadius: 6,
-              border: '1px solid #dc2626',
+              border: '1px solid var(--color-danger)',
               background: 'var(--color-surface)',
               color: 'var(--color-danger)',
               fontSize: 11,

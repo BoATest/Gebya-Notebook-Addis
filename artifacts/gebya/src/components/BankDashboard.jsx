@@ -102,7 +102,7 @@ function BankLoginForm({ onLogin }) {
     <div style={{ maxWidth: 360, margin: '80px auto', padding: '0 20px' }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <div style={{
-          width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, #1B4332 0%, #2D6A4F 100%)',
+          width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px',
           fontSize: '1.4rem', color: 'var(--color-bg-white)', fontWeight: 900,
         }}>
@@ -133,7 +133,7 @@ function BankLoginForm({ onLogin }) {
           onChange={(e) => setPhone(e.target.value)}
           disabled={otpSent}
           style={{
-            padding: '12px 16px', borderRadius: 10, border: '1px solid #d1d5db',
+            padding: '12px 16px', borderRadius: 10, border: '1px solid var(--color-text-soft)',
             fontSize: '0.85rem', background: otpSent ? 'var(--color-bg-active)' : 'var(--color-bg-white)',
           }}
         />
@@ -146,7 +146,7 @@ function BankLoginForm({ onLogin }) {
             onChange={(e) => setOtp(e.target.value)}
             maxLength={6}
             style={{
-              padding: '12px 16px', borderRadius: 10, border: '1px solid #d1d5db',
+              padding: '12px 16px', borderRadius: 10, border: '1px solid var(--color-text-soft)',
               fontSize: '0.85rem', letterSpacing: 4, textAlign: 'center',
             }}
           />
@@ -200,7 +200,7 @@ function ShopList({ onSelect }) {
           onClick={() => onSelect(shop.businessId)}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '14px 16px', borderRadius: 12, border: '1px solid #e5e7eb',
+            padding: '14px 16px', borderRadius: 12, border: '1px solid var(--color-bg-disabled)',
             background: 'var(--color-surface)', cursor: 'pointer', textAlign: 'left',
           }}
         >
@@ -263,7 +263,7 @@ function ShopReport({ businessId, onBack }) {
         <button
           onClick={() => exportReportCsv(report)}
           style={{
-            padding: '6px 12px', borderRadius: 8, border: '1px solid #d1d5db',
+            padding: '6px 12px', borderRadius: 8, border: '1px solid var(--color-text-soft)',
             background: 'var(--color-surface)', fontSize: '0.75rem', color: 'var(--color-text)', cursor: 'pointer',
           }}
         >
@@ -280,7 +280,7 @@ function ShopReport({ businessId, onBack }) {
           { label: 'Customers with Credit', value: s.total_customers_with_credit, color: '#7c3aed' },
         ].map((kpi) => (
           <div key={kpi.label} style={{
-            padding: '14px', borderRadius: 12, background: 'var(--color-bg-active)', border: '1px solid #e5e7eb',
+            padding: '14px', borderRadius: 12, background: 'var(--color-bg-active)', border: '1px solid var(--color-bg-disabled)',
           }}>
             <p style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', marginBottom: 4 }}>{kpi.label}</p>
             <p style={{ fontSize: '1rem', fontWeight: 800, color: kpi.color }}>{kpi.value}</p>
@@ -316,7 +316,7 @@ function ShopReport({ businessId, onBack }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {report.customer_summaries.map((c) => (
               <div key={c.customer_id} style={{
-                padding: '12px', borderRadius: 10, border: '1px solid #e5e7eb',
+                padding: '12px', borderRadius: 10, border: '1px solid var(--color-bg-disabled)',
                 fontSize: '0.75rem',
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -376,11 +376,11 @@ export default function BankDashboard() {
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 20px', background: 'var(--color-surface)', borderBottom: '1px solid #e5e7eb',
+        padding: '16px 20px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-bg-disabled)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #1B4332 0%, #2D6A4F 100%)',
+            width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '0.7rem', color: 'var(--color-bg-white)', fontWeight: 900,
           }}>

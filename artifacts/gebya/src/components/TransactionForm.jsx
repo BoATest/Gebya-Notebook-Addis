@@ -301,7 +301,7 @@ function TransactionForm({
     return (
       <div className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col" style={{ background: 'var(--color-surface)' }}>
         {/* Header */}
-        <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e8e2d8' }}>
+        <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)' }}>
           <button onClick={onDone} aria-label={lang === 'am' ? 'ተመለስ' : 'Back'} className="press-scale flex items-center justify-center" style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}>
             <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
           </button>
@@ -336,7 +336,7 @@ function TransactionForm({
             <div className="flex gap-2 items-stretch">
               <button type="button" onClick={() => setShowCamera(true)}
                 className="press-scale flex items-center justify-center flex-shrink-0"
-                style={{ width: 48, minHeight: 48, border: '2px solid #d7e3da', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? 'var(--color-success-bg)' : 'var(--color-surface-subtle)' }}
+                style={{ width: 48, minHeight: 48, border: '2px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? 'var(--color-success-bg)' : 'var(--color-surface-subtle)' }}
                 aria-label={lang === 'am' ? 'ፎቶ አክል' : 'Take or choose photo'}>
                 {photoLoading ? <span className="text-xs">...</span> : <Camera className="w-5 h-5" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-text-muted)' }} />}
               </button>
@@ -346,7 +346,7 @@ function TransactionForm({
                 style={{ borderRadius: 'var(--radius-md)', borderColor: item ? 'var(--color-success-border)' : 'var(--color-border)' }} />
             </div>
             {photos.length > 0 && (
-              <div className="p-2" style={{ background: 'var(--color-surface-subtle)', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
+              <div className="p-2" style={{ background: 'var(--color-surface-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }}>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ፎቶ' : 'Proof photos'}</p>
                   <p className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>{photoCountLabel(photos.length, lang)}</p>
@@ -356,7 +356,7 @@ function TransactionForm({
                     <div key={entry.id} className="relative flex-shrink-0">
                       <img src={entry.dataUrl} alt="" className="w-14 h-14 object-cover" style={{ borderRadius: 6 }} />
                       <button type="button" onClick={() => handleRemovePhoto(entry.id)} className="press-scale flex items-center justify-center"
-                        style={{ position: 'absolute', top: -6, right: -6, minWidth: 28, minHeight: 28, borderRadius: 999, border: '1px solid #e8e2d8', background: 'var(--color-surface)' }}>
+                        style={{ position: 'absolute', top: -6, right: -6, minWidth: 28, minHeight: 28, borderRadius: 999, border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
                         <X className="w-3.5 h-3.5" style={{ color: 'var(--color-text-muted)' }} /></button>
                       <p className="text-[10px] text-center mt-1" style={{ color: 'var(--color-text-soft)' }}>{Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB</p>
                     </div>
@@ -644,7 +644,7 @@ function TransactionForm({
         </div>
 
         {/* Save button */}
-        <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid #e8e2d8', background: 'var(--color-surface)' }}>
+        <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
           {!canSave && sellingPrice > 0 && isCreditSale && <p className="text-xs font-semibold text-center mb-2" style={{ color: 'var(--color-warning)' }}>{lang === 'am' ? 'ከላይ ደንበኛ ይምረጡ ወይም ያክሉ' : 'Add or pick a customer above'}</p>}
           <button type="button" onClick={handleSave} disabled={!canSave} className="w-full p-3 font-black text-base flex items-center justify-center gap-2 transition-all press-scale"
             style={{ background: (justSaved && !canSave) ? 'var(--color-success)' : (canSave ? 'var(--color-success-text)' : 'var(--color-bg-disabled)'), color: ((justSaved && !canSave) || canSave) ? 'var(--color-bg-white)' : 'var(--color-text-soft)', cursor: canSave ? 'pointer' : 'default', borderRadius: 'var(--radius-md)' }}>
@@ -669,7 +669,7 @@ function TransactionForm({
   return (
     <div className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col" style={{ background: 'var(--color-surface)' }}>
       {/* Header */}
-      <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e8e2d8' }}>
+      <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)' }}>
         <button onClick={onDone} aria-label={lang === 'am' ? 'ተመለስ' : 'Back'} className="press-scale flex items-center justify-center" style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}>
           <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
         </button>
@@ -751,14 +751,14 @@ function TransactionForm({
               <button type="button" onClick={() => setShowCamera(true)}
                 aria-label={lang === 'am' ? 'ፎቶ አክል' : 'Take or choose photo'}
                 className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
-                style={{ width: '56px', border: '2px solid #e8e2d8', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? 'var(--color-success-bg)' : 'var(--color-surface-subtle)', position: 'relative' }}>
+                style={{ width: '56px', border: '2px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: photos.length > 0 ? 'var(--color-success-bg)' : 'var(--color-surface-subtle)', position: 'relative' }}>
                 {photoLoading ? <span className="text-sm">...</span> : <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-text-muted)' }} />}
                 <span aria-hidden="true" style={{ position: 'absolute', top: -7, right: -7, minWidth: 24, height: 20, padding: '0 5px', borderRadius: 999, background: 'var(--color-success)', color: 'var(--color-bg-white)', border: '2px solid #fff', fontSize: 10, fontWeight: 900, lineHeight: '16px', textAlign: 'center' }}>+</span>
               </button>
             )}
           </div>
           {photos.length > 0 && (
-            <div className="mt-2 p-2" style={{ background: 'var(--color-surface-subtle)', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
+            <div className="mt-2 p-2" style={{ background: 'var(--color-surface-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }}>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ፎቶ' : 'Proof photos'}</p>
                 <p className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>{photoCountLabel(photos.length, lang)}</p>
@@ -768,7 +768,7 @@ function TransactionForm({
                   <div key={entry.id} className="relative flex-shrink-0">
                     <img src={entry.dataUrl} alt="" className="w-14 h-14 object-cover" style={{ borderRadius: 6 }} />
                     <button type="button" onClick={() => handleRemovePhoto(entry.id)} className="press-scale flex items-center justify-center"
-                      style={{ position: 'absolute', top: -6, right: -6, minWidth: 28, minHeight: 28, borderRadius: 999, border: '1px solid #e8e2d8', background: 'var(--color-surface)' }}>
+                      style={{ position: 'absolute', top: -6, right: -6, minWidth: 28, minHeight: 28, borderRadius: 999, border: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
                       <X className="w-3.5 h-3.5" style={{ color: 'var(--color-text-muted)' }} /></button>
                     <p className="text-[10px] text-center mt-1" style={{ color: 'var(--color-text-soft)' }}>{Math.round(photoSizeBytes(entry.dataUrl) / 1024)} KB</p>
                   </div>
@@ -886,14 +886,14 @@ function TransactionForm({
       </div>
 
       {/* Save button */}
-      <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid #e8e2d8' }}>
+      <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
         {!canSave && sellingPrice > 0 && (() => {
           let blocker = null;
           if (isCredit && !item.trim()) blocker = lang === 'am' ? '↑ ስም ይተይቡ' : '↑ Enter customer name';
           else if (isCredit && !hasDueDate) blocker = lang === 'am' ? '↑ የመክፈያ ቀን ይምረጡ' : '↑ Pick due date';
           else if (phoneEntered && !phoneValid) blocker = lang === 'am' ? '↑ ስልክ ስህተት' : '↑ Phone format invalid';
           if (!blocker) return null;
-          return <p style={{ fontSize: '0.78rem', color: 'var(--color-warning)', background: 'var(--color-warning-bg)', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 10px', marginBottom: 8, fontWeight: 600, textAlign: 'center' }}>{blocker}</p>;
+          return <p style={{ fontSize: '0.78rem', color: 'var(--color-warning)', background: 'var(--color-warning-bg)', border: '1px solid var(--color-warning-border)', borderRadius: 8, padding: '8px 10px', marginBottom: 8, fontWeight: 600, textAlign: 'center' }}>{blocker}</p>;
         })()}
         <button onClick={handleSave} disabled={!canSave} className="w-full p-3 font-bold text-white text-base flex items-center justify-center gap-2 transition-all press-scale"
           style={{ background: (justSaved && !canSave) ? 'var(--color-success)' : (canSave ? accentColor : 'var(--color-bg-disabled)'), color: ((justSaved && !canSave) || canSave) ? 'var(--color-bg-white)' : 'var(--color-text-soft)', cursor: canSave ? 'pointer' : 'default', borderRadius: 'var(--radius-md)' }}>

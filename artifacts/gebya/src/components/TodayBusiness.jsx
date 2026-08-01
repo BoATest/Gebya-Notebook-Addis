@@ -29,7 +29,7 @@ export default function TodayBusiness({
     <div style={{
       background: 'var(--color-surface)',
       borderRadius: 12,
-      border: '1px solid #ece6d6',
+      border: '1px solid var(--color-border)',
       overflow: 'hidden',
       marginTop: 10,
     }}>
@@ -61,7 +61,7 @@ export default function TodayBusiness({
       </button>
 
       {expanded && (
-        <div style={{ padding: '0 16px 14px', borderTop: '1px solid #f3f4f6', paddingTop: 10 }}>
+        <div style={{ padding: '0 16px 14px', borderTop: '1px solid var(--color-bg-hover)', paddingTop: 10 }}>
           <Row label={lang === 'am' ? '💵 ጥሬ ገንዘብ' : '💵 Cash'} value={cashExpected} hidden={hidden} />
           <Row label={lang === 'am' ? '📱 ዲጂታል' : '📱 Digital'} value={digital} hidden={hidden} />
           <Row label={lang === 'am' ? '📤 ወጪ' : '📤 Expenses'} value={expenses} hidden={hidden} color='var(--color-danger)' />
@@ -93,7 +93,7 @@ export default function TodayBusiness({
                   placeholder="0"
                   style={{
                     flex: 1, minHeight: 36, padding: '4px 10px',
-                    border: '1px solid #e5e7eb', borderRadius: 8,
+                    border: '1px solid var(--color-bg-disabled)', borderRadius: 8,
                     fontSize: 13, fontWeight: 700, outline: 'none',
                   }}
                 />

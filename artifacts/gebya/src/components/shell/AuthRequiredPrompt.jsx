@@ -136,7 +136,7 @@ export default function AuthRequiredPrompt({ lang, onClose }) {
             </button>
             <div className="flex gap-2">
               <button onClick={() => { setStep('phone'); setOtp(''); setError(null); }} className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{ background: 'var(--color-surface-muted)' }}>{t.back}</button>
-              <button onClick={handleRequestOtp} disabled={loading} className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{ background: 'var(--color-surface-muted)', border: '1px solid #e8e2d8' }}>{t.resend}</button>
+              <button onClick={handleRequestOtp} disabled={loading} className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{ background: 'var(--color-surface-muted)', border: '1px solid var(--color-border)' }}>{t.resend}</button>
             </div>
             <button onClick={onClose} className="w-full py-2.5 text-xs font-bold text-gray-400">{t.skip}</button>
           </div>

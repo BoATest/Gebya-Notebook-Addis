@@ -29,7 +29,7 @@ function TransactionRow({ tx, hidden = false, lang = 'en', onEdit }) {
         justifyContent: 'space-between',
         gap: 10,
         padding: '10px 0',
-        borderBottom: '1px solid #f3f4f6',
+        borderBottom: '1px solid var(--color-bg-hover)',
         border: 'none',
         borderTop: 'none',
         background: 'transparent',
@@ -134,7 +134,7 @@ export default function HistorySection({
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid #f3f4f6' }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--color-bg-hover)' }}>
           <button
             type="button"
             onClick={onExport}
@@ -142,7 +142,7 @@ export default function HistorySection({
               flex: 1,
               padding: 10,
               borderRadius: 10,
-              border: '1px solid #e5e7eb',
+              border: '1px solid var(--color-bg-disabled)',
               background: 'var(--color-surface)',
               fontSize: 12,
               fontWeight: 800,
@@ -163,7 +163,7 @@ export default function HistorySection({
               flex: 1,
               padding: 10,
               borderRadius: 10,
-              border: '1px solid #e5e7eb',
+              border: '1px solid var(--color-bg-disabled)',
               background: 'var(--color-surface)',
               fontSize: 12,
               fontWeight: 800,

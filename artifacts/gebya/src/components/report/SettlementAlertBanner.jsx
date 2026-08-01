@@ -55,7 +55,7 @@ export default function SettlementAlertBanner({ lang = 'en', onFocus, isStaffVie
   return (
     <div onClick={onFocus}
       style={{
-        background: 'var(--color-danger-bg)', border: '1px solid #fecaca', borderRadius: 10,
+        background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)', borderRadius: 10,
         padding: '10px 14px', marginBottom: 12, cursor: 'pointer',
         transition: 'background 0.15s',
       }}

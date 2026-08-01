@@ -30,7 +30,7 @@ export default function DisplayPrivacyPanel() {
                 style={{
                   background: active ? 'var(--color-primary)' : 'var(--color-surface-muted)',
                   color: active ? 'var(--color-bg-white)' : 'var(--color-text)',
-                  border: active ? '1px solid #1B4332' : '1px solid #e8e2d8',
+                  border: active ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
                 }}
               >
                 <Icon className="w-4 h-4" />

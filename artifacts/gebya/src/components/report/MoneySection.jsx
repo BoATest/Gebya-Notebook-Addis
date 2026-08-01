@@ -13,7 +13,7 @@ function MoneyRow({ label, value, color = 'var(--color-text)', bold = false, suf
       justifyContent: 'space-between',
       alignItems: 'center',
       padding: '10px 0',
-      borderBottom: '1px solid #f3f4f6',
+      borderBottom: '1px solid var(--color-bg-hover)',
     }}>
       <span style={{ fontSize: 13, color: 'var(--color-text)', fontWeight: bold ? 800 : 600 }}>
         {label}
@@ -113,7 +113,7 @@ export default function MoneySection({ money, expenseBreakdown = [], hidden = fa
 
         {/* Expense breakdown */}
         {expenseBreakdown.length > 0 && (
-          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f3f4f6' }}>
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--color-bg-hover)' }}>
             <p style={{ fontSize: 10, fontWeight: 900, color: 'var(--color-text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
               {lang === 'am' ? 'ወጪ ማጠቃለያ' : 'Expense breakdown'}
             </p>

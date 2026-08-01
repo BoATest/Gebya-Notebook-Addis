@@ -113,7 +113,7 @@ export default function AppHeader({
         <button
           onClick={toggleLang}
           className="flex items-center flex-shrink-0 press-scale"
-          style={{ background: 'var(--color-surface)', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '2px' }}
+          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)', borderRadius: '8px', padding: '2px' }}
           aria-label={lang === 'en' ? 'Switch to Amharic' : 'Switch to English'}
         >
           <span style={{

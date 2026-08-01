@@ -15,7 +15,7 @@ function StaffRow({ staff, hidden = false, lang = 'en' }) {
       justifyContent: 'space-between',
       gap: 10,
       padding: '10px 0',
-      borderBottom: '1px solid #f3f4f6',
+      borderBottom: '1px solid var(--color-bg-hover)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         <div style={{

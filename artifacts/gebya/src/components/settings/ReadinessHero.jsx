@@ -84,7 +84,7 @@ export default function ReadinessHero({ shopProfile, paymentChannels = [], catal
   return (
     <div
       className="rounded-2xl overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #1B4332 0%, #2d6a4f 100%)', color: 'var(--color-bg-white)' }}
+      style={{ background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%)', color: 'var(--color-bg-white)' }}
     >
       <div
         className="px-4 py-3.5 flex items-center gap-3 cursor-pointer"

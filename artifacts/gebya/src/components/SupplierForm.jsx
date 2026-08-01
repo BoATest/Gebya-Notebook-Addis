@@ -108,7 +108,7 @@ function SupplierForm({ existing = null, onSave, onDone }) {
               style={{
                 width: 100, height: 100, borderRadius: '50%',
                 overflow: 'hidden', position: 'relative',
-                border: photo ? '3px solid #dc2626' : '3px dashed #c9bfa8',
+                border: photo ? '3px solid var(--color-danger)' : '3px dashed var(--color-border)',
                 background: photo ? 'var(--color-bg-white)' : 'var(--color-danger-bg)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 marginBottom: 10,

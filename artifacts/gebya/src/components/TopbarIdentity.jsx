@@ -95,7 +95,7 @@ export default function TopbarIdentity({ className = '' }) {
           {/* Shop name header */}
           <div
             className="px-4 py-3"
-            style={{ background: 'linear-gradient(135deg, #1B4332 0%, #2d6a4f 100%)' }}
+            style={{ background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%)' }}
           >
             <p className="text-xs font-semibold text-white/60 mb-0.5">
               {t.topbarShop || 'Shop'}

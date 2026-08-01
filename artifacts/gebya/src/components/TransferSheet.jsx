@@ -72,7 +72,7 @@ export default function TransferSheet({
         <div style={{
           padding: '8px 16px 10px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          borderBottom: '1px solid #f3f4f6',
+          borderBottom: '1px solid var(--color-bg-hover)',
           flexShrink: 0,
         }}>
           <p style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-text)', margin: 0 }}>
@@ -102,7 +102,7 @@ export default function TransferSheet({
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '10px 12px', borderRadius: 10,
-              border: '1px solid #ece6d6', background: 'var(--color-surface-subtle)',
+              border: '1px solid var(--color-border)', background: 'var(--color-surface-subtle)',
             }}>
               <div style={{
                 width: 32, height: 32, borderRadius: '50%',
@@ -132,7 +132,7 @@ export default function TransferSheet({
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '10px 12px', borderRadius: 10,
-                border: '1px solid #16a34a', background: 'var(--color-success-bg)',
+                border: '1px solid var(--color-success)', background: 'var(--color-success-bg)',
               }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: '50%',
@@ -157,7 +157,7 @@ export default function TransferSheet({
               <div>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 8,
-                  border: '1px solid #e5e7eb', borderRadius: 10,
+                  border: '1px solid var(--color-bg-disabled)', borderRadius: 10,
                   padding: '6px 10px', minHeight: 38,
                 }}>
                   <Search className="w-4 h-4" style={{ color: 'var(--color-text-soft)', flexShrink: 0 }} />
@@ -175,7 +175,7 @@ export default function TransferSheet({
                 </div>
                 {filteredTargets.length > 0 && (
                   <div style={{
-                    marginTop: 4, border: '1px solid #ece6d6', borderRadius: 10,
+                    marginTop: 4, border: '1px solid var(--color-border)', borderRadius: 10,
                     maxHeight: 200, overflowY: 'auto',
                   }}>
                     {filteredTargets.map(c => (
@@ -185,7 +185,7 @@ export default function TransferSheet({
                         onClick={() => { setTargetCustomer(c); setTargetQuery(''); }}
                         style={{
                           width: '100%', padding: '10px 12px', textAlign: 'left',
-                          border: 'none', borderBottom: '1px solid #f3f4f6',
+                          border: 'none', borderBottom: '1px solid var(--color-bg-hover)',
                           background: 'var(--color-surface)', cursor: 'pointer',
                           display: 'flex', alignItems: 'center', gap: 8,
                           fontSize: '0.82rem', fontWeight: 600, color: 'var(--color-text)',
@@ -237,7 +237,7 @@ export default function TransferSheet({
                     type="button"
                     onClick={() => setAmount(fmtInput(String(v)))}
                     style={{
-                      padding: '4px 10px', borderRadius: 6, border: '1px solid #e5e7eb',
+                      padding: '4px 10px', borderRadius: 6, border: '1px solid var(--color-bg-disabled)',
                       background: 'var(--color-bg-active)', fontSize: '0.72rem', fontWeight: 600,
                       color: 'var(--color-text)', cursor: 'pointer', minHeight: 30,
                     }}

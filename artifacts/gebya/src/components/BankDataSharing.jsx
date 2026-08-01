@@ -109,7 +109,7 @@ export default function BankDataSharing({ shopId, lang }) {
             onClick={() => setShowGrant(true)}
             className="press-scale"
             style={{
-              width: '100%', padding: '10px 0', borderRadius: 12, border: '1px dashed #1B4332',
+              width: '100%', padding: '10px 0', borderRadius: 12, border: '1px dashed var(--color-primary)',
               background: 'rgba(27,67,50,0.04)', color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 600,
               cursor: 'pointer',
             }}
@@ -138,7 +138,7 @@ export default function BankDataSharing({ shopId, lang }) {
                   onClick={() => handleRevoke(share.id)}
                   style={{
                     fontSize: '0.7rem', color: 'var(--color-danger)', background: 'none',
-                    border: '1px solid #fecaca', borderRadius: 6, padding: '4px 10px',
+                    border: '1px solid var(--color-danger-border)', borderRadius: 6, padding: '4px 10px',
                     cursor: 'pointer',
                   }}
                 >
@@ -154,7 +154,7 @@ export default function BankDataSharing({ shopId, lang }) {
               onClick={() => setShowGrant(true)}
               className="press-scale"
               style={{
-                width: '100%', padding: '10px 0', borderRadius: 12, border: '1px dashed #1B4332',
+                width: '100%', padding: '10px 0', borderRadius: 12, border: '1px dashed var(--color-primary)',
                 background: 'rgba(27,67,50,0.04)', color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 600,
                 cursor: 'pointer', marginTop: 8,
               }}
@@ -174,7 +174,7 @@ export default function BankDataSharing({ shopId, lang }) {
               onChange={(e) => setSelectedBank(e.target.value)}
               style={{
                 width: '100%', marginTop: 4, padding: '8px 12px', borderRadius: 8,
-                border: '1px solid #d1d5db', fontSize: '0.8rem',
+                border: '1px solid var(--color-text-soft)', fontSize: '0.8rem',
               }}
             >
               <option value="">{t.selectBank}</option>
@@ -208,7 +208,7 @@ export default function BankDataSharing({ shopId, lang }) {
               type="button"
               onClick={() => setShowGrant(false)}
               style={{
-                flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid #d1d5db',
+                flex: 1, padding: '8px 0', borderRadius: 8, border: '1px solid var(--color-text-soft)',
                 background: 'var(--color-surface)', fontSize: '0.8rem', cursor: 'pointer',
               }}
             >

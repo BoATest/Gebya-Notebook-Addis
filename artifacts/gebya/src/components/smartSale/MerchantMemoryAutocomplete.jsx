@@ -234,7 +234,7 @@ export default function MerchantMemoryAutocomplete({
                 style={{
                   background: isHighlighted ? 'var(--color-success-bg)' : 'var(--color-bg-white)',
                   minHeight: '32px',
-                  borderBottom: '1px solid #f3f4f6',
+                  borderBottom: '1px solid var(--color-bg-hover)',
                 }}
               >
                 <span className="text-[11px] font-bold truncate" style={{ color: 'var(--color-text)' }}>
@@ -271,7 +271,7 @@ export default function MerchantMemoryAutocomplete({
             style={{
               background: isHighlighted ? 'var(--color-success-bg)' : 'var(--color-bg-white)',
               minHeight: '32px',
-              borderBottom: '1px solid #f3f4f6',
+              borderBottom: '1px solid var(--color-bg-hover)',
             }}
           >
             <span className="min-w-0">

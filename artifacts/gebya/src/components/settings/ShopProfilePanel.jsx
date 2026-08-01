@@ -51,7 +51,7 @@ export default function ShopProfilePanel({ shopProfile, onProfileSave }) {
   return (
     <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden">
       <div className="px-5 pt-5 pb-4 space-y-3">
-        <div className="rounded-xl px-4 py-3 text-xs font-medium" style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)', border: '1px solid #e8e2d8' }}>
+        <div className="rounded-xl px-4 py-3 text-xs font-medium" style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}>
           {lang === 'am'
             ? 'ይህ የዚህ ስልክ ዋና ባለቤት መለያ ነው። እዚህ የሚደረጉ ለውጦች መላውን ሱቅ ማስታወሻ ይነካሉ።'
             : "This profile is the main owner identity for this phone's notebook. Changes here affect the whole shop notebook."}

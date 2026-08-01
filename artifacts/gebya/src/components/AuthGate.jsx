@@ -272,14 +272,14 @@ export default function AuthGate({ onAuthenticated, onSkip, shopPhone = '', lang
               <button onClick={() => setStep('phone')} className="flex-1 py-2.5 rounded-xl text-xs font-bold min-h-[40px]" style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text)' }}>
                 {t.back}
               </button>
-              <button onClick={handleRequestOtp} disabled={loading} className="flex-1 py-2.5 rounded-xl text-xs font-bold min-h-[40px]" style={{ background: 'var(--color-surface-muted)', color: 'var(--color-primary)', border: '1px solid #e8e2d8' }}>
+              <button onClick={handleRequestOtp} disabled={loading} className="flex-1 py-2.5 rounded-xl text-xs font-bold min-h-[40px]" style={{ background: 'var(--color-surface-muted)', color: 'var(--color-primary)', border: '1px solid var(--color-border)' }}>
                 {t.resend}
               </button>
             </div>
             <button
               onClick={() => onSkip?.()}
               className="w-full py-2.5 rounded-xl text-xs font-bold min-h-[40px]"
-              style={{ background: 'var(--color-surface)', color: 'var(--color-text-muted)', border: '1px solid #e8e2d8' }}
+              style={{ background: 'var(--color-surface)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)' }}
             >
               <X className="w-3.5 h-3.5 inline mr-1" /> {t.skip}
             </button>

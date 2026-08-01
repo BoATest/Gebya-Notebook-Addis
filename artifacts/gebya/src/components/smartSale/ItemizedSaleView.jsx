@@ -469,7 +469,7 @@ export default function ItemizedSaleView({
       )}
 
       {/* Column headers — like notebook column labels */}
-      <div className="flex-shrink-0 px-2 flex gap-1 items-center" style={{ borderBottom: '1px solid #edeae5' }}>
+      <div className="flex-shrink-0 px-2 flex gap-1 items-center" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
         <span className="text-[10px] font-bold uppercase tracking-widest truncate" style={{ flex: '34 0 0%', color: 'var(--color-text-soft)', minWidth: 0 }}>
           {lang === 'am' ? 'ንጥል' : 'Item'}
         </span>
@@ -510,7 +510,7 @@ export default function ItemizedSaleView({
             <button
               onClick={() => addEmptyRows(3)}
               className="w-full py-2 text-[11px] font-bold press-scale flex items-center justify-center gap-1"
-              style={{ color: 'var(--color-text-muted)', border: '1px dashed #d1d5db', borderRadius: '4px', minHeight: '40px', background: 'var(--color-surface-subtle)' }}
+              style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-text-soft)', borderRadius: '4px', minHeight: '40px', background: 'var(--color-surface-subtle)' }}
             >
               <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span>
               <span>{lang === 'am' ? '3 ተጨማሪ ረድፎች' : 'Add 3 Rows'}</span>
@@ -535,7 +535,7 @@ export default function ItemizedSaleView({
             </span>
           </div>
           {showDiscount && (
-            <div className="flex justify-between items-center" style={{ background: 'var(--color-warning-bg)', borderRadius: '3px', padding: '2px 6px', border: '1px solid #fcd34d' }}>
+            <div className="flex justify-between items-center" style={{ background: 'var(--color-warning-bg)', borderRadius: '3px', padding: '2px 6px', border: '1px solid var(--color-warning-border)' }}>
               <span className="text-[11px]" style={{ color: 'var(--color-warning)' }}>{lang === 'am' ? 'ቅናሽ' : 'Discount'}</span>
               <div className="flex items-center gap-1">
                 <span className="text-[11px]" style={{ color: 'var(--color-danger)' }}>−</span>
@@ -551,7 +551,7 @@ export default function ItemizedSaleView({
                   }}
                   onBlur={(e) => { setTimeout(() => { if (!e.currentTarget.contains(document.activeElement)) setShowDiscount(false); }, 100); }}
                   className="w-14 text-right text-[11px] font-bold px-0.5"
-                  style={{ border: 'none', borderBottom: '1px solid #e8e2d8', borderRadius: '0', minHeight: '20px', background: 'transparent' }}
+                  style={{ border: 'none', borderBottom: '1px solid var(--color-border)', borderRadius: '0', minHeight: '20px', background: 'transparent' }}
                 />
               </div>
             </div>
@@ -560,7 +560,7 @@ export default function ItemizedSaleView({
             <button
               onClick={() => setShowDiscount(true)}
               className="text-[11px] font-bold press-scale"
-              style={{ color: 'var(--color-text-muted)', border: '1px solid #e8e2d8', borderRadius: '3px', padding: '4px 10px', minHeight: '34px' }}
+              style={{ color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', borderRadius: '3px', padding: '4px 10px', minHeight: '34px' }}
             >
               + {lang === 'am' ? 'ቅናሽ' : 'Discount'}
             </button>
@@ -843,7 +843,7 @@ export default function ItemizedSaleView({
                 }}
                 placeholder={lang === 'am' ? '0912345678' : '0912345678'}
                 className="flex-1 text-[11px] font-bold px-1 py-0.5"
-                style={{ border: 'none', borderBottom: '1px solid #e8e2d8', background: 'transparent', minHeight: '20px' }}
+                style={{ border: 'none', borderBottom: '1px solid var(--color-border)', background: 'transparent', minHeight: '20px' }}
               />
               <button
                 onClick={async () => {

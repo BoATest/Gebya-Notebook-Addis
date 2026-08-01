@@ -92,7 +92,7 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
         {/* Sticky header */}
         <div
           className="sticky top-0 bg-white z-10 px-4 py-3 flex items-center justify-between gap-2"
-          style={{ borderBottom: '1px solid #e8e2d8' }}
+          style={{ borderBottom: '1px solid var(--color-border)' }}
         >
           <div className="min-w-0 flex items-center gap-2">
             <Bell className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--color-accent-amber)' }} />
@@ -259,7 +259,7 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
             ) : (
               <div className="p-3 text-xs" style={{
                 background: 'var(--color-warning-bg)',
-                border: '1px solid #fde68a',
+                border: '1px solid var(--color-warning-border)',
                 borderRadius: 'var(--radius-sm)',
                 color: 'var(--color-warning)',
               }}>
@@ -279,7 +279,7 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
         </div>
 
         {/* Sticky send button */}
-        <div className="px-4 py-3" style={{ borderTop: '1px solid #e8e2d8' }}>
+        <div className="px-4 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
           <button
             onClick={handleSend}
             disabled={!effectiveChannel || sending || !message.trim()}

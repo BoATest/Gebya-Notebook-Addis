@@ -105,7 +105,7 @@ export default function PaymentChannelsSection({ channels, shopPhone, enabledCou
         </div>
       </div>
 
-      <div className="px-5 py-3 border-b" style={{ borderBottom: '1px solid #f0f9f4' }}>
+      <div className="px-5 py-3 border-b" style={{ borderBottom: '1px solid var(--color-success-bg)' }}>
         <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-text-muted)' }}>
           📱 {lang === 'am' ? 'ሞባይል ዋሌት' : 'Mobile wallets'}
         </p>
@@ -125,7 +125,7 @@ export default function PaymentChannelsSection({ channels, shopPhone, enabledCou
         </div>
       </div>
 
-      <div className="px-5 py-3 border-b" style={{ borderBottom: '1px solid #f0f9f4' }}>
+      <div className="px-5 py-3 border-b" style={{ borderBottom: '1px solid var(--color-success-bg)' }}>
         <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: 'var(--color-text-muted)' }}>
           🏦 {lang === 'am' ? 'ባንኮች' : 'Banks'}
         </p>
@@ -273,7 +273,7 @@ function ChannelRow({ channel, shopPhone, onToggle, onField, onToggleSameAsShop,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   padding: '0 10px',
                   background: 'var(--color-surface)',
-                  border: '2px solid #86efac', borderRight: 'none',
+                  border: '2px solid var(--color-success-border)', borderRight: 'none',
                   borderRadius: '8px 0 0 8px',
                   fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)',
                   minWidth: 56,

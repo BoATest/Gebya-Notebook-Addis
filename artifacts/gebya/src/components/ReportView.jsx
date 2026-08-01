@@ -267,7 +267,7 @@ export default function ReportView({
           style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             minHeight: 36, minWidth: 36, borderRadius: 999,
-            border: hidden ? '1px solid #fde68a' : '1px solid var(--color-bg-disabled)',
+            border: hidden ? '1px solid var(--color-warning-border)' : '1px solid var(--color-bg-disabled)',
             background: hidden ? 'rgba(196,136,58,0.10)' : 'var(--color-surface)',
             color: hidden ? 'var(--color-warning)' : 'var(--color-text-muted)',
             cursor: 'pointer',
@@ -362,7 +362,7 @@ export default function ReportView({
       {isEmpty && (
         <div style={{
           background: 'linear-gradient(135deg, var(--color-success-bg) 0%, #ecfdf5 100%)',
-          border: '1px solid #bbf7d0', borderRadius: 16, padding: 24,
+          border: '1px solid var(--color-success-border)', borderRadius: 16, padding: 24,
           marginTop: 8, textAlign: 'center',
         }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📒</div>

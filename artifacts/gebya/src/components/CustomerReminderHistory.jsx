@@ -85,7 +85,7 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
     <div
       style={{
         background: 'var(--color-surface)',
-        border: '1px solid #ece6d6',
+        border: '1px solid var(--color-border)',
         borderRadius: 12,
         overflow: 'hidden',
       }}
@@ -100,7 +100,7 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
         style={{
           padding: '10px 14px',
           background: expanded ? 'var(--color-surface-soft)' : 'transparent',
-          borderBottom: expanded ? '1px solid #f5f1ea' : 'none',
+          borderBottom: expanded ? '1px solid var(--color-surface-muted)' : 'none',
           cursor: 'pointer',
           minHeight: 44,
         }}
@@ -145,7 +145,7 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
           )}
 
           {error && (
-            <div style={{ margin: '0 14px', padding: '8px 12px', background: 'var(--color-danger-bg)', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 12, color: 'var(--color-danger-text)', fontWeight: 600 }}>
+            <div style={{ margin: '0 14px', padding: '8px 12px', background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)', borderRadius: 8, fontSize: 12, color: 'var(--color-danger-text)', fontWeight: 600 }}>
               {lang === 'am' ? 'ስህተት፦ ' : 'Error: '}{error}
               <button
                 onClick={fetchHistory}
@@ -173,7 +173,7 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
                     key={entry.id}
                     style={{
                       padding: '8px 14px',
-                      borderBottom: '1px solid #f5f1ea',
+                      borderBottom: '1px solid var(--color-surface-muted)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',

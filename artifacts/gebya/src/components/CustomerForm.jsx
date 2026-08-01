@@ -131,7 +131,7 @@ function CustomerForm({ onSave, onDone, existing }) {
               width: 64, height: 64, borderRadius: '50%',
               position: 'relative',
               overflow: 'hidden',
-              border: photo ? '2px solid #047857' : '2px dashed #c9bfa8',
+              border: photo ? '2px solid var(--color-success-text)' : '2px dashed var(--color-border)',
               background: photo ? 'var(--color-bg-white)' : 'var(--color-surface-muted)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
@@ -179,7 +179,7 @@ function CustomerForm({ onSave, onDone, existing }) {
                     className="cursor-pointer press-scale"
                     style={{
                       padding: '4px 10px', fontSize: '0.7rem', fontWeight: 700,
-                      background: 'var(--color-surface)', border: '1px solid #ece6d6',
+                      background: 'var(--color-surface)', border: '1px solid var(--color-border)',
                       borderRadius: 6, color: 'var(--color-text)',
                       display: 'inline-flex', alignItems: 'center', gap: 3,
                     }}
@@ -193,7 +193,7 @@ function CustomerForm({ onSave, onDone, existing }) {
                     className="press-scale"
                     style={{
                       padding: '4px 10px', fontSize: '0.7rem', fontWeight: 700,
-                      background: 'var(--color-danger-bg)', border: '1px solid #fecaca',
+                      background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger-border)',
                       borderRadius: 6, color: 'var(--color-danger)',
                       display: 'inline-flex', alignItems: 'center', gap: 3,
                       cursor: 'pointer',

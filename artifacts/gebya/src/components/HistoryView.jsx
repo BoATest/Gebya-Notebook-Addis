@@ -423,7 +423,7 @@ function MonthBucketedDayList({ dayGroups, onEdit, expandedGroups, toggleGroup, 
               className="w-full px-4 py-3 flex justify-between items-center press-scale"
               style={{
                 background: isCurrentMonth
-                  ? 'linear-gradient(135deg, #1B4332 0%, #2d6a4f 100%)'
+                  ? 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%)'
                   : 'var(--color-text)',
                 color: 'var(--color-bg-white)',
                 borderRadius: expanded ? 'var(--radius-md) var(--radius-md) 0 0' : 'var(--radius-md)',

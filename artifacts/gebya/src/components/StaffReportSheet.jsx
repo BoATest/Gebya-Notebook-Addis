@@ -63,7 +63,7 @@ export default function StaffReportSheet({
         return (
           <div key={staff.id} style={{
             padding: '10px 0',
-            borderBottom: '1px solid #f3f4f6',
+            borderBottom: '1px solid var(--color-bg-hover)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--color-text)' }}>
@@ -96,7 +96,7 @@ export default function StaffReportSheet({
                     onChange={e => handleCashChange(staff.id, e.target.value)}
                     style={{
                       flex: 1, minHeight: 32, padding: '4px 8px',
-                      border: '1px solid #e5e7eb', borderRadius: 8,
+                      border: '1px solid var(--color-bg-disabled)', borderRadius: 8,
                       fontSize: 12, fontWeight: 600, outline: 'none',
                     }}
                   />
@@ -107,7 +107,7 @@ export default function StaffReportSheet({
                     onChange={e => handleDigitalChange(staff.id, e.target.value)}
                     style={{
                       flex: 1, minHeight: 32, padding: '4px 8px',
-                      border: '1px solid #e5e7eb', borderRadius: 8,
+                      border: '1px solid var(--color-bg-disabled)', borderRadius: 8,
                       fontSize: 12, fontWeight: 600, outline: 'none',
                     }}
                   />

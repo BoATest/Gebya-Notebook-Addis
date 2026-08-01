@@ -180,7 +180,7 @@ function SupplierDetail({
                 position: 'absolute', bottom: -2, right: -2,
                 width: 16, height: 16, borderRadius: '50%',
                 background: 'var(--color-surface)',
-                border: '1.5px solid #1a1a1a',
+                border: '1.5px solid var(--color-text)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '0.55rem',
                 color: 'var(--color-text)',
@@ -221,7 +221,7 @@ function SupplierDetail({
       <div
         style={{
           background: 'var(--color-surface)',
-          border: '1px solid #ece6d6',
+          border: '1px solid var(--color-border)',
           borderRadius: 12,
           padding: 14,
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
@@ -284,7 +284,7 @@ function SupplierDetail({
       {/* ═══ 3. HISTORY ══════════════════════════════════════════ */}
       <div style={{
         background: 'var(--color-surface)',
-        border: '1px solid #ece6d6',
+        border: '1px solid var(--color-border)',
         borderRadius: 12,
         padding: 12,
       }}>
@@ -327,7 +327,7 @@ function SupplierDetail({
                       key={`date_${txDate}_${idx}`}
                       style={{
                         background: 'var(--color-danger-bg)',
-                        border: '1px solid #fecaca',
+                        border: '1px solid var(--color-danger-border)',
                         borderRadius: 8,
                         padding: '5px 10px',
                         fontSize: '0.62rem',
@@ -429,7 +429,7 @@ function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
       style={{
         padding: '12px 14px',
         background: 'var(--color-surface)',
-        borderBottom: isLast ? 'none' : '1px solid #f5f1ea',
+        borderBottom: isLast ? 'none' : '1px solid var(--color-surface-muted)',
         borderLeft: `3px solid ${borderColor}`,
         cursor: 'pointer',
         display: 'flex',

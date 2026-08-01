@@ -26,7 +26,7 @@ export default function WhatINoticed({
           padding: '8px 12px',
           borderRadius: 10,
           background: 'var(--color-success-bg)',
-          border: '1px solid #bbf7d0',
+          border: '1px solid var(--color-success-border)',
           marginBottom: 4,
         }}>
           <span style={{ fontSize: 14, flexShrink: 0 }}>💡</span>

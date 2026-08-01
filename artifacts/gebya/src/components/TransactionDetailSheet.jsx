@@ -79,7 +79,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
         <div style={{
           padding: '8px 16px 10px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          borderBottom: '1px solid #f3f4f6',
+          borderBottom: '1px solid var(--color-bg-hover)',
           flexShrink: 0,
         }}>
           <p style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-text)', margin: 0 }}>
@@ -104,7 +104,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px' }}>
 
           {/* Hero: type badge + amount + date */}
-          <div style={{ textAlign: 'center', padding: '16px 0', borderBottom: '1px solid #f3f4f6' }}>
+          <div style={{ textAlign: 'center', padding: '16px 0', borderBottom: '1px solid var(--color-bg-hover)' }}>
             <span style={{
               display: 'inline-block',
               padding: '3px 10px', borderRadius: 999,
@@ -131,7 +131,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
               display: 'inline-flex', alignItems: 'center', gap: 5,
               marginTop: 8,
               padding: '4px 10px', borderRadius: 8,
-              background: 'var(--color-bg-active)', border: '1px solid #f3f4f6',
+              background: 'var(--color-bg-active)', border: '1px solid var(--color-bg-hover)',
             }}>
               <Calendar className="w-3.5 h-3.5" style={{ color: 'var(--color-text-soft)' }} />
               <span style={{ fontSize: '0.78rem', color: 'var(--color-text)', fontWeight: 600 }}>
@@ -147,7 +147,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             {tx.item_note && (
               <div style={{
                 padding: '10px 12px', marginBottom: 10,
-                background: 'var(--color-surface-subtle)', border: '1px solid #f3f4f6', borderRadius: 10,
+                background: 'var(--color-surface-subtle)', border: '1px solid var(--color-bg-hover)', borderRadius: 10,
               }}>
                 <p style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--color-text-soft)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
                   {currentLang === 'am' ? 'ማስታወሻ / ዝርዝር' : 'Description / Note'}
@@ -207,7 +207,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             {/* Balance after */}
             {tx.balance_after != null && (
               <div style={{
-                borderTop: '1px dashed #e5e7eb',
+                borderTop: '1px dashed var(--color-bg-disabled)',
                 marginTop: 8, paddingTop: 10,
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               }}>
@@ -253,14 +253,14 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
               {expandedItems && (
                 <div style={{
                   marginTop: 6, padding: '8px 10px',
-                  background: 'var(--color-surface)', border: '1px solid #e8e2d8',
-                  borderLeft: '3px solid #C4883A', borderRadius: 8,
+                  background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                  borderLeft: '3px solid var(--color-accent-amber)', borderRadius: 8,
                 }}>
                   {items.map((item, i) => (
                     <div key={i} style={{
                       display: 'flex', justifyContent: 'space-between',
                       padding: '4px 0',
-                      borderBottom: i < items.length - 1 ? '1px solid #f3f4f6' : 'none',
+                      borderBottom: i < items.length - 1 ? '1px solid var(--color-bg-hover)' : 'none',
                     }}>
                       <span style={{ fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>• {item.name}</span>
                       <span style={{
@@ -281,7 +281,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
           {hasPhoto && (
             <div style={{
               padding: '10px 12px', marginBottom: 12,
-              background: 'var(--color-surface-subtle)', border: '1px solid #f3f4f6', borderRadius: 10,
+              background: 'var(--color-surface-subtle)', border: '1px solid var(--color-bg-hover)', borderRadius: 10,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <Image className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
@@ -301,7 +301,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
                     className="press-scale"
                     style={{
                       width: 64, height: 64, borderRadius: 8,
-                      overflow: 'hidden', border: '1px solid #e8e2d8',
+                      overflow: 'hidden', border: '1px solid var(--color-border)',
                       padding: 0, cursor: 'pointer', flexShrink: 0,
                       background: 'var(--color-surface)',
                     }}
@@ -357,7 +357,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
         {/* Footer actions */}
         <div style={{
           padding: '12px 16px',
-          borderTop: '1px solid #f3f4f6',
+          borderTop: '1px solid var(--color-bg-hover)',
           flexShrink: 0,
         }}>
           {/* Edit button — full width */}
@@ -366,7 +366,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             onClick={() => onEdit?.(tx)}
             style={{
               width: '100%', padding: '12px',
-              background: 'var(--color-warning-bg)', border: '1.5px solid #fde68a',
+              background: 'var(--color-warning-bg)', border: '1.5px solid var(--color-warning-border)',
               borderRadius: 10,
               fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-warning)',
               cursor: 'pointer', minHeight: 44,
@@ -384,7 +384,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
             onClick={() => setShowDeleteConfirm(true)}
             style={{
               width: '100%', padding: '12px',
-              background: 'var(--color-surface)', border: '1.5px solid #fecaca',
+              background: 'var(--color-surface)', border: '1.5px solid var(--color-danger-border)',
               borderRadius: 10,
               fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-danger)',
               cursor: 'pointer', minHeight: 44,
@@ -412,7 +412,7 @@ function TransactionDetailSheet({ transaction, type = 'customer', lang: langProp
           >
             <div style={{
               width: 64, height: 64, borderRadius: '50%',
-              background: 'var(--color-danger-bg)', border: '2px solid #fecaca',
+              background: 'var(--color-danger-bg)', border: '2px solid var(--color-danger-border)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               marginBottom: 16,
             }}>
@@ -474,7 +474,7 @@ function DetailRow({ icon, label, value }) {
     <div style={{
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       padding: '8px 0',
-      borderBottom: '1px solid #f9fafb',
+      borderBottom: '1px solid var(--color-bg-active)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {icon}

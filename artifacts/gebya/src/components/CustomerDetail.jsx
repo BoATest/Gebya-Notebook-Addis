@@ -249,7 +249,7 @@ function CustomerDetail({
                 position: 'absolute', bottom: -2, right: -2,
                 width: 16, height: 16, borderRadius: '50%',
                 background: 'var(--color-surface)',
-                border: '1.5px solid #1a1a1a',
+                border: '1.5px solid var(--color-text)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '0.55rem',
                 color: 'var(--color-text)',
@@ -357,7 +357,7 @@ function CustomerDetail({
               flex: 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               background: 'var(--color-success-bg)',
-              border: '1px solid #a3e9c1',
+              border: '1px solid var(--color-success-border)',
               borderRadius: 10,
               padding: '10px 0',
               color: 'var(--color-success-text)',
@@ -379,7 +379,7 @@ function CustomerDetail({
               flex: 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               background: 'var(--color-info-bg)',
-              border: '1px solid #bfdbfe',
+              border: '1px solid var(--color-info-border)',
               borderRadius: 10,
               padding: '10px 0',
               color: 'var(--color-info)',
@@ -399,7 +399,7 @@ function CustomerDetail({
       <div
         style={{
           background: 'var(--color-surface)',
-          border: '1px solid #ece6d6',
+          border: '1px solid var(--color-border)',
           borderRadius: 12,
           padding: 14,
           display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
@@ -573,7 +573,7 @@ function CustomerDetail({
                       onRecordPromise(customer.id, parsed, note);
                     }}
                     style={{
-                      background: 'none', border: '1px dashed #d1d5db',
+                      background: 'none', border: '1px dashed var(--color-text-soft)',
                       borderRadius: 8, padding: '8px 14px',
                       fontSize: '0.72rem', fontWeight: 600, color: 'var(--color-text-soft)',
                       cursor: 'pointer',
@@ -613,7 +613,7 @@ function CustomerDetail({
               color: 'var(--color-warning)',
               padding: '2px 8px',
               borderRadius: 999,
-              border: '1px solid #ece6d6',
+              border: '1px solid var(--color-border)',
             }}
           >
             {lang === 'am' ? 'ለማስተካከል ⋮ ይንኩ ወይም ይዘմልኩ' : '⋮ or long-press to edit'}
@@ -624,7 +624,7 @@ function CustomerDetail({
           <div style={{
             padding: 24,
             background: 'var(--color-surface)',
-            border: '1px solid #ece6d6',
+            border: '1px solid var(--color-border)',
             borderRadius: 12,
             textAlign: 'center',
           }}>
@@ -636,7 +636,7 @@ function CustomerDetail({
             </p>
           </div>
         ) : (
-          <div style={{ background: 'var(--color-surface)', border: '1px solid #ece6d6', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, overflow: 'hidden' }}>
             {/* Commit C.5: Same-day grouping. We emit a sticky-style date
                 header whenever the row's date changes from the previous row.
                 Reduces visual noise when many entries share a date. */}
@@ -655,8 +655,8 @@ function CustomerDetail({
                       key={`date_${txDate}_${idx}`}
                       style={{
                         background: 'var(--color-surface-soft)',
-                        borderTop: idx === 0 ? 'none' : '1px solid #f5f1ea',
-                        borderBottom: '1px solid #f5f1ea',
+                        borderTop: idx === 0 ? 'none' : '1px solid var(--color-surface-muted)',
+                        borderBottom: '1px solid var(--color-surface-muted)',
                         padding: '6px 14px',
                         fontSize: '0.65rem',
                         fontWeight: 800,
@@ -804,7 +804,7 @@ function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
       style={{
         padding: '12px 14px',
         background: 'var(--color-surface)',
-        borderBottom: isLast ? 'none' : '1px solid #f5f1ea',
+        borderBottom: isLast ? 'none' : '1px solid var(--color-surface-muted)',
         borderLeft: `3px solid ${borderColor}`,
         cursor: 'pointer',
         display: 'flex',

@@ -94,7 +94,7 @@ class ErrorBoundary extends Component {
           <div
             style={{
               width: 48, height: 48,
-              border: '4px solid #ece6d6',
+              border: '4px solid var(--color-border)',
               borderTopColor: 'var(--color-primary)',
               borderRadius: '50%',
               animation: 'gebya-spin 0.9s linear infinite',
@@ -196,7 +196,7 @@ class ErrorBoundary extends Component {
             style={{
               background: 'var(--color-surface)',
               color: 'var(--color-warning)',
-              border: '1px solid #7c3d12',
+              border: '1px solid var(--color-warning)',
               borderRadius: '16px',
               padding: '14px 24px',
               fontSize: '0.875rem',

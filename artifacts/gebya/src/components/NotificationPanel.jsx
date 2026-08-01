@@ -194,7 +194,7 @@ export default function NotificationPanel({ onClose }) {
         {/* Header */}
         <div
           className="flex-shrink-0 px-4 py-3 flex items-center justify-between gap-2"
-          style={{ borderBottom: '1px solid #e8e2d8' }}
+          style={{ borderBottom: '1px solid var(--color-border)' }}
         >
           <div className="min-w-0">
             <h2 className="text-base font-bold" style={{ color: 'var(--color-text)' }}>
@@ -229,7 +229,7 @@ export default function NotificationPanel({ onClose }) {
 
         {/* Push enable banner */}
         {showEnablePush && (
-          <div className="mx-4 mt-3 p-3 flex items-start gap-3 flex-shrink-0" style={{ background: 'var(--color-success-bg)', border: '1px solid #bbf7d0', borderRadius: 10 }}>
+          <div className="mx-4 mt-3 p-3 flex items-start gap-3 flex-shrink-0" style={{ background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)', borderRadius: 10 }}>
             <span className="text-lg flex-shrink-0">🔔</span>
             <div className="flex-1 min-w-0">
               <p className="text-[12px] font-bold" style={{ color: 'var(--color-success-text)' }}>

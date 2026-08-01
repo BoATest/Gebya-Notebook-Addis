@@ -358,7 +358,7 @@ export default function JoinPage() {
                 onClick={handleRequestOtp}
                 disabled={loading}
                 className="flex-1 py-2.5 rounded-xl text-xs font-bold min-h-[40px]"
-                style={{ background: 'var(--color-surface-muted)', color: 'var(--color-primary)', border: '1px solid #e8e2d8' }}
+                style={{ background: 'var(--color-surface-muted)', color: 'var(--color-primary)', border: '1px solid var(--color-border)' }}
               >
                 {tx.resend}
               </button>

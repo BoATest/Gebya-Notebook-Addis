@@ -80,8 +80,8 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 padding: '10px 12px', marginBottom: 6,
                 background: hasStaffSubmission ? 'var(--color-info-bg)' : 'var(--color-bg-white)', borderRadius: 10,
-                border: currentSettlingStaff === String(staff.id) ? '2px solid #1B4332' : '1px solid #e5e7eb',
-                borderLeft: hasStaffSubmission ? '3px solid #0369a1' : undefined,
+                border: currentSettlingStaff === String(staff.id) ? '2px solid var(--color-primary)' : '1px solid var(--color-bg-disabled)',
+                borderLeft: hasStaffSubmission ? '3px solid var(--color-info)' : undefined,
               }}>
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 13, fontWeight: 900, color: 'var(--color-text)', margin: 0 }}>
@@ -143,7 +143,7 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
                   style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                     padding: '8px 10px', fontSize: 11, fontWeight: 650, color: 'var(--color-text)',
-                    borderBottom: '1px solid #f3f4f6', cursor: 'pointer',
+                    borderBottom: '1px solid var(--color-bg-hover)', cursor: 'pointer',
                     borderRadius: 6, transition: 'background 0.1s',
                     background: rStatus === 'staff_submitted' ? 'var(--color-info-bg)' :
                                 rStatus === 'disputed' ? 'var(--color-danger-bg)' : 'transparent',

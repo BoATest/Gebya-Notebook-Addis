@@ -109,7 +109,7 @@ export default function ClosingSection({
             padding: 16,
             borderRadius: 10,
             background: 'var(--color-success-bg)',
-            border: '1px solid #bbf7d0',
+            border: '1px solid var(--color-success-border)',
             textAlign: 'center',
           }}>
             <p style={{ fontSize: 20, marginBottom: 8 }}>✅</p>
@@ -166,7 +166,7 @@ export default function ClosingSection({
               placeholder="0"
               style={{
                 minHeight: 42,
-                border: '1px solid #e5e7eb',
+                border: '1px solid var(--color-bg-disabled)',
                 borderRadius: 8,
                 padding: '8px 10px',
                 fontSize: 16,
@@ -188,7 +188,7 @@ export default function ClosingSection({
               placeholder="0"
               style={{
                 minHeight: 42,
-                border: '1px solid #e5e7eb',
+                border: '1px solid var(--color-bg-disabled)',
                 borderRadius: 8,
                 padding: '8px 10px',
                 fontSize: 16,
@@ -255,7 +255,7 @@ export default function ClosingSection({
 
         {/* Past closings */}
         {closings.length > 0 && (
-          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f3f4f6' }}>
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--color-bg-hover)' }}>
             <p style={{ fontSize: 10, fontWeight: 900, color: 'var(--color-text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
               {lang === 'am' ? 'ያለፉ ማውጫዎች' : 'Past closings'}
             </p>
@@ -267,7 +267,7 @@ export default function ClosingSection({
                 fontWeight: 650,
                 color: 'var(--color-text)',
                 padding: '6px 0',
-                borderBottom: i < closings.length - 1 ? '1px solid #f3f4f6' : 'none',
+                borderBottom: i < closings.length - 1 ? '1px solid var(--color-bg-hover)' : 'none',
               }}>
                 <span>
                   {new Date(c.closed_at).toLocaleDateString()} · {c.actor_name_snapshot || ''}

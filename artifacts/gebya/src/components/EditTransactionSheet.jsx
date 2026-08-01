@@ -200,7 +200,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
             const accentBdColor = type === 'expense' ? 'var(--color-danger)' : 'var(--color-success)';
             return (
               <div className="p-3 space-y-2"
-                style={{ background: 'rgba(27,67,50,0.04)', borderRadius: 'var(--radius-md)', border: '1px solid #e8e2d8' }}
+                style={{ background: 'rgba(27,67,50,0.04)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}
               >
                 <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
                   🧺 {editableItems.length === 1 ? '1 item' : `${editableItems.length} items`}
@@ -262,7 +262,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
 
                 {/* Totals + delta hint */}
                 {validBreakdown.length > 0 && (
-                  <div className="text-xs pt-2 space-y-0.5" style={{ borderTop: '1px solid #e8e2d8' }}>
+                  <div className="text-xs pt-2 space-y-0.5" style={{ borderTop: '1px solid var(--color-border)' }}>
                     <div className="flex justify-between" style={{ color: 'var(--color-text)' }}>
                       <span>Items total</span>
                       <span className="font-bold">{fmt(breakdownSum)} {t.birr || 'birr'}</span>
@@ -333,7 +333,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                   style={{
                     width: 56,
                     minHeight: 52,
-                    border: '2px solid #e8e2d8',
+                    border: '2px solid var(--color-border)',
                     borderRadius: 'var(--radius-md)',
                     background: photos.length > 0 ? 'var(--color-success-bg)' : 'var(--color-surface-subtle)',
                      opacity: photos.length > 0 ? 0.55 : 1,
@@ -377,7 +377,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
             {!isCredit && photos.length > 0 && (
               <div
                 className="mt-2 p-2"
-                style={{ background: 'var(--color-surface-subtle)', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}
+                style={{ background: 'var(--color-surface-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }}
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
@@ -410,7 +410,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                           minWidth: 28,
                           minHeight: 28,
                           borderRadius: 999,
-                          border: '1px solid #e8e2d8',
+                          border: '1px solid var(--color-border)',
                           background: 'var(--color-surface)',
                         }}
                         aria-label={lang === 'am' ? '\u134E\u1276 \u12A0\u1235\u12C8\u130D\u12F5' : `Remove photo ${index + 1}`}
@@ -590,7 +590,7 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
                   </div>
                   {belowCost && (
-                    <div className="mt-3 flex items-start gap-2 p-3" style={{ background: 'var(--color-warning-bg)', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)' }}>
+                    <div className="mt-3 flex items-start gap-2 p-3" style={{ background: 'var(--color-warning-bg)', border: '1px solid var(--color-warning-border)', borderRadius: 'var(--radius-sm)' }}>
                       <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--color-accent-amber)' }} />
                       <p className="text-xs font-sans" style={{ color: 'var(--color-warning)' }}>{t.sellingBelowCostShort}</p>
                     </div>

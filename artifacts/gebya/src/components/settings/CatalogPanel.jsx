@@ -171,7 +171,7 @@ export default function CatalogPanel({ catalogEntries, onSaveCatalogEntry, onTog
                     note: entry.note || '',
                   })}
                   className="px-3 py-2 rounded-lg text-xs font-bold"
-                  style={{ background: 'var(--color-surface)', color: 'var(--color-primary)', border: '1px solid #e8e2d8' }}
+                  style={{ background: 'var(--color-surface)', color: 'var(--color-primary)', border: '1px solid var(--color-border)' }}
                 >
                   {lang === 'am' ? 'አስተካክል' : 'Edit'}
                 </button>

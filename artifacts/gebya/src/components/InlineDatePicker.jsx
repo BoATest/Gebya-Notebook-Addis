@@ -241,7 +241,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
                   style={{
                     flexShrink: 0, padding: '7px 13px', minHeight: 34,
                     background: 'var(--color-primary)', color: 'var(--color-bg-white)',
-                    border: '2px solid #1B4332', borderRadius: 8,
+                    border: '2px solid var(--color-primary)', borderRadius: 8,
                     fontSize: '0.78rem', fontWeight: 800,
                     cursor: 'pointer',
                   }}>
@@ -360,13 +360,13 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
             flexShrink: 0,
             padding: '12px 16px calc(12px + env(safe-area-inset-bottom, 0px))',
             background: 'var(--color-surface)',
-            borderTop: '1px solid #f0ede8',
+            borderTop: '1px solid var(--color-border-light)',
           }}>
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="button" onClick={onClose}
                 style={{
                   flex: 1, padding: '12px', background: 'var(--color-surface)', color: 'var(--color-text)',
-                  border: '2px solid #e5e7eb', borderRadius: 10, fontSize: '0.9rem', fontWeight: 700,
+                  border: '2px solid var(--color-bg-disabled)', borderRadius: 10, fontSize: '0.9rem', fontWeight: 700,
                   cursor: 'pointer', minHeight: 48,
                 }}>
                 {lang === 'am' ? 'ተው' : 'Cancel'}
@@ -395,7 +395,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
     <div style={{
       padding: '10px 12px',
       background: 'var(--color-surface-subtle)',
-      border: '1px solid #e8e2d8',
+      border: '1px solid var(--color-border)',
       borderRadius: 10,
     }}>
       <div style={{
@@ -406,7 +406,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
           disabled={inlineMonth <= 1} aria-label="Previous month"
           style={{
             width: 32, height: 32, borderRadius: 8,
-            background: 'var(--color-surface)', border: '1px solid #e8e2d8',
+            background: 'var(--color-surface)', border: '1px solid var(--color-border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: inlineMonth <= 1 ? 'not-allowed' : 'pointer',
             opacity: inlineMonth <= 1 ? 0.4 : 1, flexShrink: 0,
@@ -420,7 +420,7 @@ function InlineDatePicker({ value, onChange, lang = 'am', open, onClose }) {
           disabled={inlineMonth >= 13} aria-label="Next month"
           style={{
             width: 32, height: 32, borderRadius: 8,
-            background: 'var(--color-surface)', border: '1px solid #e8e2d8',
+            background: 'var(--color-surface)', border: '1px solid var(--color-border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: inlineMonth >= 13 ? 'not-allowed' : 'pointer',
             opacity: inlineMonth >= 13 ? 0.4 : 1, flexShrink: 0,

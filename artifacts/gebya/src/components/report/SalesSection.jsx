@@ -56,7 +56,7 @@ export default function SalesSection({ sales, hidden = false, lang = 'en' }) {
                 alignItems: 'center',
                 gap: 10,
                 padding: '8px 0',
-                borderBottom: i < sales.topItems.length - 1 ? '1px solid #f3f4f6' : 'none',
+                borderBottom: i < sales.topItems.length - 1 ? '1px solid var(--color-bg-hover)' : 'none',
               }}>
                 <span style={{
                   width: 20,
@@ -91,7 +91,7 @@ export default function SalesSection({ sales, hidden = false, lang = 'en' }) {
 
         {/* Payment mix */}
         {sales.totalSales > 0 && (
-          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f3f4f6' }}>
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--color-bg-hover)' }}>
             <p style={{ fontSize: 10, fontWeight: 900, color: 'var(--color-text-soft)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
               {lang === 'am' ? 'የክፍያ ዘዴ' : 'Payment mix'}
             </p>

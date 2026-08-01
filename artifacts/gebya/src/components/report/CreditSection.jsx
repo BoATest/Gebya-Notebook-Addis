@@ -17,7 +17,7 @@ function CustomerRow({ customer, hidden = false, lang = 'en', onAction }) {
       justifyContent: 'space-between',
       gap: 10,
       padding: '10px 0',
-      borderBottom: '1px solid #f3f4f6',
+      borderBottom: '1px solid var(--color-bg-hover)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         <div style={{
@@ -63,7 +63,7 @@ function CustomerRow({ customer, hidden = false, lang = 'en', onAction }) {
             style={{
               padding: '4px 8px',
               borderRadius: 6,
-              border: '1px solid #e5e7eb',
+              border: '1px solid var(--color-bg-disabled)',
               background: 'var(--color-surface)',
               fontSize: 10,
               fontWeight: 800,
@@ -150,7 +150,7 @@ export default function CreditSection({ credit, hidden = false, lang = 'en', onA
               width: '100%',
               padding: '10px',
               marginTop: 8,
-              border: '1px solid #e5e7eb',
+              border: '1px solid var(--color-bg-disabled)',
               borderRadius: 8,
               background: 'var(--color-surface-subtle)',
               fontSize: 12,

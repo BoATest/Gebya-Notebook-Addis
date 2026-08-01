@@ -9,19 +9,19 @@ import { fmt } from '../../utils/numformat';
 
 const STYLES = {
   healthy: {
-    bg: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+    bg: 'linear-gradient(135deg, var(--color-success-bg) 0%, var(--color-success-bg) 100%)',
     border: 'var(--color-success-border)',
     headlineColor: 'var(--color-primary)',
     numberColor: 'var(--color-success)',
   },
   warning: {
-    bg: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+    bg: 'linear-gradient(135deg, var(--color-warning-bg) 0%, var(--color-warning-bg) 100%)',
     border: 'var(--color-warning-border)',
     headlineColor: 'var(--color-warning)',
     numberColor: 'var(--color-accent-amber)',
   },
   urgent: {
-    bg: 'linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)',
+    bg: 'linear-gradient(135deg, var(--color-danger-bg) 0%, var(--color-danger-bg) 100%)',
     border: 'var(--color-danger-border)',
     headlineColor: 'var(--color-danger-text)',
     numberColor: 'var(--color-danger)',

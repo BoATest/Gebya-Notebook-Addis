@@ -187,7 +187,7 @@ function SupplierTransactionSheet({
       {/* Header */}
       <div
         className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between gap-2"
-        style={{ borderBottom: '1px solid #e8e2d8' }}
+        style={{ borderBottom: '1px solid var(--color-border)' }}
       >
         <button
           onClick={onDone}
@@ -360,7 +360,7 @@ function SupplierTransactionSheet({
                 style={{
                   width: 56, height: 56,
                   borderRadius: 'var(--radius-md)',
-                  border: '2px solid #e8e2d8',
+                  border: '2px solid var(--color-border)',
                   background: photos.length > 0 ? 'var(--color-success-bg)' : 'var(--color-danger-bg)',
                   opacity: photos.length > 0 ? 0.55 : 1,
                   flexShrink: 0,
@@ -397,7 +397,7 @@ function SupplierTransactionSheet({
               </button>
             </div>
             {photos.length > 0 && (
-              <div className="mt-2 p-2" style={{ background: 'var(--color-surface-subtle)', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}>
+              <div className="mt-2 p-2" style={{ background: 'var(--color-surface-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }}>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
                     {lang === 'am' ? '\u134E\u1276' : 'Proof photos'}
@@ -429,7 +429,7 @@ function SupplierTransactionSheet({
                           minWidth: 28,
                           minHeight: 28,
                           borderRadius: 999,
-                          border: '1px solid #e8e2d8',
+                          border: '1px solid var(--color-border)',
                           background: 'var(--color-surface)',
                         }}
                         aria-label={lang === 'am' ? '\u134E\u1276 \u12A0\u1235\u12C8\u130D\u12F5' : `Remove photo ${index + 1}`}
@@ -499,7 +499,7 @@ function SupplierTransactionSheet({
       </div>
 
       {/* Sticky save */}
-      <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid #e8e2d8' }}>
+      <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
         <button
           onClick={handleSave}
           disabled={!canSave}

@@ -25,7 +25,7 @@ export default function TodayStory({
     <div style={{
       background: 'var(--color-surface)',
       borderRadius: 12,
-      border: '1px solid #ece6d6',
+      border: '1px solid var(--color-border)',
       padding: '14px 16px',
       marginTop: 4,
     }}>

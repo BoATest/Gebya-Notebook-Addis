@@ -115,7 +115,7 @@ export default function AddProviderButton({ onAddProvider, existingNames = [] })
               : `calc(var(--popup-right, 0px))`,
             zIndex: 9999,
             background: 'var(--color-surface)',
-            border: '1px solid #e8e2d8',
+            border: '1px solid var(--color-border)',
             borderRadius: 8,
             padding: 10,
             boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
@@ -166,7 +166,7 @@ export default function AddProviderButton({ onAddProvider, existingNames = [] })
               placeholder={lang === 'am' ? 'ስም ያስገቡ...' : 'e.g. Zemen Bank'}
               style={{
                 width: '100%', padding: '8px 10px', fontSize: 12,
-                border: '1px solid #edeae5', borderRadius: 6,
+                border: '1px solid var(--color-border-light)', borderRadius: 6,
                 outline: 'none', marginBottom: 4,
                 boxSizing: 'border-box',
               }}
@@ -175,7 +175,7 @@ export default function AddProviderButton({ onAddProvider, existingNames = [] })
             {suggestions.length > 0 && (
               <div
                 style={{
-                  border: '1px solid #edeae5',
+                  border: '1px solid var(--color-border-light)',
                   borderRadius: 6,
                   maxHeight: 140,
                   overflowY: 'auto',

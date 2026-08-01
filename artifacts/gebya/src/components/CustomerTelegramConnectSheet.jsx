@@ -463,7 +463,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
           {!linkingAvailable && (
             <div
               className="p-3"
-              style={{ background: 'var(--color-warning-bg)', border: '1px solid #fed7aa', borderRadius: 'var(--radius-md)' }}
+              style={{ background: 'var(--color-warning-bg)', border: '1px solid var(--color-warning-border)', borderRadius: 'var(--radius-md)' }}
             >
               <p className="text-sm font-bold text-gray-900">
                 {telegramServiceAvailable

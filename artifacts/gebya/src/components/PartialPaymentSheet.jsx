@@ -114,7 +114,7 @@ function PartialPaymentSheet({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white max-w-md mx-auto">
       {/* Header */}
-      <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid #e8e2d8' }}>
+      <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)' }}>
         <button onClick={() => { resetForm(); onClose(); }} aria-label={lang === 'am' ? 'ተመለስ' : 'Back'} className="press-scale flex items-center justify-center" style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}>
           <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
         </button>
@@ -128,7 +128,7 @@ function PartialPaymentSheet({
       <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 space-y-4">
 
         {/* Total amount display */}
-        <div className="p-3" style={{ background: 'var(--color-success-bg)', border: '1px solid #d8eadf', borderRadius: 'var(--radius-md)' }}>
+        <div className="p-3" style={{ background: 'var(--color-success-bg)', border: '1px solid var(--color-success-border)', borderRadius: 'var(--radius-md)' }}>
           <p className="text-xs font-bold" style={{ color: 'var(--color-success-text)' }}>
             {lang === 'am' ? 'ጠቅላላ መጠን' : 'Total Amount'}
           </p>
@@ -311,7 +311,7 @@ function PartialPaymentSheet({
       </div>
 
       {/* Save button */}
-      <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid #e8e2d8', background: 'var(--color-surface)' }}>
+      <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-surface)' }}>
         {!isPartialValid && receivedAmount > 0 && !customerMatch && (
           <p className="text-xs font-semibold text-center mb-2" style={{ color: 'var(--color-warning)' }}>
             {lang === 'am' ? 'ከላይ ደንበኛ ይምረጡ ወይም ያክሉ' : 'Select or add a customer above'}

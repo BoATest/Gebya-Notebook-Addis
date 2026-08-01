@@ -88,7 +88,7 @@ export default function OfflineStatusStrip({
       <div
         role="alert"
         className="mt-2 flex flex-col gap-1"
-        style={{ minHeight: 36, padding: '7px 9px', borderRadius: 8, background: 'var(--color-warning-bg)', border: '1px solid #fcd34d', color: 'var(--color-warning)', fontSize: 12, fontWeight: 800 }}
+        style={{ minHeight: 36, padding: '7px 9px', borderRadius: 8, background: 'var(--color-warning-bg)', border: '1px solid var(--color-warning-border)', color: 'var(--color-warning)', fontSize: 12, fontWeight: 800 }}
       >
         <span className="truncate">
           ⚠️ {lang === 'am' ? 'ሁከት ተፈጠረ' : 'Sync conflict'} · {conflictWarning}

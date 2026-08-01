@@ -65,7 +65,7 @@ export default function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
             <MoreVertical className="w-4 h-4 text-gray-400" />
           </button>
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 bg-white z-20 min-w-[130px]" style={{ border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+            <div className="absolute right-0 top-full mt-1 bg-white z-20 min-w-[130px]" style={{ border: '1px solid var(--color-bg-disabled)', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
               <button onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full px-3 py-2 text-left flex items-center gap-2 text-sm hover:bg-gray-50">
                 <Pencil className="w-3.5 h-3.5" /> {lang === 'am' ? 'አርትዕ' : 'Edit'}
               </button>

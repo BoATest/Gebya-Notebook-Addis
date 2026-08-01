@@ -34,7 +34,7 @@ export default function Chapter({
       className={`chapter ${className}`}
       style={{
         background: 'var(--color-surface)',
-        border: '1px solid var(--color-border, #ece6d6)',
+        border: '1px solid var(--color-border, var(--color-border))',
         borderRadius: 'var(--radius-md, 12px)',
         boxShadow: 'var(--shadow-xs, 0 2px 8px -4px rgba(0,0,0,0.08))',
         marginBottom: 12,
@@ -111,7 +111,7 @@ export default function Chapter({
       {isExpanded && (
         <div style={{
           padding: '0 16px 16px',
-          borderTop: '1px solid #f3f4f6',
+          borderTop: '1px solid var(--color-bg-hover)',
         }}>
           {children}
         </div>

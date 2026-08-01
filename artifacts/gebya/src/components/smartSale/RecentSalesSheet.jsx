@@ -73,7 +73,7 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
   return (
     <div className="fixed inset-0 z-50 bg-white flex flex-col" style={{ maxWidth: '28rem', margin: '0 auto' }}>
       {/* Header */}
-      <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center gap-3" style={{ borderBottom: '1px solid #e8e2d8' }}>
+      <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center gap-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
         <button onClick={onClose} className="press-scale flex items-center justify-center" style={{ minWidth: '44px', minHeight: '44px' }}>
           <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
         </button>

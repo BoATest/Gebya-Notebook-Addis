@@ -116,7 +116,7 @@ function SupplierList({ suppliers = [], onSelectSupplier, onAddSupplier }) {
       <div
         style={{
           background: 'linear-gradient(135deg, #fff5f5 0%, #fff 100%)',
-          border: '1px solid #fecaca',
+          border: '1px solid var(--color-danger-border)',
           borderRadius: 14,
           padding: 16,
           boxShadow: '0 2px 12px -4px rgba(220,38,38,0.12)',
@@ -179,7 +179,7 @@ function SupplierList({ suppliers = [], onSelectSupplier, onAddSupplier }) {
             paddingTop: 12, paddingBottom: 12,
             fontSize: '0.88rem',
             background: 'var(--color-surface)',
-            border: '1px solid #ece6d6',
+            border: '1px solid var(--color-border)',
             borderRadius: 10,
             outline: 'none',
             boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
@@ -216,7 +216,7 @@ function SupplierList({ suppliers = [], onSelectSupplier, onAddSupplier }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {filteredSuppliers.length === 0 ? (
           <div style={{
-            background: 'var(--color-surface)', border: '1px solid #ece6d6', borderRadius: 12,
+            background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12,
             padding: '20px 16px', textAlign: 'center',
           }}>
             <Truck className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--color-text-soft)' }} />
@@ -311,7 +311,7 @@ function SupplierRow({ supplier, lang, onClick }) {
       className="press-scale"
       style={{
         background: 'var(--color-surface)',
-        border: '1px solid #ece6d6',
+        border: '1px solid var(--color-border)',
         borderRadius: 12,
         padding: 12,
         display: 'flex', alignItems: 'center', gap: 10,

@@ -302,7 +302,7 @@ function CustomerTransactionSheet({
       {/* Header: back arrow + type label + customer name */}
       <div
         className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between gap-2"
-        style={{ borderBottom: '1px solid #e8e2d8' }}
+        style={{ borderBottom: '1px solid var(--color-border)' }}
       >
         <button
           onClick={onDone}
@@ -463,7 +463,7 @@ function CustomerTransactionSheet({
                 className="cursor-pointer press-scale flex items-center justify-center flex-shrink-0"
                 style={{
                   width: 56,
-                  border: '2px solid #e8e2d8',
+                  border: '2px solid var(--color-border)',
                   borderRadius: 'var(--radius-md)',
                   background: photos.length > 0 ? 'var(--color-success-bg)' : 'var(--color-surface-subtle)',
                   opacity: photos.length > 0 ? 0.55 : 1,
@@ -504,7 +504,7 @@ function CustomerTransactionSheet({
 
           {!isPayment && photos.length > 0 && (
             <div className="mt-2 p-2"
-              style={{ background: 'var(--color-surface-subtle)', border: '1px solid #e8e2d8', borderRadius: 'var(--radius-sm)' }}
+              style={{ background: 'var(--color-surface-subtle)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }}
             >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold" style={{ color: 'var(--color-text)' }}>
@@ -537,7 +537,7 @@ function CustomerTransactionSheet({
                         minWidth: 28,
                         minHeight: 28,
                         borderRadius: 999,
-                        border: '1px solid #e8e2d8',
+                        border: '1px solid var(--color-border)',
                         background: 'var(--color-surface)',
                       }}
                       aria-label={lang === 'am' ? '\u134E\u1276 \u12A0\u1235\u12C8\u130D\u12F5' : `Remove photo ${index + 1}`}
@@ -695,7 +695,7 @@ function CustomerTransactionSheet({
 
                 {/* Totals · sync-to-sum button */}
                 {validLineItems.length > 0 && (
-                  <div className="text-xs pt-2 space-y-1" style={{ borderTop: '1px solid #e8e2d8' }}>
+                  <div className="text-xs pt-2 space-y-1" style={{ borderTop: '1px solid var(--color-border)' }}>
                     <div className="flex justify-between" style={{ color: 'var(--color-text)' }}>
                       <span>{lang === 'am' ? 'የዕቃዎች ድምር' : 'Items total'}:</span>
                       <span className="font-bold">{fmt(lineItemsTotal)} {lang === 'am' ? 'ብር' : 'birr'}</span>
@@ -788,7 +788,7 @@ function CustomerTransactionSheet({
       </div>
 
       {/* Sticky save button */}
-      <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid #e8e2d8' }}>
+      <div className="flex-shrink-0 px-3 sm:px-4 py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
         <button
           onClick={handleSave}
           disabled={!canSave}
@@ -838,7 +838,7 @@ function CustomerTransactionSheet({
               className="p-3 mb-4"
               style={{
                 background: 'var(--color-warning-bg)',
-                border: '1px solid #fde68a',
+                border: '1px solid var(--color-warning-border)',
                 borderRadius: 'var(--radius-md)',
               }}
             >

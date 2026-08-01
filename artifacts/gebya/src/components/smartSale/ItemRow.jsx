@@ -147,7 +147,7 @@ export default function ItemRow({
           transform: swiped ? 'translateX(-80px)' : 'translateX(0)',
           transition: swiped ? 'transform 0.2s ease' : 'none',
           background: isPlaceholder ? 'rgba(249,250,251,0.6)' : 'var(--color-bg-white)',
-          borderBottom: isPlaceholder ? '1px dashed #e5e7eb' : '1px solid #edeae5',
+          borderBottom: isPlaceholder ? '1px dashed var(--color-bg-disabled)' : '1px solid var(--color-border-light)',
           padding: '0',
           opacity: isPlaceholder ? 0.75 : 1,
         }}

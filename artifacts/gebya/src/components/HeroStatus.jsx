@@ -32,9 +32,9 @@ export default function HeroStatus({
 
   return (
     <div style={{
-      background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+      background: 'linear-gradient(135deg, var(--color-success-bg) 0%, var(--color-success-bg) 100%)',
       borderRadius: 16,
-      border: '1px solid #bbf7d0',
+      border: '1px solid var(--color-success-border)',
       padding: '16px 18px',
       marginTop: 4,
     }}>

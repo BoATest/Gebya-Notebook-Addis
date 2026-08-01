@@ -147,7 +147,7 @@ export default function StaffInviteAcceptScreen({ onJoined, onDismiss }) {
                 onClick={handleDecline}
                 disabled={saving}
                 className="flex-1 py-3 rounded-xl text-sm font-bold min-h-[48px]"
-                style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)', border: '1px solid #e5e7eb' }}
+                style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)', border: '1px solid var(--color-bg-disabled)' }}
               >
                 {lang === 'am' ? 'አልቀላቀልም' : 'Decline'}
               </button>

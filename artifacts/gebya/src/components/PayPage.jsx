@@ -241,7 +241,7 @@ function PayPage() {
         {/* Amount card */}
         <div style={{
           background: 'var(--color-surface)',
-          border: '1px solid #ece6d6',
+          border: '1px solid var(--color-border)',
           borderRadius: 14,
           padding: 22,
           textAlign: 'center',
@@ -349,7 +349,7 @@ function PayPage() {
                 falls back to a generic contact card with the shop's phone/Telegram. */}
             <div style={{
               background: 'var(--color-surface)',
-              border: '1px solid #ece6d6',
+              border: '1px solid var(--color-border)',
               borderRadius: 12,
               padding: 14,
               marginBottom: 6,
@@ -424,7 +424,7 @@ function PayPage() {
               marginTop: 18,
               padding: 14,
               background: 'var(--color-success-bg)',
-              border: '1px solid #86efac',
+              border: '1px solid var(--color-success-border)',
               borderRadius: 12,
               textAlign: 'center',
             }}
@@ -579,7 +579,7 @@ function PayPage() {
           marginTop: 18,
           padding: 14,
           background: 'var(--color-success-bg)',
-          border: '1px solid #a3e9c1',
+          border: '1px solid var(--color-success-border)',
           borderRadius: 10,
           fontSize: '0.78rem',
           color: 'var(--color-success-text)',
@@ -799,7 +799,7 @@ function ContactRow({ label, value, onCopy, copied, copyLabel, copiedLabel }) {
       display: 'flex', alignItems: 'center', gap: 8,
       padding: '8px 10px',
       background: 'var(--color-surface-soft)',
-      border: '1px solid #ece6d6',
+      border: '1px solid var(--color-border)',
       borderRadius: 8,
       marginBottom: 4,
     }}>

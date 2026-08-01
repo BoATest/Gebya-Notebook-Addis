@@ -25,7 +25,7 @@ export default function DiarySection({ diary, lang = 'en' }) {
     >
       <div style={{
         background: 'linear-gradient(135deg, #fefce8 0%, #fef9c3 100%)',
-        border: '1px solid #fde68a',
+        border: '1px solid var(--color-warning-border)',
         borderRadius: 12,
         padding: 16,
         marginTop: 8,

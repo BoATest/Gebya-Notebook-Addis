@@ -74,7 +74,7 @@ export default function TimelineView({
               width: '100%',
               minHeight: 36,
               padding: '4px 10px 4px 32px',
-              border: '1px solid #e5e7eb',
+              border: '1px solid var(--color-bg-disabled)',
               borderRadius: 10,
               fontSize: 12,
               fontWeight: 600,
@@ -100,7 +100,7 @@ export default function TimelineView({
           onClick={handleExport}
           style={{
             minHeight: 36, padding: '4px 12px',
-            border: '1px solid #e5e7eb', borderRadius: 10,
+            border: '1px solid var(--color-bg-disabled)', borderRadius: 10,
             background: 'var(--color-surface)', fontSize: 11, fontWeight: 800,
             color: 'var(--color-text-muted)', cursor: 'pointer',
           }}
@@ -140,14 +140,14 @@ export default function TimelineView({
             : (lang === 'am' ? 'ምንም እንቅስቃሴ የለም' : 'No entries yet')}
         </p>
       ) : (
-        <div style={{ background: 'var(--color-surface)', borderRadius: 12, border: '1px solid #ece6d6', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--color-surface)', borderRadius: 12, border: '1px solid var(--color-border)', overflow: 'hidden' }}>
           {filtered.map((row, i) => (
             <div key={row.report_id || row.id || i} style={{
               display: 'flex',
               alignItems: 'center',
               gap: 10,
               padding: '10px 14px',
-              borderBottom: i < filtered.length - 1 ? '1px solid #f3f4f6' : 'none',
+              borderBottom: i < filtered.length - 1 ? '1px solid var(--color-bg-hover)' : 'none',
               cursor: onEdit ? 'pointer' : 'default',
             }}
               onClick={() => onEdit?.(row)}

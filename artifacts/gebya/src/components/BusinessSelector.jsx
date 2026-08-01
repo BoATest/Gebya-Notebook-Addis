@@ -58,7 +58,7 @@ export default function BusinessSelector({ shopProfile, currentBusinessId }) {
         <div
           style={{
             position: 'absolute', top: '100%', left: 0, right: 0,
-            background: 'var(--color-surface)', border: '1px solid #e5e7eb',
+            background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)',
             borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
             zIndex: 100, marginTop: 6, overflow: 'hidden',
             minWidth: 200,
@@ -80,7 +80,7 @@ export default function BusinessSelector({ shopProfile, currentBusinessId }) {
                   border: 'none', cursor: active ? 'default' : 'pointer',
                   fontSize: 14, fontWeight: active ? 600 : 400,
                   color: 'var(--color-text)', textAlign: 'left',
-                  borderBottom: '1px solid #f3f4f6',
+                  borderBottom: '1px solid var(--color-bg-hover)',
                 }}
               >
                 <span style={{

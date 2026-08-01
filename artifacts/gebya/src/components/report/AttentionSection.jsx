@@ -41,7 +41,7 @@ function AttentionItem({ item, lang = 'en', onAction }) {
           style={{
             padding: '6px 12px',
             borderRadius: 8,
-            border: item.actionType === 'primary' ? 'none' : '1px solid #1B4332',
+            border: item.actionType === 'primary' ? 'none' : '1px solid var(--color-primary)',
             background: item.actionType === 'primary' ? 'var(--color-primary)' : 'var(--color-bg-white)',
             color: item.actionType === 'primary' ? 'var(--color-bg-white)' : 'var(--color-primary)',
             fontSize: 11,

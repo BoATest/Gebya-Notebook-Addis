@@ -31,7 +31,7 @@ function TimelineRow({ item, hidden = false, lang = 'en', onAction }) {
         alignItems: 'center',
         gap: 10,
         padding: '10px 0',
-        borderBottom: '1px solid #f3f4f6',
+        borderBottom: '1px solid var(--color-bg-hover)',
         border: 'none',
         background: 'transparent',
         cursor: 'pointer',

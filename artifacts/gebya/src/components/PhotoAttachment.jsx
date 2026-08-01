@@ -35,7 +35,7 @@ export default function PhotoAttachment({ photo, photos, lang = 'en', label, siz
           minHeight: 44,
           borderRadius: 8,
           overflow: 'hidden',
-          border: '1px solid #ece6d6',
+          border: '1px solid var(--color-border)',
           background: 'var(--color-surface)',
           padding: 0,
           cursor: 'pointer',

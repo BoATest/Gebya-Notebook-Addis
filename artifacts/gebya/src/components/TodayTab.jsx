@@ -54,8 +54,8 @@ export default function TodayTab({
               <div style={{
                 marginTop: 16,
                 padding: 16,
-                background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
-                border: '1px solid #bbf7d0',
+                background: 'linear-gradient(135deg, var(--color-success-bg) 0%, var(--color-success-bg) 100%)',
+                border: '1px solid var(--color-success-border)',
                 borderRadius: 12,
               }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary)', marginBottom: 12 }}>

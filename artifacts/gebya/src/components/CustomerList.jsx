@@ -168,7 +168,7 @@ function CustomerList({
       <div className="space-y-4">
         <div
           className="px-3 py-10 text-center"
-          style={{ background: 'var(--color-surface)', border: '1px solid #ece6d6', borderRadius: 'var(--radius-md)' }}
+          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}
         >
           <div style={{ fontSize: '3rem', lineHeight: 1, marginBottom: 12 }}>📒</div>
           <p className="text-lg font-black" style={{ color: 'var(--color-text)', marginBottom: 4 }}>
@@ -196,7 +196,7 @@ function CustomerList({
               style={{
                 padding: '10px 14px',
                 background: 'var(--color-surface)',
-                border: '1px dashed #e5e7eb',
+                border: '1px dashed var(--color-bg-disabled)',
                 borderRadius: 10,
                 marginBottom: 6,
               }}
@@ -245,7 +245,7 @@ function CustomerList({
       <div
         style={{
           background: 'var(--color-surface)',
-          border: '1px solid #ece6d6',
+          border: '1px solid var(--color-border)',
           borderRadius: 12,
           padding: 14,
           boxShadow: '0 2px 8px -2px rgba(0,0,0,0.04)',
@@ -267,7 +267,7 @@ function CustomerList({
             </span>
             {streak > 0 && (
               <span style={{
-                background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                background: 'linear-gradient(135deg, var(--color-warning-bg) 0%, var(--color-warning-border) 100%)',
                 color: 'var(--color-warning)',
                 padding: '2px 7px', borderRadius: 999,
                 fontSize: '0.6rem', fontWeight: 800,
@@ -284,7 +284,7 @@ function CustomerList({
               className="press-scale"
               style={{
                 background: hidden ? 'rgba(196,136,58,0.10)' : 'transparent',
-                border: hidden ? '1px solid #fde68a' : '1px solid transparent',
+                border: hidden ? '1px solid var(--color-warning-border)' : '1px solid transparent',
                 color: hidden ? 'var(--color-warning)' : 'var(--color-text-soft)',
                 padding: '0 6px',
                 minWidth: 28, minHeight: 28,
@@ -326,7 +326,7 @@ function CustomerList({
             autoCapitalize="words"
             style={{
               width: '100%', padding: '10px 12px 10px 34px',
-              background: 'var(--color-surface)', border: '1px solid #ece6d6',
+              background: 'var(--color-surface)', border: '1px solid var(--color-border)',
               borderRadius: 10, fontSize: '0.85rem',
               outline: 'none', color: 'var(--color-text)',
             }}
@@ -363,7 +363,7 @@ function CustomerList({
                   : 'var(--color-text-muted)',
                 border: active
                   ? `1px solid ${isOverdue ? 'var(--color-danger-border)' : 'var(--color-text)'}`
-                  : '1px solid #ece6d6',
+                  : '1px solid var(--color-border)',
                 cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 4,
                 minHeight: 28,
@@ -392,7 +392,7 @@ function CustomerList({
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '6px 10px', margin: '2px 0',
             background: 'var(--color-danger-bg)', borderRadius: 8,
-            border: '1px solid #fecaca',
+            border: '1px solid var(--color-danger-border)',
           }}>
             <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: 5 }}>
               🎯 {lang === 'am'
@@ -453,7 +453,7 @@ function CustomerList({
               style={{
                 padding: '10px 14px',
                 background: 'var(--color-surface)',
-                borderBottom: '1px solid #f5f1ea',
+                borderBottom: '1px solid var(--color-surface-muted)',
                 borderLeft: `4px solid ${isArchived ? 'var(--color-text-soft)' : urg}`,
                 display: 'flex', alignItems: 'center', gap: 10,
                 cursor: 'pointer',
@@ -517,7 +517,7 @@ function CustomerList({
                       fontSize: '0.58rem', fontWeight: 800,
                       padding: '1px 6px',
                       background: 'var(--color-danger-bg)', color: 'var(--color-danger)',
-                      borderRadius: 3, border: '1px solid #fecaca',
+                      borderRadius: 3, border: '1px solid var(--color-danger-border)',
                     }}>
                       🔴 {lang === 'am' ? 'የጠበቁት አልፏል' : 'Missed'}
                     </span>
@@ -560,7 +560,7 @@ function CustomerList({
                   style={{
                     width: 32, height: 32, borderRadius: 8,
                     background: 'var(--color-warning-bg)', color: 'var(--color-accent-amber)',
-                    border: '1px solid #fde68a',
+                    border: '1px solid var(--color-warning-border)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', flexShrink: 0,
                   }}
@@ -594,7 +594,7 @@ function CustomerList({
             style={{
               padding: '40px 20px',
               background: 'var(--color-surface)',
-              border: '1px solid #ece6d6',
+              border: '1px solid var(--color-border)',
               borderRadius: 'var(--radius-md)',
             }}
           >
@@ -616,7 +616,7 @@ function CustomerList({
             background: 'var(--color-text)', color: 'var(--color-bg-white)',
             padding: '10px 14px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            borderTop: '2px solid #f59e0b',
+            borderTop: '2px solid var(--color-warning)',
             borderRadius: '0 0 8px 8px',
             margin: '0 -3px',
             minHeight: 48,

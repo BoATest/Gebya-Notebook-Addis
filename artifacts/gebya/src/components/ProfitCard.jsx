@@ -59,7 +59,7 @@ function ProfitCard({ transactions, yesterdayNet }) {
       className="px-3 sm:px-4 py-3"
       style={{
         background: 'var(--color-surface)',
-        border: '1px solid #e8e2d8',
+        border: '1px solid var(--color-border)',
         borderRadius: 'var(--radius-md)',
         boxShadow: 'var(--shadow-xs)',
       }}
@@ -79,7 +79,7 @@ function ProfitCard({ transactions, yesterdayNet }) {
           style={{
             minHeight: '32px',
             background: hidden ? 'rgba(196,136,58,0.10)' : 'transparent',
-            border: hidden ? '1px solid #fde68a' : '1px solid transparent',
+            border: hidden ? '1px solid var(--color-warning-border)' : '1px solid transparent',
             borderRadius: '999px',
             color: hidden ? 'var(--color-warning)' : 'var(--color-text-soft)',
             fontSize: '11px',
