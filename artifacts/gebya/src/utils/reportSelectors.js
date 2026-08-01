@@ -16,6 +16,19 @@ export function amountOf(row) {
   return Number(row?.amount ?? row?.cash_received ?? 0) || 0;
 }
 
+// How much money actually changed hands for this row.
+// For a sale this is the collected (received) amount: for a partial sale that is
+// paid_amount (its cash_received is 0 when the partial was paid by bank/wallet),
+// otherwise the full cash_received/amount. For every other row it equals amountOf.
+export function collectedAmount(row) {
+  const isPartialSale = row.report_kind === 'sale' && (
+    String(row.sale_settlement_mode || row.settlement_mode) === 'partial'
+    || String(row.payment_type || '').toLowerCase() === 'partial'
+  );
+  if (isPartialSale) return Number(row.paid_amount ?? row.cash_received ?? 0) || 0;
+  return amountOf(row);
+}
+
 export function actorKey(row) {
   return row?.actor_staff_member_id ? String(row.actor_staff_member_id) : OWNER_SCOPE;
 }
@@ -107,16 +120,37 @@ export function computeReportMetrics(rows = []) {
   const cashCollectionRows = collectionRows.filter(row => !isTransferPayment(row));
   const cashExpenseRows = expenseRows.filter(row => !isTransferPayment(row));
   const sum = list => list.reduce((total, row) => total + amountOf(row), 0);
-  const cashSales = cashSaleRows.reduce((total, row) => total + (Number(row.cash_received ?? row.amount ?? 0) || 0), 0);
+  const collectedSum = list => list.reduce((total, row) => total + collectedAmount(row), 0);
+  const cashSales = collectedSum(cashSaleRows);
+
+  // Partial sales — money received (split by method) plus the still-owed portion,
+  // so the report can show exactly how a partial payment was collected.
+  const partialRows = saleRows.filter(row =>
+    String(row.sale_settlement_mode || row.settlement_mode) === 'partial'
+    || String(row.payment_type || '').toLowerCase() === 'partial'
+  );
+  const partialReceivedCash = partialRows
+    .filter(row => !isTransferPayment(row))
+    .reduce((total, row) => total + collectedAmount(row), 0);
+  const partialReceivedTransfer = partialRows
+    .filter(row => isTransferPayment(row))
+    .reduce((total, row) => total + collectedAmount(row), 0);
+  const partialRemaining = partialRows.reduce(
+    (total, row) => total + (Number(row.remaining_amount ?? row.credit_amount ?? 0) || 0), 0
+  );
 
   return {
     totalSold: sum(saleRows) + sum(manualCreditRows),
     cashExpected: cashSales + sum(cashCollectionRows) - sum(cashExpenseRows),
-    transferRecorded: sum(transferRows),
+    transferRecorded: collectedSum(transferRows),
     newDubie: sum(creditRows),
     creditCollected: sum(collectionRows),
     spentToday: sum(expenseRows),
     totalLoanGiven: sum(manualCreditRows),
+    partialCount: partialRows.length,
+    partialReceivedCash,
+    partialReceivedTransfer,
+    partialRemaining,
     saleRows,
     expenseRows,
     creditRows,
@@ -144,8 +178,8 @@ export function buildStaffReportRows(rows = []) {
     if (row.report_kind === 'sale') {
       existing.sold += amountOf(row);
       existing.records += 1;
-      if (isTransferPayment(row)) existing.transfer += amountOf(row);
-      else if (String(row.payment_type || 'cash').toLowerCase() !== 'credit') existing.cash += Number(row.cash_received ?? row.amount ?? 0) || 0;
+      if (isTransferPayment(row)) existing.transfer += collectedAmount(row);
+      else if (String(row.payment_type || 'cash').toLowerCase() !== 'credit') existing.cash += collectedAmount(row);
     }
     if (row.report_kind === 'credit' && !row.source_transaction_id && !row.transaction_id) {
       existing.sold += amountOf(row);

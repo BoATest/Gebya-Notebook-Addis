@@ -50,6 +50,7 @@ export default function TimelineView({
 
   const paymentLabel = (row) => {
     const method = row.payment_type || (row.report_kind === 'collection' ? 'cash' : 'cash');
+    if (method === 'partial') return `${lang === 'am' ? '½ ከፊል' : '½ Partial'}${row.payment_provider ? ` · ${row.payment_provider}` : ''}`;
     if (method === 'telebirr') return 'Telebirr';
     if (method === 'cbe' || method === 'cbebirr') return 'CBE';
     if (method === 'bank') return 'Bank';

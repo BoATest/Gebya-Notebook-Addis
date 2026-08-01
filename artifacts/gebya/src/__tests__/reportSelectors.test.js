@@ -160,4 +160,29 @@ test('card totals equal the sum of their drilldown rows', () => {
   assert.equal(metrics.spentToday, sum(metrics.expenseRows));
 });
 
+test('partial cash sale counts only received cash, remaining owed is separate', () => {
+  const metrics = computeReportMetrics(rows({
+    transactions: [{ id: 1, type: 'sale', amount: 100, payment_type: 'partial', cash_received: 40, paid_amount: 40, remaining_amount: 60, credit_amount: 60, sale_settlement_mode: 'partial', created_at: T + 1 }],
+  }));
+  assert.equal(metrics.totalSold, 100);
+  assert.equal(metrics.cashExpected, 40);
+  assert.equal(metrics.transferRecorded, 0);
+  assert.equal(metrics.partialCount, 1);
+  assert.equal(metrics.partialReceivedCash, 40);
+  assert.equal(metrics.partialReceivedTransfer, 0);
+  assert.equal(metrics.partialRemaining, 60);
+});
+
+test('partial bank/wallet sale counts only received amount as transfer, not full sale', () => {
+  const metrics = computeReportMetrics(rows({
+    transactions: [{ id: 1, type: 'sale', amount: 100, payment_type: 'partial', payment_provider: 'CBE', cash_received: 0, paid_amount: 40, remaining_amount: 60, credit_amount: 60, sale_settlement_mode: 'partial', created_at: T + 1 }],
+  }));
+  assert.equal(metrics.totalSold, 100);
+  assert.equal(metrics.cashExpected, 0);
+  assert.equal(metrics.transferRecorded, 40);
+  assert.equal(metrics.partialReceivedCash, 0);
+  assert.equal(metrics.partialReceivedTransfer, 40);
+  assert.equal(metrics.partialRemaining, 60);
+});
+
 console.log('Report selector verification passed.');

@@ -66,6 +66,20 @@ export default function TodayBusiness({
           <Row label={lang === 'am' ? '📱 ዲጂታል' : '📱 Digital'} value={digital} hidden={hidden} />
           <Row label={lang === 'am' ? '📤 ወጪ' : '📤 Expenses'} value={expenses} hidden={hidden} color='var(--color-danger)' />
           <Row label={lang === 'am' ? '💰 የዕዳ መሰብሰብ' : '💰 Collections'} value={collections} hidden={hidden} />
+          {m.partialCount > 0 && (
+            <>
+              <div style={{ height: 1, background: 'var(--color-bg-disabled)', margin: '6px 0' }} />
+              <p style={{
+                fontSize: 10, fontWeight: 900, color: 'var(--color-text-soft)',
+                textTransform: 'uppercase', letterSpacing: '0.06em', padding: '4px 0 2px',
+              }}>
+                ½ {lang === 'am' ? 'ከፊል ክፍያዎች' : 'Partial payments'} ({m.partialCount})
+              </p>
+              <Row label={lang === 'am' ? '💵 በጥሬ የተቀበለ' : '💵 Received · cash'} value={m.partialReceivedCash || 0} hidden={hidden} color='var(--color-success)' />
+              <Row label={lang === 'am' ? '📱 በባንክ/ዋሌት የተቀበለ' : '📱 Received · bank/wallet'} value={m.partialReceivedTransfer || 0} hidden={hidden} color='var(--color-accent-amber)' />
+              <Row label={lang === 'am' ? '↩ ገና ያልተከፈለ (ዱቤ)' : '↩ Still owed (Dubie)'} value={m.partialRemaining || 0} hidden={hidden} color='var(--color-accent-amber)' />
+            </>
+          )}
           <div style={{ height: 1, background: 'var(--color-bg-disabled)', margin: '6px 0' }} />
           <Row label={lang === 'am' ? '💵 ሊኖርህ የሚገባ ገንዘብ' : '💵 Cash you should have'} value={cashYouShouldHave} hidden={hidden} bold />
           {closingState.done && (

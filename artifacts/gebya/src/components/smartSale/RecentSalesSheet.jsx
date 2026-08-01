@@ -120,6 +120,7 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
                 {group.transactions.map(tx => {
                   const paymentLabel = tx.payment_type === 'cash' ? '💵 Cash'
                     : tx.payment_type === 'credit' ? '👥 Credit'
+                    : tx.payment_type === 'partial' ? (tx.payment_provider ? `½ Partial · ${tx.payment_provider}` : '½ Partial')
                     : tx.payment_provider || tx.payment_type || '—';
                   return (
                     <div
