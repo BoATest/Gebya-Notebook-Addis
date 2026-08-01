@@ -13,6 +13,7 @@ import notificationsRouter from "./notifications.js";
 import analyticsRouter from "./analytics.js";
 import adminRouter from "./admin.js";
 import eventsRouter from "./events.js";
+import staffRouter from "./staff.js";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,7 @@ router.use("/analytics", analyticsRouter);
 router.use("/admin", adminRouter);
 // Staff activity events (Phase 2 — Postgres-backed)
 router.use("/", eventsRouter);
+// Staff tasks and attendance
+router.use("/", staffRouter);
 
 export default router;

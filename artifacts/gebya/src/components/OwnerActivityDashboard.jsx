@@ -112,7 +112,7 @@ function ConflictsCard({ lang }) {
           </div>
         ))}
         <div className="text-[10px] text-amber-700 mt-1">
-          {lang === 'am' ? 'የኋላ ሪኮርዱ ተቀምጧል። የሰራተኞች የላቀ ስሪት ተቀብሏል።' : 'Latest version kept. Staff changes were merged automatically.'}
+          {lang === 'am' ? 'የላቀ ስሪት ተቀብሏል።' : 'Latest version kept. Staff changes were merged automatically.'}
         </div>
       </div>
     </div>
@@ -200,6 +200,27 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
     });
   }, [violations, staffFilter, dateFilter]);
 
+  // ─── NEW: Staff Performance Metrics ─────────────────────────────────────
+  const performanceByStaff = useMemo(() => {
+    const map = new Map();
+    (activity || []).forEach(row => {
+      if (row.action === 'ATTEMPTED_VIOLATION') return;
+      const id = row.actorStaffMemberId;
+      if (!id) return;
+      const name = staffOptions.find(o => o.id === id)?.name || 'Staff';
+      const existing = map.get(id) || { name, transactions: 0, sales: 0, payments: 0, credits: 0, amount: 0 };
+      existing.transactions += 1;
+      existing.amount += entityAmount(row.entityType, row) || 0;
+      if (row.entityType === 'transactions') existing.sales += 1;
+      if (row.entityType === 'customer_payment') existing.payments += 1;
+      if (row.entityType === 'customer_credit') existing.credits += 1;
+      map.set(id, existing);
+    });
+    return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
+  }, [activity, staffOptions]);
+
+  const totalSalesAmount = useMemo(() => performanceByStaff.reduce((s, r) => s + r.amount, 0), [performanceByStaff]);
+
   if (!canManageTeam) return null;
 
   return (
@@ -230,6 +251,45 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
                   <div className="text-xs font-bold text-gray-700">
                     {row.transactions} {lang === 'am' ? 'ሪኮርዶች' : 'records'} · {fmt(row.amount)} {lang === 'am' ? 'ብር' : 'birr'}
                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* NEW: Performance Metrics */}
+      <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
+        <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface-subtle)' }}>
+          <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
+            {lang === 'am' ? 'የአፈፃፀሚ ሪኮርዶች' : 'Performance Metrics'}
+          </span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--color-info-bg)', color: 'var(--color-info)' }}>
+            {lang === 'am' ? 'ጠቅላላ' : 'Total'} {fmt(totalSalesAmount)} {lang === 'am' ? 'ብር' : 'ETB'}
+          </span>
+        </div>
+        {performanceByStaff.length === 0 ? (
+          <div className="px-4 py-3 text-xs text-gray-400">
+            {lang === 'am' ? 'ምንም እንቅስቃሴ አልተመዘገበም' : 'No performance data yet'}
+          </div>
+        ) : (
+          <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
+            {performanceByStaff.slice(0, 10).map((row, idx) => (
+              <div key={row.name + row.id} className="px-4 py-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black text-white" style={{ background: idx === 0 ? 'var(--color-warning)' : 'var(--color-primary)' }}>
+                    {idx + 1}
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-gray-900">{row.name}</div>
+                    <div className="text-[10px] text-gray-500">
+                      {row.sales} {lang === 'am' ? 'ሽያጭ' : 'sales'} · {row.payments} {lang === 'am' ? 'ክፍያ' : 'payments'} · {row.credits} {lang === 'am' ? 'ብር ክፍያ' : 'credits'}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs font-black" style={{ color: 'var(--color-primary)' }}>{fmt(row.amount)}</div>
+                  <div className="text-[10px] text-gray-500">{lang === 'am' ? 'ብር' : 'ETB'}</div>
                 </div>
               </div>
             ))}

@@ -132,4 +132,53 @@ router.post("/read-all", async (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /notifications — create a notification (staff actions, system events)
+router.post("/", async (req, res) => {
+  const userId = getUserIdFromRequest(req);
+  if (!userId) { res.status(401).json({ error: "Authorization required" }); return; }
+
+  const { businessId, type, title, body, entityType, entityId, actorName, amount } = req.body;
+  if (!businessId || !type || !title || !body) {
+    res.status(400).json({ error: "businessId, type, title, body are required" }); return;
+  }
+
+  // Verify the actor belongs to this business
+  const actorMember = await db
+    .select({ role: businessMembers.role })
+    .from(businessMembers)
+    .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.userId, userId), eq(businessMembers.active, true)))
+    .limit(1);
+
+  if (!actorMember.length) {
+    res.status(403).json({ error: "Not a member of this business" }); return;
+  }
+
+  // Find the owner(s) of this business to notify
+  const owners = await db
+    .select({ userId: businessMembers.userId })
+    .from(businessMembers)
+    .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.role, "owner"), eq(businessMembers.active, true)));
+
+  if (!owners.length) {
+    res.status(404).json({ error: "No owner found for this business" }); return;
+  }
+
+  const inserted = await db.insert(notifications).values(
+    owners.map(owner => ({
+      businessId: Number(businessId),
+      ownerUserId: owner.userId,
+      type: String(type),
+      title: String(title),
+      body: String(body),
+      entityType: entityType || null,
+      entityId: entityId || null,
+      actorName: actorName || null,
+      amount: amount != null ? Number(amount) : null,
+      read: false,
+    }))
+  ).returning();
+
+  res.json({ notifications: inserted });
+});
+
 export default router;

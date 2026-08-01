@@ -6,6 +6,7 @@ import { getCurrentEntitlements } from '../utils/entitlements';
 import { calculateExpected, createReconciliationEntry } from '../utils/settlementSelectors';
 import { startOfLocalDay } from '../utils/reportSelectors';
 import { isValidEthiopianPhone, normalizeEthiopianPhone, extractSubscriberDigits } from '../utils/phoneNumber';
+import { useAuthStore } from './authStore';
 
 const ROLE_PRESETS = {
   manager: { can_manage_team: true, can_delete_records: true, can_edit_settings: true, can_add_records: true, can_view_reports: true },
@@ -293,6 +294,23 @@ export const useStaffStore = create((set, get) => ({
       fireToast(t('✓ Collection submitted', '✓ ስብስብ ተልኳል'), 1800);
       set({ staffCollectCash: '', staffCollectTransfer: '', staffCollectNote: '', staffCollecting: false });
       get().refreshSettlements();
+      // Notify owner
+      const clouds = get().cloudMembers || [];
+      const member = clouds.find(m => String(m.userId || m.id) === String(staffId)) ||
+        clouds.find(m => String(m.id) === String(staffId));
+      const bizId = useAuthStore.getState().businessId;
+      const staffName = member?.display_name || member?.displayName || 'Staff';
+      if (bizId) {
+        apiFetch('/notifications', {
+          method: 'POST',
+          body: JSON.stringify({
+            businessId: bizId,
+            type: 'staff_submitted_collection',
+            title: t('Staff submitted collection', 'ሰራተኛ ስብስብ አስገብቷል') + ` · ${staffName}`,
+            body: `Cash: ${cash}, Transfer: ${transfer}`,
+          }),
+        }).catch(() => {});
+      }
     } catch (err) {
       set({ staffCollecting: false });
       fireToast(err.message || t('Failed to submit', 'ማስገባት አልተሳካም'), 2400);

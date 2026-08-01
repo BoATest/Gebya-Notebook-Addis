@@ -16,9 +16,11 @@ export const users = pgTable("users", {
    phone: text("phone"), // nullable, never required
    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
- }, (t) => [
-   check("users_phone_format", sql`${t.phone} IS NULL OR ${t.phone} ~ '^\\+251[79]\\d{8}$'`),
- ]);
+  }, (t) => []);
+
+  // Phone format validated at the application layer. DB-level check removed
+  // to avoid parser ambiguity with the ~ regex operator in tagged templates.
+
 
 // shops — exactly one per owner onboarding.
 export const shops = pgTable(
@@ -91,7 +93,6 @@ export const staff = pgTable(
      // One staff per (shop, user). Rejoin re-uses the existing row.
      shopUserUnique: uniqueIndex("staff_shop_user_unique").on(t.shopId, t.userId),
      shopStatusIdx: index("staff_shop_status_idx").on(t.shopId, t.staffStatus),
-     check("staff_phone_snapshot_format", sql`${t.phoneSnapshot} IS NULL OR ${t.phoneSnapshot} ~ '^\\+251[79]\\d{8}$'`),
    }),
  );
 

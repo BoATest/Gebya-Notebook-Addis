@@ -17,6 +17,8 @@ import StaffJoinCode from './staff/StaffJoinCode';
 import StaffAllMembers from './staff/StaffAllMembers';
 import StaffDeviceManager from './staff/StaffDeviceManager';
 import StaffActivityFeed from './staff/StaffActivityFeed';
+import StaffTasks from './staff/StaffTasks';
+import StaffAttendance from './staff/StaffAttendance';
 import ReconStatusBadge from './staff/ReconStatusBadge';
 
 export default function StaffPage({
@@ -272,6 +274,14 @@ export default function StaffPage({
       {/* Join Code */}
       {canManageTeam && (
         <StaffJoinCode shopProfile={shopProfile} onRotateJoinCode={onRotateJoinCode} t={t} />
+      )}
+
+      {/* Tasks & Attendance */}
+      {canManageTeam && activeStaffMemberId && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <StaffTasks staff={activeStaff.find(s => String(s.id) === String(activeStaffMemberId))} lang={lang} canManageTeam={canManageTeam} />
+          <StaffAttendance staff={activeStaff.find(s => String(s.id) === String(activeStaffMemberId))} lang={lang} canManageTeam={canManageTeam} />
+        </div>
       )}
 
       {/* All Staff */}
