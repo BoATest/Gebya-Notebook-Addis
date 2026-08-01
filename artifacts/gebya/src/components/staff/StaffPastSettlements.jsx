@@ -51,7 +51,11 @@ export default function StaffPastSettlements({ activeStaff, hasUnresolvedSettlem
                     {new Date(s.settled_at).toLocaleDateString()} · {staff?.display_name || staff?.name || `#${s.staff_id}`}
                   </div>
                   <div className="text-[10px] text-gray-500">
-                    {fmt(s.actual_cash || 0)} ETB {s.final_variance !== 0 && `(${s.final_variance >= 0 ? '+' : ''}${fmt(s.final_variance)})`}
+                    {fmt(s.actual_cash || 0)} ETB {s.final_variance !== 0 && (
+                      <span style={{ color: s.final_variance >= 0 ? 'var(--color-success-text)' : 'var(--color-danger)', fontWeight: 700 }}>
+                        ({s.final_variance >= 0 ? '+' : ''}{fmt(s.final_variance)})
+                      </span>
+                    )}
                   </div>
                 </div>
                 {rStatus && <ReconStatusBadge status={rStatus} lang={lang} />}
