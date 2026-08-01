@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gebya Staff Management — Responsive Wireframe</title>
+<style>
+  :root {
+    --color-bg: #0f172a;
+    --color-surface: #1e293b;
+    --color-surface-alt: #334159;
+    --color-border: #475569;
+    --color-border-light: #64748a;
+    --color-text: #f1f5f9;
+    --color-text-muted: #94a3b8;
+    --color-primary: #2563eb;
+    --color-primary-hover: #1d4ed8;
+    --color-success-bg: #dcfce7;
+    --color-success-text: #166534;
+    --color-warning-bg: #fef3c7;
+    --color-warning: #b45309;
+    --color-warning-border: #f59e0b;
+    --color-danger-bg: #fee2e2;
+    --color-danger: #b91c1c;
+    --color-info-bg: #dbeafe;
+    --color-info: #2563eb;
+    --color-info-border: #93c5fd;
+    --color-info-text: #1e40af;
+    --color-bg-accent-blue: #eff6ff;
+    --color-bg-accent-amber: #fffbeb;
+    --color-bg-white: #ffffff;
+    --color-bg-hover: #e2e8f0;
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font-family); background: var(--color-bg); color: var(--color-text); min-height: 100vh; padding: 1rem; }
+  .page-container { max-width: 480px; margin: 0 auto; }
+  .text-xs { font-size: 0.75rem; }
+  .text-sm { font-size: 0.875rem; }
+  .text-[10px] { font-size: 0.625rem; }
+  .font-bold { font-weight: 700; }
+  .font-black { font-weight: 900; }
+  .uppercase { text-transform: uppercase; }
+  .tracking-wide { letter-spacing: 0.05em; }
+  .rounded-xl { border-radius: 0.75rem; }
+  .rounded-2xl { border-radius: 1rem; }
+  .rounded-lg { border-radius: 0.5rem; }
+  .rounded-full { border-radius: 9999px; }
+  .border { border: 1px solid var(--color-border); }
+  .border-b { border-bottom: 1px solid var(--color-border); }
+  .space-y-4 > *:not([hidden]) ~ *:not([hidden]) { margin-top: 1rem; }
+  .space-y-3 > *:not([hidden]) ~ *:not([hidden]) { margin-top: 0.75rem; }
+  .space-y-2 > *:not([hidden]) ~ *:not([hidden]) { margin-top: 0.5rem; }
+  .divide-y > :not([hidden]) ~ :not([hidden]) { --tw-border-opacity: 1; border-top-color: var(--color-border-light); }
+  .divide-y > :not([hidden]) ~ :not([hidden]) { border-top: 1px solid var(--color-border-light); }
+  .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+  .px-4 { padding-left: 1rem; padding-right: 1rem; }
+  .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  .py-2.5 { padding-top: 0.625rem; padding-bottom: 0.625rem; }
+  .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+  .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+  .pb-4 { padding-bottom: 1rem; }
+  .pb-6 { padding-bottom: 1.5rem; }
+  .gap-2 { gap: 0.5rem; }
+  .gap-3 { gap: 0.75rem; }
+  .flex { display: flex; }
+  .flex-1 { flex: 1 1 0%; }
+  .flex-shrink-0 { flex-shrink: 0; }
+  .min-w-0 { min-width: 0%; }
+  .items-center { align-items: center; }
+  .items-start { align-items: flex-start; }
+  .justify-between { justify-content: space-between; }
+  .justify-center { justify-content: center; }
+  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bg-white { background-color: var(--color-bg-white); }
+  .bg-gray-900 { background-color: #111827; }
+  .text-gray-900 { color: #111827; }
+  .text-xs { font-size: 0.75rem; }
+  .grid { display: grid; }
+  .grid-cols-1 { grid-template-columns: 1fr; }
+  .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .gap-4 { gap: 1rem; }
+  .gap-6 { gap: 1.5rem; }
+  .h-8 { height: 2rem; }
+  .h-9 { height: 2.25rem; }
+  .h-6 { height: 1.5rem; }
+  .w-8 { width: 2rem; }
+  .w-9 { width: 2.25rem; }
+  .w-6 { width: 1.5rem; }
+  .mt-1 { margin-top: 0.25rem; }
+  .mt-2 { margin-top: 0.5rem; }
+  .mb-0.5 { margin-bottom: 0.125rem; }
+  .max-h-60 { max-height: 15rem; }
+  .overflow-y-auto { overflow-y: auto; }
+  .border-2 { border-width: 2px; }
+  .focus\:outline-none:focus { outline: none; }
+  .bg-blue-600 { background: var(--color-primary); }
+  .text-white { color: var(--color-bg-white); }
+  .text-gray-400 { color: #9ca3af; }
+  .text-gray-500 { color: #6b7280; }
+  .relative { position: relative; }
+  .hidden md\:grid { display: none; }
+  @media (min-width: 768px) {
+    .hidden md\:grid { display: grid; }
+    .block md\:hidden { display: none; }
+  }
+  .block md\:hidden { display: block; }
+  @media (min-width: 768px) {
+    .block md\:hidden { display: none; }
+  }
+
+  /* Phone style for Ethiopian digits */
+  .eth-phone { font-family: 'Courier New', monospace; }
+
+  /* Badge styles */
+  .badge { display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; border-radius: 9999px; }
+  .badge-owner { background: #7c3aed; color: white; padding: 0 0.5rem; height: 1.5rem; }
+  .badge-manager { background: #0ea5e0; color: white; padding: 0 0.5rem; height: 1.5rem; }
+  .badge-cashier { background: #f59e0b; color: white; padding: 0 0.5rem; height: 1.5rem; }
+  .badge-viewer { background: #6b7280; color: white; padding: 0 0.5rem; height: 1.5rem; }
+  .badge-custom { background: #ec4899; color: white; padding: 0 0.5rem; height: 1.5rem; }
+  .badge-priority-low { background: var(--color-success-bg); color: var(--color-success-text); }
+  .badge-priority-medium { background: var(--color-bg-hover); color: var(--color-text-muted); }
+  .badge-priority-high { background: var(--color-warning-bg); color: var(--color-warning); }
+  .badge-priority-urgent { background: var(--color-danger-bg); color: var(--color-danger); }
+  .badge-status-completed { background: var(--color-success-bg); color: var(--color-success-text); }
+  .badge-status-pending { background: var(--color-warning-bg); color: var(--color-warning); }
+  .badge-status-inprogress { background: var(--color-info-bg); color: var(--color-info-text); }
+  .badge-status-cancelled { background: var(--color-danger-bg); color: var(--color-danger); }
+  .badge-attendance { background: var(--color-success-bg); color: var(--color-success-text); }
+
+  /* Card base */
+  .card { background: var(--color-surface); border-radius: 1rem; border: 1px solid var(--color-border); overflow: hidden; }
+
+  /* Button variants */
+  .btn-primary { background: var(--color-primary); color: var(--color-bg-white); border: none; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 700; padding: 0.375rem 0.75rem; cursor: pointer; }
+  .btn-primary:hover { background: var(--color-primary-hover); }
+  .btn-outline { background: transparent; border: 1px solid var(--color-border); border-radius: 0.5rem; font-size: 0.75rem; font-weight: 700; padding: 0.375rem 0.75rem; cursor: pointer; color: var(--color-text); }
+  .btn-xs { font-size: 0.625rem; padding: 0.25rem 0.5rem; }
+  .btn-sm { font-size: 0.75rem; padding: 0.375rem 0.75rem; }
+
+  /* Stats grid */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+
+  /* Notification banner */
+  .notification-banner { background: var(--color-bg-accent-blue); border: 1px solid var(--color-info-border); border-radius: 1rem; padding: 0.75rem; display: flex; align-items: center; gap: 0.75rem; }
+  .notification-icon { width: 2rem; height: 2rem; border-radius: 9999px; background: var(--color-info-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  /* Need attention section */
+  .attention-card { background: var(--color-bg-accent-amber); border: 1px solid var(--color-warning-border); border-radius: 1rem; overflow: hidden; }
+  .attention-header { background: var(--color-warning-bg); padding: 0.5rem 1rem; }
+
+  /* Active session bar */
+  .active-session-bar { background: var(--color-success-bg); padding: 0.5rem 1rem; border-bottom: 1px solid var(--color-border-light); }
+</style>
+</head>
+<body>
+<div class="page-container">
+
+  <!-- Mobile: Header -->
+  <div class="block md:hidden mb-4">
+    <h1 class="text-xl font-black text-white">Staff Management</h1>
+    <p class="text-xs text-gray-400 mt-1">Gebya Notebook • Owner Dashboard</p>
+  </div>
+
+  <!-- Desktop: Header row -->
+  <div class="hidden md:grid grid-cols-3 items-center mb-4">
+    <h1 class="text-xl font-black text-white">Staff Management</h1>
+    <div class="col-span-2 flex justify-end gap-2">
+      <button class="btn-primary btn-sm">English</button>
+      <button class="btn-outline btn-sm">አማርኛ</button>
+    </div>
+  </div>
+
+  <!-- Notification Banner -->
+  <div class="notification-banner">
+    <div class="notification-icon">
+      <span class="text-sm font-black" style="color: var(--color-info)">!</span>
+    </div>
+    <div class="flex-1 min-w-0">
+      <p class="text-sm font-bold" style="color: var(--color-info)">
+        Staff submissions pending review
+      </p>
+      <p class="text-xs" style="color: var(--color-text-muted)">
+        2 staff member(s) have submitted their collection
+      </p>
+    </div>
+    <button class="text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap" style="background: var(--color-primary); color: var(--color-bg-white);">Review</button>
+  </div>
+
+  <!-- Stats Cards (Desktop grid) -->
+  <div class="hidden md:grid grid-cols-3 gap-4 mb-4">
+    <div class="card p-4 text-center">
+      <div class="text-2xl font-black text-white">5</div>
+      <div class="text-xs text-gray-400 mt-1">Total Staff</div>
+    </div>
+    <div class="card p-4 text-center">
+      <div class="text-2xl font-black text-white">4</div>
+      <div class="text-xs text-gray-400 mt-1">Active</div>
+    </div>
+    <div class="card p-4 text-center">
+      <div class="text-2xl font-black text-white">1</div>
+      <div class="text-xs text-gray-400 mt-1">Pending Devices</div>
+    </div>
+    <div class="card p-4 text-center">
+      <div class="text-2xl font-black text-white">2</div>
+      <div class="text-xs text-gray-400 mt-1">Unsettled</div>
+    </div>
+    <div class="card p-4 text-center">
+      <div class="text-2xl font-black text-white">1</div>
+      <div class="text-xs text-gray-400 mt-1">Pending Review</div>
+    </div>
+    <div class="card p-4 text-center">
+      <div class="text-2xl font-black text-white">12,450 ₾</div>
+      <div class="text-xs text-gray-400 mt-1">Collected</div>
+    </div>
+  </div>
+
+  <!-- Stats Cards (Mobile stats-grid style) -->
+  <div class="md:hidden stats-grid mb-4">
+    <div class="card p-2 text-center">
+      <div class="text-lg font-black text-white">5</div>
+      <div class="text-[10px] text-gray-400">Total</div>
+    </div>
+    <div class="card p-2 text-center">
+      <div class="text-lg font-black text-white">4</div>
+      <div class="text-[10px] text-gray-400">Active</div>
+    </div>
+    <div class="card p-2 text-center">
+      <div class="text-lg font-black text-white">2</div>
+      <div class="text-[10px] text-gray-400">Unsettled</div>
+    </div>
+  </div>
+
+  <!-- NEEDS ATTENTION section -->
+  <div class="attention-card mb-4">
+    <div class="attention-header">
+      <span class="text-xs font-black uppercase tracking-wide" style="color: var(--color-warning)">Needs attention</span>
+      <span class="text-[10px] font-bold" style="color: var(--color-warning)">(3)</span>
+    </div>
+    <div class="divide-y">
+      <!-- Staff 1 -->
+      <div class="px-4 py-3 flex items-center justify-between gap-3">
+        <div class="min-w-0 flex-1">
+          <div class="text-sm font-bold text-gray-900" style="color: var(--color-text);">Abebech Tadesse</div>
+          <div class="text-[10px] text-gray-400">
+            Last settled · Aug 1, 2026
+          </div>
+          <div class="text-[10px] font-bold mt-0.5" style="color: var(--color-warning)">Est. 850 birr</div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap" style="background: var(--color-info-bg); color: var(--color-info-text);">
+            Review
+          </button>
+        </div>
+      </div>
+      <!-- Staff 2 -->
+      <div class="px-4 py-3 flex items-center justify-between gap-3">
+        <div class="min-w-0 flex-1">
+          <div class="text-sm font-bold text-gray-900" style="color: var(--color-text);">Dawit Kebede</div>
+          <div class="text-[10px] text-gray-400">
+            Never settled
+          </div>
+          <div class="text-[10px] font-bold mt-0.5" style="color: var(--color-warning)">Est. 1,230 birr</div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap" style="background: var(--color-primary); color: var(--color-bg-white);">
+            Settle
+          </button>
+        </div>
+      </div>
+      <!-- Staff 3 -->
+      <div class="px-4 py-3 flex items-center justify-between gap-3">
+        <div class="min-w-0 flex-1">
+          <div class="text-sm font-bold text-gray-900" style="color: var(--color-text);">Selamawit G.</div>
+          <div class="text-[10px] text-gray-400">
+            Last settled · Jul 30, 2026
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap" style="background: var(--color-primary); color: var(--color-bg-white);">
+            Settle
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Today's Team -->
+  <div class="card mb-4">
+    <div class="px-4 py-3 border-b flex items-center justify-between" style="border-color: var(--color-border-light); background: var(--color-surface-alt);">
+      <span class="text-xs font-bold uppercase tracking-wide text-gray-400">Today's Team</span>
+      <span class="text-xs text-gray-400">4 members · 2 active today</span>
+    </div>
+    <div class="divide-y">
+      <!-- Team member row -->
+      <div class="px-4 py-3">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-gray-600 flex-shrink-0 flex items-center justify-center">
+            <span class="text-xs font-bold text-white">AT</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-bold text-gray-900" style="color: var(--color-text);">Abebech Tadesse</span>
+              <span class="badge badge-cashier">Sales Staff</span>
+              <span class="badge badge-status-inprogress">In Progress</span>
+            </div>
+            <div class="text-[10px] text-gray-400 mt-0.5">
+              📱 +251 9 1234 5678 · 📊 12 transactions · 3,450 birr
+            </div>
+          </div>
+          <div class="flex-shrink-0 text-right">
+            <div class="text-sm font-bold text-gray-900" style="color: var(--color-text);">3,450</div>
+            <div class="text-[10px] text-gray-400">birr</div>
+          </div>
+        </div>
+      </div>
+      <!-- Team member row -->
+      <div class="px-4 py-3">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-gray-600 flex-shrink-0 flex items-center justify-center">
+            <span class="text-xs font-bold text-white">DK</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-bold text-gray-900" style="color: var(--color-text);">Dawit Kebede</span>
+              <span class="badge badge-manager">Manager</span>
+              <span class="badge badge-status-completed">Offline</span>
+            </div>
+            <div class="text-[10px] text-gray-400 mt-0.5">
+              📱 +251 9 2345 6789 · 📊 8 transactions · 1,890 birr
+            </div>
+          </div>
+          <div class="flex-shrink-0 text-right">
+            <div class="text-sm font-bold text-gray-900" style="color: var(--color-text);">1,890</div>
+            <div class="text-[10px] text-gray-400">birr</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASKS & ATTENDANCE — Two-column grid (responsive: 1 column on mobile) -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+
+    <!-- Tasks Card -->
+    <div class="card">
+      <div class="px-4 py-3 border-b flex items-center justify-between" style="border-color: var(--color-border-light); background: var(--color-surface-alt);">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold uppercase tracking-wide text-gray-400">Tasks</span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="background: var(--color-warning-bg); color: var(--color-warning);">3 pending</span>
+        </div>
+        <button class="text-xs font-bold px-3 py-1.5 rounded-lg" style="background: var(--color-primary); color: var(--color-bg-white);">
+          Add Task
+        </button>
+      </div>
+
+      <!-- Add Task Form (shown when "Add Task" clicked) -->
+      <div class="px-4 py-3 border-b space-y-2" style="border-color: var(--color-border-light);">
+        <input type="text" value="" placeholder="Task title" class="w-full px-3 py-2.5 border-2 rounded-xl text-sm bg-white text-gray-900" style="border-color: var(--color-border);" required />
+        <div class="flex gap-2">
+          <select class="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm bg-white text-gray-900" style="border-color: var(--color-border);">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+          <input type="date" value="" class="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm bg-white text-gray-900" style="border-color: var(--color-border);" />
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded-xl text-sm font-bold" style="background: var(--color-primary); color: var(--color-bg-white);">
+          Create Task
+        </button>
+      </div>
+
+      <!-- Task list -->
+      <div class="divide-y max-h-60 overflow-y-auto">
+        <!-- Task 1: Urgent -->
+        <div class="px-4 py-2.5 flex items-center justify-between gap-2">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-0.5">
+              <span class="text-sm font-bold text-gray-900" style="color: var(--color-text);">Reconcile cash drawer</span>
+              <span class="badge badge-priority-urgent">urgent</span>
+            </div>
+            <div class="text-[10px] text-gray-400">
+              Due: Aug 2, 2026 · <span style="color: var(--color-warning)">pending</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <button class="text-[10px] font-bold px-2 py-1 rounded-lg" style="background: var(--color-success-bg); color: var(--color-success-text);">
+              Done
+            </button>
+            <button class="text-[10px] font-bold px-2 py-1 rounded-lg" style="background: var(--color-danger-bg); color: var(--color-danger);">
+              Delete
+            </button>
+          </div>
+        </div>
+        <!-- Task 2: Medium -->
+        <div class="px-4 py-2.5 flex items-center justify-between gap-2">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-0.5">
+              <span class="text-sm font-bold text-gray-900" style="color: var(--color-text);">Follow up with customer about credit payment</span>
+              <span class="badge badge-priority-medium">medium</span>
+            </div>
+            <div class="text-[10px] text-gray-400">
+              Due: Aug 5, 2026 · <span style="color: var(--color-success-text);">completed</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <button class="text-[10px] font-bold px-2 py-1 rounded-lg" style="background: var(--color-bg-hover); color: var(--color-text-muted);">
+              Reopen
+            </button>
+            <button class="text-[10px] font-bold px-2 py-1 rounded-lg" style="background: var(--color-danger-bg); color: var(--color-danger);">
+              Delete
+            </button>
+          </div>
+        </div>
+        <!-- Task 3: High -->
+        <div class="px-4 py-2.5 flex items-center justify-between gap-2">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-0.5">
+              <span class="text-sm font-bold text-gray-900" style="color: var(--color-text);">Order new receipt rolls</span>
+              <span class="badge badge-priority-high">high</span>
+            </div>
+            <div class="text-[10px] text-gray-400">
+              Due: Aug 3, 2026 · <span style="color: var(--color-info-text);">in_progress</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <button class="text-[10px] font-bold px-2 py-1 rounded-lg" style="background: var(--color-success-bg); color: var(--color-success-text);">
+              Done
+            </button>
+            <button class="text-[10px] font-bold px-2 py-1 rounded-lg" style="background: var(--color-danger-bg); color: var(--color-danger);">
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Attendance Card -->
+    <div class="card">
+      <div class="px-4 py-3 border-b flex items-center justify-between" style="border-color: var(--color-border-light); background: var(--color-surface-alt);">
+        <span class="text-xs font-bold uppercase tracking-wide text-gray-400">Attendance</span>
+        <div class="flex gap-2">
+          <button class="text-xs font-bold px-3 py-1.5 rounded-lg" style="background: var(--color-primary); color: var(--color-bg-white);">
+            Clock In
+          </button>
+        </div>
+      </div>
+
+      <!-- Active session indicator -->
+      <div class="active-session-bar">
+        <span class="text-xs font-bold" style="color: var(--color-success-text);">
+          Currently working · 3h 12m
+        </span>
+      </div>
+
+      <!-- Attendance history -->
+      <div class="divide-y max-h-60 overflow-y-auto">
+        <!-- Today -->
+        <div class="px-4 py-2 flex items-center justify-between">
+          <div>
+            <div class="text-xs font-bold text-gray-900" style="color: var(--color-text);">
+              Aug 1, 2026 09:00 AM → 05:30 PM
+            </div>
+            <div class="text-[10px] text-gray-400">
+              8h 30m
+            </div>
+          </div>
+          <span class="badge badge-attendance">Completed</span>
+        </div>
+        <!-- Yesterday -->
+        <div class="px-4 py-2 flex items-center justify-between">
+          <div>
+            <div class="text-xs font-bold text-gray-900" style="color: var(--color-text);">
+              Jul 31, 2026 09:15 AM → 04:45 PM
+            </div>
+            <div class="text-[10px] text-gray-400">
+              7h 30m
+            </div>
+          </div>
+          <span class="badge badge-attendance">Completed</span>
+        </div>
+        <!-- Day before -->
+        <div class="px-4 py-2 flex items-center justify-between">
+          <div>
+            <div class="text-xs font-bold text-gray-900" style="color: var(--color-text);">
+              Jul 30, 2026 09:30 AM → <span style="color: var(--color-text-muted);">Now</span>
+            </div>
+            <div class="text-[10px] text-gray-400">
+              6h 45m
+            </div>
+          </div>
+          <span class="badge badge-attendance">Completed</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- My Collection Form -->
+  <div class="card mb-4">
+    <div class="px-4 py-3 border-b" style="border-color: var(--color-border-light); background: var(--color-surface-alt);">
+      <span class="text-xs font-bold uppercase tracking-wide text-gray-400">My Collection</span>
+    </div>
+    <div class="px-4 py-3 space-y-3">
+      <div class="flex gap-2">
+        <select class="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm bg-white text-gray-900" style="border-color: var(--color-border);">
+          <option>Abebench Tadesse</option>
+          <option>Dawit Kebede</option>
+          <option>Selamawit G.</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-[10px] font-bold text-gray-400 uppercase">Cash</label>
+          <input type="number" placeholder="0.00" class="w-full px-3 py-2.5 border-2 rounded-xl text-sm bg-white text-gray-900 mt-1" style="border-color: var(--color-border);" />
+        </div>
+        <div>
+          <label class="text-[10px] font-bold text-gray-400 uppercase">Transfer</label>
+          <input type="number" placeholder="0.00" class="w-full px-3 py-2.5 border-2 rounded-xl text-sm bg-white text-gray-900 mt-1" style="border-color: var(--color-border);" />
+        </div>
+      </div>
+      <textarea placeholder="Note (optional)" rows="2" class="w-full px-3 py-2.5 border-2 rounded-xl text-sm bg-white text-gray-900" style="border-color: var(--color-border); resize: none;"></textarea>
+      <button class="w-full py-2.5 rounded-xl text-sm font-bold" style="background: var(--color-primary); color: var(--color-bg-white);">
+        Submit Collection
+      </button>
+    </div>
+  </div>
+
+  <!-- Join Code (manager only) -->
+  <div class="card mb-4">
+    <div class="px-4 py-3 border-b flex items-center justify-between" style="border-color: var(--color-border-light); background: var(--color-surface-alt);">
+      <span class="text-xs font-bold uppercase tracking-wide text-gray-400">Staff Join Code</span>
+      <button class="text-xs font-bold px-3 py-1.5 rounded-lg" style="background: var(--color-primary); color: var(--color-bg-white);">
+        Rotate Code
+      </button>
+    </div>
+    <div class="px-4 py-3">
+      <div class="text-2xl font-black eth-phone text-center py-2" style="color: var(--color-text);">A7K3-B9X2</div>
+      <p class="text-[10px] text-gray-400 text-center mt-2">Share this code with staff to join</p>
+    </div>
+  </div>
+
+  <!-- All Staff Members -->
+  <div class="card mb-4">
+    <div class="px-4 py-3 border-b flex items-center justify-between" style="border-color: var(--color-border-light); background: var(--color-surface-alt);">
+      <span class="text-xs font-bold uppercase tracking-wide text-gray-400">All Staff (5)</span>
+      <input type="text" placeholder="Search staff..." class="px-3 py-1.5 border-2 rounded-lg text-xs bg-white text-gray-900" style="border-color: var(--color-border);" />
+    </div>
+    <div class="divide-y">
+      <!-- Active staff member -->
+      <div class="px-4 py-3">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-gray-600 flex-shrink-0 flex items-center justify-center">
+            <span class="text-xs font-bold text-white">AT</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-bold" style="color: var(--color-text);">Abebech Tadesse</span>
+              <span class="badge badge-cashier">Sales Staff</span>
+            </div>
+            <div class="text-xs text-gray-400 mt-0.5 eth-phone">+251 9 1234 5678</div>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button class="text-[10px] font-bold px-2 py-1 rounded-lg" style="background: var(--color-success-bg); color: var(--color-success-text);">
+              Active
+            </button>
+          </div>
+        </div>
+      </div>
+      <!-- Inactive staff member -->
+      <div class="px-4 py-3">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-gray-600 flex-shrink-0 flex items-center justify-center">
+            <span class="text-xs font-bold text-white">HG</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-bold" style="color: var(--color-text);">Hana Getachew</span>
+              <span class="badge badge-viewer">Auditor</span>
+            </div>
+            <div class="text-xs text-gray-400 mt-0.5 eth-phone">+251 9 8765 4321</div>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <button class="text-[10px] font-bold px-2 py-1 rounded-lg" style="background: var(--color-danger-bg); color: var(--color-danger);">
+              Inactive
+            </button>
+            <button class="text-[10px] font-bold px-2 py-1 rounded-lg" style="background: var(--color-info-bg); color: var(--color-info-text);">
+              Reactivate
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Past Settlements -->
+  <div class="card mb-4">
+    <div class="px-4 py-3 border-b flex items-center justify-between" style="border-color: var(--color-border-light); background: var(--color-surface-alt);">
+      <span class="text-xs font-bold uppercase tracking-wide text-gray-400">Past Settlements</span>
+      <button class="text-xs font-bold px-3 py-1.5 rounded-lg" style="background: var(--color-primary); color: var(--color-bg-white);">
+        Show All
+      </button>
+    </div>
+    <div class="divide-y">
+      <div class="px-4 py-2.5">
+        <div class="flex items-center justify-between mb-1">
+          <div class="text-sm font-bold" style="color: var(--color-text);">Abebech Tadesse</div>
+          <span class="badge badge-status-inprogress">Staff Submitted</span>
+        </div>
+        <div class="text-[10px] text-gray-400">
+          Aug 1, 2026 · Expected: 3,200 birr · Actual: 3,450 birr · Variance: +250 birr
+        </div>
+      </div>
+      <div class="px-4 py-2.5">
+        <div class="flex items-center justify-between mb-1">
+          <div class="text-sm font-bold" style="color: var(--color-text);">Dawit Kebede</div>
+          <span class="badge badge-status-completed">Finalized</span>
+        </div>
+        <div class="text-[10px] text-gray-400">
+          Jul 29, 2026 · Expected: 1,800 birr · Actual: 1,890 birr · Variance: +90 birr
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pending Device Approvals -->
+  <div class="card mb-4">
+    <div class="px-4 py-3 border-b" style="border-color: var(--color-border-light); background: var(--color-surface-alt);">
+      <span class="text-xs font-bold uppercase tracking-wide text-gray-400">
+        Pending Device Approvals <span class="text-xs" style="color: var(--color-warning);">(1)</span>
+      </span>
+    </div>
+    <div class="divide-y">
+      <div class="px-4 py-2.5 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-gray-600 flex-shrink-0 flex items-center justify-center">
+            <span class="text-xs font-bold text-white">DK</span>
+          </div>
+          <div>
+            <div class="text-sm font-bold" style="color: var(--color-text);">Dawit Kebede — Samsung A52</div>
+            <div class="text-[10px] text-gray-400">Android · Registered Aug 1, 2026</div>
+          </div>
+        </div>
+        <div class="flex gap-1 flex-shrink-0">
+          <button class="text-[10px] font-bold px-2 py-1 rounded-lg" style="background: var(--color-success-bg); color: var(--color-success-text);">Approve</button>
+          <button class="text-[10px] font-bold px-2 py-1 rounded-lg" style="background: var(--color-danger-bg); color: var(--color-danger);">Reject</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity Feed -->
+  <div class="card mb-4">
+    <button class="w-full px-4 py-3 flex items-center justify-between text-left" style="background: var(--color-surface-alt);">
+      <span class="text-xs font-bold uppercase tracking-wide text-gray-400">Activity Feed</span>
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </button>
+    <div class="px-4 py-3">
+      <div class="space-y-2">
+        <div class="flex gap-2">
+          <div class="text-[10px] text-gray-400 min-w-[60px]">2:30 PM</div>
+          <div class="text-xs" style="color: var(--color-text);">Abebech Tadesse recorded a sale (5,000 birr)</div>
+        </div>
+        <div class="flex gap-2">
+          <div class="text-[10px] text-gray-400 min-w-[60px]">1:15 PM</div>
+          <div class="text-xs" style="color: var(--color-text);">Dawit Kebede submitted collection (cash: 1,890, transfer: 0)</div>
+        </div>
+        <div class="flex gap-2">
+          <div class="text-[10px] text-gray-400 min-w-[60px]">11:00 AM</div>
+          <div class="text-xs" style="color: var(--color-text);">Staff collection submitted notification created for owner</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
