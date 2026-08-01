@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Partial Payment — How the Report Responds (Committed)</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: #f3f1ee;
+    padding: 24px 16px 48px;
+    min-height: 100vh;
+    color: #1a1a1a;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+
+  /* ─── Header ─── */
+  .masthead {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  .masthead h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+  .masthead h1 .hl { color: #C4883A; }
+  .masthead .stamp {
+    flex-shrink: 0;
+    border: 2px solid #1B4332;
+    color: #1B4332;
+    font-weight: 800;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: rgba(27,67,50,0.06);
+    white-space: nowrap;
+  }
+  .subtitle { font-size: 0.85rem; color: #6b7280; font-weight: 500; margin-bottom: 28px; }
+  .subtitle code { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; background: #e9e4dc; padding: 1px 6px; border-radius: 5px; }
+
+  .panel {
+    background: #fff;
+    border: 1.5px solid #e2ddd3;
+    border-radius: 16px;
+    padding: 18px 18px 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+  }
+  .panel .panel-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .panel .panel-num {
+    width: 24px; height: 24px;
+    border-radius: 7px;
+    background: #1B4332;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  .panel .panel-title { font-size: 0.95rem; font-weight: 800; letter-spacing: -0.01em; }
+  .panel .panel-desc { font-size: 0.75rem; color: #6b7280; font-weight: 500; margin-top: 2px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* ─── Scenario ─── */
+  .scenario {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #374151;
+  }
+  .pill {
+    background: #fff7ed;
+    border: 1.5px solid #fdba74;
+    color: #7c2d12;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+  .pill.dark { background: #1B4332; border-color: #1B4332; color: #fff; }
+  .arrow { color: #C4883A; font-weight: 800; }
+
+  /* ─── Data model table ─── */
+  .kv {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.74rem;
+  }
+  .kv th {
+    text-align: left;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #6b7280;
+    border-bottom: 2px solid #e2ddd3;
+    padding: 8px 8px;
+  }
+  .kv td { padding: 7px 8px; border-bottom: 1px solid #f0ece5; font-weight: 600; }
+  .kv tr:last-child td { border-bottom: none; }
+  .kv .k { color: #1B4332; font-weight: 700; }
+  .kv .new { background: #f0fdf4; }
+  .kv .new .k { color: #065f46; }
+  .kv .new td { color: #14532d; }
+  .tag {
+    display: inline-block;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 5px;
+    letter-spacing: 0.04em;
+  }
+  .tag.added { background: #d1fae5; color: #065f46; }
+  .tag.used { background: #dbeafe; color: #1e40af; }
+
+  /* ─── Old vs new ─── */
+  .vs-row {
+    display: grid;
+    grid-template-columns: 1fr 36px 1fr;
+    gap: 10px;
+    align-items: stretch;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 760px) { .vs-row { grid-template-columns: 1fr; } .vs-vs { display: none; } }
+  .vs-card {
+    border-radius: 12px;
+    padding: 12px 14px;
+    border: 1.5px solid;
+  }
+  .vs-card.bad { background: #fef2f2; border-color: #fecaca; }
+  .vs-card.good { background: #f0fdf4; border-color: #bbf7d0; }
+  .vs-card h4 { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .vs-card.bad h4 { color: #991b1b; }
+  .vs-card.good h4 { color: #166534; }
+  .vs-line { display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 600; padding: 3px 0; }
+  .vs-line .w { color: #b91c1c; font-weight: 800; }
+  .vs-line .ok { color: #15803d; font-weight: 800; }
+  .vs-line .m { font-family: 'JetBrains Mono', monospace; }
+  .vs-vs {
+    display: grid;
+    place-items: center;
+    font-size: 0.85rem;
+    font-weight: 800;
+    color: #C4883A;
+  }
+  .formula {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #f8f6f2;
+    border-radius: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    line-height: 1.7;
+    color: #374151;
+    border: 1px dashed #d8d1c4;
+  }
+  .formula .fn { color: #1B4332; font-weight: 700; }
+  .formula .cm { color: #9ca3af; font-style: italic; }
+  .formula .hl2 { background: #fff7ed; color: #7c2d12; font-weight: 700; padding: 0 3px; border-radius: 3px; }
+
+  /* ─── Phone frame ─── */
+  .phone {
+    background: #fff;
+    border-radius: 22px;
+    border: 1.5px solid #d8d1c4;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  }
+  .phone .status {
+    padding: 10px 14px 4px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.62rem;
+    font-weight: 800;
+    color: #9ca3af;
+  }
+  .phone .screen { padding: 2px 14px 14px; }
+
+  .today-title { font-size: 0.85rem; font-weight: 800; margin: 6px 0 10px; display: flex; align-items: center; gap: 8px; }
+  .today-title .d { color: #C4883A; }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-bottom: 1px solid #f5f2ec;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .row .lb { color: #374151; display: flex; align-items: center; gap: 7px; }
+  .row .vl { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.82rem; }
+  .row .vl.grn { color: #15803d; }
+  .row .vl.amb { color: #b45309; }
+  .row .vl.bld { color: #1a1a1a; font-weight: 800; }
+
+  .rule { height: 1px; background: #ece7de; margin: 6px 0; }
+
+  .partial-head {
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: #b45309;
+    padding: 5px 10px 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .partial-head .cnt {
+    background: #fffbeb;
+    border: 1px solid #fdba74;
+    color: #92400e;
+    border-radius: 20px;
+    padding: 1px 8px;
+    font-size: 0.6rem;
+  }
+  .note {
+    margin-top: 10px;
+    font-size: 0.68rem;
+    color: #6b7280;
+    line-height: 1.5;
+    font-weight: 500;
+  }
+  .note b { color: #374151; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #6b7280;
+  }
+  .legend .sq { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; }
+  .legend .sq.new { background: #22c55e; }
+  .legend .sq.chg { background: #f59e0b; }
+  .legend .sq.old { background: #ef4444; }
+
+  .codeblock {
+    background: #1c2333;
+    color: #d8e2ff;
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    line-height: 1.8;
+    overflow-x: auto;
+  }
+  .codeblock .cm { color: #7c88a8; font-style: italic; }
+  .codeblock .fn { color: #7dd3fc; }
+  .codeblock .st { color: #86efac; }
+  .codeblock .w { color: #fca5a5; }
+  .codeblock .ln { display: block; white-space: pre; }
+  .codeblock .g { background: rgba(34,197,94,0.12); border-radius: 4px; display: block; padding: 0 6px; margin: 0 -6px; }
+  .codeblock .r { background: rgba(239,68,68,0.12); border-radius: 4px; display: block; padding: 0 6px; margin: 0 -6px; }
+
+  .files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .file {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #e2ddd3;
+    background: #f8f6f2;
+    color: #1B4332;
+  }
+  .file small { color: #9ca3af; font-weight: 700; }
+
+  .footer-note {
+    text-align: center;
+    font-size: 0.72rem;
+    color: #9ca3af;
+    margin-top: 8px;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <h1>Partial Payment — <span class="hl">How the Report Responds</span></h1>
+    <div class="stamp">✓ Committed · 625c4dd</div>
+  </div>
+  <p class="subtitle">
+    What a partial sale does to the <code>Today</code> report after the fix:
+    <code>reportSelectors.js</code> now tracks exactly <b>how much</b> was received, <b>by which method</b>,
+    and <b>how much is still owed</b> — no more double-counting.
+  </p>
+
+  <!-- ─── Scenario ─── -->
+  <div class="panel">
+    <div class="panel-head"><div class="panel-num">1</div>
+      <div>
+        <div class="panel-title">The scenario we walk through</div>
+        <div class="panel-desc">One sale row · one partial payment</div>
+      </div>
+    </div>
+    <div class="scenario">
+      <span class="pill dark">SALE · 1,000 ETB</span>
+      <span class="arrow">→</span>
+      <span class="pill">½ Partial · pays 300 via CBE</span>
+      <span class="arrow">→</span>
+      <span class="pill">Remaining 700 = Dubie (new)</span>
+      <span class="pill">🧑 Abebe Kebede</span>
+    </div>
+  </div>
+
+  <!-- ─── Data model ─── -->
+  <div class="panel">
+    <div class="panel-head"><div class="panel-num">2</div>
+      <div>
+        <div class="panel-title">What the sale row actually stores</div>
+        <div class="panel-desc">The report reads these fields to decide cash vs bank vs owed</div>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="kv">
+        <tr>
+          <th>Field</th><th>Value</th><th>Role</th>
+        </tr>
+        <tr>
+          <td class="k">type</td><td class="m">'sale'</td>
+          <td>identifies a sale row</td>
+        </tr>
+        <tr class="new">
+          <td class="k">sale_settlement_mode</td><td class="m">'partial'</td>
+          <td><span class="tag added">NEW</span> marks this as a partial sale</td>
+        </tr>
+        <tr>
+          <td class="k">amount</td><td class="m">1000</td>
+          <td>full sale value → <i>totalSold</i></td>
+        </tr>
+        <tr>
+          <td class="k">paid_amount</td><td class="m">300</td>
+          <td><span class="tag used">KEY</span> what actually changed hands</td>
+        </tr>
+        <tr>
+          <td class="k">cash_received</td><td class="m">0</td>
+          <td>0 because it was paid via bank, not cash</td>
+        </tr>
+        <tr>
+          <td class="k">payment_type</td><td class="m">'partial'</td>
+          <td>kept so the row is still classed as a partial</td>
+        </tr>
+        <tr>
+          <td class="k">payment_provider</td><td class="m">'CBE'</td>
+          <td>the bank used → classified as transfer</td>
+        </tr>
+        <tr>
+          <td class="k">remaining_amount</td><td class="m">700</td>
+          <td><span class="tag used">KEY</span> still owed → new Dubie</td>
+        </tr>
+        <tr>
+          <td class="k">credit_amount</td><td class="m">700</td>
+          <td>same 700, stored on the sale row too</td>
+        </tr>
+      </table>
+    </div>
+    <div class="legend" style="margin-top:10px;">
+      <span><span class="sq new"></span>new field the report keys on</span>
+      <span><span class="sq chg"></span>now read where it wasn't before</span>
+    </div>
+  </div>
+
+  <!-- ─── Before vs after ─── -->
+  <div class="panel">
+    <div class="panel-head"><div class="panel-num">3</div>
+      <div>
+        <div class="panel-title">The accounting bug that was fixed</div>
+        <div class="panel-desc">Transfer was counted on the <b>full 1000</b> while the 700 also became Dubie → 1700 of phantom money</div>
+      </div>
+    </div>
+
+    <div class="vs-row">
+      <div class="vs-card bad">
+        <h4>❌ Before commit</h4>
+        <div class="vs-line"><span>Total sold</span><span class="m">1,000</span></div>
+        <div class="vs-line"><span>Transfer recorded</span><span class="w m">1,000 ✗</span></div>
+        <div class="vs-line"><span>New Dubie</span><span class="m">700</span></div>
+        <div class="vs-line"><span>Everything adds up to</span><span class="w m">1,700 ✗</span></div>
+        <div class="note" style="margin-top:8px;">Used the full <code>amount</code> of a partial sale as transfer, and the leftover 700 also became Dubie. The owner is told they received 1,700 for a 1,000 sale.</div>
+      </div>
+      <div class="vs-vs">→</div>
+      <div class="vs-card good">
+        <h4>✅ After commit</h4>
+        <div class="vs-line"><span>Total sold</span><span class="m">1,000</span></div>
+        <div class="vs-line"><span>Transfer recorded</span><span class="ok m">300 ✓</span></div>
+        <div class="vs-line"><span>New Dubie</span><span class="m">700</span></div>
+        <div class="vs-line"><span>Everything adds up to</span><span class="ok m">1,000 ✓</span></div>
+        <div class="note" style="margin-top:8px;">Uses the <b>collected</b> amount (300) for transfer. Report balances: 300 received + 700 owed = 1,000.</div>
+      </div>
+    </div>
+
+    <div class="formula">
+      <span class="cm">// reportSelectors.js — the rule that fixes it</span><br>
+      <span class="fn">collectedAmount</span>(row) = <span class="hl2">paid_amount</span>  <span class="cm">// if partial</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= <span class="fn">amountOf</span>(row) <span class="cm">// otherwise</span><br>
+      <span class="fn">transferRecorded</span> = Σ <span class="fn">collectedAmount</span>(transfer rows)
+    </div>
+  </div>
+
+  <!-- ─── Report response ─── -->
+  <div class="panel">
+    <div class="panel-head"><div class="panel-num">4</div>
+      <div>
+        <div class="panel-title">What the Today report now shows</div>
+        <div class="panel-desc">New "½ Partial payments" section — one per partial sale, showing received vs owed</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>Gebya · Today</span></div>
+        <div class="screen">
+          <div class="today-title">📅 Today <span class="d">· Aug 2</span></div>
+
+          <div class="row"><span class="lb">💵 Cash</span><span class="vl">0</span></div>
+          <div class="row"><span class="lb">📱 Digital</span><span class="vl">300</span></div>
+          <div class="row"><span class="lb">📤 Expenses</span><span class="vl">0</span></div>
+          <div class="row"><span class="lb">💰 Collections</span><span class="vl">0</span></div>
+
+          <div class="rule"></div>
+
+          <div class="partial-head">½ <span style="margin-left:3px;">Partial payments</span> <span class="cnt">1</span></div>
+          <div class="row"><span class="lb">💵 Received · cash</span><span class="vl grn">0</span></div>
+          <div class="row"><span class="lb">📱 Received · bank/wallet</span><span class="vl amb">300</span></div>
+          <div class="row"><span class="lb">↩ Still owed (Dubie)</span><span class="vl amb">700</span></div>
+
+          <div class="rule"></div>
+
+          <div class="row"><span class="lb"><b>💵 Cash you should have</b></span><span class="vl bld">0</span></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="legend" style="margin-bottom:8px;">
+          <span><span class="sq chg"></span>driven by the new partial metrics</span>
+        </div>
+        <div class="formula">
+          <span class="fn">partialCount</span> = # of sales with settlement = 'partial'<br>
+          <span class="fn">partialReceivedCash</span> = Σ <span class="hl2">collectedAmount</span>(partial, non-transfer)<br>
+          <span class="fn">partialReceivedTransfer</span> = Σ <span class="hl2">collectedAmount</span>(partial, transfer)<br>
+          <span class="fn">partialRemaining</span> = Σ <span class="hl2">remaining_amount</span> of partial rows
+        </div>
+
+        <div class="vs-card good" style="margin-top:12px;">
+          <h4>How the numbers respond</h4>
+          <div class="vs-line"><span>Digital (top row)</span><span class="ok m">300 ✓</span></div>
+          <div class="vs-line"><span>Cash row</span><span class="m">0</span></div>
+          <div class="vs-line"><span>Cash you should have</span><span class="m">0</span></div>
+          <div class="vs-line"><span>Dubie column in ledger</span><span class="m">700</span></div>
+          <div class="note" style="margin-top:8px;">The owner sees: "300 came in on <b>bank</b>, 700 is <b>Dubie</b> I'm owed." Nothing phantom, nothing missed.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Labels everywhere else ─── -->
+  <div class="panel">
+    <div class="panel-head"><div class="panel-num">5</div>
+      <div>
+        <div class="panel-title">Labels across the app now say "½ Partial · CBE"</div>
+        <div class="panel-desc">The same partial sale no longer masquerades as plain "Cash" in history lists</div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>History · Timeline</span></div>
+        <div class="screen">
+          <div class="today-title">🧾 Recent entries</div>
+          <div class="row"><span class="lb">🛒 Notebook</span><span class="vl">1,000</span></div>
+          <div class="row" style="border-bottom:none;"><span class="lb"><span class="tag used">½ Partial · CBE</span></span><span class="vl grn">+300</span></div>
+          <div class="rule"></div>
+          <div class="row"><span class="lb">🛒 Pen set</span><span class="vl">250</span></div>
+          <div class="row" style="border-bottom:none;"><span class="lb">💵 Cash</span><span class="vl grn">+250</span></div>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>Recent Sales</span></div>
+        <div class="screen">
+          <div class="today-title">🧾 Smart sale history</div>
+          <div class="row"><span class="lb">🛒 Notebook · 1,000</span><span class="vl">300</span></div>
+          <div class="row" style="border-bottom:none;"><span class="lb"><span class="tag used">½ Partial · CBE</span></span><span class="vl grn">✓ paid 300</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Files ─── -->
+  <div class="panel">
+    <div class="panel-head"><div class="panel-num">6</div>
+      <div>
+        <div class="panel-title">Files changed in this commit</div>
+        <div class="panel-desc">All verified: report tests 14/14, typecheck clean, production build passes</div>
+      </div>
+    </div>
+    <div class="files">
+      <div class="file">src/utils/reportSelectors.js <small>· logic</small></div>
+      <div class="file">src/components/TodayBusiness.jsx <small>· visual</small></div>
+      <div class="file">src/components/TimelineView.jsx <small>· label</small></div>
+      <div class="file">src/components/smartSale/RecentSalesSheet.jsx <small>· label</small></div>
+      <div class="file">src/__tests__/reportSelectors.test.js <small>· +2 tests</small></div>
+    </div>
+    <div class="footer-note">Cash partial behaves the same way: received 300 cash → Cash row = 300, still owed 700 shown in the partial block.</div>
+  </div>
+
+</div>
+</body>
+</html>

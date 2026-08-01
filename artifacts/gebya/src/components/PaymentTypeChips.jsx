@@ -5,7 +5,7 @@ export const ALL_BANKS = ['CBE', 'Dashen', 'Awash', 'Abyssinia'];
 export const ALL_WALLETS = ['telebirr', 'CBE Birr'];
 export const DEFAULT_PROVIDERS = { banks: [...ALL_BANKS], wallets: [...ALL_WALLETS] };
 
-function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChange, enabledProviders }) {
+function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChange, enabledProviders, receivedOnly = false }) {
   const { t } = useLang();
 
   const enabledBanks   = enabledProviders?.banks   !== undefined ? enabledProviders.banks   : ALL_BANKS;
@@ -42,8 +42,10 @@ function PaymentTypeChips({ paymentType, provider, onTypeChange, onProviderChang
       type: 'wallet',
       provider: w,
     })),
-    { id: 'credit', label: t.credit || 'Credit', emoji: '⏳', type: 'credit', provider: '' },
-    { id: 'partial', label: t.partialPayment || 'Partial', emoji: '½', type: 'partial', provider: '' },
+    ...(receivedOnly ? [] : [
+      { id: 'credit', label: t.credit || 'Credit', emoji: '⏳', type: 'credit', provider: '' },
+      { id: 'partial', label: t.partialPayment || 'Partial', emoji: '½', type: 'partial', provider: '' },
+    ]),
   ];
 
   const isSelected = (opt) => {

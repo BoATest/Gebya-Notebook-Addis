@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { X, Save, ChevronDown, ChevronUp, AlertTriangle, Pencil, Plus, Camera } from 'lucide-react';
 import { useLang } from '../context/LangContext';
-import PaymentTypeChips from './PaymentTypeChips';
+import PaymentTypeChips, { ALL_BANKS, ALL_WALLETS } from './PaymentTypeChips';
 import AddProviderButton from './AddProviderButton';
 import { getDueDateOptions, formatEthiopianTime } from '../utils/ethiopianCalendar';
 import InlineDatePicker from './InlineDatePicker';
-import { fmt, fmtInput } from '../utils/numformat';
+import { fmt, fmtInput, parseInput } from '../utils/numformat';
 import { normalizeEthiopianPhone } from '../utils/phoneNumber';
 import { photoSizeBytes } from '../utils/photoCapture';
 import { buildPhotoFields, createPhotoProof, normalizePhotos, MAX_PROOF_PHOTOS } from '../utils/photoProof';
@@ -39,8 +39,31 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
   const [showAdvanced, setShowAdvanced] = useState(false);
   const initPType = transaction.payment_type || 'cash';
   const initPProvider = transaction.payment_provider || '';
+  const isPartial = !isCredit && (
+    String(transaction.sale_settlement_mode || transaction.settlement_mode) === 'partial'
+    || String(transaction.payment_type || '').toLowerCase() === 'partial'
+  );
   const [paymentType, setPaymentType] = useState(initPType);
   const [paymentProvider, setPaymentProvider] = useState(initPProvider);
+
+  // Received portion of a partial sale — its own payment method (cash vs bank/wallet).
+  const partialReceivedInit = transaction.paid_amount != null ? transaction.paid_amount : (transaction.cash_received != null ? transaction.cash_received : '');
+  const receivedProviderInit = transaction.payment_provider || '';
+  const receivedTypeInit = (() => {
+    if (!isPartial) return 'cash';
+    const banks = enabledProviders?.banks ?? ALL_BANKS;
+    const wallets = enabledProviders?.wallets ?? ALL_WALLETS;
+    if (receivedProviderInit && (banks.includes(receivedProviderInit) || ALL_BANKS.includes(receivedProviderInit))) return 'bank';
+    if (receivedProviderInit && (wallets.includes(receivedProviderInit) || ALL_WALLETS.includes(receivedProviderInit))) return 'wallet';
+    if (Number(transaction.cash_received || 0) > 0) return 'cash';
+    const type = String(transaction.payment_type || '').toLowerCase();
+    if (type === 'bank') return 'bank';
+    if (type === 'wallet') return 'wallet';
+    return 'cash';
+  })();
+  const [partialReceived, setPartialReceived] = useState(() => String(partialReceivedInit ?? ''));
+  const [receivedType, setReceivedType] = useState(receivedTypeInit);
+  const [receivedProvider, setReceivedProvider] = useState(receivedProviderInit);
   const [photos, setPhotos] = useState(() => normalizePhotos(transaction));
   const [photoError, setPhotoError] = useState(null);
   const [photoLoading, setPhotoLoading] = useState(false);
@@ -80,7 +103,10 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
   const cost = parseFloat(costPrice) || 0;
   const qty = Math.max(1, parseInt(quantity) || 1);
   const belowCost = !isCredit && cost > 0 && sellingPrice < cost * qty;
-  const canSave = item.trim() && sellingPrice > 0;
+  const partialReceivedAmount = parseFloat(parseInput(partialReceived)) || 0;
+  const partialRemaining = isPartial ? Math.max(0, sellingPrice - partialReceivedAmount) : 0;
+  const partialReceivedValid = isPartial && partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice;
+  const canSave = item.trim() && sellingPrice > 0 && (!isPartial || (partialReceivedValid && (receivedType === 'cash' || !!receivedProvider)));
 
   const getEffectiveDueDate = () => {
     if (selectedDue === 'custom' && customDue) return new Date(customDue).getTime();
@@ -150,8 +176,18 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
         amount: sellingPrice,
         cost_price: isCredit ? 0 : cost,
         profit: (!isCredit && cost > 0) ? sellingPrice - cost * qty : null,
-        payment_type: isCredit ? null : paymentType,
-        payment_provider: (!isCredit && paymentType !== 'cash') ? paymentProvider || null : null,
+        payment_type: isCredit ? null : (isPartial ? 'partial' : paymentType),
+        payment_provider: isPartial
+          ? (receivedType === 'cash' ? null : receivedProvider || null)
+          : ((!isCredit && paymentType !== 'cash') ? paymentProvider || null : null),
+        cash_received: isPartial
+          ? (receivedType === 'cash' ? partialReceivedAmount : 0)
+          : (!isCredit && paymentType === 'cash' ? sellingPrice : 0),
+        paid_amount: isPartial ? partialReceivedAmount : (!isCredit ? sellingPrice : 0),
+        remaining_amount: isPartial ? partialRemaining : 0,
+        credit_amount: isPartial ? partialRemaining : 0,
+        sale_settlement_mode: isCredit ? null : (isPartial ? 'partial' : 'paid'),
+        settlement_mode: isCredit ? null : (isPartial ? 'partial' : 'paid'),
         customer_phone: isCredit ? (phoneEntered && phoneValid ? normalizeEthiopianPhone(phoneDigits) : null) : null,
         direction: isCredit ? direction : null,
         due_date: isCredit ? getEffectiveDueDate() : null,
@@ -547,7 +583,67 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
             </div>
           )}
 
-          {!isCredit && (
+          {isPartial && (
+            <div className="p-3 space-y-2" style={{ background: 'rgba(196,136,58,0.05)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-warning-border)' }}>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-accent-amber)' }}>
+                  ½ {lang === 'am' ? 'ከፊል ክፍያ' : 'Partial payment'}
+                </p>
+                {partialRemaining > 0 && (
+                  <p className="text-[10px] font-bold" style={{ color: 'var(--color-accent-amber)' }}>
+                    {lang === 'am' ? 'ቀሪ ዱቤ' : 'Remaining Dubie'}: {fmt(partialRemaining)} {t.birr || 'birr'}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-gray-600 text-xs font-bold mb-1 font-sans">
+                  {lang === 'am' ? 'የተቀበሉት መጠን' : 'Amount received'} <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={fmtInput(partialReceived)}
+                    onChange={e => handleNumericInput(e, setPartialReceived)}
+                    placeholder="0"
+                    className="w-full p-4 pr-16 border-2 focus:outline-none text-base min-h-[52px] font-sans"
+                    style={{
+                      borderRadius: 'var(--radius-md)',
+                      borderColor: partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice ? 'var(--color-accent-amber)' : 'var(--color-border)',
+                    }}
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
+                </div>
+                {partialReceivedAmount >= sellingPrice && sellingPrice > 0 && (
+                  <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--color-danger)' }}>
+                    {lang === 'am' ? 'ሙሉ ክፍያ ነው — ከፊል አይደለም' : 'Received is the full amount — this is not a partial.'}
+                  </p>
+                )}
+                {partialReceivedAmount > 0 && partialReceivedAmount < sellingPrice && (
+                  <p className="text-xs mt-1.5 font-semibold" style={{ color: 'var(--color-success-text)' }}>
+                    → {fmt(partialReceivedAmount)} {lang === 'am' ? 'ብር' : 'ETB'} {lang === 'am' ? 'በ' : 'via'} {receivedType === 'cash' ? (lang === 'am' ? 'ጥሬ' : 'cash') : (receivedProvider || receivedType)}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-gray-600 text-xs font-bold mb-1 font-sans">
+                  {lang === 'am' ? 'የተቀበሉት ክፍያ ዘዴ' : 'Received via'}
+                </label>
+                <PaymentTypeChips
+                  paymentType={receivedType}
+                  provider={receivedProvider}
+                  onTypeChange={(type) => { setReceivedType(type); if (type === 'cash') setReceivedProvider(''); }}
+                  onProviderChange={setReceivedProvider}
+                  enabledProviders={enabledProviders}
+                  receivedOnly
+                />
+              </div>
+            </div>
+          )}
+
+          {!isCredit && !isPartial && (
             <div className="flex items-center gap-1.5">
               <div className="flex-1 min-w-0">
                 <PaymentTypeChips
