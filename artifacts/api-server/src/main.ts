@@ -129,6 +129,20 @@ app.use((req, res, next) => {
   next();
 });
 
+// ---- ROOT ----
+// Opening the API base URL (e.g. http://localhost:8080/ or the deployed
+// api-server URL) used to return Express's default "Cannot GET /". Return a
+// small status payload so the service is discoverable from the browser.
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    service: "gebya-api",
+    status: "ok",
+    message: "Gebya Notebook API",
+    health: "/healthz",
+    api: "/api",
+  });
+});
+
 // ---- ROUTES ----
 app.use("/", router);
 app.use("/api", router);
