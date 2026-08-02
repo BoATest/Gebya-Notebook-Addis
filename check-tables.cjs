@@ -1,13 +1,19 @@
-const { Pool } = require('./node_modules/.pnpm/pg@8.20.0/node_modules/pg');
+const { Pool } = require('./node_modules/.pnpm/pg@8.22.0/node_modules/pg');
 
 async function main() {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    console.error('DATABASE_URL is not set');
+    process.exit(1);
+  }
+
   const p = new Pool({
-    connectionString: 'postgresql://postgres.ftsdldrzmjpkvxtwwgmc:2024@_boaTEST@aws-1-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true',
+    connectionString,
     ssl: { rejectUnauthorized: false }
   });
-  
-  const tables = ['business_members', 'businesses', 'users', 'otps', 'transactions', 'customer_transactions'];
-  
+
+  const tables = ['business_members', 'businesses', 'users', 'otps', 'transactions', 'customer_transactions', 'suppliers', 'staff_members', 'notifications', 'invites', 'settlements'];
+
   for (const table of tables) {
     try {
       const r = await p.query(
@@ -20,7 +26,7 @@ async function main() {
       console.log(`\n--- ${table}: ERROR: ${e.message} ---`);
     }
   }
-  
+
   await p.end();
 }
 
