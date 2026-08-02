@@ -41,9 +41,9 @@ export default function StaffCollectionForm({
                     <span className="text-xs font-black text-gray-700">{t('Submitted to owner', 'ለባለቤት አቀበረለክላው')}</span>
                   </div>
                   <div className="text-sm font-black" style={{ color: 'var(--color-primary)' }}>
-                    {t('Cash:', 'ጥሬ:')} {fmt(myLastSettlement.staff_reported_cash || 0)} ETB
+                    {t('Cash:', 'ጥሬ:')} {fmt(myLastSettlement.staff_reported_cash || 0)} {t('birr', 'ብር')}
                     {myLastSettlement.staff_reported_transfer > 0 && (
-                      <span className="ml-3">{t('Transfer:', 'ዝውውር:')} {fmt(myLastSettlement.staff_reported_transfer)} ETB</span>
+                      <span className="ml-3">{t('Transfer:', 'ዝውውር:')} {fmt(myLastSettlement.staff_reported_transfer)} {t('birr', 'ብር')}</span>
                     )}
                   </div>
                   {myLastSettlement.staff_note && (
@@ -75,8 +75,8 @@ export default function StaffCollectionForm({
                     <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">{t('Today recorded', 'ዛሬ የተመዘገበ')}</div>
                     <div className="flex gap-3 text-xs font-bold" style={{ color: 'var(--color-primary)' }}>
                       <span>{myTodaySales.count} {t('sales', 'ሽያጮች')}</span>
-                      <span>{t('Cash:', 'ጥሬ:')} {fmt(myTodaySales.cashTotal)} ETB</span>
-                      <span>{t('Transfer:', 'ዝውውር:')} {fmt(myTodaySales.transferTotal)} ETB</span>
+                      <span>{t('Cash:', 'ጥሬ:')} {fmt(myTodaySales.cashTotal)} {t('birr', 'ብር')}</span>
+                      <span>{t('Transfer:', 'ዝውውር:')} {fmt(myTodaySales.transferTotal)} {t('birr', 'ብር')}</span>
                     </div>
                   </div>
                 )}
@@ -178,9 +178,9 @@ export default function StaffCollectionForm({
                     <span className="text-xs font-black text-gray-700">{t('Submitted to owner', 'ለባለቤት አቀበረለክላው')}</span>
                   </div>
                   <div className="text-sm font-black" style={{ color: 'var(--color-primary)' }}>
-                    {t('Cash:', 'ጥሬ:')} {fmt(myLastSettlement.staff_reported_cash || 0)} ETB
+                    {t('Cash:', 'ጥሬ:')} {fmt(myLastSettlement.staff_reported_cash || 0)} {t('birr', 'ብር')}
                     {myLastSettlement.staff_reported_transfer > 0 && (
-                      <span className="ml-3">{t('Transfer:', 'ዝውውር:')} {fmt(myLastSettlement.staff_reported_transfer)} ETB</span>
+                      <span className="ml-3">{t('Transfer:', 'ዝውውር:')} {fmt(myLastSettlement.staff_reported_transfer)} {t('birr', 'ብር')}</span>
                     )}
                   </div>
                   {myLastSettlement.staff_note && (
@@ -212,8 +212,8 @@ export default function StaffCollectionForm({
                     <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">{t('Today recorded', 'ዛሬ የተመዘገበ')}</div>
                     <div className="flex gap-3 text-xs font-bold" style={{ color: 'var(--color-primary)' }}>
                       <span>{myTodaySales.count} {t('sales', 'ሽያጮች')}</span>
-                      <span>{t('Cash:', 'ጥሬ:')} {fmt(myTodaySales.cashTotal)} ETB</span>
-                      <span>{t('Transfer:', 'ዝውውር:')} {fmt(myTodaySales.transferTotal)} ETB</span>
+                      <span>{t('Cash:', 'ጥሬ:')} {fmt(myTodaySales.cashTotal)} {t('birr', 'ብር')}</span>
+                      <span>{t('Transfer:', 'ዝውውር:')} {fmt(myTodaySales.transferTotal)} {t('birr', 'ብር')}</span>
                     </div>
                   </div>
                 )}

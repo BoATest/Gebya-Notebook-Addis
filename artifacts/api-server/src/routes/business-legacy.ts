@@ -401,9 +401,60 @@ router.post("/shops/:shop_id/settings", async (req: Request, res: Response) => {
     return;
   }
 
+  const phoneRequired = !!req.body?.phone_required;
+  const approvalRequired = !!req.body?.approval_required;
+
+  await db
+    .update(businesses)
+    .set({
+      phoneRequired,
+      approvalRequired,
+      updatedAt: new Date(),
+    })
+    .where(eq(businesses.id, shopId));
+
   res.json({
-    phone_required: !!req.body?.phone_required,
-    approval_required: !!req.body?.approval_required,
+    phone_required: phoneRequired,
+    approval_required: approvalRequired,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/shops/:shop_id/settings — read shop settings
+// ---------------------------------------------------------------------------
+router.get("/shops/:shop_id/settings", async (req: Request, res: Response) => {
+  const userId = getUserIdFromRequest(req);
+  if (!userId) {
+    res.status(401).json({ error: "Missing bearer token." });
+    return;
+  }
+
+  const shopId = Number(req.params.shop_id);
+  if (!Number.isFinite(shopId)) {
+    res.status(400).json({ error: "Invalid shop_id" });
+    return;
+  }
+
+  const member = await getBusinessForUser(userId);
+  if (!member || member.businessId !== shopId) {
+    res.status(403).json({ error: "Not a member of this shop." });
+    return;
+  }
+
+  const rows = await db
+    .select({ phoneRequired: businesses.phoneRequired, approvalRequired: businesses.approvalRequired })
+    .from(businesses)
+    .where(eq(businesses.id, shopId))
+    .limit(1);
+
+  if (!rows.length) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+
+  res.json({
+    phone_required: rows[0].phoneRequired ?? false,
+    approval_required: rows[0].approvalRequired ?? false,
   });
 });
 
@@ -506,7 +557,48 @@ router.post("/staff/:staff_id/deactivate", async (req: Request, res: Response) =
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/devices/:device_id/approve — owner approves device (no-op in PG)
+// POST /api/staff/:staff_id/reactivate — owner reactivates member
+// ---------------------------------------------------------------------------
+router.post("/staff/:staff_id/reactivate", async (req: Request, res: Response) => {
+  const currentUserId = getUserIdFromRequest(req);
+  if (!currentUserId) {
+    res.status(401).json({ error: "Missing bearer token." });
+    return;
+  }
+
+  const targetUserId = Number(req.params.staff_id);
+  if (!Number.isFinite(targetUserId)) {
+    res.status(400).json({ error: "Invalid staff_id" });
+    return;
+  }
+
+  const member = await getBusinessForUser(currentUserId);
+  if (!member || (member.role !== "owner" && member.role !== "manager")) {
+    res.status(403).json({ error: "Owner or manager only." });
+    return;
+  }
+
+  const targetRows = await db
+    .select({ id: businessMembers.id })
+    .from(businessMembers)
+    .where(and(eq(businessMembers.businessId, member.businessId), eq(businessMembers.userId, targetUserId)))
+    .limit(1);
+
+  if (!targetRows.length) {
+    res.status(404).json({ error: "Staff not found." });
+    return;
+  }
+
+  await db
+    .update(businessMembers)
+    .set({ active: true })
+    .where(eq(businessMembers.id, targetRows[0].id));
+
+  res.json({ reactivated: true });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/devices/:device_id/approve — owner approves device
 // ---------------------------------------------------------------------------
 router.post("/devices/:device_id/approve", async (req: Request, res: Response) => {
   const userId = getUserIdFromRequest(req);
@@ -514,11 +606,38 @@ router.post("/devices/:device_id/approve", async (req: Request, res: Response) =
     res.status(401).json({ error: "Missing bearer token." });
     return;
   }
-  res.json({ device_id: req.params.device_id, device_status: "active" });
+
+  const deviceId = req.params.device_id;
+  const deviceRows = await db
+    .select({ id: devices.id, shopId: devices.shopId, status: devices.status })
+    .from(devices)
+    .where(eq(devices.deviceId, deviceId))
+    .limit(1);
+
+  if (!deviceRows.length) {
+    res.status(404).json({ error: "Device not found." });
+    return;
+  }
+
+  const device = deviceRows[0];
+  if (device.shopId) {
+    const member = await getBusinessForUser(userId);
+    if (!member || member.businessId !== device.shopId || member.role !== "owner") {
+      res.status(403).json({ error: "Owner only." });
+      return;
+    }
+  }
+
+  await db
+    .update(devices)
+    .set({ status: "active" })
+    .where(eq(devices.id, device.id));
+
+  res.json({ device_id: deviceId, device_status: "active" });
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/devices/:device_id/reject — owner rejects device (no-op in PG)
+// POST /api/devices/:device_id/reject — owner rejects device
 // ---------------------------------------------------------------------------
 router.post("/devices/:device_id/reject", async (req: Request, res: Response) => {
   const userId = getUserIdFromRequest(req);
@@ -526,11 +645,38 @@ router.post("/devices/:device_id/reject", async (req: Request, res: Response) =>
     res.status(401).json({ error: "Missing bearer token." });
     return;
   }
-  res.json({ device_id: req.params.device_id, device_status: "revoked" });
+
+  const deviceId = req.params.device_id;
+  const deviceRows = await db
+    .select({ id: devices.id, shopId: devices.shopId })
+    .from(devices)
+    .where(eq(devices.deviceId, deviceId))
+    .limit(1);
+
+  if (!deviceRows.length) {
+    res.status(404).json({ error: "Device not found." });
+    return;
+  }
+
+  const device = deviceRows[0];
+  if (device.shopId) {
+    const member = await getBusinessForUser(userId);
+    if (!member || member.businessId !== device.shopId || member.role !== "owner") {
+      res.status(403).json({ error: "Owner only." });
+      return;
+    }
+  }
+
+  await db
+    .update(devices)
+    .set({ status: "revoked" })
+    .where(eq(devices.id, device.id));
+
+  res.json({ device_id: deviceId, device_status: "revoked" });
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/devices/:device_id/revoke — owner revokes device (no-op in PG)
+// POST /api/devices/:device_id/revoke — owner revokes device
 // ---------------------------------------------------------------------------
 router.post("/devices/:device_id/revoke", async (req: Request, res: Response) => {
   const userId = getUserIdFromRequest(req);
@@ -538,7 +684,34 @@ router.post("/devices/:device_id/revoke", async (req: Request, res: Response) =>
     res.status(401).json({ error: "Missing bearer token." });
     return;
   }
-  res.json({ device_id: req.params.device_id, device_status: "revoked" });
+
+  const deviceId = req.params.device_id;
+  const deviceRows = await db
+    .select({ id: devices.id, shopId: devices.shopId })
+    .from(devices)
+    .where(eq(devices.deviceId, deviceId))
+    .limit(1);
+
+  if (!deviceRows.length) {
+    res.status(404).json({ error: "Device not found." });
+    return;
+  }
+
+  const device = deviceRows[0];
+  if (device.shopId) {
+    const member = await getBusinessForUser(userId);
+    if (!member || member.businessId !== device.shopId || member.role !== "owner") {
+      res.status(403).json({ error: "Owner only." });
+      return;
+    }
+  }
+
+  await db
+    .update(devices)
+    .set({ status: "revoked" })
+    .where(eq(devices.id, device.id));
+
+  res.json({ device_id: deviceId, device_status: "revoked" });
 });
 
 export default router;

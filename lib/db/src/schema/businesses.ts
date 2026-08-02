@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, varchar, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, varchar, timestamp, index, boolean } from "drizzle-orm/pg-core";
 import { z } from "zod";
 import { users } from "./users";
 
@@ -8,6 +8,8 @@ export const businesses = pgTable("businesses", {
   name:         text("name").notNull().default("My Shop"),
   slug:         varchar("slug", { length: 64 }).unique(),
   preferredLang: varchar("preferred_lang", { length: 8 }).default("am"),
+  phoneRequired: boolean("phone_required").notNull().default(false),
+  approvalRequired: boolean("approval_required").notNull().default(false),
   createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt:    timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (t) => [

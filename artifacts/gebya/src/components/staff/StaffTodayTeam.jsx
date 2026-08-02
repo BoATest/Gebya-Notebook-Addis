@@ -123,7 +123,7 @@ export default function StaffTodayTeam({
                         </span>
                         <span className="text-gray-400">
                           {new Date(lastS.settled_at).toLocaleString(undefined, { month: 'short', day: 'numeric' })}
-                          {isFinalized ? ` · ${fmt(lastS.actual_total || 0)} ETB` : ''}
+                          {isFinalized ? ` · ${fmt(lastS.actual_total || 0)} ${t('birr', 'ብር')}` : ''}
                         </span>
                       </div>
                     )}

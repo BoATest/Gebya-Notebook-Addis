@@ -94,9 +94,9 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
                   </p>
                   {staff.lastSettlement?.reconciliation_status === 'staff_submitted' ? (
                     <p style={{ fontSize: 11, color: 'var(--color-info)', margin: '2px 0 0' }}>
-                      {t('Staff reported:', 'ሰራተኛ ያስረከበው:')} {fmt(staff.lastSettlement.staff_reported_cash || 0)} ETB
+                      {t('Staff reported:', 'ሰራተኛ ያስረከበው:')} {fmt(staff.lastSettlement.staff_reported_cash || 0)} {t('birr', 'ብር')}
                       {staff.lastSettlement.staff_reported_transfer > 0 && (
-                        <span> + {t('transfer:', 'ዝውውር:')} {fmt(staff.lastSettlement.staff_reported_transfer)} ETB</span>
+                        <span> + {t('transfer:', 'ዝውውር:')} {fmt(staff.lastSettlement.staff_reported_transfer)} {t('birr', 'ብር')}</span>
                       )}
                     </p>
                   ) : staff.daysSince !== null ? (
@@ -110,7 +110,7 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
                   )}
                   {staff.lastSettlement && staff.lastSettlement.final_variance !== 0 && (
                     <p style={{ fontSize: 11, color: 'var(--color-warning)', margin: '2px 0 0' }}>
-                      {t('Variance:', 'ልዩነት:')} {fmt(staff.lastSettlement.final_variance)} ETB
+                      {t('Variance:', 'ልዩነት:')} {fmt(staff.lastSettlement.final_variance)} {t('birr', 'ብር')}
                     </p>
                   )}
                 </div>
@@ -157,7 +157,7 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
                     </span>
                     {(s.staff_reported_cash != null || s.reconciliation_note) && (
                       <span style={{ display: 'block', fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2 }}>
-                        {s.staff_reported_cash != null && `${t('Staff:', 'ሰራተኛ:')} ${fmt(s.staff_reported_cash)} ETB`}
+                        {s.staff_reported_cash != null && `${t('Staff:', 'ሰራተኛ:')} ${fmt(s.staff_reported_cash)} ${t('birr', 'ብር')}`}
                         {s.reconciliation_note && ` 📝 ${s.reconciliation_note}`}
                       </span>
                     )}

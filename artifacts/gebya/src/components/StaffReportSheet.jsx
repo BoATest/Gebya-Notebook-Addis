@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { usePrivacy } from '../context/PrivacyContext';
 import { fmt } from '../utils/numformat';
 
 export default function StaffReportSheet({
   staffRows,
-  closingState,
+  closingState = {},
   lang,
   onStaffConfirm,
 }) {
-  const { hidden } = usePrivacy();
+  const t = (en, am) => lang === 'am' ? am : en;
   const [localReports, setLocalReports] = useState({});
 
   if (!staffRows || staffRows.length === 0) return null;
@@ -85,8 +84,8 @@ export default function StaffReportSheet({
               <>
                 <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 6 }}>
                   {lang === 'am'
-                    ? `ጥሬ ይጠበቃል፦ ${fmt(staff.cash || 0)} ETB · ዲጂ፦ ${fmt(staff.transfer || 0)} ETB`
-                    : `Cash expected: ${fmt(staff.cash || 0)} ETB · Digital: ${fmt(staff.transfer || 0)} ETB`}
+                    ? `ጥሬ ይጠበቃል፦ ${fmt(staff.cash || 0)} ${t('birr', 'ብር')} · ዲጂ፦ ${fmt(staff.transfer || 0)} ${t('birr', 'ብር')}`
+                    : `Cash expected: ${fmt(staff.cash || 0)} ${t('birr', 'ብር')} · Digital: ${fmt(staff.transfer || 0)} ${t('birr', 'ብር')}`}
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <input

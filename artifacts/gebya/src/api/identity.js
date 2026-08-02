@@ -101,6 +101,11 @@ export const identityApi = {
     return request(`/staff/${staffId}/deactivate`, { method: 'POST', token });
   },
 
+  // POST /api/staff/:staff_id/reactivate - owner reactivates staff
+  async reactivateStaff(staffId, token) {
+    return request(`/staff/${staffId}/reactivate`, { method: 'POST', token });
+  },
+
   // POST /api/devices/:device_id/approve - owner approves device
   async approveDevice(deviceId, token) {
     return request(`/devices/${deviceId}/approve`, { method: 'POST', token });

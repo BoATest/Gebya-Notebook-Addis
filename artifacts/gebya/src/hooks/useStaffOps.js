@@ -110,6 +110,17 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
     const member = staffMembers.find(item => String(item.id) === String(staffId));
     if (!member) return false;
     const now = Date.now();
+    if (member.staff_id) {
+      try {
+        const token = await getAuthToken();
+        if (!token) return false;
+        await identityApi.reactivateStaff(member.staff_id, token);
+        await refreshStaffMembers();
+        return true;
+      } catch {
+        return false;
+      }
+    }
     try {
       await db.staff_members.update(member.id, { active: true, updated_at: now, deactivated_at: null });
       setStaffMembers(prev => sortStaff(prev.map(item =>
@@ -119,7 +130,7 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
       return false;
     }
     return true;
-  }, [staffMembers, setStaffMembers, sortStaff]);
+  }, [staffMembers, setStaffMembers, sortStaff, refreshStaffMembers]);
 
   const handleApproveDevice = useCallback(async (deviceId) => {
     try {
