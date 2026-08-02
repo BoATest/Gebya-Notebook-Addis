@@ -132,16 +132,23 @@ export async function enqueueStaffEventSync({ recordTable, record, eventType }) 
       const fallbackClientId = record?.transaction_id
         ? `${record?.device_id || 'local-device'}:${record.transaction_id}`
         : `${recordTable}:${record?.id || now}`;
+      const eventType = eventTypeFor({ recordTable, record }) || eventType || null;
+      const fallbackPayload = record ? {
+        event_type: eventType,
+        amount: numberOrNull(record.amount),
+        item_name: textOrNull(record.item_name),
+        note: textOrNull(record.note),
+      } : null;
       return db.sync_queue.put({
         kind: STAFF_EVENT_PUSH,
         status: STAFF_EVENT_STATUSES.localOnly,
         client_event_id: fallbackClientId,
         idempotency_key: queueIdempotencyKey(fallbackClientId),
-        event_type: eventTypeFor({ recordTable, record }) || eventType || null,
+        event_type: eventType,
         record_table: recordTable,
         record_id: record?.id ?? null,
-        record_type: eventTypeFor({ recordTable, record }) || eventType || null,
-        payload: envelope,
+        record_type: eventType,
+        payload: fallbackPayload,
         attempts: 0,
         error: token ? 'Missing shop identity; event kept local only.' : 'Authentication required; event kept local only.',
         created_at: now,

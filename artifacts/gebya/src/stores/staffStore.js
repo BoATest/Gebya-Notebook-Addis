@@ -298,7 +298,7 @@ export const useStaffStore = create((set, get) => ({
       const clouds = get().cloudMembers || [];
       const member = clouds.find(m => String(m.userId || m.id) === String(staffId)) ||
         clouds.find(m => String(m.id) === String(staffId));
-      const bizId = useAuthStore.getState().businessId;
+      const bizId = useAuthStore.getState().currentBusinessId;
       const staffName = member?.display_name || member?.displayName || 'Staff';
       if (bizId) {
         apiFetch('/notifications', {
@@ -364,6 +364,9 @@ export const useStaffStore = create((set, get) => ({
 
   setLocalStaffName(v) { set({ localStaffName: v }); },
   setSearchQuery(v) { set({ searchQuery: v }); },
+
+  setEditNameValue(v) { set({ editNameValue: v }); },
+  setEditPhoneValue(v) { set({ editPhoneValue: v }); },
 
   setStaffCollectCash(v) { set({ staffCollectCash: v }); },
   setStaffCollectTransfer(v) { set({ staffCollectTransfer: v }); },

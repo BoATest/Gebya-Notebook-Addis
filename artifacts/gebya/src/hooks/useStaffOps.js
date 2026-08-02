@@ -29,8 +29,10 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
     if (!displayName) return false;
 
     const now = Date.now();
-    await db.staff_members.update(member.id, { display_name: displayName, updated_at: now });
-    const updatedMember = { ...member, display_name: displayName, updated_at: now };
+    const updates = { display_name: displayName, updated_at: now };
+    if (payload?.phone !== undefined) updates.phone = payload.phone;
+    await db.staff_members.update(member.id, updates);
+    const updatedMember = { ...member, ...updates };
     setStaffMembers(prev => sortStaff(prev.map(item => item.id === member.id ? updatedMember : item)));
     return updatedMember;
   }, [staffMembers, setStaffMembers, sortStaff]);
@@ -109,6 +111,17 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
   const handleReactivateStaffMember = useCallback(async (staffId) => {
     const member = staffMembers.find(item => String(item.id) === String(staffId));
     if (!member) return false;
+    if (member.staff_id) {
+      try {
+        const token = await getAuthToken();
+        if (!token) return false;
+        await identityApi.reactivateStaff(member.staff_id, token);
+        await refreshStaffMembers();
+        return true;
+      } catch {
+        return false;
+      }
+    }
     const now = Date.now();
     try {
       await db.staff_members.update(member.id, { active: true, updated_at: now, deactivated_at: null });
@@ -119,7 +132,7 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
       return false;
     }
     return true;
-  }, [staffMembers, setStaffMembers, sortStaff]);
+  }, [staffMembers, setStaffMembers, sortStaff, refreshStaffMembers]);
 
   const handleApproveDevice = useCallback(async (deviceId) => {
     try {

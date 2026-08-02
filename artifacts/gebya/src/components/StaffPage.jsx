@@ -5,7 +5,7 @@ import { useStaffStore } from '../stores/staffStore';
 import { fireToast } from './Toast';
 import ConfirmDialog from './ConfirmDialog';
 import { getCurrentEntitlements } from '../utils/entitlements';
-import { apiFetch, ROLE_BADGE, RoleBadge } from '../utils/shared-ui.jsx';
+import { ROLE_BADGE, RoleBadge } from '../utils/shared-ui.jsx';
 import { calculateExpected } from '../utils/settlementSelectors';
 import { fmt } from '../utils/numformat';
 
@@ -20,6 +20,7 @@ import StaffActivityFeed from './staff/StaffActivityFeed';
 import StaffTasks from './staff/StaffTasks';
 import StaffAttendance from './staff/StaffAttendance';
 import ReconStatusBadge from './staff/ReconStatusBadge';
+import SettlementSheet from './report/SettlementSheet';
 
 export default function StaffPage({
   staffMembers,
@@ -41,6 +42,7 @@ export default function StaffPage({
 
   // ─── Global state for isolated component isolation ───
   const store = useStaffStore();
+  const [openCollectionSheet, setOpenCollectionSheet] = useState(false);
 
   // Load data
   useEffect(() => {
@@ -52,7 +54,7 @@ export default function StaffPage({
   useEffect(() => {
     const refresh = () => {
       if (document.hidden) return;
-      store.refreshSettlements();
+      store.loadSettlements();
       store.refreshToday();
     };
     const interval = setInterval(() => { if (!document.hidden) refresh(); }, 30000);
@@ -269,6 +271,8 @@ export default function StaffPage({
         lastSettlementPerStaff={lastSettlementPerStaff}
         lang={lang}
         t={t}
+        openCollectionSheet={openCollectionSheet}
+        setOpenCollectionSheet={setOpenCollectionSheet}
       />
 
       {/* Join Code */}

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { useLang } from '../context/LangContext';
-import { usePermissionsStore } from '../stores/permissionsStore';
 import { setIdentity } from '../db';
 import { fireToast } from './Toast';
 import { getAuthToken } from '../utils/syncEngine';
@@ -48,6 +47,10 @@ export default function StaffInviteAcceptScreen({ onJoined, onDismiss }) {
           shop_id: data.shop_id,
           shop_name: data.business_name || activeInvite.business_name,
           role: data.role || 'staff',
+          staff_id: data.staff_id,
+          device_id: data.device_id,
+          display_name: data.display_name || activeInvite.staff_name,
+          phone_number: data.phone_number,
         }).catch(() => {});
       }
       fireToast(lang === 'am' ? '✓ ተቀላቅለዋል' : '✓ Joined successfully', 2500);

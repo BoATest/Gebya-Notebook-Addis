@@ -20,11 +20,11 @@ router.get("/tasks", async (req: Request, res: Response) => {
   const staffId = req.query.staff_id ? Number(req.query.staff_id) : null;
   const status = req.query.status ? String(req.query.status) : null;
 
-  let query = db.select().from(staffTasks).where(eq(staffTasks.businessId, ctx.businessId));
-  if (staffId) query = query.where(eq(staffTasks.staffId, staffId));
-  if (status) query = query.where(eq(staffTasks.status, status));
+  const conditions = [eq(staffTasks.businessId, ctx.businessId)];
+  if (staffId) conditions.push(eq(staffTasks.staffId, staffId));
+  if (status) conditions.push(eq(staffTasks.status, status));
 
-  const tasks = await query.orderBy(desc(staffTasks.createdAt)).limit(200);
+  const tasks = await db.select().from(staffTasks).where(and(...conditions)).orderBy(desc(staffTasks.createdAt)).limit(200);
   return res.json({ tasks });
 });
 
@@ -110,13 +110,13 @@ router.get("/attendance", async (req: Request, res: Response) => {
   const from = req.query.from ? new Date(req.query.from) : new Date(Date.now() - 30 * 86400000);
   const to = req.query.to ? new Date(req.query.to) : new Date();
 
-  let query = db.select().from(staffAttendance).where(and(
+  const conditions = [
     eq(staffAttendance.businessId, ctx.businessId),
     sql`${staffAttendance.clockIn} >= ${from} AND ${staffAttendance.clockIn} <= ${to}`
-  ));
-  if (staffId) query = query.where(eq(staffAttendance.staffId, staffId));
+  ];
+  if (staffId) conditions.push(eq(staffAttendance.staffId, staffId));
 
-  const records = await query.orderBy(desc(staffAttendance.clockIn)).limit(200);
+  const records = await db.select().from(staffAttendance).where(and(...conditions)).orderBy(desc(staffAttendance.clockIn)).limit(200);
   return res.json({ attendance: records });
 });
 
@@ -158,7 +158,7 @@ router.post("/attendance/clock-out", async (req: Request, res: Response) => {
 
   const updated = await db.update(staffAttendance).set({
     clockOut: new Date(),
-    notes: req.body.notes ? latest[0].notes + (latest[0].notes ? "\n" : "") + req.body.notes : latest[0].notes,
+    notes: req.body.notes ? (latest[0].notes || "") + (latest[0].notes ? "\n" : "") + req.body.notes : latest[0].notes,
   }).where(eq(staffAttendance.id, latest[0].id)).returning();
 
   return res.json({ attendance: updated[0] });

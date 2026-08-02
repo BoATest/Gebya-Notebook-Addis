@@ -179,7 +179,7 @@ router.get("/events/activity", async (req: Request, res: Response) => {
     sync_state: "synced" as const,
   }));
 
-  res.json({ activities });
+  res.json({ activities, persistence: "in_memory_preview" });
 });
 
 export default router;

@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useStaffStore } from '../../stores/staffStore';
-import { useLang } from '../../context/LangContext';
 import { apiFetch } from '../../utils/shared-ui.jsx';
 import { fireToast } from '../Toast';
-import { fmt } from '../../utils/numformat';
 
 export default function StaffTasks({ staff, lang, canManageTeam }) {
   const t = (en, am) => lang === 'am' ? am : en;

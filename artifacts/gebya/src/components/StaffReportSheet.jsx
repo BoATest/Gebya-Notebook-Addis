@@ -1,14 +1,12 @@
 import { useState } from 'react';
-import { usePrivacy } from '../context/PrivacyContext';
 import { fmt } from '../utils/numformat';
 
 export default function StaffReportSheet({
   staffRows,
-  closingState,
+  closingState = {},
   lang,
   onStaffConfirm,
 }) {
-  const { hidden } = usePrivacy();
   const [localReports, setLocalReports] = useState({});
 
   if (!staffRows || staffRows.length === 0) return null;

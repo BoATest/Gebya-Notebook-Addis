@@ -47,7 +47,7 @@ export function useStaff() {
       created_at: now,
       updated_at: now,
       active: true,
-      role: 'staff',
+      role: 'cashier',
     };
     const id = await db.staff_members.add(toSave);
     const saved = await db.staff_members.get(id);

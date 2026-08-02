@@ -38,7 +38,7 @@ export default function StaffTodayTeam({
           const sales = todayStaffSales[m.id];
           const txns = todayStaffTransactions[m.id] || [];
           const lastS = lastSettlementPerStaff[String(m.id)];
-          const sDaysSince = lastS ? Math.floor((Date.now() - lastS.settled_at) / 86400000) : null;
+          const sDaysSince = lastS ? Math.floor((Date.now() - new Date(lastS.settled_at).getTime()) / 86400000) : null;
           const sStatus = lastS?.reconciliation_status;
           const isSubmitted = sStatus === 'staff_submitted';
           const isFinalized = sStatus === 'finalized' || (sStatus === 'checked' && sDaysSince === 0);
