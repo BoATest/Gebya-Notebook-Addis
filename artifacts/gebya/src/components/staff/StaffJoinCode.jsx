@@ -1,7 +1,23 @@
-import { KeyRound } from 'lucide-react';
+import { useState } from 'react';
+import { KeyRound, RotateCcw } from 'lucide-react';
 import { fireToast } from '../Toast';
 
 export default function StaffJoinCode({ shopProfile, onRotateJoinCode, t }) {
+  const [rotating, setRotating] = useState(false);
+
+  const handleRotate = async () => {
+    if (rotating || !onRotateJoinCode) return;
+    setRotating(true);
+    try {
+      const result = await onRotateJoinCode(shopProfile?.shop_id || shopProfile?.id);
+      if (result) fireToast(t('✓ Join code reset', '✓ ኮድ ተሻከረ'), 2000);
+      else fireToast(t('Failed to reset join code', 'ኮድ አልተሻከረም'), 3000);
+    } catch {
+      fireToast(t('Failed to reset join code', 'ኮድ አልተሻከረም'), 3000);
+    } finally {
+      setRotating(false);
+    }
+  };
 
   return (
     <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
@@ -46,6 +62,19 @@ export default function StaffJoinCode({ shopProfile, onRotateJoinCode, t }) {
                   {t('Share', 'አጋራ')}
                 </button>
               )}
+              <button
+                type="button"
+                onClick={handleRotate}
+                disabled={rotating}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 press-scale"
+                style={{
+                  background: rotating ? 'var(--color-bg-disabled)' : 'var(--color-warning-bg)',
+                  color: rotating ? 'var(--color-text-soft)' : 'var(--color-warning)'
+                }}
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                {rotating ? t('Resetting…', 'ያስቀምጠል…') : t('Reset code', 'ኮድ ለአዲስ')}
+              </button>
             </div>
             <p className="text-[10px] text-gray-500 mt-2">
               {t('Staff install the app, enter this code, and join. You can change their role from the list below.',
