@@ -41,19 +41,23 @@ export default function StaffPage({
 
   // ─── Global state for isolated component isolation ───
   const store = useStaffStore();
+  const loadCloudMembers = useStaffStore((s) => s.loadCloudMembers);
+  const loadSettlements = useStaffStore((s) => s.loadSettlements);
+  const refreshSettlements = useStaffStore((s) => s.refreshSettlements);
+  const refreshToday = useStaffStore((s) => s.refreshToday);
 
   // Load data
   useEffect(() => {
-    store.loadCloudMembers();
-    store.loadSettlements();
-  }, [store]);
+    loadCloudMembers();
+    loadSettlements();
+  }, [loadCloudMembers, loadSettlements]);
 
   // Prevent browser reloading/disappearing tabs
   useEffect(() => {
     const refresh = () => {
       if (document.hidden) return;
-      store.refreshSettlements();
-      store.refreshToday();
+      refreshSettlements();
+      refreshToday();
     };
     const interval = setInterval(() => { if (!document.hidden) refresh(); }, 30000);
     document.addEventListener('visibilitychange', refresh);
@@ -61,7 +65,7 @@ export default function StaffPage({
       clearInterval(interval);
       document.removeEventListener('visibilitychange', refresh);
     };
-  }, [store]);
+  }, [refreshSettlements, refreshToday]);
 
   // Escape to close settlement sheet
   useEffect(() => {
@@ -69,7 +73,7 @@ export default function StaffPage({
     const handle = (e) => { if (e.key === 'Escape') store.clearSettlementOverlay(); };
     document.addEventListener('keydown', handle);
     return () => document.removeEventListener('keydown', handle);
-  }, [store.settling, store.viewingSettlement, store]);
+  }, [store.settling, store.viewingSettlement]);
 
   // ─── Combined staff list (local + cloud) ───
   const combinedStaffList = useMemo(() => {
