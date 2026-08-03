@@ -593,6 +593,18 @@ db.version(25).stores({
   identity: 'key',
 });
 
+db.version(26).stores({
+  transactions: '++id, type, created_at, updated_at, transaction_id, remote_local_id',
+  customers: '++id, display_name, note, phone_number, telegram_username, telegram_chat_id, telegram_notify_enabled, telegram_link_token, telegram_linked_at, telegram_link_requested_at, created_at, updated_at, remote_local_id',
+  customer_transactions: '++id, customer_id, type, amount, due_date, payment_method, payment_provider, reference_code, telegram_delivery_state, telegram_delivery_error, telegram_delivery_attempted_at, created_at, updated_at, actor_role, actor_staff_member_id, actor_name_snapshot, transaction_id, device_id, reversal_of, remote_local_id',
+  catalog_entries: '++id, name, kind, active, created_at, updated_at, suggestion_shown_count, suggestion_accepted_count, suggestion_rejected_count, suggested_match_id, canonical_name_en, remote_local_id',
+  cross_shop_unmatched: '++id, shop_id, item_name, occurrence_count, last_seen_at, canonical_name_en, canonical_name_am, curated, created_at',
+  suppliers: '++id, display_name, phone_number, note, active, created_at, updated_at, remote_local_id',
+  supplier_transactions: '++id, supplier_id, type, catalog_entry_id, created_at, updated_at, actor_role, actor_staff_member_id, actor_name_snapshot, transaction_id, device_id, remote_local_id',
+  staff_members: '++id, display_name, role, active, created_at, updated_at, deactivated_at, remote_local_id',
+  settlements: '++id, settlement_id, staff_id, status, settled_at, updated_at, business_id, [settled_at+business_id], remote_local_id, [device_id+remote_local_id]',
+});
+
 db.on('ready', async () => {
   const privacySetting = await db.settings.get('privacy_mode');
   if (!privacySetting) {

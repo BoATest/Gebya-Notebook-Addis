@@ -3,7 +3,7 @@ import db, { getAllSettlements, saveSettlement, updateSettlement } from '../db';
 import { apiFetch, ROLE_BADGE } from '../utils/shared-ui.jsx';
 import { fireToast } from '../components/Toast';
 import { getCurrentEntitlements } from '../utils/entitlements';
-import { calculateExpected, createReconciliationEntry } from '../utils/settlementSelectors';
+import { calculateExpected, createReconciliationEntry, generateSettlementId } from '../utils/settlementSelectors';
 import { startOfLocalDay } from '../utils/reportSelectors';
 import { isValidEthiopianPhone, normalizeEthiopianPhone, extractSubscriberDigits } from '../utils/phoneNumber';
 import { useAuthStore } from './authStore';
@@ -272,6 +272,7 @@ export const useStaffStore = create((set, get) => ({
       const periodStart = lastSettlement ? lastSettlement.settled_at : 0;
       const calc = await calculateExpected(String(staffId), periodStart, Date.now());
       await saveSettlement({
+        settlement_id: generateSettlementId(),
         staff_id: staffId,
         period_start: periodStart,
         period_end: Date.now(),

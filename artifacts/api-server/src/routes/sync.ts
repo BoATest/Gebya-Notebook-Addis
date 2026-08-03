@@ -190,7 +190,10 @@ async function pushTable(
       const d = tx || innerTx;
 
       for (const row of chunk) {
-        const data = mapper({ ...row, device_id: deviceId });
+        // Honor per-row provenance (device_id set by a different device whose
+        // record this row belongs to) so edits like an owner's settlement review
+        // re-key to the original server row instead of creating a duplicate.
+        const data = mapper({ ...row, device_id: row.device_id || deviceId });
         data.businessId = data.businessId ?? businessId;
         const incomingVersion = data.syncVersion || 1;
         const incomingUpdatedAt = data.updatedAt || 0;

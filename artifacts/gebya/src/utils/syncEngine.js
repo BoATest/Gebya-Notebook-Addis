@@ -54,6 +54,9 @@ function mapPullRow(row) {
     const snakeKey = camelToSnake(key);
     mapped[snakeKey] = value;
   }
+  // Preserve the origin (deviceId, localId) so later edits re-key to the same
+  // server row even when local auto-increment ids collide across devices.
+  if (row.localId != null) mapped.remote_local_id = row.localId;
   mapped.id = row.localId || row.id;
   return mapped;
 }
@@ -416,7 +419,14 @@ class SyncEngine {
         .where('updated_at')
         .above(this.lastSyncAt)
         .toArray();
-      if (rows.length) payload.tables[name] = rows;
+      if (rows.length) payload.tables[name] = rows.map((row) =>
+        // Rows pulled from another device carry their origin here. Re-key them
+        // to that origin so edits (e.g. an owner's settlement review) update the
+        // same server row instead of spawning a duplicate.
+        (row.remote_local_id != null && row.device_id)
+          ? { ...row, id: row.remote_local_id, device_id: row.device_id }
+          : row
+      );
     }
 
     for (const name of ['settings', 'analytics']) {
@@ -491,8 +501,12 @@ class SyncEngine {
     for (const [tableName, localIds] of Object.entries(conflictMap)) {
       for (const localId of localIds) {
         try {
-          // Fetch local record
-          const localRecord = await db[tableName].get(localId);
+          // Fetch local record (by provenance first; localId is the origin id
+          // for rows re-keyed from another device)
+          let localRecord = await db[tableName].get(localId);
+          if (!localRecord && tableName !== 'settings' && tableName !== 'analytics') {
+            localRecord = await db[tableName].where('remote_local_id').equals(localId).first();
+          }
           if (!localRecord) continue;
 
           // Fetch server record via pull
@@ -617,6 +631,14 @@ class SyncEngine {
                 if (mapped.transaction_id) {
                   local = await table.where('transaction_id').equals(mapped.transaction_id).first();
                 }
+                // Match by origin (deviceId, localId) before falling back to local
+                // id. This avoids duplicate rows when two devices auto-increment to
+                // the same local id.
+                if (!local && mapped.remote_local_id != null && mapped.device_id) {
+                  local = await table.where('remote_local_id').equals(mapped.remote_local_id)
+                    .and((r) => r.device_id === mapped.device_id)
+                    .first();
+                }
                 if (!local) {
                   local = await table.get(mapped.id);
                 }
@@ -624,7 +646,7 @@ class SyncEngine {
                 if (!local) {
                   delete mapped.id;
                   await table.add(mapped);
-                } else if (local.transaction_id && mapped.transaction_id && local.transaction_id === mapped.transaction_id) {
+                } else {
                   if ((local.updated_at || 0) >= (mapped.updated_at || 0)) continue;
                   const changedFields = this._diffFields(local, mapped);
                   if (changedFields.length > 0) {
@@ -638,9 +660,6 @@ class SyncEngine {
                     });
                   }
                   await table.put({ ...mapped, id: local.id });
-                } else {
-                  delete mapped.id;
-                  await table.add(mapped);
                 }
               }
 
