@@ -20,6 +20,7 @@ import StaffActivityFeed from './staff/StaffActivityFeed';
 import StaffTasks from './staff/StaffTasks';
 import StaffAttendance from './staff/StaffAttendance';
 import ReconStatusBadge from './staff/ReconStatusBadge';
+import SettlementSheet from './report/SettlementSheet';
 
 export default function StaffPage({
   staffMembers,
