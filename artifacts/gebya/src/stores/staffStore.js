@@ -88,6 +88,9 @@ export const useStaffStore = create((set, get) => ({
   editNameValue: '',
   editPhoneValue: '',
   localStaffName: '',
+  invitePhone: '',
+  activeInvite: null,
+  inviting: false,
   searchQuery: '',
 
   // ─── Collection form ───
@@ -333,6 +336,53 @@ export const useStaffStore = create((set, get) => ({
     } catch {}
     await onSaveStaffMember?.({ display_name: localStaffName.trim(), role: 'cashier', active: true });
     set({ localStaffName: '' });
+  },
+
+  // ─── Cloud staff add (creates a real login via invite link) ───
+  setInvitePhone(v) { set({ invitePhone: v }); },
+  clearInvite() { set({ activeInvite: null }); },
+
+  handleAddCloudStaff: async (staffMembers, lang) => {
+    const t = (en, am) => lang === 'am' ? am : en;
+    const { localStaffName, invitePhone } = get();
+    const name = (localStaffName || '').trim();
+    if (!name) return;
+    if (!isValidEthiopianPhone(invitePhone)) {
+      fireToast(t('Enter a valid Ethiopian phone number', 'ትክክለኛ የኢትዮጵያ ስልክ ቁጥር ያስገቡ'), 2400);
+      return;
+    }
+    try {
+      const { entitlements } = await getCurrentEntitlements();
+      const activeCount = staffMembers.filter(m => m.active !== false).length;
+      if (activeCount >= entitlements.max_staff) {
+        fireToast(t('Staff limit reached. Upgrade to add more.', 'የሰራተኛ ገደብ ደረሰዋል'), 3000);
+        return;
+      }
+    } catch {}
+    set({ inviting: true });
+    try {
+      const normalizedPhone = normalizeEthiopianPhone(invitePhone);
+      const data = await apiFetch('/business/invite', {
+        method: 'POST',
+        body: JSON.stringify({ phone_number: normalizedPhone, role: 'cashier', staff_name: name }),
+      });
+      set({
+        activeInvite: { name, phone: normalizedPhone, link: data.invite_link, expires_at: data.expires_at },
+        localStaffName: '',
+        invitePhone: '',
+      });
+      fireToast(t(`✓ Invite created — share the link with ${name}`, `✓ ግብዣ ተፈጠረ — ሊንኩን ለ${name} ያጋሩ`), 2600);
+      get().loadCloudMembers();
+    } catch (err) {
+      const msg = String(err?.message || err);
+      if (msg.includes('403')) {
+        fireToast(t('Only the shop owner can add staff', 'የሱቅ ባለቤት ብቻ ሰራተኛ ማከል ይችላል'), 3000);
+      } else {
+        fireToast(err?.message || t('Failed to create invite', 'ግብዣ መፍጠር አልተሳካም'), 3000);
+      }
+    } finally {
+      set({ inviting: false });
+    }
   },
 
   // ─── UI actions ───

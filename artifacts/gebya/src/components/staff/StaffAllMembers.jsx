@@ -3,6 +3,7 @@ import { useStaffStore } from '../../stores/staffStore';
 import { formatEthiopianPhone, isValidEthiopianPhone, extractSubscriberDigits } from '../../utils/phoneNumber';
 import { ROLE_BADGE, RoleBadge } from '../../utils/shared-ui.jsx';
 import PermissionToggle from './PermissionToggle';
+import { fireToast } from '../Toast';
 
 export default function StaffAllMembers({
   combinedStaffList, filteredMembers, canManageTeam,
@@ -20,28 +21,85 @@ export default function StaffAllMembers({
           </span>
           {store.membersLoading && <span className="text-xs text-gray-400">...</span>}
         </div>
-        <div className="flex gap-2 mb-3">
+        <div className="flex gap-2 mb-2">
           <input
             type="text"
             value={store.localStaffName}
             onChange={e => store.setLocalStaffName(e.target.value)}
-            placeholder={t('Add staff name', 'የሰራተኛ ስም ጨምር')}
+            placeholder={t('Staff name', 'የሰራተኛ ስም')}
             className="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
             style={{ borderColor: store.localStaffName.trim() ? 'var(--color-accent-amber)' : 'var(--color-border)' }}
-            onKeyDown={e => e.key === 'Enter' && store.handleAddLocalStaff(staffMembers, onSaveStaffMember, lang)}
+            onKeyDown={e => e.key === 'Enter' && store.handleAddCloudStaff(combinedStaffList, lang)}
+          />
+          <input
+            type="tel"
+            inputMode="numeric"
+            value={store.invitePhone}
+            onChange={e => store.setInvitePhone(extractSubscriberDigits(e.target.value))}
+            placeholder={t('Phone', 'ስልክ')}
+            className="w-32 px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
+            style={{ borderColor: store.invitePhone && !isValidEthiopianPhone(store.invitePhone) ? 'var(--color-input-error)' : 'var(--color-border)' }}
+            onKeyDown={e => e.key === 'Enter' && store.handleAddCloudStaff(combinedStaffList, lang)}
           />
           <button
-            onClick={() => store.handleAddLocalStaff(staffMembers, onSaveStaffMember, lang)}
-            disabled={!store.localStaffName.trim()}
-            className="px-4 py-2.5 rounded-xl text-sm font-bold min-h-[44px]"
+            onClick={() => store.handleAddCloudStaff(combinedStaffList, lang)}
+            disabled={!store.localStaffName.trim() || !isValidEthiopianPhone(store.invitePhone) || store.inviting}
+            className="px-4 py-2.5 rounded-xl text-sm font-bold min-h-[44px] flex-shrink-0"
             style={{
-              background: store.localStaffName.trim() ? 'var(--color-primary)' : 'var(--color-bg-disabled)',
-              color: store.localStaffName.trim() ? 'var(--color-bg-white)' : 'var(--color-text-soft)'
+              background: (!store.localStaffName.trim() || !isValidEthiopianPhone(store.invitePhone) || store.inviting) ? 'var(--color-bg-disabled)' : 'var(--color-primary)',
+              color: (!store.localStaffName.trim() || !isValidEthiopianPhone(store.invitePhone) || store.inviting) ? 'var(--color-text-soft)' : 'var(--color-bg-white)'
             }}
           >
-            {t('Add', 'ጨምር')}
+            {store.inviting ? t('Adding…', 'በማከል ላይ…') : t('Add', 'ጨምር')}
           </button>
         </div>
+        <p className="text-[10px] text-gray-500 mb-3">
+          {t('Creates a real staff login. You will get an invite link to send them; they sign in with this phone number.',
+            'እውነተኛ የሰራተኛ መግቢያ ይፈጠራል። ሊንክ ይሰጥዎታል፤ በስልክ ቁጥር ይመዘግባሉ።')}
+        </p>
+        {store.activeInvite && (
+          <div className="mb-3 rounded-xl border px-3 py-3" style={{ borderColor: 'var(--color-info-border)', background: 'var(--color-bg-accent-blue)' }}>
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <span className="text-xs font-black" style={{ color: 'var(--color-info)' }}>
+                {t('Invite created', 'ግብዣ ተፈጥሯል')} · {store.activeInvite.name}
+              </span>
+              <button onClick={() => store.clearInvite()} className="text-gray-400 hover:text-gray-600 text-sm font-bold px-1" aria-label={t('Dismiss', 'ዝጋ')}>✕</button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="flex-1 text-[11px] font-mono select-all break-all" style={{ color: 'var(--color-text)' }}>{store.activeInvite.link}</span>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(store.activeInvite.link);
+                    fireToast(t('✓ Link copied', '✓ ሊንክ ተቀድሷል'), 1500);
+                  } catch {}
+                }}
+                className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold"
+                style={{ background: 'var(--color-primary)', color: 'var(--color-bg-white)' }}
+              >
+                {t('Copy', 'ቅዳ')}
+              </button>
+              {'share' in navigator && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.share({
+                        title: t('Join my shop', 'ሱቄን ተቀላቀል'),
+                        text: t('Open this link and sign in with your phone to join my shop: ', 'ይህን ሊንክ ከፍተው በስልክ ቁጥርዎ ተመዝግበው ሱቄን ይቀላቀሉ: ') + store.activeInvite.link
+                      });
+                    } catch {}
+                  }}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700"
+                  style={{ background: 'var(--color-border)' }}
+                >
+                  {t('Share', 'አጋራ')}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-2 rounded-xl border px-3 py-2 bg-white" style={{ borderColor: 'var(--color-border)' }}>
           <Search className="w-4 h-4 text-gray-400" />
           <input
