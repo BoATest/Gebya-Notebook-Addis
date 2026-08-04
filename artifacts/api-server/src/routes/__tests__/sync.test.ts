@@ -108,6 +108,7 @@ function chainable(rows: any[]) {
   q.orderBy = vi.fn(() => q);
   q.limit = vi.fn(() => Promise.resolve(rows));
   q.returning = vi.fn(() => Promise.resolve(rows));
+  q.then = (resolve: any, reject: any) => Promise.resolve(rows).then(resolve, reject);
   return q;
 }
 
@@ -218,5 +219,77 @@ describe("GET /api/sync/pull", () => {
     await callHandler(handler, req, res);
     expect(res.statusCode).toBe(403);
     expect(res.body.error).toMatch(/No business/);
+  });
+});
+
+describe("GET /api/sync/balance-check/:customerId", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDbSelect.mockReset();
+    mockDbInsert.mockReset();
+    mockDbUpdate.mockReset();
+    mockVerifyJwt.mockReturnValue({ userId: 1 });
+  });
+
+  it("returns 401 when no auth token", async () => {
+    mockVerifyJwt.mockReturnValue(undefined);
+    const handler = findHandler("get", "/balance-check/:customerId");
+    const req = makeReq({ method: "GET", url: "/balance-check/1", params: { customerId: "1" }, headers: {} });
+    const res = makeRes();
+    await callHandler(handler, req, res);
+    expect(res.statusCode).toBe(401);
+    expect(res.body.error).toMatch(/Authorization/);
+  });
+
+  it("returns 403 when user has no business", async () => {
+    const handler = findHandler("get", "/balance-check/:customerId");
+    mockDbSelect.mockReturnValueOnce(chainable([]));
+    const req = makeReq({ method: "GET", url: "/balance-check/1", params: { customerId: "1" } });
+    const res = makeRes();
+    await callHandler(handler, req, res);
+    expect(res.statusCode).toBe(403);
+    expect(res.body.error).toMatch(/No business/);
+  });
+
+  it("returns 400 for invalid customerId", async () => {
+    const handler = findHandler("get", "/balance-check/:customerId");
+    mockDbSelect.mockReturnValueOnce(chainable([{ businessId: 1 }]));
+    const req = makeReq({ method: "GET", url: "/balance-check/abc", params: { customerId: "abc" } });
+    const res = makeRes();
+    await callHandler(handler, req, res);
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toMatch(/Invalid customer ID/);
+  });
+
+  it("returns balance and transaction count for valid request", async () => {
+    const handler = findHandler("get", "/balance-check/:customerId");
+    mockDbSelect
+      .mockReturnValueOnce(chainable([{ businessId: 1 }]))
+      .mockReturnValueOnce(chainable([{ balance: 1500, transactionCount: 5 }]));
+    const req = makeReq({ method: "GET", url: "/balance-check/42", params: { customerId: "42" } });
+    req.headers["x-business-id"] = "1";
+    const res = makeRes();
+    await callHandler(handler, req, res);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.customer_id).toBe(42);
+    expect(res.body.balance).toBe(1500);
+    expect(res.body.transaction_count).toBe(5);
+    expect(res.body.computed_at).toBeDefined();
+  });
+
+  it("returns zero balance when no transactions found", async () => {
+    const handler = findHandler("get", "/balance-check/:customerId");
+    mockDbSelect
+      .mockReturnValueOnce(chainable([{ businessId: 1 }]))
+      .mockReturnValueOnce(chainable([undefined]));
+    const req = makeReq({ method: "GET", url: "/balance-check/99", params: { customerId: "99" } });
+    req.headers["x-business-id"] = "1";
+    const res = makeRes();
+    await callHandler(handler, req, res);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.balance).toBe(0);
+    expect(res.body.transaction_count).toBe(0);
   });
 });
