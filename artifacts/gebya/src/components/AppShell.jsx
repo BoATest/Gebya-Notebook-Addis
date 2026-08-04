@@ -46,6 +46,7 @@ import {
   addCustomChannel,
 } from '../utils/paymentChannels';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useSyncRefresh } from '../hooks/useSyncRefresh';
 import { useNotificationsStore } from '../stores/notificationsStore';
 import { useAppStore } from '../stores/appStore';
 import { useShopStore } from '../stores/shopStore';
@@ -441,6 +442,9 @@ export default function AppShell() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Refresh local data from Dexie after each sync cycle completes
+  useSyncRefresh(useCallback(() => { loadData(); }, [loadData]));
 
   useEffect(() => {
     if (loading) return undefined;

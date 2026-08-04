@@ -3,6 +3,7 @@ import { Shield, AlertTriangle, User, Calendar, Filter, ChevronDown, ChevronUp, 
 import { useLang } from '../context/LangContext';
 import { usePermissionsStore } from '../stores/permissionsStore';
 import { useSyncStore } from '../stores/syncStore';
+import { useSyncRefresh } from '../hooks/useSyncRefresh';
 import { fmt } from '../utils/numformat';
 import { formatEthiopianTime } from '../utils/ethiopianCalendar';
 import { apiFetch } from '../utils/shared-ui.jsx';
@@ -152,6 +153,9 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
   }, [canManageTeam]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Re-fetch activity feed after each sync cycle so owner sees staff data promptly
+  useSyncRefresh(useCallback(() => { loadData(); }, [loadData]));
 
   const staffOptions = useMemo(() => {
     const map = new Map();
