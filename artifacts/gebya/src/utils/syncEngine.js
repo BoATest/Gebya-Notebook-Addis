@@ -200,6 +200,10 @@ class SyncEngine {
     this._setupDexieHooks();
     this._setupPeriodicSync();
     await this._countPending();
+
+    if (this.pendingCount > 0 && this.online) {
+      this.sync();
+    }
   }
 
   _setupPeriodicSync() {
