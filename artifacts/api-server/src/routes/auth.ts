@@ -150,8 +150,6 @@ router.post("/verify", async (req, res) => {
   if (!normalizedPhone) {
     return res.status(400).json({ error: "Invalid Ethiopian phone number" });
   }
-  const codeHash = hashOtp(otp.trim());
-
   // Find the most recent unconsumed OTP for this phone
   const otpRows = await db
     .select()
@@ -184,7 +182,7 @@ router.post("/verify", async (req, res) => {
     .set({ attempts: attempts + 1 })
     .where(eq(otps.id, otpRecord.id));
 
-  if (otpRecord.codeHash !== codeHash) {
+  if (!verifyOtp(otp.trim(), otpRecord.codeHash)) {
     return res.status(400).json({ error: "Invalid OTP" });
   }
 
@@ -260,77 +258,6 @@ router.post("/verify", async (req, res) => {
       businesses: businessList,
     });
   });
-
-// --- POST /api/auth/otp ---
-router.post("/otp", async (req, res) => {
-  const { phone_number } = req.body;
-  if (!phone_number || typeof phone_number !== "string" || phone_number.length < 8) {
-    return res.status(400).json({ error: "phone_number is required" });
-  }
-
-  // Check if phone number exists
-  const user = await db
-    .select()
-    .from(users)
-    .where(eq(users.phoneNumber, phone_number))
-    .limit(1);
-
-  if (!user.length) {
-    return res.status(400).json({ error: "Phone number not found" });
-  }
-
-  // Check if user already has an active OTP
-  const existingOtp = await db
-    .select()
-    .from(otps)
-    .where(
-      and(
-        eq(otps.userId, user[0].id),
-        gt(otps.expiresAt, new Date()),
-        isNull(otps.verifiedAt)
-      )
-    )
-    .limit(1);
-
-  let otpRecord;
-  if (existingOtp.length) {
-    otpRecord = existingOtp[0];
-  } else {
-    // Generate new OTP
-    const otpCode = generateOtp();
-    const otpHash = hashOtp(otpCode);
-    const expiresAt = new Date(Date.now() + OTP_EXPIRES_MS);
-
-    otpRecord = await db
-      .insert(otps)
-      .values({
-        userId: user[0].id,
-        otpCode: otpCode, // Store plaintext OTP for debugging (remove in production)
-        otpHash,
-        expiresAt,
-      })
-      .returning()
-      .then((res) => res[0]);
-  }
-
-  // Send OTP via SMS
-  try {
-    await sendSms(phone_number, `Your Gebya verification code is: ${otpCode}`);
-  } catch (err) {
-    console.error("[auth:otp] SMS failed:", err);
-    // Continue anyway — OTP is still valid
-  }
-
-  // Check attempt count before responding
-  const attempts = otpRecord.attempts || 0;
-  const remainingAttempts = OTP_MAX_ATTEMPTS - attempts;
-
-  return res.json({
-    otpId: otpRecord.id,
-    expiresAt: otpRecord.expiresAt.toISOString(),
-    attemptsLeft: Math.max(0, remainingAttempts),
-  });
-});
 
 // --- POST /api/auth/verify-otp ---
 router.post("/verify-otp", async (req, res) => {
