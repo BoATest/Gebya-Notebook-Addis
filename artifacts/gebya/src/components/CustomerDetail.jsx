@@ -368,15 +368,80 @@ function CustomerDetail({
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
-          2. BALANCE BLOCK (Sticky) — BEFORE Quick Actions
+          COMPACT STICKY HEADER — shows when scrolled past main header
           ═══════════════════════════════════════════════════════════════ */}
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 15,
+          background: '#fff',
+          borderBottom: '1px solid #e4e6df',
+          padding: '10px 14px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          opacity: isBalanceCollapsed ? 1 : 0,
+          pointerEvents: isBalanceCollapsed ? 'auto' : 'none',
+          transition: 'opacity 0.2s ease',
+        }}
+      >
+        {/* Small avatar */}
+        <div style={{
+          width: 32, height: 32, borderRadius: '50%',
+          background: '#1b4332', color: '#fff',
+          fontSize: '0.7rem', fontWeight: 800,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          {initials}
+        </div>
+        {/* Name + balance */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{
+            fontSize: '0.85rem', fontWeight: 700, margin: 0,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {customer.display_name}
+          </p>
+          <p style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: '0.75rem', fontWeight: 700,
+            color: isSettled ? '#2e6a47' : '#a0402a',
+            margin: 0,
+          }}>
+            {fmt(balance)} <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#8b9086' }}>{lang === 'am' ? 'ብር' : 'birr'}</span>
+          </p>
+        </div>
+        {/* Status pill */}
+        {(customer.has_overdue && customer.overdue_days > 0) && (
+          <span style={{
+            background: '#f5e7e1', color: '#a0402a',
+            padding: '3px 8px', borderRadius: 999,
+            fontSize: '0.58rem', fontWeight: 800,
+            flexShrink: 0,
+          }}>
+            {customer.overdue_days}d
+          </span>
+        )}
+        {isSettled && (
+          <span style={{
+            background: '#e7f0e9', color: '#2e6a47',
+            padding: '3px 8px', borderRadius: 999,
+            fontSize: '0.58rem', fontWeight: 800,
+            flexShrink: 0,
+          }}>
+            ✓
+          </span>
+        )}
+      </div>
       <div
         id="balanceBlock"
         style={{
           background: '#f5f6f2',
           padding: isBalanceCollapsed ? '10px 14px' : '8px 14px 14px',
           position: 'sticky',
-          top: 0,
+          top: isBalanceCollapsed ? 52 : 0,
           zIndex: 10,
           transition: 'all 0.3s ease',
           boxShadow: isBalanceCollapsed ? '0 4px 12px rgba(0,0,0,0.03)' : 'none',
@@ -1076,64 +1141,9 @@ function CustomerDetail({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════
-          9. BOTTOM ACTION BAR
+          BOTTOM SPACER — enough room for the fixed AppActionBar
           ═══════════════════════════════════════════════════════════════ */}
-      <div style={{
-        position: 'sticky',
-        bottom: 0,
-        zIndex: 20,
-        display: 'flex',
-        gap: 10,
-        padding: '12px 14px 20px',
-        background: 'linear-gradient(180deg, rgba(245,246,242,0) 0%, #f5f6f2 25%)',
-      }}>
-        <button
-          type="button"
-          onClick={() => onAddCredit?.(customer)}
-          className="press-scale"
-          style={{
-            flex: 1,
-            height: 50,
-            borderRadius: 12,
-            border: '1px solid #e4e6df',
-            background: '#fff',
-            color: '#171a17',
-            fontSize: '0.85rem',
-            fontWeight: 800,
-            fontFamily: 'inherit',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-          }}
-        >
-          ↑ {t.youGave}
-        </button>
-        <button
-          type="button"
-          onClick={() => onRecordPayment?.(customer)}
-          className="press-scale"
-          style={{
-            flex: 1,
-            height: 50,
-            borderRadius: 12,
-            border: 'none',
-            background: '#171a17',
-            color: '#fff',
-            fontSize: '0.85rem',
-            fontWeight: 800,
-            fontFamily: 'inherit',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-          }}
-        >
-          ↓ {t.youGot}
-        </button>
-      </div>
+      <div style={{ height: 80 }} />
 
       {/* ═══════════════════════════════════════════════════════════════
           SUCCESS OVERLAY
