@@ -916,6 +916,11 @@ const EN_OVERRIDES = {
   creditGave: 'YOU GAVE (Dubie)',
   creditGot: 'YOU GOT (Paid)',
 
+  // Customer detail (Variant C additions)
+  addPhoto: 'Add photo',
+  youGave: 'You gave',
+  youGot: 'You got',
+
   // Save/update error toasts
   saveFailed: 'Could not save. Please try again.',
   updateFailed: 'Could not update. Please try again.',
@@ -1423,6 +1428,11 @@ const AM_OVERRIDES = {
   addSupplier: 'አቅራቢ ጨምር',
   creditGave: 'እቃ በዱቤ ሰጠሁ (-)',
   creditGot: 'ክፍያ ተቀበልኩ (+)',
+
+  // Customer detail (Variant C additions)
+  addPhoto: 'ፎቶ ይጨምሩ',
+  youGave: 'ለእኔ ሰጠ',
+  youGot: 'ከእኔ ያገኘ',
 
   // Save/update error toasts
   saveFailed: 'ማስቀመጥ አልተሳካም — እንደገና ይሞክሩ',

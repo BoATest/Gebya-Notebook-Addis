@@ -2,17 +2,17 @@
 //
 // Layout (top → bottom):
 //   1. Dark header band       · back + photo/avatar + name + phone + status pill
-//   2. Telegram link state    · linked / manual / (none — hidden if no phone)
-//   3. Balance block          · owes me + days late + on-time/entries/due stats
-//   4. History                · simplified rows with left border stripe + chevron
-//   5. Trust line             · 🔒 Backed up securely. Amounts auto-hide for privacy.
+//   2. Quick Actions          · Call + SMS + Telegram (three-button row)
+//   3. Balance block (sticky) · owes me + days late + on-time/entries/due stats
+//   4. Promise to pay         · inline date picker form
+//   5. History                · grouped by date with left border stripe + chevron
+//   6. Trust line             · 🔒 Backed up securely. Amounts auto-hide for privacy.
 //
 // Touch targets ≥44px · privacy mode · Ethiopian calendar.
-// Long-press removed — tap row → TransactionDetailSheet.
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, MessageCircle, MessageSquare, Pencil, Phone, Plus, Wallet, X, ArrowRightLeft,
+  ArrowLeft, MessageCircle, MessageSquare, Pencil, Phone, Wallet, X, ArrowRightLength,
 } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { toTelUrl, isValidEthiopianPhone } from '../utils/phoneNumber';
@@ -31,39 +31,6 @@ function initialsOf(name) {
   if (parts.length === 0) return '?';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
-const AVATAR_GRADIENTS = {
-  A: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-  B: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
-  C: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-  D: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
-  E: 'linear-gradient(135deg, #84cc16 0%, #4d7c0f 100%)',
-  F: 'linear-gradient(135deg, #f43f5e 0%, #be123c 100%)',
-  G: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)',
-  H: 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)',
-  I: 'linear-gradient(135deg, #f97316 0%, #c2410c 100%)',
-  J: 'linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)',
-  K: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
-  L: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
-  M: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-  N: 'linear-gradient(135deg, #eab308 0%, #a16207 100%)',
-  O: 'linear-gradient(135deg, #d946ef 0%, #a21caf 100%)',
-  P: 'linear-gradient(135deg, #22c55e 0%, #15803d 100%)',
-  Q: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)',
-  R: 'linear-gradient(135deg, #6366f1 0%, #3730a3 100%)',
-  S: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
-  T: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-  U: 'linear-gradient(135deg, #06b6d4 0%, #0e7490 100%)',
-  V: 'linear-gradient(135deg, #f43f5e 0%, #9f1239 100%)',
-  W: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
-  X: 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)',
-  Y: 'linear-gradient(135deg, #f97316 0%, #9a3412 100%)',
-  Z: 'linear-gradient(135deg, #ec4899 0%, #831843 100%)',
-};
-function gradientFor(name) {
-  const init = initialsOf(name);
-  return AVATAR_GRADIENTS[init[0]] || AVATAR_GRADIENTS.A;
 }
 
 function telegramState(customer) {
@@ -102,13 +69,23 @@ function CustomerDetail({
   const hasBalance = balance > 0;
   const tg = telegramState(customer);
   const initials = initialsOf(customer.display_name);
-  const grad = gradientFor(customer.display_name);
 
   // ─── Telegram link sub-state (from existing fields) ──────────────────
   const hasLinkedBorrower = !!customer.telegram_chat_id;
   const hasManualTelegram = !!customer.telegram_username;
   const hasPendingLink = !hasLinkedBorrower && !!customer.telegram_link_requested_at;
   const isTelegramNotifyEnabled = hasLinkedBorrower && customer.telegram_notify_enabled;
+
+  // ─── Sticky balance collapse state ──────────────────────────────────
+  const [isBalanceCollapsed, setIsBalanceCollapsed] = useState(false);
+
+  // ─── Promise form state ─────────────────────────────────────────────
+  const [showPromiseForm, setShowPromiseForm] = useState(false);
+  const [promiseDate, setPromiseDate] = useState('');
+  const [promiseNote, setPromiseNote] = useState('');
+
+  // ─── Archive confirmation state ────────────────────────────────────
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
 
   // ─── History rows with running balance + settlement breadcrumb ───────
   const historyRows = useMemo(() => {
@@ -121,6 +98,42 @@ function CustomerDetail({
       return { ...item, balance_after: balanceAfter };
     });
   }, [customer.transactions, balance]);
+
+  // ─── Sticky balance scroll handler ──────────────────────────────────
+  useEffect(() => {
+    const scrollable = document.getElementById('scrollable');
+    if (!scrollable) return;
+
+    const handleScroll = () => {
+      setIsBalanceCollapsed(scrollable.scrollTop > 30);
+    };
+
+    scrollable.addEventListener('scroll', handleScroll, { passive: true });
+    return () => scrollable.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // ─── Promise handlers ───────────────────────────────────────────────
+  const handleRecordPromise = () => {
+    if (!promiseDate) return;
+    const parsed = new Date(promiseDate + 'T23:59:59').getTime();
+    if (isNaN(parsed)) return;
+    onRecordPromise?.(customer.id, parsed, promiseNote);
+    setShowPromiseForm(false);
+    setPromiseDate('');
+    setPromiseNote('');
+  };
+
+  const handleCancelPromise = () => {
+    setShowPromiseForm(false);
+    setPromiseDate('');
+    setPromiseNote('');
+  };
+
+  // ─── Archive handler ────────────────────────────────────────────────
+  const handleArchive = () => {
+    onArchiveCustomer?.(customer);
+    setShowArchiveConfirm(false);
+  };
 
   // ─── render ──────────────────────────────────────────────────────────
   return (
@@ -153,66 +166,6 @@ function CustomerDetail({
             <ArrowLeft className="w-5 h-5" />
             <span>{lang === 'am' ? 'ተመለስ · ደንበኞች' : 'Back · Customers'}</span>
           </button>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {/* Compact status pill — saves vertical space */}
-            {(customer.has_overdue && customer.overdue_days > 0) && (
-              <span style={{
-                background: 'var(--color-danger-bg)', color: 'var(--color-danger-text)',
-                padding: '2px 8px', borderRadius: 999,
-                fontSize: '0.62rem', fontWeight: 800,
-                letterSpacing: '0.04em',
-                flexShrink: 0,
-              }}>
-                {customer.overdue_days}{lang === 'am' ? 'ቀን ያለፈው' : 'd OVERDUE'}
-              </span>
-            )}
-
-
-            {/* Edit customer button — Commit C.2.
-                Opens CustomerForm pre-filled so the shopkeeper can add or
-                update phone, Telegram, photo, or note for an existing customer. */}
-            {onEditCustomer && (
-              <button
-                type="button"
-                onClick={() => onEditCustomer(customer)}
-                className="press-scale"
-                aria-label={lang === 'am' ? 'አስተካክል' : 'Edit customer'}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  width: 30, height: 30,
-                  borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.12)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  color: 'var(--color-bg-white)',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {onTransfer && (
-              <button
-                type="button"
-                onClick={() => onTransfer(customer)}
-                className="press-scale"
-                aria-label={lang === 'am' ? 'ዱቤ ያስተላልፉ' : 'Transfer credit'}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  width: 30, height: 30,
-                  borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.12)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  color: 'var(--color-bg-white)',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-              >
-                <ArrowRightLeft className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
         </div>
 
         {/* Identity row — avatar 44 + name + phone/entries one line.
@@ -228,33 +181,42 @@ function CustomerDetail({
               <img src={customer.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => onEditCustomer?.(customer)}
-              aria-label={lang === 'am' ? 'ፎቶ ይጨምሩ' : 'Add photo'}
-              className="press-scale"
-              style={{
-                width: 44, height: 44, borderRadius: '50%',
-                position: 'relative', flexShrink: 0, overflow: 'hidden',
-                border: '2px dashed rgba(255,255,255,0.35)',
-                background: grad,
-                padding: 0, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--color-bg-white)', fontSize: '1rem', fontWeight: 800,
-              }}
-            >
-              {initials}
-              {/* 📷 hint badge — bottom-right, signals tap-to-add */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <button
+                type="button"
+                onClick={() => onEditCustomer?.(customer)}
+                aria-label={t.addPhoto}
+                className="press-scale"
+                style={{
+                  width: 44, height: 44, borderRadius: '50%',
+                  position: 'relative', flexShrink: 0, overflow: 'hidden',
+                  border: '2px dashed rgba(255,255,255,0.35)',
+                  background: 'var(--color-primary)',
+                  padding: 0, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--color-bg-white)', fontSize: '1rem', fontWeight: 800,
+                }}
+              >
+                {initials}
+                {/* 📷 hint badge — bottom-right, signals tap-to-add */}
+                <span style={{
+                  position: 'absolute', bottom: -2, right: -2,
+                  width: 16, height: 16, borderRadius: '50%',
+                  background: 'var(--color-surface)',
+                  border: '1.5px solid var(--color-text)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.55rem',
+                  color: 'var(--color-text)',
+                }}>📷</span>
+              </button>
               <span style={{
-                position: 'absolute', bottom: -2, right: -2,
-                width: 16, height: 16, borderRadius: '50%',
-                background: 'var(--color-surface)',
-                border: '1.5px solid var(--color-text)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '0.55rem',
-                color: 'var(--color-text)',
-              }}>📷</span>
-            </button>
+                fontSize: '0.6875rem',
+                color: 'var(--color-text-soft)',
+                fontWeight: 600,
+              }}>
+                {t.addPhoto}
+              </span>
+            </div>
           )}
 
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -281,75 +243,54 @@ function CustomerDetail({
               )}
             </p>
           </div>
+
+          {/* Edit and Transfer buttons — moved beside customer name (Requirement #4) */}
+          {onEditCustomer && (
+            <button
+              type="button"
+              onClick={() => onEditCustomer(customer)}
+              className="press-scale"
+              aria-label={lang === 'am' ? 'አስተካክል' : 'Edit customer'}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 32, height: 32,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.12)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                color: 'var(--color-bg-white)',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {onTransfer && (
+            <button
+              type="button"
+              onClick={() => onTransfer(customer)}
+              className="press-scale"
+              aria-label={lang === 'am' ? 'ዱቤ ያስተላልፉ' : 'Transfer credit'}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 32, height: 32,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.12)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                color: 'var(--color-bg-white)',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ═══ 2. TELEGRAM LINK STATE BLOCK ══════════════════════════════════════════
-          Commit T2 polish: the WHOLE row is tappable now (not just the small + Link
-          button). Easier to hit on small phones. Action button stays for visual
-          affordance but the row click also fires onOpenTelegramConnect. */}
-      {tg !== 'none' && (
-        <button
-          type="button"
-          onClick={onOpenTelegramConnect}
-          className="press-scale"
-          style={{
-            background: tg === 'linked' ? 'var(--color-success-bg)' : tg === 'manual' ? 'var(--color-warning-bg)' : 'var(--color-bg-white)',
-            border: `1px solid ${tg === 'linked' ? 'var(--color-success-border)' : tg === 'manual' ? 'var(--color-warning-border)' : 'var(--color-border)'}`,
-            borderRadius: 10,
-            padding: '8px 12px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            gap: 10,
-            marginTop: -8, // Float slightly into the dark band for visual depth
-            position: 'relative', zIndex: 2,
-            boxShadow: '0 2px 8px -2px rgba(0,0,0,0.06)',
-            cursor: 'pointer',
-            textAlign: 'left',
-            width: '100%',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-            <MessageCircle
-              className="w-4 h-4"
-              style={{
-                color: tg === 'linked' ? 'var(--color-success-text)' : tg === 'manual' ? 'var(--color-warning)' : 'var(--color-text-soft)',
-                flexShrink: 0,
-              }}
-            />
-            <p style={{
-              fontSize: '0.75rem', fontWeight: 700, flex: 1, minWidth: 0,
-              color: tg === 'linked' ? 'var(--color-success-text)' : tg === 'manual' ? 'var(--color-warning)' : 'var(--color-text)',
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            }}>
-              {tg === 'linked'
-                ? (lang === 'am' ? '✓ ቦት ተገናኝቷል' : '✓ Bot connected')
-                : tg === 'manual'
-                  ? (lang === 'am' ? `ቴሌḡራም · ${customer.telegram_username || ''}` : `Telegram · ${customer.telegram_username || ''}`)
-                  : (lang === 'am' ? 'ለማስታወሻ ቴሌግራም ይጨምሩ' : 'Add Telegram for reminders')}
-            </p>
-          </div>
-          <span
-            style={{
-              background: tg === 'linked' ? 'var(--color-success-text)' : tg === 'manual' ? 'var(--color-warning)' : 'var(--color-text)',
-              color: 'var(--color-bg-white)',
-              padding: '5px 10px', borderRadius: 6,
-              fontSize: '0.68rem', fontWeight: 800,
-              flexShrink: 0,
-              minHeight: 28,
-              display: 'inline-flex', alignItems: 'center',
-            }}
-          >
-            {tg === 'linked'
-              ? (lang === 'am' ? 'አያያዝ' : 'Manage')
-              : (lang === 'am' ? '+ አገናኝ' : '+ Link')}
-          </span>
-        </button>
-      )}
-
-      {/* ═══ 2b. QUICK ACTIONS · Call + SMS (only when phone exists) ═══ */}
-      {isValidEthiopianPhone(customer.phone_number) && (
-        <div style={{ display: 'flex', gap: 8 }}>
-          {/* Call button */}
+      {/* ═══ 2. QUICK ACTIONS · Call + SMS + Telegram ═══ */}
+      <div style={{ display: 'flex', gap: 8, padding: '0 14px 14px' }}>
+        {isValidEthiopianPhone(customer.phone_number) && (
           <a
             href={toTelUrl(customer.phone_number)}
             className="press-scale"
@@ -370,7 +311,8 @@ function CustomerDetail({
             <Phone className="w-4 h-4" />
             {lang === 'am' ? 'ጥሪ' : 'Call'}
           </a>
-          {/* SMS button — opens ReminderSheet with SMS pre-selected */}
+        )}
+        {isValidEthiopianPhone(customer.phone_number) && (
           <button
             type="button"
             onClick={() => onSmsCustomer?.(customer)}
@@ -392,130 +334,239 @@ function CustomerDetail({
             <MessageSquare className="w-4 h-4" />
             SMS
           </button>
-        </div>
-      )}
+        )}
+        <button
+          type="button"
+          onClick={onOpenTelegramConnect}
+          className="press-scale"
+          style={{
+            flex: 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            background: tg === 'linked' ? 'var(--color-success-bg)' : tg === 'manual' ? 'var(--color-warning-bg)' : 'var(--color-bg-white)',
+            border: `1px solid ${tg === 'linked' ? 'var(--color-success-border)' : tg === 'manual' ? 'var(--color-warning-border)' : 'var(--color-border)'}`,
+            borderRadius: 10,
+            padding: '10px 0',
+            color: tg === 'linked' ? 'var(--color-success-text)' : tg === 'manual' ? 'var(--color-warning)' : 'var(--color-text)',
+            fontWeight: 700,
+            fontSize: '0.78rem',
+            cursor: 'pointer',
+            minHeight: 44,
+            position: 'relative',
+          }}
+        >
+          <MessageCircle className="w-4 h-4" />
+          {tg === 'linked'
+            ? (lang === 'am' ? 'ተገናኝቷል' : 'Linked')
+            : tg === 'manual'
+              ? (lang === 'am' ? 'ቴሌግራም' : 'Telegram')
+              : (lang === 'am' ? 'አገናኝ' : 'Connect')}
+          {tg === 'linked' && onResendTelegramUpdate && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onResendTelegramUpdate?.();
+              }}
+              style={{
+                position: 'absolute',
+                top: 4,
+                right: 6,
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-text-muted)',
+                fontSize: '0.65rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '2px 4px',
+              }}
+            >
+              {lang === 'am' ? 'እንደገና ላክ' : 'Resend'}
+            </button>
+          )}
+        </button>
+      </div>
 
-      {/* ═══ 3. BALANCE BLOCK ══════════════════════════════════════════ */}
+      {/* ═══ 3. BALANCE BLOCK (Sticky) ══════════════════════════════════════════ */}
       <div
+        id="balanceBlock"
         style={{
           background: 'var(--color-surface)',
           border: '1px solid var(--color-border)',
           borderRadius: 12,
-          padding: 14,
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
+          padding: isBalanceCollapsed ? '10px 14px' : 14,
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          transition: 'padding 160ms ease',
         }}
       >
-        <div>
-          {/* Prominent OVERDUE badge above the amount — Commit C.1 polish.
-              Promotes the urgency signal so shopkeepers immediately know
-              this is a chase-now situation, not a "we have time" one. */}
-          {customer.has_overdue && customer.overdue_days > 0 && (
-            <span
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                background: 'var(--color-danger)', color: 'var(--color-bg-white)',
-                fontSize: '0.62rem', fontWeight: 800,
-                padding: '3px 8px', borderRadius: 999,
-                letterSpacing: '0.06em', textTransform: 'uppercase',
-                marginBottom: 5,
-              }}
-            >
-              🔴 {customer.overdue_days}{lang === 'am' ? 'ቀን ያለፈው' : 'd overdue'}
-            </span>
-          )}
-          <p style={{
-            fontSize: '0.6rem', fontWeight: 800,
-            color: 'var(--color-text-soft)', letterSpacing: '0.1em', textTransform: 'uppercase',
-          }}>
-            {lang === 'am' ? 'ለእኔ ይከፍላሉ' : 'Owes me'}
-          </p>
-          <p style={{
-            fontFamily: 'Manrope, system-ui, sans-serif',
-            fontSize: '1.85rem', fontWeight: 800,
-            color: customer.has_overdue ? 'var(--color-danger)' : hasBalance ? 'var(--color-accent-amber)' : 'var(--color-text-soft)',
-            lineHeight: 1, marginTop: 4,
-            letterSpacing: '-0.02em',
-            fontVariantNumeric: 'tabular-nums',
-          }}>
-            {fmt(balance)}
-            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-soft)', marginLeft: 4 }}>
-              {lang === 'am' ? 'ብር' : 'birr'}
-            </span>
-          </p>
-        </div>
-        <div style={{
-          display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end',
-          gap: 4, fontSize: '0.7rem', color: 'var(--color-text-muted)',
-        }}>
-          <span>
-            <strong style={{ color: 'var(--color-text)', fontWeight: 700 }}>{customer.transaction_count || 0}</strong>{' '}
-            {lang === 'am' ? 'መዝገብ' : 'entries'}
-          </span>
-          {/* On-time rate as a percentage when there's enough data — clearer
-              than "0/1" fraction notation. Commit C.1 polish. */}
-          {customer.on_time_eligible > 0 && (() => {
-            const pct = Math.round((customer.on_time_count / customer.on_time_eligible) * 100);
-            const pctColor = pct >= 80 ? 'var(--color-success-text)' : pct >= 50 ? 'var(--color-accent-amber)' : 'var(--color-danger)';
-            return (
-              <span>
-                <strong style={{ color: pctColor, fontWeight: 700 }}>
-                  {pct}%
-                </strong>{' '}
-                {lang === 'am' ? 'በወቅቱ' : 'on time'}
-                <span style={{ color: 'var(--color-text-soft)', marginLeft: 3, fontSize: '0.62rem' }}>
-                  ({customer.on_time_count}/{customer.on_time_eligible})
-                </span>
+        {isBalanceCollapsed ? (
+          /* Collapsed state */
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {(customer.has_overdue && customer.overdue_days > 0) && (
+              <span style={{
+                background: 'var(--color-danger-bg)',
+                color: 'var(--color-danger-text)',
+                padding: '2px 8px',
+                borderRadius: 999,
+                fontSize: '0.62rem',
+                fontWeight: 800,
+                flexShrink: 0,
+              }}>
+                {customer.overdue_days}d
               </span>
-            );
-          })()}
-          {customer.avg_pay_days !== null && customer.avg_pay_days !== undefined && (
-            <span>
-              {lang === 'am' ? 'አማካይ ክፍያ' : 'Avg pay'}:{' '}
-              <strong style={{ color: 'var(--color-text)', fontWeight: 700 }}>{customer.avg_pay_days}d</strong>
-            </span>
-          )}
-          {customer.latest_due_date && (
-            <span>
-              {lang === 'am' ? 'መጨረሻ ቀን' : 'Due'}:{' '}
-              <strong style={{ color: 'var(--color-text)', fontWeight: 700 }}>
-                {formatEthiopian(customer.latest_due_date)}
-              </strong>
-            </span>
-          )}
-        </div>
-        {/* Mark Fully Paid button — single tap, no confirmation. Opens payment sheet pre-filled with full balance. */}
-        {hasBalance && onMarkFullyPaid && (
-          <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
-            <button
-              type="button"
-              onClick={() => onMarkFullyPaid(customer)}
-              className="press-scale"
-              style={{
-                width: '100%', padding: '12px',
-                background: 'var(--color-primary)', color: 'var(--color-bg-white)',
-                border: 'none', borderRadius: 10,
-                fontSize: '0.82rem', fontWeight: 800,
-                cursor: 'pointer', minHeight: 44,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              }}
-            >
-              <Wallet className="w-4 h-4" />
-              {lang === 'am' ? `ሁሉንም ይክፈሉ · ${fmt(balance)} ብር` : `Mark Fully Paid · ${fmt(balance)} birr`}
-            </button>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontWeight: 600,
+                color: customer.has_overdue ? 'var(--color-danger)' : hasBalance ? 'var(--color-accent-amber)' : 'var(--color-text-soft)',
+                fontSize: '1.1rem',
+                margin: 0,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {fmt(balance)} <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--color-text-soft)' }}>{lang === 'am' ? 'ብር' : 'birr'}</span>
+              </p>
+            </div>
+            {hasBalance && onMarkFullyPaid && (
+              <button
+                type="button"
+                onClick={() => onMarkFullyPaid(customer)}
+                className="press-scale"
+                style={{
+                  padding: '4px 12px',
+                  background: 'var(--color-primary)',
+                  color: 'var(--color-bg-white)',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  minHeight: 32,
+                }}
+              >
+                {lang === 'am' ? 'ክፍል' : 'Pay'}
+              </button>
+            )}
+          </div>
+        ) : (
+          /* Expanded state */
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              {/* Prominent OVERDUE badge above the amount — Commit C.1 polish. */}
+              {customer.has_overdue && customer.overdue_days > 0 && (
+                <span
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    background: 'var(--color-danger)', color: 'var(--color-bg-white)',
+                    fontSize: '0.62rem', fontWeight: 800,
+                    padding: '3px 8px', borderRadius: 999,
+                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                    marginBottom: 5,
+                  }}
+                >
+                  🔴 {customer.overdue_days}{lang === 'am' ? 'ቀን ያለፈው' : 'd overdue'}
+                </span>
+              )}
+              <p style={{
+                fontSize: '0.6rem', fontWeight: 800,
+                color: 'var(--color-text-soft)', letterSpacing: '0.1em', textTransform: 'uppercase',
+              }}>
+                {lang === 'am' ? 'ለእኔ ይከፍላሉ' : 'Owes me'}
+              </p>
+              <p style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '1.85rem', fontWeight: 800,
+                color: customer.has_overdue ? 'var(--color-danger)' : hasBalance ? 'var(--color-accent-amber)' : 'var(--color-text-soft)',
+                lineHeight: 1, marginTop: 4,
+                letterSpacing: '-0.02em',
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {fmt(balance)}
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-soft)', marginLeft: 4 }}>
+                  {lang === 'am' ? 'ብር' : 'birr'}
+                </span>
+              </p>
+            </div>
+            <div style={{
+              display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-end',
+              gap: 4, fontSize: '0.7rem', color: 'var(--color-text-muted)',
+            }}>
+              <span>
+                <strong style={{ color: 'var(--color-text)', fontWeight: 700 }}>{customer.transaction_count || 0}</strong>{' '}
+                {lang === 'am' ? 'መዝገብ' : 'entries'}
+              </span>
+              {/* On-time rate as a percentage when there's enough data — clearer
+                  than "0/1" fraction notation. Commit C.1 polish. */}
+              {customer.on_time_eligible > 0 && (() => {
+                const pct = Math.round((customer.on_time_count / customer.on_time_eligible) * 100);
+                const pctColor = pct >= 80 ? 'var(--color-success-text)' : pct >= 50 ? 'var(--color-accent-amber)' : 'var(--color-danger)';
+                return (
+                  <span>
+                    <strong style={{ color: pctColor, fontWeight: 700 }}>
+                      {pct}%
+                    </strong>{' '}
+                    {lang === 'am' ? 'በወቅቱ' : 'on time'}
+                    <span style={{ color: 'var(--color-text-soft)', marginLeft: 3, fontSize: '0.62rem' }}>
+                      ({customer.on_time_count}/{customer.on_time_eligible})
+                    </span>
+                  </span>
+                );
+              })()}
+              {customer.avg_pay_days !== null && customer.avg_pay_days !== undefined && (
+                <span>
+                  {lang === 'am' ? 'አማካይ ክፍያ' : 'Avg pay'}:{' '}
+                  <strong style={{ color: 'var(--color-text)', fontWeight: 700 }}>{customer.avg_pay_days}d</strong>
+                </span>
+              )}
+              {customer.latest_due_date && (
+                <span>
+                  {lang === 'am' ? 'መጨረሻ ቀን' : 'Due'}:{' '}
+                  <strong style={{ color: 'var(--color-text)', fontWeight: 700 }}>
+                    {formatEthiopian(customer.latest_due_date)}
+                  </strong>
+                </span>
+              )}
+            </div>
+            {/* Mark Fully Paid button — single tap, no confirmation. Opens payment sheet pre-filled with full balance. */}
+            {hasBalance && onMarkFullyPaid && (
+              <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => onMarkFullyPaid(customer)}
+                  className="press-scale"
+                  style={{
+                    width: '100%', padding: '12px',
+                    background: 'var(--color-primary)', color: 'var(--color-bg-white)',
+                    border: 'none', borderRadius: 10,
+                    fontSize: '0.82rem', fontWeight: 800,
+                    cursor: 'pointer', minHeight: 44,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  <Wallet className="w-4 h-4" />
+                  {lang === 'am' ? `ሁሉንም ይክፈሉ · ${fmt(balance)} ብር` : `Mark Fully Paid · ${fmt(balance)} birr`}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {/* ═══ 4. PROMISE TO PAY ═══════════════════════════════════════════ */}
       {onRecordPromise && (
-        (() => {
-          const promiseDate = customer.promised_pay_date;
-          const now = Date.now();
-          const isMissed = promiseDate && promiseDate < now;
-          const isToday = promiseDate && Math.abs(promiseDate - now) < 86400000;
-          return (
-            <div style={{ padding: '8px 0' }}>
-              {promiseDate ? (
+      <div style={{ padding: '8px 14px' }}>
+          {(() => {
+            const promiseDate = customer.promised_pay_date;
+            const now = Date.now();
+            const isMissed = promiseDate && promiseDate < now;
+            const isToday = promiseDate && Math.abs(promiseDate - now) < 86400000;
+
+            if (promiseDate) {
+              return (
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '10px 14px', borderRadius: 10,
@@ -554,24 +605,15 @@ function CustomerDetail({
                     {lang === 'am' ? 'አስወግድ' : 'Clear'}
                   </button>
                 </div>
-              ) : (
+              );
+            }
+
+            if (!showPromiseForm) {
+              return (
                 <div style={{ textAlign: 'center' }}>
                   <button
                     type="button"
-                    onClick={() => {
-                      const dateStr = window.prompt(
-                        lang === 'am'
-                          ? 'የሚከፍሉበትን ቀን ያስገቡ (YYYY-MM-DD):'
-                          : 'Enter promised pay date (YYYY-MM-DD):'
-                      );
-                      if (!dateStr) return;
-                      const parsed = new Date(dateStr + 'T23:59:59').getTime();
-                      if (isNaN(parsed)) return;
-                      const note = window.prompt(
-                        lang === 'am' ? 'ማስታወሻ (አማራጭ):' : 'Note (optional):'
-                      ) || '';
-                      onRecordPromise(customer.id, parsed, note);
-                    }}
+                    onClick={() => setShowPromiseForm(true)}
                     style={{
                       background: 'none', border: '1px dashed var(--color-text-soft)',
                       borderRadius: 8, padding: '8px 14px',
@@ -582,10 +624,97 @@ function CustomerDetail({
                     📅 {lang === 'am' ? 'የተስፋፉበትን ቀን ይመዝግቡ' : 'Record Promise'}
                   </button>
                 </div>
-              )}
-            </div>
-          );
-        })()
+              );
+            }
+
+            return (
+              <div style={{
+                padding: 14,
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}>
+                <p style={{ fontSize: '0.78rem', fontWeight: 700, margin: 0, color: 'var(--color-text)' }}>
+                  📅 {lang === 'am' ? 'የተስፋፉበትን ቀን ይመዝግቡ' : 'Record Promise to Pay'}
+                </p>
+                <input
+                  type="date"
+                  value={promiseDate}
+                  onChange={(e) => setPromiseDate(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 8,
+                    fontSize: '0.85rem',
+                    fontFamily: 'inherit',
+                    color: 'var(--color-text)',
+                    background: 'var(--color-bg-white)',
+                  }}
+                />
+                <input
+                  type="text"
+                  value={promiseNote}
+                  onChange={(e) => setPromiseNote(e.target.value)}
+                  placeholder={t.promiseNote}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 8,
+                    fontSize: '0.85rem',
+                    fontFamily: 'inherit',
+                    color: 'var(--color-text)',
+                    background: 'var(--color-bg-white)',
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={handleCancelPromise}
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      background: 'var(--color-surface-muted)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 8,
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color: 'var(--color-text)',
+                      cursor: 'pointer',
+                      minHeight: 44,
+                    }}
+                  >
+                    {t.cancel}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRecordPromise}
+                    disabled={!promiseDate}
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      background: 'var(--color-primary)',
+                      border: 'none',
+                      borderRadius: 8,
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color: 'var(--color-bg-white)',
+                      cursor: promiseDate ? 'pointer' : 'not-allowed',
+                      opacity: promiseDate ? 1 : 0.5,
+                      minHeight: 44,
+                    }}
+                  >
+                    {t.saveChanges}
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
       )}
 
       {/* ═══ 5. REMINDER HISTORY (collapsible) ═══════════════════════════════ */}
@@ -598,9 +727,9 @@ function CustomerDetail({
         />
       )}
 
-      {/* ═══ 5. HISTORY ══════════════════════════════════════════ */}
+      {/* ═══ 6. HISTORY ══════════════════════════════════════════ */}
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 4px 4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px 4px' }}>
           <p style={{ fontSize: '0.62rem', fontWeight: 800, color: 'var(--color-text-soft)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             {lang === 'am' ? 'መዝገብ' : 'History'} · {historyRows.length} {lang === 'am' ? 'መዝገብ' : 'entries'}
           </p>
@@ -694,7 +823,7 @@ function CustomerDetail({
         )}
       </div>
 
-      {/* ═══ 6. TRUST LINE ══════════════════════════════════════════ */}
+      {/* ═══ 7. TRUST LINE ══════════════════════════════════════════ */}
       <p style={{
         textAlign: 'center', fontSize: '0.66rem', color: 'var(--color-text-soft)',
         padding: '8px 14px 4px',
@@ -704,40 +833,150 @@ function CustomerDetail({
           : 'Backed up securely. Amounts auto-hide for privacy.'}
       </p>
 
-      {/* ═══ 7. ARCHIVE / RESTORE ═══════════════════════════════════ */}
+      {/* ═══ 8. ARCHIVE / RESTORE ═══════════════════════════════════ */}
       {onArchiveCustomer && (
         <div style={{ textAlign: 'center', padding: '4px 14px 12px' }}>
-          <button
-            type="button"
-            onClick={() => {
-              if (customer.archived_at) {
-                onArchiveCustomer(customer);
-              } else if (window.confirm(
-                lang === 'am'
-                  ? `"${customer.display_name}" አርክስ? ${hasBalance ? `ይህ ደንበኛ ${fmt(balance)} ብር ዕዳ አለበት። የአርክስ መዝገቦች ለታሪክ ይቀመጣሉ።` : ''}`
-                  : `Archive "${customer.display_name}"?${hasBalance ? ` This customer has ${fmt(balance)} birr outstanding. Archived records are preserved for history.` : ''}`
-              )) {
-                onArchiveCustomer(customer);
-              }
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              fontSize: '0.7rem',
-              color: customer.archived_at ? 'var(--color-success-text)' : 'var(--color-text-soft)',
-              fontWeight: 600,
-              cursor: 'pointer',
-              padding: '6px 12px',
-              borderRadius: 8,
-              opacity: 0.7,
-            }}
-          >
-            {customer.archived_at
-              ? (lang === 'am' ? 'መልስ' : 'Restore')
-              : (lang === 'am' ? 'አርክስ' : 'Archive')}
-          </button>
+          {showArchiveConfirm ? (
+            <div style={{
+              padding: 14,
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 10,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}>
+              <p style={{ fontSize: '0.82rem', fontWeight: 600, margin: 0, color: 'var(--color-text)' }}>
+                {lang === 'am'
+                  ? `"${customer.display_name}" አርክስ?${hasBalance ? ` ይህ ደንበኛ ${fmt(balance)} ብር ዕዳ አለበት።` : ''}`
+                  : `Archive "${customer.display_name}"?${hasBalance ? ` This customer has ${fmt(balance)} birr outstanding.` : ''}`}
+              </p>
+              <p style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', margin: 0 }}>
+                {lang === 'am'
+                  ? 'የአርክስ መዝገቦች ለታሪክ ይቀመጣሉ።'
+                  : 'Archived records are preserved for history.'}
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowArchiveConfirm(false)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 12px',
+                    background: 'var(--color-surface-muted)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 8,
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    color: 'var(--color-text)',
+                    cursor: 'pointer',
+                    minHeight: 44,
+                  }}
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleArchive}
+                  style={{
+                    flex: 1,
+                    padding: '10px 12px',
+                    background: 'var(--color-danger)',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    color: 'var(--color-bg-white)',
+                    cursor: 'pointer',
+                    minHeight: 44,
+                  }}
+                >
+                  {lang === 'am' ? 'አርክስ' : 'Archive'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowArchiveConfirm(true)}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '0.7rem',
+                color: customer.archived_at ? 'var(--color-success-text)' : 'var(--color-text-soft)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '6px 12px',
+                borderRadius: 8,
+                opacity: 0.7,
+              }}
+            >
+              {customer.archived_at
+                ? (lang === 'am' ? 'መልስ' : 'Restore')
+                : (lang === 'am' ? 'አርክስ' : 'Archive')}
+            </button>
+          )}
         </div>
       )}
+
+      {/* ═══ 9. BOTTOM ACTION BAR ══════════════════════════════════════════ */}
+      <div style={{
+        position: 'sticky',
+        bottom: 0,
+        zIndex: 20,
+        display: 'flex',
+        gap: 10,
+        padding: '12px 14px 18px',
+        background: 'linear-gradient(180deg, rgba(245,246,242,0) 0%, var(--color-bg) 35%)',
+        marginTop: 10,
+      }}>
+        <button
+          type="button"
+          onClick={() => onAddCredit?.(customer)}
+          className="press-scale"
+          style={{
+            flex: 1,
+            height: 48,
+            borderRadius: 10,
+            border: '1px solid var(--color-border)',
+            background: 'var(--color-danger-bg)',
+            color: 'var(--color-danger)',
+            fontSize: '0.82rem',
+            fontWeight: 700,
+            fontFamily: 'inherit',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+          }}
+        >
+          ↑ {t.youGave}
+        </button>
+        <button
+          type="button"
+          onClick={() => onRecordPayment?.(customer)}
+          className="press-scale"
+          style={{
+            flex: 1,
+            height: 48,
+            borderRadius: 10,
+            border: '1px solid var(--color-border)',
+            background: 'var(--color-primary)',
+            color: 'var(--color-bg-white)',
+            fontSize: '0.82rem',
+            fontWeight: 700,
+            fontFamily: 'inherit',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+          }}
+        >
+          ↓ {t.youGot}
+        </button>
+      </div>
     </div>
   );
 }
@@ -844,7 +1083,7 @@ function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         {/* Amount */}
         <span style={{
-          fontFamily: 'JetBrains Mono, monospace',
+          fontFamily: "'JetBrains Mono', monospace",
           fontSize: '0.88rem', fontWeight: 700,
           color: amountColor,
           fontVariantNumeric: 'tabular-nums',
