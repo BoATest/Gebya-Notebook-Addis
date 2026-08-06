@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { notificationsApi } from '../api/notifications';
 import { getAuthToken } from '../utils/syncEngine';
+import { fireToast } from '../components/Toast';
 
 function getIsStandalone() {
   if (typeof navigator === 'undefined') return false;
@@ -53,6 +54,7 @@ export function usePushNotifications() {
       setIsSubscribed(true);
     } catch (err) {
       console.error('[push] subscribe failed:', err);
+      fireToast('Push notifications unavailable — check settings', 4000);
     } finally {
       setLoading(false);
     }

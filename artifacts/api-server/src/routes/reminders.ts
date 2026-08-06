@@ -713,8 +713,8 @@ router.post("/payment-confirmed", verifyShopOwnership, requirePermission("can_ad
       const msg = (language ?? "am") === "am" ? thankYou : thankYouEn;
       try {
         await sendTelegramTextMessage(chatId, msg);
-      } catch {
-        // non-critical — history entry already recorded
+      } catch (tgErr) {
+        console.error("[reminders] thank-you Telegram send failed:", tgErr);
       }
     }
 
@@ -728,8 +728,8 @@ router.post("/payment-confirmed", verifyShopOwnership, requirePermission("can_ad
         type: "payment_confirmed",
         id: Date.now(),
       });
-    } catch {
-      // non-critical
+    } catch (pushErr) {
+      console.error("[reminders] payment push notification failed:", pushErr);
     }
 
     const sentAmount = amount;

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { notificationsApi } from '../api/notifications';
 import { getAuthToken } from '../utils/syncEngine';
+import { fireToast } from '../components/Toast';
 
 export const useNotificationsStore = create((set, get) => ({
   notifications: [],
@@ -21,6 +22,7 @@ export const useNotificationsStore = create((set, get) => ({
       set({ notifications: data.notifications || [], total: data.total || 0, fetched: true, lastFetchedAt: Date.now() });
     } catch (err) {
       console.error('[notifications] fetch failed:', err);
+      fireToast('Could not load notifications', 3000);
     } finally {
       set({ loading: false });
     }
@@ -37,6 +39,7 @@ export const useNotificationsStore = create((set, get) => ({
       set({ notifications: [...notifications, ...(data.notifications || [])] });
     } catch (err) {
       console.error('[notifications] fetchMore failed:', err);
+      fireToast('Could not load more notifications', 3000);
     } finally {
       set({ loadingMore: false });
     }
@@ -66,6 +69,7 @@ export const useNotificationsStore = create((set, get) => ({
       }));
     } catch (err) {
       console.error('[notifications] markRead failed:', err);
+      fireToast('Could not mark as read', 3000);
     }
   },
 
@@ -80,6 +84,7 @@ export const useNotificationsStore = create((set, get) => ({
       }));
     } catch (err) {
       console.error('[notifications] markAllRead failed:', err);
+      fireToast('Could not mark all as read', 3000);
     }
   },
 }));

@@ -353,7 +353,9 @@ router.post("/push",
             });
             const createdNotifs = await tx.insert(notifications).values(notifRows as any).returning({ id: notifications.id, type: notifications.type, title: notifications.title, body: notifications.body });
             for (const notif of createdNotifs) {
-              sendPushToOwner(businessId, { title: notif.title, body: notif.body, type: notif.type, id: notif.id }).catch(() => {});
+              sendPushToOwner(businessId, { title: notif.title, body: notif.body, type: notif.type, id: notif.id }).catch((pushErr) => {
+                console.error("[sync] push notification failed:", pushErr);
+              });
             }
           }
         }
@@ -401,7 +403,9 @@ router.post("/push",
               title: "Payment confirmed",
               body: `${customerName} — ${formattedAmt} ETB payment recorded and reminders stopped.`,
               type: "payment_confirmed", id: Date.now(),
-            }).catch(() => {});
+            }).catch((pushErr) => {
+              console.error("[sync] payment push notification failed:", pushErr);
+            });
           }
         }
       } catch (paymentErr) {
