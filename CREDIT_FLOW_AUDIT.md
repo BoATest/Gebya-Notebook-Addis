@@ -25,16 +25,17 @@ The core workflow of the credit tracking module is organized into five operation
   - **Minimal Form Fields:** Add Customer (`CustomerForm.jsx`) requires only a single field—`Name` (e.g. "Tigist" or "Baby's mother"). Advanced details are grouped flat without hidden toggles.
   - **Ethiopian Phone Field:** Explicit country code block `+251` pre-rendered with strict subscriber validation (starts with 9 or 7, exactly 9 digits).
   - **Photo Capture (Optional):** Merchants can snap a direct product/customer photo using a rear camera stream compressed to sub-80KB in JPG. An automated 📷 badge prompts retroactive photo additions if empty.
-  - **Detail Dashboard (`CustomerDetail.jsx`):** Emphasizes "Owes Me" amounts, repayment frequency, average pay durations, overdue timelines, and a visual trust scoring factor.
-* **Status:** **BUILT / EXCELLENT** (Clean and mobile-friendly touch targets).
+  - **Detail Dashboard (`CustomerDetail.jsx`):** Displays "Owes Me" amounts, transaction frequency, average pay durations, overdue timelines, and a static reassurance line: *"🔒 Backed up securely. Amounts auto-hide for privacy."*
+* **Status:** **BUILT / EXCELLENT** (Clean and mobile-friendly touch targets. Note that there is no visual trust score rendering inside `CustomerDetail.jsx`—the trust line is a static privacy guarantee).
 
 ---
 
 ### 3. Credit Additions & Payments
 * **Current UI Behavior:**
   - **Hero Amounts:** Large typography inputs pre-formatted for Ethiopian Birr (`fmtInput`, `parseInput`) to prevent input syntax errors.
-  - **Add Credit Flow:** Optional itemized due dates, description fields, catalog quick-chips, and a ** Basket (Multi-Item Breakdown)** sub-sheet.
+  - **Add Credit Flow:** Optional itemized due dates, description fields, catalog quick-chips, and a **Basket (Multi-Item Breakdown)** sub-sheet.
   - **Record Payment Flow:** Captures partial payments, maps payment methods (Cash 💵, Telebirr/E-Wallets 📱, CBE/Bank 🏦), and automatically triggers FIFO payment-to-credit ledger matching (`fifoAllocatePayment`).
+  - **Overpayment Validation:** The system enforces strict balance validations. Overpaying a customer's total outstanding balance triggers a block.
   - **Mark Fully Paid:** One-click automated payout calculation button inside the customer's balance block.
 * **Status:** **BUILT / ROBUST** (Backed by offline IndexedDB synchronicity and Vitest suite validation).
 
@@ -43,10 +44,10 @@ The core workflow of the credit tracking module is organized into five operation
 ### 4. Overdue Tracking, Promises, and Chasing Alerts
 * **Current UI Behavior:**
   - **Overdue Flags:** Red status pills (`customer.overdue_days`) displayed directly on the card header and main customer list.
-  - **Promises-to-Pay:** Ability to log promised pay dates with descriptive itemized notes. Highlights "Missed Promises" in red warning styles.
+  - **Promises-to-Pay:** Ability to log promised pay dates with descriptive notes. Highlights "Missed Promises" in red warning styles.
   - **Telegram Connect Flow (`CustomerTelegramConnectSheet.jsx`):** Features automated link token generation, expandable in-person QR codes, clipboard copy, and real-time polling updates.
 * **Status:** **PARTIALLY BUILT**
-  - *The Catch:* Automatic Telegram QR link polling requires a persistent web-hook receiver. On serverless deployments such as Vercel, session sync is soft-gated to manual Telegram connections instead of fully reliable stateless QR flows.
+  - *Note on Infrastructure Limitations:* Automatic Telegram QR link polling requires a webhook/session receiver. There is an unconfirmed hypothesis that stateless Vercel environments without durable session databases soft-gate QR bot sessions to manual Telegram fallback entries; this remains to be verified in the `api-server` repository code.
 
 ---
 
@@ -73,14 +74,15 @@ The core workflow of the credit tracking module is organized into five operation
 | **Promise to Pay Tracking** | **Built** | Logs promise dates and displays missed dates in amber alerts. |
 | **CSV / PDF Export Actions** | **Built** | Generates lightweight files on-device instantly. |
 | **Staff Attribution & Drawer** | **Built** | Aggregates logs per worker without tracking competitive rank. |
-| **Telegram Bot Link (QR Code)** | **Partial** | Functional on local client-side, restricted on stateless Vercel environments. |
-| **Reminders (SMS & WhatsApp)** | **Partial** | Fully manual triggers; no automated background reminders. |
+| **Tabular Numbers (Alignment)** | **Built** | dec-alignment already styled on `CustomerList.jsx` balances. |
+| **Telegram Bot Link (QR Code)** | **Partial** | Polling & manual fallback connected; stateless limitations unconfirmed. |
+| **Reminders (SMS & WhatsApp)** | **Partial** | Fully manual triggers; unverified if background automation is planned. |
 
 ---
 
-## 🎨 Part 2: UI/UX Critique & Professional Polish
+## 🎨 Part 2: UI/UX Critique & Refinement Ideas
 
-While the current Gebya application is incredibly responsive, fast, and optimized for mobile devices, a close visual critique reveals minor usability bottlenecks, accessibility challenges, and translation inconsistencies.
+While the current Gebya application is incredibly responsive, fast, and optimized for mobile devices, a close visual critique reveals opportunities for visual polish and copy alignment.
 
 ### 🔍 Critique Area 1: Usability & Form Factor
 * **The Long-Form Scroll on Small Devices (320px viewport):**
@@ -91,9 +93,9 @@ While the current Gebya application is incredibly responsive, fast, and optimize
   - *Concrete Solution:* Put a small text link saying "Add customer photo" directly under the customer's phone number.
 
 ### 🎨 Critique Area 2: Spacing & Color Palette Consistency
-* **Unbalanced Alerts & Dialog Text:**
-  - *Current Problem:* Overpayment modals and delete confirmation boxes use highly technical accounting terms ("Excess Payment", "Outstanding Liability"). This feels tax-like and scary to small shop owners.
-  - *Concrete Solution:* Change copy to warmer, friendlier local phrases: "Tigist is paying more than she owes. Keep the rest as change for next time?"
+* **Warning States Wording:**
+  - *Current Problem:* Standard validation messages on overpayments can feel slightly technical ("Amount cannot exceed what is owed").
+  - *Concrete Solution:* Keep the hard block on overpayments but make the user-facing text softer: *"Cannot receive extra payment over outstanding balance. Enter up to {amount} Birr."*
 * **Visual Hierarchy of Overdue Alerts:**
   - *Current Problem:* High-priority overdue accounts use the same color family (standard red/amber accents) as normal credit entries. This dilutes the urgency of accounts that are significantly overdue (e.g., 60+ days).
   - *Concrete Solution:* Apply an extra dark-red warning border and an icon badge (⚠️) to customers whose trust score has dropped or who are more than 30 days overdue.
@@ -102,9 +104,6 @@ While the current Gebya application is incredibly responsive, fast, and optimize
 * **Missing Amharic Translations (Gaps):**
   - *Current Problem:* While the main buttons are localized, newer elements such as "Basket Item Breakdown", "Overdue Customer Flags", and the "Overpayment Warning" still have English fallbacks when the language toggle is set to Amharic (`አማ`).
   - *Concrete Solution:* Audit and translate all newer error states, dialog buttons, and overdue subtitles into Amharic in `LangContext.jsx`.
-* **Tabular Numbers Alignment:**
-  - *Current Problem:* Ledger entries list amounts like `250.00` and `80.00`. Without tabular numbers (monospaced numeric glyphs), decimal points do not line up vertically, making quick reading of lists difficult.
-  - *Concrete Solution:* Ensure all amount display rows have the CSS rule `font-variant-numeric: tabular-nums; font-family: 'JetBrains Mono', monospace;`.
 
 ### 📱 Critique Area 4: Touch Targets & Daily Operation
 * **Touch Targets (Mobile Fitts's Law):**
@@ -119,6 +118,5 @@ To make this product feel like a world-class, premium app ready for thousands of
 
 1. **[ ] Mobile Touch Targets:** Enlarge the CSV and PDF export trigger pads to `44px` height with broader spacing.
 2. **[ ] Translation Audit:** Populate the Amharic translation keys in `LangContext.jsx` for all overdue status labels and warning sheets.
-3. **[ ] Friendlier Copy:** Replace dry terms like "Excess" and "Balance exceeds owed" with friendly phrases like "Keep extra payment as credit for next time."
+3. **[ ] Soften Validation Copy:** Refine validation notices like "Amount cannot exceed what is owed" to friendly, local language styling.
 4. **[ ] Visual Clues for Photos:** Change the dotted circle around customer initials to a clear "Add photo" label so merchants find it easily.
-5. **[ ] Clean Grid Alignment:** Apply `font-variant-numeric: tabular-nums` to all list rows in `HistoryRow` and `CustomerList` to align currency decimals perfectly.
