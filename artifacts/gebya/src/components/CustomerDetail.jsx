@@ -22,6 +22,7 @@ import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
 import { getCreditAllocationStatus, getPaymentSettlementCount } from '../utils/customerLedgerMutations';
 import { useLang } from '../context/LangContext';
 import CustomerReminderHistory from './CustomerReminderHistory';
+import { TransactionRow, transactionLabel, transactionStatusBadge } from './TransactionRow';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -376,14 +377,16 @@ function CustomerDetail({
           top: 0,
           zIndex: 15,
           background: '#fff',
-          borderBottom: '1px solid #e4e6df',
-          padding: '10px 14px',
+          borderBottom: isBalanceCollapsed ? '1px solid #e4e6df' : 'none',
+          padding: isBalanceCollapsed ? '10px 14px' : '0',
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
+          gap: isBalanceCollapsed ? 10 : 0,
           opacity: isBalanceCollapsed ? 1 : 0,
           pointerEvents: isBalanceCollapsed ? 'auto' : 'none',
-          transition: 'opacity 0.2s ease',
+          height: isBalanceCollapsed ? 'auto' : 0,
+          overflow: 'hidden',
+          transition: 'opacity 0.2s ease, padding 0.2s ease, height 0.2s ease',
         }}
       >
         {/* Small avatar */}
@@ -1025,12 +1028,13 @@ function CustomerDetail({
                   lastDate = txDate;
                 }
                 elements.push(
-                  <HistoryRow
+                  <TransactionRow
                     key={tx.id || idx}
                     tx={tx}
                     isLast={idx === filteredRows.length - 1}
                     lang={lang}
                     onSelectTransaction={onSelectTransaction}
+                    t={t}
                   />
                 );
               });
@@ -1208,114 +1212,6 @@ function CustomerDetail({
   );
 }
 
-// ─── History row — individual card with red/green amounts ──
-function HistoryRow({ tx, isLast, lang, onSelectTransaction }) {
-  const isPayment = tx.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT;
-  const isCredit = tx.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD;
-
-  // Red for loan given (credit), Green for loan collected (payment)
-  const amountColor = isCredit ? '#a0402a' : '#2e6a47';
-  const sign = isPayment ? '−' : '+';
-
-  const allocationStatus = isCredit ? getCreditAllocationStatus(tx) : null;
-  const settlement = isPayment ? getPaymentSettlementCount(tx) : null;
-
-  const statusBadge = (() => {
-    if (allocationStatus === 'paid') {
-      return (
-        <span style={{
-          fontSize: '0.58rem', fontWeight: 700,
-          background: '#e7f0e9', color: '#2e6a47',
-          padding: '2px 7px', borderRadius: 6, whiteSpace: 'nowrap',
-        }}>
-          ✓ {lang === 'am' ? 'ተከፍሏል' : 'Paid'}
-        </span>
-      );
-    }
-    if (allocationStatus === 'partial') {
-      const creditAmount = Number(tx.amount) || 0;
-      const paid = Number(tx.paid_amount) || 0;
-      return (
-        <span style={{
-          fontSize: '0.58rem', fontWeight: 700,
-          background: '#f9eed4', color: '#7a5416',
-          padding: '2px 7px', borderRadius: 6, whiteSpace: 'nowrap',
-        }}>
-          {fmt(paid)}/{fmt(creditAmount)}
-        </span>
-      );
-    }
-    if (settlement && settlement.settledCount > 0) {
-      return (
-        <span style={{
-          fontSize: '0.58rem', fontWeight: 700,
-          background: '#e6f0f7', color: '#2a6690',
-          padding: '2px 7px', borderRadius: 6, whiteSpace: 'nowrap',
-        }}>
-          ✓ {lang === 'am'
-            ? `${settlement.settledCount} ተከፍሏል`
-            : `Settled ${settlement.settledCount}`}
-        </span>
-      );
-    }
-    return null;
-  })();
-
-  return (
-    <div
-      onClick={() => onSelectTransaction?.(tx)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter') onSelectTransaction?.(tx); }}
-      className="history-row-active"
-      style={{
-        padding: '14px',
-        background: '#fff',
-        borderRadius: 12,
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-        border: '1px solid #e4e6df',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 10,
-        minHeight: 48,
-        cursor: 'pointer',
-        transition: 'all 0.15s ease',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
-          <span style={{
-            fontSize: '0.85rem', color: '#171a17', fontWeight: 500,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {tx.item_note || (isPayment
-              ? (lang === 'am' ? 'ክፍያ' : 'Payment')
-              : isCredit
-                ? (lang === 'am' ? 'ዱቤ' : 'Credit')
-                : (lang === 'am' ? 'ሰርዝ' : 'Reversal'))}
-          </span>
-          {statusBadge && (
-            <span>{statusBadge}</span>
-          )}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-        <span style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '0.9rem', fontWeight: 700,
-          color: amountColor,
-          fontVariantNumeric: 'tabular-nums',
-        }}>
-          {sign}{fmt(tx.amount || 0)}
-        </span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m9 18 6-6-6-6" />
-        </svg>
-      </div>
-    </div>
-  );
-}
+// ─── History row — delegated to shared TransactionRow ──
 
 export default CustomerDetail;
