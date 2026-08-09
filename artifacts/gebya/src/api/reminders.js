@@ -53,6 +53,32 @@ export const remindersApi = {
     if (toDate != null) params.set('toDate', String(toDate));
     return request(`/reminders/history?${params.toString()}`);
   },
+
+  async getShopDefault(shopId) {
+    const params = new URLSearchParams({ shopId: String(shopId) });
+    return request(`/reminders/config?${params.toString()}`);
+  },
+
+  async setShopDefault(shopId, frequency) {
+    return request('/reminders/config', {
+      method: 'POST',
+      body: JSON.stringify({ shopId, frequency }),
+    });
+  },
+
+  async pauseReminders(shopId) {
+    return request('/reminders/pause', {
+      method: 'POST',
+      body: JSON.stringify({ shopId }),
+    });
+  },
+
+  async resumeReminders(shopId) {
+    return request('/reminders/resume', {
+      method: 'POST',
+      body: JSON.stringify({ shopId }),
+    });
+  },
 };
 
 export default remindersApi;

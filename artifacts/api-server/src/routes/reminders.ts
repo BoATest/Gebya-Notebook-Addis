@@ -58,7 +58,7 @@ const manualRemindSchema = z.object({
 });
 
 const runSchema = z.object({
-  shopId: z.number().int().positive(),
+  shopId: z.number().int().positive().optional(),
   customers: z.array(
     z.object({
       customerId: z.number().int().positive(),
@@ -107,7 +107,7 @@ function log(level: "info" | "warn" | "error", message: string, context?: Record
  * Body: { shopId, customers?: [...], shopName?: string }
  * If customers is not provided, the scheduler auto-fetches from the ledger.
  */
-router.post("/run", async (req: Request, res: Response) => {
+router.all("/run", async (req: Request, res: Response) => {
   try {
     const isVercelCron = req.headers?.["x-vercel-cron"] === "1";
     const cronSecret = req.headers?.["x-reminder-cron-secret"];
@@ -123,7 +123,9 @@ router.post("/run", async (req: Request, res: Response) => {
 
     if (!db) throw new Error("Database not configured");
 
-    const parsed = runSchema.safeParse(req.body);
+    // Merge body and query params so GET requests (from Vercel Cron) can pass shopId as query
+    const mergedInput = { ...(req.body || {}), ...(req.query || {}) };
+    const parsed = runSchema.safeParse(mergedInput);
     if (!parsed.success) {
       return res.status(400).json({
         error: "Invalid request body",
@@ -131,104 +133,140 @@ router.post("/run", async (req: Request, res: Response) => {
       });
     }
 
-    const { shopId, customers, shopName } = parsed.data;
+    const { shopId: requestedShopId, customers, shopName } = parsed.data;
 
-    let eligibleCustomers: EligibleCustomer[];
-
-    if (customers && customers.length > 0) {
-      // Map provided customers to EligibleCustomer format
-      eligibleCustomers = customers.map((c) => ({
-        customerId: c.customerId,
-        customerName: c.customerName,
-        balance: c.balance,
-        dueDate: c.dueDate ?? null,
-        customerCreatedAt: c.customerCreatedAt,
-        chatId: c.chatId,
-        updatesEnabled: c.updatesEnabled ?? true,
-        telegramLanguage: c.telegramLanguage ?? "en",
-        reminderConfig: {
-          id: "",
-          shopId,
-          customerId: c.customerId,
-          frequency: "weekly",
-          lastReminderSentAt: null,
-          enabled: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        },
-      }));
+    // If no shopId provided (Vercel Cron), find all shops with reminder-enabled customers
+    let shopIds: number[] = [];
+    if (requestedShopId) {
+      shopIds = [requestedShopId];
     } else {
-      // Auto-fetch customers with balance from the transaction ledger
-      // and enrich with Telegram data from the customers table.
       try {
         const { getCustomerBalances } = await import("@workspace/db/utils/customerBalance");
-        const rows = await getCustomerBalances(db, { businessId: shopId, onlyPositiveBalance: true });
-
-        // Fetch Telegram+phone info for all customers with balance
-        const customerIds = rows.map((r: any) => r.customerId);
-        const customerRows = customerIds.length > 0
-          ? await db
-              .select({
-                id: customersTable.id,
-                name: customersTable.name,
-                displayName: customersTable.displayName,
-                telegramChatId: customersTable.telegramChatId,
-                telegramNotifyEnabled: customersTable.telegramNotifyEnabled,
-                telegramUsername: customersTable.telegramUsername,
-                phoneNumber: customersTable.phoneNumber,
-              })
-              .from(customersTable)
-              .where(eq(customersTable.businessId, shopId))
-          : [];
-
-        const customerMap = new Map(customerRows.map((c: any) => [c.id, c]));
-
-        eligibleCustomers = rows.map((row: any) => {
-          const cust = customerMap.get(row.customerId);
-          const chatId = cust?.telegramChatId ?? "";
-          const hasTelegram = !!chatId;
-          return {
-            customerId: row.customerId,
-            customerName: cust?.displayName || cust?.name || `Customer ${row.customerId}`,
-            balance: row.balance,
-            dueDate: row.dueDate ?? null,
-            customerCreatedAt: row.createdAt,
-            chatId,
-            updatesEnabled: hasTelegram ? Boolean(cust?.telegramNotifyEnabled) : false,
-            phoneNumber: cust?.phoneNumber ?? undefined,
-            telegramLanguage: (cust?.telegramUsername ?? "").toLowerCase().startsWith("am") ? "am" as const : "en" as const,
-            reminderConfig: {
-              id: `cfg-${row.customerId}`,
-              shopId,
-              customerId: row.customerId,
-              frequency: "weekly",
-              lastReminderSentAt: null,
-              enabled: true,
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-            },
-          };
-        });
-
-        const withTelegram = eligibleCustomers.filter((c: any) => c.chatId).length;
-        log("info", "Auto-fetched customers for reminder run", {
-          shopId,
-          total: eligibleCustomers.length,
-          withTelegram: withTelegram,
-        });
-      } catch (fetchError) {
-        log("error", "Failed to auto-fetch customers", { shopId, error: fetchError instanceof Error ? fetchError.message : String(fetchError) });
-        return res.status(502).json({
-          error: "Failed to fetch customer data from ledger",
-          details: fetchError instanceof Error ? fetchError.message : String(fetchError),
-        });
+        // Get all distinct business IDs that have customers with positive balance
+        const allBalances = await getCustomerBalances(db, { onlyPositiveBalance: true });
+        shopIds = [...new Set(allBalances.map((r: any) => r.businessId).filter(Boolean))];
+        log("info", "Auto-discovered shops for cron run", { shopCount: shopIds.length, shopIds });
+      } catch (e) {
+        log("error", "Failed to discover shops", { error: e instanceof Error ? e.message : String(e) });
+        return res.status(500).json({ error: "Failed to discover shops" });
       }
     }
 
-    const stats = await runRemindersForShop(shopId, eligibleCustomers, shopName);
+    const allStats: any[] = [];
+
+    for (const shopId of shopIds) {
+      let eligibleCustomers: EligibleCustomer[];
+
+      if (customers && customers.length > 0 && requestedShopId) {
+        // Map provided customers to EligibleCustomer format (only for explicit shopId)
+        eligibleCustomers = customers.map((c) => ({
+          customerId: c.customerId,
+          customerName: c.customerName,
+          balance: c.balance,
+          dueDate: c.dueDate ?? null,
+          customerCreatedAt: c.customerCreatedAt,
+          chatId: c.chatId,
+          updatesEnabled: c.updatesEnabled ?? true,
+          telegramLanguage: c.telegramLanguage ?? "en",
+          reminderConfig: {
+            id: "",
+            shopId,
+            customerId: c.customerId,
+            frequency: "weekly",
+            lastReminderSentAt: null,
+            enabled: true,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+        }));
+      } else {
+        // Auto-fetch customers with balance from the transaction ledger
+        // and enrich with Telegram data from the customers table.
+        try {
+          const { getCustomerBalances } = await import("@workspace/db/utils/customerBalance");
+          const rows = await getCustomerBalances(db, { businessId: shopId, onlyPositiveBalance: true });
+
+          // Fetch Telegram+phone info for all customers with balance
+          const customerIds = rows.map((r: any) => r.customerId);
+          const customerRows = customerIds.length > 0
+            ? await db
+                .select({
+                  id: customersTable.id,
+                  name: customersTable.name,
+                  displayName: customersTable.displayName,
+                  telegramChatId: customersTable.telegramChatId,
+                  telegramNotifyEnabled: customersTable.telegramNotifyEnabled,
+                  telegramUsername: customersTable.telegramUsername,
+                  phoneNumber: customersTable.phoneNumber,
+                })
+                .from(customersTable)
+                .where(eq(customersTable.businessId, shopId))
+            : [];
+
+          const customerMap = new Map(customerRows.map((c: any) => [c.id, c]));
+
+          eligibleCustomers = rows.map((row: any) => {
+            const cust = customerMap.get(row.customerId);
+            const chatId = cust?.telegramChatId ?? "";
+            const hasTelegram = !!chatId;
+            return {
+              customerId: row.customerId,
+              customerName: cust?.displayName || cust?.name || `Customer ${row.customerId}`,
+              balance: row.balance,
+              dueDate: row.dueDate ?? null,
+              customerCreatedAt: row.createdAt,
+              chatId,
+              updatesEnabled: hasTelegram ? Boolean(cust?.telegramNotifyEnabled) : false,
+              phoneNumber: cust?.phoneNumber ?? undefined,
+              telegramLanguage: (cust?.telegramUsername ?? "").toLowerCase().startsWith("am") ? "am" as const : "en" as const,
+              reminderConfig: {
+                id: `cfg-${row.customerId}`,
+                shopId,
+                customerId: row.customerId,
+                frequency: "weekly",
+                lastReminderSentAt: null,
+                enabled: true,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              },
+            };
+          });
+
+          const withTelegram = eligibleCustomers.filter((c: any) => c.chatId).length;
+          log("info", "Auto-fetched customers for reminder run", {
+            shopId,
+            total: eligibleCustomers.length,
+            withTelegram: withTelegram,
+          });
+        } catch (fetchError) {
+          log("error", "Failed to auto-fetch customers", { shopId, error: fetchError instanceof Error ? fetchError.message : String(fetchError) });
+          continue; // Skip this shop, continue with others
+        }
+      }
+
+      const stats = await runRemindersForShop(shopId, eligibleCustomers, shopName);
+      if (stats) allStats.push(stats);
+    }
+
+    // Aggregate stats across all shops
+    const stats = allStats.length > 0 ? {
+      customersScanned: allStats.reduce((s, x) => s + x.customersScanned, 0),
+      customersWithBalance: allStats.reduce((s, x) => s + x.customersWithBalance, 0),
+      remindersQueued: allStats.reduce((s, x) => s + x.remindersQueued, 0),
+      remindersSent: allStats.reduce((s, x) => s + x.remindersSent, 0),
+      remindersFailed: allStats.reduce((s, x) => s + x.remindersFailed, 0),
+      remindersSkipped: allStats.reduce((s, x) => s + x.remindersSkipped, 0),
+      errors: allStats.flatMap((x) => x.errors),
+      startedAt: Math.min(...allStats.map((x) => x.startedAt)),
+      completedAt: Math.max(...allStats.map((x) => x.completedAt)),
+    } : null;
 
     if (!stats) {
-      return res.status(500).json({ error: "Reminder execution returned no result" });
+      return res.json({
+        ok: true,
+        message: "No shops with reminder-enabled customers found",
+        stats: { scanned: 0, withBalance: 0, queued: 0, sent: 0, failed: 0, skipped: 0, errors: 0, completedIn: 0 },
+      });
     }
 
     return res.json({
