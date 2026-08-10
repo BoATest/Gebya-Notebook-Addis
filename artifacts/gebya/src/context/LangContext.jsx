@@ -880,6 +880,7 @@ const EN_OVERRIDES = {
   txMore: 'More',
   txUnaccounted: 'Unaccounted',
   txExcess: 'Excess',
+  txReversal: 'Reversal',
 
   // Handler toasts
   toastCustomerUpdated: 'Customer updated',
@@ -1393,6 +1394,7 @@ const AM_OVERRIDES = {
   txMore: 'ተጨማሪ',
   txUnaccounted: 'ቀሪ',
   txExcess: 'በላይ',
+  txReversal: 'ሰርዝ',
 
   // Handler toasts
   toastCustomerUpdated: 'ተስተካክሏል',
