@@ -300,30 +300,32 @@ function TransactionForm({
 
     return (
       <div className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col" style={{ background: 'var(--color-surface)' }}>
-        {/* Header */}
-        <div className="flex-shrink-0 px-3 sm:px-4 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)' }}>
-          <button onClick={onDone} aria-label={lang === 'am' ? 'ተመለስ' : 'Back'} className="press-scale flex items-center justify-center" style={{ minWidth: '36px', minHeight: '36px', padding: '4px' }}>
-            <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
+        {/* Header — minimal, like ItemizedSaleView's notebook page heading */}
+        <div className="flex-shrink-0 px-2 py-1.5 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <button onClick={onDone} aria-label={lang === 'am' ? 'ተመለስ' : 'Back'} title={lang === 'am' ? 'ተመለስ' : 'Back'} className="press-scale flex items-center justify-center" style={{ minWidth: '44px', minHeight: '44px' }}>
+            <ArrowLeft className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
           </button>
           <div className="text-center min-w-0">
-            <h2 className="text-base font-bold" style={{ color: accentColor }}>{headerLabel}</h2>
-            {actorLabel && <p className="text-[11px] font-semibold truncate" style={{ color: 'var(--color-text-muted)', maxWidth: '220px' }}>{lang === 'am' ? `በ${actorLabel} እየተመዘገበ` : `Recording as ${actorLabel}`}</p>}
+            <h2 className="text-sm font-bold" style={{ color: accentColor }}>{headerLabel}</h2>
+            {actorLabel && <p className="text-[11px] font-semibold truncate" style={{ color: 'var(--color-text-muted)', maxWidth: '180px' }}>{lang === 'am' ? `በ${actorLabel} እየተመዘገበ` : `Recording as ${actorLabel}`}</p>}
           </div>
-          <div style={{ width: '36px' }} />
+          <button onClick={onDone} className="press-scale px-3 text-[11px] font-bold border"
+            style={{ borderColor: 'var(--color-success)', color: 'var(--color-success)', borderRadius: 'var(--radius-sm)', minHeight: '38px', background: 'rgba(22,163,74,0.06)' }}>
+            {lang === 'am' ? 'ሰርዝ' : 'Cancel'}
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 pb-28 space-y-3">
-          {/* Total amount hero */}
+          {/* Amount — single label + large input (payment chip inline) */}
           <section className="border" style={{ borderColor: 'var(--color-success-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-success-bg)' }}>
-            <div className="px-3 py-2.5 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold" style={{ color: 'var(--color-success-text)' }}>{lang === 'am' ? 'ጠቅላላ መጠን' : 'Total amount'}</p>
-                <p className="text-2xl font-black leading-tight" style={{ color: sellingPrice > 0 ? 'var(--color-success-text)' : 'var(--color-text-soft)' }}>{fmt(sellingPrice)} ETB</p>
-              </div>
+            <div className="px-3 pt-2.5 flex items-center justify-between">
+              <label htmlFor="sale-amount" className="text-xs font-bold" style={{ color: 'var(--color-success-text)' }}>
+                {lang === 'am' ? 'መጠን' : 'Amount'}
+              </label>
               <span className="px-2.5 py-1.5 text-xs font-black border" style={{ borderColor: 'var(--color-success-border)', borderRadius: 'var(--radius-sm)', background: 'var(--color-surface)', color: 'var(--color-success-text)' }}>{paymentLabel}</span>
             </div>
-            <div className="px-3 pb-3">
-              <input ref={amountInputRef} type="text" inputMode="decimal" autoFocus value={fmtInput(amount)}
+            <div className="px-3 pb-3 pt-1">
+              <input id="sale-amount" ref={amountInputRef} type="text" inputMode="decimal" autoFocus value={fmtInput(amount)}
                 onChange={event => handleNumericInput(event, setAmount)}
                 placeholder="0" className="w-full px-3 py-3 border-2 focus:outline-none text-2xl font-black"
                 style={{ borderRadius: 'var(--radius-md)', borderColor: amount ? 'var(--color-success-border)' : 'var(--color-border)', color: amount ? 'var(--color-success-text)' : 'var(--color-text-soft)' }} />

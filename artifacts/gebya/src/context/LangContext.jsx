@@ -905,8 +905,8 @@ const EN_OVERRIDES = {
   suppliersLabel: 'Suppliers',
 
   // Action bar
-  saleButton: 'Sale',
-  itemsButton: 'Items',
+  saleButton: 'Itemized',
+  itemsButton: 'Simple',
   expenseButton: 'Expense',
   creditButton: 'Credit',
 
@@ -1419,8 +1419,8 @@ const AM_OVERRIDES = {
   suppliersLabel: 'አቅራቢዎች',
 
   // Action bar
-  saleButton: 'ሽያጭ',
-  itemsButton: 'አtems',
+  saleButton: 'በእቃ ዝርዝር',
+  itemsButton: 'በቀላሉ',
   expenseButton: 'ወጪ',
   creditButton: 'ዱቤ',
 
