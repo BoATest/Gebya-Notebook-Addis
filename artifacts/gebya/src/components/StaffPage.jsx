@@ -30,6 +30,7 @@ export default function StaffPage({
   onSetActiveStaffMember,
   onSaveStaffMember,
   onUpdateStaffMember,
+  onChangeLocalStaffRole,
   onDeactivateStaffMember,
   onReactivateStaffMember,
   onApproveDevice,
@@ -291,18 +292,19 @@ export default function StaffPage({
 
       {/* All Staff */}
       {canManageTeam && (
-        <StaffAllMembers
-          staffMembers={staffMembers}
-          combinedStaffList={combinedStaffList}
-          filteredMembers={filteredMembers}
-          canManageTeam={canManageTeam}
-          onSaveStaffMember={onSaveStaffMember}
-          onUpdateStaffMember={onUpdateStaffMember}
-          onReactivateStaffMember={onReactivateStaffMember}
-          onDeactivateStaffMember={onDeactivateStaffMember}
-          lang={lang}
-          t={t}
-        />
+          <StaffAllMembers
+            staffMembers={staffMembers}
+            combinedStaffList={combinedStaffList}
+            filteredMembers={filteredMembers}
+            canManageTeam={canManageTeam}
+            onSaveStaffMember={onSaveStaffMember}
+            onUpdateStaffMember={onUpdateStaffMember}
+            onChangeLocalStaffRole={onChangeLocalStaffRole}
+            onReactivateStaffMember={onReactivateStaffMember}
+            onDeactivateStaffMember={onDeactivateStaffMember}
+            lang={lang}
+            t={t}
+          />
       )}
 
       {/* Device Manager */}
