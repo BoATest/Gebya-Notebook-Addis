@@ -52,7 +52,7 @@ export default function StaffCollectionForm({
                 </div>
                 {myLastSettlement?.reconciliation_status === 'disputed' && (
                   <div className="rounded-lg border px-3 py-2.5 mb-3" style={{ borderColor: 'var(--color-danger-border)', background: 'var(--color-danger-bg)' }}>
-                    <div className="text-xs font-bold" style={{ color: 'var(--color-danger-text)' }}>{t('Owner noted a difference', 'ባለቤት ልዙድ አስተዋውሏል')}</div>
+                    <div className="text-xs font-bold" style={{ color: 'var(--color-danger-text)' }}>{t('Difference found by owner', 'ባለቤት ልዙድ አስተዋውሏል')}</div>
                     {myLastSettlement.owner_note && <div className="text-[10px]" style={{ color: 'var(--color-danger)' }}>{myLastSettlement.owner_note}</div>}
                   </div>
                 )}
@@ -189,7 +189,7 @@ export default function StaffCollectionForm({
                 </div>
                 {myLastSettlement?.reconciliation_status === 'disputed' && (
                   <div className="rounded-lg border px-3 py-2.5 mb-3" style={{ borderColor: 'var(--color-danger-border)', background: 'var(--color-danger-bg)' }}>
-                    <div className="text-xs font-bold" style={{ color: 'var(--color-danger-text)' }}>{t('Owner noted a difference', 'ባለቤት ልዙድ አስተዋውሏል')}</div>
+                    <div className="text-xs font-bold" style={{ color: 'var(--color-danger-text)' }}>{t('Difference found by owner', 'ባለቤት ልዙድ አስተዋውሏል')}</div>
                     {myLastSettlement.owner_note && <div className="text-[10px]" style={{ color: 'var(--color-danger)' }}>{myLastSettlement.owner_note}</div>}
                   </div>
                 )}

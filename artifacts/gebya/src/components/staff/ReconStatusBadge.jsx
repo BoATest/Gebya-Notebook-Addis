@@ -1,11 +1,11 @@
-export default function ReconStatusBadge({ status, lang }) {
+﻿export default function ReconStatusBadge({ status, lang }) {
   const t = (en, am) => lang === 'am' ? am : en;
   const STATUSES = {
-    staff_submitted: { label: t('Staff submitted', 'ሰራተኛ ልኳል'), bg: 'var(--color-info-bg)', color: 'var(--color-info)' },
-    owner_reviewed: { label: t('Owner reviewed', 'ባለቤት ተመልክቷል'), bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' },
-    disputed: { label: t('Disputed', 'አልተስማማም'), bg: 'var(--color-danger-bg)', color: 'var(--color-danger)' },
-    finalized: { label: t('Finalized', 'ተጠናቋል'), bg: 'var(--color-success-border)', color: 'var(--color-success-text)' },
-    checked: { label: t('Checked', 'ተፈትሟል'), bg: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' },
+    staff_submitted: { label: t('Waiting for your review', 'ሰራተኛ ልኳል'), bg: 'var(--color-info-bg)', color: 'var(--color-info)' },
+    owner_reviewed: { label: t('You reviewed — needs finalize', 'ባለቤት ተመልክቷል'), bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' },
+    disputed: { label: t('Difference found', 'አልተስማማም'), bg: 'var(--color-danger-bg)', color: 'var(--color-danger)' },
+    finalized: { label: t('Settled', 'ተጠናቋል'), bg: 'var(--color-success-border)', color: 'var(--color-success-text)' },
+    checked: { label: t('Counted directly', 'ተፈትሟል'), bg: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' },
   };
   const s = STATUSES[status] || STATUSES.checked;
   return (
