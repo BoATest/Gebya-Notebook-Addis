@@ -308,6 +308,9 @@ export function useCustomers() {
       reversal_of: tx.id,
       created_at: Date.now(),
       updated_at: Date.now(),
+      year: String(new Date().getFullYear()),
+      categoryCode: '2 ՕՏՑՆ',
+      labelCode: 'Գ.Ն',
     };
     setLedgerTransactions(prev => {
       const without = prev.filter(t2 => t2.id !== tx.id);
@@ -407,6 +410,9 @@ export function useCustomers() {
         updated_at: now,
         ...actorSnapshot,
         ...cloudProofFields,
+        year: String(new Date().getFullYear()),
+        categoryCode: '2 ՕՏՑՆ',
+        labelCode: 'Գ.Ն',
       };
 
       const id = await db.customer_transactions.add(entry);

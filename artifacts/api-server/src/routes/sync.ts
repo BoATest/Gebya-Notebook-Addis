@@ -104,6 +104,7 @@ function mapCustomerTx(body: any) {
     createdAt: body.created_at, updatedAt: body.updated_at,
     actorRole: body.actor_role, actorStaffMemberId: body.actor_staff_member_id,
     actorNameSnapshot: body.actor_name_snapshot, schemaVersion: body.schema_version || 1, syncVersion: body.sync_version || 1,
+    year: body.year, categoryCode: body.category_code, labelCode: body.label_code,
   };
 }
 function mapCatalog(body: any) {

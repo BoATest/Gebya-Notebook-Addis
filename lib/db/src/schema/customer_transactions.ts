@@ -20,6 +20,9 @@ export const customerTransactions = pgTable("customer_transactions", {
   telegramDeliveryAttemptedAt: bigint("telegram_delivery_attempted_at", { mode: "number" }),
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }),
+  year: varchar("year", { length: 16 }),
+  categoryCode: varchar("category_code", { length: 64 }),
+  labelCode: varchar("label_code", { length: 64 }),
 
   businessId: integer("business_id").notNull().references(() => businesses.id, { onDelete: "restrict" }),
   schemaVersion: integer("schema_version").default(1),
@@ -49,6 +52,9 @@ export const insertCustomerTransactionSchema = z.object({
   updatedAt: z.number().optional(),
   schemaVersion: z.number().optional(),
   syncVersion: z.number().optional(),
+  year: z.string().max(16).nullable().optional(),
+  categoryCode: z.string().max(64).nullable().optional(),
+  labelCode: z.string().max(64).nullable().optional(),
 });
 
 export type InsertCustomerTransaction = z.infer<typeof insertCustomerTransactionSchema>;

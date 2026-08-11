@@ -4,6 +4,7 @@ import { useLang } from '../context/LangContext';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/numformat';
 import PhotoAttachment from './PhotoAttachment';
+import { TransactionRow } from './TransactionRow';
 
 function groupByDay(transactions) {
   const groups = {};

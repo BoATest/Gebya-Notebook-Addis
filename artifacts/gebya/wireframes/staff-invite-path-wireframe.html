@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Staff Page — Invite Path Wireframe</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+  .phone { max-width: 400px; margin: 0 auto; background: #fff; border-radius: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; }
+  .header { background: #1a73e8; color: white; padding: 16px; text-align: center; font-weight: 600; font-size: 16px; }
+  .tabs { display: flex; border-bottom: 1px solid #e0e0e0; }
+  .tab { flex: 1; padding: 12px; text-align: center; font-size: 13px; color: #666; border-bottom: 2px solid transparent; }
+  .tab.active { color: #1a73e8; border-bottom-color: #1a73e8; font-weight: 600; }
+  .content { padding: 16px; }
+  .section { margin-bottom: 20px; }
+  .section-title { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .card { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 12px; padding: 12px; margin-bottom: 8px; }
+  .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: #666; }
+  .card-info { flex: 1; }
+  .card-name { font-size: 14px; font-weight: 600; color: #333; }
+  .card-role { font-size: 11px; color: #888; margin-top: 2px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 600; }
+  .badge-local { background: #e3f2fd; color: #1976d2; }
+  .badge-cloud { background: #f3e5f5; color: #7b1fa2; }
+  .badge-manager { background: #fff3e0; color: #f57c00; }
+  .badge-cashier { background: #e8f5e9; color: #388e3c; }
+  .badge-auditor { background: #fce4ec; color: #c2185b; }
+  .actions { display: flex; gap: 6px; margin-top: 8px; }
+  .btn { flex: 1; padding: 8px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .btn-primary { background: #1a73e8; color: white; }
+  .btn-secondary { background: #e0e0e0; color: #333; }
+  .btn-danger { background: #ffebee; color: #c62828; }
+  .invite-box { background: #e8f5e9; border: 2px dashed #4caf50; border-radius: 12px; padding: 12px; margin-top: 8px; }
+  .invite-label { font-size: 11px; color: #666; margin-bottom: 4px; }
+  .invite-link { font-size: 11px; font-family: monospace; background: white; padding: 6px; border-radius: 6px; word-break: break-all; color: #333; }
+  .divider { height: 1px; background: #e0e0e0; margin: 16px 0; }
+  .note { background: #fff3cd; border-left: 3px solid #ffc107; padding: 8px 12px; font-size: 11px; color: #856404; margin-top: 12px; border-radius: 4px; }
+  .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .comparison-card { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 12px; padding: 12px; }
+  .comparison-title { font-size: 12px; font-weight: 600; color: #333; margin-bottom: 8px; }
+  .comparison-item { font-size: 11px; color: #666; margin-bottom: 4px; padding-left: 12px; position: relative; }
+  .comparison-item:before { content: "•"; position: absolute; left: 0; color: #1a73e8; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="header">Staff Management</div>
+  <div class="tabs">
+    <div class="tab">Today</div>
+    <div class="tab">Credit</div>
+    <div class="tab">History</div>
+    <div class="tab active">Staff</div>
+    <div class="tab">Settings</div>
+  </div>
+  <div class="content">
+    <!-- CURRENT STATE: TWO PATHS -->
+    <div class="section">
+      <div class="section-title">Current State — Two Invite Paths</div>
+      
+      <!-- Path 1: Local Staff (no invite) -->
+      <div class="card">
+        <div class="card-header">
+          <div class="avatar">A</div>
+          <div class="card-info">
+            <div class="card-name">Add Local Staff</div>
+            <div class="card-role">Device-only, no login required</div>
+          </div>
+          <span class="badge badge-local">Local</span>
+        </div>
+        <div class="actions">
+          <button class="btn btn-secondary">Enter Name + Phone</button>
+          <button class="btn btn-primary">Save to Device</button>
+        </div>
+        <div class="note">⚠️ No invite link, no account, just a name on this phone</div>
+      </div>
+
+      <!-- Path 2: Cloud Staff (invite) -->
+      <div class="card" style="border: 2px solid #7b1fa2;">
+        <div class="card-header">
+          <div class="avatar" style="background: #f3e5f5; color: #7b1fa2;">+</div>
+          <div class="card-info">
+            <div class="card-name">Invite Cloud Staff</div>
+            <div class="card-role">Creates real login account</div>
+          </div>
+          <span class="badge badge-cloud">Cloud</span>
+        </div>
+        <div class="actions">
+          <input type="text" placeholder="Name" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
+          <input type="tel" placeholder="Phone" style="width:100px; padding:8px; border:1px solid #ddd; border-radius:6px; font-size:12px;">
+        </div>
+        <button class="btn btn-primary" style="width:100%; margin-top:8px;">Create Invite Link</button>
+        <div class="invite-box">
+          <div class="invite-label">✓ Invite created — share this link:</div>
+          <div class="invite-link">https://gebya.app/join/shop-abc123</div>
+          <div class="actions" style="margin-top:8px;">
+            <button class="btn btn-secondary">Copy Link</button>
+            <button class="btn btn-secondary">Share</button>
+          </div>
+        </div>
+        <div class="note">✓ Sends SMS/Telegram invite, staff signs in with phone</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- PROPOSED: SINGLE CANONICAL PATH -->
+    <div class="section">
+      <div class="section-title">Proposed: Single Canonical Invite Flow</div>
+      
+      <div class="card" style="border: 2px solid #4caf50;">
+        <div class="card-header">
+          <div class="avatar" style="background: #e8f5e9; color: #388e3c;">+</div>
+          <div class="card-info">
+            <div class="card-name">Add Staff Member</div>
+            <div class="card-role">One flow — owner chooses account type</div>
+          </div>
+          <span class="badge badge-manager">Canonical</span>
+        </div>
+
+        <div class="actions" style="margin-bottom: 12px;">
+          <input type="text" placeholder="Staff name" style="flex:1; padding:10px; border:2px solid #1a73e8; border-radius:8px; font-size:13px; font-weight:600;">
+        </div>
+
+        <div class="section-title" style="margin-top: 12px;">Account Type</div>
+        <div class="comparison">
+          <div class="comparison-card" style="border: 2px solid #4caf50;">
+            <div class="comparison-title">☁️ Cloud Account (Recommended)</div>
+            <div class="comparison-item">Real login with phone</div>
+            <div class="comparison-item">Works across devices</div>
+            <div class="comparison-item">Full RBAC permissions</div>
+            <div class="comparison-item">Owner sees activity & devices</div>
+            <button class="btn btn-primary" style="width:100%; margin-top:8px;">Create Cloud Invite</button>
+          </div>
+          <div class="comparison-card" style="border: 1px solid #e0e0e0; opacity: 0.8;">
+            <div class="comparison-title">📱 Device-Only (Local)</div>
+            <div class="comparison-item">No login required</div>
+            <div class="comparison-item">This device only</div>
+            <div class="comparison-item">Basic role presets</div>
+            <div class="comparison-item">No remote management</div>
+            <button class="btn btn-secondary" style="width:100%; margin-top:8px;">Add Local Staff</button>
+          </div>
+        </div>
+
+        <div class="note" style="margin-top: 12px;">
+          💡 <strong>Recommendation:</strong> Cloud is the default. Local is a fallback for "I just need a name on this one device right now."
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ROLE SELECTOR (both paths) -->
+    <div class="section">
+      <div class="section-title">Role Assignment (after add)</div>
+      <div class="card">
+        <div class="card-header">
+          <div class="avatar">A</div>
+          <div class="card-info">
+            <div class="card-name">Abebe Bikila</div>
+            <div class="card-role">New staff member</div>
+          </div>
+          <span class="badge badge-local">Local</span>
+        </div>
+        <div class="section-title" style="margin-top: 8px;">Select Role:</div>
+        <div class="actions">
+          <button class="btn btn-primary">Manager</button>
+          <button class="btn btn-secondary">Sales Staff</button>
+          <button class="btn btn-secondary">Auditor</button>
+        </div>
+        <div class="note" style="margin-top: 8px;">💡 Manager = full access, Sales = record sales, Auditor = view only</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

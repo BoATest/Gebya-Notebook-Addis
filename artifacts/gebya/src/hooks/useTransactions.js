@@ -17,6 +17,20 @@ import { useShopStore } from '../stores/shopStore';
 import { fireToast } from '../components/Toast';
 import { isBrowserOnline } from '../utils/browser';
 
+const CURRENT_YEAR = String(new Date().getFullYear());
+const DEFAULT_CATEGORY_CODE = '2 ՕՏՑՆ';
+const DEFAULT_LABEL_CODE = 'Գ.Ն';
+
+function buildTransactionCodes(type) {
+  // Centralized structured labels so the same words are used every time.
+  // These can later be driven by locale/config; today they are fixed defaults.
+  return {
+    year: CURRENT_YEAR,
+    categoryCode: DEFAULT_CATEGORY_CODE,
+    labelCode: DEFAULT_LABEL_CODE,
+  };
+}
+
 function buildSavedOnDeviceMessage(message, isOnline) {
   const baseMessage = String(message || 'Saved').trim() || 'Saved';
   return isOnline ? baseMessage : (baseMessage + ' - saved on this phone');
@@ -134,6 +148,7 @@ export function useTransactions() {
           updated_at: Date.now(),
           ...actorSnapshot,
           ...customerCloudProofFields,
+          ...buildTransactionCodes(CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD),
         };
         const cid = await db.customer_transactions.add(customerTxEntry);
         const referenceCode = createCustomerTransactionReference(cid, createdAt);
