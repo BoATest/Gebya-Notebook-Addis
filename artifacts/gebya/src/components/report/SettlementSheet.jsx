@@ -4,6 +4,7 @@ import { saveSettlement, updateSettlement } from '../../db';
 import { generateSettlementId, loadSettlementFromLocalStorage, saveSettlementDraft, clearSettlementDraft, createReconciliationEntry } from '../../utils/settlementSelectors';
 import useCalculatedExpected from '../../utils/useCalculatedExpected';
 import { fmt } from '../../utils/numformat';
+import ReconStatusBadge from '../staff/ReconStatusBadge';
 
 const C = {
   green: 'var(--color-primary)', greenLight: 'var(--color-success-bg)', greenBorder: 'var(--color-success-border)',
@@ -17,23 +18,6 @@ const C = {
 
 function Skeleton({ h = 12, w = '100%' }) {
   return <div style={{ height: h, width: w, background: 'var(--color-bg-hover)', borderRadius: 4, animation: 'pulse 1.5s infinite' }} />;
-}
-
-function StatusBadge({ status, lang }) {
-  const t = (en, am) => lang === 'am' ? am : en;
-  const map = {
-    finalized: { label: t('Finalized', 'ተጠናቋል'), bg: C.greenLight, color: 'var(--color-success)' },
-    staff_submitted: { label: t('Staff sent', 'ሰራተኛ ልኳል'), bg: C.blueLight, color: C.blue },
-    owner_reviewed: { label: t('Reviewed', 'ተመልክቷል'), bg: C.amberLight, color: 'var(--color-accent-amber)' },
-    checked: { label: t('Checked', 'ተፈትሟል'), bg: 'var(--color-bg-hover)', color: C.gray },
-    disputed: { label: t('Disputed', 'አከራካሪ'), bg: C.redLight, color: C.red },
-  };
-  const s = map[status] || map.checked;
-  return (
-    <span style={{ fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 6, background: s.bg, color: s.color, whiteSpace: 'nowrap' }}>
-      {s.label}
-    </span>
-  );
 }
 
 export default function SettlementSheet({ staff, existingSettlement, lang = 'en', onSaved, onCancel }) {
@@ -244,7 +228,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
             </p>
           </div>
           {existingSettlement && existingSettlement.reconciliation_status && (
-            <StatusBadge status={existingSettlement.reconciliation_status} lang={lang} />
+            <ReconStatusBadge status={existingSettlement.reconciliation_status} lang={lang} />
           )}
         </div>
       </div>
@@ -323,7 +307,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
             <AlertCircle className="w-4 h-4" style={{ color: C.red }} />
             <span style={{ fontSize: 11, fontWeight: 800, color: C.red }}>
-              {t('Disputed settlement', 'አከራካሪ ማስተካከያ')}
+              {t('Difference found', 'አከራካሪ ማስተካከያ')}
             </span>
           </div>
           <p style={{ fontSize: 11, color: C.red, margin: 0, lineHeight: 1.4 }}>
@@ -604,7 +588,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
                   background: C.redLight, color: C.red,
                   fontSize: 13, fontWeight: 800, cursor: saving ? 'not-allowed' : 'pointer',
                 }}
-              >{t('Dispute', 'አከራካሪ')}</button>
+              >{t('Flag difference', 'አከራካሪ')}</button>
             )}
             <button onClick={handleSave} disabled={saving || (actualCashVal === 0 && actualTransferVal === 0)}
               style={{

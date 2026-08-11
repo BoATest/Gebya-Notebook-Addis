@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import db, { getAllSettlements } from '../../db';
 import { fmt } from '../../utils/numformat';
+import ReconStatusBadge from '../staff/ReconStatusBadge';
 
 export default function StaffSettlementList({ staffRows = [], lang = 'en', onSettle, onViewSettlement, currentSettlingStaff }) {
   const [settlements, setSettlements] = useState([]);
@@ -48,22 +49,6 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
 
   const unsettled = staffWithStatus.filter(s => s.daysSince === null || s.daysSince > 0);
   const displayed = viewAll ? settlements : settlements.slice(0, 10);
-
-  function ReconBadge({ status }) {
-    const STATUSES = {
-      staff_submitted: { label: t('Staff sent', 'ሰራተኛ ልኳል'), bg: 'var(--color-info-bg)', color: 'var(--color-info)' },
-      owner_reviewed: { label: t('Reviewed', 'ተመልክቷል'), bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' },
-      disputed: { label: t('Disputed', 'አልተስማማም'), bg: 'var(--color-danger-bg)', color: 'var(--color-danger-text)' },
-      finalized: { label: t('Finalized', 'ተጠናቋል'), bg: 'var(--color-success-border)', color: 'var(--color-success-text)' },
-      checked: { label: t('Checked', 'ተፈትሟል'), bg: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' },
-    };
-    const s = STATUSES[status] || STATUSES.checked;
-    return (
-      <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4, background: s.bg, color: s.color }}>
-        {s.label}
-      </span>
-    );
-  }
 
   return (
     <div>
@@ -163,7 +148,7 @@ export default function StaffSettlementList({ staffRows = [], lang = 'en', onSet
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <ReconBadge status={rStatus} />
+                    <ReconStatusBadge status={rStatus} lang={lang} />
                     <span style={{ color: 'var(--color-text-soft)', fontSize: 14 }}>›</span>
                   </div>
                 </div>
