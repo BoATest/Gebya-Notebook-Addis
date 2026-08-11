@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ChevronDown, ChevronUp, Search, Shield } from 'lucide-react';
 import { useStaffStore } from '../../stores/staffStore';
 import { formatEthiopianPhone, isValidEthiopianPhone, extractSubscriberDigits } from '../../utils/phoneNumber';
@@ -11,6 +12,7 @@ export default function StaffAllMembers({
   onReactivateStaffMember, onDeactivateStaffMember, lang, t
 }) {
   const store = useStaffStore();
+  const [addMode, setAddMode] = useState('cloud');
 
   return (
     <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
@@ -21,42 +23,87 @@ export default function StaffAllMembers({
           </span>
           {store.membersLoading && <span className="text-xs text-gray-400">...</span>}
         </div>
-        <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            value={store.localStaffName}
-            onChange={e => store.setLocalStaffName(e.target.value)}
-            placeholder={t('Staff name', 'የሰራተኛ ስም')}
-            className="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-            style={{ borderColor: store.localStaffName.trim() ? 'var(--color-accent-amber)' : 'var(--color-border)' }}
-            onKeyDown={e => e.key === 'Enter' && store.handleAddCloudStaff(combinedStaffList, lang)}
-          />
-          <input
-            type="tel"
-            inputMode="numeric"
-            value={store.invitePhone}
-            onChange={e => store.setInvitePhone(extractSubscriberDigits(e.target.value))}
-            placeholder={t('Phone', 'ስልክ')}
-            className="w-32 px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-            style={{ borderColor: store.invitePhone && !isValidEthiopianPhone(store.invitePhone) ? 'var(--color-input-error)' : 'var(--color-border)' }}
-            onKeyDown={e => e.key === 'Enter' && store.handleAddCloudStaff(combinedStaffList, lang)}
-          />
-          <button
-            onClick={() => store.handleAddCloudStaff(combinedStaffList, lang)}
-            disabled={!store.localStaffName.trim() || !isValidEthiopianPhone(store.invitePhone) || store.inviting}
-            className="px-4 py-2.5 rounded-xl text-sm font-bold min-h-[44px] flex-shrink-0"
-            style={{
-              background: (!store.localStaffName.trim() || !isValidEthiopianPhone(store.invitePhone) || store.inviting) ? 'var(--color-bg-disabled)' : 'var(--color-primary)',
-              color: (!store.localStaffName.trim() || !isValidEthiopianPhone(store.invitePhone) || store.inviting) ? 'var(--color-text-soft)' : 'var(--color-bg-white)'
-            }}
-          >
-            {store.inviting ? t('Adding…', 'በማከል ላይ…') : t('Add', 'ጨምር')}
-          </button>
+
+        {/* Canonical add-staff form — single entry point, account-type choice */}
+        <div className="mb-3">
+          <div className="flex gap-2 mb-2">
+            <input
+              type="text"
+              value={store.localStaffName}
+              onChange={e => store.setLocalStaffName(e.target.value)}
+              placeholder={t('Staff name', 'የሰራተኛ ስም')}
+              className="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
+              style={{ borderColor: store.localStaffName.trim() ? 'var(--color-accent-amber)' : 'var(--color-border)' }}
+              onKeyDown={e => e.key === 'Enter' && (addMode === 'cloud' ? store.handleAddCloudStaff(combinedStaffList, lang) : store.handleAddLocalStaff(combinedStaffList, onSaveStaffMember, lang))}
+            />
+            {addMode === 'cloud' && (
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={store.invitePhone}
+                onChange={e => store.setInvitePhone(extractSubscriberDigits(e.target.value))}
+                placeholder={t('Phone', 'ስልክ')}
+                className="w-32 px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
+                style={{ borderColor: store.invitePhone && !isValidEthiopianPhone(store.invitePhone) ? 'var(--color-input-error)' : 'var(--color-border)' }}
+                onKeyDown={e => e.key === 'Enter' && store.handleAddCloudStaff(combinedStaffList, lang)}
+              />
+            )}
+            <button
+              onClick={async () => {
+                if (addMode === 'cloud') {
+                  store.handleAddCloudStaff(combinedStaffList, lang);
+                } else {
+                  await store.handleAddLocalStaff(combinedStaffList, onSaveStaffMember, lang);
+                }
+              }}
+              disabled={addMode === 'cloud' ? (!store.localStaffName.trim() || !isValidEthiopianPhone(store.invitePhone) || store.inviting) : !store.localStaffName.trim()}
+              className="px-4 py-2.5 rounded-xl text-sm font-bold min-h-[44px] flex-shrink-0"
+              style={{
+                background: (addMode === 'cloud' ? (!store.localStaffName.trim() || !isValidEthiopianPhone(store.invitePhone) || store.inviting) : !store.localStaffName.trim()) ? 'var(--color-bg-disabled)' : 'var(--color-primary)',
+                color: (addMode === 'cloud' ? (!store.localStaffName.trim() || !isValidEthiopianPhone(store.invitePhone) || store.inviting) : !store.localStaffName.trim()) ? 'var(--color-text-soft)' : 'var(--color-bg-white)'
+              }}
+            >
+              {addMode === 'cloud' ? (store.inviting ? t('Adding…', 'በማከል ላይ…') : t('Add', 'ጨምር')) : t('Save to device', 'ለስልክ አስቀምጥ')}
+            </button>
+          </div>
+
+          {/* Account-type toggle */}
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{t('Account type', 'የመለያ አይነት')}</span>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => setAddMode('cloud')}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                style={{
+                  background: addMode === 'cloud' ? 'var(--color-primary)' : 'var(--color-bg-hover)',
+                  color: addMode === 'cloud' ? 'var(--color-bg-white)' : 'var(--color-text)',
+                }}
+              >
+                ☁️ {t('Cloud', 'ክላውድ')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddMode('local')}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                style={{
+                  background: addMode === 'local' ? 'var(--color-primary)' : 'var(--color-bg-hover)',
+                  color: addMode === 'local' ? 'var(--color-bg-white)' : 'var(--color-text)',
+                }}
+              >
+                📱 {t('Local', 'አካባቢ')}
+              </button>
+            </div>
+          </div>
+          <p className="text-[10px] text-gray-500">
+            {addMode === 'cloud'
+              ? t('Creates a real staff login. You will get an invite link to send them; they sign in with this phone number.',
+                  'እውነተኛ የሰራተኛ መግቢያ ይፈጠራል። ሊንክ ይሰጥዎታል፤ በስልክ ቁጥር ይመዘግባሉ።')
+              : t('Saves to this device only. No login, no invite link — just a name you can assign roles to.',
+                  'ለዚህ መሣሪያ ብቻ ይቀመጣል። መግቢያ የለም፤ ሚና የሚሰጡት ስም ብቻ።')
+            }
+          </p>
         </div>
-        <p className="text-[10px] text-gray-500 mb-3">
-          {t('Creates a real staff login. You will get an invite link to send them; they sign in with this phone number.',
-            'እውነተኛ የሰራተኛ መግቢያ ይፈጠራል። ሊንክ ይሰጥዎታል፤ በስልክ ቁጥር ይመዘግባሉ።')}
-        </p>
         {store.activeInvite && (
           <div className="mb-3 rounded-xl border px-3 py-3" style={{ borderColor: 'var(--color-info-border)', background: 'var(--color-bg-accent-blue)' }}>
             <div className="flex items-center justify-between gap-2 mb-1.5">
