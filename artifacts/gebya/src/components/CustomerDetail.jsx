@@ -22,7 +22,7 @@ import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
 import { getCreditAllocationStatus, getPaymentSettlementCount } from '../utils/customerLedgerMutations';
 import { useLang } from '../context/LangContext';
 import CustomerReminderHistory from './CustomerReminderHistory';
-import { TransactionRow, transactionLabel, transactionStatusBadge } from './TransactionRow';
+import { TransactionRow, transactionLabel, transactionStatusBadge } from '@/components/TransactionRow';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

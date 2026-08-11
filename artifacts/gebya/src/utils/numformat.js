@@ -5,6 +5,12 @@ export function fmt(n) {
   });
 }
 
+export function formatTransactionAmount(amount, type) {
+  const formattedAmount = fmt(Math.abs(Number(amount || 0)));
+  const sign = type === 'payment' ? '−' : '+';
+  return `${sign}${formattedAmount}`;
+}
+
 export function fmtInput(str) {
   if (str === '' || str === null || str === undefined) return '';
   const s = String(str);
