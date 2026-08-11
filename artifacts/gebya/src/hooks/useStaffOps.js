@@ -35,6 +35,23 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
     return updatedMember;
   }, [staffMembers, setStaffMembers, sortStaff]);
 
+  const handleChangeLocalStaffRole = useCallback(async (staffId, role) => {
+    const member = staffMembers.find(item => String(item.id) === String(staffId));
+    if (!member) return false;
+    // Only for local (device-only) staff — cloud staff use the RBAC API
+    if (member.staff_id) return false;
+    const now = Date.now();
+    try {
+      await db.staff_members.update(member.id, { role, updated_at: now });
+      setStaffMembers(prev => sortStaff(prev.map(item =>
+        item.id === member.id ? { ...item, role, updated_at: now } : item
+      )));
+      return true;
+    } catch {
+      return false;
+    }
+  }, [staffMembers, setStaffMembers, sortStaff]);
+
   const handleSetActiveStaffMember = useCallback(async (staffId) => {
     const nextId = staffId ? Number(staffId) : null;
     await db.settings.put({ key: 'active_staff_member_id', value: nextId });
@@ -159,6 +176,7 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
   return {
     handleSaveStaffMember,
     handleUpdateStaffMember,
+    handleChangeLocalStaffRole,
     handleSetActiveStaffMember,
     handleDeactivateStaffMember,
     handleReactivateStaffMember,

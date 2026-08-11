@@ -153,6 +153,7 @@ export default function AppShell() {
   const {
     handleSaveStaffMember,
     handleUpdateStaffMember,
+    handleChangeLocalStaffRole,
     handleSetActiveStaffMember,
     handleDeactivateStaffMember,
     handleReactivateStaffMember,
@@ -2027,9 +2028,10 @@ export default function AppShell() {
             currentActorLabel={currentActorLabel}
             shopProfile={shopProfile}
             onSetActiveStaffMember={handleSetActiveStaffMember}
-            onSaveStaffMember={handleSaveStaffMember}
-            onUpdateStaffMember={handleUpdateStaffMember}
-            onDeactivateStaffMember={handleDeactivateStaffMember}
+          onSaveStaffMember={handleSaveStaffMember}
+          onUpdateStaffMember={handleUpdateStaffMember}
+          onChangeLocalStaffRole={handleChangeLocalStaffRole}
+          onDeactivateStaffMember={handleDeactivateStaffMember}
             onReactivateStaffMember={handleReactivateStaffMember}
             onApproveDevice={handleApproveDevice}
             onRejectDevice={handleRejectDevice}

@@ -222,7 +222,7 @@ export default function StaffAllMembers({
                   </div>
                 )}
 
-                {!isLocal && isExpanded && (
+                {isExpanded && (
                   <div className="px-4 pb-4" style={{ background: 'var(--color-surface-subtle)' }}>
                     {!isOwnerRole && (
                       <div className="mb-3">
@@ -245,9 +245,14 @@ export default function StaffAllMembers({
                               <button
                                 key={opt.value}
                                 type="button"
-                                onClick={() => {
+                                onClick={async () => {
                                   if (m.role === opt.value) return;
-                                  store.setPendingRoleChange({ member: m, newRole: opt.value, label });
+                                  if (isLocal) {
+                                    const ok = await onChangeLocalStaffRole?.(mid, opt.value);
+                                    if (ok) fireToast(t(`✓ Role changed to ${label}`, `✓ ሚና ወደ ${label} ተቀይሯል`), 1800);
+                                  } else {
+                                    store.setPendingRoleChange({ member: m, newRole: opt.value, label });
+                                  }
                                 }}
                                 disabled={store.savingPerms}
                                 className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
