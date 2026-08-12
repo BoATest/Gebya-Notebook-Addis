@@ -165,6 +165,7 @@ app.use((err, req, res, _next) => {
   }
   res.status(500).json({
     error: "Internal server error",
+    message: err instanceof Error ? err.message : "Unhandled error",
     request_id: requestId,
   });
 });
