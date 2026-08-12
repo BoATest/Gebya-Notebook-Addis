@@ -45,6 +45,10 @@ function isAllowedOrigin(origin?: string | null) {
     console.error("[security] CORS_ORIGIN is not set in production. Rejecting all cross-origin requests.");
     return false;
   }
+  // Allow all Vercel deployments (production + every random preview subdomain
+  // such as <project>-<hash>-<scope>.vercel.app) and local dev origins.
+  if (origin.endsWith(".vercel.app")) return true;
+  if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) return true;
   return allowedOrigins.includes(origin);
 }
 
