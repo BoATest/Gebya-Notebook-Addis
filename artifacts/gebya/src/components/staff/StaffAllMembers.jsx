@@ -8,7 +8,8 @@ import { fireToast } from '../Toast';
 
 export default function StaffAllMembers({
   canManageTeam,
-  lang, t
+  lang, t,
+  onReactivateStaffMember,
 }) {
   const store = useStaffStore();
   const cloudMembers = store.cloudMembers || [];
@@ -177,15 +178,15 @@ export default function StaffAllMembers({
                           {t('Deactivate', 'አቁም')}
                         </button>
                       )}
-                      {!isOwnerRole && m.active === false && (
-                        <button
-                          onClick={() => store.handleReactivateStaffMember?.(m.userId)}
-                          className="mt-3 w-full py-2 rounded-xl text-xs font-bold"
-                          style={{ background: 'var(--color-success-bg)', color: 'var(--color-success-text)' }}
-                        >
-                          {t('Reactivate', 'ንቁ አድርግ')}
-                        </button>
-                      )}
+                       {!isOwnerRole && m.active === false && (
+                         <button
+                           onClick={() => onReactivateStaffMember?.(m.userId)}
+                           className="mt-3 w-full py-2 rounded-xl text-xs font-bold"
+                           style={{ background: 'var(--color-success-bg)', color: 'var(--color-success-text)' }}
+                         >
+                           {t('Reactivate', 'ንቁ አድርግ')}
+                         </button>
+                       )}
                     </div>
                   )}
                 </div>

@@ -246,6 +246,7 @@ export default function StaffPage({
                 canManageTeam={canManageTeam}
                 lang={lang}
                 t={t}
+                onReactivateStaffMember={onReactivateStaffMember}
               />
             </>
           )}
