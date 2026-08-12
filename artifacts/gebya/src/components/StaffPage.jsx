@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLang } from '../context/LangContext';
 import { useStaffStore } from '../stores/staffStore';
 import { fireToast } from './Toast';
 import ConfirmDialog from './ConfirmDialog';
-import { getCurrentEntitlements } from '../utils/entitlements';
-import { apiFetch, ROLE_BADGE, RoleBadge } from '../utils/shared-ui.jsx';
+import db from '../db';
+import { startOfLocalDay } from '../utils/reportSelectors';
 import { calculateExpected } from '../utils/settlementSelectors';
 import { fmt } from '../utils/numformat';
 
@@ -22,14 +21,11 @@ import StaffAttendance from './staff/StaffAttendance';
 import SettlementSheet from './report/SettlementSheet';
 
 export default function StaffPage({
-  staffMembers,
   activeStaffMemberId,
   currentActorLabel,
   shopProfile,
   onSetActiveStaffMember,
-  onSaveStaffMember,
   onUpdateStaffMember,
-  onChangeLocalStaffRole,
   onDeactivateStaffMember,
   onReactivateStaffMember,
   onApproveDevice,
@@ -39,6 +35,10 @@ export default function StaffPage({
   canManageTeam,
 }) {
   const t = (en, am) => lang === 'am' ? am : en;
+
+  // Owner/manager experience is organized into tabs
+  const [ownerTab, setOwnerTab] = useState('team');
+  const [openCollectionSheet, setOpenCollectionSheet] = useState(false);
 
   // ─── Global state for isolated component isolation ───
   const store = useStaffStore();
@@ -52,6 +52,35 @@ export default function StaffPage({
     loadCloudMembers();
     loadSettlements();
   }, [loadCloudMembers, loadSettlements]);
+
+  // Keep today's per-staff sales aggregate fresh so the owner Today tab stats
+  // are accurate even before the Activity tab (which also computes this) mounts.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const todayStart = startOfLocalDay();
+        const todayEnd = todayStart + 86400000;
+        const txns = await db.transactions
+          .where('created_at').between(todayStart, todayEnd).toArray()
+          .then(rows => rows.filter(t => !t.deletedAt));
+        if (cancelled) return;
+        const salesMap = {};
+        for (const txn of txns) {
+          if (txn.type !== 'sale') continue;
+          const staffId = txn.actor_staff_member_id;
+          if (!staffId) continue;
+          if (!salesMap[staffId]) salesMap[staffId] = { count: 0, total: 0, cashTotal: 0, transferTotal: 0 };
+          salesMap[staffId].count += 1;
+          salesMap[staffId].total += Number(txn.amount || 0);
+          if (txn.payment_type === 'transfer' || txn.payment_type === 'bank') salesMap[staffId].transferTotal += Number(txn.amount || 0);
+          else salesMap[staffId].cashTotal += Number(txn.amount || 0);
+        }
+        if (!cancelled) store.setTodayStaffSales(salesMap);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [store.todayRefreshKey, store.setTodayStaffSales]);
 
   // Prevent browser reloading/disappearing tabs
   useEffect(() => {
@@ -76,26 +105,20 @@ export default function StaffPage({
     return () => document.removeEventListener('keydown', handle);
   }, [store.settling, store.viewingSettlement]);
 
-  // ─── Combined staff list (local + cloud) ───
-  const combinedStaffList = useMemo(() => {
-    const local = (staffMembers || []).map(m => ({ ...m, _source: 'local' }));
-    const cloud = (store.cloudMembers || []).map(m => ({ ...m, _source: 'cloud' }));
-    const localIds = new Set(local.map(m => String(m.id)));
-    const uniqueCloud = cloud.filter(m => !localIds.has(String(m.id)));
-    return [...local, ...uniqueCloud];
-  }, [staffMembers, store.cloudMembers]);
+  // ─── Canonical staff list (cloud = single source of truth) ───
+  const combinedStaffList = useMemo(() => store.cloudMembers || [], [store.cloudMembers]);
 
   const filteredMembers = useMemo(() => {
     if (!store.searchQuery.trim()) return combinedStaffList;
     const q = store.searchQuery.toLowerCase();
     return combinedStaffList.filter(m =>
       (m.display_name || m.displayName || m.name || '').toLowerCase().includes(q) ||
-      (m.phone || m.phoneNumber || '').toLowerCase().includes(q)
+      (m.phone || m.phoneNumber || m.phone_snapshot || '').toLowerCase().includes(q)
     );
   }, [combinedStaffList, store.searchQuery]);
 
-  const activeStaff = useMemo(() => (staffMembers || []).filter(m => m.active !== false), [staffMembers]);
-  const inactiveStaff = useMemo(() => (staffMembers || []).filter(m => m.active === false), [staffMembers]);
+  const activeStaff = useMemo(() => combinedStaffList.filter(m => m.active !== false), [combinedStaffList]);
+  const inactiveStaff = useMemo(() => combinedStaffList.filter(m => m.active === false), [combinedStaffList]);
 
   const lastSettlementPerStaff = useMemo(() => {
     const map = {};
@@ -108,15 +131,15 @@ export default function StaffPage({
 
   const pendingDevices = useMemo(() => {
     const out = [];
-    for (const m of (staffMembers || [])) {
+    for (const m of combinedStaffList) {
       for (const d of (m.devices || [])) {
         if (d.device_status === 'pending' || d.pending) {
-          out.push({ ...d, staffName: m.display_name, staffId: m.id });
+          out.push({ ...d, staffName: m.display_name, staffId: m.id || m.userId });
         }
       }
     }
     return out;
-  }, [staffMembers]);
+  }, [combinedStaffList]);
 
   const unsettledStaff = useMemo(() =>
     activeStaff.filter(m => {
@@ -133,7 +156,7 @@ export default function StaffPage({
   );
 
   const snapshotStats = useMemo(() => {
-    const totalStaff = (staffMembers || []).length;
+    const totalStaff = combinedStaffList.length;
     const active = activeStaff.length;
     const pendingDeviceCount = pendingDevices.length;
     const unsettledCount = unsettledStaff.length;
@@ -141,7 +164,7 @@ export default function StaffPage({
     const finalizedCount = store.settlements.filter(s => s.reconciliation_status === 'finalized' || s.reconciliation_status === 'checked').length;
     const totalCollected = store.settlements.reduce((sum, s) => sum + Number(s.actual_total || 0), 0);
     return { totalStaff, active, pendingDeviceCount, unsettledCount, submittedCount, finalizedCount, totalCollected };
-  }, [staffMembers, activeStaff, pendingDevices, unsettledStaff, store.settlements]);
+  }, [combinedStaffList, activeStaff, pendingDevices, unsettledStaff, store.settlements]);
 
   // Estimated amounts for unsettled staff
   const [estimatedAmounts, setEstimatedAmounts] = useState({});
@@ -162,175 +185,212 @@ export default function StaffPage({
     return () => { cancelled = true; };
   }, [unsettledStaff, lastSettlementPerStaff]);
 
-  // ─── Staff add handlers ───
-  const handleAddLocalStaff = useCallback(async () => {
-    if (!store.localStaffName.trim()) return;
-    try {
-      const { entitlements } = await getCurrentEntitlements();
-      if (activeStaff.length >= entitlements.max_staff) {
-        fireToast(t('Staff limit reached. Upgrade to add more.', 'የሰራተኛ ገደብ ደረሰዋል'), 3000);
-        return;
-      }
-    } catch {}
-    await onSaveStaffMember?.({ display_name: store.localStaffName.trim(), role: 'cashier', active: true });
-    store.setLocalStaffName('');
-  }, [store, activeStaff, onSaveStaffMember, t]);
-
   // ─── Render ───
+  const ownerTabs = [
+    { key: 'team', label: t('Team', 'ቡድን') },
+    { key: 'today', label: t('Today', 'ዛሬ') },
+    { key: 'settlements', label: t('Settlements', 'ማስተካከያ') },
+    { key: 'activity', label: t('Activity', 'እንቅስቃሴ') },
+  ];
+
   return (
     <div className="space-y-4 pb-4">
-      {/* Notification banner */}
-      {canManageTeam && snapshotStats.submittedCount > 0 && (
-        <div className="rounded-2xl border flex items-center gap-3 px-4 py-3" style={{ borderColor: 'var(--color-info-border)', background: 'var(--color-bg-accent-blue)' }}>
-          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-info-bg)' }}>
-            <span className="text-sm font-black" style={{ color: 'var(--color-info)' }}>!</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold" style={{ color: 'var(--color-info)' }}>
-              {t('Staff submissions pending review', 'የሰራተኞች ስብስብ ክለሳ ይፈልጋል')}
-            </p>
-            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-              {snapshotStats.submittedCount} {t('staff member(s) have submitted their collection', 'ሰራተኞች ስብስባቸውን ልከዋል')}
-            </p>
-          </div>
-          <button onClick={() => store.toggleSection('pastSettlements')}
-            className="text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap"
-            style={{ background: 'var(--color-primary)', color: 'var(--color-bg-white)' }}
-          >{t('Review', 'ክለሳ')}</button>
-        </div>
-      )}
-
-      {/* Stats */}
-      {canManageTeam && <StaffStats snapshotStats={snapshotStats} t={t} />}
-
-      {/* NEEDS ATTENTION */}
-      {canManageTeam && unsettledStaff.length > 0 && (
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-warning-border)', background: 'var(--color-bg-accent-amber)' }}>
-          <div className="px-4 py-2.5 flex items-center gap-2" style={{ background: 'var(--color-warning-bg)' }}>
-            <span className="text-xs font-black uppercase tracking-wide" style={{ color: 'var(--color-warning)' }}>{t('Needs attention', 'ክለሳ ይፈልጋል')}</span>
-            <span className="text-[10px] font-bold" style={{ color: 'var(--color-warning)' }}>({unsettledStaff.length})</span>
-          </div>
-          <div className="divide-y" style={{ borderColor: 'var(--color-warning-border)' }}>
-            {unsettledStaff.map(m => {
-              const last = lastSettlementPerStaff[String(m.id)];
-              const estimate = estimatedAmounts[m.id];
-              const isSubmitted = last?.reconciliation_status === 'staff_submitted';
+      {canManageTeam ? (
+        <>
+          {/* Owner/manager tab bar */}
+          <div className="flex gap-1 p-1 rounded-2xl border sticky top-0 z-20" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-alt)' }}>
+            {ownerTabs.map(tab => {
+              const badge =
+                tab.key === 'team' ? pendingDevices.length :
+                tab.key === 'today' ? unsettledStaff.length :
+                tab.key === 'settlements' ? snapshotStats.submittedCount : 0;
+              const active = ownerTab === tab.key;
               return (
-                <div key={m.id} className="px-4 py-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-bold text-gray-900 truncate">{m.display_name}</div>
-                    <div className="text-[10px] text-gray-500">
-                      {last ? t('Last settled', 'የመጨረሻ ማስተካከያ') + ' · ' + new Date(last.settled_at).toLocaleDateString() : t('Never settled', 'በጭረት አላስተካከለም')}
-                    </div>
-                    {estimate && estimate.expectedTotal > 0 && (
-                      <div className="text-[10px] font-bold mt-0.5" style={{ color: 'var(--color-warning)' }}>{t('Est.', 'ተገምቶ')} {fmt(estimate.expectedTotal)} {t('birr', 'ብር')}</div>
-                    )}
-                    {estimatesLoading && !estimate && (<div className="text-[10px] text-gray-400 mt-0.5">...</div>)}
-                  </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {isSubmitted ? (
-                        <button onClick={() => store.handleViewSettlement(m, last)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
-                          style={{ background: 'var(--color-info-bg)', color: 'var(--color-info)' }}>
-                          {t('Review', 'መርምር')}
-                        </button>
-                      ) : (
-                        <button onClick={() => store.setSettling(m)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
-                          style={{ background: 'var(--color-primary)', color: 'var(--color-bg-white)' }}>
-                          {t('Settle', 'አስተካክል')}
-                        </button>
-                      )}
-                    </div>
-                </div>
+                <button
+                  key={tab.key}
+                  onClick={() => setOwnerTab(tab.key)}
+                  className="relative flex-1 px-2 py-2 rounded-xl text-xs font-bold whitespace-nowrap"
+                  style={{
+                    background: active ? 'var(--color-primary)' : 'transparent',
+                    color: active ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
+                  }}
+                >
+                  {tab.label}
+                  {badge > 0 && (
+                    <span
+                      className="ml-1 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black"
+                      style={{
+                        background: active ? 'var(--color-bg-white)' : 'var(--color-danger)',
+                        color: active ? 'var(--color-primary)' : 'var(--color-bg-white)',
+                      }}
+                    >{badge}</span>
+                  )}
+                </button>
               );
             })}
           </div>
-        </div>
-      )}
 
-      {/* Today's Team */}
-      <StaffTodayTeam
-        activeStaff={activeStaff}
-        inactiveStaff={inactiveStaff}
-        canManageTeam={canManageTeam}
-        lastSettlementPerStaff={lastSettlementPerStaff}
-        todayStaffSales={store.todayStaffSales}
-        todayStaffTransactions={store.todayStaffTransactions}
-        expandedStaffDrilldown={store.expandedStaffDrilldown}
-        onReactivateStaffMember={onReactivateStaffMember}
-        onSetSettling={store.setSettling}
-        onViewSettlement={store.handleViewSettlement}
-        t={t}
-      />
+          {/* TAB: Team */}
+          {ownerTab === 'team' && (
+            <>
+              {/* Join Code */}
+              <StaffJoinCode shopProfile={shopProfile} onRotateJoinCode={onRotateJoinCode} t={t} />
 
-      {/* Past Settlements */}
-      <StaffPastSettlements activeStaff={activeStaff} hasUnresolvedSettlements={hasUnresolvedSettlements} lang={lang} t={t} />
+              {/* Device Manager */}
+              {pendingDevices.length > 0 && (
+                <StaffDeviceManager pendingDevices={pendingDevices} onApproveDevice={onApproveDevice} onRejectDevice={onRejectDevice} t={t} />
+              )}
 
-      {/* My Collection */}
-      <StaffCollectionForm
-        activeStaffMemberId={activeStaffMemberId}
-        activeStaff={activeStaff}
-        lastSettlementPerStaff={lastSettlementPerStaff}
-        lang={lang}
-        t={t}
-      />
+              {/* All Staff */}
+              <StaffAllMembers
+                canManageTeam={canManageTeam}
+                lang={lang}
+                t={t}
+              />
+            </>
+          )}
 
-      {/* Join Code */}
-      {canManageTeam && (
-        <StaffJoinCode shopProfile={shopProfile} onRotateJoinCode={onRotateJoinCode} t={t} />
-      )}
+          {/* TAB: Today */}
+          {ownerTab === 'today' && (
+            <>
+              {/* Notification banner */}
+              {snapshotStats.submittedCount > 0 && (
+                <div className="rounded-2xl border flex items-center gap-3 px-4 py-3" style={{ borderColor: 'var(--color-info-border)', background: 'var(--color-bg-accent-blue)' }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-info-bg)' }}>
+                    <span className="text-sm font-black" style={{ color: 'var(--color-info)' }}>!</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold" style={{ color: 'var(--color-info)' }}>
+                      {t('Staff submissions pending review', 'የሰራተኞች ስብስብ ክለሳ ይፈልጋል')}
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                      {snapshotStats.submittedCount} {t('staff member(s) have submitted their collection', 'ሰራተኞች ስብስባቸውን ልከዋል')}
+                    </p>
+                  </div>
+                  <button onClick={() => setOwnerTab('settlements')}
+                    className="text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap"
+                    style={{ background: 'var(--color-primary)', color: 'var(--color-bg-white)' }}
+                  >{t('Review', 'ክለሳ')}</button>
+                </div>
+              )}
 
-      {/* Tasks & Attendance */}
-      {canManageTeam && activeStaffMemberId && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <StaffTasks staff={activeStaff.find(s => String(s.id) === String(activeStaffMemberId))} lang={lang} canManageTeam={canManageTeam} />
-          <StaffAttendance staff={activeStaff.find(s => String(s.id) === String(activeStaffMemberId))} lang={lang} canManageTeam={canManageTeam} />
-        </div>
-      )}
+              {/* Stats */}
+              <StaffStats snapshotStats={snapshotStats} t={t} />
 
-      {/* All Staff */}
-      {canManageTeam && (
-          <StaffAllMembers
-            staffMembers={staffMembers}
-            combinedStaffList={combinedStaffList}
-            filteredMembers={filteredMembers}
-            canManageTeam={canManageTeam}
-            onSaveStaffMember={onSaveStaffMember}
-            onUpdateStaffMember={onUpdateStaffMember}
-            onChangeLocalStaffRole={onChangeLocalStaffRole}
-            onReactivateStaffMember={onReactivateStaffMember}
-            onDeactivateStaffMember={onDeactivateStaffMember}
+              {/* NEEDS ATTENTION */}
+              {unsettledStaff.length > 0 && (
+                <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-warning-border)', background: 'var(--color-bg-accent-amber)' }}>
+                  <div className="px-4 py-2.5 flex items-center gap-2" style={{ background: 'var(--color-warning-bg)' }}>
+                    <span className="text-xs font-black uppercase tracking-wide" style={{ color: 'var(--color-warning)' }}>{t('Needs attention', 'ክለሳ ይፈልጋል')}</span>
+                    <span className="text-[10px] font-bold" style={{ color: 'var(--color-warning)' }}>({unsettledStaff.length})</span>
+                  </div>
+                  <div className="divide-y" style={{ borderColor: 'var(--color-warning-border)' }}>
+                    {unsettledStaff.map(m => {
+                      const last = lastSettlementPerStaff[String(m.id)];
+                      const estimate = estimatedAmounts[m.id];
+                      const isSubmitted = last?.reconciliation_status === 'staff_submitted';
+                      return (
+                        <div key={m.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-bold text-gray-900 truncate">{m.display_name}</div>
+                            <div className="text-[10px] text-gray-500">
+                              {last ? t('Last settled', 'የመጨረሻ ማስተካከያ') + ' · ' + new Date(last.settled_at).toLocaleDateString() : t('Never settled', 'በጭረት አላስተካከለም')}
+                            </div>
+                            {estimate && estimate.expectedTotal > 0 && (
+                              <div className="text-[10px] font-bold mt-0.5" style={{ color: 'var(--color-warning)' }}>{t('Est.', 'ተገምቶ')} {fmt(estimate.expectedTotal)} {t('birr', 'ብር')}</div>
+                            )}
+                            {estimatesLoading && !estimate && (<div className="text-[10px] text-gray-400 mt-0.5">...</div>)}
+                          </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              {isSubmitted ? (
+                                <button onClick={() => store.handleViewSettlement(m, last)}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
+                                  style={{ background: 'var(--color-info-bg)', color: 'var(--color-info)' }}>
+                                  {t('Review', 'መርምር')}
+                                </button>
+                              ) : (
+                                <button onClick={() => store.setSettling(m)}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
+                                  style={{ background: 'var(--color-primary)', color: 'var(--color-bg-white)' }}>
+                                  {t('Settle', 'አስተካክል')}
+                                </button>
+                              )}
+                            </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Today's Team */}
+              <StaffTodayTeam
+                activeStaff={activeStaff}
+                inactiveStaff={inactiveStaff}
+                canManageTeam={canManageTeam}
+                lastSettlementPerStaff={lastSettlementPerStaff}
+                todayStaffSales={store.todayStaffSales}
+                todayStaffTransactions={store.todayStaffTransactions}
+                expandedStaffDrilldown={store.expandedStaffDrilldown}
+                onReactivateStaffMember={onReactivateStaffMember}
+                onSetSettling={store.setSettling}
+                onViewSettlement={store.handleViewSettlement}
+                t={t}
+              />
+
+              {/* Tasks & Attendance */}
+              {activeStaffMemberId && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <StaffTasks staff={activeStaff.find(s => String(s.id) === String(activeStaffMemberId))} lang={lang} canManageTeam={canManageTeam} />
+                  <StaffAttendance staff={activeStaff.find(s => String(s.id) === String(activeStaffMemberId))} lang={lang} canManageTeam={canManageTeam} />
+                </div>
+              )}
+            </>
+          )}
+
+          {/* TAB: Settlements */}
+          {ownerTab === 'settlements' && (
+            <>
+              <StaffStats snapshotStats={snapshotStats} t={t} />
+              <StaffPastSettlements activeStaff={activeStaff} hasUnresolvedSettlements={hasUnresolvedSettlements} lang={lang} t={t} />
+            </>
+          )}
+
+          {/* TAB: Activity */}
+          {ownerTab === 'activity' && (
+            <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+              <div className="px-4 py-3" style={{ background: 'var(--color-surface-alt)' }}>
+                <span className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('Activity Feed', 'የእንቅስቃሴ መረጃ')}</span>
+              </div>
+              <div className="px-4 py-3"><StaffActivityFeed todayRefreshKey={store.todayRefreshKey} /></div>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Staff single-surface (My Collection + Today's team) */}
+          <StaffCollectionForm
+            activeStaffMemberId={activeStaffMemberId}
+            activeStaff={activeStaff}
+            lastSettlementPerStaff={lastSettlementPerStaff}
             lang={lang}
             t={t}
           />
-      )}
 
-      {/* Device Manager */}
-      {canManageTeam && pendingDevices.length > 0 && (
-        <StaffDeviceManager pendingDevices={pendingDevices} onApproveDevice={onApproveDevice} onRejectDevice={onRejectDevice} t={t} />
-      )}
-
-      {/* Activity Feed */}
-      {canManageTeam && (
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
-          <button
-            onClick={() => store.toggleSection('activity')}
-            className="w-full px-4 py-3 flex items-center justify-between text-left"
-            style={{ background: 'var(--color-surface-alt)' }}
-          >
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">{t('Activity Feed', 'የእንቅስቃሴ መረጃ')}</span>
-            {store.expandedSections.activity ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-          </button>
-          <div style={{
-            overflow: 'hidden',
-            maxHeight: store.expandedSections.activity ? '2000px' : '0',
-            opacity: store.expandedSections.activity ? 1 : 0,
-            transition: 'max-height 0.3s ease, opacity 0.25s ease',
-          }}>
-            <div className="px-4 py-3"><StaffActivityFeed todayRefreshKey={store.todayRefreshKey} /></div>
-          </div>
-        </div>
+          <StaffTodayTeam
+            activeStaff={activeStaff}
+            inactiveStaff={inactiveStaff}
+            canManageTeam={canManageTeam}
+            lastSettlementPerStaff={lastSettlementPerStaff}
+            todayStaffSales={store.todayStaffSales}
+            todayStaffTransactions={store.todayStaffTransactions}
+            expandedStaffDrilldown={store.expandedStaffDrilldown}
+            onReactivateStaffMember={onReactivateStaffMember}
+            onSetSettling={store.setSettling}
+            onViewSettlement={store.handleViewSettlement}
+            t={t}
+          />
+        </>
       )}
 
       {/* Settlement Sheet */}

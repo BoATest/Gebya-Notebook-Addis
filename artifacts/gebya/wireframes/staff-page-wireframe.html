@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gebya — Staff Page Wireframe (Owner + Staff surfaces)</title>
+<style>
+  :root {
+    --primary: #1B4332;
+    --primary-dark: #0f2b20;
+    --primary-light: #2d6a4f;
+    --accent-coral: #D4654A;
+    --accent-amber: #C4883A;
+    --bg: #FAF8F5;
+    --surface: #ffffff;
+    --surface-alt: #f3f0ea;
+    --border: #e5e0d8;
+    --text: #111827;
+    --text-muted: #6b7280;
+    --danger: #b91c1c;
+    --info: #2563eb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  body { background: #e8e4dd; color: var(--text); padding: 24px; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: var(--text-muted); font-size: 13px; margin-bottom: 24px; }
+  .layout { display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; }
+  .phone {
+    width: 360px; background: var(--bg); border-radius: 28px; border: 8px solid #2b2b2b;
+    box-shadow: 0 12px 40px rgba(0,0,0,.18); overflow: hidden; position: relative;
+  }
+  .phone-title { text-align: center; font-size: 12px; font-weight: 700; color: var(--text-muted); padding: 12px 0 4px; text-transform: uppercase; letter-spacing: .08em; }
+  .header {
+    background: var(--primary); color: #fff; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .header .title { font-weight: 800; font-size: 16px; }
+  .header .role { font-size: 11px; opacity: .85; }
+  .tabbar { display: flex; gap: 4px; padding: 6px; background: var(--surface-alt); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+  .tab { flex: 1; text-align: center; font-size: 11px; font-weight: 700; padding: 8px 4px; border-radius: 12px; background: transparent; color: var(--text-muted); cursor: pointer; border: none; }
+  .tab.active { background: var(--primary); color: #fff; }
+  .badge { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; font-size: 9px; font-weight: 800; margin-left: 3px; }
+  .badge.onprimary { background: #fff; color: var(--primary); }
+  .badge.standalone { background: var(--danger); color: #fff; }
+  .content { padding: 14px; min-height: 420px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin-bottom: 10px; }
+  .row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1efe9; }
+  .row:last-child { border-bottom: none; }
+  .pill { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+  .pill.green { background: #e7f5ee; color: var(--primary); }
+  .pill.amber { background: #fbf1e2; color: var(--accent-amber); }
+  .pill.coral { background: #fceae6; color: var(--accent-coral); }
+  .pill.gray { background: #eef0f2; color: var(--text-muted); }
+  .toggle { width: 38px; height: 22px; border-radius: 999px; background: #d1d5db; position: relative; }
+  .toggle.on { background: var(--primary); }
+  .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: .15s; }
+  .toggle.on::after { left: 18px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 8px; text-align: center; }
+  .stat .n { font-size: 18px; font-weight: 900; color: var(--primary); }
+  .stat .l { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  .banner { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: #fff; border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+  .banner .big { font-size: 22px; font-weight: 900; }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--surface-alt); display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: var(--text-muted); }
+  .muted { color: var(--text-muted); font-size: 12px; }
+  .note { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.4; }
+  .footer-note { text-align: center; font-size: 11px; color: var(--text-muted); padding: 10px; border-top: 1px solid var(--border); }
+  .legend { max-width: 760px; margin: 0 auto 24px; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+  .legend code { background: #ece8e1; padding: 1px 5px; border-radius: 5px; color: var(--primary-dark); }
+  .tabpanel { display: none; }
+  .tabpanel.active { display: block; }
+  .optbar { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .chip { font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: var(--surface-alt); color: var(--text-muted); }
+  .chip.active { background: var(--primary); color: #fff; }
+</style>
+</head>
+<body>
+  <h1>Gebya — Staff Page Wireframe</h1>
+  <div class="sub">Enhanced surfaces delivered in this pass: Owner/Manager 4-tab shell (Team · Today · Settlements · Activity) + Staff single-surface (My Collection · Today's Team), with live permission gating.</div>
+
+  <div class="legend">
+    <strong>What changed:</strong> Staff data is now a single cloud source of truth. Owners/ managers get a tabbed workspace; non-managers get a focused surface with owner-only UI hidden. Permissions toggle live and propagate to staff devices (server-enforced RBAC). Action-bar record buttons are gated by <code>can_add_records</code>; the Staff tab is reachable for every business member.
+  </div>
+
+  <div class="layout">
+
+    <!-- ===================== OWNER / MANAGER ===================== -->
+    <div class="phone">
+      <div class="phone-title">Owner / Manager</div>
+      <div class="header">
+        <div>
+          <div class="title">Staff</div>
+          <div class="role">Owner · single business</div>
+        </div>
+        <div class="avatar">BA</div>
+      </div>
+
+      <div class="tabbar">
+        <button class="tab active" data-phone="owner" data-tab="team">Team<span class="badge onprimary">2</span></button>
+        <button class="tab" data-phone="owner" data-tab="today">Today<span class="badge onprimary">3</span></button>
+        <button class="tab" data-phone="owner" data-tab="settlements">Settle<span class="badge onprimary">1</span></button>
+        <button class="tab" data-phone="owner" data-tab="activity">Activity</button>
+      </div>
+
+      <div class="content">
+        <!-- TEAM -->
+        <div class="tabpanel active" id="owner-team">
+          <div class="card">
+            <div class="card-head">Join Code</div>
+            <div style="font-size:28px;font-weight:900;letter-spacing:4px;text-align:center;color:var(--primary)">GBYA-7Q2K</div>
+            <div class="muted" style="text-align:center">Share so staff join this shop · rotates on demand</div>
+          </div>
+          <div class="card">
+            <div class="card-head">Devices <span class="badge standalone">2</span></div>
+            <div class="row"><div><div style="font-weight:700">Abebe K.</div><div class="muted">Pixel 7 · pending</div></div><div><span class="pill amber">Approve</span></div></div>
+            <div class="row"><div><div style="font-weight:700">Sara M.</div><div class="muted">iPhone · pending</div></div><div><span class="pill amber">Approve</span></div></div>
+          </div>
+          <div class="card">
+            <div class="card-head">All Members</div>
+            <div class="row"><div><div style="font-weight:700">Abebe K.</div><div class="muted">Sales Staff</div></div><span class="pill green">Active</span></div>
+            <div class="row"><div><div style="font-weight:700">Sara M.</div><div class="muted">Auditor</div></div><span class="pill green">Active</span></div>
+            <div class="row"><div><div style="font-weight:700">Dawit T.</div><div class="muted">Sales Staff</div></div><span class="pill gray">Inactive</span></div>
+            <div style="margin-top:10px;font-size:11px;font-weight:800;color:var(--text-muted)">PERMISSIONS · Abebe K.</div>
+            <div class="row"><span class="muted">Record sales &amp; expenses</span><div class="toggle on"></div></div>
+            <div class="row"><span class="muted">Delete records</span><div class="toggle"></div></div>
+            <div class="row"><span class="muted">View reports</span><div class="toggle on"></div></div>
+            <div class="row"><span class="muted">Manage team</span><div class="toggle"></div></div>
+            <div class="note">Toggling writes to <code>/business/members/:id/permissions</code> and syncs to the device in ~30s.</div>
+          </div>
+        </div>
+
+        <!-- TODAY -->
+        <div class="tabpanel" id="owner-today">
+          <div class="banner">
+            <div class="muted" style="opacity:.85">Today · 3 active · 3 need settlement</div>
+            <div class="big">2,480 birr</div>
+            <div style="font-size:12px;opacity:.9">collected across team (est. 2,900 expected)</div>
+          </div>
+          <div class="stats">
+            <div class="stat"><div class="n">14</div><div class="l">Sales</div></div>
+            <div class="stat"><div class="n">3</div><div class="l">Staff</div></div>
+            <div class="stat"><div class="n">1</div><div class="l">Submitted</div></div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="card-head">Needs Attention</div>
+            <div class="row"><div><div style="font-weight:700">Sara M.</div><div class="muted">no settlement today</div></div><span class="pill amber">Settle</span></div>
+            <div class="row"><div><div style="font-weight:700">Abebe K.</div><div class="muted">submitted · review</div></div><span class="pill green">Review</span></div>
+          </div>
+          <div class="card">
+            <div class="card-head">Today's Team</div>
+            <div class="row"><div><div style="font-weight:700">Abebe K.</div><div class="muted">6 sales · 1,200 birr</div></div><span class="pill green">Settled</span></div>
+            <div class="row"><div><div style="font-weight:700">Sara M.</div><div class="muted">5 sales · 980 birr</div></div><span class="pill amber">Open</span></div>
+            <div class="row"><div><div style="font-weight:700">Dawit T.</div><div class="muted">3 sales · 300 birr</div></div><span class="pill gray">Inactive</span></div>
+          </div>
+        </div>
+
+        <!-- SETTLEMENTS -->
+        <div class="tabpanel" id="owner-settlements">
+          <div class="stats">
+            <div class="stat"><div class="n">1</div><div class="l">Submitted</div></div>
+            <div class="stat"><div class="n">4</div><div class="l">Finalized</div></div>
+            <div class="stat"><div class="n">12.4k</div><div class="l">Collected</div></div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <div class="card-head">Past Settlements</div>
+            <div class="row"><div><div style="font-weight:700">Abebe K.</div><div class="muted">1,200 / 1,150 expected</div></div><span class="pill green">Review</span></div>
+            <div class="row"><div><div style="font-weight:700">Sara M.</div><div class="muted">980 / 980 expected</div></div><span class="pill green">Finalized</span></div>
+          </div>
+        </div>
+
+        <!-- ACTIVITY -->
+        <div class="tabpanel" id="owner-activity">
+          <div class="optbar">
+            <span class="chip active">All</span><span class="chip">Sales</span><span class="chip">Payments</span><span class="chip">Dubie</span>
+          </div>
+          <div class="card">
+            <div class="card-head">Today</div>
+            <div class="row"><div class="avatar">A</div><div style="flex:1;padding-left:8px"><div style="font-weight:700">Abebe K.</div><div class="muted">Sale · 200 birr</div></div><span class="pill gray">Synced</span></div>
+            <div class="row"><div class="avatar">S</div><div style="flex:1;padding-left:8px"><div style="font-weight:700">Sara M.</div><div class="muted">Added to Dubie · 150 birr</div></div><span class="pill amber">Retry</span></div>
+          </div>
+          <div class="card">
+            <div class="card-head">This week</div>
+            <div class="muted">Expanded grouped view (week / month / older)…</div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-note">Bottom nav shows Staff tab (all members reach their surface)</div>
+    </div>
+
+    <!-- ===================== STAFF (non-manager) ===================== -->
+    <div class="phone">
+      <div class="phone-title">Staff · Sales Staff</div>
+      <div class="header">
+        <div>
+          <div class="title">My Work</div>
+          <div class="role">Sales Staff · Abebe K.</div>
+        </div>
+        <div class="avatar">A</div>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="card-head">My Collection</div>
+          <div class="stats">
+            <div class="stat"><div class="n">6</div><div class="l">Sales</div></div>
+            <div class="stat"><div class="n">1,200</div><div class="l">Cash</div></div>
+            <div class="stat"><div class="n">0</div><div class="l">Transfer</div></div>
+          </div>
+          <div class="row" style="margin-top:8px"><span class="pill green">Submitted · awaiting review</span></div>
+          <div class="note">Staff submit collection; owner reviews &amp; reconciles. No join code, devices, or member list visible.</div>
+        </div>
+        <div class="card">
+          <div class="card-head">Today's Team</div>
+          <div class="row"><div><div style="font-weight:700">Abebe K. (you)</div><div class="muted">6 sales · 1,200 birr</div></div><span class="pill green">Settled</span></div>
+          <div class="row"><div><div style="font-weight:700">Sara M.</div><div class="muted">5 sales · 980 birr</div></div><span class="pill amber">Open</span></div>
+        </div>
+        <div class="card">
+          <div class="card-head">My Tasks &amp; Attendance</div>
+          <div class="row"><span class="muted">Clock-in 09:02</span><span class="pill green">Present</span></div>
+          <div class="row"><span class="muted">Restock shelves</span><span class="pill gray">Open</span></div>
+        </div>
+        <div class="note">If <code>can_add_records</code> is revoked by the owner, the record buttons in the action bar disappear within ~30s — live permission sync.</div>
+      </div>
+      <div class="footer-note">Owner-only tabs (Team / Devices / Permissions) are hidden</div>
+    </div>
+
+  </div>
+
+<script>
+  document.querySelectorAll('.tab[data-phone]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const phone = btn.dataset.phone;
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('.tab[data-phone="' + phone + '"]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.tabpanel').forEach(p => {
+        if (p.id === phone + '-' + tab) p.classList.add('active');
+        else if (p.id.startsWith(phone + '-')) p.classList.remove('active');
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gebya Staff All Members — Corrected Wireframe</title>
+<style>
+  :root {
+    --color-bg: #0f172a;
+    --color-surface: #1e293b;
+    --color-surface-alt: #334159;
+    --color-border: #475569;
+    --color-border-light: #64748a;
+    --color-text: #f1f5f9;
+    --color-text-muted: #94a3b8;
+    --color-primary: #2563eb;
+    --color-success-bg: #dcfce7;
+    --color-success-text: #166534;
+    --color-warning-bg: #fef3c7;
+    --color-warning: #b45309;
+    --color-danger-bg: #fee2e2;
+    --color-danger: #b91c1c;
+    --color-info-bg: #dbeafe;
+    --color-info-text: #1e40af;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--color-bg); color: var(--color-text); min-height: 100vh; padding: 1rem; }
+  .page-container { max-width: 480px; margin: 0 auto; }
+  .text-xs { font-size: 0.75rem; }
+  .text-sm { font-size: 0.875rem; }
+  .text-10px { font-size: 0.625rem; }
+  .font-bold { font-weight: 700; }
+  .font-black { font-weight: 900; }
+  .rounded-xl { border-radius: 0.75rem; }
+  .rounded-2xl { border-radius: 1rem; }
+  .card { background: var(--color-surface); border-radius: 1rem; border: 1px solid var(--color-border); overflow: hidden; }
+  .card-header { padding: 0.75rem 1rem; border-bottom: 1px solid var(--color-border-light); background: var(--color-surface-alt); }
+  .card-padded { padding: 1rem; }
+  .badge { display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; border-radius: 9999px; }
+  .badge-cloud { background: var(--color-info-bg); color: var(--color-info-text); }
+  .badge-local { background: var(--color-warning-bg); color: var(--color-warning); }
+  .badge-cashier { background: #f59e0b; color: white; }
+  .badge-manager { background: #0ea5e0; color: white; }
+  .badge-viewer { background: #6b7280; color: white; }
+  .btn-primary { background: var(--color-primary); color: white; border: none; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 700; padding: 0.375rem 0.75rem; cursor: pointer; }
+  .btn-outline { background: transparent; border: 1px solid var(--color-border); border-radius: 0.5rem; font-size: 0.75rem; font-weight: 700; padding: 0.375rem 0.75rem; cursor: pointer; color: var(--color-text); }
+  .btn-success { background: var(--color-success-bg); color: var(--color-success-text); border: none; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 700; padding: 0.375rem 0.75rem; cursor: pointer; }
+  .form-input { width: 100%; padding: 0.625rem 0.75rem; border: 2px solid var(--color-border); border-radius: 0.75rem; font-size: 0.875rem; background: white; color: #111827; }
+  .form-select { width: 100%; padding: 0.625rem 0.75rem; border: 2px solid var(--color-border); border-radius: 0.75rem; font-size: 0.875rem; background: white; color: #111827; }
+  .form-label { font-size: 0.625rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; }
+  .flex { display: flex; }
+  .flex-1 { flex: 1 1 0%; }
+  .gap-2 { gap: 0.5rem; }
+  .gap-3 { gap: 0.75rem; }
+  .mb-3 { margin-bottom: 0.75rem; }
+  .mb-4 { margin-bottom: 1rem; }
+  .text-center { text-align: center; }
+  .text-gray-400 { color: #9ca3af; }
+  .divide-y > :not([hidden]) ~ :not([hidden]) { border-top: 1px solid var(--color-border-light); }
+  .border { border: 1px solid var(--color-border); }
+</style>
+</head>
+<body>
+<div class="page-container">
+
+  <!-- Header -->
+  <div style="padding: 0.75rem;">
+    <h1 class="text-xl font-black">Staff Management</h1>
+    <p class="text-xs text-gray-400">Total: 5 · Active: 4</p>
+  </div>
+
+  <!-- Add Staff Form - Canonical Invite Path -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <span class="title text-xs font-bold uppercase">Add Staff Member</span>
+    </div>
+    <div class="card-padded">
+      
+      <!-- Account Type Toggle -->
+      <div class="mb-3">
+        <div class="form-label mb-1">Account Type</div>
+        <div class="flex gap-1.5">
+          <button type="button" id="cloud-btn" style="background: var(--color-primary); color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600;">
+            ☁️ Cloud
+          </button>
+          <button type="button" id="local-btn" style="background: var(--color-bg-hover); color: var(--color-text); padding: 0.5rem 1rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600;">
+            📱 Local
+          </button>
+        </div>
+      </div>
+
+      <!-- Cloud Mode (default) -->
+      <div id="cloud-mode">
+        <div class="mb-3">
+          <div class="form-label">Full Name</div>
+          <input type="text" placeholder="e.g. Abebech Tadesse" class="form-input" />
+        </div>
+        
+        <div class="mb-3">
+          <div class="form-label">Phone Number</div>
+          <input type="tel" placeholder="+251 9 1234 5678" class="form-input" />
+          <p class="text-xs text-gray-400 mt-1">Staff will get invite link via SMS</p>
+        </div>
+
+        <div class="mb-3">
+          <div class="form-label">Role</div>
+          <select class="form-select">
+            <option>Sales Staff</option>
+            <option>Manager</option>
+            <option>Auditor</option>
+          </select>
+        </div>
+
+        <button class="btn-primary" style="width: 100%;">Send Invite Link</button>
+      </div>
+
+      <!-- Local Mode -->
+      <div id="local-mode" style="display: none;">
+        <div class="mb-3">
+          <div class="form-label">Full Name</div>
+          <input type="text" placeholder="e.g. Abebech Tadesse" class="form-input" />
+        </div>
+
+        <div class="mb-3">
+          <div class="form-label">Role</div>
+          <select class="form-select">
+            <option>Sales Staff</option>
+            <option>Manager</option>
+            <option>Auditor</option>
+          </select>
+        </div>
+
+        <p class="text-xs text-gray-400">Local staff saved to this device only. No invite link.</p>
+        <button class="btn-success" style="width: 100%;">Save Local Staff</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Today's Team -->
+  <div class="card mb-4">
+    <div class="card-header">
+      <span class="title text-xs font-bold uppercase">Today's Team</span>
+      <span class="text-xs text-gray-400">4 members</span>
+    </div>
+    <div class="divide-y">
+      <div style="padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.75rem;">
+        <div style="width: 2.25rem; height: 2.25rem; border-radius: 999px; background: var(--color-bg-hover); display: flex; align-items: center; justify-content: center; font-size: 0.75rem;">AT</div>
+        <div class="flex-1">
+          <div class="font-bold text-sm">Abebech Tadesse</div>
+          <div class="text-xs text-gray-400">Sales Staff · 3,450 birr</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- All Staff List -->
+  <div class="card">
+    <div class="card-header">
+      <span class="title text-xs font-bold uppercase">All Staff (5)</span>
+    </div>
+    <div class="divide-y">
+      <!-- Staff Member Row -->
+      <div style="padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.75rem;">
+        <div style="width: 1.25rem; height: 1.25rem; border-radius: 999px; background: var(--color-bg-hover); display: flex; align-items: center; justify-content: center; font-size: 0.625rem;">AT</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-1.5">
+            <span class="font-bold text-sm">Abebech Tadesse</span>
+            <span class="badge badge-cashier" style="font-size: 0.625rem;">Sales</span>
+            <span class="badge-cloud" style="font-size: 0.625rem;">Cloud</span>
+          </div>
+          <div class="text-xs text-gray-400">📱 +251 9 1234 5678</div>
+        </div>
+        <button class="btn-outline" style="font-size: 0.75rem; padding: 0.375rem 0.75rem;">Edit</button>
+      </div>
+
+      <!-- Another Staff -->
+      <div style="padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.75rem;">
+        <div style="width: 1.25rem; height: 1.25rem; border-radius: 999px; background: var(--color-bg-hover); display: flex; align-items: center; justify-content: center; font-size: 0.625rem;">DK</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-1.5">
+            <span class="font-bold text-sm">Dawit Kebede</span>
+            <span class="badge badge-manager" style="font-size: 0.625rem;">Mgr</span>
+            <span class="badge-cloud" style="font-size: 0.625rem;">Cloud</span>
+          </div>
+          <div class="text-xs text-gray-400">📱 +251 9 2345 6789</div>
+        </div>
+        <button class="btn-outline" style="font-size: 0.75rem; padding: 0.375rem 0.75rem;">Edit</button>
+      </div>
+
+      <!-- Local Staff -->
+      <div style="padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.75rem;">
+        <div style="width: 1.25rem; height: 1.25rem; border-radius: 999px; background: var(--color-bg-hover); display: flex; align-items: center; justify-content: center; font-size: 0.625rem;">HG</div>
+        <div class="flex-1">
+          <div class="flex items-center gap-1.5">
+            <span class="font-bold text-sm">Hana Getachew</span>
+            <span class="badge badge-viewer" style="font-size: 0.625rem;">Auditor</span>
+            <span class="badge-local" style="font-size: 0.625rem;">Local</span>
+          </div>
+          <div class="text-xs text-gray-400">📱 +251 9 8765 4321</div>
+        </div>
+        <button class="btn-outline" style="font-size: 0.75rem; padding: 0.375rem 0.75rem;">Edit</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Toggle Cloud/Local modes
+document.getElementById('cloud-btn').onclick = function() {
+  document.getElementById('cloud-mode').style.display = 'block';
+  document.getElementById('local-mode').style.display = 'none';
+  this.style.background = 'var(--color-primary)';
+  this.style.color = 'white';
+  document.getElementById('local-btn').style.background = 'var(--color-bg-hover)';
+  document.getElementById('local-btn').style.color = 'var(--color-text)';
+};
+document.getElementById('local-btn').onclick = function() {
+  document.getElementById('cloud-mode').style.display = 'none';
+  document.getElementById('local-mode').style.display = 'block';
+  this.style.background = 'var(--color-primary)';
+  this.style.color = 'white';
+  document.getElementById('cloud-btn').style.background = 'var(--color-bg-hover)';
+  document.getElementById('cloud-btn').style.color = 'var(--color-text)';
+};
+</script>
+</body>
+</html>

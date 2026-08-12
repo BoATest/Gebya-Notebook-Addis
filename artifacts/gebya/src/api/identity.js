@@ -56,11 +56,16 @@ export const identityApi = {
   },
 
   // POST /api/shops/join - staff joins a shop
-  async joinShop({ join_code, display_name, phone, device_label, device_id }) {
+  async joinShop({ join_code, display_name, phone, device_label, device_id, role, auto_approve }) {
     return request('/shops/join', {
       method: 'POST',
-      body: JSON.stringify({ join_code, display_name, phone, device_label, device_id }),
+      body: JSON.stringify({ join_code, display_name, phone, device_label, device_id, role, auto_approve }),
     });
+  },
+
+  // GET /api/shops/join/:code/verify - verify join code and get shop name
+  async verifyJoinCode(code) {
+    return request(`/shops/join/${encodeURIComponent(code)}/verify`);
   },
 
   // GET /api/me - current device + identity

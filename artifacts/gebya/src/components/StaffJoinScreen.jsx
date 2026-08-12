@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { QrCode, Copy, Check, ChevronRight, AlertCircle, Users } from 'lucide-react';
+import { ChevronRight, AlertCircle, Users } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { identityApi } from '../api/identity';
 import { setIdentity } from '../db';
@@ -9,12 +9,10 @@ import { isValidEthiopianPhone, normalizeEthiopianPhone, extractSubscriberDigits
 
 const BANK_COPY = 'Gebya is a notebook, not a bank. Gebya does not connect to your bank. Gebya cannot withdraw money. Never enter PIN, OTP, or password. Payment method is only a label like Cash, CBE, Telebirr, or Bank Transfer. Staff phone number is for identity/contact only, not bank/payment.';
 
-// Steps
 const STEP_CODE = 0;
 const STEP_NAME = 1;
-const STEP_CONFIRM = 2;
-const STEP_PENDING = 3;
-const STEP_ERROR = 4;
+const STEP_PHONE = 2;
+const STEP_ERROR = 3;
 const DEVICE_LABEL = 'Staff phone';
 
 function BankTrustCopy({ className = '' }) {
@@ -26,12 +24,10 @@ function BankTrustCopy({ className = '' }) {
 }
 
 function formatJoinCode(raw) {
-  // Strip everything except alphanumeric
   return raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 }
 
 function formatDisplay(code) {
-  // Format as XXXX-XXXX
   const cleaned = formatJoinCode(code);
   if (cleaned.length < 4) return cleaned;
   return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 8)}`;
@@ -40,45 +36,62 @@ function formatDisplay(code) {
 export default function StaffJoinScreen({ onJoined, onBack }) {
   const { t } = useLang();
 
-  // Pre-fill code from invite link without adding a router dependency.
-  const prefillCode = (() => {
-    try {
-      const searchParams = new URLSearchParams(window.location.search);
-      return searchParams.get('join') || searchParams.get('code') || '';
-    } catch {
-      return '';
-    }
-  })();
-
-  const [step, setStep] = useState(prefillCode ? STEP_NAME : STEP_CODE);
-  const [joinCode, setJoinCode] = useState(prefillCode);
+  const [step, setStep] = useState(STEP_CODE);
+  const [joinCode, setJoinCode] = useState('');
   const [displayName, setDisplayName] = useState('');
-   const [phone, setPhone] = useState('');
-   const [phoneTouched, setPhoneTouched] = useState(false);
-   const [phoneRequired, setPhoneRequired] = useState(false);
-  const [approvalRequired, setApprovalRequired] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [shopName, setShopName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [copied, setCopied] = useState(false);
-  const [joinResult, setJoinResult] = useState(null); // stored after join for pending state
+  const [verifyingCode, setVerifyingCode] = useState(false);
 
   function handleCodeChange(e) {
-    // Auto-format: strip non-alphanumeric, uppercase, insert dash every 4
     const raw = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
     if (raw.length <= 8) {
       setJoinCode(raw.length > 4 ? `${raw.slice(0, 4)}-${raw.slice(4)}` : raw);
     }
   }
 
-  async function handleCodeSubmit() {
-    if (joinCode.replace(/[^A-Za-z0-9]/g, '').length < 4) {
+  async function verifyCode() {
+    const cleanCode = formatJoinCode(joinCode);
+    if (cleanCode.length < 4) {
       setError(t.staffJoinCodeTooShort || 'Enter a valid shop code (at least 4 characters)');
-      return;
+      return false;
+    }
+    setVerifyingCode(true);
+    setError(null);
+    try {
+      const res = await identityApi.verifyJoinCode(cleanCode);
+      setShopName(res.shop_name);
+      return true;
+    } catch (err) {
+      if (err.status === 404) {
+        setError(t.staffJoinCodeInvalid || 'Shop code not found or expired.');
+      } else if (err.status === 410) {
+        setError(t.staffJoinCodeExpired || 'This code has expired. Ask the owner for a new one.');
+      } else {
+        setError(err.data?.error || err.message || t.staffJoinNetworkError || 'Could not verify code. Check connection.');
+      }
+      return false;
+    } finally {
+      setVerifyingCode(false);
+    }
+  }
+
+  async function handleCodeSubmit() {
+    const valid = await verifyCode();
+    if (valid) {
+      setStep(STEP_NAME);
+    }
+  }
+
+  function handleCodeChange(e) {
+    const raw = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (raw.length <= 8) {
+      setJoinCode(raw.length > 4 ? `${raw.slice(0, 4)}-${raw.slice(4)}` : raw);
     }
     setError(null);
-    setShopName(t.staffJoinThisShop || 'this shop');
-    setStep(STEP_NAME);
   }
 
   async function handleNameSubmit() {
@@ -87,34 +100,32 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
       setError(t.staffNameTooShort || 'Display name must be at least 2 characters');
       return;
     }
+    setStep(STEP_PHONE);
+  }
+
+  async function handlePhoneSubmit() {
     const normalizedPhone = normalizeEthiopianPhone(phone);
     if (!normalizedPhone) {
       setError(t.staffPhoneRequired || 'Enter a valid Ethiopian phone number (starts with 09 or 07, 9 digits)');
       return;
     }
-    setError(null);
     setLoading(true);
+    setError(null);
     try {
+      const cleanCode = formatJoinCode(joinCode);
+      const name = displayName.trim();
       const result = await identityApi.joinShop({
-        join_code: formatJoinCode(joinCode),
+        join_code: cleanCode,
         display_name: name,
         phone: normalizedPhone,
-        device_label: DEVICE_LABEL,
+        device_label: 'Staff phone',
+        role: 'cashier',
+        auto_approve: true,
       });
 
-      if (result.device_status === 'pending') {
-        // Approval required — show pending screen
-        setShopName(result.shop_name || shopName);
-        setJoinResult(result);
-        setStep(STEP_PENDING);
-        setLoading(false);
-        return;
-      }
-
-      // Active immediately
       await persistIdentity(result);
       setJoinResult(result);
-      // Save JWT from backend so sync engine can authenticate
+
       if (result.auth_token) {
         await setAuthToken(result.auth_token);
       }
@@ -123,13 +134,13 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
       if (err.status === 404) {
         setError(t.staffJoinCodeInvalid || 'Shop code not found.');
       } else if (err.status === 409) {
-        setError(t.staffJoinAlreadyJoined || 'This device is already connected to a shop. Leave the current shop first.');
+        setError(t.staffJoinAlreadyJoined || 'This number is already on the team. Contact the owner to edit you.');
       } else if (err.status === 400 && /phone/i.test(err.data?.error || err.message || '')) {
         setError(t.staffPhoneRequired || 'A valid Ethiopian phone number is required');
       } else {
         setError(err.data?.error || err.message || t.staffJoinNetworkError || 'Could not reach the server.');
       }
-      setStep(STEP_NAME);
+      setStep(STEP_PHONE);
     } finally {
       setLoading(false);
     }
@@ -147,69 +158,16 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
       role: result.role,
       permissions: result.permissions || {},
       device_status: result.device_status,
-      phone_required: result.phone_required ?? phoneRequired,
-      approval_required: result.approval_required ?? approvalRequired,
+      phone_required: result.phone_required ?? false,
+      approval_required: result.approval_required ?? false,
     });
-  }
-
-  async function handleConfirmJoin() {
-    setLoading(true);
-    setError(null);
-    try {
-      const normalizedPhone = normalizeEthiopianPhone(phone);
-      const result = await identityApi.joinShop({
-        join_code: formatJoinCode(joinCode),
-        display_name: displayName.trim(),
-        phone: normalizedPhone || undefined,
-        device_label: DEVICE_LABEL,
-      });
-      if (result.device_status === 'pending') {
-        setJoinResult(result);
-        setStep(STEP_PENDING);
-      } else {
-        await persistIdentity(result);
-        setJoinResult(result);
-        // Save JWT from backend so sync engine can authenticate
-        if (result.auth_token) {
-          await setAuthToken(result.auth_token);
-        }
-        if (onJoined) onJoined(result);
-      }
-    } catch (err) {
-      setError(err.data?.error || err.message || t.staffJoinNetworkError || 'Could not join. Try again.');
-      setStep(STEP_CONFIRM);
-    } finally {
-      setLoading(false);
-    }
   }
 
   function copyCode() {
     navigator.clipboard.writeText(formatJoinCode(joinCode)).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      fireToast(t('✓ Code copied', '✓ ኮድ ተቀድሷል'), 1500);
     });
   }
-
-  // Role display label
-  const roleLabel = joinResult?.role === 'owner' ? t.roleOwner || 'Owner' :
-                    joinResult?.role === 'manager' ? t.roleManager || 'Manager' :
-                    joinResult?.role === 'trusted_staff' ? t.roleTrustedStaff || 'Trusted Staff' :
-                    t.roleBasicStaff || 'Staff';
-
-  const permLabels = {
-    can_create_sale: t.permCanCreateSale || 'Record sales',
-    can_create_customer_credit: t.permCanCreateCustomerCredit || 'Record Dubie/credit',
-    can_create_customer_payment: t.permCanCreateCustomerPayment || 'Record customer payments',
-    can_create_expense: t.permCanCreateExpense || 'Record expenses',
-    can_create_note: t.permCanCreateNote || 'Add quick notes',
-    can_create_supplier_transaction: t.permCanCreateSupplierTransaction || 'Record supplier transactions',
-  };
-
-  const allowedActions = joinResult?.permissions
-    ? Object.entries(joinResult.permissions)
-        .filter(([, v]) => v === true)
-        .map(([k]) => permLabels[k] || k)
-    : [t.permCanCreateSale || 'Record sales'];
 
   return (
     <div
@@ -224,7 +182,7 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
         <div className="flex items-center gap-3 mb-4">
           {onBack && (
             <button
-              onClick={onBack}
+              onClick={() => { if (step === STEP_CODE) onBack(); else setStep(STEP_CODE); }}
               className="w-9 h-9 rounded-full flex items-center justify-center bg-white/20 text-white press-scale"
               aria-label="Back"
             >
@@ -246,7 +204,7 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
       <div className="flex-1 px-5 py-6">
 
         {/* STEP 0: Enter shop code */}
-        {step === STEP_CODE && (
+        {step === 0 && (
           <div className="space-y-5 animate-slide-up">
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -262,6 +220,7 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
                 autoCapitalize="characters"
                 autoCorrect="off"
                 spellCheck={false}
+                autoFocus
               />
               <p className="text-xs text-gray-400 mt-2 text-center font-medium">
                 {t.staffJoinCodeHint || 'Ask your owner for the 8-character shop code'}
@@ -277,19 +236,18 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
 
             <button
               onClick={handleCodeSubmit}
-              disabled={loading || joinCode.replace(/[^A-Za-z0-9]/g, '').length < 4}
+              disabled={verifyingCode || joinCode.replace(/[^A-Za-z0-9]/g, '').length < 4}
               className="w-full py-4 rounded-xl font-bold text-base text-white disabled:opacity-40 disabled:cursor-not-allowed press-scale"
               style={{ background: 'var(--color-primary)' }}
             >
-              {loading ? (t.staffJoinChecking || 'Checking…') : (t.staffJoinContinue || 'Continue')}
+              {verifyingCode ? (t.staffJoinChecking || 'Checking…') : (t.staffJoinContinue || 'Continue')}
             </button>
           </div>
         )}
 
-        {/* STEP 1: Enter name + phone */}
-        {step === STEP_NAME && (
+        {/* STEP 1: Enter name */}
+        {step === 1 && (
           <div className="space-y-5 animate-slide-up">
-            {/* Shop name confirmation */}
             <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center gap-3">
               <div className="w-9 h-9 rounded-full flex items-center justify-center bg-green-200 text-green-800 font-black text-sm flex-shrink-0">
                 {shopName.charAt(0).toUpperCase()}
@@ -313,66 +271,9 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
                 maxLength={40}
                 autoCorrect="off"
                 spellCheck={false}
+                autoFocus
               />
             </div>
-
-            <div>
-               <label className="block text-sm font-bold text-gray-700 mb-2">
-                 {t.staffJoinPhoneLabel || 'Phone Number'} <span className="text-red-500">*</span>
-               </label>
-               <div style={{ display: 'flex', gap: 0 }}>
-                 <div
-                   style={{
-                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                     padding: '0 12px',
-                     background: 'var(--color-surface-muted)',
-                     border: `2px solid ${(phoneTouched && phone && !isValidEthiopianPhone(phone)) ? 'var(--color-danger)' : 'var(--color-text-soft)'}`,
-                     borderRight: 'none',
-                     borderTopLeftRadius: 'var(--radius-md)',
-                     borderBottomLeftRadius: 'var(--radius-md)',
-                     fontSize: '0.92rem',
-                     fontWeight: 800,
-                     color: 'var(--color-primary)',
-                     minWidth: 64,
-                     minHeight: 48,
-                   }}
-                 >
-                   +251
-                 </div>
-                 <input
-                   type="tel"
-                   inputMode="numeric"
-                   value={phone}
-                   onChange={(e) => { setPhone(extractSubscriberDigits(e.target.value)); setError(null); }}
-                   onBlur={() => setPhoneTouched(true)}
-                   placeholder="9XXXXXXXX"
-                   maxLength={9}
-                   className="flex-1 px-4 py-3.5 border-2 text-base font-semibold focus:outline-none transition-colors"
-                   style={{
-                     borderRadius: '0 var(--radius-md) var(--radius-md) 0',
-                     borderColor: (phoneTouched && phone && !isValidEthiopianPhone(phone))
-                       ? 'var(--color-danger)'
-                       : 'var(--color-text-soft)',
-                     minHeight: 48,
-                     fontVariantNumeric: 'tabular-nums',
-                     letterSpacing: '0.04em',
-                   }}
-                 />
-               </div>
-               {phoneTouched && phone && isValidEthiopianPhone(phone) && (
-                 <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--color-primary)' }}>
-                   {formatEthiopianPhone('+251' + phone)}
-                 </p>
-               )}
-               {phoneTouched && phone && !isValidEthiopianPhone(phone) && (
-                 <p className="text-xs text-red-500 mt-1.5 font-medium">
-                   {t.staffJoinPhoneInvalid || 'Enter a valid Ethiopian number (starts with 9 or 7, 9 digits)'}
-                 </p>
-               )}
-               <p className="text-xs text-gray-400 mt-1.5 font-medium">
-                 {t.staffJoinPhoneNote || 'Used for contact only, never for payment'}
-               </p>
-             </div>
 
             {error && (
               <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
@@ -383,15 +284,15 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
 
             <button
               onClick={handleNameSubmit}
-              disabled={loading || displayName.trim().length < 2}
+              disabled={displayName.trim().length < 2}
               className="w-full py-4 rounded-xl font-bold text-base text-white disabled:opacity-40 disabled:cursor-not-allowed press-scale"
               style={{ background: 'var(--color-primary)' }}
             >
-              {loading ? (t.staffJoinJoining || 'Joining…') : (t.staffJoinJoinBtn || 'Join Shop')}
+              {t.staffJoinNext || 'Next'}
             </button>
 
             <button
-              onClick={() => { setStep(STEP_CODE); setError(null); }}
+              onClick={() => { setStep(0); setError(null); }}
               className="w-full py-3 text-sm font-semibold text-gray-500"
             >
               {t.staffJoinChangeCode || 'Change shop code'}
@@ -399,43 +300,80 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
           </div>
         )}
 
-        {/* STEP 2: Confirm — show role, permissions, bank copy */}
-        {step === STEP_CONFIRM && (
+        {/* STEP 2: Enter phone */}
+        {step === 2 && (
           <div className="space-y-5 animate-slide-up">
-            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-4 text-center">
-              <div className="w-14 h-14 rounded-full bg-green-200 mx-auto flex items-center justify-center mb-3">
-                <Users className="w-7 h-7 text-green-700" />
+            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center bg-green-200 text-green-800 font-black text-sm flex-shrink-0">
+                {shopName.charAt(0).toUpperCase()}
               </div>
-              <p className="text-xs font-semibold text-green-700 uppercase tracking-wider mb-1">
-                {t.staffJoinYouAreJoining || 'You are joining'}
-              </p>
-              <p className="text-xl font-black text-green-900">{shopName}</p>
-              <div className="mt-3 inline-flex items-center gap-1.5 bg-green-200 rounded-full px-3 py-1">
-                <span className="text-xs font-black text-green-800 uppercase tracking-wider">
-                  {roleLabel}
-                </span>
+              <div>
+                <p className="text-xs font-semibold text-green-700">{t.staffJoiningShop || 'Joining shop'}</p>
+                <p className="text-base font-black text-green-900">{shopName}</p>
               </div>
             </div>
 
-            {/* Allowed actions */}
-            <div className="bg-white border border-gray-200 rounded-xl px-4 py-4">
-              <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-3">
-                {t.staffJoinAllowedActions || 'What you can do'}
-              </p>
-              <ul className="space-y-2">
-                {allowedActions.map((action) => (
-                  <li key={action} className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0" />
-                    {action}
-                  </li>
-                ))}
-              </ul>
-              <p className="text-xs text-gray-400 mt-3 font-medium">
-                {t.staffJoinOwnerControls || 'Owner can change these permissions at any time'}
+            <p className="text-xs font-semibold text-green-700 uppercase tracking-wider mb-1">
+              {t.staffJoinAsSales || 'Joining as Sales Staff'}
+            </p>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                {t.staffJoinPhoneLabel || 'Phone Number'} <span className="text-red-500">*</span>
+              </label>
+              <div style={{ display: 'flex', gap: 0 }}>
+                <div
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '0 12px',
+                    background: 'var(--color-surface-muted)',
+                    border: `2px solid ${(phoneTouched && phone && !isValidEthiopianPhone(phone)) ? 'var(--color-danger)' : 'var(--color-text-soft)'}`,
+                    borderRight: 'none',
+                    borderTopLeftRadius: 'var(--radius-md)',
+                    borderBottomLeftRadius: 'var(--radius-md)',
+                    fontSize: '0.92rem',
+                    fontWeight: 800,
+                    color: 'var(--color-primary)',
+                    minWidth: 64,
+                    minHeight: 48,
+                  }}
+                >
+                  +251
+                </div>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={phone}
+                  onChange={(e) => { setPhone(extractSubscriberDigits(e.target.value)); setError(null); }}
+                  onBlur={() => setPhoneTouched(true)}
+                  placeholder="9XXXXXXXX"
+                  maxLength={9}
+                  className="flex-1 px-4 py-3.5 border-2 text-base font-semibold focus:outline-none transition-colors"
+                  style={{
+                    borderRadius: '0 var(--radius-md) var(--radius-md) 0',
+                    borderColor: (phoneTouched && phone && !isValidEthiopianPhone(phone))
+                      ? 'var(--color-danger)'
+                      : 'var(--color-text-soft)',
+                    minHeight: 48,
+                    fontVariantNumeric: 'tabular-nums',
+                    letterSpacing: '0.04em',
+                  }}
+                />
+              </div>
+              {phoneTouched && phone && isValidEthiopianPhone(phone) && (
+                <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--color-primary)' }}>
+                  {formatEthiopianPhone('+251' + phone)}
+                </p>
+              )}
+              {phoneTouched && phone && !isValidEthiopianPhone(phone) && (
+                <p className="text-xs text-red-500 mt-1.5 font-medium">
+                  {t.staffJoinPhoneInvalid || 'Enter a valid Ethiopian number (starts with 9 or 7, 9 digits)'}
+                </p>
+              )}
+              <p className="text-xs text-gray-400 mt-1.5 font-medium">
+                {t.staffJoinPhoneNote || 'Used for contact only, never for payment'}
               </p>
             </div>
-
-            <BankTrustCopy />
 
             {error && (
               <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
@@ -445,85 +383,22 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
             )}
 
             <button
-              onClick={handleConfirmJoin}
+              onClick={handlePhoneSubmit}
               disabled={loading}
               className="w-full py-4 rounded-xl font-bold text-base text-white disabled:opacity-40 disabled:cursor-not-allowed press-scale"
               style={{ background: 'var(--color-primary)' }}
             >
-              {loading ? (t.staffJoinJoining || 'Joining…') : (t.staffJoinConfirmBtn || 'Confirm & Join')}
+              {loading ? (t.staffJoinJoining || 'Joining…') : (t.staffJoinJoinBtn || 'Join Shop')}
             </button>
 
             <button
-              onClick={() => { setStep(STEP_NAME); setError(null); }}
+              onClick={() => { setStep(1); setError(null); }}
               className="w-full py-3 text-sm font-semibold text-gray-500"
             >
               {t.staffJoinGoBack || 'Go back'}
             </button>
-          </div>
-        )}
-
-        {/* STEP 3: Pending approval */}
-        {step === STEP_PENDING && (
-          <div className="space-y-5 animate-slide-up">
-            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-6 text-center">
-              <div className="w-14 h-14 rounded-full bg-amber-200 mx-auto flex items-center justify-center mb-3">
-                <Users className="w-7 h-7 text-amber-700" />
-              </div>
-              <p className="text-base font-black text-amber-900 mb-1">
-                {t.staffJoinPendingTitle || 'Request Sent'}
-              </p>
-              <p className="text-sm font-medium text-amber-700">
-                {t.staffJoinPendingDesc || 'Your request to join has been sent to the shop owner. You will be able to start recording once approved.'}
-              </p>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-xl px-4 py-4">
-              <p className="text-xs font-black text-gray-500 uppercase tracking-wider mb-2">
-                {t.staffJoinShopDetails || 'Shop Details'}
-              </p>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm font-semibold">
-                  <span className="text-gray-600">{t.staffJoinShopName || 'Shop'}</span>
-                  <span className="text-gray-900">{joinResult?.shop_name || shopName}</span>
-                </div>
-                <div className="flex justify-between text-sm font-semibold">
-                  <span className="text-gray-600">{t.staffJoinYourName || 'Your Name'}</span>
-                  <span className="text-gray-900">{displayName}</span>
-                </div>
-                <div className="flex justify-between text-sm font-semibold">
-                  <span className="text-gray-600">{t.staffJoinRole || 'Role'}</span>
-                  <span className="text-gray-900">{roleLabel}</span>
-                </div>
-              </div>
-            </div>
 
             <BankTrustCopy />
-
-            <button
-              onClick={onBack}
-              className="w-full py-4 rounded-xl font-bold text-base text-white press-scale"
-              style={{ background: 'var(--color-primary)' }}
-            >
-              {t.staffJoinOK || 'OK'}
-            </button>
-          </div>
-        )}
-
-        {/* STEP 4: Error */}
-        {step === STEP_ERROR && (
-          <div className="space-y-5 animate-slide-up">
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-6 text-center">
-              <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
-              <p className="text-base font-black text-red-900 mb-1">{t.staffJoinError || 'Something went wrong'}</p>
-              <p className="text-sm font-medium text-red-700">{error}</p>
-            </div>
-            <button
-              onClick={() => { setStep(STEP_CODE); setError(null); }}
-              className="w-full py-4 rounded-xl font-bold text-base text-white press-scale"
-              style={{ background: 'var(--color-primary)' }}
-            >
-              {t.staffJoinTryAgain || 'Try Again'}
-            </button>
           </div>
         )}
       </div>

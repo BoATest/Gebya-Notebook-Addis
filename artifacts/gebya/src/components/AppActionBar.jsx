@@ -1,6 +1,7 @@
 import { Plus, Minus, ShoppingBag, RotateCw, Users, Truck, CreditCard, Wallet } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
+import { usePermissionsStore } from '../stores/permissionsStore';
 
 function TodayActionBar({
   customerSummaries,
@@ -15,6 +16,7 @@ function TodayActionBar({
   onPointerCancel,
 }) {
   const { t } = useLang();
+  const canAddRecords = usePermissionsStore(s => s.hasPermission('can_add_records'));
 
   const buttons = [
     { type: 'sale',    label: t.saleButton,    color: '#16a34a', icon: Plus        },
@@ -22,10 +24,15 @@ function TodayActionBar({
     { type: 'expense', label: t.expenseButton,  color: '#dc2626', icon: Minus       },
     { type: 'credit',  label: t.creditButton,  color: '#2563eb', icon: RotateCw     },
   ];
+  // Staff without `can_add_records` (e.g. viewers) only get the customer-credit
+  // action; business record entry is hidden.
+  const visibleButtons = canAddRecords
+    ? buttons
+    : buttons.filter(b => b.type === 'credit');
 
   return (
     <div className="flex gap-1.5 sm:gap-2">
-      {buttons.map(b => {
+      {visibleButtons.map(b => {
         const pressed = pressedBtn === b.type;
         const Icon = b.icon;
         const handlers = {

@@ -250,6 +250,10 @@ export default function AppShell() {
     if (role === 'owner' || role === 'manager') return true;
     return storePermissions?.can_manage_team === true;
   }, [storeRole, storePermissions, shopProfile?.role]);
+  // A non-owner/manager business member still needs to reach their own
+  // staff surface (My Collection + Today), so the Staff tab is shown to them.
+  const isStaffRole = !!storeRole && storeRole !== 'owner' && storeRole !== 'manager';
+  const staffTabVisible = canManageTeam || isStaffRole;
 
   const rememberLastSave = useCallback(async (snapshot) => {
     if (!snapshot) return;
@@ -637,6 +641,24 @@ export default function AppShell() {
     }, 30000);
     return () => clearInterval(interval);
   }, [fetchUnreadNotifCount]);
+
+  // Live permission sync — re-fetch the current user's role + permissions so
+  // that owner-side toggles (can_view_reports, can_add_records, …) take effect
+  // on staff devices in near-real-time without a manual reload.
+  useEffect(() => {
+    if (loading) return undefined;
+    const refreshPermissions = () => {
+      if (isBrowserOnline()) {
+        useAuthStore.getState().init().catch(() => { /* non-critical */ });
+      }
+    };
+    const interval = setInterval(refreshPermissions, 30000);
+    window.addEventListener('online', refreshPermissions);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', refreshPermissions);
+    };
+  }, [loading]);
 
   const rememberSaleItemsInCatalog = async (sale) => {
     const items = Array.isArray(sale?.items) ? sale.items : [];
@@ -2023,14 +2045,12 @@ export default function AppShell() {
 
         {activeTab === 'staff' && (
           <StaffPage
-            staffMembers={staffMembers}
             activeStaffMemberId={activeStaffMemberId}
             currentActorLabel={currentActorLabel}
             shopProfile={shopProfile}
             onSetActiveStaffMember={handleSetActiveStaffMember}
           onSaveStaffMember={handleSaveStaffMember}
           onUpdateStaffMember={handleUpdateStaffMember}
-          onChangeLocalStaffRole={handleChangeLocalStaffRole}
           onDeactivateStaffMember={handleDeactivateStaffMember}
             onReactivateStaffMember={handleReactivateStaffMember}
             onApproveDevice={handleApproveDevice}
@@ -2118,7 +2138,7 @@ export default function AppShell() {
         }}
         creditMetrics={creditMetrics}
         unreadNotifCount={unreadNotifCount}
-        showStaffTab={canManageTeam}
+        showStaffTab={staffTabVisible}
       />
 
       <GlobalModals

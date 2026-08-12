@@ -142,10 +142,60 @@ router.post("/shops", async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
+// GET /api/shops/join/:code/verify — verify join code and return shop name
+// ---------------------------------------------------------------------------
+router.get("/shops/join/:code/verify", async (req: Request, res: Response) => {
+  const { code } = req.params;
+  if (!code || typeof code !== "string") {
+    res.status(400).json({ error: "Code is required" });
+    return;
+  }
+
+  const cleanCode = code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  const codeHash = crypto.createHmac('sha256', JOIN_CODE_SIGNING_KEY).update(cleanCode).digest("hex");
+
+  const inviteRows = await db
+    .select({
+      id: invites.id,
+      businessId: invites.businessId,
+      role: invites.role,
+      expiresAt: invites.expiresAt,
+    })
+    .from(invites)
+    .where(
+      and(
+        eq(invites.token, codeHash),
+        isNull(invites.acceptedAt),
+        isNull(invites.revokedAt),
+      )
+    )
+    .limit(1);
+
+  if (!inviteRows.length) {
+    res.status(404).json({ error: "Code not valid." });
+    return;
+  }
+
+  const invite = inviteRows[0];
+  if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
+    res.status(410).json({ error: "Code expired." });
+    return;
+  }
+
+  const bizRows = await db.select({ name: businesses.name }).from(businesses).where(eq(businesses.id, invite.businessId)).limit(1);
+  if (!bizRows.length) {
+    res.status(404).json({ error: "Shop not found." });
+    return;
+  }
+
+  res.json({ shop_name: bizRows[0].name, role: invite.role });
+});
+
+// ---------------------------------------------------------------------------
 // POST /api/shops/join — staff joins via join code
 // ---------------------------------------------------------------------------
 router.post("/shops/join", async (req: Request, res: Response) => {
-  const { join_code, display_name, phone, device_label } = req.body || {};
+  const { join_code, display_name, phone, device_label, role: requestedRole, auto_approve } = req.body || {};
   if (!join_code || typeof join_code !== "string") {
     res.status(400).json({ error: "join_code is required" });
     return;
@@ -200,7 +250,12 @@ router.post("/shops/join", async (req: Request, res: Response) => {
     return;
   }
 
-  const role = invite.role === "owner" ? "trusted_staff" : invite.role;
+  // Role from invite (owner can't be invited), but client can request a role (default cashier)
+  const inviteRole = invite.role === "owner" ? "trusted_staff" : invite.role;
+  const role = requestedRole && ["cashier", "viewer", "manager", "trusted_staff"].includes(requestedRole)
+    ? requestedRole
+    : inviteRole;
+
   await db.insert(businessMembers).values({
     businessId: shop.id,
     userId,
@@ -217,6 +272,9 @@ router.post("/shops/join", async (req: Request, res: Response) => {
   const authToken = signJwt(userId);
   const phoneNormalized = phone ? normalizePhone(phone) : null;
 
+  // Auto-approve device by default (default ON for fastest onboarding)
+  const deviceStatus = auto_approve !== false ? "active" : "pending";
+
   res.status(201).json({
     staff_id: userId,
     user_id: userId,
@@ -228,7 +286,7 @@ router.post("/shops/join", async (req: Request, res: Response) => {
     device_token: authToken,
     auth_token: authToken,
     auth_error: null,
-    device_status: "active",
+    device_status: deviceStatus,
     rejoined: false,
     previous_devices: undefined,
     phone_number: phoneNormalized || "",
