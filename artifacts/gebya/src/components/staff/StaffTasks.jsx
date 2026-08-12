@@ -19,13 +19,13 @@ export default function StaffTasks({ staff, lang, canManageTeam }) {
     if (!staff?.id) return;
     setLoading(true);
     try {
-      const data = await apiFetch(`/tasks?staff_id=${staff.id}`);
+      const data = await apiFetch(`/tasks?staff_id=${staff.userId || staff.id}`);
       setTasks(data.tasks || []);
     } catch {}
     setLoading(false);
   };
 
-  useEffect(() => { loadTasks(); }, [staff?.id]);
+  useEffect(() => { loadTasks(); }, [staff?.userId]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -34,7 +34,7 @@ export default function StaffTasks({ staff, lang, canManageTeam }) {
       await apiFetch('/tasks', {
         method: 'POST',
         body: JSON.stringify({
-          staffId: staff.id,
+          staffId: staff.userId || staff.id,
           title: newTitle.trim(),
           priority: newPriority,
           dueDate: newDueDate || null,

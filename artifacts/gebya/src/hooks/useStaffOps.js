@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import db from '../db';
 import { getAuthToken } from '../utils/syncEngine';
 import identityApi from '../api/identity';
+import { useStaffStore } from '../stores/staffStore';
 import { normalizeStaffDraft } from '../utils/staffMembers';
 
 export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMembers, activeStaffMemberId, shopProfile }) {
@@ -76,60 +77,60 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
       })));
   }, [shopProfile, setStaffMembers]);
 
+  // Cloud members are the single source of truth. StaffPage passes the
+  // member's user id (member.userId) as staffId, which is exactly what the
+  // legacy deactivate/reactivate routes key on, so we call the API directly
+  // and refresh the cloud list. A legacy local-only record fallback is kept.
   const handleDeactivateStaffMember = useCallback(async (staffId) => {
-    const member = staffMembers.find(item => String(item.id) === String(staffId));
-    if (!member) return false;
-    if (member.staff_id) {
-      try {
-        const token = await getAuthToken();
-        if (!token) return false;
-        await identityApi.deactivateStaff(member.staff_id, token);
-        await refreshStaffMembers();
-        return true;
-      } catch {
-        return false;
-      }
-    }
-    const now = Date.now();
+    const token = await getAuthToken();
+    if (!token) return false;
     try {
-      await db.staff_members.update(member.id, { active: false, updated_at: now, deactivated_at: now });
-      setStaffMembers(prev => sortStaff(prev.map(item =>
-        item.id === member.id ? { ...item, active: false, updated_at: now, deactivated_at: now } : item
-      )));
-      if (String(activeStaffMemberId) === String(member.id)) {
-        await db.settings.put({ key: 'active_staff_member_id', value: null });
-        setActiveStaffMemberId(null);
+      await identityApi.deactivateStaff(staffId, token);
+      await refreshStaffMembers();
+      const { loadCloudMembers } = useStaffStore.getState();
+      await loadCloudMembers();
+      return true;
+    } catch (err) {
+      const local = staffMembers.find(item => String(item.id) === String(staffId));
+      if (local) {
+        const now = Date.now();
+        await db.staff_members.update(local.id, { active: false, updated_at: now, deactivated_at: now });
+        setStaffMembers(prev => sortStaff(prev.map(item =>
+          item.id === local.id ? { ...item, active: false, updated_at: now, deactivated_at: now } : item
+        )));
+        if (String(activeStaffMemberId) === String(local.id)) {
+          await db.settings.put({ key: 'active_staff_member_id', value: null });
+          setActiveStaffMemberId(null);
+        }
+        return true;
       }
-    } catch {
+      console.error('deactivateStaff failed', err);
       return false;
     }
-    return true;
   }, [staffMembers, activeStaffMemberId, setStaffMembers, setActiveStaffMemberId, sortStaff, refreshStaffMembers]);
 
   const handleReactivateStaffMember = useCallback(async (staffId) => {
-    const member = staffMembers.find(item => String(item.id) === String(staffId));
-    if (!member) return false;
-    const now = Date.now();
-    if (member.staff_id) {
-      try {
-        const token = await getAuthToken();
-        if (!token) return false;
-        await identityApi.reactivateStaff(member.staff_id, token);
-        await refreshStaffMembers();
-        return true;
-      } catch {
-        return false;
-      }
-    }
+    const token = await getAuthToken();
+    if (!token) return false;
     try {
-      await db.staff_members.update(member.id, { active: true, updated_at: now, deactivated_at: null });
-      setStaffMembers(prev => sortStaff(prev.map(item =>
-        item.id === member.id ? { ...item, active: true, updated_at: now, deactivated_at: null } : item
-      )));
-    } catch {
+      await identityApi.reactivateStaff(staffId, token);
+      await refreshStaffMembers();
+      const { loadCloudMembers } = useStaffStore.getState();
+      await loadCloudMembers();
+      return true;
+    } catch (err) {
+      const local = staffMembers.find(item => String(item.id) === String(staffId));
+      if (local) {
+        const now = Date.now();
+        await db.staff_members.update(local.id, { active: true, updated_at: now, deactivated_at: null });
+        setStaffMembers(prev => sortStaff(prev.map(item =>
+          item.id === local.id ? { ...item, active: true, updated_at: now, deactivated_at: null } : item
+        )));
+        return true;
+      }
+      console.error('reactivateStaff failed', err);
       return false;
     }
-    return true;
   }, [staffMembers, setStaffMembers, sortStaff, refreshStaffMembers]);
 
   const handleApproveDevice = useCallback(async (deviceId) => {
@@ -138,6 +139,8 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
       if (!token) return null;
       const result = await identityApi.approveDevice(deviceId, token);
       await refreshStaffMembers();
+      const { loadCloudMembers } = useStaffStore.getState();
+      await loadCloudMembers();
       return result;
     } catch {
       return null;
@@ -150,6 +153,8 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
       if (!token) return null;
       const result = await identityApi.rejectDevice(deviceId, { reason }, token);
       await refreshStaffMembers();
+      const { loadCloudMembers } = useStaffStore.getState();
+      await loadCloudMembers();
       return result;
     } catch {
       return null;

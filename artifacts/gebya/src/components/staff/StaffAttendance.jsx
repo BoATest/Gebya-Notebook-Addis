@@ -17,7 +17,7 @@ export default function StaffAttendance({ staff, lang, canManageTeam }) {
     try {
       const from = new Date(Date.now() - 30 * 86400000).toISOString();
       const to = new Date().toISOString();
-      const data = await apiFetch(`/attendance?staff_id=${staff.id}&from=${from}&to=${to}`);
+      const data = await apiFetch(`/attendance?staff_id=${staff.userId || staff.id}&from=${from}&to=${to}`);
       setRecords(data.attendance || []);
       const latest = data.attendance?.find(r => !r.clockOut);
       setActiveSession(latest || null);
@@ -25,13 +25,13 @@ export default function StaffAttendance({ staff, lang, canManageTeam }) {
     setLoading(false);
   };
 
-  useEffect(() => { loadRecords(); }, [staff?.id]);
+  useEffect(() => { loadRecords(); }, [staff?.userId]);
 
   const handleClockIn = async () => {
     try {
       const data = await apiFetch('/attendance/clock-in', {
         method: 'POST',
-        body: JSON.stringify({ staffId: staff.id }),
+        body: JSON.stringify({ staffId: staff.userId || staff.id }),
       });
       fireToast(t('Clocked in', 'ገባ'), 1800);
       loadRecords();
@@ -44,7 +44,7 @@ export default function StaffAttendance({ staff, lang, canManageTeam }) {
     try {
       await apiFetch('/attendance/clock-out', {
         method: 'POST',
-        body: JSON.stringify({ staffId: staff.id }),
+        body: JSON.stringify({ staffId: staff.userId || staff.id }),
       });
       fireToast(t('Clocked out', 'ወጣ'), 1800);
       loadRecords();
