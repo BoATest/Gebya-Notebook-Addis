@@ -7,6 +7,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 import router from "./routes/index.js";
+import { ensureSchema } from "./ensureSchema.js";
 
 const app: Express = express();
 // Trust the first proxy hop (Vercel) so req.ip reflects the real client IP
@@ -148,6 +149,11 @@ app.get("/", (_req, res) => {
 });
 
 // ---- ROUTES ----
+// Bring the live DB schema in line with the code (idempotent, once per container)
+// so e.g. createShop's INSERTs against `businesses` don't fail on stale columns.
+app.use((_req, _res, next) => {
+  ensureSchema().then(() => next(), () => next());
+});
 app.use("/", router);
 app.use("/api", router);
 
@@ -159,6 +165,10 @@ app.use((err, req, res, _next) => {
     method: req.method,
     path: req.originalUrl || req.url,
     message: err instanceof Error ? err.message : "Unhandled error",
+    cause:
+      err instanceof Error && (err as any).cause
+        ? String((err as any).cause)
+        : undefined,
   }));
   if (res.headersSent) {
     return;

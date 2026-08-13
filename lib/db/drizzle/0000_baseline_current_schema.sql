@@ -260,6 +260,8 @@ CREATE TABLE "businesses" (
 	"name" text DEFAULT 'My Shop' NOT NULL,
 	"slug" varchar(64),
 	"preferred_lang" varchar(8) DEFAULT 'am',
+	"phone_required" boolean DEFAULT false,
+	"approval_required" boolean DEFAULT false,
 	"created_at" timestamp with time zone DEFAULT now(),
 	"updated_at" timestamp with time zone DEFAULT now(),
 	CONSTRAINT "businesses_slug_unique" UNIQUE("slug")
