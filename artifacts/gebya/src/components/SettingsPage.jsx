@@ -9,6 +9,7 @@ import MoneyTab from './settings/tabs/MoneyTab';
 import DataTab from './settings/tabs/DataTab';
 import AdminMetricsView from './AdminMetricsView';
 import CrossShopCurationQueue from './CrossShopCurationQueue';
+import DownloadAppBanner from './settings/DownloadAppBanner';
 
 const AdminDashboard = lazy(() => import('./AdminDashboard.jsx'));
 
@@ -196,6 +197,9 @@ function SettingsPage({
 
   return (
     <div className="space-y-2 pb-4">
+      {/* Download App Banner */}
+      <DownloadAppBanner />
+
       {/* Topbar */}
       <div className="flex items-center justify-between px-4 pt-3 pb-1" style={{ background: 'var(--cream)' }}>
         <div className="flex items-center gap-2.5">
