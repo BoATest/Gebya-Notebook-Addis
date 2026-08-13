@@ -10,10 +10,11 @@ export default function StaffJoinCode({ shopProfile, onRotateJoinCode, t }) {
     setRotating(true);
     try {
       const result = await onRotateJoinCode(shopProfile?.shop_id || shopProfile?.id);
-      if (result) fireToast(t('✓ Join code reset', '✓ ኮድ ተሻከረ'), 2000);
+      if (result?.error) fireToast(`${t('Failed to reset join code', 'ኮድ አልተሻከረም')}: ${result.error}`, 4500);
+      else if (result) fireToast(t('✓ Join code reset', '✓ ኮድ ተሻከረ'), 2000);
       else fireToast(t('Failed to reset join code', 'ኮድ አልተሻከረም'), 3000);
-    } catch {
-      fireToast(t('Failed to reset join code', 'ኮድ አልተሻከረም'), 3000);
+    } catch (err) {
+      fireToast(`${t('Failed to reset join code', 'ኮድ አልተሻከረም')}: ${err?.message || ''}`, 4500);
     } finally {
       setRotating(false);
     }
@@ -87,8 +88,14 @@ export default function StaffJoinCode({ shopProfile, onRotateJoinCode, t }) {
               type="button"
               onClick={async () => {
                 if (!onRotateJoinCode) return;
-                const result = await onRotateJoinCode(shopProfile?.shop_id || shopProfile?.id);
-                if (result) fireToast(t('✓ Join code generated', '✓ የመቀላቀል ኮድ ተፈጠረ'), 2000);
+                try {
+                  const result = await onRotateJoinCode(shopProfile?.shop_id || shopProfile?.id);
+                  if (result?.error) fireToast(`${t('Failed to generate join code', 'ኮድ አልተፈጠረም')}: ${result.error}`, 4500);
+                  else if (result) fireToast(t('✓ Join code generated', '✓ የመቀላቀል ኮድ ተፈጠረ'), 2000);
+                  else fireToast(t('Failed to generate join code', 'ኮድ አልተፈጠረም'), 3000);
+                } catch (err) {
+                  fireToast(`${t('Failed to generate join code', 'ኮድ አልተፈጠረም')}: ${err?.message || ''}`, 4500);
+                }
               }}
               className="w-full py-2.5 rounded-xl text-xs font-bold border-2 border-dashed flex items-center justify-center gap-2"
               style={{ borderColor: 'var(--color-accent-amber)', color: 'var(--color-warning)', background: 'var(--color-bg-accent-amber)' }}

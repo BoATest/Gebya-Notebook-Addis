@@ -68,13 +68,14 @@ export function useShopOps({ shopProfile, setShopProfile, setEnabledProviders, s
   const handleRotateJoinCode = useCallback(async (shopId) => {
     try {
       const token = await getAuthToken();
-      if (!token) return null;
+      if (!token) return { error: 'No auth token available. Please re-login.' };
       const result = await identityApi.rotateJoinCode(shopId, token);
       const current = shopProfile || {};
       setShopProfile(current ? { ...current, join_code: result.join_code, join_url: result.join_url } : current);
       return result;
-    } catch {
-      return null;
+    } catch (err) {
+      const msg = err?.data?.error || err?.message || 'Unknown error';
+      return { error: String(msg) };
     }
   }, [shopProfile, setShopProfile]);
 
