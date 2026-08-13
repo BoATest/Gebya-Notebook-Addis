@@ -40,6 +40,9 @@ async function buildAll() {
     define: {
       "process.env.NODE_ENV": '"production"',
     },
+    banner: {
+      js: `import { createRequire as __gbyaRequire } from "module";\nconst require = __gbyaRequire(import.meta.url);\n`,
+    },
     minify: true,
     external: externals,
     logLevel: "info",
