@@ -339,6 +339,73 @@ router.get("/me", async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
+// POST /api/shops/:shop_id/staff — owner/manager adds a staff member
+// ---------------------------------------------------------------------------
+router.post("/shops/:shop_id/staff", async (req: Request, res: Response) => {
+  const currentUserId = getUserIdFromRequest(req);
+  if (!currentUserId) {
+    res.status(401).json({ error: "Missing bearer token." });
+    return;
+  }
+
+  const shopId = Number(req.params.shop_id);
+  if (!Number.isFinite(shopId)) {
+    res.status(400).json({ error: "Invalid shop_id" });
+    return;
+  }
+
+  const member = await getBusinessForUser(currentUserId);
+  if (!member || member.businessId !== shopId || (member.role !== "owner" && member.role !== "manager")) {
+    res.status(403).json({ error: "Owner or manager only." });
+    return;
+  }
+
+  const { display_name, phone, role: requestedRole } = req.body || {};
+  if (!display_name || typeof display_name !== "string" || !display_name.trim()) {
+    res.status(400).json({ error: "display_name is required." });
+    return;
+  }
+
+  const normalizedPhone = phone ? normalizePhone(phone) : null;
+  let userId = await ensureUser(normalizedPhone || undefined);
+
+  const existing = await db
+    .select({ id: businessMembers.id })
+    .from(businessMembers)
+    .where(and(eq(businessMembers.businessId, shopId), eq(businessMembers.userId, userId)))
+    .limit(1);
+  if (existing.length > 0) {
+    res.status(409).json({ error: "User is already a member of this shop." });
+    return;
+  }
+
+  const allowedRoles = ["cashier", "viewer", "manager", "trusted_staff"];
+  const role = requestedRole && allowedRoles.includes(requestedRole) ? requestedRole : "cashier";
+
+  await db.insert(businessMembers).values({
+    businessId: shopId,
+    userId,
+    displayName: display_name.trim(),
+    role,
+    invitedByUserId: currentUserId,
+    joinedAt: new Date(),
+    active: true,
+  });
+
+  const permissions = resolvePermissions(role, null);
+  res.status(201).json({
+    staff_id: userId,
+    display_name: display_name.trim(),
+    phone_snapshot: normalizedPhone || "",
+    role,
+    staff_status: "active",
+    permissions,
+    joined_at: new Date().toISOString(),
+    devices: [],
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GET /api/shops/:shop_id/staff — owner/manager lists members
 // ---------------------------------------------------------------------------
 router.get("/shops/:shop_id/staff", async (req: Request, res: Response) => {

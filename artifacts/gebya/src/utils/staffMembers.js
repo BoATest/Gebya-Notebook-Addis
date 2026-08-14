@@ -2,7 +2,8 @@ export function normalizeStaffDraft(payload = {}) {
   const displayName = String(payload.display_name || '').trim();
   if (!displayName) return null;
 
-  const role = payload.role === 'owner' ? 'owner' : 'staff';
+  const allowedRoles = ['owner', 'manager', 'cashier', 'viewer', 'trusted_staff'];
+  const role = allowedRoles.includes(payload.role) ? payload.role : 'cashier';
   const now = Date.now();
 
   return {
@@ -12,6 +13,7 @@ export function normalizeStaffDraft(payload = {}) {
     created_at: payload.created_at || now,
     updated_at: now,
     deactivated_at: payload.active === false ? (payload.deactivated_at || now) : null,
+    phone_snapshot: payload.phone || null,
   };
 }
 

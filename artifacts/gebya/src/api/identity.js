@@ -74,11 +74,20 @@ export const identityApi = {
   },
 
   // GET /api/shops/:shop_id/staff - owner lists staff
-  async listStaff(shopId, token) {
-    return request(`/shops/${shopId}/staff`, { token });
-  },
-
-  // POST /api/shops/:shop_id/rotate-code - owner rotates join code
+   async listStaff(shopId, token) {
+     return request(`/shops/${shopId}/staff`, { token });
+   },
+ 
+   // POST /api/shops/:shop_id/staff - owner adds staff
+   async addStaff(shopId, { display_name, phone, role }, token) {
+     return request(`/shops/${shopId}/staff`, {
+       method: 'POST',
+       token,
+       body: JSON.stringify({ display_name, phone, role }),
+     });
+   },
+ 
+   // POST /api/shops/:shop_id/rotate-code - owner rotates join code
   async rotateJoinCode(shopId, token) {
     return request(`/shops/${shopId}/rotate-code`, { method: 'POST', token });
   },

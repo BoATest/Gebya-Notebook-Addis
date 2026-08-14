@@ -39,6 +39,12 @@ export default function StaffPage({
   // Owner/manager experience is organized into tabs
   const [ownerTab, setOwnerTab] = useState('team');
   const [openCollectionSheet, setOpenCollectionSheet] = useState(false);
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [addStaffName, setAddStaffName] = useState('');
+  const [addStaffPhone, setAddStaffPhone] = useState('');
+  const [addStaffRole, setAddStaffRole] = useState('cashier');
+  const [addStaffError, setAddStaffError] = useState(null);
+  const [addStaffSaving, setAddStaffSaving] = useState(false);
 
   // ─── Global state for isolated component isolation ───
   const store = useStaffStore();
@@ -235,6 +241,121 @@ export default function StaffPage({
             <>
               {/* Join Code */}
               <StaffJoinCode shopProfile={shopProfile} onRotateJoinCode={onRotateJoinCode} t={t} />
+
+              {/* Add Staff */}
+              {canManageTeam && (
+                <>
+                  <div className="px-2 pb-2">
+                    <button
+                      onClick={() => setShowAddStaffModal(true)}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold transition"
+                      style={{
+                        background: 'var(--color-primary)',
+                        color: 'var(--color-bg-white)',
+                      }}
+                    >
+                      {t('Add Staff', 'ሰራተኛ አክሙ')}
+                    </button>
+                  </div>
+
+                  {showAddStaffModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'var(--color-overlay)' }}>
+                      <div className="bg-white rounded-2xl p-5 w-full max-w-sm mx-4 shadow-xl">
+                        <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--color-text)' }}>
+                          {t('Add Staff Member', 'ሰራተኛ አክሙ')}
+                        </h3>
+                        <p className="text-xs text-gray-500 mb-3">
+                          {t('Enter staff details to add them to your shop.', 'የሰራተኛ ዝርዝር ያስገቡ።')}
+                        </p>
+                        {addStaffError && (
+                          <p className="text-xs text-red-600 mb-2">{addStaffError}</p>
+                        )}
+                        <div className="mb-3">
+                          <input
+                            type="text"
+                            value={addStaffName}
+                            onChange={e => setAddStaffName(e.target.value)}
+                            placeholder={t('Display name (optional)', 'ስም ለማሳጥ (አርጣ)')}
+                            className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none"
+                            style={{ borderColor: 'var(--color-border)' }}
+                          />
+                        </div>
+                        <div className="mb-3">
+                          <input
+                            type="tel"
+                            value={addStaffPhone}
+                            onChange={e => { setAddStaffPhone(e.target.value); setAddStaffError(null); }}
+                            placeholder={t('Phone number', 'ስምንትና')}
+                            className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none"
+                            style={{ borderColor: 'var(--color-border)' }}
+                          />
+                        </div>
+                        <div className="mb-4">
+                          <label className="text-xs font-bold text-gray-700 mb-1 block">{t('Role', 'ሚና')}</label>
+                          <select
+                            value={addStaffRole}
+                            onChange={e => setAddStaffRole(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none"
+                            style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg-white)' }}
+                          >
+                            <option value="cashier">{t('Cashier', 'ክራሚያ')}</option>
+                            <option value="viewer">{t('Viewer', 'ተመልካች')}</option>
+                            <option value="manager">{t('Manager', 'አስተዳዳሪ')}</option>
+                            <option value="trusted_staff">{t('Trusted Staff', 'ተስፋ ያለው ሰራተኛ')}</option>
+                          </select>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setShowAddStaffModal(false);
+                              setAddStaffName('');
+                              setAddStaffPhone('');
+                              setAddStaffRole('cashier');
+                              setAddStaffError(null);
+                            }}
+                            className="flex-1 px-3 py-2 rounded-lg text-sm font-bold border"
+                            style={{ borderColor: 'var(--color-border)' }}
+                          >
+                            {t('Cancel', 'ሰርዝ')}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              const { isValidEthiopianPhone, normalizeEthiopianPhone } = await import('../utils/phoneNumber');
+                              if (!addStaffPhone || !isValidEthiopianPhone(addStaffPhone)) {
+                                setAddStaffError(t('A valid Ethiopian phone number is required', 'በዚህ ዘርባዊ የሆነ ቀድሞ ይሰማረው'));
+                                return;
+                              }
+                              setAddStaffSaving(true);
+                              setAddStaffError(null);
+                              try {
+                                const saved = await onSaveStaffMember?.({
+                                  display_name: addStaffName.trim() || undefined,
+                                  phone: normalizeEthiopianPhone(addStaffPhone),
+                                  role: addStaffRole,
+                                });
+                                if (!saved) throw new Error('Failed to save');
+                                setShowAddStaffModal(false);
+                                setAddStaffName('');
+                                setAddStaffPhone('');
+                                setAddStaffRole('cashier');
+                              } catch (err) {
+                                setAddStaffError(t('Failed to add staff. Please try again.', 'ሰራተኛ ማከል አልተመለሰም።'));
+                              } finally {
+                                setAddStaffSaving(false);
+                              }
+                            }}
+                            disabled={addStaffSaving || !addStaffPhone}
+                            className="flex-1 px-3 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+                            style={{ background: 'var(--color-primary)' }}
+                          >
+                            {addStaffSaving ? '...' : t('Add', 'አክሙ')}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
 
               {/* Device Manager */}
               {pendingDevices.length > 0 && (

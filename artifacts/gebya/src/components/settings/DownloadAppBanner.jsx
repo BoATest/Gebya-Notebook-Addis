@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useLang } from '../context/LangContext';
+import { useLang } from '../../context/LangContext';
 
 export default function DownloadAppBanner() {
   const { lang } = useLang();

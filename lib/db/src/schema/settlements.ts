@@ -45,6 +45,17 @@ export const settlements = pgTable("settlements", {
   reconciledBy: integer("reconciled_by"),
   reconciliationNote: varchar("reconciliation_note", { length: 500 }),
 
+  reconciliationStatus: varchar("reconciliation_status", { length: 32 }).notNull().default("checked"),
+  staffReportedCash: integer("staff_reported_cash"),
+  staffReportedTransfer: integer("staff_reported_transfer"),
+  staffSubmittedAt: bigint("staff_submitted_at", { mode: "number" }),
+  staffNote: varchar("staff_note", { length: 500 }),
+  ownerConfirmedCash: integer("owner_confirmed_cash"),
+  ownerConfirmedTransfer: integer("owner_confirmed_transfer"),
+  ownerNote: varchar("owner_note", { length: 500 }),
+  reconciliationLog: jsonb("reconciliation_log").$type<{ stage: string; actor: string; at: number; note: string }[]>().default([]),
+  carryForward: integer("carry_forward"),
+
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
   updatedAt: bigint("updated_at", { mode: "number" }),
   syncVersion: integer("sync_version").notNull().default(1),

@@ -17,11 +17,23 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
   const handleSaveStaffMember = useCallback(async (payload) => {
     const normalized = normalizeStaffDraft(payload);
     if (!normalized) return false;
-    const id = await db.staff_members.add(normalized);
-    const saved = await db.staff_members.get(id);
-    setStaffMembers(prev => sortStaff([...prev, saved]));
-    return saved;
-  }, [setStaffMembers, sortStaff]);
+    const token = await getAuthToken();
+    if (!token) return false;
+    try {
+      const shopId = shopProfile?.shop_id || shopProfile?.id;
+      if (!shopId) return false;
+      const result = await identityApi.addStaff(shopId, {
+        display_name: normalized.display_name,
+        phone: payload.phone,
+        role: normalized.role || 'cashier',
+      }, token);
+      await refreshStaffMembers();
+      return result;
+    } catch (err) {
+      console.error('addStaff failed', err);
+      return false;
+    }
+  }, [shopProfile, refreshStaffMembers]);
 
   const handleUpdateStaffMember = useCallback(async (staffId, payload) => {
     const member = staffMembers.find(item => String(item.id) === String(staffId));
@@ -30,8 +42,12 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
     if (!displayName) return false;
 
     const now = Date.now();
-    await db.staff_members.update(member.id, { display_name: displayName, updated_at: now });
-    const updatedMember = { ...member, display_name: displayName, updated_at: now };
+    const updates = { display_name: displayName, updated_at: now };
+    if (payload.phone !== undefined) {
+      updates.phone_snapshot = payload.phone;
+    }
+    await db.staff_members.update(member.id, updates);
+    const updatedMember = { ...member, display_name: displayName, updated_at: now, ...(payload.phone !== undefined ? { phone_snapshot: payload.phone } : {}) };
     setStaffMembers(prev => sortStaff(prev.map(item => item.id === member.id ? updatedMember : item)));
     return updatedMember;
   }, [staffMembers, setStaffMembers, sortStaff]);
