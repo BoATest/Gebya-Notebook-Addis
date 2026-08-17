@@ -27,8 +27,17 @@ export function ensureSchema(): Promise<void> {
         ALTER TABLE "businesses"
         ADD COLUMN IF NOT EXISTS "phone_required" boolean NOT NULL DEFAULT false,
         ADD COLUMN IF NOT EXISTS "approval_required" boolean NOT NULL DEFAULT false
-      `);
+        `);
       console.log("[migrate] businesses schema ensured (phone_required, approval_required)");
+
+      await db.execute(sql`
+        ALTER TABLE "users"
+        ADD COLUMN IF NOT EXISTS "password_hash" text,
+        ADD COLUMN IF NOT EXISTS "password_set_at" timestamp with time zone,
+        ADD COLUMN IF NOT EXISTS "password_attempts" integer DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS "password_locked_until" timestamp with time zone
+        `);
+      console.log("[migrate] users schema ensured (password_hash, password_set_at, password_attempts, password_locked_until)");
     } catch (e) {
       console.error("[migrate] ensureSchema failed:", e instanceof Error ? e.message : String(e));
     }
