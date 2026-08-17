@@ -31,6 +31,7 @@ export default function StaffPage({
   onApproveDevice,
   onRejectDevice,
   onRotateJoinCode,
+  onSaveStaffMember,
   lang,
   canManageTeam,
 }) {

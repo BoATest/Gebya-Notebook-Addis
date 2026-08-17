@@ -61,39 +61,49 @@ export default function DownloadAppBanner() {
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-50 flex items-center px-4 sm:px-6 pb-2 shadow-md"
-      style={{ background: 'var(--color-primary)' }}
+      className="sticky top-0 z-50 w-full px-4 sm:px-6 py-0 shadow-md"
+      style={{ 
+        background: 'var(--color-primary)',
+        paddingTop: 'env(safe-area-inset-top)',
+        height: '56px',
+        minHeight: '56px',
+        maxHeight: '64px'
+      }}
     >
-      <div className="flex flex-1 items-center">
-        <div className="flex items-center gap-3">
+      <div 
+        className="h-full flex items-center justify-between"
+        style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
+      >
+        <div className="flex items-center gap-3 min-w-0">
           <img
             src="/icon-192.png"
             alt="Gebya"
-            className="w-8 h-8 rounded"
+            className="w-8 h-8 rounded flex-shrink-0"
           />
-          <div>
-            <div className="font-bold text-white">Gebya</div>
-            <div className="text-xs text-white/80">
-              {lang === 'am' ? 'Manage your business on the go' : 'Manage your business on the go'}
+          <div className="min-w-0">
+            <div className="font-bold text-white truncate text-sm">
+              {lang === 'am' ? 'Get the Gebya app' : 'Get the Gebya app'}
             </div>
           </div>
         </div>
-      </div>
-      <div className="flex items-center gap-3 ml-4">
-        <button
-          onClick={handleDownloadClick}
-          className="bg-accent-amber text-white px-4 py-2 rounded-md hover:bg-accent-amber/90 focus:outline-none focus:ring-2 focus:ring-accent-amber focus:ring-offset-2"
-          style={{ color: 'var(--color-primary)' }}
-        >
-          Download App
-        </button>
-        <button
-          onClick={handleClose}
-          className="text-white/80 hover:text-white px-2 rounded focus:outline-none"
-          aria-label="Dismiss"
-        >
-          ×
-        </button>
+        <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+          <button
+            onClick={handleDownloadClick}
+            className="bg-accent-amber text-white px-3 py-1.5 rounded-full text-sm font-medium hover:bg-accent-amber/90 focus:outline-none focus:ring-2 focus:ring-accent-amber focus:ring-offset-2 transition-all"
+            style={{ color: 'var(--color-primary)' }}
+          >
+            Download
+          </button>
+          <button
+            onClick={handleClose}
+            className="text-white/80 hover:text-white p-1.5 rounded focus:outline-none transition-colors"
+            aria-label="Dismiss"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

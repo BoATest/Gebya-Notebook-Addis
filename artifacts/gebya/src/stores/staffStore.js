@@ -112,7 +112,7 @@ export const useStaffStore = create((set, get) => ({
   loadSettlements: async () => {
     try {
       const bizRow = await db.settings.get('gebya_business_id');
-      const bizId = Number(bizRow?.value) || 0;
+      const bizId = bizRow?.value != null ? Number(bizRow.value) : 0;
       const rows = await getAllSettlements(Date.now() - 30 * 86400000, Date.now() + 86400000, bizId);
       set({ settlements: rows });
     } catch {}

@@ -24,6 +24,7 @@ import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { fmt } from '../utils/numformat';
 import { usePermissionsStore } from '../stores/permissionsStore';
 import { useSyncStore } from '../stores/syncStore';
+import { useStaffStore } from '../stores/staffStore';
 import { buildCustomerSummaries, getCustomerBalance, insertCustomerTransaction, sortCustomerTransactions } from '../utils/customerLedger';
 import { fifoAllocatePayment, normalizeCustomerDraft, normalizeCustomerTransactionDraft } from '../utils/customerLedgerMutations';
 import { CUSTOMER_TRANSACTION_TYPES, isValidCustomerTransactionType } from '../utils/customerTransactionTypes';
@@ -153,7 +154,6 @@ export default function AppShell() {
   const {
     handleSaveStaffMember,
     handleUpdateStaffMember,
-    handleChangeLocalStaffRole,
     handleSetActiveStaffMember,
     handleDeactivateStaffMember,
     handleReactivateStaffMember,
@@ -442,6 +442,13 @@ export default function AppShell() {
     } finally {
       // Validate stored JWT against server on boot (non-blocking)
       useAuthStore.getState().init().catch(() => { /* non-critical — sync will handle auth failures */ });
+      // Refresh staff store data after sync pull completes so staff can
+      // see owner reconciliation decisions (reconciliation_status, owner notes)
+      try {
+        const staffState = useStaffStore.getState();
+        staffState.loadSettlements();
+        staffState.loadCloudMembers();
+      } catch { /* non-critical */ }
       setLoading(false);
     }
   }, []);

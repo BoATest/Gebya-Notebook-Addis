@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { requestOtp, verifyOtp } from '../../utils/authClient';
 import { setAuthToken } from '../../utils/syncEngine';
 import { fireToast } from '../Toast';
@@ -10,35 +10,37 @@ export default function AuthRequiredPrompt({ lang, onClose }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const t = lang === 'am' ? {
-    title: 'እባክዎ ይግቡ',
-    subtitle: 'መረጃዎን ለማቀነስ የስልክ ቁጥርዎን ያስገቡ',
-    phoneLabel: 'ስልክ ቁጥር',
-    continue: 'ቀጥል',
-    otpLabel: 'የተላከውን ኮድ ያስገቡ',
-    verify: 'ያረጋግጡ',
-    resend: 'ኮድ እንደገና ይላኩ',
-    back: 'ተመለስ',
-    skip: 'ዝጋ',
-    invalidPhone: 'ትክክለኛ ስልክ ቁጥር ያስገቡ',
-    otpSent: 'ኮድ ተላክ!',
-    success: 'በተሳካ ሁኔታ ገብተዋል',
-    error: 'ችግር ተፈጥሯል',
-  } : {
-    title: 'Sign in',
-    subtitle: 'Enter your phone number to restore cloud sync',
-    phoneLabel: 'Phone number',
-    continue: 'Continue',
-    otpLabel: 'Enter the code we sent',
-    verify: 'Verify',
-    resend: 'Resend code',
-    back: 'Back',
-    skip: 'Dismiss',
-    invalidPhone: 'Enter a valid phone number',
-    otpSent: 'Code sent!',
-    success: 'Signed in successfully',
-    error: 'Something went wrong',
-  };
+  const t = useMemo(() => {
+    return lang === 'am' ? {
+      title: 'እባክዎ ይግቡ',
+      subtitle: 'መረጃዎን ለማቀነስ የስልክ ቁጥርዎን ያስገቡ',
+      phoneLabel: 'ስልክ ቁጥር',
+      continue: 'ቀጥል',
+      otpLabel: 'የተላከውን ኮድ ያስገቡ',
+      verify: 'ያረጋግጡ',
+      resend: 'ኮድ እንደገና ይላኩ',
+      back: 'ተመለስ',
+      skip: 'ዝጋ',
+      invalidPhone: 'ትክክለኛ ስልክ ቁጥር ያስገቡ',
+      otpSent: 'ኮድ ተላክ!',
+      success: 'በተሳካ ሁኔታ ገብተዋል',
+      error: 'ችግር ተፈጥሯል',
+    } : {
+      title: 'Sign in',
+      subtitle: 'Enter your phone number to restore cloud sync',
+      phoneLabel: 'Phone number',
+      continue: 'Continue',
+      otpLabel: 'Enter the code we sent',
+      verify: 'Verify',
+      resend: 'Resend code',
+      back: 'Back',
+      skip: 'Dismiss',
+      invalidPhone: 'Enter a valid phone number',
+      otpSent: 'Code sent!',
+      success: 'Signed in successfully',
+      error: 'Something went wrong',
+    };
+  }, [lang]);
 
   async function handleRequestOtp() {
     const digits = phone.replace(/\D/g, '');

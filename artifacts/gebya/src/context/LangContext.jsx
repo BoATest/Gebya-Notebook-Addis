@@ -1,6 +1,4 @@
-import { createContext, useContext, useState } from 'react';
-
-import { useEffect } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect } from 'react';
 
 // WARNING: NATIVE-SPEAKER VERIFICATION REQUIRED
 // All Amharic (AM) strings below were machine-translated and have NOT been
@@ -1497,7 +1495,9 @@ export function LangProvider({ children }) {
     });
   };
 
-  const t = lang === 'am' ? { ...AM, ...AM_OVERRIDES } : { ...EN, ...EN_OVERRIDES };
+  const t = useMemo(() => {
+    return lang === 'am' ? { ...AM, ...AM_OVERRIDES } : { ...EN, ...EN_OVERRIDES };
+  }, [lang]);
 
   return (
     <LangContext.Provider value={{ lang, toggleLang, t }}>

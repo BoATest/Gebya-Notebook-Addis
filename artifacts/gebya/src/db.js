@@ -743,11 +743,11 @@ export async function saveSettlement(record) {
     device_id: record.device_id || '',
   };
   // Attach current business_id from sync engine's persisted setting.
-  // Use loose equality so business_id === 0 is treated as present.
   if (entry.business_id == null) {
     try {
       const bizRow = await db.settings.get('gebya_business_id');
-      entry.business_id = bizRow?.value ? Number(bizRow.value) : null;
+      const bizVal = bizRow?.value;
+      entry.business_id = bizVal != null ? Number(bizVal) : null;
     } catch { entry.business_id = null; }
   }
   entry.total_variance = entry.actual_total - (entry.final_expected_total || entry.expected_total);
