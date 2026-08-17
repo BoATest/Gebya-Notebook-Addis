@@ -7,6 +7,7 @@ import { calculateExpected, createReconciliationEntry, generateSettlementId } fr
 import { startOfLocalDay } from '../utils/reportSelectors';
 import { isValidEthiopianPhone, normalizeEthiopianPhone, extractSubscriberDigits } from '../utils/phoneNumber';
 import { useAuthStore } from './authStore';
+import { usePermissionsStore } from './permissionsStore';
 
 const ROLE_PRESETS = {
   manager: { can_manage_team: true, can_delete_records: true, can_edit_settings: true, can_add_records: true, can_view_reports: true },
@@ -97,6 +98,7 @@ export const useStaffStore = create((set, get) => ({
 
   // ─── Load cloud members ───
   loadCloudMembers: async () => {
+    if (!usePermissionsStore.getState().hasPermission('can_manage_team')) return;
     set({ membersLoading: true });
     try {
       const data = await apiFetch('/business/members');
@@ -363,12 +365,12 @@ export const useStaffStore = create((set, get) => ({
 }));
 
 // New: refresh cloud members on app focus for live role/permission updates
-if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined') {
   let refreshTimer = null;
   window.addEventListener('focus', () => {
-    // Debounce rapid focus events
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = setTimeout(() => {
+      if (!usePermissionsStore.getState().hasPermission('can_manage_team')) return;
       const { loadCloudMembers } = useStaffStore.getState();
       loadCloudMembers();
     }, 500);

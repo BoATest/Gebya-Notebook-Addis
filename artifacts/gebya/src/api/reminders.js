@@ -1,3 +1,5 @@
+import { getAuthToken } from '../utils/syncEngine';
+
 const BASE = (import.meta.env.VITE_API_BASE ?? '/api').replace(/\/$/, '');
 
 async function request(path, options = {}) {
@@ -7,7 +9,7 @@ async function request(path, options = {}) {
     ...(options.headers || {}),
   };
 
-  const token = options.token;
+  const token = options.token || await getAuthToken();
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
@@ -51,30 +53,30 @@ export const remindersApi = {
     if (customerId) params.set('customerId', String(customerId));
     if (fromDate != null) params.set('fromDate', String(fromDate));
     if (toDate != null) params.set('toDate', String(toDate));
-    return request(`/reminders/history?${params.toString()}`);
+    return request(`/telegram/reminders/history?${params.toString()}`);
   },
 
   async getShopDefault(shopId) {
     const params = new URLSearchParams({ shopId: String(shopId) });
-    return request(`/reminders/config?${params.toString()}`);
+    return request(`/telegram/reminders/config?${params.toString()}`);
   },
 
   async setShopDefault(shopId, frequency) {
-    return request('/reminders/config', {
+    return request('/telegram/reminders/config', {
       method: 'POST',
       body: JSON.stringify({ shopId, frequency }),
     });
   },
 
   async pauseReminders(shopId) {
-    return request('/reminders/pause', {
+    return request('/telegram/reminders/pause', {
       method: 'POST',
       body: JSON.stringify({ shopId }),
     });
   },
 
   async resumeReminders(shopId) {
-    return request('/reminders/resume', {
+    return request('/telegram/reminders/resume', {
       method: 'POST',
       body: JSON.stringify({ shopId }),
     });
