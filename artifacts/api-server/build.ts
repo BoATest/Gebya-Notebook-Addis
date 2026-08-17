@@ -12,7 +12,8 @@ const allowlist = [
   "express-rate-limit", "express-session", "helmet", "jsonwebtoken",
   "memorystore", "nanoid", "nodemailer", "passport", "passport-local",
   "pg", "stripe", "uuid", "web-push", "ws", "xlsx", "zod", "zod-validation-error",
-  "@workspace/api-zod", "@workspace/db"
+  "@workspace/api-zod", "@workspace/db",
+  "@workspace/db/schema", "@workspace/db/schema/*", "@workspace/db/utils/*",
 ];
 
 async function buildAll() {
