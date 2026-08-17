@@ -452,4 +452,157 @@ router.get("/me", async (req, res) => {
   });
 });
 
+// --- POST /api/auth/set-password ---
+// Requires a valid OTP-verified session token
+const PASSWORD_MAX_ATTEMPTS = 5;
+const PASSWORD_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes lockout
+
+router.post("/set-password", async (req, res) => {
+  const token = getToken(req);
+  if (!token) {
+    return res.status(401).json({ error: "Authorization token required" });
+  }
+  const decoded = verifyJwt(token);
+  if (!decoded) {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+
+  const { password } = req.body;
+  if (!password || typeof password !== "string" || password.length < 6 || password.length > 32) {
+    return res.status(400).json({ error: "Password must be 6-32 characters" });
+  }
+
+  const passwordHash = hashOtp(password); // Reuse PBKDF2 hashing
+  await db
+    .update(users)
+    .set({
+      passwordHash,
+      passwordSetAt: new Date(),
+      passwordAttempts: 0,
+      passwordLockedUntil: null,
+    })
+    .where(eq(users.id, decoded.userId));
+
+  return res.json({ ok: true });
+});
+
+// --- POST /api/auth/login ---
+// Login with phone number + password (alternative to OTP)
+router.post("/login", async (req, res) => {
+  const { phone_number, password } = req.body;
+  if (!phone_number || typeof phone_number !== "string" || !password) {
+    return res.status(400).json({ error: "phone_number and password are required" });
+  }
+
+  const normalizedPhone = normalizePhone(phone_number);
+  if (!normalizedPhone) {
+    return res.status(400).json({ error: "Invalid Ethiopian phone number" });
+  }
+
+  const userRows = await db
+    .select()
+    .from(users)
+    .where(eq(users.phoneNumber, normalizedPhone))
+    .limit(1);
+  const user = userRows[0];
+
+  if (!user || !user.passwordHash) {
+    return res.status(401).json({ error: "Invalid phone number or password" });
+  }
+
+  // Check lockout
+  if (user.passwordLockedUntil && new Date() < user.passwordLockedUntil) {
+    return res.status(429).json({ error: "Too many failed attempts. Try again later." });
+  }
+
+  const isValidPassword = verifyOtp(password, user.passwordHash);
+  if (!isValidPassword) {
+    const attempts = (user.passwordAttempts || 0) + 1;
+    const update: any = { passwordAttempts: attempts };
+    if (attempts >= PASSWORD_MAX_ATTEMPTS) {
+      update.passwordLockedUntil = new Date(Date.now() + PASSWORD_LOCKOUT_MS);
+      update.passwordAttempts = 0;
+    }
+    await db.update(users).set(update).where(eq(users.id, user.id));
+    return res.status(401).json({ error: "Invalid phone number or password" });
+  }
+
+  // Reset attempts on success
+  await db
+    .update(users)
+    .set({ passwordAttempts: 0, passwordLockedUntil: null })
+    .where(eq(users.id, user.id));
+
+  const token = signJwt(user.id);
+  setTokenCookie(res, token);
+
+  // Fetch businesses (same as /verify)
+  const memberRows = await db
+    .select({
+      businessId: businessMembers.businessId,
+      role: businessMembers.role,
+      permissions: businessMembers.permissions,
+    })
+    .from(businessMembers)
+    .where(eq(businessMembers.userId, user.id));
+  const primary = memberRows[0] || null;
+
+  let businessList: any[] = [];
+  try {
+    if (memberRows.length > 0) {
+      const bizIds = memberRows.map((m) => m.businessId);
+      const bizRows = await db
+        .select({ id: businesses.id, name: businesses.name })
+        .from(businesses)
+        .where(inArray(businesses.id, bizIds));
+      const bizMap = new Map(bizRows.map((b) => [b.id, b.name]));
+      businessList = memberRows.map((m) => ({
+        business_id: m.businessId,
+        name: bizMap.get(m.businessId) || "Unknown",
+        role: m.role,
+        permissions: m.permissions,
+      }));
+    }
+  } catch { /* non-critical */ }
+
+  return res.json({
+    ok: true,
+    token,
+    user: {
+      id: user.id,
+      phone_number: user.phoneNumber,
+      preferred_lang: user.preferredLang,
+      created_at: user.createdAt,
+    },
+    role: primary?.role || null,
+    permissions: primary?.permissions || null,
+    businesses: businessList,
+  });
+});
+
+// --- POST /api/auth/remove-password ---
+// Requires a valid JWT token (user is already logged in)
+router.post("/remove-password", async (req, res) => {
+  const token = getToken(req);
+  if (!token) {
+    return res.status(401).json({ error: "Authorization token required" });
+  }
+  const decoded = verifyJwt(token);
+  if (!decoded) {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+
+  await db
+    .update(users)
+    .set({
+      passwordHash: null,
+      passwordSetAt: null,
+      passwordAttempts: 0,
+      passwordLockedUntil: null,
+    })
+    .where(eq(users.id, decoded.userId));
+
+  return res.json({ ok: true, has_password: false });
+});
+
 export default router;

@@ -7,6 +7,10 @@ export const users = pgTable("users", {
   active: boolean("active").default(true),
   preferredLang: varchar("preferred_lang", { length: 8 }).default("am"),
   telegramChatId: text("telegram_chat_id"),
+  passwordHash: text("password_hash"),
+  passwordSetAt: timestamp("password_set_at", { withTimezone: true }),
+  passwordAttempts: integer("password_attempts").default(0),
+  passwordLockedUntil: timestamp("password_locked_until", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
@@ -29,6 +33,10 @@ export const insertUserSchema = z.object({
   active: z.boolean().optional(),
   preferredLang: z.string().max(8).optional(),
   telegramChatId: z.string().nullable().optional(),
+  passwordHash: z.string().nullable().optional(),
+  passwordSetAt: z.date().nullable().optional(),
+  passwordAttempts: z.number().optional(),
+  passwordLockedUntil: z.date().nullable().optional(),
 });
 
 export const insertDeviceSchema = z.object({
