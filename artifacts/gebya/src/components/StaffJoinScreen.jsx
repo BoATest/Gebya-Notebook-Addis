@@ -46,13 +46,6 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
   const [error, setError] = useState(null);
   const [verifyingCode, setVerifyingCode] = useState(false);
 
-  function handleCodeChange(e) {
-    const raw = e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    if (raw.length <= 8) {
-      setJoinCode(raw.length > 4 ? `${raw.slice(0, 4)}-${raw.slice(4)}` : raw);
-    }
-  }
-
   async function verifyCode() {
     const cleanCode = formatJoinCode(joinCode);
     if (cleanCode.length < 4) {
@@ -124,7 +117,6 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
       });
 
       await persistIdentity(result);
-      setJoinResult(result);
 
       if (result.auth_token) {
         await setAuthToken(result.auth_token);
@@ -160,12 +152,6 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
       device_status: result.device_status,
       phone_required: result.phone_required ?? false,
       approval_required: result.approval_required ?? false,
-    });
-  }
-
-  function copyCode() {
-    navigator.clipboard.writeText(formatJoinCode(joinCode)).then(() => {
-      fireToast(t('✓ Code copied', '✓ ኮድ ተቀድሷል'), 1500);
     });
   }
 
