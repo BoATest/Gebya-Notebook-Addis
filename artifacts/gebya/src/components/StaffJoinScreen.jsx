@@ -5,6 +5,8 @@ import { identityApi } from '../api/identity';
 import { setIdentity } from '../db';
 import db from '../db';
 import { setAuthToken } from '../utils/syncEngine';
+import { getOrCreateCloudProofDeviceId } from '../utils/cloudProof';
+import { requestOtp, verifyOtp, linkDevice } from '../utils/authClient';
 import { isValidEthiopianPhone, normalizeEthiopianPhone, extractSubscriberDigits, formatEthiopianPhone } from '../utils/phoneNumber';
 
 const BANK_COPY = 'Gebya is a notebook, not a bank. Gebya does not connect to your bank. Gebya cannot withdraw money. Never enter PIN, OTP, or password. Payment method is only a label like Cash, CBE, Telebirr, or Bank Transfer. Staff phone number is for identity/contact only, not bank/payment.';
@@ -13,6 +15,8 @@ const STEP_CODE = 0;
 const STEP_NAME = 1;
 const STEP_PHONE = 2;
 const STEP_ERROR = 3;
+const STEP_ALREADY_MEMBER = 4;
+const STEP_OTP = 5;
 const DEVICE_LABEL = 'Staff phone';
 
 function BankTrustCopy({ className = '' }) {
@@ -45,6 +49,8 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [verifyingCode, setVerifyingCode] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
 
   async function verifyCode() {
     const cleanCode = formatJoinCode(joinCode);
@@ -123,10 +129,11 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
       }
       if (onJoined) onJoined(result);
     } catch (err) {
-      if (err.status === 404) {
-        setError(t.staffJoinCodeInvalid || 'Shop code not found.');
-      } else if (err.status === 409) {
-        setError(t.staffJoinAlreadyJoined || 'This number is already on the team. Contact the owner to edit you.');
+      if (err.status === 409) {
+        setLoading(false);
+        setStep(STEP_ALREADY_MEMBER);
+        setError(null);
+        return;
       } else if (err.status === 400 && /phone/i.test(err.data?.error || err.message || '')) {
         setError(t.staffPhoneRequired || 'A valid Ethiopian phone number is required');
       } else {
@@ -155,6 +162,67 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
     });
   }
 
+  async function handleRequestOtpRecovery() {
+    const normalizedPhone = normalizeEthiopianPhone(phone);
+    if (!normalizedPhone) return;
+    setOtpLoading(true);
+    setError(null);
+    try {
+      await requestOtp(normalizedPhone);
+      setOtp('');
+      setStep(STEP_OTP);
+    } catch (err) {
+      setError(err.message || 'Failed to send OTP');
+    } finally {
+      setOtpLoading(false);
+    }
+  }
+
+  async function handleVerifyOtpRecovery() {
+    const normalizedPhone = normalizeEthiopianPhone(phone);
+    if (!normalizedPhone) return;
+    setOtpLoading(true);
+    setError(null);
+    try {
+      const { token, user, role, permissions, businesses } = await verifyOtp(normalizedPhone, otp);
+      await setAuthToken(token);
+      const deviceId = await getOrCreateCloudProofDeviceId();
+      try { await linkDevice(token, deviceId); } catch { /* non-critical */ }
+
+      const business = businesses?.[0];
+      if (business) {
+        await setIdentity({
+          shop_id: business.business_id,
+          shop_name: business.name,
+          device_id: deviceId,
+          device_token: token,
+          staff_id: user?.id,
+          display_name: user?.display_name || displayName.trim(),
+          phone_number: user?.phone_number || normalizedPhone,
+          role: role || 'staff',
+          permissions: permissions || {},
+          device_status: 'active',
+          phone_required: false,
+          approval_required: false,
+        });
+      }
+
+      setOtpLoading(false);
+      if (onJoined) onJoined({
+        auth_token: token,
+        shop_id: business?.business_id,
+        shop_name: business?.name,
+        staff_id: user?.id,
+        display_name: user?.display_name || displayName.trim(),
+        role: role || 'staff',
+        permissions: permissions || {},
+      });
+    } catch (err) {
+      setError(err.message || 'Invalid code. Please try again.');
+    } finally {
+      setOtpLoading(false);
+    }
+  }
   return (
     <div
       className="min-h-screen flex flex-col"
@@ -382,6 +450,110 @@ export default function StaffJoinScreen({ onJoined, onBack }) {
               className="w-full py-3 text-sm font-semibold text-gray-500"
             >
               {t.staffJoinGoBack || 'Go back'}
+            </button>
+
+            <BankTrustCopy />
+          </div>
+        )}
+
+        {/* STEP 4: Already a member — sign in option */}
+        {step === 4 && (
+          <div className="space-y-5 animate-slide-up">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center bg-amber-200 text-amber-800 font-black text-sm flex-shrink-0">
+                !
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-amber-700">Already on the team</p>
+                <p className="text-sm font-medium text-amber-900">
+                  {phone ? formatEthiopianPhone('+251' + phone) : ''} is already a member of {shopName}.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600">
+              You're already part of this shop. Sign in with OTP to restore your access.
+            </p>
+
+            {error && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm font-medium text-red-700">{error}</p>
+              </div>
+            )}
+
+            <button
+              onClick={handleRequestOtpRecovery}
+              disabled={otpLoading}
+              className="w-full py-4 rounded-xl font-bold text-base text-white disabled:opacity-40 press-scale"
+              style={{ background: 'var(--color-primary)' }}
+            >
+              {otpLoading ? 'Sending…' : 'Sign in with OTP'}
+            </button>
+
+            <button
+              onClick={() => { setStep(STEP_PHONE); setError(null); }}
+              className="w-full py-3 text-sm font-semibold text-gray-500"
+            >
+              Back
+            </button>
+
+            <BankTrustCopy />
+          </div>
+        )}
+
+        {/* STEP 5: Enter OTP */}
+        {step === 5 && (
+          <div className="space-y-5 animate-slide-up">
+            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center bg-green-200 text-green-800 font-black text-sm flex-shrink-0">
+                ✓
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-green-700">Check Telegram</p>
+                <p className="text-sm font-medium text-green-900">
+                  Enter the 6-digit code sent to {phone && formatEthiopianPhone('+251' + phone)}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                Verification Code
+              </label>
+              <input
+                type="text"
+                value={otp}
+                onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setError(null); }}
+                placeholder="6-digit code"
+                maxLength={6}
+                className="w-full px-4 py-3.5 border-2 border-gray-200 text-xl font-mono font-black tracking-widest text-center focus:border-green-500 focus:outline-none transition-colors"
+                autoFocus
+              />
+            </div>
+
+            {error && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm font-medium text-red-700">{error}</p>
+              </div>
+            )}
+
+            <button
+              onClick={handleVerifyOtpRecovery}
+              disabled={otpLoading || otp.length !== 6}
+              className="w-full py-4 rounded-xl font-bold text-base text-white disabled:opacity-40 press-scale"
+              style={{ background: 'var(--color-primary)' }}
+            >
+              {otpLoading ? 'Verifying…' : 'Verify & Sign In'}
+            </button>
+
+            <button
+              onClick={handleRequestOtpRecovery}
+              disabled={otpLoading}
+              className="w-full py-3 text-sm font-semibold text-gray-500"
+            >
+              Resend code
             </button>
 
             <BankTrustCopy />
