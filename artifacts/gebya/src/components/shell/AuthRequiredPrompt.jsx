@@ -42,7 +42,7 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
       passwordLogin: 'ከይምት ቃል መዲዛ ይግቡ',
       otpLogin: 'ከOTP ኮድ ይግቡ',
       passwordInvalid: 'ትክክለኛ ወይም ችግኛ ይምት ቃል መዲዛ',
-      passwordTooShort: 'የይምት ቃል መዲዛ ቢሆን 6 በላይ ṱምኦች ነው',
+      passwordTooShort: 'የይምት ቃል መዲዛ ቢሆን 6 በላይ ከአይነት ነው',
       wrongPassword: 'ትክክለኛ ይምት ቃል መዲዛ',
     } : {
       title: 'Sign in',
@@ -111,9 +111,6 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
 
   async function handleVerify() {
     const digits = phone.replace(/\D/g, '');
-    if (authMethod === 'password') {
-      return handlePasswordLogin(digits);
-    }
     setError(null);
     setLoading(true);
     try {
@@ -307,8 +304,8 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
                 {t.back}
               </button>
               <button
-                onClick={() => { setStep('phone'); setOtp(''); setError(null); setStep('otp'); handleRequestOtp(); }}
-                disabled={loading || resendCooldown > 0}
+                onClick={() => { setOtp(''); setError(null); handleRequestOtp(); }}
+                 disabled={loading || resendCooldown > 0}
                 className="flex-1 py-2.5 rounded-xl text-xs font-bold"
                 style={{ background: 'var(--color-surface-muted)', border: '1px solid var(--color-border)' }}
               >
