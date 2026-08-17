@@ -14,6 +14,41 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
     })
   ), []);
 
+  const refreshStaffMembers = useCallback(async () => {
+    const shopId = shopProfile?.shop_id || shopProfile?.id;
+    if (!shopId) return;
+    const token = await getAuthToken();
+    if (!token) return;
+    const data = await identityApi.listStaff(shopId, token);
+    if (!data?.staff) return;
+    setStaffMembers(data.staff
+      .filter(s => s.role !== 'owner')
+      .map(s => ({
+        id: s.staff_id,
+        staff_id: s.staff_id,
+        display_name: s.display_name,
+        phone_snapshot: s.phone_snapshot,
+        role: s.role,
+        active: s.staff_status !== 'inactive',
+        staff_status: s.staff_status,
+        pending: (s.devices || []).some(d => d.device_status === 'pending'),
+        permissions: s.permissions,
+        joined_at: s.joined_at,
+        updated_at: Date.now(),
+        deactivated_at: s.deactivated_at,
+        devices: (s.devices || []).map(d => ({
+          id: d.device_id,
+          device_id: d.device_id,
+          device_label: d.device_label,
+          active: d.device_status === 'active',
+          device_status: d.device_status,
+          pending: d.device_status === 'pending',
+          last_seen_at: d.last_seen_at,
+          created_at: d.created_at,
+        })),
+      })));
+  }, [shopProfile, setStaffMembers]);
+
   const handleSaveStaffMember = useCallback(async (payload) => {
     const normalized = normalizeStaffDraft(payload);
     if (!normalized) return false;
@@ -57,41 +92,6 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
     await db.settings.put({ key: 'active_staff_member_id', value: nextId });
     setActiveStaffMemberId(nextId);
   }, [setActiveStaffMemberId]);
-
-  const refreshStaffMembers = useCallback(async () => {
-    const shopId = shopProfile?.shop_id || shopProfile?.id;
-    if (!shopId) return;
-    const token = await getAuthToken();
-    if (!token) return;
-    const data = await identityApi.listStaff(shopId, token);
-    if (!data?.staff) return;
-    setStaffMembers(data.staff
-      .filter(s => s.role !== 'owner')
-      .map(s => ({
-        id: s.staff_id,
-        staff_id: s.staff_id,
-        display_name: s.display_name,
-        phone_snapshot: s.phone_snapshot,
-        role: s.role,
-        active: s.staff_status !== 'inactive',
-        staff_status: s.staff_status,
-        pending: (s.devices || []).some(d => d.device_status === 'pending'),
-        permissions: s.permissions,
-        joined_at: s.joined_at,
-        updated_at: Date.now(),
-        deactivated_at: s.deactivated_at,
-        devices: (s.devices || []).map(d => ({
-          id: d.device_id,
-          device_id: d.device_id,
-          device_label: d.device_label,
-          active: d.device_status === 'active',
-          device_status: d.device_status,
-          pending: d.device_status === 'pending',
-          last_seen_at: d.last_seen_at,
-          created_at: d.created_at,
-        })),
-      })));
-  }, [shopProfile, setStaffMembers]);
 
   // Cloud members are the single source of truth. StaffPage passes the
   // member's user id (member.userId) as staffId, which is exactly what the
