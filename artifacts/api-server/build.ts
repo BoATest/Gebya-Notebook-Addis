@@ -10,9 +10,9 @@ const allowlist = [
   "@google/generative-ai", "axios", "connect-pg-simple",
   "cookie-parser", "cors", "date-fns", "drizzle-orm", "drizzle-zod", "express",
   "express-rate-limit", "express-session", "helmet", "jsonwebtoken",
-  "express-rate-limit", "express-session", "jsonwebtoken",
   "memorystore", "nanoid", "nodemailer", "passport", "passport-local",
   "pg", "stripe", "uuid", "web-push", "ws", "xlsx", "zod", "zod-validation-error",
+  "@workspace/api-zod", "@workspace/db"
 ];
 
 async function buildAll() {
