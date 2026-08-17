@@ -3,6 +3,7 @@ import { useLang } from '../context/LangContext';
 import { usePermissionsStore } from '../stores/permissionsStore';
 import { fireToast } from './Toast';
 import { remindersApi } from '../api/reminders';
+import { getAuthToken } from '../utils/syncEngine';
 
 import ShopTab from './settings/tabs/ShopTab';
 import MoneyTab from './settings/tabs/MoneyTab';
@@ -35,6 +36,12 @@ function ReminderSettings({ shopId, lang }) {
 
   const loadConfig = useCallback(async () => {
     if (!shopId) return;
+    const token = await getAuthToken();
+    if (!token) {
+      setFrequency('daily');
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const data = await remindersApi.getShopDefault(shopId);
