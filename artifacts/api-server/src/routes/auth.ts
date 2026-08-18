@@ -446,6 +446,7 @@ router.get("/me", async (req, res) => {
       preferred_lang: user.preferredLang,
       created_at: user.createdAt,
     },
+    has_password: !!user.passwordHash,
     role: primary?.role || null,
     permissions: primary?.permissions || null,
     businesses: businessList,

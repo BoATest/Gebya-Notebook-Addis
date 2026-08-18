@@ -12,6 +12,7 @@ export const useAuthStore = create((set, get) => ({
   permissions: null,
   businesses: [],
   currentBusinessId: null,
+  hasPassword: false,
 
   setUser: (user) => set({ user, checked: true }),
 
@@ -20,7 +21,7 @@ export const useAuthStore = create((set, get) => ({
   init: async () => {
     const token = await getAuthToken();
     if (!token) {
-      set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null });
+      set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null, hasPassword: false });
       usePermissionsStore.getState().resetPermissions();
       return;
     }
@@ -31,13 +32,14 @@ export const useAuthStore = create((set, get) => ({
       const rawPerms = data.permissions;
       const businesses = data.businesses || [];
       const currentBusinessId = data.businesses?.[0]?.business_id || null;
+      const hasPassword = data.has_password || false;
 
       const resolvedPerms = resolvePermissions(role, rawPerms);
       usePermissionsStore.getState().setPermissions(resolvedPerms, role);
 
       await setBusinesses(businesses);
 
-      set({ user, checked: true, role, permissions: rawPerms, businesses, currentBusinessId });
+      set({ user, checked: true, role, permissions: rawPerms, businesses, currentBusinessId, hasPassword });
     } catch (err) {
       try {
         const cached = await getBusinesses();
@@ -46,13 +48,14 @@ export const useAuthStore = create((set, get) => ({
             user: false, checked: true, role: null, permissions: null,
             businesses: cached.list,
             currentBusinessId: cached.list[0].business_id,
+            hasPassword: false,
           });
           return;
         }
       } catch { /* non-critical */ }
       await clearAuthToken();
       usePermissionsStore.getState().resetPermissions();
-      set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null });
+      set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null, hasPassword: false });
     }
   },
 
@@ -61,12 +64,12 @@ export const useAuthStore = create((set, get) => ({
     const resolvedPerms = resolvePermissions(role, rawPermissions);
     usePermissionsStore.getState().setPermissions(resolvedPerms, role);
     const currentBusinessId = businesses?.[0]?.business_id || null;
-    set({ user, checked: true, role, permissions: rawPermissions, businesses: businesses || [], currentBusinessId });
+    set({ user, checked: true, role, permissions: rawPermissions, businesses: businesses || [], currentBusinessId, hasPassword: false });
   },
 
   logout: async () => {
     await clearAuthToken();
     usePermissionsStore.getState().resetPermissions();
-    set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null });
+    set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null, hasPassword: false });
   },
 }));

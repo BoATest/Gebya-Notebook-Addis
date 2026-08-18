@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import { requestOtp, verifyOtp, loginWithPassword } from '../../utils/authClient';
-import { setAuthToken } from '../../utils/syncEngine';
+import { requestOtp, verifyOtp, loginWithPassword, setPassword } from '../../utils/authClient';
+import { setAuthToken, getAuthToken } from '../../utils/syncEngine';
 import { fireToast } from '../Toast';
 
 export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [password, setPassword] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
   const [step, setStep] = useState('phone');
   const [authMethod, setAuthMethod] = useState('otp');
   const [error, setError] = useState(null);
@@ -44,6 +44,8 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
       passwordInvalid: 'ትክክለኛ ወይም ችግኛ ይምት ቃል መዲዛ',
       passwordTooShort: 'የይምት ቃል መዲዛ ቢሆን 6 በላይ ከአይነት ነው',
       wrongPassword: 'ትክክለኛ ይምት ቃል መዲዛ',
+      passwordSetup: 'የይምት ቃል መዲዛ ያስገብ',
+      skipPasswordSetup: 'አልጨማምትም — ከOTP ጋር ይጠቀሙ',
     } : {
       title: 'Sign in',
       subtitle: 'Enter your phone number to restore cloud sync',
@@ -73,6 +75,8 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
       passwordInvalid: 'Invalid or too short password',
       passwordTooShort: 'Password must be at least 6 characters',
       wrongPassword: 'Wrong password',
+      passwordSetup: 'Set a password',
+      skipPasswordSetup: 'Skip — use OTP instead',
     }
   }, [lang]);
 
@@ -120,8 +124,14 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
       const { useAuthStore } = await import('../../stores/authStore');
       await useAuthStore.getState().init();
 
-      fireToast(t.success, 2000);
-      onClose();
+      // Check if user has a password set; if not, offer to set one
+      const hasPassword = useAuthStore.getState().hasPassword;
+      if (!hasPassword) {
+        setStep('set-password');
+      } else {
+        fireToast(t.success, 2000);
+        onClose();
+      }
     } catch (err) {
       if (err.status === 400 && /expired|invalid.*otp/i.test(err.message || '')) {
         setError(t.codeExpired);
@@ -135,11 +145,36 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
     }
   }
 
+  async function handleSetPassword() {
+    const digits = phone.replace(/\D/g, '');
+    if (passwordInput.length < 6) {
+      setError(t.passwordTooShort);
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const token = await getAuthToken();
+      if (!token) throw new Error(t.error);
+      await setPassword(token, passwordInput);
+
+      const { useAuthStore } = await import('../../stores/authStore');
+      useAuthStore.setState({ hasPassword: true });
+
+      fireToast(t.success, 2000);
+      onClose();
+    } catch (err) {
+      setError(err.message || t.error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handlePasswordLogin(digits) {
     setError(null);
     setLoading(true);
     try {
-      const { token } = await loginWithPassword(`+251${digits}`, password);
+      const { token } = await loginWithPassword(`+251${digits}`, passwordInput);
       await setAuthToken(token);
 
       const { useAuthStore } = await import('../../stores/authStore');
@@ -214,8 +249,8 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
                 </label>
                 <input
                   type="password"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(null); }}
+                  value={passwordInput}
+                  onChange={(e) => { setPasswordInput(e.target.value); setError(null); }}
                   placeholder={t.passwordLabel}
                   maxLength={32}
                   className="w-full px-4 py-3 border-2 rounded-xl text-sm font-semibold focus:outline-none"
@@ -226,7 +261,7 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
 
             <button
               onClick={handlePhoneSubmit}
-              disabled={loading || phone.length !== 9 || (authMethod === 'password' && password.length < 6)}
+              disabled={loading || phone.length !== 9 || (authMethod === 'password' && passwordInput.length < 6)}
               className="w-full py-3 rounded-xl font-bold text-sm min-h-[48px]"
               style={{ background: loading ? 'var(--color-bg-disabled)' : 'var(--color-primary)', color: loading ? 'var(--color-text-soft)' : 'var(--color-bg-white)' }}
             >
@@ -235,7 +270,7 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
 
             {authMethod === 'otp' && (
               <button
-                onClick={() => { setAuthMethod('password'); setPassword(''); setError(null); }}
+                onClick={() => { setAuthMethod('password'); setPasswordInput(''); setError(null); }}
                 className="w-full py-2.5 text-xs font-bold text-gray-500"
               >
                 {t.passwordLogin}
@@ -244,7 +279,7 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
 
             {authMethod === 'password' && (
               <button
-                onClick={() => { setAuthMethod('otp'); setPassword(''); setError(null); setStep('phone'); }}
+                onClick={() => { setAuthMethod('otp'); setPasswordInput(''); setError(null); setStep('phone'); }}
                 className="w-full py-2.5 text-xs font-bold text-gray-500"
               >
                 {t.otpLogin}
@@ -313,6 +348,47 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
               </button>
             </div>
             <button onClick={onClose} className="w-full py-2.5 text-xs font-bold text-gray-400">{t.skip}</button>
+          </div>
+        )}
+
+        {step === 'set-password' && (
+          <div className="space-y-3">
+            <div className="text-center">
+              <p className="text-sm text-gray-500">
+                {lang === 'am'
+                  ? 'OTP በተሳካ ሁኔታ ገብተዋል። የይምት ቃል መዲዛ ይጨምሩ ለ ፍጥነታዊ መግቢያ?'
+                  : 'Signed in successfully! Set a password for faster logins?'}
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                {t.passwordLabel}
+              </label>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => { setPasswordInput(e.target.value); setError(null); }}
+                placeholder={t.passwordLabel}
+                maxLength={32}
+                className="w-full px-4 py-3 border-2 rounded-xl text-sm font-semibold focus:outline-none"
+                style={{ borderColor: error ? 'var(--color-danger-border)' : 'var(--color-border)' }}
+                autoFocus
+              />
+            </div>
+            <button
+              onClick={handleSetPassword}
+              disabled={loading || passwordInput.length < 6}
+              className="w-full py-3 rounded-xl font-bold text-sm min-h-[48px] text-white"
+              style={{ background: loading || passwordInput.length < 6 ? 'var(--color-bg-disabled)' : 'var(--color-primary)' }}
+            >
+              {loading ? t.verifying : t.passwordSetup}
+            </button>
+            <button
+              onClick={() => { fireToast(t.success, 2000); onClose(); }}
+              className="w-full py-2.5 text-xs font-bold text-gray-500"
+            >
+              {t.skipPasswordSetup}
+            </button>
           </div>
         )}
       </div>

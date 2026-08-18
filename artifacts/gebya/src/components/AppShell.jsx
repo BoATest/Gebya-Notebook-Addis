@@ -48,6 +48,7 @@ import {
 } from '../utils/paymentChannels';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useSyncRefresh } from '../hooks/useSyncRefresh';
+import { initSession, endSession, trackEvent } from '../utils/eventTracking';
 import { useNotificationsStore } from '../stores/notificationsStore';
 import { useAppStore } from '../stores/appStore';
 import { useShopStore } from '../stores/shopStore';
@@ -527,6 +528,26 @@ export default function AppShell() {
     };
   }, [loading, refreshPendingTelegramCount]);
 
+  // Session tracking for analytics
+  useEffect(() => {
+    if (loading) return undefined;
+    
+    initSession();
+    
+    const handleVisibilityChange = () => {
+      if (document.hidden) endSession();
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', endSession);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', endSession);
+      endSession();
+    };
+  }, [loading]);
+
   const refreshQueuedTelegramRecords = useCallback(async () => {
     const result = await drainTelegramSyncQueue({ limit: 5 });
     if (result.records?.length) {
@@ -947,6 +968,19 @@ export default function AppShell() {
 
       const toastMsg = { sale: t.saleSaved, expense: t.expenseSaved }[transaction.type] || 'Saved';
       const safeToastMsg = buildSavedOnDeviceMessage(toastMsg, isOnlineNow);
+      
+      // Track transaction creation event
+      trackEvent('transaction_created', {
+        type: transaction.type,
+        source: transaction.source || 'manual',
+        amount: transaction.amount,
+        has_photo: !!transaction.photo_proof_id,
+        has_cost_price: !!transaction.cost_price,
+        payment_type: transaction.payment_type || 'cash',
+        settlement_mode: transaction.settlement_mode || null,
+        has_credit: !!transaction.credit_amount && Number(transaction.credit_amount) > 0,
+      });
+      
       // Non-destructive confirmation only. Corrections are made by tapping the
       // transaction row (Today/History) → edit/delete, which unwinds related
       // records (customer credit, Telegram, cloud-proof) via the proper paths.
@@ -1125,6 +1159,13 @@ export default function AppShell() {
       });
       const saved = await db.customers.get(id);
       setLedgerCustomers(prev => [...prev, saved]);
+      
+      // Track customer added event
+      trackEvent('customer_added', {
+        has_phone: !!saved.phone_number,
+        has_telegram: !!saved.telegram_username,
+      });
+      
       setShowCustomerForm(false);
       setSelectedCustomerId(id);
       setActiveTab('credit');
@@ -1567,6 +1608,21 @@ export default function AppShell() {
       created_at: now,
     });
     fireToast(draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT ? (t.paymentSaved || 'Payment recorded ✓') : t.creditSaved, 2200);
+
+    // Track customer transaction events
+    if (draft.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD) {
+      trackEvent('credit_added', {
+        amount: amount,
+        has_due_date: !!draft.due_date,
+        has_item_note: !!draft.item_note,
+      });
+    } else if (draft.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT) {
+      trackEvent('payment_recorded', {
+        amount: amount,
+        payment_type: nextBalance <= 0 ? 'full' : 'partial',
+        settled_full_balance: settledFullBalance,
+      });
+    }
 
     if (draft.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD) {
       try {
