@@ -10,7 +10,11 @@ export async function requestOtp(phoneNumber) {
     body: JSON.stringify({ phone_number: phoneNumber }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Failed to send OTP');
+  if (!res.ok) {
+    const err = new Error(data.error || 'Failed to send OTP');
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -22,8 +26,12 @@ export async function verifyOtp(phoneNumber, otp) {
     body: JSON.stringify({ phone_number: phoneNumber, otp: String(otp).trim() }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Invalid OTP');
-  return data; // { token, user }
+  if (!res.ok) {
+    const err = new Error(data.error || 'Invalid OTP');
+    err.status = res.status;
+    throw err;
+  }
+  return data;
 }
 
 // ─── Link device ───
@@ -37,7 +45,11 @@ export async function linkDevice(token, deviceId, deviceName) {
     body: JSON.stringify({ device_id: deviceId, device_name: deviceName || null }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Failed to link device');
+  if (!res.ok) {
+    const err = new Error(data.error || 'Failed to link device');
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -47,8 +59,28 @@ export async function getCurrentUser(token) {
     headers: { 'Authorization': `Bearer ${token}` },
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Failed to get user');
-  return data; // { ok, user, role, permissions }
+  if (!res.ok) {
+    const err = new Error(data.error || 'Failed to get user');
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+// ─── Login with phone password ───
+export async function loginWithPassword(phoneNumber, password) {
+  const res = await fetch(`${AUTH_API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone_number: phoneNumber, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const err = new Error(data.error || 'Login failed');
+    err.status = res.status;
+    throw err;
+  }
+  return data;
 }
 
 // ─── Set password (requires auth token) ───
@@ -62,20 +94,12 @@ export async function setPassword(token, password) {
     body: JSON.stringify({ password }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Failed to set password');
+  if (!res.ok) {
+    const err = new Error(data.error || 'Failed to set password');
+    err.status = res.status;
+    throw err;
+  }
   return data;
-}
-
-// ─── Login with phone password ───
-export async function loginWithPassword(phoneNumber, password) {
-  const res = await fetch(`${AUTH_API_BASE}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone_number: phoneNumber, password }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Login failed');
-  return data; // { ok, token, user, role, permissions, businesses }
 }
 
 // ─── Remove password (requires auth token) ───
@@ -88,6 +112,10 @@ export async function removePassword(token) {
     },
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Failed to remove password');
+  if (!res.ok) {
+    const err = new Error(data.error || 'Failed to remove password');
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
