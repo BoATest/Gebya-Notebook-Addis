@@ -4,6 +4,7 @@ import { getAuthToken } from '../utils/syncEngine';
 import identityApi from '../api/identity';
 import { useStaffStore } from '../stores/staffStore';
 import { normalizeStaffDraft } from '../utils/staffMembers';
+import { trackEvent } from '../utils/eventTracking';
 
 export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMembers, activeStaffMemberId, shopProfile }) {
 

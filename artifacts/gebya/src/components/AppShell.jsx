@@ -459,6 +459,27 @@ export default function AppShell() {
   // Refresh local data from Dexie after each sync cycle completes
   useSyncRefresh(useCallback(() => { loadData(); }, [loadData]));
 
+  // Initialize session tracking on mount
+  useEffect(() => {
+    initSession();
+    
+    // Track session end on page hide/unload
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        endSession();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', endSession);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', endSession);
+      endSession();
+    };
+  }, []);
+
   useEffect(() => {
     if (loading) return undefined;
     let destroyed = false;
@@ -1307,6 +1328,7 @@ export default function AppShell() {
     const now = Date.now();
     const nextChatId = payload.telegram_chat_id || customer.telegram_chat_id || null;
     const nextUsername = payload.telegram_username || customer.telegram_username || null;
+    const wasNotLinked = !customer.telegram_chat_id;
     try {
       await handleUpdateCustomerRecord(customer.id, {
         telegram_username: nextUsername,
@@ -1326,6 +1348,14 @@ export default function AppShell() {
           telegram_linked_at: payload.telegram_linked_at || customer.telegram_linked_at || now,
           telegram_link_requested_at: payload.telegram_link_requested_at || customer.telegram_link_requested_at || now,
         });
+        
+        // Track telegram linked event (only for new links)
+        if (wasNotLinked && nextChatId) {
+          trackEvent('telegram_linked', {
+            link_method: payload.link_method || 'manual',
+            has_username: !!nextUsername
+          });
+        }
       }
       if (payload.showSavedToast !== false) {
         fireToast(t.saved, 1800);

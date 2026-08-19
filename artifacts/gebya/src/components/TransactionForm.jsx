@@ -38,6 +38,7 @@ import PaymentTypeChips from './PaymentTypeChips';
 import AddProviderButton from './AddProviderButton';
 import PartialPaymentSheet from './PartialPaymentSheet';
 import { db } from '../db';
+import { trackEvent } from '../utils/eventTracking';
 
 function handleNumericInput(e, setter) {
   let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
@@ -204,6 +205,7 @@ function TransactionForm({
   const handleSave = async () => {
     if (!canSave) return;
     setIsSaving(true);
+    const saveStartTime = Date.now();
     const fullPhone = phoneEntered && phoneValid ? '+251' + phoneDigits : null;
 
     const itemNameForSave = item.trim();
@@ -242,6 +244,20 @@ function TransactionForm({
     };
     try {
       await onSave(data);
+      
+      // Track transaction creation analytics
+      trackEvent('transaction_created', {
+        type: data.type,
+        source: 'manual',
+        amount: data.amount,
+        has_photo: photos.length > 0,
+        has_cost_price: data.cost_price > 0,
+        payment_type: data.payment_type || 'none',
+        is_credit: data.is_credit || false,
+        is_partial: isPartialSale,
+        duration_ms: Date.now() - saveStartTime
+      });
+      
       resetFormInternal();
       // Seamless flow: re-enable saving immediately and show a brief "Saved ✓" flash
       // so fast back-to-back entries need no navigation. Ref-held timer is cleared on

@@ -1,5 +1,6 @@
 import { X, Share2 } from 'lucide-react';
 import { fireToast } from './Toast';
+import { trackEvent } from '../utils/eventTracking';
 
 export default function ShareModal({ summary, telegram, onClose, t }) {
   const isUsername = telegram?.startsWith('@') && telegram.length > 1;
@@ -8,7 +9,10 @@ export default function ShareModal({ summary, telegram, onClose, t }) {
 
   const handleNativeShare = async () => {
     if (navigator.share) {
-      try { await navigator.share({ title: t.shareDailyReport, text: summary }); } catch { /* dismissed */ }
+      try { 
+        await navigator.share({ title: t.shareDailyReport, text: summary });
+        trackEvent('report_shared', { share_method: 'native' });
+      } catch { /* dismissed */ }
     }
   };
 
@@ -55,7 +59,10 @@ export default function ShareModal({ summary, telegram, onClose, t }) {
           )}
           {isUsername && handle && (
             <button
-              onClick={() => window.open(`https://t.me/${handle}?text=${encoded}`, '_blank')}
+              onClick={() => {
+                window.open(`https://t.me/${handle}?text=${encoded}`, '_blank');
+                trackEvent('report_shared', { share_method: 'telegram' });
+              }}
               className="w-full py-3 font-bold text-sm flex items-center justify-center gap-2 min-h-[48px] hover-lift press-scale"
               style={{ background: '#2481cc', color: 'var(--color-bg-white)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)' }}
             >
