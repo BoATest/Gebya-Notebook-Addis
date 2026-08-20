@@ -1,4 +1,5 @@
 {
+  "installCommand": "corepack enable && pnpm install --no-frozen-lockfile",
   "functions": {
     "api/healthz.ts": {
       "maxDuration": 10
