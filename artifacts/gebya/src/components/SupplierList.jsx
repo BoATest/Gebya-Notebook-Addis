@@ -1,409 +1,216 @@
-// SupplierList.jsx — Cockpit Synthesis v0.3 · "people I OWE" view (Commit D).
-//
-// Mirror of CustomerList but with RED accents (I owe = red side of the ledger).
-// Layout:
-//   1. Hero card · big total "I owe X birr" in red + supplier count + add button
-//   2. Search bar
-//   3. Filter chips · All · 30d+ open · Cleared
-//   4. Supplier rows with urgency stripes (red ≥30 days, amber ≥14, green <14),
-//      photo-or-initials avatars, balance with running days
-//
-// Khatabook insight: shopkeepers feel relief when they SEE how much they owe
-// total. Hero card answers "where am I exposed?" before any individual row.
-
-import { useMemo, useState } from 'react';
-import { Plus, Search, Truck } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Search, X, Download, ChevronRight, SlidersHorizontal, ArrowUpDown, Truck } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { useLang } from '../context/LangContext';
+import SortSheet from './SortSheet';
 
-function matchesSupplier(supplier, query) {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  return [supplier.display_name, supplier.note, supplier.phone_number]
-    .filter(Boolean)
-    .some((value) => String(value).toLowerCase().includes(q));
-}
+const SORT_LABELS = {
+  balance: 'sortHighestBalance',
+  active: 'sortRecentlyActive',
+  added: 'sortRecentlyAdded',
+  name: 'sortNameAz',
+};
 
-function pickGradient(name = '') {
-  const palette = [
-    ['#7f1d1d', '#dc2626'],
-    ['#991b1b', '#ef4444'],
-    ['#9f1239', '#e11d48'],
-    ['#7c2d12', '#ea580c'],
-    ['#6b21a8', '#a21caf'],
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  const [a, b] = palette[Math.abs(hash) % palette.length];
-  return `linear-gradient(135deg, ${a} 0%, ${b} 100%)`;
-}
-
-function initialsFor(name = '?') {
-  return name.split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
-}
-
-// Compute days since the oldest unpaid purchase. >= 30 = red urgency,
-// 14-29 = amber, < 14 = green. No outstanding balance → "cleared".
-function urgencyFor(supplier) {
-  const balance = Number(supplier.balance || 0);
-  if (balance <= 0) return { stripe: 'var(--color-text-soft)', tone: 'cleared', days: 0 };
-  // Approximate oldest open purchase by walking transactions newest→oldest
-  // and subtracting payments greedily (FIFO settlement).
-  const txs = (supplier.transactions || []).slice();
-  let remaining = balance;
-  let oldestOpenAt = null;
-  // sort ascending by created_at (oldest first)
-  txs.sort((a, b) => (a.created_at || 0) - (b.created_at || 0));
-  let availablePayments = txs
-    .filter(t => t.type === 'payment')
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-  for (const t of txs) {
-    if (t.type !== 'purchase_add') continue;
-    const amt = Number(t.amount || 0);
-    const settled = Math.min(amt, availablePayments);
-    availablePayments -= settled;
-    const stillOwed = amt - settled;
-    if (stillOwed > 0) {
-      oldestOpenAt = t.created_at;
-      break;
-    }
-  }
-  if (!oldestOpenAt) return { stripe: 'var(--color-success-border)', tone: 'recent', days: 0 };
-  const days = Math.floor((Date.now() - oldestOpenAt) / (1000 * 60 * 60 * 24));
-  if (days >= 30) return { stripe: 'var(--color-danger)', tone: 'overdue', days };
-  if (days >= 14) return { stripe: 'var(--color-warning)', tone: 'aging', days };
-  return { stripe: 'var(--color-success-border)', tone: 'recent', days };
-}
-
-function SupplierList({ suppliers = [], onSelectSupplier, onAddSupplier }) {
-  const { t, lang } = useLang();
-  const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState('all'); // all | aging | cleared
-
-  const trimmedQuery = query.trim();
-  const hasQuery = trimmedQuery.length > 0;
-
-  // Enrich with urgency once
-  const enriched = useMemo(
-    () => suppliers.map(s => ({ ...s, _urgency: urgencyFor(s) })),
-    [suppliers]
-  );
-
-  const totalOwed = useMemo(
-    () => enriched.reduce((sum, s) => sum + Math.max(s.balance || 0, 0), 0),
-    [enriched]
-  );
-
-  const counts = useMemo(() => ({
-    all: enriched.length,
-    aging: enriched.filter(s => s._urgency.tone === 'overdue' || s._urgency.tone === 'aging').length,
-    cleared: enriched.filter(s => s._urgency.tone === 'cleared').length,
-  }), [enriched]);
-
-  const filteredSuppliers = useMemo(() => {
-    return enriched.filter((s) => {
-      if (!matchesSupplier(s, query)) return false;
-      if (filter === 'aging' && !(s._urgency.tone === 'overdue' || s._urgency.tone === 'aging')) return false;
-      if (filter === 'cleared' && s._urgency.tone !== 'cleared') return false;
-      return true;
-    });
-  }, [enriched, query, filter]);
+function SupplierRow({ supplier, onSelect, t }) {
+  const initial = (supplier.display_name || '?').trim().charAt(0).toUpperCase() || '?';
+  const lastSaleLabel = supplier.last_activity_at ? '' : null;
+  const owes = Number(supplier.balance) > 0;
+  const statusText = owes ? t.iOweTag : t.statusSettled;
+  const statusColor = owes ? '#d97706' : 'var(--color-text-muted)';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <button
+      onClick={() => onSelect(supplier)}
+      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left active:scale-[0.99] transition-transform"
+      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)' }}
+    >
+      <span
+        className="flex items-center justify-center w-10 h-10 rounded-full flex-shrink-0 font-bold text-sm"
+        style={{ background: 'var(--color-bg-disabled)', color: 'var(--color-text)' }}
+      >
+        {initial}
+      </span>
 
-      {/* ═══ 1. HERO CARD ════════════════════════════════════════════════ */}
-      <div
+      <span className="flex-1 min-w-0">
+        <span className="block font-semibold text-[15px] truncate" style={{ color: 'var(--color-text)' }}>
+          {supplier.display_name}
+        </span>
+        <span className="block text-xs truncate" style={{ color: statusColor }}>
+          {statusText}
+        </span>
+      </span>
+
+      <span className="flex flex-col items-end flex-shrink-0">
+        <span className="font-bold text-[15px]" style={{ color: 'var(--color-text)' }}>
+          {fmt(supplier.balance)}
+        </span>
+        <ChevronRight className="w-4 h-4 mt-0.5" style={{ color: 'var(--color-text-muted)' }} />
+      </span>
+    </button>
+  );
+}
+
+export default function SupplierList({ suppliers = [], onSelectSupplier, onAddSupplier, onDownloadClick }) {
+  const { t } = useLang();
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('balance');
+  const [showSort, setShowSort] = useState(false);
+
+  const { active, archivedCount, allCount } = useMemo(() => {
+    const arch = suppliers.filter((s) => s.archived_at);
+    const act = suppliers.filter((s) => !s.archived_at);
+    return { active: act, archivedCount: arch.length, allCount: act.length };
+  }, [suppliers]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = active;
+    if (filter === 'archived') list = suppliers.filter((s) => s.archived_at);
+    if (q) {
+      list = list.filter((s) => {
+        const hay = `${s.display_name || ''} ${s.note || ''} ${s.phone_number || ''}`.toLowerCase();
+        return hay.includes(q);
+      });
+    }
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      if (sortBy === 'active') return (b.last_activity_at || 0) - (a.last_activity_at || 0);
+      if (sortBy === 'added') return (b.created_at || 0) - (a.created_at || 0);
+      if (sortBy === 'name') return String(a.display_name || '').localeCompare(String(b.display_name || ''));
+      return (Number(b.balance) || 0) - (Number(a.balance) || 0);
+    });
+    return sorted;
+  }, [active, suppliers, filter, query, sortBy]);
+
+  const totalIowe = useMemo(
+    () => active.reduce((s, c) => s + (Number(c.balance) || 0), 0),
+    [active]
+  );
+
+  const chip = (value, label, count, activeColor) => {
+    const isActive = filter === value;
+    return (
+      <button
+        key={value}
+        onClick={() => setFilter(value)}
+        className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap min-h-[36px] active:scale-95 transition-transform"
         style={{
-          background: 'linear-gradient(135deg, #fff5f5 0%, #fff 100%)',
-          border: '1px solid var(--color-danger-border)',
-          borderRadius: 14,
-          padding: 16,
-          boxShadow: '0 2px 12px -4px rgba(220,38,38,0.12)',
+          background: isActive ? (activeColor || 'var(--color-primary)') : 'var(--color-bg-disabled)',
+          color: isActive ? 'var(--color-bg-white)' : 'var(--color-text)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{
-              fontSize: '0.62rem', fontWeight: 800,
-              color: 'var(--color-danger)', letterSpacing: '0.12em', textTransform: 'uppercase',
-            }}>
-              {lang === 'am' ? 'ለአቅራቢዎች ለመክፈል' : 'I owe (suppliers)'}
-            </p>
-            <p style={{
-              fontFamily: 'Manrope, system-ui, sans-serif',
-              fontSize: '1.85rem', fontWeight: 800,
-              color: totalOwed > 0 ? 'var(--color-danger)' : 'var(--color-text-soft)',
-              lineHeight: 1, marginTop: 4,
-              letterSpacing: '-0.02em',
-              fontVariantNumeric: 'tabular-nums',
-            }}>
-              −{fmt(totalOwed)}
-              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-soft)', marginLeft: 4 }}>
-                {lang === 'am' ? 'ብር' : 'birr'}
-              </span>
-            </p>
-            <p style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
-              {enriched.length} {lang === 'am'
-                ? 'አቅራቢ'
-                : (enriched.length === 1 ? 'supplier' : 'suppliers')}
-              {counts.aging > 0 && (
-                <>
-                  <span style={{ color: 'var(--color-text-soft)', margin: '0 4px' }}>·</span>
-                  <span style={{ color: 'var(--color-danger)', fontWeight: 700 }}>
-                    {counts.aging} {lang === 'am' ? 'ቆይቷል' : 'open ≥14d'}
-                  </span>
-                </>
-              )}
-            </p>
-          </div>
+        {label}
+        <span className="opacity-80">{count}</span>
+      </button>
+    );
+  };
 
+  return (
+    <div className="pb-2">
+      {/* Hero card — neutral, "Total I owe" */}
+      <div
+        className="w-full text-left px-4 py-4 rounded-2xl mb-3"
+        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)' }}
+      >
+        <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t.totalIOwe}</p>
+        <p className="text-3xl font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
+          {fmt(totalIowe)}
+          <span className="text-base font-semibold ml-1">ETB</span>
+        </p>
+        <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+          {t.creditCustomersLine.replace('{count}', String(allCount)).replace('{overdue}', '0')}
+        </p>
+      </div>
+
+      {/* Search + filter + download */}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex-1 relative flex items-center">
+          <Search className="w-4 h-4 absolute left-3 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t.searchSupplierPlaceholder || t.searchCustomerPlaceholder}
+            className="w-full pl-9 pr-9 py-2.5 rounded-xl text-[15px] outline-none min-h-[44px]"
+            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)', color: 'var(--color-text)' }}
+          />
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              aria-label={t.close}
+              className="absolute right-2 p-1.5 rounded-full"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
+        <button
+          onClick={() => setShowSort(true)}
+          aria-label={t.filterLabel}
+          className="p-3 rounded-xl active:scale-90 flex-shrink-0"
+          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)', color: 'var(--color-text)' }}
+        >
+          <SlidersHorizontal className="w-5 h-5" />
+        </button>
+        <button
+          onClick={onDownloadClick}
+          aria-label={t.download}
+          className="p-3 rounded-xl active:scale-90 flex-shrink-0"
+          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)', color: 'var(--color-text)' }}
+        >
+          <Download className="w-5 h-5" />
+        </button>
       </div>
 
-      {/* ═══ 2. SEARCH ═══════════════════════════════════════════════════ */}
-      <div style={{ position: 'relative' }}>
-        <Search
-          className="w-4 h-4"
-          style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-soft)' }}
-        />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={lang === 'am' ? 'አቅራቢ ይፈልጉ' : 'Search supplier'}
-          autoCapitalize="words"
-          style={{
-            width: '100%',
-            paddingLeft: 36, paddingRight: 16,
-            paddingTop: 12, paddingBottom: 12,
-            fontSize: '0.88rem',
-            background: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 10,
-            outline: 'none',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
-          }}
-        />
+      {/* Filter chips */}
+      <div className="flex gap-2 overflow-x-auto pb-1 mb-2">
+        {chip('all', t.allFilter, allCount)}
+        {chip('archived', t.archivedFilter, archivedCount)}
       </div>
 
-      {/* ═══ 3. FILTER CHIPS ═════════════════════════════════════════════ */}
-      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
-        <FilterChip
-          label={lang === 'am' ? 'ሁሉ' : 'All'}
-          active={filter === 'all'}
-          onClick={() => setFilter('all')}
-          count={counts.all}
-          tone="neutral"
-        />
-        <FilterChip
-          label={`⏰ ${lang === 'am' ? 'ቆይቷል' : 'Open ≥14d'}`}
-          active={filter === 'aging'}
-          onClick={() => setFilter('aging')}
-          count={counts.aging}
-          tone="red"
-        />
-        <FilterChip
-          label={`✓ ${lang === 'am' ? 'የተዘጋ' : 'Cleared'}`}
-          active={filter === 'cleared'}
-          onClick={() => setFilter('cleared')}
-          count={counts.cleared}
-          tone="green"
-        />
+      {/* Sort (tappable) */}
+      <button
+        onClick={() => setShowSort(true)}
+        className="flex items-center gap-1.5 mb-3 text-xs font-medium active:scale-95 transition-transform"
+        style={{ color: 'var(--color-text-muted)' }}
+      >
+        <ArrowUpDown className="w-3.5 h-3.5" />
+        {t.sortBy}: {t[SORT_LABELS[sortBy]]}
+      </button>
+
+      {/* List */}
+      <div className="space-y-2">
+        {visible.map((s) => (
+          <SupplierRow key={s.id} supplier={s} onSelect={onSelectSupplier} t={t} />
+        ))}
       </div>
 
-      {/* ═══ 4. SUPPLIER ROWS ════════════════════════════════════════════ */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {filteredSuppliers.length === 0 ? (
-          <div style={{
-            background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12,
-            padding: '20px 16px', textAlign: 'center',
-          }}>
-            <Truck className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--color-text-soft)' }} />
-            <p style={{ fontSize: '0.88rem', color: 'var(--color-text-muted)', fontWeight: 700 }}>
-              {suppliers.length === 0
-                ? (lang === 'am' ? 'ምንም አቅራቢ የለም' : 'No suppliers yet')
-                : hasQuery
-                  ? (lang === 'am' ? 'ምንም አልተገኘም' : 'No matches')
-                  : (lang === 'am' ? 'ይህ ምድብ ባዶ ነው' : 'This filter is empty')}
-            </p>
-            <p style={{ fontSize: '0.72rem', color: 'var(--color-text-soft)', marginTop: 4, maxWidth: 280, margin: '4px auto 0' }}>
-              {lang === 'am'
-                ? 'ከአቅራቢ የሚገዙትን ዱቤ እዚህ ይመዝግቡ።'
-                : 'Track what you buy on credit from your wholesalers and suppliers here.'}
-            </p>
-          </div>
-        ) : (
-          filteredSuppliers.map((supplier) => (
-            <SupplierRow
-              key={supplier.id}
-              supplier={supplier}
-              lang={lang}
-              onClick={() => onSelectSupplier?.(supplier)}
-            />
-          ))
-        )}
-      </div>
+      {visible.length === 0 && (
+        <p className="text-center text-sm py-10" style={{ color: 'var(--color-text-muted)' }}>
+          {query ? t.noCustomerSearchResults : t.noSuppliersYet || t.noCustomersFound}
+        </p>
+      )}
 
-      <p style={{
-        fontSize: '0.65rem', color: 'var(--color-text-soft)',
-        textAlign: 'center', fontStyle: 'italic',
-        padding: '4px 0 8px',
-      }}>
-        🔒 {lang === 'am' ? 'መረጃው በዚህ ስልክ ብቻ ይቀመጣል' : 'Saved on this phone only'}
-      </p>
+      {/* Add Supplier — inline, full width */}
+      <button
+        onClick={onAddSupplier}
+        className="w-full py-3 min-h-[48px] flex items-center justify-center gap-1.5 mt-3 rounded-2xl transition-all active:scale-[0.99]"
+        style={{ background: 'var(--color-danger)', color: 'var(--color-bg-white)', fontWeight: 700, textTransform: 'uppercase' }}
+      >
+        <Truck className="w-4 h-4" />
+        {t.addSupplier}
+      </button>
+
+      <SortSheet
+        open={showSort}
+        onClose={() => setShowSort(false)}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        filter={filter}
+        onFilterChange={setFilter}
+        supplier
+      />
     </div>
   );
 }
-
-// ─── subcomponents ────────────────────────────────────────────────────
-
-function FilterChip({ label, active, onClick, count, tone }) {
-  const palette = {
-    neutral: { activeBg: 'var(--color-text)', activeColor: 'var(--color-bg-white)', idleBg: 'var(--color-bg-hover)', idleColor: 'var(--color-text-muted)' },
-    red:     { activeBg: 'var(--color-danger)', activeColor: 'var(--color-bg-white)', idleBg: 'var(--color-danger-bg)', idleColor: 'var(--color-danger-text)' },
-    green:   { activeBg: 'var(--color-success)', activeColor: 'var(--color-bg-white)', idleBg: 'var(--color-success-bg)', idleColor: 'var(--color-success-text)' },
-  };
-  const p = palette[tone] || palette.neutral;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="press-scale"
-      style={{
-        flexShrink: 0,
-        padding: '6px 12px',
-        borderRadius: 999,
-        background: active ? p.activeBg : p.idleBg,
-        color: active ? p.activeColor : p.idleColor,
-        fontSize: '0.72rem', fontWeight: 700,
-        border: 'none',
-        cursor: 'pointer',
-        display: 'flex', alignItems: 'center', gap: 5,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {label}
-      {count !== undefined && count > 0 && (
-        <span style={{
-          background: active ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.06)',
-          padding: '1px 6px', borderRadius: 999,
-          fontSize: '0.65rem', fontWeight: 800,
-        }}>
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
-
-function SupplierRow({ supplier, lang, onClick }) {
-  const balance = Math.max(Number(supplier.balance || 0), 0);
-  const hasBalance = balance > 0;
-  const urgency = supplier._urgency || { stripe: 'var(--color-text-soft)', tone: 'cleared', days: 0 };
-  const initials = initialsFor(supplier.display_name);
-  const grad = pickGradient(supplier.display_name || '');
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="press-scale"
-      style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 12,
-        padding: 12,
-        display: 'flex', alignItems: 'center', gap: 10,
-        cursor: 'pointer',
-        textAlign: 'left',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Urgency stripe on left edge */}
-      <div style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0,
-        width: 4,
-        background: urgency.stripe,
-      }} />
-
-      {/* Avatar */}
-      <div style={{
-        marginLeft: 4,
-        width: 40, height: 40, borderRadius: '50%',
-        flexShrink: 0, overflow: 'hidden',
-        position: 'relative',
-      }}>
-        {supplier.photo ? (
-          <img src={supplier.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <div style={{
-            width: '100%', height: '100%',
-            background: grad,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--color-bg-white)', fontSize: '0.9rem', fontWeight: 800,
-          }}>{initials}</div>
-        )}
-        {/* Tiny overdue dot when ≥30 days */}
-        {urgency.tone === 'overdue' && (
-          <div style={{
-            position: 'absolute', bottom: -1, right: -1,
-            width: 12, height: 12, borderRadius: '50%',
-            background: 'var(--color-danger)',
-            border: '2px solid #fff',
-          }} />
-        )}
-      </div>
-
-      {/* Name + meta */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{
-          fontSize: '0.92rem', fontWeight: 800, color: 'var(--color-text)',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {supplier.display_name}
-        </p>
-        <div style={{
-          display: 'flex', gap: 6, alignItems: 'center',
-          fontSize: '0.7rem', color: 'var(--color-text-soft)', marginTop: 2,
-        }}>
-          <span>{supplier.transaction_count || 0} {lang === 'am' ? 'መዝገብ' : 'entries'}</span>
-          {urgency.tone === 'overdue' && (
-            <>
-              <span>·</span>
-              <span style={{ color: 'var(--color-danger)', fontWeight: 700 }}>
-                ⏰ {urgency.days}d {lang === 'am' ? 'ቆይቷል' : 'open'}
-              </span>
-            </>
-          )}
-          {urgency.tone === 'aging' && (
-            <>
-              <span>·</span>
-              <span style={{ color: 'var(--color-accent-amber)', fontWeight: 700 }}>
-                {urgency.days}d
-              </span>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Balance */}
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <p style={{
-          fontSize: '0.95rem', fontWeight: 800,
-          color: hasBalance ? 'var(--color-danger)' : 'var(--color-text-soft)',
-          fontFamily: 'Manrope, system-ui, sans-serif',
-          fontVariantNumeric: 'tabular-nums',
-        }}>
-          {hasBalance ? `−${fmt(balance)}` : '✓ 0'}
-        </p>
-        <p style={{ fontSize: '0.6rem', color: 'var(--color-text-soft)', marginTop: 2 }}>
-          {lang === 'am' ? 'ብር' : 'birr'}
-        </p>
-      </div>
-    </button>
-  );
-}
-
-export default SupplierList;

@@ -1,653 +1,298 @@
-// CustomerList.jsx — Cockpit Synthesis v0.3 customer list
-//
-// Layout (top → bottom):
-//   - Hero card · Total owed + Overdue + Collected this month + On-time % + streak
-//   - Search row · search input + Add button
-//   - Filter chips · All · Overdue · 👑 Top · Telegram · Cleared
-//   - Top-customers banner (only when 👑 Top filter is active)
-//   - Sort line
-//   - Customer rows · photo (or initial avatar) + urgency stripe + name + meta
-//                     + Telegram-state chip + balance + inline 🔔 (overdue only)
-//   - Bulk-remind bar (locked at bottom when overdue customers exist)
-//   - Empty state · friendly day-1 onboarding with faded example rows
-//
-// Privacy: numbers mask to •••• when usePrivacy().hidden is true.
-// Names, photos, percentages, streak stay visible.
-//
-// Sizing (locked per design):
-//   touch target ≥ 44 px primary, ≥ 32 px secondary
-//   row 60-64 px tall (avatar 40 + 10 padding)
-//   filter chips 28 px tall
-//   hero card ~140 px total
-//   bulk bar 48 px
-
-import { useMemo, useState } from 'react';
-import { Plus, Search, Users, Bell, Eye, EyeOff } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Search, X, Download, ChevronRight, SlidersHorizontal, ArrowUpDown, Eye, EyeOff, Users, AlertTriangle } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { useLang } from '../context/LangContext';
-import { usePrivacy } from '../context/PrivacyContext';
 import { daysAgoLabel } from '../utils/reminders';
+import SortSheet from './SortSheet';
+import CreditOverviewSheet from './CreditOverviewSheet';
 
-// ───── helpers ─────────────────────────────────────────────────────────────
-function matchesCustomer(customer, query) {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  return [
-    customer.display_name,
-    customer.note,
-    customer.phone_number,
-    customer.telegram_username,
-  ]
-    .filter(Boolean)
-    .some((value) => String(value).toLowerCase().includes(q));
-}
-
-// Stable initials from a name. "Abebe Tilahun" → "AT", "Selam" → "SE", null → "?"
-function initialsOf(name) {
-  if (!name || typeof name !== 'string') return '?';
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
-// Avatar gradient by first letter — stable, soft, dignified
-const AVATAR_GRADIENTS = {
-  A: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-  B: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)',
-  C: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-  D: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
-  E: 'linear-gradient(135deg, #84cc16 0%, #4d7c0f 100%)',
-  F: 'linear-gradient(135deg, #f43f5e 0%, #be123c 100%)',
-  G: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)',
-  H: 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)',
-  I: 'linear-gradient(135deg, #f97316 0%, #c2410c 100%)',
-  J: 'linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)',
-  K: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
-  L: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
-  M: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-  N: 'linear-gradient(135deg, #eab308 0%, #a16207 100%)',
-  O: 'linear-gradient(135deg, #d946ef 0%, #a21caf 100%)',
-  P: 'linear-gradient(135deg, #22c55e 0%, #15803d 100%)',
-  Q: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)',
-  R: 'linear-gradient(135deg, #6366f1 0%, #3730a3 100%)',
-  S: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
-  T: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-  U: 'linear-gradient(135deg, #06b6d4 0%, #0e7490 100%)',
-  V: 'linear-gradient(135deg, #f43f5e 0%, #9f1239 100%)',
-  W: 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
-  X: 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)',
-  Y: 'linear-gradient(135deg, #f97316 0%, #9a3412 100%)',
-  Z: 'linear-gradient(135deg, #ec4899 0%, #831843 100%)',
+const SORT_LABELS = {
+  overdue: 'sortMostOverdue',
+  balance: 'sortHighestBalance',
+  active: 'sortRecentlyActive',
+  added: 'sortRecentlyAdded',
+  name: 'sortNameAz',
 };
-function gradientFor(name) {
-  const init = initialsOf(name);
-  return AVATAR_GRADIENTS[init[0]] || AVATAR_GRADIENTS.A;
-}
 
-// Urgency color by overdue days / recency
-function urgencyColor(customer) {
-  if (customer?.has_overdue) return 'var(--color-danger)';      // red
-  const last = customer?.last_activity_at;
-  if (!last) return 'var(--color-bg-disabled)';                       // gray
-  const days = Math.floor((Date.now() - last) / (24 * 60 * 60 * 1000));
-  if (days <= 2) return 'var(--color-success)';                   // green
-  if (days <= 14) return 'var(--color-warning)';                  // amber
-  return 'var(--color-bg-disabled)';                                  // gray
-}
-
-// Status dot — same urgency colors, simpler binary semantics
-function statusDot(customer) {
-  if (customer?.has_overdue) return 'overdue';
-  const last = customer?.last_activity_at;
-  if (last && (Date.now() - last) <= 3 * 24 * 60 * 60 * 1000) return 'recent';
-  return null;
-}
-
-// ───── component ───────────────────────────────────────────────────────────
-function CustomerList({
-  customers = [],
-  metrics = {},
-  onSelectCustomer,
-  onAddCustomer,
-  onRemindCustomer,
-  onBulkRemind,
-}) {
-  const { t, lang } = useLang();
-  const { hidden, toggle: togglePrivacy } = usePrivacy();
-  const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState('all'); // 'all' | 'overdue' | 'canRemind' | 'archived'
-
-  const trimmedQuery = query.trim();
-  const hasQuery = trimmedQuery.length > 0;
-
-  // ───── derive filter counts (always show across all customers) ─────
-  const counts = useMemo(() => {
-    let all = 0;
-    let overdue = 0;
-    let canRemind = 0;
-    let archived = 0;
-    for (const c of customers) {
-      if (c.archived_at) { archived++; continue; }
-      all++;
-      if (c.has_overdue) overdue++;
-      if (c.phone_number || c.telegram_chat_id || c.telegram_username) canRemind++;
-    }
-    return { all, overdue, canRemind, archived };
-  }, [customers]);
-
-  // ───── apply filter + search ─────
-  const filtered = useMemo(() => {
-    let list = customers.filter((c) => {
-      if (filter === 'archived') return !!c.archived_at;
-      if (c.archived_at) return false;
-      if (filter === 'overdue') return c.has_overdue;
-      if (filter === 'canRemind') return c.phone_number || c.telegram_chat_id || c.telegram_username;
-      return true; // 'all'
-    });
-    if (hasQuery) list = list.filter((c) => matchesCustomer(c, query));
-    return list;
-  }, [customers, filter, query, hasQuery]);
-
-  // ───── sort: most overdue first, then highest balance ─────
-  const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      // Overdue first
-      if (a.has_overdue !== b.has_overdue) return a.has_overdue ? -1 : 1;
-      if (a.has_overdue && b.has_overdue) {
-        return (b.overdue_days || 0) - (a.overdue_days || 0);
-      }
-      // Then highest balance
-      return (Number(b.balance) || 0) - (Number(a.balance) || 0);
-    });
-  }, [filtered, filter]);
-
-  // ───── EMPTY STATE — day-1 zero customers ─────
-  if (customers.length === 0) {
-    return (
-      <div className="space-y-4">
-        <div
-          className="px-3 py-10 text-center"
-          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}
-        >
-          <div style={{ fontSize: '3rem', lineHeight: 1, marginBottom: 12 }}>📒</div>
-          <p className="text-lg font-black" style={{ color: 'var(--color-text)', marginBottom: 4 }}>
-            {lang === 'am' ? 'ምንም ደንበኛ የለም' : 'No customers yet'}
-          </p>
-          <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)', maxWidth: '260px', margin: '0 auto 18px' }}>
-            {lang === 'am'
-              ? 'ለማን ዱቤ እንዳለ ይያዙ። ይከፍሉ ሲቻላቸው ይከታተሉ።'
-              : 'Track who owes you. Send reminders. Mark payments.'}
-          </p>
-        </div>
-
-        {/* Faded example rows so user knows what's coming */}
-        <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-soft)', paddingLeft: 4 }}>
-          {lang === 'am' ? 'ምን እንደሚመስል' : 'What it will look like'}
-        </p>
-        <div style={{ opacity: 0.55 }}>
-          {[
-            { name: 'Abebe Tilahun', status: lang === 'am' ? 'መታወቂያ አለ' : 'Can remind', amt: 4500, urg: 'var(--color-warning)' },
-            { name: 'Tigist Kebede',  status: lang === 'am' ? 'ያለፈ ጊዜ' : 'Overdue', amt: 3200, urg: 'var(--color-danger)' },
-          ].map((ex, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-2"
-              style={{
-                padding: '10px 14px',
-                background: 'var(--color-surface)',
-                border: '1px dashed var(--color-bg-disabled)',
-                borderRadius: 10,
-                marginBottom: 6,
-              }}
-            >
-              <div style={{ width: 3, height: 36, borderRadius: 2, background: ex.urg, flexShrink: 0 }} />
-              <div
-                style={{
-                  width: 40, height: 40, borderRadius: '50%',
-                  background: gradientFor(ex.name),
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: 'var(--color-bg-white)', fontWeight: 800, fontSize: '0.95rem',
-                  flexShrink: 0,
-                }}
-              >
-                {initialsOf(ex.name)}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-text)' }}>{ex.name}</p>
-                <p style={{ fontSize: '0.68rem', color: ex.urg }}>{ex.status}</p>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.95rem', fontWeight: 700, color: ex.urg }}>
-                  {fmt(ex.amt)}
-                </p>
-                <p style={{ fontSize: '0.6rem', color: 'var(--color-text-soft)' }}>{lang === 'am' ? 'ብር' : 'birr'}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="text-xs" style={{ color: 'var(--color-warning)', fontStyle: 'italic', paddingLeft: 4 }}>
-          ↑ {lang === 'am' ? 'እነዚህ ምሳሌዎች ናቸው' : 'these are examples · add a real customer to start'}
-        </p>
-      </div>
-    );
+function customerStatus(c, t) {
+  if (c.has_overdue) {
+    return { text: t.daysOverdue.replace('{days}', String(c.overdue_days || 0)), color: 'var(--color-danger)', overdue: true };
   }
+  if (Number(c.balance) > 0) {
+    if (c.telegram_chat_id || c.phone_number) {
+      return { text: t.canRemindFilter, color: '#16a34a', overdue: false };
+    }
+    return { text: t.statusActive, color: 'var(--color-text-muted)', overdue: false };
+  }
+  return { text: t.statusSettled, color: 'var(--color-text-muted)', overdue: false };
+}
 
-  // ───── HERO CARD METRICS ─────
-  const heroAmount = hidden ? '••••' : fmt(metrics.totalOwed || 0);
-  const overdueAmount = hidden ? '••••' : fmt(metrics.overdueAmount || 0);
-  const streak = metrics.streak || 0;
+function CustomerRow({ customer, onSelect, t }) {
+  const status = customerStatus(customer, t);
+  const initial = (customer.display_name || '?').trim().charAt(0).toUpperCase() || '?';
+  const lastSaleLabel = customer.last_activity_at ? daysAgoLabel(customer.last_activity_at) : null;
+  const context = lastSaleLabel ? t.lastSaleLine.replace('{label}', lastSaleLabel) : null;
 
   return (
-    <div className="space-y-3">
-
-      {/* ═══ HERO CARD ══════════════════════════════════════════ */}
-      <div
+    <button
+      onClick={() => onSelect(customer)}
+      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left active:scale-[0.99] transition-transform"
+      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)' }}
+    >
+      <span
+        className="flex items-center justify-center w-10 h-10 rounded-full flex-shrink-0 font-bold text-sm"
         style={{
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 12,
-          padding: 14,
-          boxShadow: '0 2px 8px -2px rgba(0,0,0,0.04)',
+          background: 'var(--color-bg-disabled)',
+          color: 'var(--color-text)',
+          boxShadow: status.overdue ? '0 0 0 2px var(--color-danger)' : 'none',
         }}
       >
-        {/* Compact hero: label + counts on same line */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-          <p style={{
-            fontSize: '0.6rem', fontWeight: 800,
-            color: 'var(--color-warning)', letterSpacing: '0.1em',
-            textTransform: 'uppercase', margin: 0,
-          }}>
-            {lang === 'am' ? 'ሊሰበሰብ የሚገባው ጠቅላላ' : 'Total owed to me'}
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <span style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-              {customers.length}{lang === 'am' ? ' ደንበኞች' : ' cust'}
-              {counts.overdue > 0 && <span style={{ color: 'var(--color-danger)' }}> · {counts.overdue} {lang === 'am' ? 'የዘገዩ' : 'od'}</span>}
-            </span>
-            {streak > 0 && (
-              <span style={{
-                background: 'linear-gradient(135deg, var(--color-warning-bg) 0%, var(--color-warning-border) 100%)',
-                color: 'var(--color-warning)',
-                padding: '2px 7px', borderRadius: 999,
-                fontSize: '0.6rem', fontWeight: 800,
-                border: '1px solid rgba(146,64,14,0.15)',
-                whiteSpace: 'nowrap',
-              }}>
-                🔥 {streak}d
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={togglePrivacy}
-              aria-label={lang === 'am' ? 'ቁጥሮችን ደብቅ/አሳይ' : 'Toggle privacy'}
-              className="press-scale"
-              style={{
-                background: hidden ? 'rgba(196,136,58,0.10)' : 'transparent',
-                border: hidden ? '1px solid var(--color-warning-border)' : '1px solid transparent',
-                color: hidden ? 'var(--color-warning)' : 'var(--color-text-soft)',
-                padding: '0 6px',
-                minWidth: 28, minHeight: 28,
-                borderRadius: 999,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-            >
-              {hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            </button>
-              </div>
-            </div>
+        {initial}
+      </span>
 
-        {/* Big amount */}
-        <p style={{
-          fontFamily: 'Manrope, system-ui, sans-serif',
-          fontSize: '1.75rem', fontWeight: 800,
-          color: hidden ? 'var(--color-text-soft)' : 'var(--color-accent-amber)',
-          lineHeight: 1.05, margin: 0,
-          letterSpacing: '-0.02em',
-          fontVariantNumeric: 'tabular-nums',
-        }}>
-          {heroAmount}
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-soft)', marginLeft: 4 }}>
-            {lang === 'am' ? 'ብር' : 'birr'}
-          </span>
-        </p>
-      </div>
-
-      {/* ═══ SEARCH + ADD ══════════════════════════════════════════ */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <div style={{ flex: 1, position: 'relative' }}>
-          <Search className="w-4 h-4" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-accent-amber)' }} />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={lang === 'am' ? 'ስም ወይም ስልክ ይፈልጉ…' : 'Search name or phone…'}
-            autoCapitalize="words"
-            style={{
-              width: '100%', padding: '10px 12px 10px 34px',
-              background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-              borderRadius: 10, fontSize: '0.85rem',
-              outline: 'none', color: 'var(--color-text)',
-            }}
-          />
-        </div>
-      </div>
-
-      {/* ═══ FILTER CHIPS ══════════════════════════════════════════ */}
-      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }} className="hide-scrollbar">
-        {[
-          { id: 'all',      label: lang === 'am' ? 'ሁሉም'     : 'All',     count: counts.all,      style: 'default' },
-          { id: 'overdue',  label: lang === 'am' ? 'የዘገዩ'    : 'Overdue', count: counts.overdue,  style: 'overdue' },
-          { id: 'canRemind', label: lang === 'am' ? 'መታወቂያ አለ'  : 'Can remind', count: counts.canRemind, style: 'default' },
-          ...(counts.archived > 0 ? [{ id: 'archived', label: lang === 'am' ? 'አርክስ' : 'Archived', count: counts.archived, style: 'default' }] : []),
-        ].map((f) => {
-          const active = filter === f.id;
-          const isOverdue = f.style === 'overdue';
-          return (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setFilter(f.id)}
-              className="press-scale"
-              style={{
-                flexShrink: 0,
-                padding: '5px 10px',
-                borderRadius: 999,
-                fontSize: '0.7rem', fontWeight: active ? 800 : 600,
-                background: active
-                  ? (isOverdue ? 'var(--color-danger-bg)' : 'var(--color-text)')
-                  : 'var(--color-bg-white)',
-                color: active
-                  ? (isOverdue ? 'var(--color-danger)' : 'var(--color-bg-white)')
-                  : 'var(--color-text-muted)',
-                border: active
-                  ? `1px solid ${isOverdue ? 'var(--color-danger-border)' : 'var(--color-text)'}`
-                  : '1px solid var(--color-border)',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 4,
-                minHeight: 28,
-              }}
-            >
-              {f.label}
-              <span style={{
-                fontSize: '0.62rem',
-                background: active ? 'rgba(0,0,0,0.10)' : 'rgba(0,0,0,0.06)',
-                padding: '0 5px', borderRadius: 999,
-              }}>
-                {f.count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Chase prompt — show when customers need attention */}
-      {(() => {
-        const chaseCount = sorted.filter(c => c.has_overdue && (c.phone_number || c.telegram_chat_id || c.telegram_username)).length;
-        if (chaseCount === 0) return null;
-        const missedPromiseCount = sorted.filter(c => c.promised_pay_date && c.promised_pay_date < Date.now()).length;
-        return (
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '6px 10px', margin: '2px 0',
-            background: 'var(--color-danger-bg)', borderRadius: 8,
-            border: '1px solid var(--color-danger-border)',
-          }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-danger)', display: 'flex', alignItems: 'center', gap: 5 }}>
-              🎯 {lang === 'am'
-                ? `${chaseCount} ትኩረት ይፈልጋሉ${missedPromiseCount > 0 ? ` · ${missedPromiseCount} የጠበቁት አልፏል` : ''}`
-                : `${chaseCount} need attention${missedPromiseCount > 0 ? ` · ${missedPromiseCount} missed promise` : ''}`}
-            </span>
-            {onBulkRemind && (
-              <button
-                type="button"
-                onClick={onBulkRemind}
-                style={{
-                  background: 'var(--color-danger)', color: 'var(--color-bg-white)', border: 'none',
-                  borderRadius: 6, padding: '4px 10px',
-                  fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer',
-                }}
-              >
-                🔔 {lang === 'am' ? 'ሁሉንም አስታውስ' : 'Remind all'}
-              </button>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* Sort + count line */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px', fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-        <span>
-          {lang === 'am' ? 'ቅደም ተከተል፦' : 'Sort:'}{' '}
-          <strong style={{ color: 'var(--color-text)' }}>
-            {lang === 'am' ? 'ከፍተኛ መዘግየት' : 'Most overdue'}
-          </strong>
+      <span className="flex-1 min-w-0">
+        <span className="block font-semibold text-[15px] truncate" style={{ color: 'var(--color-text)' }}>
+          {customer.display_name}
         </span>
-        <span>
-          {sorted.length} {sorted.length === 1
-            ? (lang === 'am' ? 'ደንበኛ' : 'customer')
-            : (lang === 'am' ? 'ደንበኞች' : 'customers')}
+        <span className="block text-xs truncate" style={{ color: status.color }}>
+          {status.text}
+          {context ? ` · ${context}` : ''}
         </span>
-      </div>
+      </span>
 
-      {/* ═══ ROWS ══════════════════════════════════════════ */}
-      <div style={{ paddingBottom: counts.overdue > 0 ? 56 : 4 }}>
-        {sorted.map((customer) => {
-          const isArchived = !!customer.archived_at;
-          const balance = Number(customer.balance || 0);
-          const hasBalance = balance > 0;
-          const isOverdue = customer.has_overdue;
-          const urg = urgencyColor(customer);
-          const dot = statusDot(customer);
-          const initials = initialsOf(customer.display_name);
-          const canRemind = !isArchived && hasBalance && (customer.telegram_chat_id || customer.telegram_username || customer.phone_number);
-
-          return (
-            <div
-              key={customer.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => onSelectCustomer?.(customer)}
-              onKeyDown={(e) => { if (e.key === 'Enter') onSelectCustomer?.(customer); }}
-              style={{
-                padding: '10px 14px',
-                background: 'var(--color-surface)',
-                borderBottom: '1px solid var(--color-surface-muted)',
-                borderLeft: `4px solid ${isArchived ? 'var(--color-text-soft)' : urg}`,
-                display: 'flex', alignItems: 'center', gap: 10,
-                cursor: 'pointer',
-                minHeight: 60,
-                opacity: isArchived ? 0.5 : 1,
-              }}
-            >
-
-              {/* Avatar (photo or initials gradient) */}
-              <div style={{
-                width: 40, height: 40, borderRadius: '50%',
-                position: 'relative', flexShrink: 0, overflow: 'hidden',
-              }}>
-                {customer.photo ? (
-                  <img
-                    src={customer.photo}
-                    alt=""
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                ) : (
-                  <div style={{
-                    width: '100%', height: '100%',
-                    background: gradientFor(customer.display_name),
-                    color: 'var(--color-bg-white)', fontWeight: 800, fontSize: '0.95rem',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    {initials}
-                  </div>
-                )}
-                {dot && (
-                  <div style={{
-                    position: 'absolute', bottom: 0, right: 0,
-                    width: 11, height: 11, borderRadius: '50%',
-                    border: '2px solid #fff',
-                    background: dot === 'overdue' ? 'var(--color-danger)' : 'var(--color-success)',
-                  }} />
-                )}
-
-              </div>
-
-              {/* Mid: name + meta */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{
-                  fontSize: '0.9rem', fontWeight: 700,
-                  color: 'var(--color-text)', lineHeight: 1.2,
-                  display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap',
-                }}>
-                  {customer.display_name}
-                  {isOverdue && customer.overdue_days > 0 && (
-                    <span style={{
-                      fontSize: '0.58rem', fontWeight: 800,
-                      padding: '1px 6px',
-                      background: 'var(--color-danger)', color: 'var(--color-bg-white)',
-                      borderRadius: 3, letterSpacing: '0.04em',
-                    }}>
-                      {customer.overdue_days}{lang === 'am' ? 'ቀን ያለፈው' : 'd OD'}
-                    </span>
-                  )}
-                  {customer.promised_pay_date && customer.promised_pay_date < Date.now() && (
-                    <span style={{
-                      fontSize: '0.58rem', fontWeight: 800,
-                      padding: '1px 6px',
-                      background: 'var(--color-danger-bg)', color: 'var(--color-danger)',
-                      borderRadius: 3, border: '1px solid var(--color-danger-border)',
-                    }}>
-                      🔴 {lang === 'am' ? 'የጠበቁት አልፏል' : 'Missed'}
-                    </span>
-                  )}
-                </p>
-                <p style={{
-                  fontSize: '0.68rem', color: 'var(--color-text-muted)',
-                  marginTop: 2,
-                }}>
-                  {isOverdue && canRemind && (
-                    <span style={{ color: 'var(--color-danger)', fontWeight: 600 }}>
-                      {lang === 'am' ? 'ያለፈ ጊዜ' : 'Overdue'}
-                    </span>
-                  )}
-                  {!isOverdue && hasBalance && canRemind && (
-                    <span style={{ color: 'var(--color-success-text)' }}>
-                      {lang === 'am' ? 'መታወቂያ አለ' : 'Can remind'}
-                    </span>
-                  )}
-                  {!hasBalance && (
-                    <span style={{ color: 'var(--color-text-soft)' }}>
-                      {lang === 'am' ? 'የተፈተነ' : 'Settled'}
-                    </span>
-                  )}
-                  {customer.last_reminded_at && (
-                    <span style={{ color: 'var(--color-text-muted)', marginLeft: 4 }}>
-                      🔔 {daysAgoLabel(customer.last_reminded_at, lang)}
-                    </span>
-                  )}
-                </p>
-              </div>
-
-              {/* Inline 🔔 on overdue rows */}
-              {isOverdue && canRemind && onRemindCustomer && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onRemindCustomer(customer); }}
-                  className="press-scale"
-                  aria-label={lang === 'am' ? 'አስታውስ' : 'Remind'}
-                  style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: 'var(--color-warning-bg)', color: 'var(--color-accent-amber)',
-                    border: '1px solid var(--color-warning-border)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', flexShrink: 0,
-                  }}
-                >
-                  <Bell className="w-4 h-4" />
-                </button>
-              )}
-
-              {/* Right: balance */}
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <p style={{
-                  fontFamily: 'JetBrains Mono, monospace',
-                  fontSize: '0.95rem', fontWeight: 700,
-                  color: hidden ? 'var(--color-text-soft)' : (isOverdue ? 'var(--color-danger)' : (hasBalance ? 'var(--color-accent-amber)' : 'var(--color-text-soft)')),
-                  fontVariantNumeric: 'tabular-nums',
-                }}>
-                  {hidden ? '••••' : fmt(balance)}
-                </p>
-                <p style={{ fontSize: '0.6rem', color: 'var(--color-text-soft)', marginTop: 1 }}>
-                  {lang === 'am' ? 'ብር' : 'birr'}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-
-        {/* No-match empty (when filter or search returns 0) */}
-        {sorted.length === 0 && (
-          <div
-            className="flex flex-col items-center justify-center text-center"
-            style={{
-              padding: '40px 20px',
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-            }}
-          >
-            <Users className="w-8 h-8 mb-2" style={{ color: 'var(--color-text-soft)' }} />
-            <p className="text-sm" style={{ color: 'var(--color-text-soft)' }}>
-              {hasQuery
-                ? (lang === 'am' ? 'ምንም አልተገኘም' : 'No matches')
-                : (lang === 'am' ? 'በዚህ ምድብ ምንም የለም' : 'Nothing in this filter')}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* ═══ BULK REMIND BAR (locked at bottom of credit-tab content) ══════════════════════════════════════════ */}
-      {counts.overdue > 0 && onBulkRemind && (
-        <div
-          style={{
-            position: 'sticky', bottom: 0,
-            background: 'var(--color-text)', color: 'var(--color-bg-white)',
-            padding: '10px 14px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            borderTop: '2px solid var(--color-warning)',
-            borderRadius: '0 0 8px 8px',
-            margin: '0 -3px',
-            minHeight: 48,
-            boxShadow: '0 -8px 20px -8px rgba(0,0,0,0.15)',
-          }}
-        >
-          <p style={{ fontSize: '0.78rem' }}>
-            <strong style={{ color: 'var(--color-warning)', fontWeight: 800 }}>
-              {counts.overdue} {lang === 'am' ? 'የዘገዩ' : 'overdue'}
-            </strong>
-            {' · '}
-            {hidden ? '••••' : fmt(metrics.overdueAmount || 0)} {lang === 'am' ? 'ብር' : 'birr'}
-          </p>
-          <button
-            type="button"
-            onClick={onBulkRemind}
-            className="press-scale"
-            style={{
-              background: 'var(--color-warning)', color: 'var(--color-text)',
-              padding: '7px 14px', borderRadius: 6,
-              fontSize: '0.78rem', fontWeight: 800,
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 4,
-            }}
-          >
-            🔔 {lang === 'am' ? `አስታውስ (${counts.overdue})` : `Remind ${counts.overdue}`}
-          </button>
-        </div>
-      )}
-    </div>
+      <span className="flex flex-col items-end flex-shrink-0">
+        <span className="font-bold text-[15px]" style={{ color: status.overdue ? 'var(--color-danger)' : 'var(--color-text)' }}>
+          {fmt(customer.balance)}
+        </span>
+        <ChevronRight className="w-4 h-4 mt-0.5" style={{ color: 'var(--color-text-muted)' }} />
+      </span>
+    </button>
   );
 }
 
-export default CustomerList;
+export default function CustomerList({ customers = [], metrics, onSelectCustomer, onAddCustomer, onRemind, onDownloadClick }) {
+  const { t } = useLang();
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('overdue');
+  const [showSort, setShowSort] = useState(false);
+  const [showOverview, setShowOverview] = useState(false);
+  const [showAmounts, setShowAmounts] = useState(true);
+
+  const { active, archivedCount, allCount, overdueCount, canRemindCount } = useMemo(() => {
+    const arch = customers.filter((c) => c.archived_at);
+    const act = customers.filter((c) => !c.archived_at);
+    return {
+      active: act,
+      archivedCount: arch.length,
+      allCount: act.length,
+      overdueCount: act.filter((c) => c.has_overdue).length,
+      canRemindCount: act.filter((c) => c.has_overdue && (c.telegram_chat_id || c.phone_number)).length,
+    };
+  }, [customers]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = active;
+    if (filter === 'overdue') list = active.filter((c) => c.has_overdue);
+    else if (filter === 'canRemind') list = active.filter((c) => c.has_overdue && (c.telegram_chat_id || c.phone_number));
+    else if (filter === 'archived') list = customers.filter((c) => c.archived_at);
+
+    if (q) {
+      list = list.filter((c) => {
+        const hay = `${c.display_name || ''} ${c.note || ''} ${c.phone_number || ''} ${c.telegram_username || ''}`.toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      if (sortBy === 'balance') return (Number(b.balance) || 0) - (Number(a.balance) || 0);
+      if (sortBy === 'active') return (b.last_activity_at || 0) - (a.last_activity_at || 0);
+      if (sortBy === 'added') return (b.created_at || 0) - (a.created_at || 0);
+      if (sortBy === 'name') return String(a.display_name || '').localeCompare(String(b.display_name || ''));
+      // overdue (default)
+      const od = (Number(b.overdue_days) || 0) - (Number(a.overdue_days) || 0);
+      if (od !== 0) return od;
+      return (Number(b.overdue_amount) || 0) - (Number(a.overdue_amount) || 0);
+    });
+    return sorted;
+  }, [active, customers, filter, query, sortBy]);
+
+  const totalOwed = metrics?.totalOwed ?? active.reduce((s, c) => s + (Number(c.balance) || 0), 0);
+  const overdueAmount = metrics?.overdueAmount ?? active.reduce((s, c) => s + (Number(c.overdue_amount) || 0), 0);
+  const showRemind = overdueCount > 0;
+
+  const chip = (value, label, count, activeColor) => {
+    const isActive = filter === value;
+    return (
+      <button
+        key={value}
+        onClick={() => setFilter(value)}
+        className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap min-h-[36px] active:scale-95 transition-transform"
+        style={{
+          background: isActive ? (activeColor || 'var(--color-primary)') : 'var(--color-bg-disabled)',
+          color: isActive ? 'var(--color-bg-white)' : 'var(--color-text)',
+        }}
+      >
+        {label}
+        <span className="opacity-80">{count}</span>
+      </button>
+    );
+  };
+
+  return (
+    <div className="pb-2">
+      {/* Hero card — neutral, tappable to open overview */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setShowOverview(true)}
+        onKeyDown={(e) => { if (e.key === 'Enter') setShowOverview(true); }}
+        className="w-full text-left px-4 py-4 rounded-2xl mb-3 cursor-pointer active:scale-[0.99] transition-transform"
+        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)' }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t.totalOwedToMe}</p>
+            <p className="text-3xl font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>
+              {showAmounts ? fmt(totalOwed) : '••••••'}
+              <span className="text-base font-semibold ml-1">ETB</span>
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+              {t.creditCustomersLine.replace('{count}', String(allCount)).replace('{overdue}', String(overdueCount))}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowAmounts((v) => !v); }}
+              aria-label="Toggle amounts"
+              className="p-2 rounded-full active:scale-90"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              {showAmounts ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+            </button>
+            <ChevronRight className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Search + filter + download */}
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex-1 relative flex items-center">
+          <Search className="w-4 h-4 absolute left-3 pointer-events-none" style={{ color: 'var(--color-text-muted)' }} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t.searchCustomerPlaceholder}
+            className="w-full pl-9 pr-9 py-2.5 rounded-xl text-[15px] outline-none min-h-[44px]"
+            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)', color: 'var(--color-text)' }}
+          />
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              aria-label={t.close}
+              className="absolute right-2 p-1.5 rounded-full"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => setShowSort(true)}
+          aria-label={t.filterLabel}
+          className="p-3 rounded-xl active:scale-90 flex-shrink-0"
+          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)', color: 'var(--color-text)' }}
+        >
+          <SlidersHorizontal className="w-5 h-5" />
+        </button>
+        <button
+          onClick={onDownloadClick}
+          aria-label={t.download}
+          className="p-3 rounded-xl active:scale-90 flex-shrink-0"
+          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)', color: 'var(--color-text)' }}
+        >
+          <Download className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Filter chips */}
+      <div className="flex gap-2 overflow-x-auto pb-1 mb-2 -mx-0.5">
+        {chip('all', t.allFilter, allCount)}
+        {chip('overdue', t.overdueFilter, overdueCount, 'var(--color-danger)')}
+        {chip('canRemind', t.canRemindFilter, canRemindCount, '#16a34a')}
+        {chip('archived', t.archivedFilter, archivedCount)}
+      </div>
+
+      {/* Sort (tappable) */}
+      <button
+        onClick={() => setShowSort(true)}
+        className="flex items-center gap-1.5 mb-3 text-xs font-medium active:scale-95 transition-transform"
+        style={{ color: 'var(--color-text-muted)' }}
+      >
+        <ArrowUpDown className="w-3.5 h-3.5" />
+        {t.sortBy}: {t[SORT_LABELS[sortBy]]}
+      </button>
+
+      {/* List */}
+      <div className="space-y-2">
+        {visible.map((c) => (
+          <CustomerRow key={c.id} customer={c} onSelect={onSelectCustomer} t={t} />
+        ))}
+      </div>
+
+      {visible.length === 0 && (
+        <p className="text-center text-sm py-10" style={{ color: 'var(--color-text-muted)' }}>
+          {query ? t.noCustomerSearchResults : t.noCustomersFound}
+        </p>
+      )}
+
+      {/* Add Customer — inline, full width */}
+      <button
+        onClick={onAddCustomer}
+        className="w-full py-3 min-h-[48px] flex items-center justify-center gap-1.5 mt-3 rounded-2xl transition-all active:scale-[0.99]"
+        style={{ background: '#1A66FF', color: 'var(--color-bg-white)', fontWeight: 700, textTransform: 'uppercase' }}
+      >
+        <Users className="w-4 h-4" />
+        {t.addCustomer}
+      </button>
+
+      {/* Sticky reminder bar — above bottom nav */}
+      {showRemind && (
+        <div
+          className="sticky z-20 mt-2 w-full"
+          style={{ bottom: 'calc(60px + env(safe-area-inset-bottom))' }}
+        >
+          <div
+            className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-lg"
+            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)' }}
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-danger)' }}>
+              <AlertTriangle className="w-4 h-4" />
+              {overdueCount} · {fmt(overdueAmount)} ETB
+            </span>
+            <button
+              onClick={onRemind}
+              className="px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap active:scale-95 transition-transform"
+              style={{ background: 'var(--color-danger)', color: 'var(--color-bg-white)' }}
+            >
+              {t.remindAll.replace('{count}', String(overdueCount))}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <SortSheet
+        open={showSort}
+        onClose={() => setShowSort(false)}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        filter={filter}
+        onFilterChange={setFilter}
+      />
+
+      <CreditOverviewSheet open={showOverview} onClose={() => setShowOverview(false)} metrics={metrics} />
+    </div>
+  );
+}

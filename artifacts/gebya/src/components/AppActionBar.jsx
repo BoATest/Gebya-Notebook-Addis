@@ -1,4 +1,4 @@
-import { Plus, Minus, ShoppingBag, RotateCw, Users, Truck, CreditCard, Wallet } from 'lucide-react';
+import { Plus, Minus, ShoppingBag, RotateCw, CreditCard, Wallet } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
 import { usePermissionsStore } from '../stores/permissionsStore';
@@ -66,44 +66,6 @@ function TodayActionBar({
   );
 }
 
-function CreditListActionBar({ creditView, onAddCustomer, onAddSupplier }) {
-  const { t } = useLang();
-
-  if (creditView === 'customers') {
-    return (
-      <button
-        onClick={onAddCustomer}
-        className="w-full py-2.5 sm:py-3 min-h-[44px] sm:min-h-[48px] flex items-center justify-center gap-1.5 sm:gap-2 transition-all press-scale"
-        style={{
-          background: '#1A66FF', border: 'none', borderRadius: 14,
-          boxShadow: '0 6px 18px rgba(26,102,255,0.25)',
-        }}
-      >
-        <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: 'var(--color-bg-white)', strokeWidth: 2.5 }} />
-        <span className="font-bold text-xs sm:text-sm truncate" style={{ color: 'var(--color-bg-white)', textTransform: 'uppercase' }}>
-          {t.addCustomer}
-        </span>
-      </button>
-    );
-  }
-
-  return (
-    <button
-      onClick={onAddSupplier}
-      className="w-full py-2.5 sm:py-3 min-h-[44px] sm:min-h-[48px] flex items-center justify-center gap-1.5 sm:gap-2 transition-all press-scale"
-      style={{
-        background: 'var(--color-danger)', border: 'none', borderRadius: 14,
-        boxShadow: '0 6px 18px rgba(220,38,38,0.25)',
-      }}
-    >
-      <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" style={{ color: 'var(--color-bg-white)', strokeWidth: 2.5 }} />
-      <span className="font-bold text-xs sm:text-sm truncate" style={{ color: 'var(--color-bg-white)', textTransform: 'uppercase' }}>
-        {t.addSupplier}
-      </span>
-    </button>
-  );
-}
-
 function CreditDetailActionBar({ selectedCustomer, onAddCredit, onRecordPayment }) {
   const { t } = useLang();
 
@@ -141,14 +103,11 @@ export default function AppActionBar({
   activeTab,
   selectedCustomer,
   selectedSupplier,
-  creditView,
   customerSummaries,
   onCreditTap,
   onItemizedSaleTap,
   onSimpleSaleTap,
   onExpenseTap,
-  onAddCustomer,
-  onAddSupplier,
   onAddCredit,
   onRecordPayment,
   pressedBtn,
@@ -174,16 +133,6 @@ export default function AppActionBar({
           onPointerLeave={onPointerLeave}
           onPointerCancel={onPointerCancel}
         />
-      </div>
-    );
-  }
-
-  if (activeTab === 'credit' && !selectedCustomer && !selectedSupplier) {
-    return (
-      <div className="fixed left-0 right-0 max-w-md mx-auto z-30 px-3 py-2 border-t"
-        style={{ bottom: '60px', background: 'var(--color-surface)', borderColor: 'var(--color-bg-disabled)' }}
-      >
-        <CreditListActionBar creditView={creditView} onAddCustomer={onAddCustomer} onAddSupplier={onAddSupplier} />
       </div>
     );
   }
