@@ -140,8 +140,8 @@ export default function OwnerActivityDashboard({ shopProfile, staffMembers }) {
     try {
       const today = todayStartMs();
       const [actRes, violRes] = await Promise.all([
-        apiFetch('/api/audit/activity?date_from=' + encodeURIComponent(new Date(today).toISOString())),
-        apiFetch('/api/audit/violations'),
+        apiFetch('/audit/activity?date_from=' + encodeURIComponent(new Date(today).toISOString())),
+        apiFetch('/audit/violations'),
       ]);
       setActivity(Array.isArray(actRes.activity) ? actRes.activity : []);
       setViolations(Array.isArray(violRes.violations) ? violRes.violations : []);

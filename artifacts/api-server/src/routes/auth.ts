@@ -7,6 +7,7 @@ import { eq, and, gt, inArray } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { sendTelegramTextMessage } from "../services/telegramBotService.js";
+import { isPlatformAdminPhone } from "../services/platformAdmin.js";
 
 const router = Router();
 
@@ -256,6 +257,7 @@ router.post("/verify", async (req, res) => {
       role: primary?.role || null,
       permissions: primary?.permissions || null,
       businesses: businessList,
+      is_platform_admin: await isPlatformAdminPhone(user.phoneNumber),
     });
   });
 
@@ -421,18 +423,19 @@ router.get("/me", async (req, res) => {
     .where(eq(businessMembers.userId, user.id));
   const primary = memberRows[0] || null;
 
-  // Enrich with business names (batch query to avoid N+1)
+  // Enrich with business names + plan (batch query to avoid N+1)
   let businessList: any[] = [];
   if (memberRows.length > 0) {
     const bizIds = memberRows.map((m) => m.businessId);
     const bizRows = await db
-      .select({ id: businesses.id, name: businesses.name })
+      .select({ id: businesses.id, name: businesses.name, plan: businesses.plan })
       .from(businesses)
       .where(inArray(businesses.id, bizIds));
-    const bizMap = new Map(bizRows.map((b) => [b.id, b.name]));
+    const bizMap = new Map(bizRows.map((b) => [b.id, b]));
     businessList = memberRows.map((m) => ({
       business_id: m.businessId,
-      name: bizMap.get(m.businessId) || "Unknown",
+      name: bizMap.get(m.businessId)?.name || "Unknown",
+      plan: bizMap.get(m.businessId)?.plan || "free",
       role: m.role,
       permissions: m.permissions,
     }));
@@ -450,6 +453,7 @@ router.get("/me", async (req, res) => {
     role: primary?.role || null,
     permissions: primary?.permissions || null,
     businesses: businessList,
+    is_platform_admin: await isPlatformAdminPhone(user.phoneNumber),
   });
 });
 
@@ -578,6 +582,7 @@ router.post("/login", async (req, res) => {
     role: primary?.role || null,
     permissions: primary?.permissions || null,
     businesses: businessList,
+    is_platform_admin: await isPlatformAdminPhone(user.phoneNumber),
   });
 });
 

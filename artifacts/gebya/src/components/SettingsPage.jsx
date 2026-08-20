@@ -15,6 +15,9 @@ import CrossShopCurationQueue from './CrossShopCurationQueue';
 import DownloadAppBanner from './settings/DownloadAppBanner';
 
 const AdminDashboard = lazy(() => import('./AdminDashboard.jsx'));
+const AdminShopDetail = lazy(() => import('./AdminShopDetail.jsx'));
+const OwnerActivityDashboard = lazy(() => import('./OwnerActivityDashboard.jsx'));
+const SupportPanel = lazy(() => import('./SupportPanel.jsx'));
 
 const TABS = [
   { id: 'shop', labelEn: 'Shop', labelAm: 'ሱቅ' },
@@ -285,6 +288,7 @@ function SettingsPage({
   const { lang, toggleLang, t } = useLang();
   const hasPermission = usePermissionsStore(s => s.hasPermission);
   const role = usePermissionsStore(s => s.role);
+  const isPlatformAdmin = useAuthStore(s => s.isPlatformAdmin);
   const canManageTeam = hasPermission('can_manage_team');
   const roleBadge = (() => {
     if (!role) return null;
@@ -295,11 +299,17 @@ function SettingsPage({
   const [activeTab, setActiveTab] = useState('shop');
   const [pendingCardId, setPendingCardId] = useState(null);
 
-  const [adminSection, setAdminSection] = useState(null); // null | 'metrics' | 'curation'
+  const [adminSection, setAdminSection] = useState(null); // null | 'metrics' | 'curation' | 'admin' | 'shopDetail'
+  const [selectedShop, setSelectedShop] = useState(null); // shop object from AdminDashboard search
   const [aboutTapCount, setAboutTapCount] = useState(0);
   const [devModeRevealed, setDevModeRevealed] = useState(() => {
     try { return localStorage.getItem('gebya_dev_mode') === 'true'; } catch { return false; }
   });
+  // Shop owners see their own-shop admin tools automatically; the platform-wide
+  // admin dashboard is reserved for allowlisted platform admins (or dev mode).
+  const isOwner = role === 'owner';
+  const showAdminSection = devModeRevealed || isOwner || isPlatformAdmin;
+  const showPlatformAdmin = devModeRevealed || isPlatformAdmin;
 
   const handleNavigate = (cardId, tabId) => {
     if (tabId) {
@@ -444,11 +454,13 @@ function SettingsPage({
           <PasswordSettings lang={lang} />
         </div>
 
-        {/* Admin section — only in dev mode */}
-        {devModeRevealed && (
+        {/* Admin section — owners see their own-shop tools; platform admins also get the platform dashboard */}
+        {showAdminSection && (
           <div className="bg-white rounded-2xl border border-amber-200 overflow-hidden mt-4">
             <div className="px-4 py-3 text-xs font-black uppercase tracking-wider" style={{ color: 'var(--color-warning)' }}>
-              {lang === 'am' ? 'የልማት ሁነታ' : 'Dev Mode'}
+              {showPlatformAdmin
+                ? (lang === 'am' ? 'ፕላትፎርም አስተዳዳሪ' : 'Platform Admin')
+                : (lang === 'am' ? 'የሱቅ አስተዳዳሪ' : 'Shop Admin')}
             </div>
             <div className="flex gap-2 px-4 pb-3">
               <button
@@ -473,17 +485,66 @@ function SettingsPage({
                 {lang === 'am' ? 'ማስተካከያ ወረፋ' : 'Curation'}
               </button>
               <button
-                onClick={() => setAdminSection(adminSection === 'admin' ? null : 'admin')}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${adminSection === 'admin' ? 'text-white' : ''}`}
-                style={adminSection === 'admin' ? { background: 'var(--color-primary)' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
+                onClick={() => setAdminSection(adminSection === 'activity' ? null : 'activity')}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${adminSection === 'activity' ? 'text-white' : ''}`}
+                style={adminSection === 'activity' ? { background: 'var(--color-primary)' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
               >
-                Admin
+                {lang === 'am' ? 'እንቅስቃሴ' : 'Activity'}
               </button>
+              <button
+                onClick={() => setAdminSection(adminSection === 'support' ? null : 'support')}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${adminSection === 'support' ? 'text-white' : ''}`}
+                style={adminSection === 'support' ? { background: 'var(--color-primary)' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
+              >
+                {lang === 'am' ? 'ድጋፍ' : 'Support'}
+              </button>
+              {showPlatformAdmin && (
+                <button
+                  onClick={() => setAdminSection(adminSection === 'admin' ? null : 'admin')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${adminSection === 'admin' ? 'text-white' : ''}`}
+                  style={adminSection === 'admin' ? { background: 'var(--color-primary)' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
+                >
+                  Admin
+                </button>
+              )}
             </div>
+            {showPlatformAdmin && (
+              <div className="px-4 pb-3">
+                <a
+                  href="/admin"
+                  className="block w-full py-2.5 rounded-xl text-xs font-bold text-center text-white"
+                  style={{ background: 'var(--color-primary)' }}
+                >
+                  {lang === 'am' ? 'የመሣሪያ ስርዓት ማዕከል ክፈት' : 'Open Command Center'}
+                </a>
+                <p className="text-[10px] mt-1.5 text-center" style={{ color: 'var(--color-text-soft)' }}>
+                  {lang === 'am' ? 'ለቡድኑ ተጋሩ፡ /admin' : 'Share with your team: /admin'}
+                </p>
+              </div>
+            )}
             {adminSection === 'metrics' && <div className="px-4 pb-3"><AdminMetricsView shopId={shopId} /></div>}
             {adminSection === 'analytics' && <div className="px-4 pb-3"><Suspense fallback={<div className="text-xs text-gray-400 py-4">Loading...</div>}><SimpleAnalytics /></Suspense></div>}
             {adminSection === 'curation' && <div className="px-4 pb-3"><CrossShopCurationQueue /></div>}
-            {adminSection === 'admin' && <div className="px-4 pb-3"><Suspense fallback={<div className="text-xs text-gray-400 py-4">Loading...</div>}><AdminDashboard /></Suspense></div>}
+            {adminSection === 'activity' && (
+              <div className="px-4 pb-3">
+                <Suspense fallback={<div className="text-xs text-gray-400 py-4">Loading...</div>}>
+                  <OwnerActivityDashboard shopProfile={shopProfile} staffMembers={staffMembers} />
+                </Suspense>
+              </div>
+            )}
+            {adminSection === 'support' && (
+              <div className="px-4 pb-3">
+                <Suspense fallback={<div className="text-xs text-gray-400 py-4">Loading...</div>}>
+                  <SupportPanel isAdmin={showPlatformAdmin} />
+                </Suspense>
+              </div>
+            )}
+            {showPlatformAdmin && adminSection === 'admin' && <div className="px-4 pb-3"><Suspense fallback={<div className="text-xs text-gray-400 py-4">Loading...</div>}><AdminDashboard onShopSelect={(shop) => { setSelectedShop(shop); setAdminSection('shopDetail'); }} /></Suspense></div>}
+            {showPlatformAdmin && adminSection === 'shopDetail' && selectedShop && (
+              <Suspense fallback={<div className="text-xs text-gray-400 py-4">Loading...</div>}>
+                <AdminShopDetail businessId={selectedShop.id} onBack={() => setAdminSection('admin')} />
+              </Suspense>
+            )}
           </div>
         )}
 
@@ -529,7 +590,7 @@ function SettingsPage({
           style={{ color: 'var(--color-text-muted)' }}
         >
           Gebya v1.0
-          {aboutTapCount > 0 && aboutTapCount < 5 && !devModeRevealed && (
+          {aboutTapCount > 0 && aboutTapCount < 5 && !showAdminSection && (
             <span className="ml-2" style={{ color: 'var(--color-accent-amber)' }}>
               · {5 - aboutTapCount} {lang === 'am' ? 'ተጨማሪ መታ' : 'more taps'}
             </span>

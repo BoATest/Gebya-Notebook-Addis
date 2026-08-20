@@ -3,10 +3,14 @@
 // Picks the best channel (Telegram → WhatsApp → SMS → Call), lets the shopkeeper
 // pick a tone (Gentle / Firm / Final), preview + edit the message, and send.
 //
-// On send: opens the channel's deep link (wa.me, sms:, tel:, t.me). For
-// Telegram the URL doesn't natively pre-fill, so we copy the message to
-// the clipboard before opening so the user can paste in the chat.
+// On send:
+//   - Telegram: calls the backend API (remindersApi.sendManualReminder) to push
+//     the message via the shop's Telegram bot directly to the customer.
+//   - WhatsApp: opens wa.me with pre-filled text (native deep link).
+//   - SMS: opens sms: URL with pre-filled body (native deep link).
+//   - Call: opens tel: URL.
 //
+// For Telegram the message is sent server-side, so no clipboard copy needed.
 // After send, calls onSent(customerId) so the parent can persist
 // `last_reminded_at` on the customer record.
 
@@ -14,6 +18,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { X, Send, Copy, CheckCircle2, Bell } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { useLang } from '../context/LangContext';
+import { remindersApi } from '../api/reminders';
 import {
   REMINDER_TEMPLATES,
   CHANNEL_INFO,
@@ -64,16 +69,40 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
     if (!effectiveChannel || sending) return;
     setSending(true);
     try {
-      const url = buildChannelUrl({ channel: effectiveChannel, customer, message });
-      if (!url) return;
-      // Telegram t.me URLs don't pre-fill text — copy first so the user can paste.
-      if (effectiveChannel === 'telegram') {
-        await copyMessageToClipboard(message);
+      if (effectiveChannel === 'telegram' && customer?.telegram_chat_id) {
+        // Send via backend API — the bot delivers the message directly through Telegram
+        await remindersApi.sendManualReminder(
+          shopProfile?.shop_id || shopProfile?.id,
+          customer.id,
+          {
+            balance: Number(customer?.balance || 0),
+            dueDate: customer?.due_date ? Number(customer.due_date) : undefined,
+            language: lang === 'am' ? 'am' : 'en',
+            chatId: customer?.telegram_chat_id || undefined,
+            customerName: customer?.display_name || undefined,
+            phoneNumber: customer?.phone || undefined,
+          }
+        );
+      } else {
+        // For WhatsApp/SMS/Call: open the native deep link
+        const url = buildChannelUrl({ channel: effectiveChannel, customer, message });
+        if (!url) return;
+        // Telegram t.me URLs don't pre-fill text — copy first so the user can paste.
+        if (effectiveChannel === 'telegram') {
+          await copyMessageToClipboard(message);
+        }
+        window.open(url, '_blank', 'noopener');
       }
-      // Open the channel app. Use _blank so mobile browsers route via OS handlers.
-      window.open(url, '_blank', 'noopener');
       onSent?.(customer.id);
       onClose?.();
+    } catch (err) {
+      console.error('Reminder send failed:', err);
+      // Fall back to opening the channel URL if the API call fails
+      if (effectiveChannel === 'telegram' && customer?.telegram_username) {
+        const url = `https://t.me/${String(customer.telegram_username).replace(/^@/, '')}`;
+        await copyMessageToClipboard(message);
+        window.open(url, '_blank', 'noopener');
+      }
     } finally {
       setSending(false);
     }
@@ -268,11 +297,11 @@ function ReminderSheet({ customer, shopName, shopProfile, onClose, onSent, defau
                   : 'No phone or Telegram on file. Add contact info on the customer page.'}
               </div>
             )}
-            {effectiveChannel === 'telegram' && (
+            {effectiveChannel === 'telegram' && customer?.telegram_chat_id && (
               <p className="text-[10px] mt-1.5" style={{ color: 'var(--color-text-soft)' }}>
                 {lang === 'am'
-                  ? 'ቴሌግራም መልዕክት አስቀድሞ አይሞላም — መልዕክቱ በ Clipboard ይቀመጣል፣ ለጥፍ ።'
-                  : 'Telegram won\'t pre-fill — the message will be copied to clipboard, paste it.'}
+                  ? 'መልዕክት በራስ ይላካል።'
+                  : 'Message is sent via your Telegram bot directly — no manual paste needed.'}
               </p>
             )}
           </div>

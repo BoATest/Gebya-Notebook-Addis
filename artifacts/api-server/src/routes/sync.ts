@@ -389,13 +389,13 @@ router.post("/push",
             await setLastReminderSentAt(businessId, customerId, Date.now());
             await createHistoryEntry({
               shopId: businessId, customerId, chatId, balanceAtSendTime: String(amount),
-              sentAt: Date.now(), status: "sent", language: "am", messageId: "payment_confirmed",
+              sentAt: Date.now(), status: "sent", language: "en", messageId: "payment_confirmed",
               retryCount: 0, lastAttemptAt: Date.now(), customerNameSnapshot: customerName,
             });
 
             if (chatId) {
               const formattedAmt = Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-              const msg = `🏪 ጌባያ\n\n${customerName} ሆይ፣ የ${formattedAmt} ብር ክፍያህ ተረጋግጧል። እናመሰግናለን! 🙏\n\nሂሳብህን ለማየት /balance ይጫኑ።`;
+              const msg = `🏪 Gebya\n\n${customerName}, your payment of ${formattedAmt} ETB has been confirmed. Thank you! 🙏\n\nType /balance to check your account.`;
               sendTelegramTextMessage(chatId, msg).catch(() => {});
             }
 

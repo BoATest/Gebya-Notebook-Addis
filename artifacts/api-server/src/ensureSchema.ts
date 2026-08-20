@@ -38,6 +38,18 @@ export function ensureSchema(): Promise<void> {
         ADD COLUMN IF NOT EXISTS "password_locked_until" timestamp with time zone
         `);
       console.log("[migrate] users schema ensured (password_hash, password_set_at, password_attempts, password_locked_until)");
+
+      await db.execute(sql`
+        CREATE TABLE IF NOT EXISTS "platform_admin_members" (
+          "id" serial PRIMARY KEY NOT NULL,
+          "phone" text NOT NULL,
+          "added_by_phone" text,
+          "note" text,
+          "created_at" timestamp DEFAULT now() NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS "platform_admin_members_phone_unique" ON "platform_admin_members" USING btree ("phone");
+        `);
+      console.log("[migrate] platform_admin_members ensured");
     } catch (e) {
       console.error("[migrate] ensureSchema failed:", e instanceof Error ? e.message : String(e));
     }

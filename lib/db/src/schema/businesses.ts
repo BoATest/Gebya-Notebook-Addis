@@ -10,6 +10,7 @@ export const businesses = pgTable("businesses", {
   preferredLang: varchar("preferred_lang", { length: 8 }).default("am"),
   phoneRequired: boolean("phone_required").notNull().default(false),
   approvalRequired: boolean("approval_required").notNull().default(false),
+  plan:         varchar("plan", { length: 32 }).notNull().default("free"),
   createdAt:    timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt:    timestamp("updated_at", { withTimezone: true }).defaultNow(),
 }, (t) => [
@@ -21,6 +22,7 @@ export const insertBusinessSchema = z.object({
   name:         z.string().default("My Shop"),
   slug:         z.string().max(64).nullable().optional(),
   preferredLang: z.string().max(8).optional(),
+  plan:         z.string().max(32).default("free").optional(),
 });
 
 export type InsertBusiness = z.infer<typeof insertBusinessSchema>;

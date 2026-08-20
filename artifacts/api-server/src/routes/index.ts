@@ -14,6 +14,7 @@ import analyticsRouter from "./analytics.js";
 import adminRouter from "./admin.js";
 import eventsRouter from "./events.js";
 import staffRouter from "./staff.js";
+import supportRouter from "./support.js";
 
 const router: IRouter = Router();
 
@@ -43,5 +44,7 @@ router.use("/admin", adminRouter);
 router.use("/", eventsRouter);
 // Staff tasks and attendance
 router.use("/", staffRouter);
+// Support tickets — shop → platform support
+router.use("/support", supportRouter);
 
 export default router;

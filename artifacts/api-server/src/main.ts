@@ -1,4 +1,5 @@
 // @ts-nocheck
+import 'dotenv/config';
 import express, { type Express } from "express";
 import cors from "cors";
 // @ts-ignore

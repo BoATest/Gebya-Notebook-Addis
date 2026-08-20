@@ -13,6 +13,7 @@ export const useAuthStore = create((set, get) => ({
   businesses: [],
   currentBusinessId: null,
   hasPassword: false,
+  isPlatformAdmin: false,
 
   setUser: (user) => set({ user, checked: true }),
 
@@ -21,7 +22,7 @@ export const useAuthStore = create((set, get) => ({
   init: async () => {
     const token = await getAuthToken();
     if (!token) {
-      set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null, hasPassword: false });
+      set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null, hasPassword: false, isPlatformAdmin: false });
       usePermissionsStore.getState().resetPermissions();
       return;
     }
@@ -33,13 +34,14 @@ export const useAuthStore = create((set, get) => ({
       const businesses = data.businesses || [];
       const currentBusinessId = data.businesses?.[0]?.business_id || null;
       const hasPassword = data.has_password || false;
+      const isPlatformAdmin = data.is_platform_admin === true;
 
       const resolvedPerms = resolvePermissions(role, rawPerms);
       usePermissionsStore.getState().setPermissions(resolvedPerms, role);
 
       await setBusinesses(businesses);
 
-      set({ user, checked: true, role, permissions: rawPerms, businesses, currentBusinessId, hasPassword });
+      set({ user, checked: true, role, permissions: rawPerms, businesses, currentBusinessId, hasPassword, isPlatformAdmin });
     } catch (err) {
       try {
         const cached = await getBusinesses();
@@ -49,27 +51,28 @@ export const useAuthStore = create((set, get) => ({
             businesses: cached.list,
             currentBusinessId: cached.list[0].business_id,
             hasPassword: false,
+            isPlatformAdmin: false,
           });
           return;
         }
       } catch { /* non-critical */ }
       await clearAuthToken();
       usePermissionsStore.getState().resetPermissions();
-      set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null, hasPassword: false });
+      set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null, hasPassword: false, isPlatformAdmin: false });
     }
   },
 
-  login: async (token, user, role, rawPermissions, businesses) => {
+  login: async (token, user, role, rawPermissions, businesses, isPlatformAdmin = false) => {
     await setAuthToken(token);
     const resolvedPerms = resolvePermissions(role, rawPermissions);
     usePermissionsStore.getState().setPermissions(resolvedPerms, role);
     const currentBusinessId = businesses?.[0]?.business_id || null;
-    set({ user, checked: true, role, permissions: rawPermissions, businesses: businesses || [], currentBusinessId, hasPassword: false });
+    set({ user, checked: true, role, permissions: rawPermissions, businesses: businesses || [], currentBusinessId, hasPassword: false, isPlatformAdmin: isPlatformAdmin === true });
   },
 
   logout: async () => {
     await clearAuthToken();
     usePermissionsStore.getState().resetPermissions();
-    set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null, hasPassword: false });
+    set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null, hasPassword: false, isPlatformAdmin: false });
   },
 }));

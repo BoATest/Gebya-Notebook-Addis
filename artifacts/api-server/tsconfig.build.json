@@ -5,7 +5,14 @@
     "rootDir": "src",
     "types": ["node"],
     "skipLibCheck": true,
-    "customConditions": ["workspace"]
+    "customConditions": ["workspace"],
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/db": ["../../lib/db/src/index.ts"],
+      "@workspace/db/*": ["../../lib/db/src/*"],
+      "@workspace/api-zod": ["../../lib/api-zod/src/index.ts"],
+      "@workspace/api-zod/*": ["../../lib/api-zod/src/*"]
+    }
   },
   "include": ["src"],
   "exclude": ["src/**/__tests__/**", "src/tests/**"],

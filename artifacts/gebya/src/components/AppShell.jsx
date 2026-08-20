@@ -400,13 +400,14 @@ export default function AppShell() {
       // shopProfile.payments) keep working without changes.
       const derivedLegacy = deriveLegacyFromChannels(paymentChannels);
 
-       setShopProfile({
-         id: identityForProfile?.shop_id || null,
-         shop_id: identityForProfile?.shop_id || null,
-         name: profileName,
-         phone: phoneRow?.value || identityForProfile?.phone_number || '',
-         telegram: telegramRow?.value || '',
-         role: identityForProfile?.role || 'owner',
+        setShopProfile({
+          id: identityForProfile?.shop_id || null,
+          shop_id: identityForProfile?.shop_id || null,
+          name: profileName,
+          phone: phoneRow?.value || identityForProfile?.phone_number || '',
+          telegram: telegramRow?.value || '',
+          plan: planTier || 'free',
+          role: identityForProfile?.role || 'owner',
         staff_id: identityForProfile?.staff_id || null,
         device_id: identityForProfile?.device_id || null,
         join_code: identityForProfile?.join_code || '',

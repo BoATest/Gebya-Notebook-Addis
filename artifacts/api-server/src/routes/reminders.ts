@@ -21,6 +21,7 @@ import {
   setCustomerFrequency,
   clearCustomerOverride,
   isRemindersEnabled,
+  isPremiumShop,
   setLastReminderSentAt as setLastReminderSentAtImpl,
 } from "../services/reminderConfiguration.js";
 import { runRemindersForShop, scanCriticalOverdue } from "../services/reminderScheduler.js";
@@ -32,7 +33,7 @@ import { createHistoryEntry } from "../services/reminderHistory.js";
 import { sendPushToOwner } from "../services/pushNotificationSender.js";
 import { verifyShopOwnership, requirePermission } from "./rbac.js";
 import { db, requireDb } from "@workspace/db";
-import { customers as customersTable } from "@workspace/db/schema";
+import { customers as customersTable, businesses as businessesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import type {
   ReminderFrequency,
@@ -50,11 +51,12 @@ const frequencySchema = z.object({
 });
 
 const manualRemindSchema = z.object({
-  chatId: z.string().min(1, "chatId is required"),
+  chatId: z.string().optional(),
   customerName: z.string().optional(),
   balance: z.number().finite().optional(),
   dueDate: z.number().positive().optional(),
   language: z.enum(["am", "en"]).optional(),
+  phoneNumber: z.string().optional(),
 });
 
 const runSchema = z.object({
@@ -111,8 +113,21 @@ router.all("/run", async (req: Request, res: Response) => {
   try {
     const isVercelCron = req.headers?.["x-vercel-cron"] === "1";
     const cronSecret = req.headers?.["x-reminder-cron-secret"];
+
     if (isVercelCron) {
-      // Vercel Cron Jobs inject x-vercel-cron: 1 automatically
+      // Require Vercel signature verification — do NOT trust x-vercel-cron alone
+      const signingSecret = process.env.VERCEL_CRON_SIGNING_SECRET?.trim();
+      if (!signingSecret) {
+        console.error("[security] VERCEL_CRON_SIGNING_SECRET is not set — rejecting Vercel cron request");
+        return res.status(500).json({
+          error: "Server misconfigured: VERCEL_CRON_SIGNING_SECRET environment variable is not set",
+        });
+      }
+      const signature = req.headers["x-vercel-signature"] as string | undefined;
+      if (!signature || signature !== signingSecret) {
+        console.error("[security] Invalid Vercel cron signature");
+        return res.status(401).json({ error: "unauthorized" });
+      }
     } else if (!process.env.REMINDER_CRON_SECRET) {
       return res.status(500).json({
         error: "Server misconfigured: REMINDER_CRON_SECRET environment variable is not set",
@@ -155,6 +170,14 @@ router.all("/run", async (req: Request, res: Response) => {
     const allStats: any[] = [];
 
     for (const shopId of shopIds) {
+      // Phase 2: Gate automated (cron-triggered) reminders behind premium tier.
+      // On-demand reminders (POST /remind/:customerId) bypass this check.
+      const premium = await isPremiumShop(shopId);
+      if (!premium) {
+        log("info", "Skipping automated reminders for non-premium shop (free tier)", { shopId });
+        continue;
+      }
+
       let eligibleCustomers: EligibleCustomer[];
 
       if (customers && customers.length > 0 && requestedShopId) {
@@ -218,7 +241,7 @@ router.all("/run", async (req: Request, res: Response) => {
               chatId,
               updatesEnabled: hasTelegram ? Boolean(cust?.telegramNotifyEnabled) : false,
               phoneNumber: cust?.phoneNumber ?? undefined,
-              telegramLanguage: (cust?.telegramUsername ?? "").toLowerCase().startsWith("am") ? "am" as const : "en" as const,
+              telegramLanguage: "en",  // V1: English-only rollout
               reminderConfig: {
                 id: `cfg-${row.customerId}`,
                 shopId,
@@ -585,7 +608,7 @@ router.post("/remind/:customerId", verifyShopOwnership, requirePermission("can_a
       });
     }
 
-    const { chatId, customerName, balance, dueDate, language } = parsed.data;
+    const { chatId, customerName, balance, dueDate, language, phoneNumber } = parsed.data;
 
     const validBalance: number = typeof balance === "number" && Number.isFinite(balance) ? balance : 0;
     if (validBalance <= 0) {
@@ -598,6 +621,49 @@ router.post("/remind/:customerId", verifyShopOwnership, requirePermission("can_a
     const daysHeld = validDueDate ? Math.floor((Date.now() - validDueDate) / 86400000) : 0;
 
     const message = buildReminderMessage(validLanguage, validName, validBalance, validDueDate, daysHeld);
+
+    // SMS-only fallback: if no chatId but phoneNumber provided, send via SMS
+    if (!chatId && phoneNumber) {
+      const { sendSms, isSmsEnabled } = await import("../services/smsSender.js");
+      const { canSendSms, incrementSmsCount } = await import("../services/smsQuota.js");
+
+      if (!isSmsEnabled()) {
+        return res.status(400).json({
+          error: "SMS is not enabled. Customer needs Telegram or SMS service to be configured.",
+        });
+      }
+
+      const hasQuota = await canSendSms(shopId);
+      if (!hasQuota) {
+        return res.status(429).json({ error: "SMS quota exceeded for this shop" });
+      }
+
+      const smsResult = await sendSms(phoneNumber, message, { shopId, customerId });
+      if (smsResult.success) {
+        await incrementSmsCount(shopId);
+        await createHistoryEntry({
+          shopId, customerId, chatId: "",
+          balanceAtSendTime: String(validBalance),
+          dueDate: validDueDate ?? undefined, daysHeld,
+          sentAt: Date.now(), status: "sent",
+          language: validLanguage,
+          messageId: String(smsResult.messageId ?? ""),
+          retryCount: smsResult.retryCount,
+          lastAttemptAt: Date.now(),
+          customerNameSnapshot: validName,
+        });
+
+        try { await setLastReminderSentAtImpl(shopId, customerId, Date.now()); } catch {}
+        log("info", "SMS reminder sent (no Telegram)", { shopId, customerId, messageId: smsResult.messageId });
+        return res.json({ sent: true, messageId: smsResult.messageId, channel: "sms" });
+      }
+
+      return res.status(502).json({ error: `SMS failed: ${smsResult.error ?? "Unknown error"}`, channel: "sms" });
+    }
+
+    if (!chatId) {
+      return res.status(400).json({ error: "Customer has no Telegram chat linked", channel: "telegram" });
+    }
 
     const result = await sendTelegramTextMessage(chatId, message);
 
@@ -702,6 +768,44 @@ router.get("/critical-overdue", verifyShopOwnership, requirePermission("can_view
 });
 
 /**
+ * POST /plan — Test-only endpoint to toggle shop plan tier (free ↔ plus).
+ *
+ * In production, plan changes come from a payment provider webhook. This endpoint
+ * exists so shop owners and testers can evaluate both tiers without a billing
+ * integration. Guarded by TEST_MODE env var so it's a no-op in production.
+ *
+ * Body: { shopId, plan }  — plan must be "free" or "plus"
+ */
+router.post("/plan", verifyShopOwnership, requirePermission("can_edit_settings"), async (req: Request, res: Response) => {
+  if (process.env.TEST_MODE !== "true") {
+    return res.status(404).json({ error: "Not available" });
+  }
+
+  const planSchema = z.object({
+    shopId: z.number().int().positive(),
+    plan: z.enum(["free", "plus"]),
+  });
+
+  const parsed = planSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Invalid request body", details: parsed.error.flatten() });
+  }
+
+  const { shopId, plan } = parsed.data;
+
+  if (!db) throw new Error("Database not configured");
+
+  try {
+    await db.update(businessesTable).set({ plan }).where(eq(businessesTable.id, shopId));
+    log("info", "Plan tier updated", { shopId, plan });
+    return res.json({ ok: true, shopId, plan });
+  } catch (error) {
+    log("error", "Failed to update plan tier", { shopId, error: error instanceof Error ? error.message : String(error) });
+    return res.status(500).json({ error: "Failed to update plan tier" });
+  }
+});
+
+/**
  * POST /payment-confirmed — Called when owner records a payment in the app.
  * Stops reminders for this customer and sends a thank-you message.
  * Body: { shopId, customerId, amount }
@@ -735,7 +839,7 @@ router.post("/payment-confirmed", verifyShopOwnership, requirePermission("can_ad
       balanceAtSendTime: String(amount),
       sentAt: Date.now(),
       status: "sent",
-      language: "am",
+      language: (language && language === "am" ? "am" : "en"),  // use caller-provided language, default English
       messageId: "payment_confirmed",
       retryCount: 0,
       lastAttemptAt: Date.now(),
@@ -748,7 +852,7 @@ router.post("/payment-confirmed", verifyShopOwnership, requirePermission("can_ad
       const formattedAmt = Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
       const thankYou = `🏪 ጌባያ\n\n${validName} ሆይ፣ የ${formattedAmt} ብር ክፍያህ ተረጋግጧል። እናመሰግናለን! 🙏\n\nሂሳብህን ለማየት /balance ይጫኑ።`;
       const thankYouEn = `🏪 Gebya\n\n${validName}, your payment of ${formattedAmt} ETB has been confirmed. Thank you! 🙏\n\nType /balance to check your account.`;
-      const msg = (language ?? "am") === "am" ? thankYou : thankYouEn;
+      const msg = (language ?? "en") === "am" ? thankYou : thankYouEn;
       try {
         await sendTelegramTextMessage(chatId, msg);
       } catch (tgErr) {

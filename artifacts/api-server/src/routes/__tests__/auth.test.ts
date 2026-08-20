@@ -24,7 +24,7 @@ vi.mock("@workspace/db/schema", () => ({
   users: { id: "id", phoneNumber: "phone_number", active: "active", preferredLang: "preferred_lang", createdAt: "created_at" },
   devices: { deviceId: "device_id", userId: "user_id", name: "name", lastSeenAt: "last_seen_at" },
   otps: { id: "id", phoneNumber: "phone_number", codeHash: "code_hash", otpHash: "otp_hash", attempts: "attempts", maxAttempts: "max_attempts", expiresAt: "expires_at", consumed: "consumed", userId: "user_id", verifiedAt: "verified_at", lockedAt: "locked_at", createdAt: "created_at" },
-  businesses: { id: "id", name: "name" },
+  businesses: { id: "id", name: "name", plan: "plan" },
   businessMembers: { userId: "user_id", businessId: "business_id", role: "role", permissions: "permissions" },
   normalizePhone: vi.fn((p: string) => (p && p.length >= 8 ? `+251${p.replace(/^0/, "")}` : null)),
 }));
@@ -198,7 +198,7 @@ describe("POST /api/auth/verify", () => {
       .mockReturnValueOnce(chainable([{ id: 1, phoneNumber: "+251911111111", codeHash: storedHash, attempts: 0, maxAttempts: 5, expiresAt: new Date(Date.now() + 600000), consumed: false }]))
       .mockReturnValueOnce(chainable([{ id: 1, phoneNumber: "+251911111111", active: true }]))
       .mockReturnValueOnce(chainable([{ businessId: 1, role: "owner", permissions: null }]))
-      .mockReturnValueOnce(chainable([{ id: 1, name: "Test Shop" }]));
+      .mockReturnValueOnce(chainable([{ id: 1, name: "Test Shop", plan: "free" }]));
     mockDbUpdate.mockReturnValue({ set: vi.fn().mockReturnThis(), where: vi.fn().mockResolvedValue(undefined) });
     mockDbInsert.mockReturnValue({ values: vi.fn().mockReturnThis(), returning: vi.fn().mockResolvedValue([{ id: 1, phoneNumber: "+251911111111" }]) });
     const handler = findHandler("post", "/verify");
@@ -291,7 +291,7 @@ describe("GET /api/auth/me", () => {
     mockDbSelect
       .mockReturnValueOnce(chainable([{ id: 1, phoneNumber: "+251911111111", active: true, preferredLang: "en", createdAt: new Date() }]))
       .mockReturnValueOnce(chainable([{ businessId: 1, role: "owner", permissions: null }]))
-      .mockReturnValueOnce(chainable([{ id: 1, name: "Test Shop" }]));
+      .mockReturnValueOnce(chainable([{ id: 1, name: "Test Shop", plan: "free" }]));
     const handler = findHandler("get", "/me");
     const req = makeReq({ method: "GET", url: "/me", headers: { authorization: "Bearer valid-token" } });
     const res = makeRes();

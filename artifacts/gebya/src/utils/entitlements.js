@@ -18,6 +18,7 @@ const ENTITLEMENTS = {
     advanced_reports: false,
     multi_shop: false,
     priority_support: false,
+    automated_reminders: false,
   },
   [PLAN_TIERS.PLUS]: {
     max_staff: Infinity,
@@ -25,6 +26,7 @@ const ENTITLEMENTS = {
     advanced_reports: true,
     multi_shop: true,
     priority_support: true,
+    automated_reminders: true,
   },
 };
 

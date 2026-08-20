@@ -38,14 +38,50 @@ function Bar({ value, max, color = 'var(--color-primary)' }) {
   return (<div className="w-full h-1.5 rounded-full" style={{ background: 'var(--color-bg-hover)' }}><div className="h-full rounded-full" style={{ width: `${w}%`, background: color }} /></div>);
 }
 
-export default function AdminDashboard() {
+function FrictionCount({ label, value }) {
+  return (
+    <div className="rounded-xl p-2" style={{ background: 'var(--color-surface-subtle)' }}>
+      <div className="text-lg font-black" style={{ color: value > 0 ? 'var(--color-warning)' : 'var(--color-success-text)' }}>{value}</div>
+      <div className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>{label}</div>
+    </div>
+  );
+}
+
+function FrictionGroup({ title, items, badge, onOpen }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <Section title={title}>
+      <div className="space-y-1">
+        {items.map((it, i) => (
+          <div key={(it.businessId ?? i) + '-' + i} className="flex items-center justify-between gap-2 py-1.5 border-b" style={{ borderColor: 'var(--color-border-light)' }}>
+            <div className="min-w-0">
+              <div className="text-xs font-bold truncate">{it.name}</div>
+              <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{it.ownerPhone}{badge ? ` · ${badge(it)}` : ''}</div>
+            </div>
+            <button
+              onClick={() => onOpen({ id: it.businessId, name: it.name, ownerPhone: it.ownerPhone })}
+              className="px-2 py-1 rounded-lg text-[10px] font-bold shrink-0"
+              style={{ background: 'var(--color-primary)', color: '#fff' }}
+            >
+              Open
+            </button>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+export default function AdminDashboard({ onShopSelect }) {
   const { lang } = useLang();
   const [data, setData] = useState(null);
   const [shops, setShops] = useState(null);
   const [features, setFeatures] = useState(null);
+  const [frictions, setFrictions] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('overview');
+  const [shopSearch, setShopSearch] = useState('');
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastBody, setBroadcastBody] = useState('');
   const [broadcastSending, setBroadcastSending] = useState(false);
@@ -57,8 +93,8 @@ export default function AdminDashboard() {
 
   const loadData = () => {
     setLoading(true);
-    Promise.all([apiFetch('/admin/overview'), apiFetch('/admin/shops'), apiFetch('/admin/features')])
-      .then(([ov, sh, fe]) => { setData(ov); setShops(sh); setFeatures(fe); setLoading(false); })
+    Promise.all([apiFetch('/admin/overview'), apiFetch('/admin/shops'), apiFetch('/admin/features'), apiFetch('/admin/frictions')])
+      .then(([ov, sh, fe, fr]) => { setData(ov); setShops(sh); setFeatures(fe); setFrictions(fr); setLoading(false); })
       .catch((err) => { setError(err.message); setLoading(false); });
   };
   useEffect(() => { loadData(); }, []);
@@ -71,7 +107,7 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-4 pb-8">
       <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--color-bg-hover)' }}>
-        {[{ id: 'overview', label: 'Overview' }, { id: 'shops', label: 'Shops' }, { id: 'features', label: 'Features' }, { id: 'actions', label: 'Actions' }].map(t => (
+        {[{ id: 'overview', label: 'Overview' }, { id: 'shops', label: 'Shops' }, { id: 'frictions', label: 'Frictions' }, { id: 'features', label: 'Features' }, { id: 'actions', label: 'Actions' }].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} className="flex-1 py-2 rounded-lg text-xs font-bold transition-all" style={tab === t.id ? { background: 'var(--color-primary)', color: 'var(--color-bg-white)' } : { color: 'var(--color-text-muted)' }}>{t.label}</button>
         ))}
       </div>
@@ -110,23 +146,56 @@ export default function AdminDashboard() {
       </>)}
 
       {tab === 'shops' && shops && (
-        <Section title="Shop Health Table">
-          <div className="overflow-x-auto">
-            <table className="w-full text-[10px]">
-              <thead><tr style={{ color: 'var(--color-text-muted)' }}><th className="text-left py-1 font-bold">Shop</th><th className="text-left py-1 font-bold">Phone</th><th className="text-right py-1 font-bold">Txns</th><th className="text-right py-1 font-bold">Sales</th><th className="text-center py-1 font-bold">Status</th></tr></thead>
-              <tbody>{shops.shops.map(shop => (
-                <tr key={shop.id} className="border-t" style={{ borderColor: 'var(--color-border-light)' }}>
-                  <td className="py-1.5 font-bold" style={{ color: 'var(--color-text)' }}>{shop.name}</td>
-                  <td className="py-1.5" style={{ color: 'var(--color-text-muted)' }}>{shop.ownerPhone}</td>
-                  <td className="py-1.5 text-right" style={{ color: 'var(--color-text)' }}>{shop.totalTransactions}</td>
-                  <td className="py-1.5 text-right" style={{ color: 'var(--color-text)' }}>{fmt(shop.totalSalesBirr)}</td>
-                  <td className="py-1.5 text-center"><span className="px-2 py-0.5 rounded-full text-[9px] font-bold" style={{ background: shop.status === 'active' ? 'var(--color-success-bg)' : shop.status === 'dormant' ? 'var(--color-warning-bg)' : 'var(--color-bg-hover)', color: shop.status === 'active' ? 'var(--color-success-text)' : shop.status === 'dormant' ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>{shop.status}</span></td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
-        </Section>
-      )}
+         <Section title="Shop Health Table">
+           <div className="mb-2">
+             <input
+               type="text"
+               value={shopSearch}
+               onChange={e => setShopSearch(e.target.value)}
+               placeholder={lang === 'am' ? 'መፈላገት ሱቅ...' : 'Search shops...'}
+               className="w-full px-3 py-2 rounded-xl text-xs border-2 focus:outline-none"
+               style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-subtle)' }}
+             />
+           </div>
+           {(() => {
+             const q = shopSearch.trim().toLowerCase();
+             const filtered = q
+               ? shops.shops.filter(s =>
+                   (s.name || '').toLowerCase().includes(q) ||
+                   (s.ownerPhone || '').toLowerCase().includes(q))
+               : shops.shops;
+             return (
+               <div className="overflow-x-auto">
+                 <table className="w-full text-[10px]">
+                   <thead><tr style={{ color: 'var(--color-text-muted)' }}><th className="text-left py-1 font-bold">Shop</th><th className="text-left py-1 font-bold">Phone</th><th className="text-right py-1 font-bold">Txns</th><th className="text-right py-1 font-bold">Sales</th><th className="text-center py-1 font-bold">Status</th><th className="text-center py-1 font-bold">Detail</th></tr></thead>
+                   <tbody>{filtered.map(shop => (
+                     <tr key={shop.id} className="border-t" style={{ borderColor: 'var(--color-border-light)' }}>
+                       <td className="py-1.5 font-bold" style={{ color: 'var(--color-text)' }}>{shop.name}</td>
+                       <td className="py-1.5" style={{ color: 'var(--color-text-muted)' }}>{shop.ownerPhone}</td>
+                       <td className="py-1.5 text-right" style={{ color: 'var(--color-text)' }}>{shop.totalTransactions}</td>
+                       <td className="py-1.5 text-right" style={{ color: 'var(--color-text)' }}>{fmt(shop.totalSalesBirr)}</td>
+                       <td className="py-1.5 text-center"><span className="px-2 py-0.5 rounded-full text-[9px] font-bold" style={{ background: shop.status === 'active' ? 'var(--color-success-bg)' : shop.status === 'dormant' ? 'var(--color-warning-bg)' : 'var(--color-bg-hover)', color: shop.status === 'active' ? 'var(--color-success-text)' : shop.status === 'dormant' ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>{shop.status}</span></td>
+                       <td className="py-1.5 text-center">
+                         <button
+                           onClick={() => onShopSelect?.(shop)}
+                           className="px-2 py-1 rounded-lg text-[10px] font-bold"
+                           style={{ background: 'var(--color-primary)', color: 'var(--color-bg-white)' }}
+                         >
+                           {lang === 'am' ? 'መመܩት' : 'Open'}
+                         </button>
+                       </td>
+                     </tr>
+                   ))}
+                   {filtered.length === 0 && (
+                     <tr><td colSpan={6} className="py-3 text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ምንም ሱቅ አልተፈጸም' : 'No shops found'}</td></tr>
+                   )}
+                 </tbody>
+                 </table>
+               </div>
+             );
+           })()}
+         </Section>
+       )}
 
       {tab === 'features' && features && (<>
         <Section title="Feature Adoption">
@@ -139,6 +208,29 @@ export default function AdminDashboard() {
             <div key={method}><div className="flex justify-between items-center py-1"><span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>{method}</span><span className="text-xs font-black" style={{ color: 'var(--color-text)' }}>{count}</span></div><Bar value={count} max={Math.max(...Object.values(features.paymentMethods))} /></div>
           ))}
         </Section>
+      </>)}
+
+      {tab === 'frictions' && frictions && (<>
+        <Section title="Friction Summary" subtitle="Shops that may need help">
+          <div className="grid grid-cols-2 gap-2">
+            <FrictionCount label="Dormant (no txn 7d)" value={frictions.counts.dormantShops} />
+            <FrictionCount label="Zero transactions" value={frictions.counts.zeroTransactionShops} />
+            <FrictionCount label="Stuck in onboarding" value={frictions.counts.onboardingStuck} />
+            <FrictionCount label="Orphaned (no owner)" value={frictions.counts.orphanedShops} />
+            <FrictionCount label="Owner no Telegram" value={frictions.counts.ownerTelegramNotLinked} />
+            <FrictionCount label="Low TG adoption" value={frictions.counts.lowTelegramAdoption} />
+            <FrictionCount label="Reminder failures" value={frictions.counts.deliveryFailures} />
+          </div>
+          <div className="mt-2 text-[10px]" style={{ color: 'var(--color-text-muted)' }}>SMS platform: {frictions.smsEnabled ? 'enabled' : 'disabled'}</div>
+        </Section>
+
+        <FrictionGroup title="Dormant shops" items={frictions.samples.dormantShops} onOpen={onShopSelect} />
+        <FrictionGroup title="Zero-transaction shops" items={frictions.samples.zeroTransactionShops} onOpen={onShopSelect} />
+        <FrictionGroup title="Stuck in onboarding (new, no sales)" items={frictions.samples.onboardingStuck} onOpen={onShopSelect} />
+        <FrictionGroup title="Orphaned shops (no owner)" items={frictions.samples.orphanedShops} onOpen={onShopSelect} />
+        <FrictionGroup title="Owners without Telegram" items={frictions.samples.ownerTelegramNotLinked} onOpen={onShopSelect} />
+        <FrictionGroup title="Low Telegram adoption (<30%)" items={frictions.samples.lowTelegramAdoption} badge={(i) => i.adoption + '%'} onOpen={onShopSelect} />
+        <FrictionGroup title="Reminder delivery failures" items={frictions.samples.deliveryFailures} badge={(i) => i.failures + ' failed'} onOpen={onShopSelect} />
       </>)}
 
       {tab === 'actions' && (<>

@@ -164,10 +164,11 @@ export default function CreditTab({
       {creditView === 'customers' && (
         selectedCustomer ? (
           <Suspense fallback={<PanelFallback label={t.loading} />}>
-            <CustomerDetail
-              customer={selectedCustomer}
-              shopName={shopProfile?.name}
-              onBack={() => setSelectedCustomerId(null)}
+             <CustomerDetail
+               customer={selectedCustomer}
+               shopName={shopProfile?.name}
+               shopPlan={shopProfile?.plan || 'free'}
+               onBack={() => setSelectedCustomerId(null)}
               onAddCredit={() => setCustomerTransactionModal({
                 mode: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
                 customerId: selectedCustomer.id,

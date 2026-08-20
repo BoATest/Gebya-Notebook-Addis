@@ -1,3 +1,5 @@
+import { getAuthToken } from './syncEngine';
+
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 const REQUEST_TIMEOUT_MS = 8000;
 
@@ -11,6 +13,8 @@ async function request(path, options = {}) {
       headers: {
         'Content-Type': 'application/json',
         ...(options.headers || {}),
+        // Include auth token for authenticated endpoints (link-sessions, etc.)
+        ...(options.authed ? { Authorization: `Bearer ${await getAuthToken()}` } : {}),
       },
       signal: controller.signal,
       ...options,
@@ -47,6 +51,7 @@ export function createTelegramLinkSession(payload) {
   return request('/api/telegram/link-sessions', {
     method: 'POST',
     body: JSON.stringify(payload),
+    authed: true,
   });
 }
 

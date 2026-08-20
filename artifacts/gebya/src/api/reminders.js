@@ -81,6 +81,13 @@ export const remindersApi = {
       body: JSON.stringify({ shopId }),
     });
   },
+
+  async sendManualReminder(shopId, customerId, { balance, dueDate, language, chatId, customerName, phoneNumber }) {
+    return request(`/telegram/reminders/remind/${customerId}`, {
+      method: 'POST',
+      body: JSON.stringify({ shopId, balance, dueDate, language, chatId, customerName, phoneNumber }),
+    });
+  },
 };
 
 export default remindersApi;

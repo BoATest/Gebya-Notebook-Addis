@@ -19,11 +19,13 @@ import {
 import { getLatestQueuedReminderForCustomer, acknowledgeReminder } from "../services/reminderHistory.js";
 import { sendPushToOwner } from "../services/pushNotificationSender.js";
 import { setLastReminderSentAt } from "../services/reminderConfiguration.js";
-import { db } from "@workspace/db";
-import { customers, businessMembers, notifications } from "@workspace/db/schema";
+import { db, requireDb } from "@workspace/db";
+import { customers, businessMembers, notifications, users } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
+import { verifyShopOwnership } from "./rbac.js";
 
 const linkSessionSchema = z.object({
+  shopId: z.number().int().positive(),
   token: z.string(),
   customerId: z.union([z.string(), z.number()]),
   customerName: z.string(),
@@ -91,11 +93,11 @@ function createDeepLink(token: string) {
 
 type Lang = "am" | "en";
 
-function pickLang(code?: string | null): Lang {
-  // Telegram sends a 2-letter language code from the user's app settings
-  // (e.g., "am" for Amharic, "en" for English, "fr-FR" for French).
-  // We currently support am + en. Anything else falls back to English.
-  return code?.toLowerCase().startsWith("am") ? "am" : "en";
+// V1: English-only rollout. Language detection from message.from.language_code
+// is already correctly implemented but we default to English until Amharic is
+// re-enabled with proper persistence (telegram_language_code column).
+function pickLang(_code?: string | null): Lang {
+  return "en";
 }
 
 function buildStartReply(
@@ -393,7 +395,7 @@ router.get("/status", (_req: Request, res: Response) => {
   });
 });
 
-router.post("/link-sessions", async (req: Request, res: Response) => {
+router.post("/link-sessions", verifyShopOwnership, async (req: Request, res: Response) => {
   const store = getTelegramSessionStoreStatus();
   if (!store.linkingAvailable) {
     return res.status(503).json({
@@ -600,11 +602,27 @@ router.post("/webhook", async (req: Request, res: Response) => {
       : null;
     const existingSession = await getSessionByChatId(chatId);
 
+    // Owner deep-link: an admin-generated token that connects this Telegram chat
+    // to the owner's Gebya user account (so the platform can reach them).
+    let ownerLinked = false;
+    if (hadToken) {
+      const d = requireDb();
+      const ownerRows = await d.select().from(users).where(eq(users.telegramLinkToken, arg as string)).limit(1);
+      const ownerUser = ownerRows[0];
+      if (ownerUser) {
+        await d.update(users).set({ telegramChatId: chatId, telegramLinkToken: null }).where(eq(users.id, ownerUser.id));
+        ownerLinked = true;
+      }
+    }
+
+    const reply = ownerLinked
+      ? (lang === "am"
+          ? "✅ ከጌባያ አስተዳዳሪ ጋር ተገናኝተዋል። ከአሁን ጀምሮ ማስታወሻዎችን በቴሌግራም ይቀበላሉ።"
+          : "✅ You're connected to Gebya as the shop owner. You'll now receive updates on Telegram.")
+      : buildStartReply(newlyLinkedSession, existingSession, hadToken, lang);
+
     try {
-      await sendTelegramTextMessage(
-        chatId,
-        buildStartReply(newlyLinkedSession, existingSession, hadToken, lang)
-      );
+      await sendTelegramTextMessage(chatId, reply);
     } catch (error) {
       console.error("[telegram:webhook:start]", {
         token: arg,
@@ -617,7 +635,8 @@ router.post("/webhook", async (req: Request, res: Response) => {
 
     return res.json({
       ok: true,
-      linked: Boolean(newlyLinkedSession || existingSession),
+      linked: Boolean(newlyLinkedSession || existingSession || ownerLinked),
+      ownerLinked,
     });
   }
 

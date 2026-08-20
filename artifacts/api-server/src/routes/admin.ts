@@ -3,12 +3,13 @@
  * Platform Admin Dashboard — API Routes
  *
  * Endpoints:
- *   GET  /admin/overview    — aggregate metrics
- *   GET  /admin/shops       — shop health table
- *   GET  /admin/features    — feature adoption
- *   POST /admin/broadcast   — send notification to all shops
- *   POST /admin/push-all    — send push to all subscribed devices
- *   GET  /admin/export-shops — CSV export
+ *   GET  /admin/overview          — aggregate metrics
+ *   GET  /admin/shops             — shop health table
+ *   GET  /admin/shops/:businessId — single-shop detail (transactions, credit, staff, devices, bank shares)
+ *   GET  /admin/features          — feature adoption
+ *   POST /admin/broadcast         — send notification to all shops (or single shop via business_id)
+ *   POST /admin/push-all          — send push to all subscribed devices (or single shop via business_id)
+ *   GET  /admin/export-shops      — CSV export
  */
 import { Router } from "express";
 import { db } from "@workspace/db";
@@ -28,9 +29,15 @@ import {
   invites,
   notifications,
   pushSubscriptions,
+  bankDataShares,
+  adminShopLogs,
 } from "@workspace/db/schema";
-import { eq, and, gt, sql } from "drizzle-orm";
+import { eq, and, gt, desc, sql } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
+import { isPlatformAdminPhone, listAdminMembers, addAdminMember, removeAdminMember } from "../services/platformAdmin.js";
+import { getQuotaInfo, resetQuota } from "../services/smsQuota.js";
+import { isSmsEnabled, sendSms } from "../services/smsSender.js";
+import { sendTelegramTextMessage, getTelegramBotUsername } from "../services/telegramBotService.js";
 
 const router = Router();
 
@@ -41,14 +48,35 @@ async function requireAdmin(req: any) {
   if (!token) return null;
   const decoded = verifyJwt(token);
   if (!decoded || !decoded.userId) return null;
+  const userRows = await db
+    .select({ phoneNumber: users.phoneNumber })
+    .from(users)
+    .where(eq(users.id, decoded.userId))
+    .limit(1);
+  const user = userRows[0];
+  if (!user || !(await isPlatformAdminPhone(user.phoneNumber))) return null;
   const memberRows = await db
     .select({ role: businessMembers.role, businessId: businessMembers.businessId })
     .from(businessMembers)
     .where(and(eq(businessMembers.userId, decoded.userId), eq(businessMembers.active, true)))
     .limit(1);
-  if (!memberRows.length || memberRows[0].role !== "owner") return null;
-  return { userId: decoded.userId, businessId: memberRows[0].businessId };
+  return { userId: decoded.userId, businessId: memberRows[0]?.businessId ?? null, phone: user.phoneNumber };
 }
+
+async function insertAdminLog(entry: {
+  businessId: number;
+  adminPhone: string | null;
+  type: string;
+  channel?: string | null;
+  title?: string | null;
+  body?: string | null;
+  status?: string | null;
+}) {
+  const [row] = await db.insert(adminShopLogs).values(entry).returning();
+  return row;
+}
+
+export { requireAdmin };
 
 function daysAgo(n: number): number { return Date.now() - n * 24 * 60 * 60 * 1000; }
 function maskPhone(phone: string | null): string {
@@ -189,9 +217,433 @@ router.get("/shops", async (req, res) => {
     let status: "active" | "dormant" | "new" = "new";
     if (lastTxn && lastTxn >= sevenDaysAgo) status = "active"; else if (lastTxn) status = "dormant";
     return { id: biz.id, name: biz.name, ownerPhone: maskPhone(user?.phoneNumber || null), createdAt: biz.createdAt?.toISOString() || null, lastTransactionAt: lastTxn ? new Date(lastTxn).toISOString() : null, totalTransactions: bizTxns.length, totalSalesBirr: totalSales, totalCreditBirr: totalCredit, outstandingBirr: Math.max(outstanding, 0), status };
+   });
+   shopStats.sort((a, b) => { if (!a.lastTransactionAt && !b.lastTransactionAt) return 0; if (!a.lastTransactionAt) return 1; if (!b.lastTransactionAt) return -1; return new Date(b.lastTransactionAt).getTime() - new Date(a.lastTransactionAt).getTime(); });
+  const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 2000);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
+  const total = shopStats.length;
+  const page = shopStats.slice(offset, offset + limit);
+  return res.json({ ok: true, shops: page, total, limit, offset });
+});
+
+// ─── Team members (dynamic platform-admin allowlist) ──────────────────────
+router.get("/members", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  const members = await listAdminMembers();
+  return res.json({ ok: true, members });
+});
+
+router.post("/members", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  const { phone, note } = req.body ?? {};
+  if (!phone) return res.status(400).json({ error: "phone is required" });
+  const result = await addAdminMember(phone, ctx.phone, note);
+  if (!result.ok) return res.status(400).json({ error: "Invalid Ethiopian phone number" });
+  return res.json({ ok: true, status: result.status, member: result.member });
+});
+
+router.delete("/members/:id", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: "Invalid id" });
+  const removed = await removeAdminMember(id);
+  if (!removed) return res.status(404).json({ error: "Member not found" });
+  return res.json({ ok: true, removed });
+});
+
+// ─── GET /admin/shops/:businessId ──────────────────────────────────────────
+router.get("/shops/:businessId", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  const businessIdNum = Number(req.params.businessId);
+  if (!Number.isInteger(businessIdNum)) {
+    return res.status(400).json({ error: "Invalid businessId" });
+  }
+
+  const [bizRow, ownerMemberRows, bizTxns, bizCustTxns, bizCustomers, bizStaff, bizDevices, bizShares] = await Promise.all([
+    db.select().from(businesses).where(eq(businesses.id, businessIdNum)).limit(1),
+    db.select({ role: businessMembers.role, userId: businessMembers.userId, displayName: businessMembers.displayName }).from(businessMembers).where(eq(businessMembers.businessId, businessIdNum)),
+    db.select().from(transactions).where(eq(transactions.businessId, businessIdNum)),
+    db.select().from(customerTransactions).where(eq(customerTransactions.businessId, businessIdNum)),
+    db.select().from(customers).where(eq(customers.businessId, businessIdNum)),
+    db.select().from(staffMembers).where(eq(staffMembers.businessId, businessIdNum)),
+    db.select().from(devices).where(eq(devices.shopId, businessIdNum)),
+    db.select().from(bankDataShares).where(eq(bankDataShares.businessId, businessIdNum)),
+  ]);
+
+  const biz = bizRow[0];
+  if (!biz) return res.status(404).json({ error: "Shop not found" });
+
+  const owner = ownerMemberRows.find(m => m.role === 'owner') || ownerMemberRows[0];
+  const ownerUser = owner ? await db.select({ phoneNumber: users.phoneNumber, telegramChatId: users.telegramChatId, createdAt: users.createdAt }).from(users).where(eq(users.id, owner.userId)).limit(1).then(r => r[0] || null) : null;
+
+  const bizTxnsFiltered = bizTxns;
+  const totalSales = bizTxnsFiltered.filter(t => t.type === 'sale').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const totalExpenses = bizTxnsFiltered.filter(t => t.type === 'expense').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const lastTxn = bizTxnsFiltered.length > 0 ? Math.max(...bizTxnsFiltered.map(t => t.createdAt || 0)) : null;
+
+  const totalCredit = bizCustTxns.filter(t => t.type === 'credit_add').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const totalPaid = bizCustTxns.filter(t => t.type === 'payment').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const totalReversed = bizCustTxns.filter(t => t.type === 'reversal').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const outstandingCredit = Math.max(totalCredit - totalPaid - totalReversed, 0);
+
+  const custBalances: Record<number, { credit: number; paid: number; reversed: number; dueDate: number | null }> = {};
+  for (const ct of bizCustTxns) {
+    const cid = ct.customerId;
+    if (!cid) continue;
+    if (!custBalances[cid]) custBalances[cid] = { credit: 0, paid: 0, reversed: 0, dueDate: null };
+    if (ct.type === 'credit_add') custBalances[cid].credit += Number(ct.amount || 0);
+    if (ct.type === 'payment') custBalances[cid].paid += Number(ct.amount || 0);
+    if (ct.type === 'reversal') custBalances[cid].reversed += Number(ct.amount || 0);
+    if (ct.dueDate && (!custBalances[cid].dueDate || ct.dueDate > custBalances[cid].dueDate)) {
+      custBalances[cid].dueDate = Number(ct.dueDate) || null;
+    }
+  }
+  const now = Date.now();
+  const overdueCustomers = Object.values(custBalances).filter(b => b.dueDate && b.dueDate < now && b.credit - b.paid - b.reversed > 0);
+  const totalOverdueExposure = overdueCustomers.reduce((s, b) => s + (b.credit - b.paid - b.reversed), 0);
+
+  const recentSnapshots = await db.select().from(snapshots).where(eq(snapshots.userId, biz.ownerUserId)).orderBy(snapshots.createdAt, 'desc').limit(5);
+
+  const customerTelegramLinked = bizCustomers.filter(c => c.telegramChatId).length;
+  const quota = await getQuotaInfo(businessIdNum);
+  const deliveryFailures = bizCustTxns.filter(t => t.telegramDeliveryState && t.telegramDeliveryState !== 'sent').length;
+
+  const logRows = await db.select().from(adminShopLogs).where(eq(adminShopLogs.businessId, businessIdNum)).orderBy(desc(adminShopLogs.createdAt)).limit(100);
+  const notes = logRows.filter(r => r.type === 'note').map(r => ({ id: r.id, body: r.body, createdAt: r.createdAt?.toISOString() || null, adminPhone: r.adminPhone || null }));
+  const log = logRows.filter(r => r.type !== 'note').map(r => ({ id: r.id, type: r.type, channel: r.channel, title: r.title, body: r.body, status: r.status, createdAt: r.createdAt?.toISOString() || null }));
+
+  return res.json({
+    ok: true,
+    shop: {
+      id: biz.id,
+      name: biz.name,
+      slug: biz.slug,
+      phone: ownerUser?.phoneNumber || null,
+      phoneMasked: maskPhone(ownerUser?.phoneNumber || null),
+      telegramChatId: ownerUser?.telegramChatId || null,
+      ownerTelegramLinked: !!ownerUser?.telegramChatId,
+      preferredLang: biz.preferredLang,
+      phoneRequired: biz.phoneRequired,
+      approvalRequired: biz.approvalRequired,
+      createdAt: biz.createdAt?.toISOString() || null,
+      updatedAt: biz.updatedAt?.toISOString() || null,
+      ownerCreatedAt: ownerUser?.createdAt ? new Date(ownerUser.createdAt).toISOString() : null,
+    },
+    comms: {
+      smsEnabled: isSmsEnabled(),
+      smsUsed: quota.count,
+      smsLimit: quota.limit,
+      ownerTelegramLinked: !!ownerUser?.telegramChatId,
+      customerTelegramLinked,
+      customerTelegramTotal: bizCustomers.length,
+      customerTelegramAdoption: bizCustomers.length > 0 ? Math.round((customerTelegramLinked / bizCustomers.length) * 100) : 0,
+      deliveryFailures,
+    },
+    members: ownerMemberRows.map(m => ({ role: m.role, displayName: m.displayName || null })),
+    stats: {
+      totalTransactions: bizTxnsFiltered.length,
+      totalSales,
+      totalExpenses,
+      totalCredit,
+      totalPaid,
+      totalReversed,
+      outstandingCredit,
+      totalCustomers: bizCustomers.length,
+      totalStaff: bizStaff.length,
+      activeStaff: bizStaff.filter(s => s.active !== false).length,
+      totalDevices: bizDevices.length,
+      lastTransactionAt: lastTxn ? new Date(lastTxn).toISOString() : null,
+      overdueCustomers: overdueCustomers.length,
+      totalOverdueExposure,
+    },
+    bankShares: bizShares.map(s => ({ bankName: s.bankName, status: s.status, shareSalesData: s.shareSalesData, shareCreditData: s.shareCreditData, shareCustomerData: s.shareCustomerData, consentGivenAt: s.consentGivenAt?.toISOString() || null, expiresAt: s.expiresAt?.toISOString() || null })),
+    recentSnapshots: recentSnapshots.map(s => ({ createdAt: s.createdAt?.toISOString() || null, sizeBytes: s.sizeBytes || 0, status: s.status || null })),
+    notes,
+    log,
   });
-  shopStats.sort((a, b) => { if (!a.lastTransactionAt && !b.lastTransactionAt) return 0; if (!a.lastTransactionAt) return 1; if (!b.lastTransactionAt) return -1; return new Date(b.lastTransactionAt).getTime() - new Date(a.lastTransactionAt).getTime(); });
-  return res.json({ ok: true, shops: shopStats });
+});
+
+// ─── Admin actions on a shop ──────────────────────────────────────────
+
+// Reset a shop's monthly SMS quota (e.g. after a misconfiguration or as a goodwill gesture).
+router.post("/shops/:businessId/reset-sms-quota", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  const businessIdNum = Number(req.params.businessId);
+  if (!Number.isInteger(businessIdNum)) return res.status(400).json({ error: "Invalid businessId" });
+  const exists = await db.select({ id: businesses.id }).from(businesses).where(eq(businesses.id, businessIdNum)).limit(1);
+  if (!exists[0]) return res.status(404).json({ error: "Shop not found" });
+  await resetQuota(businessIdNum);
+  await insertAdminLog({ businessId: businessIdNum, adminPhone: ctx.phone, type: 'action', channel: 'system', title: 'Reset SMS quota', status: 'ok' });
+  return res.json({ ok: true, message: `SMS quota reset for shop ${businessIdNum}` });
+});
+
+// Add a private admin note for a shop.
+router.post("/shops/:businessId/notes", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  const businessIdNum = Number(req.params.businessId);
+  if (!Number.isInteger(businessIdNum)) return res.status(400).json({ error: "Invalid businessId" });
+  const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+  if (!note) return res.status(400).json({ error: "note is required" });
+  const [row] = await db.insert(adminShopLogs).values({ businessId: businessIdNum, adminPhone: ctx.phone, type: 'note', body: note, status: 'ok' }).returning();
+  return res.json({ ok: true, note: { id: row.id, body: row.body, createdAt: row.createdAt?.toISOString() || null, adminPhone: row.adminPhone || null } });
+});
+
+// Reach out to the shop owner: Telegram if linked, SMS fallback if enabled, otherwise a
+// manual share link. Everything is logged to the shop's admin log.
+router.post("/shops/:businessId/nudge", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  const businessIdNum = Number(req.params.businessId);
+  if (!Number.isInteger(businessIdNum)) return res.status(400).json({ error: "Invalid businessId" });
+  const biz = await db.select().from(businesses).where(eq(businesses.id, businessIdNum)).limit(1);
+  if (!biz[0]) return res.status(404).json({ error: "Shop not found" });
+  const ownerMember = await db.select({ userId: businessMembers.userId }).from(businessMembers).where(and(eq(businessMembers.businessId, businessIdNum), eq(businessMembers.role, 'owner'))).limit(1);
+  const ownerId = ownerMember[0]?.userId;
+  if (!ownerId) return res.status(404).json({ error: "Shop has no owner" });
+  const ownerUser = await db.select({ phoneNumber: users.phoneNumber, telegramChatId: users.telegramChatId, displayName: users.displayName }).from(users).where(eq(users.id, ownerId)).limit(1);
+  const owner = ownerUser[0];
+  if (!owner) return res.status(404).json({ error: "Owner not found" });
+
+  const customMsg = typeof req.body?.message === 'string' && req.body.message.trim() ? req.body.message.trim() : null;
+  const defaultMsg = `Hi ${owner.displayName || 'there'}, this is the Gebya team. Let's get your shop fully set up so your customers receive reminders automatically. Tap the link below to connect your Telegram and start getting updates.`;
+  const message = customMsg || defaultMsg;
+
+  const bot = getTelegramBotUsername();
+
+  let channel = 'manual';
+  let status = 'pending';
+  let deepLink = null;
+  let detail = null;
+  try {
+    if (owner.telegramChatId) {
+      await sendTelegramTextMessage(owner.telegramChatId, message);
+      channel = 'telegram';
+      status = 'ok';
+      detail = `Telegram sent to chat ${owner.telegramChatId}`;
+    } else {
+      // Owner not linked yet: mint a one-time owner link token so tapping the
+      // deep link connects their Telegram to this account automatically.
+      const linkToken = crypto.randomUUID();
+      await db.update(users).set({ telegramLinkToken: linkToken }).where(eq(users.id, ownerId));
+      deepLink = bot ? `https://t.me/${bot.replace(/^@+/, '')}?start=${encodeURIComponent(linkToken)}` : null;
+      const fullMsg = deepLink ? `${message}\n\nConnect Telegram: ${deepLink}` : message;
+      if (isSmsEnabled() && owner.phoneNumber) {
+        const sms = await sendSms(owner.phoneNumber, fullMsg);
+        channel = 'sms';
+        status = sms?.success === false ? 'failed' : 'ok';
+        detail = sms?.error || (deepLink ? 'SMS sent with connect link' : null);
+      } else {
+        channel = 'manual';
+        status = 'pending';
+        detail = deepLink ? 'No SMS reach — share this link with the owner to connect their Telegram.' : 'Telegram bot username not configured; cannot build a link.';
+      }
+    }
+  } catch (e) {
+    status = 'failed';
+    detail = e instanceof Error ? e.message : String(e);
+  }
+  await insertAdminLog({ businessId: businessIdNum, adminPhone: ctx.phone, type: 'message', channel, title: 'Owner nudge', body: message, status });
+  return res.json({ ok: status !== 'failed', channel, status, deepLink, detail, message });
+});
+
+// Re-send reminders to customers of this shop whose last delivery failed.
+router.post("/shops/:businessId/resend-reminders", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  const businessIdNum = Number(req.params.businessId);
+  if (!Number.isInteger(businessIdNum)) return res.status(400).json({ error: "Invalid businessId" });
+  const biz = await db.select({ id: businesses.id, name: businesses.name }).from(businesses).where(eq(businesses.id, businessIdNum)).limit(1);
+  if (!biz[0]) return res.status(404).json({ error: "Shop not found" });
+
+  const failedTxns = await db
+    .select()
+    .from(customerTransactions)
+    .where(and(eq(customerTransactions.businessId, businessIdNum), sql`${customerTransactions.telegramDeliveryState} IS NOT NULL AND ${customerTransactions.telegramDeliveryState} <> 'sent'`));
+  const failedCustomerIds = [...new Set(failedTxns.map((t) => t.customerId).filter((id): id is number => typeof id === "number"))];
+
+  const { sendReminder } = await import("../services/reminderSender.js");
+  let sent = 0;
+  let failed = 0;
+  const details: any[] = [];
+
+  for (const cid of failedCustomerIds) {
+    const custRows = await db.select().from(customers).where(eq(customers.id, cid)).limit(1);
+    const c = custRows[0];
+    if (!c) continue;
+    const cTxns = await db.select().from(customerTransactions).where(and(eq(customerTransactions.businessId, businessIdNum), eq(customerTransactions.customerId, cid)));
+    let balance = 0;
+    let dueDate: number | null = null;
+    for (const t of cTxns) {
+      const amt = Number(t.amount || 0);
+      if (t.type === "credit_add") {
+        balance += amt;
+        if (t.dueDate && (dueDate == null || Number(t.dueDate) < dueDate)) dueDate = Number(t.dueDate);
+      } else if (t.type === "payment") balance -= amt;
+      else if (t.type === "reversal") balance -= amt;
+    }
+    if (balance <= 0) continue;
+
+    const now = Date.now();
+    const overdueDays = dueDate ? Math.ceil((now - dueDate) / 864e5) : 0;
+    const reminder: any = {
+      id: `resend-${businessIdNum}-${cid}-${now}`,
+      shopId: businessIdNum,
+      customerId: cid,
+      chatId: c.telegramChatId || "",
+      balance,
+      dueDate,
+      daysHeld: dueDate ? Math.max(0, Math.ceil((now - dueDate) / 864e5)) : 0,
+      language: "en",  // V1: English-only rollout
+      urgency: overdueDays > 0 ? "overdue" : "upcoming",
+      daysUntilDue: dueDate ? Math.ceil((dueDate - now) / 864e5) : undefined,
+      overdueDays: overdueDays > 0 ? overdueDays : undefined,
+      queuedAt: now,
+      priority: 0,
+      customerName: c.displayName || c.name || undefined,
+      shopName: biz[0].name || undefined,
+      phoneNumber: c.phoneNumber || undefined,
+    };
+
+    let result: any;
+    try {
+      result = await sendReminder(reminder);
+    } catch (e) {
+      result = { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+    if (result?.success) sent++;
+    else failed++;
+    details.push({ customerId: cid, name: c.displayName || c.name, success: !!result?.success, error: result?.error || null });
+    const newState = result?.success ? "sent" : "failed";
+    await db
+      .update(customerTransactions)
+      .set({ telegramDeliveryState: newState })
+      .where(and(eq(customerTransactions.businessId, businessIdNum), eq(customerTransactions.customerId, cid), sql`${customerTransactions.telegramDeliveryState} IS NOT NULL AND ${customerTransactions.telegramDeliveryState} <> 'sent'`));
+  }
+
+  await insertAdminLog({ businessId: businessIdNum, adminPhone: ctx.phone, type: 'action', channel: 'telegram', title: 'Resend failed reminders', body: `scanned=${failedCustomerIds.length} sent=${sent} failed=${failed}`, status: failed === 0 ? 'ok' : 'failed' });
+  return res.json({ ok: true, scanned: failedCustomerIds.length, sent, failed, details });
+});
+
+// ─── GET /admin/frictions ──────────────────────────────────────────────
+// Operational "problems & friction" signals across the platform so the
+// Gebya team can find shops that need help (no activity, no Telegram, failed
+// reminder deliveries, SMS issues, orphaned businesses, etc).
+router.get("/frictions", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  const sevenDaysAgo = daysAgo(7);
+
+  const [allBusinesses, allMembers, allUsers, allCustomers, allCustTxns, allTxns] = await Promise.all([
+    db.select().from(businesses),
+    db.select().from(businessMembers),
+    db.select().from(users),
+    db.select().from(customers),
+    db.select().from(customerTransactions),
+    db.select().from(transactions),
+  ]);
+
+  const userById = new Map(allUsers.map(u => [u.id, u]));
+  const membersByBiz = new Map<number, { userId: number; role: string }[]>();
+  for (const m of allMembers) {
+    if (!membersByBiz.has(m.businessId)) membersByBiz.set(m.businessId, []);
+    membersByBiz.get(m.businessId)!.push({ userId: m.userId, role: m.role });
+  }
+  const txnByBiz = new Map<number, number[]>();
+  for (const t of allTxns) {
+    if (!txnByBiz.has(t.businessId)) txnByBiz.set(t.businessId, []);
+    txnByBiz.get(t.businessId)!.push(t.createdAt || 0);
+  }
+  const custByBiz = new Map<number, typeof allCustomers>();
+  for (const c of allCustomers) {
+    if (c.businessId == null) continue;
+    if (!custByBiz.has(c.businessId)) custByBiz.set(c.businessId, []);
+    custByBiz.get(c.businessId)!.push(c);
+  }
+  const deliveryByBiz = new Map<number, number>();
+  for (const t of allCustTxns) {
+    if (t.telegramDeliveryState && t.telegramDeliveryState !== 'sent') {
+      deliveryByBiz.set(t.businessId, (deliveryByBiz.get(t.businessId) || 0) + 1);
+    }
+  }
+
+  const sample = (biz: any) => ({
+    businessId: biz.id,
+    name: biz.name,
+    ownerPhone: maskPhone(userById.get(biz.ownerUserId ?? -1)?.phoneNumber || null),
+  });
+
+  const dormant: any[] = [];
+  const zeroTxn: any[] = [];
+  const orphaned: any[] = [];
+  const ownerNoTelegram: any[] = [];
+  const lowAdoption: any[] = [];
+  const onboardingStuck: any[] = [];
+  const thirtyDaysAgo = daysAgo(30);
+
+  for (const biz of allBusinesses) {
+    const txns = txnByBiz.get(biz.id) || [];
+    const lastTxn = txns.length > 0 ? Math.max(...txns) : 0;
+    const members = membersByBiz.get(biz.id) || [];
+    const hasOwner = members.some(m => m.role === 'owner');
+    const owner = members.find(m => m.role === 'owner') || members[0];
+    const ownerUser = owner ? userById.get(owner.userId) : null;
+
+    if (lastTxn === 0) {
+      zeroTxn.push(sample(biz));
+      // Newly created shop (last 30d) that never recorded a transaction = stuck in onboarding.
+      const createdAt = biz.createdAt ? new Date(biz.createdAt).getTime() : 0;
+      if (createdAt >= thirtyDaysAgo) onboardingStuck.push(sample(biz));
+    } else if (lastTxn < sevenDaysAgo) dormant.push(sample(biz));
+
+    if (!hasOwner) orphaned.push(sample(biz));
+
+    if (ownerUser && !ownerUser.telegramChatId) ownerNoTelegram.push(sample(biz));
+
+    const custs = custByBiz.get(biz.id) || [];
+    if (custs.length >= 5) {
+      const linked = custs.filter(c => c.telegramChatId).length;
+      const rate = Math.round((linked / custs.length) * 100);
+      if (rate < 30) lowAdoption.push({ ...sample(biz), adoption: rate });
+    }
+  }
+
+  const deliveryFailures = [...deliveryByBiz.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 20)
+    .map(([businessId, failures]) => {
+      const biz = allBusinesses.find(b => b.id === businessId);
+      return { ...sample(biz), failures };
+    });
+
+  return res.json({
+    ok: true,
+    generatedAt: new Date().toISOString(),
+    smsEnabled: isSmsEnabled(),
+    counts: {
+      dormantShops: dormant.length,
+      zeroTransactionShops: zeroTxn.length,
+      orphanedShops: orphaned.length,
+      ownerTelegramNotLinked: ownerNoTelegram.length,
+      lowTelegramAdoption: lowAdoption.length,
+      onboardingStuck: onboardingStuck.length,
+      deliveryFailures: deliveryFailures.reduce((s, d) => s + d.failures, 0),
+    },
+    samples: {
+      dormantShops: dormant.slice(0, 15),
+      zeroTransactionShops: zeroTxn.slice(0, 15),
+      orphanedShops: orphaned.slice(0, 15),
+      ownerTelegramNotLinked: ownerNoTelegram.slice(0, 15),
+      lowTelegramAdoption: lowAdoption.slice(0, 15),
+      onboardingStuck: onboardingStuck.slice(0, 15),
+      deliveryFailures,
+    },
+  });
 });
 
 // ─── GET /admin/features ───────────────────────────────────────────────
@@ -219,10 +671,16 @@ router.get("/features", async (req, res) => {
 router.post("/broadcast", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
-  const { title, body, type } = req.body;
+  const { title, body, type, business_id } = req.body;
   if (!title || typeof title !== "string" || !body || typeof body !== "string") return res.status(400).json({ error: "title and body are required" });
-  const ownerMembers = await db.select({ userId: businessMembers.userId, businessId: businessMembers.businessId }).from(businessMembers).where(and(eq(businessMembers.role, "owner"), eq(businessMembers.active, true)));
-  if (ownerMembers.length === 0) return res.json({ ok: true, sent: 0, message: "No active shops found" });
+
+  // Single-shop broadcast: filter ownerMembers to just the requested business
+  const whereClause = business_id
+    ? and(eq(businessMembers.role, "owner"), eq(businessMembers.active, true), eq(businessMembers.businessId, Number(business_id)))
+    : and(eq(businessMembers.role, "owner"), eq(businessMembers.active, true));
+
+  const ownerMembers = await db.select({ userId: businessMembers.userId, businessId: businessMembers.businessId }).from(businessMembers).where(whereClause);
+  if (ownerMembers.length === 0) return res.json({ ok: true, sent: 0, message: business_id ? "Shop not found or no active owner" : "No active shops found" });
 
   const values = ownerMembers.map((m) => ({
     businessId: m.businessId,
@@ -237,18 +695,18 @@ router.post("/broadcast", async (req, res) => {
   return res.json({ ok: true, sent: values.length, total: ownerMembers.length });
 });
 
-// ─── POST /admin/push-all ──────────────────────────────────────────────
+// ─── POST /admin/push-all (single-shop override via business_id) ──────────────────────
 router.post("/push-all", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
-  const { title, body } = req.body;
+  const { title, body, business_id } = req.body;
   if (!title || typeof title !== "string" || !body || typeof body !== "string") return res.status(400).json({ error: "title and body are required" });
   const { sendPushToOwner } = await import("../services/pushNotificationSender.js");
   const allSubs = await db.select().from(pushSubscriptions);
-  const uniqueBusinessIds = [...new Set(allSubs.map(s => s.businessId))];
+  const uniqueBusinessIds = [...new Set(allSubs.map(s => s.businessId))].filter(id => !business_id || id === Number(business_id));
   let totalSent = 0; let totalFailed = 0;
-  for (const businessId of uniqueBusinessIds) {
-    try { const result = await sendPushToOwner(businessId, { title, body, type: "announcement", id: 0 }, allSubs); totalSent += result.sent; totalFailed += result.failed; } catch { totalFailed++; }
+  for (const bizId of uniqueBusinessIds) {
+    try { const result = await sendPushToOwner(bizId, { title, body, type: "announcement", id: 0 }, allSubs); totalSent += result.sent; totalFailed += result.failed; } catch { totalFailed++; }
   }
   return res.json({ ok: true, sent: totalSent, failed: totalFailed, businesses: uniqueBusinessIds.length });
 });

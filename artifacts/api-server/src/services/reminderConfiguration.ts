@@ -8,6 +8,9 @@
  */
 
 import type { ReminderFrequency, ReminderConfiguration } from '../types/reminders.js';
+import { db } from '@workspace/db';
+import { businesses } from '@workspace/db/schema';
+import { eq } from 'drizzle-orm';
 
 // ─── storage backend selection ────────────────────────────────────────
 const KV_URL = (process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL)?.trim();
@@ -20,9 +23,37 @@ const memConfig = new Map<string, ReminderConfiguration>();
 // ─── KV command helper ────────────────────────────────────────────────
 
 let kvBroken = false;
+let kvBrokenSince = 0;
+const KV_RECOVERY_MS = 60_000;
 
 async function kvCmd(args: (string | number)[]): Promise<unknown> {
-  if (kvBroken) throw new Error("KV unavailable");
+  if (kvBroken) {
+    if (Date.now() - kvBrokenSince < KV_RECOVERY_MS) {
+      throw new Error("KV unavailable — in recovery cool-down");
+    }
+    // Attempt recovery: send a lightweight PING to test connectivity
+    try {
+      const pingRes = await fetch(KV_URL as string, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${KV_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(["PING"]),
+      });
+      if (pingRes.ok) {
+        kvBroken = false;
+        kvBrokenSince = 0;
+        console.log("[ReminderConfig:KV] Recovered — KV connection restored");
+      } else {
+        kvBrokenSince = Date.now();
+        throw new Error(`KV command failed (${pingRes.status})`);
+      }
+    } catch {
+      kvBrokenSince = Date.now();
+      throw new Error("KV unavailable");
+    }
+  }
   try {
     const res = await fetch(KV_URL as string, {
       method: "POST",
@@ -43,6 +74,7 @@ async function kvCmd(args: (string | number)[]): Promise<unknown> {
   } catch (err) {
     console.error("[ReminderConfig:KV] fetch error, falling back to memory:", err instanceof Error ? err.message : String(err));
     kvBroken = true;
+    kvBrokenSince = Date.now();
     throw err;
   }
 }
@@ -340,4 +372,38 @@ export function getStorageStatus() {
     backend: kvEnabled ? 'kv' : 'memory',
     configCount: memConfig.size,
   };
+}
+
+/**
+ * Phase 2: Check if a shop has a premium plan that allows automated reminders.
+ * 
+ * - "premium" plan: shop can use cron-triggered automated reminders
+ * - "free" plan (default): shop can still send on-demand/manual reminders,
+ *   but automated cron reminders are skipped with a warning.
+ *
+ * Queries the businesses table for the `plan` column.
+ * Returns true if the shop's plan is "premium", false otherwise.
+ */
+export async function isPremiumShop(shopId: number): Promise<boolean> {
+  try {
+    validateId(shopId, 'shopId');
+
+    if (!db) {
+      console.warn(`[ReminderConfig] isPremiumShop: database not configured for shop ${shopId}, defaulting to free tier`);
+      return false;
+    }
+
+    const rows = await db
+      .select({ plan: businesses.plan })
+      .from(businesses)
+      .where(eq(businesses.id, shopId))
+      .limit(1);
+
+    const plan = rows[0]?.plan ?? "free";
+    return plan === "premium";
+  } catch (error) {
+    console.error(`[ReminderConfig] isPremiumShop: error checking shop ${shopId}: ${error}`);
+    // Default to free tier on error — don't accidentally grant premium access
+    return false;
+  }
 }

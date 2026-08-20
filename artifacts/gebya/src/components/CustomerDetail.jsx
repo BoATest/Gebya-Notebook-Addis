@@ -13,7 +13,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, MessageSquare, Pencil, Phone, Wallet, Search, X, ArrowRightLeft,
+  ArrowLeft, MessageSquare, Pencil, Phone, Wallet, Search, X, ArrowRightLeft, Send,
 } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { toTelUrl, isValidEthiopianPhone } from '../utils/phoneNumber';
@@ -60,8 +60,9 @@ function telegramState(customer) {
 // ─── component ────────────────────────────────────────────────────────
 function CustomerDetail({
   customer,
-  shopName,
-  onBack,
+   shopName,
+   shopPlan,
+   onBack,
   onAddCredit,
   onRecordPayment,
   onMarkFullyPaid,
@@ -606,8 +607,27 @@ function CustomerDetail({
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
-          3. QUICK ACTIONS · Call + SMS + Telegram (AFTER balance block)
-          ═══════════════════════════════════════════════════════════════ */}
+           3. QUICK ACTIONS · Call + SMS + Telegram + Send Reminder
+           ═══════════════════════════════════════════════════════════════ */}
+      {shopPlan !== 'plus' && hasBalance && hasLinkedBorrower && (
+        <div style={{ padding: '0 14px 8px' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '8px 12px', borderRadius: 10,
+            background: '#feffe8', border: '1px solid #facc15',
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ca8a00" strokeWidth="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5M2 12l10 5 10-5" />
+            </svg>
+            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#7a5416' }}>
+              {lang === 'am'
+                ? 'ሊሆን የሚያስፈላገው የአዲስ መዋረያዊ ዝግጅት ነው'
+                : 'Automated reminders are a Plus feature. On-demand reminders still work.'}
+            </span>
+          </div>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 8, padding: '14px 14px' }}>
         {isValidEthiopianPhone(customer.phone_number) && (
           <a
@@ -652,6 +672,29 @@ function CustomerDetail({
           >
             <MessageSquare className="w-4 h-4" />
             SMS
+          </button>
+        )}
+        {hasBalance && hasLinkedBorrower && onRemind && (
+          <button
+            type="button"
+            onClick={() => onRemind?.(customer)}
+            className="press-scale"
+            style={{
+              flex: 1,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              background: '#f3e8fd',
+              border: '1px solid transparent',
+              borderRadius: 10,
+              padding: '10px 0',
+              color: '#7b2cbf',
+              fontWeight: 700,
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              minHeight: 44,
+            }}
+          >
+            <Send className="w-4 h-4" />
+            {lang === 'am' ? 'ረማመ᪵ክ' : 'Send Reminder'}
           </button>
         )}
         <button

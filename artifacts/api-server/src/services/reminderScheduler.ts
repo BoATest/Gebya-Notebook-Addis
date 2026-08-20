@@ -28,9 +28,11 @@ function log(level: "info" | "warn" | "error", message: string, context?: Record
 
 // ─── helper: language detection ────────────────────────────────────────
 
-function detectLanguage(langCode?: string | null): ReminderLanguage {
-  const lc = langCode?.toLowerCase() ?? "";
-  if (lc.startsWith("am") || lc.startsWith("@am")) return "am";
+// V1: English-only rollout. Language detection from Telegram username is
+// intentionally disabled — it was checking username prefixes (e.g., @am_*)
+// which do not reliably indicate language. Amharic support returns in V2
+// with proper language_code persistence.
+function detectLanguage(_langCode?: string | null): ReminderLanguage {
   return "en";
 }
 

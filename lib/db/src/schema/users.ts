@@ -7,6 +7,9 @@ export const users = pgTable("users", {
   active: boolean("active").default(true),
   preferredLang: varchar("preferred_lang", { length: 8 }).default("am"),
   telegramChatId: text("telegram_chat_id"),
+  // One-time token an owner taps (https://t.me/<bot>?start=<token>) to connect
+  // their Telegram to this user account. Cleared after a successful link.
+  telegramLinkToken: text("telegram_link_token"),
   passwordHash: text("password_hash"),
   passwordSetAt: timestamp("password_set_at", { withTimezone: true }),
   passwordAttempts: integer("password_attempts").default(0),

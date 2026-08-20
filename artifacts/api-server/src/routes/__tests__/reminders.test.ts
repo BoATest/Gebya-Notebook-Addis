@@ -13,6 +13,7 @@ vi.mock("../../services/reminderConfiguration.js", () => ({
   setCustomerFrequency: vi.fn(),
   clearCustomerOverride: vi.fn(),
   isRemindersEnabled: vi.fn(),
+  isPremiumShop: vi.fn().mockResolvedValue(true),
   setLastReminderSentAt: vi.fn(),
 }));
 
@@ -84,6 +85,7 @@ import {
   setCustomerFrequency,
   clearCustomerOverride,
   isRemindersEnabled,
+  isPremiumShop,
   setLastReminderSentAt,
 } from "../../services/reminderConfiguration.js";
 import { queryHistory } from "../../services/reminderSender.js";
@@ -92,6 +94,7 @@ import { sendTelegramTextMessage } from "../../services/telegramBotService.js";
 import { runRemindersForShop, scanCriticalOverdue } from "../../services/reminderScheduler.js";
 import { createHistoryEntry } from "../../services/reminderHistory.js";
 import { sendPushToOwner } from "../../services/pushNotificationSender.js";
+import { getCustomerBalances } from "@workspace/db/utils/customerBalance.js";
 
 const mockGetShopDefault = getShopDefault as ReturnType<typeof vi.fn>;
 const mockSetShopDefault = setShopDefault as ReturnType<typeof vi.fn>;
@@ -99,6 +102,7 @@ const mockGetCustomerFrequency = getCustomerFrequency as ReturnType<typeof vi.fn
 const mockSetCustomerFrequency = setCustomerFrequency as ReturnType<typeof vi.fn>;
 const mockClearCustomerOverride = clearCustomerOverride as ReturnType<typeof vi.fn>;
 const mockIsRemindersEnabled = isRemindersEnabled as ReturnType<typeof vi.fn>;
+const mockIsPremiumShop = isPremiumShop as ReturnType<typeof vi.fn>;
 const mockSetLastReminderSentAt = setLastReminderSentAt as ReturnType<typeof vi.fn>;
 const mockQueryHistory = queryHistory as ReturnType<typeof vi.fn>;
 const mockGetSessionByChatId = getSessionByChatId as ReturnType<typeof vi.fn>;
@@ -108,6 +112,7 @@ const mockRunRemindersForShop = runRemindersForShop as ReturnType<typeof vi.fn>;
 const mockScanCriticalOverdue = scanCriticalOverdue as ReturnType<typeof vi.fn>;
 const mockCreateHistoryEntry = createHistoryEntry as ReturnType<typeof vi.fn>;
 const mockSendPushToOwner = sendPushToOwner as ReturnType<typeof vi.fn>;
+const mockGetCustomerBalances = getCustomerBalances as ReturnType<typeof vi.fn>;
 
 // Resolver for the in-flight route request (see createRes / runHandler).
 let pendingResolve: (() => void) | null = null;
@@ -513,6 +518,64 @@ describe("reminders routes", () => {
           process.env.REMINDER_CRON_SECRET = originalSecret;
         }
       }
+    });
+  });
+
+  describe("POST /run — premium tier gating (Phase 2)", () => {
+    it("skips non-premium shops in auto-discover mode", async () => {
+      mockGetCustomerBalances.mockResolvedValueOnce([{ businessId: 1 }]);
+      mockIsPremiumShop.mockResolvedValueOnce(false);
+      mockRunRemindersForShop.mockResolvedValue({
+        startedAt: Date.now(), completedAt: Date.now(),
+        customersScanned: 0, customersWithBalance: 0,
+        remindersQueued: 0, remindersSent: 0, remindersFailed: 0,
+        remindersSkipped: 0, errors: [], shopsProcessed: 0, success: true,
+      });
+
+      const req = createReq("POST", "/run", {
+        customers: [{ customerId: 1, customerName: "Test", balance: 50, customerCreatedAt: Date.now() - 86400000, chatId: "123" }],
+      }, {}, { "x-reminder-cron-secret": "test-cron-secret" });
+      const res = createRes();
+
+      await runHandler(req, res);
+
+      // isPremiumShop was called for shop 1 (from the explicit shopId in customers)
+      expect(mockIsPremiumShop).toHaveBeenCalledWith(1);
+      // runRemindersForShop should NOT have been called since shop is not premium
+      expect(mockRunRemindersForShop).not.toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalledWith({
+        ok: true,
+        message: "No shops with reminder-enabled customers found",
+        stats: {
+          scanned: 0, withBalance: 0, queued: 0, sent: 0,
+          failed: 0, skipped: 0, errors: 0, completedIn: expect.any(Number),
+        },
+      });
+    });
+
+    it("processes premium shops normally", async () => {
+      mockIsPremiumShop.mockResolvedValueOnce(true);
+      mockRunRemindersForShop.mockResolvedValue({
+        startedAt: Date.now(), completedAt: Date.now(),
+        customersScanned: 1, customersWithBalance: 1,
+        remindersQueued: 1, remindersSent: 1, remindersFailed: 0,
+        remindersSkipped: 0, errors: [], shopsProcessed: 1, success: true,
+      });
+
+      const req = createReq("POST", "/run", {
+        shopId: 1,
+        customers: [{ customerId: 1, customerName: "Test", balance: 100, customerCreatedAt: Date.now() - 86400000, chatId: "123" }],
+      }, {}, { "x-reminder-cron-secret": "test-cron-secret" });
+      const res = createRes();
+
+      await runHandler(req, res);
+
+      expect(mockIsPremiumShop).toHaveBeenCalledWith(1);
+      expect(mockRunRemindersForShop).toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalledWith({
+        ok: true,
+        stats: expect.objectContaining({ scanned: 1, queued: 1, sent: 1 }),
+      });
     });
   });
 

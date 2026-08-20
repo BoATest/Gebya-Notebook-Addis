@@ -25,3 +25,6 @@ export * from "./staff_attendance";
 export * from "./phone";
 export * from "./bank_analytics";
 export * from "./settlements";
+export * from "./support_tickets";
+export * from "./adminLogs";
+export * from "./platform_admin_members";

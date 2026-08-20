@@ -1,15 +1,52 @@
 // @ts-nocheck
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { auditLog, businessMembers } from "@workspace/db/schema";
+import { auditLog, businessMembers, users } from "@workspace/db/schema";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
+import { isPlatformAdminPhone } from "../services/platformAdmin.js";
 
 const router = Router();
 
+// Resolve the effective businessId for the request:
+//   - platform admins may pass ?business_id= to inspect any shop
+//   - owners are scoped to their own active business
+async function resolveAuditScope(req, decodedUserId) {
+  const userRows = await db
+    .select({ phoneNumber: users.phoneNumber })
+    .from(users)
+    .where(eq(users.id, decodedUserId))
+    .limit(1);
+  const isAdmin = await isPlatformAdminPhone(userRows[0]?.phoneNumber);
+
+  if (isAdmin) {
+    const param = typeof req.query.business_id === "string" ? Number(req.query.business_id) : null;
+    if (!param || !Number.isInteger(param)) {
+      return { error: "Platform admins must provide ?business_id=" };
+    }
+    return { businessId: param, isAdmin: true };
+  }
+
+  const memberRows = await db
+    .select({ role: businessMembers.role, businessId: businessMembers.businessId })
+    .from(businessMembers)
+    .where(and(eq(businessMembers.userId, decodedUserId), eq(businessMembers.active, true)))
+    .limit(1);
+
+  if (memberRows[0]?.role !== "owner") {
+    return { error: "Owner only" };
+  }
+  const businessId = memberRows[0]?.businessId;
+  if (!Number.isInteger(businessId)) {
+    return { error: "Business not found" };
+  }
+  return { businessId, isAdmin: false };
+}
+
 /**
  * GET /api/audit/violations
- * Owner can query violation attempts for their business.
+ * Owner: violation attempts for their business.
+ * Platform admin: ?business_id= to inspect any shop.
  */
 router.get("/violations", async (req, res) => {
   const authHeader = (req.headers as any).authorization || (req.headers as any).Authorization || "";
@@ -22,33 +59,15 @@ router.get("/violations", async (req, res) => {
   const decoded = verifyJwt(token);
   if (!decoded) return res.status(401).json({ error: "Invalid token" });
 
-  // Verify requester is an owner
-  const memberRows = await db
-    .select({ role: businessMembers.role, businessId: businessMembers.businessId })
-    .from(businessMembers)
-    .where(and(
-      eq(businessMembers.userId, decoded.userId),
-      eq(businessMembers.active, true)
-    ))
-    .limit(1);
-
-  const role = memberRows[0]?.role;
-  if (role !== "owner") {
-    return res.status(403).json({ error: "Owner only" });
-  }
-
-  const businessIdValue = memberRows[0]?.businessId ?? null;
-  if (!Number.isInteger(businessIdValue)) {
-    return res.status(403).json({ error: "Business not found" });
-  }
-  const businessIdNum = businessIdValue as number;
+  const scope = await resolveAuditScope(req, decoded.userId);
+  if (scope.error) return res.status(403).json({ error: scope.error });
 
   const violations = await db
     .select()
     .from(auditLog)
     .where(and(
       eq(auditLog.action, "ATTEMPTED_VIOLATION"),
-      eq(auditLog.businessId, businessIdNum)
+      eq(auditLog.businessId, scope.businessId)
     ))
     .orderBy(desc(auditLog.createdAt))
     .limit(200);
@@ -58,7 +77,8 @@ router.get("/violations", async (req, res) => {
 
 /**
  * GET /api/audit/activity
- * Owner can query business mutation activity with filters.
+ * Owner: business mutation activity for their business.
+ * Platform admin: ?business_id= to inspect any shop.
  * Query params:
  *   staff_member_id (optional) — filter by actor
  *   entity_type (optional) — filter by entity type (transaction, customer, credit, supplier, etc.)
@@ -76,26 +96,9 @@ router.get("/activity", async (req, res) => {
   const decoded = verifyJwt(token);
   if (!decoded) return res.status(401).json({ error: "Invalid token" });
 
-  // Verify requester is an owner
-  const memberRows = await db
-    .select({ role: businessMembers.role, businessId: businessMembers.businessId })
-    .from(businessMembers)
-    .where(and(
-      eq(businessMembers.userId, decoded.userId),
-      eq(businessMembers.active, true)
-    ))
-    .limit(1);
-
-  const role = memberRows[0]?.role;
-  if (role !== "owner") {
-    return res.status(403).json({ error: "Owner only" });
-  }
-
-  const businessIdValue = memberRows[0]?.businessId ?? null;
-  if (!Number.isInteger(businessIdValue)) {
-    return res.status(403).json({ error: "Business not found" });
-  }
-  const businessIdNum = businessIdValue as number;
+  const scope = await resolveAuditScope(req, decoded.userId);
+  if (scope.error) return res.status(403).json({ error: scope.error });
+  const businessIdNum = scope.businessId;
 
   // Build filters
   const staffMemberIdRaw = typeof req.query.staff_member_id === "string" ? req.query.staff_member_id : undefined;

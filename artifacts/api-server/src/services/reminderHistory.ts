@@ -21,9 +21,37 @@ const shopCustIndexKey = (shopId: number, customerId: number) =>
   `reminder:history:idx:shop_cust:${shopId}:${customerId}`;
 
 let kvBroken = false;
+let kvBrokenSince = 0;
+const KV_RECOVERY_MS = 60_000;
 
 async function kvCmd(args: (string | number)[]): Promise<unknown> {
-  if (kvBroken) throw new Error("KV unavailable");
+  if (kvBroken) {
+    if (Date.now() - kvBrokenSince < KV_RECOVERY_MS) {
+      throw new Error("KV unavailable — in recovery cool-down");
+    }
+    // Attempt recovery: send a lightweight PING to test connectivity
+    try {
+      const pingRes = await fetch(KV_URL as string, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${KV_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(["PING"]),
+      });
+      if (pingRes.ok) {
+        kvBroken = false;
+        kvBrokenSince = 0;
+        console.log("[ReminderHistory:KV] Recovered — KV connection restored");
+      } else {
+        kvBrokenSince = Date.now();
+        throw new Error(`KV command failed (${pingRes.status})`);
+      }
+    } catch {
+      kvBrokenSince = Date.now();
+      throw new Error("KV unavailable");
+    }
+  }
   try {
     const res = await fetch(KV_URL as string, {
       method: "POST",
@@ -44,6 +72,7 @@ async function kvCmd(args: (string | number)[]): Promise<unknown> {
   } catch (err) {
     console.error("[ReminderHistory:KV] fetch error, falling back to memory:", err instanceof Error ? err.message : String(err));
     kvBroken = true;
+    kvBrokenSince = Date.now();
     throw err;
   }
 }

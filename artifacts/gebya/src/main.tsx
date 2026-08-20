@@ -44,7 +44,11 @@ const isJoinRoute = typeof window !== "undefined" && /^\/join\/.+/.test(window.l
 
 const isPayRoute = typeof window !== "undefined" && window.location.pathname === "/pay";
 
+const isAdminRoute = typeof window !== "undefined" && window.location.pathname === "/admin";
+
 const JoinPage = lazy(() => import("./components/JoinPage.jsx"));
+
+const AdminPortal = lazy(() => import("./components/AdminPortal.jsx"));
 
 // Minimal fallback for the lazy-loaded PayPage. Plain inline styles so it
 // renders before any CSS chunk loads.
@@ -78,6 +82,10 @@ createRoot(document.getElementById("root")!).render(
     ) : isPayRoute ? (
       <Suspense fallback={<PayPageFallback />}>
         <PayPage />
+      </Suspense>
+    ) : isAdminRoute ? (
+      <Suspense fallback={<PayPageFallback />}>
+        <AdminPortal />
       </Suspense>
     ) : (
       <App />
