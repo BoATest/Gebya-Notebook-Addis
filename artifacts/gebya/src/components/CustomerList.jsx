@@ -249,14 +249,14 @@ export default function CustomerList({ customers = [], metrics, onSelectCustomer
       )}
 
       {/* Spacer so the last row clears the fixed bottom actions */}
-      <div style={{ height: showRemind ? 44 : 8 }} />
+      <div style={{ height: showRemind ? 52 : 12 }} />
 
-      {/* Fixed bottom actions — above the bottom nav */}
+      {/* Fixed bottom actions — above the bottom nav (reminder bar sits ABOVE the Add button) */}
       <div
         className="fixed left-0 right-0 z-20 pointer-events-none"
-        style={{ bottom: 0, paddingBottom: 'calc(60px + env(safe-area-inset-bottom))' }}
+        style={{ bottom: 0, paddingBottom: 'calc(68px + env(safe-area-inset-bottom))' }}
       >
-        <div className="max-w-md mx-auto px-3 flex flex-col gap-2 pointer-events-auto">
+        <div className="max-w-md mx-auto px-3 flex flex-col gap-3 pointer-events-auto">
           {/* Reminder bar — distinct danger treatment, only when overdue */}
           {showRemind && (
             <div

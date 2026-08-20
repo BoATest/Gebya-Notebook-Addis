@@ -193,12 +193,12 @@ export default function SupplierList({ suppliers = [], onSelectSupplier, onAddSu
       )}
 
       {/* Spacer so the last row clears the fixed bottom action */}
-      <div style={{ height: 8 }} />
+      <div style={{ height: 12 }} />
 
       {/* Add Supplier — sticky above nav, brand colored, active on tap */}
       <div
         className="fixed left-0 right-0 z-20 pointer-events-none"
-        style={{ bottom: 0, paddingBottom: 'calc(60px + env(safe-area-inset-bottom))' }}
+        style={{ bottom: 0, paddingBottom: 'calc(68px + env(safe-area-inset-bottom))' }}
       >
         <div className="max-w-md mx-auto px-3 pointer-events-auto">
           <button
