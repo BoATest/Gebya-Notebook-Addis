@@ -2,12 +2,12 @@ import { Suspense, useState } from 'react';
 import { useLang } from '../context/LangContext';
 import { useAppStore } from '../stores/appStore';
 import { PanelFallback } from './Fallbacks';
-import OverdueCustomerFlags from './OverdueCustomerFlags';
 import { CustomerList, CustomerDetail, SupplierList, SupplierDetail } from '../utils/lazyImports';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
 import { SUPPLIER_TRANSACTION_TYPES, buildSupplierReport, exportSupplierReportCsv } from '../utils/supplierLedger';
 import { buildCreditReport, exportCreditReportCsv, exportCreditReportPdf } from '../utils/customerMetrics';
 import { fireToast } from './Toast';
+import DownloadMenuSheet from './DownloadMenuSheet';
 
 export default function CreditTab({
   selectedCustomer,
@@ -42,33 +42,103 @@ export default function CreditTab({
   const setSupplierEditTarget = useAppStore(s => s.setSupplierEditTarget);
   const setBulkReminderQueue = useAppStore(s => s.setBulkReminderQueue);
 
+  const [downloadOpen, setDownloadOpen] = useState(false);
+
+  const handleBulkRemind = () => {
+    const overdueCustomers = enrichedCustomerSummaries.filter((c) => c.has_overdue);
+    const remindable = overdueCustomers.filter((c) =>
+      c.telegram_chat_id || c.telegram_username || c.phone_number);
+    const skipped = overdueCustomers.length - remindable.length;
+    if (remindable.length === 0) {
+      fireToast(skipped > 0
+        ? (lang === 'am' ? `${skipped} የዘገዩ ደንበኞች አሏቸው ግን ስልክ ወይም ቴሌግራም የላቸውም` : `${skipped} overdue — no contact info to remind`)
+        : (lang === 'am' ? 'ምንም የዘገዩ ደንበኞች የሉም' : 'No overdue customers'), 3000);
+      return;
+    }
+    if (skipped > 0) {
+      fireToast(lang === 'am'
+        ? `${remindable.length} እያስታወስን · ${skipped} ተዘለለ (ስልክ የለም)`
+        : `Reminding ${remindable.length} · ${skipped} skipped (no contact)`, 3000);
+    }
+    const queue = remindable.map((c) => c.id);
+    setBulkReminderQueue(queue.slice(1));
+    setReminderTarget(enrichedCustomerSummaries.find((c) => c.id === queue[0]));
+  };
+
+  const downloadOptions = creditView === 'customers'
+    ? [
+        {
+          key: 'csv', label: t.exportCsv, format: 'csv',
+          onSelect: () => {
+            try {
+              const report = buildCreditReport({
+                shopName: shopProfile?.name || 'Shop',
+                shopPhone: shopProfile?.phone || '',
+                enrichedSummaries: enrichedCustomerSummaries,
+                customerTransactions: customerTransactions || [],
+              });
+              exportCreditReportCsv(report, customerTransactions || []);
+            } catch (err) {
+              fireToast(t.exportFailed || 'Export failed', 2600);
+              if (import.meta.env.DEV) console.error('CSV Export failed:', err);
+            }
+          },
+        },
+        {
+          key: 'pdf', label: t.exportPdf, format: 'pdf',
+          onSelect: () => {
+            try {
+              const report = buildCreditReport({
+                shopName: shopProfile?.name || 'Shop',
+                shopPhone: shopProfile?.phone || '',
+                enrichedSummaries: enrichedCustomerSummaries,
+                customerTransactions: customerTransactions || [],
+              });
+              exportCreditReportPdf(report, lang);
+            } catch (err) {
+              fireToast(t.exportFailed || 'Export failed', 2600);
+              if (import.meta.env.DEV) console.error('PDF Export failed:', err);
+            }
+          },
+        },
+      ]
+    : [
+        {
+          key: 'csv', label: t.exportCsv, format: 'csv',
+          onSelect: () => {
+            try {
+              const report = buildSupplierReport({
+                shopName: shopProfile?.name || 'Shop',
+                suppliers: supplierSummaries,
+                supplierTransactions: supplierSummaries.flatMap(s => s.transactions || []),
+              });
+              exportSupplierReportCsv(report, supplierSummaries.flatMap(s => s.transactions || []));
+            } catch (err) {
+              fireToast(t.exportFailed || 'Export failed', 2600);
+              if (import.meta.env.DEV) console.error('Supplier CSV Export failed:', err);
+            }
+          },
+        },
+      ];
+
   return (
     <>
       {!selectedCustomer && !selectedSupplier && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          marginBottom: 12,
-        }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
           <div style={{
-            display: 'inline-flex',
-            background: 'var(--color-bg-hover)',
-            borderRadius: 999,
-            padding: 3,
-            gap: 2,
+            display: 'flex', width: '100%', maxWidth: 420,
+            background: 'var(--color-bg-hover)', borderRadius: 14, padding: 4, gap: 4,
           }}>
             <button
               type="button"
               onClick={() => setCreditView('customers')}
               className="press-scale"
               style={{
-                padding: '8px 20px',
-                borderRadius: 999,
-                fontSize: '0.82rem', fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                background: creditView === 'customers' ? 'var(--color-text)' : 'transparent',
-                color: creditView === 'customers' ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
+                flex: 1, padding: '12px 0', borderRadius: 10,
+                fontSize: '0.9rem', fontWeight: 800, border: 'none', cursor: 'pointer',
+                background: creditView === 'customers' ? 'var(--color-surface)' : 'transparent',
+                color: creditView === 'customers' ? 'var(--color-text)' : 'var(--color-text-muted)',
+                boxShadow: creditView === 'customers' ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
               }}
             >
               {t.customersLabel}
@@ -78,116 +148,16 @@ export default function CreditTab({
               onClick={() => setCreditView('suppliers')}
               className="press-scale"
               style={{
-                padding: '8px 20px',
-                borderRadius: 999,
-                fontSize: '0.82rem', fontWeight: 700,
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                background: creditView === 'suppliers' ? 'var(--color-text)' : 'transparent',
-                color: creditView === 'suppliers' ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
+                flex: 1, padding: '12px 0', borderRadius: 10,
+                fontSize: '0.9rem', fontWeight: 800, border: 'none', cursor: 'pointer',
+                background: creditView === 'suppliers' ? 'var(--color-surface)' : 'transparent',
+                color: creditView === 'suppliers' ? 'var(--color-text)' : 'var(--color-text-muted)',
+                boxShadow: creditView === 'suppliers' ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
               }}
             >
               {t.suppliersLabel}
             </button>
           </div>
-          {creditView === 'customers' && enrichedCustomerSummaries?.length > 0 && (
-            <>
-            <button
-              type="button"
-              onClick={() => {
-                try {
-                  const report = buildCreditReport({
-                    shopName: shopProfile?.name || 'Shop',
-                    shopPhone: shopProfile?.phone || '',
-                    enrichedSummaries: enrichedCustomerSummaries,
-                    customerTransactions: customerTransactions || [],
-                  });
-                  exportCreditReportCsv(report, customerTransactions || []);
-                } catch (err) {
-                  fireToast(t.exportFailed || 'Export failed', 2600);
-                  if (import.meta.env.DEV) console.error('CSV Export failed:', err);
-                }
-              }}
-              className="press-scale"
-              style={{
-                padding: '6px 12px',
-                borderRadius: 999,
-                fontSize: '0.7rem', fontWeight: 600,
-                border: '1px solid var(--color-bg-disabled)',
-                cursor: 'pointer',
-                background: 'var(--color-surface)',
-                color: 'var(--color-text-muted)',
-                marginLeft: 8,
-              }}
-            >
-              CSV
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                try {
-                  const report = buildCreditReport({
-                    shopName: shopProfile?.name || 'Shop',
-                    shopPhone: shopProfile?.phone || '',
-                    enrichedSummaries: enrichedCustomerSummaries,
-                    customerTransactions: customerTransactions || [],
-                  });
-                  exportCreditReportPdf(report, lang);
-                } catch (err) {
-                  fireToast(t.exportFailed || 'Export failed', 2600);
-                  if (import.meta.env.DEV) console.error('PDF Export failed:', err);
-                }
-              }}
-              className="press-scale"
-              style={{
-                padding: '6px 12px',
-                borderRadius: 999,
-                fontSize: '0.7rem', fontWeight: 600,
-                border: '1px solid var(--color-bg-disabled)',
-                cursor: 'pointer',
-                background: 'var(--color-surface)',
-                color: 'var(--color-text-muted)',
-                marginLeft: 4,
-              }}
-            >
-              PDF
-            </button>
-            </>
-          )}
-          {creditView === 'suppliers' && supplierSummaries?.length > 0 && (
-            <>
-            <button
-              type="button"
-              onClick={() => {
-                try {
-                  const report = buildSupplierReport({
-                    shopName: shopProfile?.name || 'Shop',
-                    suppliers: supplierSummaries,
-                    supplierTransactions: supplierSummaries.flatMap(s => s.transactions || []),
-                  });
-                  exportSupplierReportCsv(report, supplierSummaries.flatMap(s => s.transactions || []));
-                } catch (err) {
-                  fireToast(t.exportFailed || 'Export failed', 2600);
-                  if (import.meta.env.DEV) console.error('Supplier CSV Export failed:', err);
-                }
-              }}
-              className="press-scale"
-              style={{
-                padding: '6px 12px',
-                borderRadius: 999,
-                fontSize: '0.7rem', fontWeight: 600,
-                border: '1px solid var(--color-bg-disabled)',
-                cursor: 'pointer',
-                background: 'var(--color-surface)',
-                color: 'var(--color-text-muted)',
-                marginLeft: 8,
-              }}
-            >
-              CSV
-            </button>
-            </>
-          )}
         </div>
       )}
 
@@ -226,37 +196,13 @@ export default function CreditTab({
           </Suspense>
         ) : (
           <Suspense fallback={<PanelFallback label={t.loading} />}>
-            <OverdueCustomerFlags />
             <CustomerList
               customers={enrichedCustomerSummaries}
               metrics={creditMetrics}
               onSelectCustomer={(customer) => setSelectedCustomerId(customer.id)}
               onAddCustomer={() => setShowCustomerForm(true)}
-              onRemindCustomer={(customer) => setReminderTarget(customer)}
-              onQuickCredit={(customer) => setCustomerTransactionModal({
-                mode: CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD,
-                customerId: customer.id,
-              })}
-              onBulkRemind={() => {
-                const overdueCustomers = enrichedCustomerSummaries.filter((c) => c.has_overdue);
-                const remindable = overdueCustomers.filter((c) =>
-                  c.telegram_chat_id || c.telegram_username || c.phone_number);
-                const skipped = overdueCustomers.length - remindable.length;
-                if (remindable.length === 0) {
-                  fireToast(skipped > 0
-                    ? (lang === 'am' ? `${skipped} የዘገዩ ደንበኞች አሏቸው ግን ስልክ ወይም ቴሌግራም የላቸውም` : `${skipped} overdue — no contact info to remind`)
-                    : (lang === 'am' ? 'ምንም የዘገዩ ደንበኞች የሉም' : 'No overdue customers'), 3000);
-                  return;
-                }
-                if (skipped > 0) {
-                  fireToast(lang === 'am'
-                    ? `${remindable.length} እያስታወስን · ${skipped} ተዘለለ (ስልክ የለም)`
-                    : `Reminding ${remindable.length} · ${skipped} skipped (no contact)`, 3000);
-                }
-                const queue = remindable.map((c) => c.id);
-                setBulkReminderQueue(queue.slice(1));
-                setReminderTarget(enrichedCustomerSummaries.find(c => c.id === queue[0]));
-              }}
+              onRemind={handleBulkRemind}
+              onDownloadClick={() => setDownloadOpen(true)}
             />
           </Suspense>
         )
@@ -291,10 +237,13 @@ export default function CreditTab({
               suppliers={supplierSummaries}
               onSelectSupplier={(s) => setSelectedSupplierId(s.id)}
               onAddSupplier={() => setShowSupplierForm(true)}
+              onDownloadClick={() => setDownloadOpen(true)}
             />
           </Suspense>
         )
       )}
+
+      <DownloadMenuSheet open={downloadOpen} onClose={() => setDownloadOpen(false)} title={t.download} options={downloadOptions} />
     </>
   );
 }
