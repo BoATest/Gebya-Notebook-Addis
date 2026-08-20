@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Search, X, Download, ChevronRight, SlidersHorizontal, ArrowUpDown, Truck } from 'lucide-react';
+import { Search, X, Download, ChevronRight, SlidersHorizontal, ArrowUpDown, Plus } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { useLang } from '../context/LangContext';
 import SortSheet from './SortSheet';
@@ -192,15 +192,25 @@ export default function SupplierList({ suppliers = [], onSelectSupplier, onAddSu
         </p>
       )}
 
-      {/* Add Supplier — inline, full width */}
-      <button
-        onClick={onAddSupplier}
-        className="w-full py-3 min-h-[48px] flex items-center justify-center gap-1.5 mt-3 rounded-2xl transition-all active:scale-[0.99]"
-        style={{ background: 'var(--color-danger)', color: 'var(--color-bg-white)', fontWeight: 700, textTransform: 'uppercase' }}
+      {/* Spacer so the last row clears the fixed bottom action */}
+      <div style={{ height: 8 }} />
+
+      {/* Add Supplier — sticky above nav, brand colored, active on tap */}
+      <div
+        className="fixed left-0 right-0 z-20 pointer-events-none"
+        style={{ bottom: 0, paddingBottom: 'calc(60px + env(safe-area-inset-bottom))' }}
       >
-        <Truck className="w-4 h-4" />
-        {t.addSupplier}
-      </button>
+        <div className="max-w-md mx-auto px-3 pointer-events-auto">
+          <button
+            onClick={onAddSupplier}
+            className="w-full py-3.5 min-h-[52px] flex items-center justify-center gap-2 rounded-2xl font-bold text-[15px] shadow-lg active:bg-[#154fcc] transition-colors"
+            style={{ background: '#1A66FF', color: 'var(--color-bg-white)' }}
+          >
+            <Plus className="w-5 h-5" />
+            {t.addSupplier}
+          </button>
+        </div>
+      </div>
 
       <SortSheet
         open={showSort}

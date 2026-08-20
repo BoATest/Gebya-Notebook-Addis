@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Search, X, Download, ChevronRight, SlidersHorizontal, ArrowUpDown, Eye, EyeOff, Users, AlertTriangle } from 'lucide-react';
+import { Search, X, Download, ChevronRight, SlidersHorizontal, ArrowUpDown, Eye, EyeOff, Plus, AlertTriangle } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { useLang } from '../context/LangContext';
 import { daysAgoLabel } from '../utils/reminders';
@@ -248,40 +248,46 @@ export default function CustomerList({ customers = [], metrics, onSelectCustomer
         </p>
       )}
 
-      {/* Add Customer — inline, full width */}
-      <button
-        onClick={onAddCustomer}
-        className="w-full py-3 min-h-[48px] flex items-center justify-center gap-1.5 mt-3 rounded-2xl transition-all active:scale-[0.99]"
-        style={{ background: '#1A66FF', color: 'var(--color-bg-white)', fontWeight: 700, textTransform: 'uppercase' }}
-      >
-        <Users className="w-4 h-4" />
-        {t.addCustomer}
-      </button>
+      {/* Spacer so the last row clears the fixed bottom actions */}
+      <div style={{ height: showRemind ? 44 : 8 }} />
 
-      {/* Sticky reminder bar — above bottom nav */}
-      {showRemind && (
-        <div
-          className="sticky z-20 mt-2 w-full"
-          style={{ bottom: 'calc(60px + env(safe-area-inset-bottom))' }}
-        >
-          <div
-            className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-lg"
-            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)' }}
-          >
-            <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-danger)' }}>
-              <AlertTriangle className="w-4 h-4" />
-              {overdueCount} · {fmt(overdueAmount)} ETB
-            </span>
-            <button
-              onClick={onRemind}
-              className="px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap active:scale-95 transition-transform"
-              style={{ background: 'var(--color-danger)', color: 'var(--color-bg-white)' }}
+      {/* Fixed bottom actions — above the bottom nav */}
+      <div
+        className="fixed left-0 right-0 z-20 pointer-events-none"
+        style={{ bottom: 0, paddingBottom: 'calc(60px + env(safe-area-inset-bottom))' }}
+      >
+        <div className="max-w-md mx-auto px-3 flex flex-col gap-2 pointer-events-auto">
+          {/* Reminder bar — distinct danger treatment, only when overdue */}
+          {showRemind && (
+            <div
+              className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl shadow-lg"
+              style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)' }}
             >
-              {t.remindAll.replace('{count}', String(overdueCount))}
-            </button>
-          </div>
+              <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-danger)' }}>
+                <AlertTriangle className="w-4 h-4" />
+                {overdueCount} · {fmt(overdueAmount)} ETB
+              </span>
+              <button
+                onClick={onRemind}
+                className="px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap active:scale-95 transition-transform"
+                style={{ background: 'var(--color-danger)', color: 'var(--color-bg-white)' }}
+              >
+                {t.remindAll.replace('{count}', String(overdueCount))}
+              </button>
+            </div>
+          )}
+
+          {/* Add Customer — sticky above nav, brand colored, active on tap */}
+          <button
+            onClick={onAddCustomer}
+            className="w-full py-3.5 min-h-[52px] flex items-center justify-center gap-2 rounded-2xl font-bold text-[15px] shadow-lg active:bg-[#154fcc] transition-colors"
+            style={{ background: '#1A66FF', color: 'var(--color-bg-white)' }}
+          >
+            <Plus className="w-5 h-5" />
+            {t.addCustomer}
+          </button>
         </div>
-      )}
+      </div>
 
       <SortSheet
         open={showSort}

@@ -633,7 +633,7 @@ const AM = {
   iSpentSomething: 'ወጪ',
   recordCredit: 'ዱቤ መዝግብ',
   addCredit: 'ዱቤ አክል',
-  addCustomer: 'ደንበኛ ጨምር',
+  addCustomer: 'ደንበኛ ለመመዝገብ',
   saveCustomer: 'ደንበኛ አስቀምጥ',
   customerSaved: 'ደንበኛ ተቀምጧል',
   customerSaveFailed: 'ደንበኛውን ማስቀመጥ አልተቻለም። እባክዎ ድጋሜ ይሞክሩ።',
@@ -961,8 +961,8 @@ const EN_OVERRIDES = {
   creditButton: 'Credit',
 
   // Credit detail
-  addCustomer: '+ Add Customer',
-  addSupplier: '+ Add Supplier',
+  addCustomer: 'Add Customer',
+  addSupplier: 'Add Supplier',
   creditGave: 'YOU GAVE (Dubie)',
   creditGot: 'YOU GOT (Paid)',
 
@@ -1476,7 +1476,7 @@ const AM_OVERRIDES = {
   creditButton: 'ዱቤ',
 
   // Credit detail
-  addSupplier: 'አቅራቢ ጨምር',
+  addSupplier: 'አቅራቢ ለመመዝገብ',
   creditGave: 'እቃ በዱቤ ሰጠሁ (-)',
   creditGot: 'ክፍያ ተቀበልኩ (+)',
 
