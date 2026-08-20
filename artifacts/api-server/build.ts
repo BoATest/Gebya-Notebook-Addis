@@ -6,35 +6,23 @@ import { rm, readFile } from "fs/promises";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const allowlist = [
-  "@google/generative-ai", "axios", "connect-pg-simple",
-  "cookie-parser", "cors", "date-fns", "drizzle-orm", "drizzle-zod", "express",
-  "express-rate-limit", "express-session", "helmet", "jsonwebtoken",
-  "memorystore", "nanoid", "nodemailer", "passport", "passport-local",
-  "pg", "stripe", "uuid", "web-push", "ws", "xlsx", "zod", "zod-validation-error",
-  "@workspace/api-zod", "@workspace/db",
-  "@workspace/db/schema", "@workspace/db/schema/*", "@workspace/db/utils/*",
-];
-
 async function buildAll() {
   const distDir = path.resolve(__dirname, "dist");
   await rm(distDir, { recursive: true, force: true });
 
-  console.log("building server...");
-  const pkgPath = path.resolve(__dirname, "package.json");
-  const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
-  const allDeps = [
-    ...Object.keys(pkg.dependencies || {}),
-    ...Object.keys(pkg.devDependencies || {}),
-  ];
-  const externals = allDeps.filter(
-    (dep) =>
-      !allowlist.includes(dep) &&
-      !(pkg.dependencies?.[dep]?.startsWith("workspace:")),
-  );
+  console.log("building server (self-contained bundle)...");
+
+  // Bundle EVERYTHING into a single file so the deployed Vercel function does
+  // NOT depend on `node_modules` being installed at runtime. Vercel's
+  // auto-detected entrypoint keeps bare imports external, and the project's
+  // install step is intentionally skipped (`echo Skipping`), so the only robust
+  // option is to inline all runtime dependencies here. `pg-native` is an
+  // optional, platform-specific binary that is loaded lazily by `pg`; leaving it
+  // external lets pg fall back to its JS implementation.
+  const externals = ["pg-native"];
 
   await esbuild({
-    entryPoints: [path.resolve(__dirname, "src/entry.ts")],
+    entryPoints: [path.resolve(__dirname, "src/main.ts")],
     platform: "node",
     bundle: true,
     format: "esm",
