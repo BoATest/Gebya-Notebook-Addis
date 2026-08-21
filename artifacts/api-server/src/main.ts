@@ -156,23 +156,6 @@ app.use((_req, _res, next) => {
   ensureSchema().then(() => next(), () => next());
 });
 
-// TEMP DEBUG: confirm every schema table selects cleanly (remove after fix)
-app.get("/api/_syncdiag", async (_req, res) => {
-  try {
-    const { db } = await import("@workspace/db");
-    const sch = await import("@workspace/db/schema");
-    const names = ["transactions","customers","customerTransactions","catalogEntries","suppliers","supplierTransactions","staffMembers","settlements","settings","analytics","businesses","businessMembers","users","notifications","devices","auditLog","otps","pushSubscriptions","bankDataShares","bankReportSnapshots","bankUsers","invites","staffEvents","staffTasks","staffAttendance","snapshots"];
-    const out = {};
-    for (const n of names) {
-      const t = sch[n];
-      if (!t) { out[n] = "no-schema"; continue; }
-      try { const r = await db.select().from(t).limit(2); out[n] = { ok: true, rows: r.length }; }
-      catch (e) { out[n] = { ok: false, msg: e?.message, cause: e?.cause?.message || String(e?.cause) }; }
-    }
-    res.json({ out });
-  } catch (e) { res.status(500).json({ debugError: e?.message, cause: e?.cause?.message }); }
-});
-
 app.use("/", router);
 app.use("/api", router);
 
