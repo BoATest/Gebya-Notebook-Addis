@@ -11,6 +11,7 @@
 // blocks application boot: failures are logged and swallowed so the API stays
 // up (and so the real underlying error is visible in logs).
 import { db } from "@workspace/db";
+import { BOOTSTRAP_FILES } from "./bootstrap";
 import { sql } from "drizzle-orm";
 
 let pending: Promise<void> | null = null;
@@ -23,6 +24,29 @@ export function ensureSchema(): Promise<void> {
       return;
     }
     try {
+      // Full schema bootstrap (only if the core "users" table is missing).
+      // This creates every table on a fresh production database that was
+      // never migrated. BOOTSTRAP_FILES are the committed Drizzle migrations,
+      // made idempotent. Runs here — at request time, where DATABASE_URL and
+      // network are guaranteed — unlike build time.
+      let needsBootstrap = false;
+      try {
+        await db.execute(sql`SELECT 1 FROM "users" LIMIT 1`);
+      } catch {
+        needsBootstrap = true;
+      }
+
+      if (needsBootstrap) {
+        for (const fileSql of BOOTSTRAP_FILES) {
+          try {
+            await db.execute(sql.raw(fileSql));
+          } catch (e) {
+            console.error("[migrate] bootstrap file failed:", e instanceof Error ? e.message : String(e));
+          }
+        }
+        console.log("[migrate] schema bootstrapped from migrations");
+      }
+
       await db.execute(sql`
         ALTER TABLE "businesses"
         ADD COLUMN IF NOT EXISTS "phone_required" boolean NOT NULL DEFAULT false,

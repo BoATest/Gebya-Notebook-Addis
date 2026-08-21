@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "NODE_ENV=development tsx ./src/main.ts",
-    "build": "tsx ./build.ts && (pnpm --filter @workspace/db push || echo '[build] db schema push skipped/failed - check logs')",
+    "build": "tsx ./build.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.build.json --noEmit"
   },
