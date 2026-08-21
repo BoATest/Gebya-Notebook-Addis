@@ -223,6 +223,19 @@ class SyncEngine {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
     });
+
+    // Professional touch: when the tab/app returns to the foreground (e.g. the
+    // user switched away and back, or the PWA was backgrounded), kick a sync
+    // immediately if there is anything pending. Combined with the `online`
+    // event and the periodic timer, this means sync "just happens" on
+    // reconnect or resume — no tap, no sign-in required.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && this.online && this.pendingCount > 0) {
+        this.sync();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    this.unsubscribers.push(() => document.removeEventListener('visibilitychange', onVisible));
   }
 
   _setupDexieHooks() {
