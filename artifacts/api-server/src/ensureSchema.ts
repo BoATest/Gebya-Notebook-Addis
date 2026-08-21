@@ -16,6 +16,16 @@ import { sql } from "drizzle-orm";
 
 let pending: Promise<void> | null = null;
 
+function splitSqlStatements(source: string): string[] {
+  return source
+    .split("\n")
+    .map((line) => line.replace(/(^|\s)--.*$/, "$1"))
+    .join("\n")
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
 export function ensureSchema(): Promise<void> {
   if (pending) return pending;
   pending = (async () => {
@@ -29,6 +39,11 @@ export function ensureSchema(): Promise<void> {
       // never migrated. BOOTSTRAP_FILES are the committed Drizzle migrations,
       // made idempotent. Runs here — at request time, where DATABASE_URL and
       // network are guaranteed — unlike build time.
+      //
+      // NOTE: drizzle's db.execute funnels through client.query(text, params).
+      // When a params array is supplied (even empty) node-postgres uses the
+      // extended protocol, which rejects multiple statements. So we must run
+      // ONE statement per db.execute call.
       let needsBootstrap = false;
       try {
         await db.execute(sql`SELECT 1 FROM "users" LIMIT 1`);
@@ -37,14 +52,20 @@ export function ensureSchema(): Promise<void> {
       }
 
       if (needsBootstrap) {
+        let okCount = 0;
+        let failCount = 0;
         for (const fileSql of BOOTSTRAP_FILES) {
-          try {
-            await db.execute(sql.raw(fileSql));
-          } catch (e) {
-            console.error("[migrate] bootstrap file failed:", e instanceof Error ? e.message : String(e));
+          for (const stmt of splitSqlStatements(fileSql)) {
+            try {
+              await db.execute(sql.raw(stmt));
+              okCount++;
+            } catch (e) {
+              failCount++;
+              console.error("[migrate] bootstrap statement failed:", e instanceof Error ? e.message : String(e));
+            }
           }
         }
-        console.log("[migrate] schema bootstrapped from migrations");
+        console.log(`[migrate] schema bootstrap complete: ${okCount} ok, ${failCount} failed`);
       }
 
       await db.execute(sql`
