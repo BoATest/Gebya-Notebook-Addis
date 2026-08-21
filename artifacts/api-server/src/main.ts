@@ -155,6 +155,28 @@ app.get("/", (_req, res) => {
 app.use((_req, _res, next) => {
   ensureSchema().then(() => next(), () => next());
 });
+
+// TEMP DEBUG: surface raw bootstrap errors (remove after fix)
+app.get("/api/_migrate", async (_req, res) => {
+  try {
+    const { db } = await import("@workspace/db");
+    const { sql } = await import("drizzle-orm");
+    const { BOOTSTRAP_FILES } = await import("./bootstrap.js");
+    const splitSql = (src) =>
+      src.split("\n").map((l) => l.replace(/(^|\s)--.*$/, "$1")).join("\n").split(";").map((s) => s.trim()).filter((s) => s.length > 0);
+    let needs = false;
+    try { await db.execute(sql`SELECT 1 FROM "users" LIMIT 1`); } catch { needs = true; }
+    const errors = [];
+    if (needs) {
+      for (const f of BOOTSTRAP_FILES) for (const st of splitSql(f)) {
+        try { await db.execute(sql.raw(st)); } catch (e) { errors.push((e?.message || String(e)) + " || " + st.slice(0, 120)); }
+      }
+    }
+    let usersNow = false;
+    try { await db.execute(sql`SELECT 1 FROM "users" LIMIT 1`); usersNow = true; } catch {}
+    res.json({ dbNull: !db, needs, usersNow, errorCount: errors.length, errors: errors.slice(0, 8) });
+  } catch (e) { res.status(500).json({ debugError: e?.message || String(e) }); }
+});
 app.use("/", router);
 app.use("/api", router);
 
