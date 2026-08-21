@@ -167,10 +167,19 @@ app.get("/api/_migrate", async (_req, res) => {
     };
     const dbUrl = process.env.DATABASE_URL || "";
     const dbHost = (() => { try { return new URL(dbUrl).host; } catch { return "n/a"; } })();
+    const { users } = await import("@workspace/db");
+    const { eq } = await import("drizzle-orm");
     const checks = {
       usersExists: await tryQ("select1", () => db.execute(sql`SELECT 1 FROM "users" LIMIT 1`)),
       colPhone: await tryQ("colPhone", () => db.execute(sql`SELECT "phone_number" FROM "users" LIMIT 1`)),
       rawOtp: await tryQ("rawOtp", () => db.execute(sql`SELECT "id","phone_number" FROM "users" WHERE "phone_number" = '+251900000000' LIMIT 1`)),
+      otpBuilder: await tryQ("otpBuilder", () => db.select({
+        id: users.id, phoneNumber: users.phoneNumber, active: users.active,
+        preferredLang: users.preferredLang, telegramChatId: users.telegramChatId,
+        telegramLinkToken: users.telegramLinkToken, passwordHash: users.passwordHash,
+        passwordSetAt: users.passwordSetAt, passwordAttempts: users.passwordAttempts,
+        passwordLockedUntil: users.passwordLockedUntil, createdAt: users.createdAt,
+      }).from(users).where(eq(users.phoneNumber, "+251900000000")).limit(1)),
     };
     res.json({ dbNull: !db, dbHost, checks });
   } catch (e) { res.status(500).json({ debugError: e?.message || String(e) }); }
