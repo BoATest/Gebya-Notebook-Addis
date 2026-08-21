@@ -11,7 +11,7 @@ export async function requestOtp(phoneNumber) {
   });
   const data = await res.json();
   if (!res.ok) {
-    const err = new Error(data.error || 'Failed to send OTP');
+    const err = new Error(data.message || data.error || 'Failed to send OTP');
     err.status = res.status;
     throw err;
   }
@@ -27,7 +27,7 @@ export async function verifyOtp(phoneNumber, otp) {
   });
   const data = await res.json();
   if (!res.ok) {
-    const err = new Error(data.error || 'Invalid OTP');
+    const err = new Error(data.message || data.error || 'Invalid OTP');
     err.status = res.status;
     throw err;
   }
@@ -46,7 +46,7 @@ export async function linkDevice(token, deviceId, deviceName) {
   });
   const data = await res.json();
   if (!res.ok) {
-    const err = new Error(data.error || 'Failed to link device');
+    const err = new Error(data.message || data.error || 'Failed to link device');
     err.status = res.status;
     throw err;
   }
@@ -60,7 +60,7 @@ export async function getCurrentUser(token) {
   });
   const data = await res.json();
   if (!res.ok) {
-    const err = new Error(data.error || 'Failed to get user');
+    const err = new Error(data.message || data.error || 'Failed to get user');
     err.status = res.status;
     throw err;
   }
@@ -76,7 +76,7 @@ export async function loginWithPassword(phoneNumber, password) {
   });
   const data = await res.json();
   if (!res.ok) {
-    const err = new Error(data.error || 'Login failed');
+    const err = new Error(data.message || data.error || 'Login failed');
     err.status = res.status;
     throw err;
   }
@@ -95,7 +95,7 @@ export async function setPassword(token, password) {
   });
   const data = await res.json();
   if (!res.ok) {
-    const err = new Error(data.error || 'Failed to set password');
+    const err = new Error(data.message || data.error || 'Failed to set password');
     err.status = res.status;
     throw err;
   }
@@ -113,7 +113,7 @@ export async function removePassword(token) {
   });
   const data = await res.json();
   if (!res.ok) {
-    const err = new Error(data.error || 'Failed to remove password');
+    const err = new Error(data.message || data.error || 'Failed to remove password');
     err.status = res.status;
     throw err;
   }
