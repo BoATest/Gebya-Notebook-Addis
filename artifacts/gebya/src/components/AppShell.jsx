@@ -2034,6 +2034,7 @@ export default function AppShell() {
           conflictDetails={syncConflictDetails}
           onOpenNotifications={() => setShowNotificationPanel(true)}
           onRetryTelegram={handleRetryQueuedTelegram}
+          onSignIn={() => setShowAuthPrompt(true)}
         />
       )}
 

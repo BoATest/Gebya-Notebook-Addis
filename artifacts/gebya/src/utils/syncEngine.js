@@ -323,7 +323,12 @@ class SyncEngine {
       this._notify();
       return;
     }
-    if (!this.online || this.status === 'syncing') return;
+    // NOTE: intentionally do NOT gate on `this.online` here. `navigator.onLine`
+    // is unreliable inside installed PWA / standalone webviews and can stay
+    // `false` even when the network is fine, which previously made sync()
+    // silently no-op forever (endless "Pending sync"). We always attempt and
+    // let the fetch fail loudly so the real error is surfaced.
+    if (this.status === 'syncing') return;
 
     this.status = 'syncing';
     this.error = null;
@@ -334,10 +339,12 @@ class SyncEngine {
         this._pushAll(token),
         this._pullAll(token),
       ]);
-      await this._countPending();
+      // Update lastSyncAt BEFORE recounting pending, otherwise the recount
+      // uses the stale timestamp and the queue never appears to drain.
       this.lastSyncAt = Date.now();
       await db.settings.put({ key: LAST_SYNC_AT_KEY, value: this.lastSyncAt });
       await db.settings.put({ key: TABLE_LAST_SYNC_KEY, value: this.tableLastSync });
+      await this._countPending();
       this.status = 'idle';
     } catch (err) {
       if (err.message?.includes('401') || err.message?.includes('403')) {
@@ -366,7 +373,7 @@ class SyncEngine {
       this._notify();
       return;
     }
-    if (!this.online || this.status === 'syncing') return;
+    if (this.status === 'syncing') return;
 
     const previousLastSync = this.lastSyncAt;
     const previousTableLastSync = { ...this.tableLastSync };
@@ -382,10 +389,10 @@ class SyncEngine {
         this._pushAll(token),
         this._pullAll(token),
       ]);
-      await this._countPending();
       this.lastSyncAt = Date.now();
       await db.settings.put({ key: LAST_SYNC_AT_KEY, value: this.lastSyncAt });
       await db.settings.put({ key: TABLE_LAST_SYNC_KEY, value: this.tableLastSync });
+      await this._countPending();
       this.status = 'idle';
     } catch (err) {
       this.lastSyncAt = previousLastSync;

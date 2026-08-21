@@ -8,9 +8,12 @@ export default function OfflineStatusStrip({
   retryingTelegram = false,
   conflictWarning = null,
   conflictDetails = [],
+  onSignIn,
+  onOpenDiagnostic,
 }) {
   const syncStatus = useSyncStore(s => s.status);
   const pendingCount = useSyncStore(s => s.pendingCount);
+  const syncError = useSyncStore(s => s.error);
   let tone = null;
   let label = '';
   let detail = '';
@@ -19,6 +22,25 @@ export default function OfflineStatusStrip({
   if (syncStatus === 'syncing') {
     tone = 'waiting';
     label = lang === 'am' ? 'በማመሳሰል ላይ…' : 'Syncing…';
+  } else if (syncStatus === 'unauthenticated') {
+    tone = 'waiting';
+    label = lang === 'am' ? 'ለመመሳሰል ይግቡ' : 'Sign in to sync';
+    if (typeof onSignIn === 'function') {
+      action = (
+        <button
+          type="button"
+          onClick={onSignIn}
+          className="press-scale"
+          style={{
+            minHeight: 36, minWidth: 56, padding: '6px 10px', border: 'none',
+            borderRadius: 8, background: 'var(--color-primary)',
+            color: 'var(--color-bg-white)', fontSize: 11, fontWeight: 800, cursor: 'pointer',
+          }}
+        >
+          {lang === 'am' ? 'ግቡ' : 'Sign in'}
+        </button>
+      );
+    }
   } else if (pendingCount > 0 && pwa?.isOnline) {
     tone = 'waiting';
     label = lang === 'am' ? 'ወደ ደመና እየጠበቀ' : 'Pending sync';
@@ -26,6 +48,9 @@ export default function OfflineStatusStrip({
   } else if (syncStatus === 'error') {
     tone = 'offline';
     label = lang === 'am' ? 'ማመሳሰል አልተሳካም' : 'Sync failed';
+    if (syncError) {
+      detail = (lang === 'am' ? 'ስህተት: ' : 'Error: ') + String(syncError).slice(0, 70);
+    }
   } else if (!pwa?.isOnline) {
     tone = 'offline';
     label = lang === 'am' ? 'ኔትወርክ የለም' : 'Offline';
@@ -112,12 +137,14 @@ export default function OfflineStatusStrip({
     ready:   { background: 'var(--color-success-bg)', border: 'var(--color-success-border)', color: 'var(--color-success-text)' },
   }[tone];
 
+  const tappable = typeof onOpenDiagnostic === 'function' && Boolean(tone);
   return (
     <div
-      role="status"
+      role={tappable ? 'button' : 'status'}
       aria-live="polite"
+      onClick={tappable ? onOpenDiagnostic : undefined}
       className="mt-2 flex items-center justify-between gap-2"
-      style={{ minHeight: 36, padding: '7px 9px', borderRadius: 8, background: styles.background, border: `1px solid ${styles.border}`, color: styles.color, fontSize: 12, fontWeight: 800 }}
+      style={{ minHeight: 36, padding: '7px 9px', borderRadius: 8, background: styles.background, border: `1px solid ${styles.border}`, color: styles.color, fontSize: 12, fontWeight: 800, cursor: tappable ? 'pointer' : 'default' }}
     >
       <span className="min-w-0 truncate">
         {label}

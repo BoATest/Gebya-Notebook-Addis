@@ -4,6 +4,7 @@ import { useLang } from '../context/LangContext';
 import { useAppStore } from '../stores/appStore';
 import { useAuthStore } from '../stores/authStore';
 import OfflineStatusStrip from './OfflineStatusStrip';
+import SyncDiagnosticSheet from './SyncDiagnosticSheet';
 import BusinessSelector from './BusinessSelector';
 
 export default function AppHeader({
@@ -18,6 +19,7 @@ export default function AppHeader({
   conflictDetails,
   onOpenNotifications,
   onRetryTelegram,
+  onSignIn,
 }) {
   const { lang, toggleLang, t } = useLang();
   const T = (en, am) => lang === 'am' ? am : en;
@@ -26,6 +28,7 @@ export default function AppHeader({
   const retryingTelegram = useAppStore(s => s.retryingTelegram);
   const currentBusinessId = useAuthStore(s => s.currentBusinessId);
   const [showActorPicker, setShowActorPicker] = useState(false);
+  const [showSyncDiag, setShowSyncDiag] = useState(false);
 
   const activeStaff = (staffMembers || []).filter(m => m.active !== false);
 
@@ -168,6 +171,14 @@ export default function AppHeader({
         retryingTelegram={retryingTelegram}
         conflictWarning={conflictWarning}
         conflictDetails={conflictDetails}
+        onSignIn={onSignIn}
+        onOpenDiagnostic={() => setShowSyncDiag(true)}
+      />
+      <SyncDiagnosticSheet
+        open={showSyncDiag}
+        onClose={() => setShowSyncDiag(false)}
+        pwaOnline={pwa?.isOnline}
+        onSignIn={onSignIn}
       />
     </header>
   );
