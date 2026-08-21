@@ -161,26 +161,18 @@ app.get("/api/_migrate", async (_req, res) => {
   try {
     const { db } = await import("@workspace/db");
     const { sql } = await import("drizzle-orm");
-    const { BOOTSTRAP_FILES } = await import("./bootstrap.js");
-    const splitSql = (src) =>
-      src.split("\n").map((l) => l.replace(/(^|\s)--.*$/, "$1")).join("\n").split(";").map((s) => s.trim()).filter((s) => s.length > 0);
+    const tryQ = async (label, fn) => {
+      try { const r = await fn(); return { label, ok: true, rows: Array.isArray(r) ? r.length : (r?.rowCount ?? "n/a") }; }
+      catch (e) { return { label, ok: false, msg: e?.message, cause: e?.cause?.message || String(e?.cause), code: e?.cause?.code || e?.code }; }
+    };
     const dbUrl = process.env.DATABASE_URL || "";
     const dbHost = (() => { try { return new URL(dbUrl).host; } catch { return "n/a"; } })();
-    let needs = false;
-    try { await db.execute(sql`SELECT 1 FROM "users" LIMIT 1`); } catch { needs = true; }
-    const errors = [];
-    if (needs) {
-      for (const f of BOOTSTRAP_FILES) for (const st of splitSql(f)) {
-        try { await db.execute(sql.raw(st)); } catch (e) { errors.push((e?.message || String(e)) + " || " + st.slice(0, 120)); }
-      }
-    }
-    let usersNow = false;
-    try { await db.execute(sql`SELECT 1 FROM "users" LIMIT 1`); usersNow = true; } catch {}
-    let otpErr = null;
-    try {
-      await db.execute(sql`SELECT "id", "phone_number" FROM "users" WHERE "phone_number" = $1 LIMIT $2`, ["+251900000000", "1"]);
-    } catch (e) { otpErr = e?.message || String(e); }
-    res.json({ dbNull: !db, dbHost, needs, usersNow, otpErr, errorCount: errors.length, errors: errors.slice(0, 8) });
+    const checks = {
+      usersExists: await tryQ("select1", () => db.execute(sql`SELECT 1 FROM "users" LIMIT 1`)),
+      colPhone: await tryQ("colPhone", () => db.execute(sql`SELECT "phone_number" FROM "users" LIMIT 1`)),
+      rawOtp: await tryQ("rawOtp", () => db.execute(sql`SELECT "id","phone_number" FROM "users" WHERE "phone_number" = '+251900000000' LIMIT 1`)),
+    };
+    res.json({ dbNull: !db, dbHost, checks });
   } catch (e) { res.status(500).json({ debugError: e?.message || String(e) }); }
 });
 app.use("/", router);
