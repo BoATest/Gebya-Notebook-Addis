@@ -164,6 +164,8 @@ app.get("/api/_migrate", async (_req, res) => {
     const { BOOTSTRAP_FILES } = await import("./bootstrap.js");
     const splitSql = (src) =>
       src.split("\n").map((l) => l.replace(/(^|\s)--.*$/, "$1")).join("\n").split(";").map((s) => s.trim()).filter((s) => s.length > 0);
+    const dbUrl = process.env.DATABASE_URL || "";
+    const dbHost = (() => { try { return new URL(dbUrl).host; } catch { return "n/a"; } })();
     let needs = false;
     try { await db.execute(sql`SELECT 1 FROM "users" LIMIT 1`); } catch { needs = true; }
     const errors = [];
@@ -174,7 +176,11 @@ app.get("/api/_migrate", async (_req, res) => {
     }
     let usersNow = false;
     try { await db.execute(sql`SELECT 1 FROM "users" LIMIT 1`); usersNow = true; } catch {}
-    res.json({ dbNull: !db, needs, usersNow, errorCount: errors.length, errors: errors.slice(0, 8) });
+    let otpErr = null;
+    try {
+      await db.execute(sql`SELECT "id", "phone_number" FROM "users" WHERE "phone_number" = $1 LIMIT $2`, ["+251900000000", "1"]);
+    } catch (e) { otpErr = e?.message || String(e); }
+    res.json({ dbNull: !db, dbHost, needs, usersNow, otpErr, errorCount: errors.length, errors: errors.slice(0, 8) });
   } catch (e) { res.status(500).json({ debugError: e?.message || String(e) }); }
 });
 app.use("/", router);
