@@ -30,11 +30,11 @@ export function listAdminMembers() {
   return apiFetch('/admin/members');
 }
 
-export function addAdminMember(phone, note) {
+export function addAdminMember({ phone, email, note } = {}) {
   return apiFetch('/admin/members', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone, note }),
+    body: JSON.stringify({ phone: phone || null, email: email || null, note: note || null }),
   });
 }
 

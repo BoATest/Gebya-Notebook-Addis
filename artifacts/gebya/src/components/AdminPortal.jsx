@@ -2,7 +2,7 @@
  * AdminPortal - standalone platform-admin command center, mounted at /admin.
  * Gives the Gebya team a shareable URL to follow platform status: shops,
  * frictions, communications, support tickets, admin actions.
- * Access is server-enforced (/api/admin/* requires an allowlisted admin phone).
+ * Access is server-enforced (/api/admin/* requires an allowlisted admin phone OR email).
  * This page is only the client-side entry + UX gate.
  */
 import { useEffect, useState } from 'react';
@@ -63,6 +63,73 @@ function Notice({ title, hint }) {
   );
 }
 
+function GoogleAdminSignIn() {
+  const { lang } = useLang();
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+  const handleCredential = async (response) => {
+    if (!response?.credential) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/auth/google-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: response.credential }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Google sign-in failed');
+      useAuthStore.getState().login(data.token, data.user, data.role, data.permissions, data.businesses, true);
+      await useAuthStore.getState().init();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!clientId) return;
+    let script = document.getElementById('gis-client');
+    if (!script) {
+      script = document.createElement('script');
+      script.id = 'gis-client';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+    const initGis = () => window.google?.accounts?.id?.initialize({ client_id: clientId, callback: handleCredential });
+    script.onload = initGis;
+    if (window.google?.accounts?.id) initGis();
+  }, [clientId]);
+
+  if (!clientId) {
+    return (
+      <p className="text-[11px] text-center mt-3" style={{ color: 'var(--color-text-muted)' }}>
+        {lang === 'am' ? 'የ Google መግቢያ አይተዋወቅም' : 'Google sign-in not configured'}
+      </p>
+    );
+  }
+
+  return (
+    <div className="mt-3">
+      <button
+        onClick={() => window.google?.accounts?.id?.prompt()}
+        disabled={loading}
+        className="w-full py-2.5 rounded-xl text-xs font-bold disabled:opacity-50"
+        style={{ background: 'var(--color-bg-hover)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+      >
+        {loading ? '...' : (lang === 'am' ? 'በ Google ይግቡ' : 'Sign in with Google')}
+      </button>
+      {error && (
+        <p className="text-[11px] mt-2 text-center font-bold" style={{ color: 'var(--color-danger-text)' }}>{error}</p>
+      )}
+    </div>
+  );
+}
+
 function AdminPortalInner() {
   const { user, checked, isPlatformAdmin, init } = useAuthStore();
   const { lang } = useLang();
@@ -94,11 +161,19 @@ function AdminPortalInner() {
       {!checked ? (
         <div className="text-xs text-center py-10" style={{ color: 'var(--color-text-muted)' }}>Loading...</div>
       ) : !user ? (
-        <AuthGate lang={lang} onAuthenticated={() => { useAuthStore.getState().init(); }} />
+        <div className="max-w-sm mx-auto space-y-3">
+          <AuthGate lang={lang} onAuthenticated={() => { useAuthStore.getState().init(); }} />
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
+            <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ወይም' : 'or'}</span>
+            <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
+          </div>
+          <GoogleAdminSignIn />
+        </div>
       ) : !isPlatformAdmin ? (
         <Notice
           title={lang === 'am' ? 'የአስተዳደሪ መዳረሻ የለም' : 'Admin access required'}
-          hint="Your phone is not on the platform-admin allowlist (PLATFORM_ADMIN_PHONES)."
+          hint="Your phone/email is not on the platform-admin allowlist (PLATFORM_ADMIN_PHONES / PLATFORM_ADMIN_EMAILS)."
         />
       ) : (
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">

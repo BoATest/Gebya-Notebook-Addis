@@ -7,6 +7,7 @@ export const users = pgTable("users", {
   active: boolean("active").default(true),
   preferredLang: varchar("preferred_lang", { length: 8 }).default("am"),
   telegramChatId: text("telegram_chat_id"),
+  email: text("email"),
   // One-time token an owner taps (https://t.me/<bot>?start=<token>) to connect
   // their Telegram to this user account. Cleared after a successful link.
   telegramLinkToken: text("telegram_link_token"),
@@ -33,6 +34,7 @@ export const devices = pgTable("devices", {
 
 export const insertUserSchema = z.object({
   phoneNumber: z.string(),
+  email: z.string().optional(),
   active: z.boolean().optional(),
   preferredLang: z.string().max(8).optional(),
   telegramChatId: z.string().nullable().optional(),

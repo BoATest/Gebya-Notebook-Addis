@@ -13,6 +13,7 @@ export default function MembersPanel() {
   const [members, setMembers] = useState(null);
   const [error, setError] = useState(null);
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -30,11 +31,11 @@ export default function MembersPanel() {
   useEffect(() => { load(); }, []);
 
   const handleAdd = async () => {
-    if (!phone.trim()) return;
+    if (!phone.trim() && !email.trim()) return;
     setBusy(true);
     setFeedback(null);
     try {
-      const res = await addAdminMember(phone.trim(), note.trim() || null);
+      const res = await addAdminMember({ phone: phone.trim() || null, email: email.trim() || null, note: note.trim() || null });
       setFeedback(
         res.status === 'added'
           ? (lang === 'am' ? 'ተጨምሯል ✓' : 'Member added ✓')
@@ -67,13 +68,21 @@ export default function MembersPanel() {
           {lang === 'am' ? 'አዲስ አባል ጨምር' : 'Add team member'}
         </p>
         <p className="text-[10px] mb-2" style={{ color: 'var(--color-text-soft)' }}>
-          {lang === 'am' ? 'የኢትዮጵያ ስልክ ቁጥር (09... ወይም +2519...)' : 'Ethiopian mobile: 09... or +2519...'}
+          {lang === 'am' ? 'የኢትዮጵያ ስልክ ቁጥር (09... ወይም +2519...) ወይም ኢሜይል' : 'Ethiopian mobile 09... / +2519... OR email (Google sign-in)'}
         </p>
         <input
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           inputMode="tel"
           placeholder="+251912345678"
+          className="w-full px-3 py-2.5 rounded-xl text-sm mb-2"
+          style={{ background: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+        />
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          inputMode="email"
+          placeholder="admin@company.com"
           className="w-full px-3 py-2.5 rounded-xl text-sm mb-2"
           style={{ background: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
         />
@@ -86,7 +95,7 @@ export default function MembersPanel() {
         />
         <button
           onClick={handleAdd}
-          disabled={busy || !phone.trim()}
+          disabled={busy || (!phone.trim() && !email.trim())}
           className="w-full py-2.5 rounded-xl text-xs font-bold text-white disabled:opacity-50"
           style={{ background: 'var(--color-primary)' }}
         >
@@ -117,14 +126,14 @@ export default function MembersPanel() {
           <div>
             {members.map((m) => (
               <div key={m.id} className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--color-border-light)' }}>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold truncate" style={{ color: 'var(--color-text)' }}>{m.phone}</p>
-                  <p className="text-[10px] truncate" style={{ color: 'var(--color-text-soft)' }}>
-                    {m.note ? `${m.note} · ` : ''}{lang === 'am' ? 'ተጨምሯል' : 'added'} {fmtDate(m.createdAt)}
-                  </p>
-                </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold truncate" style={{ color: 'var(--color-text)' }}>{m.email || m.phone}</p>
+                    <p className="text-[10px] truncate" style={{ color: 'var(--color-text-soft)' }}>
+                      {m.note ? `${m.note} · ` : ''}{lang === 'am' ? 'ተጨምራል' : 'added'} {fmtDate(m.createdAt)}
+                    </p>
+                  </div>
                 <button
-                  onClick={() => handleRemove(m.id, m.phone)}
+                  onClick={() => handleRemove(m.id, m.email || m.phone)}
                   className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-lg"
                   style={{ color: 'var(--color-danger-text)', background: 'var(--color-danger-bg)' }}
                 >

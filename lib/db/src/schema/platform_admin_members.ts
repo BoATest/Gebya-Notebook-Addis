@@ -10,7 +10,8 @@ import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
  */
 export const platformAdminMembers = pgTable("platform_admin_members", {
   id: serial("id").primaryKey(),
-  phone: text("phone").notNull().unique(),
+  phone: text("phone").unique(),
+  email: text("email").unique(),
   addedByPhone: text("added_by_phone"),
   note: text("note"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

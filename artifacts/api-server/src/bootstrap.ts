@@ -205,6 +205,8 @@ export const BOOTSTRAP_ALTERS: string[] = [
   "ALTER TABLE \"otps\" ADD COLUMN IF NOT EXISTS \"createdAt\" timestamp with time zone;",
   "ALTER TABLE \"platform_admin_members\" ADD COLUMN IF NOT EXISTS \"id\" bigint;",
   "ALTER TABLE \"platform_admin_members\" ADD COLUMN IF NOT EXISTS \"phone\" text;",
+  "ALTER TABLE \"users\" ADD COLUMN IF NOT EXISTS \"email\" text;",
+  "ALTER TABLE \"platform_admin_members\" ADD COLUMN IF NOT EXISTS \"email\" text;",
   "ALTER TABLE \"platform_admin_members\" ADD COLUMN IF NOT EXISTS \"addedByPhone\" text;",
   "ALTER TABLE \"platform_admin_members\" ADD COLUMN IF NOT EXISTS \"note\" text;",
   "ALTER TABLE \"platform_admin_members\" ADD COLUMN IF NOT EXISTS \"createdAt\" timestamp with time zone;",

@@ -7,7 +7,7 @@ import { eq, and, gt, inArray } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { sendTelegramTextMessage } from "../services/telegramBotService.js";
-import { isPlatformAdminPhone } from "../services/platformAdmin.js";
+import { isPlatformAdminUser, isPlatformAdminEmail } from "../services/platformAdmin.js";
 
 const router = Router();
 
@@ -257,7 +257,7 @@ router.post("/verify", async (req, res) => {
       role: primary?.role || null,
       permissions: primary?.permissions || null,
       businesses: businessList,
-      is_platform_admin: await isPlatformAdminPhone(user.phoneNumber),
+      is_platform_admin: await isPlatformAdminUser(user),
     });
   });
 
@@ -453,7 +453,7 @@ router.get("/me", async (req, res) => {
     role: primary?.role || null,
     permissions: primary?.permissions || null,
     businesses: businessList,
-    is_platform_admin: await isPlatformAdminPhone(user.phoneNumber),
+    is_platform_admin: await isPlatformAdminUser(user),
   });
 });
 
@@ -582,7 +582,7 @@ router.post("/login", async (req, res) => {
     role: primary?.role || null,
     permissions: primary?.permissions || null,
     businesses: businessList,
-    is_platform_admin: await isPlatformAdminPhone(user.phoneNumber),
+    is_platform_admin: await isPlatformAdminUser(user),
   });
 });
 
@@ -609,6 +609,74 @@ router.post("/remove-password", async (req, res) => {
     .where(eq(users.id, decoded.userId));
 
   return res.json({ ok: true, has_password: false });
+});
+
+// --- POST /api/auth/google-admin ---
+// "Sign in with Google" for platform admins (Google Identity Services).
+// Verifies the Google id_token server-side, checks the admin email allowlist,
+// then issues the same JWT the OTP flow uses.
+router.post("/google-admin", async (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    return res.status(503).json({ error: "Google sign-in is not configured (set GOOGLE_CLIENT_ID)" });
+  }
+  const { idToken } = req.body ?? {};
+  if (!idToken || typeof idToken !== "string") {
+    return res.status(400).json({ error: "idToken is required" });
+  }
+
+  let payload: any;
+  try {
+    const verifyUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`;
+    const resp = await fetch(verifyUrl);
+    payload = await resp.json();
+  } catch {
+    return res.status(400).json({ error: "Failed to verify Google token" });
+  }
+
+  if (!payload || payload.aud !== clientId) {
+    return res.status(401).json({ error: "Invalid Google token (audience mismatch)" });
+  }
+  if (String(payload.email_verified) !== "true") {
+    return res.status(403).json({ error: "Google email is not verified" });
+  }
+  const email = String(payload.email || "").trim().toLowerCase();
+  if (!email) {
+    return res.status(400).json({ error: "Google account has no email" });
+  }
+
+  if (!(await isPlatformAdminEmail(email))) {
+    return res.status(403).json({ error: "Your Google account is not on the platform-admin allowlist" });
+  }
+
+  const syntheticPhone = `gadmin:${email}`;
+  let userRows = await db.select().from(users).where(eq(users.phoneNumber, syntheticPhone)).limit(1);
+  let user = userRows[0];
+  if (!user) {
+    const inserted = await db.insert(users).values({ phoneNumber: syntheticPhone, email, active: true }).returning();
+    user = inserted[0];
+  } else if (!user.email) {
+    await db.update(users).set({ email }).where(eq(users.id, user.id));
+  }
+
+  const token = signJwt(user.id);
+  setTokenCookie(res, token);
+
+  return res.json({
+    ok: true,
+    token,
+    user: {
+      id: user.id,
+      phone_number: user.phoneNumber,
+      email: user.email,
+      preferred_lang: user.preferredLang,
+      created_at: user.createdAt,
+    },
+    role: "platform_admin",
+    permissions: [],
+    businesses: [],
+    is_platform_admin: true,
+  });
 });
 
 export default router;

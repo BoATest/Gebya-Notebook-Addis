@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import { auditLog, businessMembers, users } from "@workspace/db/schema";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
-import { isPlatformAdminPhone } from "../services/platformAdmin.js";
+import { isPlatformAdminUser } from "../services/platformAdmin.js";
 
 const router = Router();
 
@@ -13,11 +13,11 @@ const router = Router();
 //   - owners are scoped to their own active business
 async function resolveAuditScope(req, decodedUserId) {
   const userRows = await db
-    .select({ phoneNumber: users.phoneNumber })
+    .select({ phoneNumber: users.phoneNumber, email: users.email })
     .from(users)
     .where(eq(users.id, decodedUserId))
     .limit(1);
-  const isAdmin = await isPlatformAdminPhone(userRows[0]?.phoneNumber);
+  const isAdmin = await isPlatformAdminUser(userRows[0]);
 
   if (isAdmin) {
     const param = typeof req.query.business_id === "string" ? Number(req.query.business_id) : null;

@@ -34,7 +34,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, gt, desc, sql } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
-import { isPlatformAdminPhone, listAdminMembers, addAdminMember, removeAdminMember } from "../services/platformAdmin.js";
+import { isPlatformAdminUser, listAdminMembers, addAdminMember, removeAdminMember } from "../services/platformAdmin.js";
 import { getQuotaInfo, resetQuota } from "../services/smsQuota.js";
 import { isSmsEnabled, sendSms } from "../services/smsSender.js";
 import { sendTelegramTextMessage, getTelegramBotUsername } from "../services/telegramBotService.js";
@@ -49,12 +49,12 @@ async function requireAdmin(req: any) {
   const decoded = verifyJwt(token);
   if (!decoded || !decoded.userId) return null;
   const userRows = await db
-    .select({ phoneNumber: users.phoneNumber })
+    .select({ phoneNumber: users.phoneNumber, email: users.email })
     .from(users)
     .where(eq(users.id, decoded.userId))
     .limit(1);
   const user = userRows[0];
-  if (!user || !(await isPlatformAdminPhone(user.phoneNumber))) return null;
+  if (!user || !(await isPlatformAdminUser(user))) return null;
   const memberRows = await db
     .select({ role: businessMembers.role, businessId: businessMembers.businessId })
     .from(businessMembers)
@@ -237,9 +237,9 @@ router.get("/members", async (req, res) => {
 router.post("/members", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
-  const { phone, note } = req.body ?? {};
-  if (!phone) return res.status(400).json({ error: "phone is required" });
-  const result = await addAdminMember(phone, ctx.phone, note);
+  const { phone, email, note } = req.body ?? {};
+  if (!phone && !email) return res.status(400).json({ error: "phone or email is required" });
+  const result = await addAdminMember({ phone: phone || null, email: email || null, addedByPhone: ctx.phone, note });
   if (!result.ok) return res.status(400).json({ error: "Invalid Ethiopian phone number" });
   return res.json({ ok: true, status: result.status, member: result.member });
 });
