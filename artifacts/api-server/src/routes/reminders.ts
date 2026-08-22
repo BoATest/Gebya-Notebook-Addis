@@ -170,12 +170,21 @@ router.all("/run", async (req: Request, res: Response) => {
     const allStats: any[] = [];
 
     for (const shopId of shopIds) {
-      // Phase 2: Gate automated (cron-triggered) reminders behind premium tier.
+      // Phase 2: Gate automated (cron-triggered) reminders behind the premium tier.
       // On-demand reminders (POST /remind/:customerId) bypass this check.
-      const premium = await isPremiumShop(shopId);
-      if (!premium) {
-        log("info", "Skipping automated reminders for non-premium shop (free tier)", { shopId });
-        continue;
+      //
+      // During the free-evaluation window (PREMIUM_REMINDERS_ENABLED unset/false),
+      // automated reminders run for ALL shops regardless of plan so we can
+      // measure real usage & value before activating paid gating. Set
+      // PREMIUM_REMINDERS_ENABLED=true in production to restrict cron reminders
+      // to "plus"/"premium" shops only.
+      const premiumGateEnabled = process.env.PREMIUM_REMINDERS_ENABLED === "true";
+      if (premiumGateEnabled) {
+        const premium = await isPremiumShop(shopId);
+        if (!premium) {
+          log("info", "Skipping automated reminders for non-premium shop (free tier)", { shopId });
+          continue;
+        }
       }
 
       let eligibleCustomers: EligibleCustomer[];

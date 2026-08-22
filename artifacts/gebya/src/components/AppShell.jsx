@@ -1334,7 +1334,7 @@ export default function AppShell() {
       await handleUpdateCustomerRecord(customer.id, {
         telegram_username: nextUsername,
         telegram_chat_id: nextChatId,
-        telegram_link_token: customer.telegram_link_token || createCustomerTelegramLinkToken(customer.id),
+        telegram_link_token: payload.telegram_link_token || customer.telegram_link_token || createCustomerTelegramLinkToken(customer.id),
         telegram_linked_at: nextChatId ? (payload.telegram_linked_at || customer.telegram_linked_at || now) : customer.telegram_linked_at || null,
         telegram_link_requested_at: payload.telegram_link_requested_at || customer.telegram_link_requested_at || now,
         telegram_notify_enabled: nextChatId

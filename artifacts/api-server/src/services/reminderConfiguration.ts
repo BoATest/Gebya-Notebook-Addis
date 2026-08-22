@@ -400,7 +400,7 @@ export async function isPremiumShop(shopId: number): Promise<boolean> {
       .limit(1);
 
     const plan = rows[0]?.plan ?? "free";
-    return plan === "premium";
+    return plan === "plus" || plan === "premium";
   } catch (error) {
     console.error(`[ReminderConfig] isPremiumShop: error checking shop ${shopId}: ${error}`);
     // Default to free tier on error — don't accidentally grant premium access

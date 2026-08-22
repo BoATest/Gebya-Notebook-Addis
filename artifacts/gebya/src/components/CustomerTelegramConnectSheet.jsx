@@ -11,10 +11,11 @@ import { X, Copy, Send } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { fireToast } from './Toast';
 import { useLang } from '../context/LangContext';
-import { buildCustomerConnectLink } from '../utils/customerTelegram';
+import { buildCustomerConnectLink, createCustomerTelegramLinkToken } from '../utils/customerTelegram';
 import {
   fetchTelegramBotStatus,
   fetchTelegramLinkSession,
+  createTelegramLinkSession,
 } from '../utils/telegramBotClient';
 
 const POLL_INTERVAL_MS = 4000;
@@ -31,11 +32,13 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
   const [autoLinking, setAutoLinking] = useState(false);
   const pollStartedRef = useRef(false);
   const autoSavedRef = useRef(false);
+  const sessionCreatedRef = useRef(false);
 
   const hasLinkedBorrower = Boolean(customer?.telegram_chat_id || linkSession?.chat_id);
-  const token = customer?.telegram_link_token;
+  // Auto-generate a token if the customer record doesn't have one yet (legacy/synced customers)
+  const token = customer?.telegram_link_token || createCustomerTelegramLinkToken(customer?.id);
 
-  // ─── Get bot username + existing session ──────────
+  // ─── Get bot username + create session + poll for completion ──────────
   useEffect(() => {
     if (!token) {
       setLoading(false);
@@ -43,11 +46,29 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
     }
 
     let active = true;
+    const shopId = shopProfile?.shop_id || shopProfile?.id;
 
     fetchTelegramBotStatus().then(status => {
       if (!active) return;
       setBotUsername(status?.bot_username || status?.bot_username || FRONTEND_BOT_USERNAME);
     }).catch(() => {});
+
+    // Create the backend link session so the customer's /start can be resolved.
+    // The webhook's linkTelegramChatToSession requires an existing session for the token.
+    if (!sessionCreatedRef.current) {
+      sessionCreatedRef.current = true;
+      createTelegramLinkSession({
+        shopId,
+        token,
+        customerId: customer?.id,
+        customerName: customer?.display_name || "Customer",
+        shopName: shopProfile?.name || "Gebya",
+        currentBalance: Number(customer?.balance || 0),
+        updatesEnabled: Boolean(customer?.telegram_notify_enabled),
+      }).catch(err => {
+        console.error('Failed to create Telegram link session:', err);
+      });
+    }
 
     // Poll for session completion (customer tapped "Start")
     if (!hasLinkedBorrower && !pollStartedRef.current && token) {
@@ -74,6 +95,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
                 telegram_chat_id: session.chat_id,
                 telegram_linked_at: session.linked_at,
                 telegram_link_requested_at: session.requested_at || customer?.telegram_link_requested_at,
+                telegram_link_token: token,
               }).then(() => {
                 fireToast(lang === 'am' ? 'ቴሌግራም ተገናኝቷል' : 'Telegram connected', 1800);
                 onResendUpdate?.();
@@ -92,7 +114,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
 
       return () => { clearInterval(id); pollStartedRef.current = false; };
     }
-  }, [token, hasLinkedBorrower, customer?.telegram_link_requested_at, lang, onSave, onResendUpdate]);
+  }, [token, hasLinkedBorrower, customer?.telegram_link_requested_at, lang, onSave, onResendUpdate, shopProfile]);
 
   const deepLink = useMemo(
     () => token && botUsername

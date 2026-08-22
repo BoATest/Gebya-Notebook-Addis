@@ -522,6 +522,14 @@ describe("reminders routes", () => {
   });
 
   describe("POST /run — premium tier gating (Phase 2)", () => {
+    beforeEach(() => {
+      // Exercise the premium-gate path (default is off = free evaluation window).
+      process.env.PREMIUM_REMINDERS_ENABLED = "true";
+    });
+    afterEach(() => {
+      delete process.env.PREMIUM_REMINDERS_ENABLED;
+    });
+
     it("skips non-premium shops in auto-discover mode", async () => {
       mockGetCustomerBalances.mockResolvedValueOnce([{ businessId: 1 }]);
       mockIsPremiumShop.mockResolvedValueOnce(false);

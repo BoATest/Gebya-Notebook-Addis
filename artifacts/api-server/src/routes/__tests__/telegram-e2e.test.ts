@@ -23,7 +23,7 @@ const mockDb = {
       limit: (n: number) => (mockRows[""] || []).slice(0, n),
     }),
   }),
-  insert: () => ({ values: vi.fn(), values: (v: any) => { Object.keys(mockRows).push(JSON.stringify(v)); return mockDb; } }),
+  insert: () => ({ values: (v: any) => { Object.keys(mockRows).push(JSON.stringify(v)); return mockDb; } }),
   update: () => ({ set: vi.fn().mockReturnThis(), where: vi.fn().mockReturnThis() }),
   batch: vi.fn(),
 };
@@ -68,8 +68,27 @@ vi.mock("../telegramStore.js", () => {
     }),
     getTelegramLinkSession: vi.fn(async (token: string) => sessions[token] ?? null),
     linkTelegramChatToSession: vi.fn(async (payload: any) => {
-      const session = sessions[payload.token];
-      if (!session) return null;
+      let session = sessions[payload.token];
+      if (!session) {
+        session = {
+          token: payload.token,
+          customerId: "unknown",
+          customerName: payload.customerName || "Customer",
+          shopName: payload.shopName || "Gebya",
+          currentBalance: payload.currentBalance ?? 0,
+          createdAt: Date.now(),
+          expiresAt: Date.now() + 604800000,
+          requestedAt: Date.now(),
+          linkedAt: null,
+          chatId: null,
+          telegramUsername: null,
+          updatesEnabled: payload.updatesEnabled ?? false,
+          lastMessage: null,
+          lastReference: null,
+          lastUpdatedAt: null,
+        };
+        sessions[payload.token] = session;
+      }
       const updated = {
         ...session,
         linkedAt: Date.now(),
@@ -143,27 +162,27 @@ vi.mock("../telegramStore.js", () => {
   };
 });
 
-vi.mock("../telegramBotService.js", () => ({
+vi.mock("../../services/telegramBotService.js", () => ({
   getTelegramBotUsername: () => "test_bot",
   isTelegramBotConfigured: () => true,
   sendTelegramTextMessage: vi.fn().mockResolvedValue({ message_id: "msg_e2e_123" }),
 }));
 
-vi.mock("../pushNotificationSender.js", () => ({
+vi.mock("../../services/pushNotificationSender.js", () => ({
   sendPushToOwner: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("../services/smsSender.js", () => ({
+vi.mock("../../services/smsSender.js", () => ({
   isSmsEnabled: () => false,
   sendSms: vi.fn(),
 }));
 
-vi.mock("../services/smsQuota.js", () => ({
+vi.mock("../../services/smsQuota.js", () => ({
   incrementSmsCount: vi.fn(),
   canSendSms: vi.fn().mockResolvedValue(false),
 }));
 
-vi.mock("../services/reminderConfiguration.js", () => {
+vi.mock("../../services/reminderConfiguration.js", () => {
   const configs: Record<string, any> = {};
   return {
     getShopDefault: vi.fn(async () => "weekly"),
@@ -183,7 +202,7 @@ vi.mock("../services/reminderConfiguration.js", () => {
   };
 });
 
-vi.mock("../services/reminderScheduler.js", () => ({
+vi.mock("../../services/reminderScheduler.js", () => ({
   runRemindersForShop: vi.fn().mockResolvedValue({
     startedAt: Date.now(),
     completedAt: Date.now(),
@@ -200,7 +219,7 @@ vi.mock("../services/reminderScheduler.js", () => ({
   scanCriticalOverdue: vi.fn().mockResolvedValue([]),
 }));
 
-vi.mock("../services/reminderHistory.js", () => ({
+vi.mock("../../services/reminderHistory.js", () => ({
   createHistoryEntry: vi.fn().mockResolvedValue({
     id: "hist-e2e-1",
     shopId: 1,
@@ -235,13 +254,15 @@ vi.mock("../services/reminderHistory.js", () => ({
     }],
     pagination: { limit: 50, offset: 0, hasMore: false },
   }),
+  clearHistoryForTest: vi.fn(),
+  getLatestQueuedReminderForCustomer: vi.fn().mockResolvedValue(null),
 }));
 
-vi.mock("../services/reminderMessageBuilder.js", () => ({
+vi.mock("../../services/reminderMessageBuilder.js", () => ({
   buildReminderMessage: vi.fn(() => "Reminder: You have 100.00 ETB outstanding. Please pay."),
 }));
 
-vi.mock("../services/reminderSender.js", () => ({
+vi.mock("../../services/reminderSender.js", () => ({
   queryHistory: vi.fn(),
   sendReminder: vi.fn().mockResolvedValue({ success: true, messageId: "msg_e2e_123" }),
   sendBatchReminders: vi.fn().mockResolvedValue({ sent: 2, failed: 0, results: [] }),
@@ -249,7 +270,7 @@ vi.mock("../services/reminderSender.js", () => ({
   getStoredHistoryCount: vi.fn(() => 0),
 }));
 
-vi.mock("../services/telegramStore.js", () => {
+vi.mock("../../services/telegramStore.js", () => {
   const sessions: Record<string, any> = {};
   const chatToToken: Record<string, string> = {};
   return {
@@ -277,8 +298,27 @@ vi.mock("../services/telegramStore.js", () => {
     }),
     getTelegramLinkSession: vi.fn(async (token: string) => sessions[token] ?? null),
     linkTelegramChatToSession: vi.fn(async (payload: any) => {
-      const session = sessions[payload.token];
-      if (!session) return null;
+      let session = sessions[payload.token];
+      if (!session) {
+        session = {
+          token: payload.token,
+          customerId: "unknown",
+          customerName: payload.customerName || "Customer",
+          shopName: payload.shopName || "Gebya",
+          currentBalance: payload.currentBalance ?? 0,
+          createdAt: Date.now(),
+          expiresAt: Date.now() + 604800000,
+          requestedAt: Date.now(),
+          linkedAt: null,
+          chatId: null,
+          telegramUsername: null,
+          updatesEnabled: payload.updatesEnabled ?? false,
+          lastMessage: null,
+          lastReference: null,
+          lastUpdatedAt: null,
+        };
+        sessions[payload.token] = session;
+      }
       const updated = {
         ...session,
         linkedAt: Date.now(),
@@ -355,6 +395,12 @@ vi.mock("../services/telegramStore.js", () => {
 vi.mock("../rbac.js", () => ({
   requirePermission: () => (_req: any, _res: any, next: any) => next(),
   verifyShopOwnership: (req: any, res: any, next: any) => {
+    // Simulate real JWT verification — require an Authorization Bearer token
+    const auth = req.headers?.authorization || req.headers?.Authorization;
+    if (!auth || !String(auth).startsWith("Bearer ")) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
     const shopId = Number(req.body?.shopId) || Number(req.query?.shopId) || Number(req.headers?.["x-shop-id"]) || 0;
     if (!Number.isInteger(shopId) || shopId <= 0) {
       res.status(400).json({ error: "Missing or invalid shopId" });
@@ -381,12 +427,16 @@ vi.mock("@workspace/db", () => {
           where: (clause: any) => {
             const entries = Object.entries(clause || {});
             const tableName = entries[0]?.[0] || "";
-            if (tableName === "businesses") return businesses.filter(b => (clause as any).businessId ? b.id === (clause as any).businessId : true);
-            if (tableName === "customers") return customers;
-            if (tableName === "notifications") return notifications;
-            if (tableName === "businessMembers") return businessMembers;
-            if (tableName === "users") return usersArr;
-            return [];
+            let rows: any[] = [];
+            if (tableName === "businesses") rows = businesses.filter(b => (clause as any).businessId ? b.id === (clause as any).businessId : true);
+            else if (tableName === "customers") rows = customers;
+            else if (tableName === "notifications") rows = notifications;
+            else if (tableName === "businessMembers") rows = businessMembers;
+            else if (tableName === "users") rows = usersArr;
+            return {
+              limit: (n: number) => rows.slice(0, n),
+              then: (resolve: any) => resolve(rows),
+            };
           },
           limit: (n: number) => customers.slice(0, n),
         }),
@@ -407,12 +457,16 @@ vi.mock("@workspace/db", () => {
             where: (clause: any) => {
               const entries = Object.entries(clause || {});
               const tableName = entries[0]?.[0] || "";
-              if (tableName === "businesses") return businesses;
-              if (tableName === "customers") return customers;
-              if (tableName === "notifications") return notifications;
-              if (tableName === "businessMembers") return businessMembers;
-              if (tableName === "users") return usersArr;
-              return [];
+              let rows: any[] = [];
+              if (tableName === "businesses") rows = businesses;
+              else if (tableName === "customers") rows = customers;
+              else if (tableName === "notifications") rows = notifications;
+              else if (tableName === "businessMembers") rows = businessMembers;
+              else if (tableName === "users") rows = usersArr;
+              return {
+                limit: (n: number) => rows.slice(0, n),
+                then: (resolve: any) => resolve(rows),
+              };
             },
             limit: (n: number) => customers.slice(0, n),
           }),
@@ -464,20 +518,18 @@ vi.mock("../rateLimits.js", () => ({
   generalRateLimiter: (_req: any, _res: any, next: any) => next(),
 }));
 
-vi.mock("../services/smsSender.ts", () => ({
-  isSmsEnabled: () => false,
-  sendSms: vi.fn(),
-}));
-
 // ─── Import after mocks ───────────────────────────────────────────────────
-const { default: remindersRouter } = await import("../routes/reminders.js");
-const { default: telegramRouter } = await import("../routes/telegram.js");
-const { clearAllSessions } = await import("../services/telegramStore.js");
-const { clearHistoryForTest } = await import("../services/reminderHistory.js");
-const { clearAllConfigs } = await import("../services/reminderConfiguration.js");
-const { clearHistoryForTest: clearSenderHistory } = await import("../services/reminderSender.js");
+const { default: remindersRouter } = await import("../reminders.js");
+const { default: telegramRouter } = await import("../telegram.js");
+const { clearAllSessions, upsertTelegramLinkSession, linkTelegramChatToSession, syncTelegramCustomerState, storeTelegramDelivery } = await import("../../services/telegramStore.js");
+const { clearHistoryForTest, createHistoryEntry } = await import("../../services/reminderHistory.js");
+const { clearAllConfigs } = await import("../../services/reminderConfiguration.js");
+const { clearHistoryForTest: clearSenderHistory } = await import("../../services/reminderSender.js");
+const { sendTelegramTextMessage } = await import("../../services/telegramBotService.js");
 
 // ─── Test helpers ────────────────────────────────────────────────────────
+
+let pendingResolve: (() => void) | null = null;
 
 function createRes() {
   const res: any = {
@@ -493,15 +545,21 @@ function createRes() {
     json: vi.fn(function (this: any, payload: any) {
       if (!this._statusCalled) this.status(200);
       this.body = payload;
+      pendingResolve?.();
+      pendingResolve = null;
       return res;
     }),
     send: vi.fn(function (this: any, payload: any) {
       if (!this._statusCalled) this.status(200);
       this.body = payload;
+      pendingResolve?.();
+      pendingResolve = null;
       return res;
     }),
     end: vi.fn(function () {
       if (!this._statusCalled) this.status(200);
+      pendingResolve?.();
+      pendingResolve = null;
       return res;
     }),
   };
@@ -526,6 +584,10 @@ function createReq(method: string, url: string, body: any = {}, query: any = {},
 async function dispatchRouter(router: any, req: any, res: any): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("Handler timed out")), 5000);
+    pendingResolve = () => {
+      clearTimeout(timer);
+      resolve();
+    };
     router.handle(req, res, (err?: any) => {
       clearTimeout(timer);
       if (err) reject(err);
@@ -537,6 +599,13 @@ async function dispatchRouter(router: any, req: any, res: any): Promise<void> {
 // ─── Tests ───────────────────────────────────────────────────────────────
 
 describe("E2E: Telegram Webhook + Reminder Flow", () => {
+  // Shared constants — accessible by all nested describes
+  const SHOP_ID = 1;
+  const CUSTOMER_ID = 1;
+  const TOKEN = `cust-1-${Date.now()}`;
+  const CHAT_ID = 123456789; // Must be numeric — the webhook handler does Number(chat.id)
+  const CUSTOMER_NAME = "አንደኛ ደንበኛ";
+
   beforeEach(() => {
     vi.clearAllMocks();
     clearAllSessions();
@@ -547,11 +616,6 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
   });
 
   describe("Full customer onboarding → Telegram link → reminder → payment flow", () => {
-    const SHOP_ID = 1;
-    const CUSTOMER_ID = 1;
-    const TOKEN = `cust-1-${Date.now()}`;
-    const CHAT_ID = "tg_e2e_999";
-    const CUSTOMER_NAME = "አንደኛ ደንበኛ";
 
     it("Step 1: shop owner creates a link session for a customer", async () => {
       const req = createReq("POST", "/link-sessions", {
@@ -580,7 +644,7 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
 
     it("Step 2: customer opens deep link → bot receives /start TOKEN → session links", async () => {
       // First create the session
-      const { upsertTelegramLinkSession } = await import("../services/telegramStore.js");
+      const { upsertTelegramLinkSession } = await import("../../services/telegramStore.js");
       await upsertTelegramLinkSession({
         token: TOKEN,
         customerId: "1",
@@ -602,8 +666,6 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
       });
       const res = createRes();
 
-      const { sendTelegramTextMessage } = await import("../services/telegramBotService.js");
-
       await dispatchRouter(telegramRouter, req, res);
 
       expect(res.status).toHaveBeenCalledWith(200);
@@ -614,15 +676,15 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
 
       // Bot should have sent a "Linked!" message to the customer
       expect(sendTelegramTextMessage).toHaveBeenCalledWith(
-        String(Number(CHAT_ID)),
+        String(CHAT_ID),
         expect.stringContaining("Linked")
       );
     });
 
     it("Step 3: customer checks /balance via Telegram", async () => {
       // Link the chat first
-      const { linkTelegramChatToSession, syncTelegramCustomerState } = await import("../services/telegramStore.js");
-      await linkTelegramChatToSession({ token: TOKEN, chatId: CHAT_ID, telegramUsername: "@testuser" });
+      const { linkTelegramChatToSession, syncTelegramCustomerState } = await import("../../services/telegramStore.js");
+      await linkTelegramChatToSession({ token: TOKEN, chatId: String(CHAT_ID), telegramUsername: "@testuser" });
       await syncTelegramCustomerState({ token: TOKEN, updatesEnabled: true, currentBalance: 100 });
 
       const req = createReq("POST", "/webhook", {
@@ -636,17 +698,15 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
       });
       const res = createRes();
 
-      const { sendTelegramTextMessage } = await import("../services/telegramBotService.js");
-
       await dispatchRouter(telegramRouter, req, res);
 
       expect(res.status).toHaveBeenCalledWith(200);
       expect(sendTelegramTextMessage).toHaveBeenCalledWith(
-        String(Number(CHAT_ID)),
+        String(CHAT_ID),
         expect.stringContaining("💰 Current balance")
       );
       expect(sendTelegramTextMessage).toHaveBeenCalledWith(
-        String(Number(CHAT_ID)),
+        String(CHAT_ID),
         expect.stringContaining("100.00 ETB")
       );
     });
@@ -654,19 +714,16 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
     it("Step 4: shop owner sends on-demand reminder to linked customer", async () => {
       const req = createReq("POST", `/remind/${CUSTOMER_ID}`, {
         shopId: SHOP_ID,
-        chatId: CHAT_ID,
+        chatId: String(CHAT_ID),
         customerName: CUSTOMER_NAME,
         balance: 100,
         language: "en",
       }, {}, {
         "x-shop-id": String(SHOP_ID),
+        "authorization": "Bearer test-token",
       });
       req.params = { customerId: String(CUSTOMER_ID) };
       const res = createRes();
-
-      const { sendTelegramTextMessage } = await import("../services/telegramBotService.js");
-      const { buildReminderMessage } = await import("../services/reminderMessageBuilder.js");
-      const { createHistoryEntry } = await import("../services/reminderHistory.js");
 
       await dispatchRouter(remindersRouter, req, res);
 
@@ -677,25 +734,24 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
       }));
 
       // Telegram message sent to the customer's chat
-      expect(sendTelegramTextMessage).toHaveBeenCalledWith(CHAT_ID, expect.any(String));
+      expect(sendTelegramTextMessage).toHaveBeenCalledWith(String(CHAT_ID), expect.any(String));
       // History entry created
       expect(createHistoryEntry).toHaveBeenCalledWith(expect.objectContaining({
         shopId: SHOP_ID,
         customerId: CUSTOMER_ID,
-        chatId: CHAT_ID,
+        chatId: String(CHAT_ID),
         status: "sent",
       }));
     });
 
     it("Step 5: customer acknowledges payment via /paid", async () => {
       // Ensure the customer is linked
-      const { linkTelegramChatToSession, syncTelegramCustomerState, storeTelegramDelivery } = await import("../services/telegramStore.js");
-      await linkTelegramChatToSession({ token: TOKEN, chatId: CHAT_ID, telegramUsername: "@testuser" });
+      await linkTelegramChatToSession({ token: TOKEN, chatId: String(CHAT_ID), telegramUsername: "@testuser" });
       await syncTelegramCustomerState({ token: TOKEN, updatesEnabled: true, currentBalance: 100 });
       await createHistoryEntry({
         shopId: SHOP_ID,
         customerId: CUSTOMER_ID,
-        chatId: CHAT_ID,
+        chatId: String(CHAT_ID),
         balanceAtSendTime: "100",
         sentAt: Date.now(),
         status: "sent",
@@ -717,31 +773,31 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
       });
       const res = createRes();
 
-      const { sendTelegramTextMessage, sendPushToOwner } = await import("../services/pushNotificationSender.js");
-
       await dispatchRouter(telegramRouter, req, res);
 
       expect(res.status).toHaveBeenCalled;
-      // Bot confirms receipt of payment claim
+      // Bot confirms receipt of the payment claim
       expect(sendTelegramTextMessage).toHaveBeenCalledWith(
-        String(Number(CHAT_ID)),
-        expect.stringContaining("payment confirmed")
+        String(CHAT_ID),
+        expect.stringContaining("noted your payment")
       );
     });
 
-    it("Step 6: shop owner marks payment confirmed → customer gets thank-you", async () => {
+     it("Step 6: shop owner marks payment confirmed → customer gets thank-you", async () => {
       const req = createReq("POST", "/payment-confirmed", {
         shopId: SHOP_ID,
         customerId: CUSTOMER_ID,
         amount: 100,
         customerName: CUSTOMER_NAME,
-        chatId: CHAT_ID,
+        chatId: String(CHAT_ID),
         language: "en",
-      }, {}, {});
+      }, {}, {
+        "authorization": "Bearer test-token",
+      });
       const res = createRes();
 
-      const { sendTelegramTextMessage } = await import("../services/telegramBotService.js");
-      const { sendPushToOwner } = await import("../services/pushNotificationSender.js");
+      const { sendTelegramTextMessage } = await import("../../services/telegramBotService.js");
+      const { sendPushToOwner } = await import("../../services/pushNotificationSender.js");
 
       await dispatchRouter(remindersRouter, req, res);
 
@@ -750,7 +806,7 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
 
       // Thank-you message sent to customer
       expect(sendTelegramTextMessage).toHaveBeenCalledWith(
-        CHAT_ID,
+        String(CHAT_ID),
         expect.stringContaining("payment of 100.00 ETB has been confirmed")
       );
 
@@ -767,7 +823,7 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
   describe("Premium tier gating", () => {
     it("free tier shop: cron /run skips non-premium shops", async () => {
       // Mock isPremiumShop to return false
-      const { isPremiumShop } = await import("../services/reminderConfiguration.js");
+      const { isPremiumShop } = await import("../../services/reminderConfiguration.js");
       (isPremiumShop as any).mockResolvedValueOnce(false);
 
       const req = createReq("POST", "/run", { shopId: 1 }, {}, {
@@ -797,11 +853,10 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
         language: "en",
       }, {}, {
         "x-shop-id": "1",
+        "authorization": "Bearer test-token",
       });
       req.params = { customerId: "1" };
       const res = createRes();
-
-      const { sendTelegramTextMessage } = await import("../services/telegramBotService.js");
 
       await dispatchRouter(remindersRouter, req, res);
 
@@ -810,7 +865,7 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
     });
 
     it("plus tier shop: cron /run processes reminders", async () => {
-      const { isPremiumShop } = await import("../services/reminderConfiguration.js");
+      const { isPremiumShop } = await import("../../services/reminderConfiguration.js");
       (isPremiumShop as any).mockResolvedValueOnce(true);
 
       const req = createReq("POST", "/run", {
@@ -828,7 +883,7 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
       });
       const res = createRes();
 
-      const { runRemindersForShop } = await import("../services/reminderScheduler.js");
+      const { runRemindersForShop } = await import("../../services/reminderScheduler.js");
 
       await dispatchRouter(remindersRouter, req, res);
 
@@ -902,9 +957,10 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
       }, {}, {});
       const res = createRes();
 
-      await dispatchRouter(telegramRouter, req, res);
+       await dispatchRouter(telegramRouter, req, res);
 
-      expect(res.status).toHaveBeenCalledWith(500);
+      // When TELEGRAM_WEBHOOK_SECRET is set but no token header is sent → 401
+      expect(res.status).toHaveBeenCalledWith(401);
     });
 
     it("rejects webhook with wrong secret token", async () => {
@@ -935,6 +991,7 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
         language: "en",
       }, {}, {
         "x-shop-id": "1",
+        "authorization": "Bearer test-token",
       });
       req.params = { customerId: "2" };
       const res = createRes();
