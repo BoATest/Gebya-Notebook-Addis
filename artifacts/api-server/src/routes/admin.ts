@@ -574,13 +574,19 @@ router.get("/frictions", async (req, res) => {
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
   const sevenDaysAgo = daysAgo(7);
 
-  const [allBusinesses, allMembers, allUsers, allCustomers, allCustTxns, allTxns] = await Promise.all([
+  const [allBusinesses, allMembers, allUsers, allCustomers, txAgg, ctAgg] = await Promise.all([
     db.select().from(businesses),
     db.select().from(businessMembers),
     db.select().from(users),
     db.select().from(customers),
-    db.select().from(customerTransactions),
-    db.select().from(transactions),
+    db.select({
+      businessId: transactions.businessId,
+      lastTxn: sql<number>`COALESCE(MAX(${transactions.createdAt}), 0)`,
+    }).from(transactions).groupBy(transactions.businessId),
+    db.select({
+      businessId: customerTransactions.businessId,
+      deliveryFailures: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.telegramDeliveryState} IS NOT NULL AND ${customerTransactions.telegramDeliveryState} <> 'sent' THEN 1 ELSE 0 END), 0)`,
+    }).from(customerTransactions).groupBy(customerTransactions.businessId),
   ]);
 
   const userById = new Map(allUsers.map(u => [u.id, u]));
@@ -589,23 +595,14 @@ router.get("/frictions", async (req, res) => {
     if (!membersByBiz.has(m.businessId)) membersByBiz.set(m.businessId, []);
     membersByBiz.get(m.businessId)!.push({ userId: m.userId, role: m.role });
   }
-  const txnByBiz = new Map<number, number[]>();
-  for (const t of allTxns) {
-    if (!txnByBiz.has(t.businessId)) txnByBiz.set(t.businessId, []);
-    txnByBiz.get(t.businessId)!.push(t.createdAt || 0);
-  }
+  const txByBiz = new Map<number, number>(txAgg.map((t) => [t.businessId, Number(t.lastTxn ?? 0)]));
   const custByBiz = new Map<number, typeof allCustomers>();
   for (const c of allCustomers) {
     if (c.businessId == null) continue;
     if (!custByBiz.has(c.businessId)) custByBiz.set(c.businessId, []);
     custByBiz.get(c.businessId)!.push(c);
   }
-  const deliveryByBiz = new Map<number, number>();
-  for (const t of allCustTxns) {
-    if (t.telegramDeliveryState && t.telegramDeliveryState !== 'sent') {
-      deliveryByBiz.set(t.businessId, (deliveryByBiz.get(t.businessId) || 0) + 1);
-    }
-  }
+  const deliveryByBiz = new Map<number, number>(ctAgg.map((c) => [c.businessId, Number(c.deliveryFailures ?? 0)]));
 
   const sample = (biz: any) => ({
     businessId: biz.id,
@@ -622,8 +619,7 @@ router.get("/frictions", async (req, res) => {
   const thirtyDaysAgo = daysAgo(30);
 
   for (const biz of allBusinesses) {
-    const txns = txnByBiz.get(biz.id) || [];
-    const lastTxn = txns.length > 0 ? Math.max(...txns) : 0;
+    const lastTxn = txByBiz.get(biz.id) || 0;
     const members = membersByBiz.get(biz.id) || [];
     const hasOwner = members.some(m => m.role === 'owner');
     const owner = members.find(m => m.role === 'owner') || members[0];
@@ -685,20 +681,27 @@ router.get("/frictions", async (req, res) => {
 router.get("/features", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
-  const [allTransactions, allCustomerTransactions, allSupplierTransactions, allCustomers] = await Promise.all([
-    db.select().from(transactions), db.select().from(customerTransactions), db.select().from(supplierTransactions), db.select().from(customers),
+  const [creditBiz, supplierBiz, telegramBiz, pmAgg, typeAgg, srcAgg] = await Promise.all([
+    db.selectDistinct({ businessId: customerTransactions.businessId }).from(customerTransactions),
+    db.selectDistinct({ businessId: supplierTransactions.businessId }).from(supplierTransactions),
+    db.selectDistinct({ businessId: customers.businessId }).from(customers).where(sql`${customers.telegramChatId} IS NOT NULL`),
+    db.select({ key: transactions.paymentType, count: sql<number>`COUNT(*)` }).from(transactions).groupBy(transactions.paymentType),
+    db.select({ key: transactions.type, count: sql<number>`COUNT(*)` }).from(transactions).groupBy(transactions.type),
+    db.select({ key: transactions.source, count: sql<number>`COUNT(*)` }).from(transactions).groupBy(transactions.source),
   ]);
   const shopsUsing = {
-    credit: new Set(allCustomerTransactions.map(t => t.businessId).filter(Boolean)),
-    suppliers: new Set(allSupplierTransactions.map(t => t.businessId).filter(Boolean)),
-    telegram: new Set(allCustomers.filter(c => c.telegramChatId).map(c => c.businessId).filter(Boolean)),
+    credit: new Set(creditBiz.map(t => t.businessId).filter(Boolean)),
+    suppliers: new Set(supplierBiz.map(t => t.businessId).filter(Boolean)),
+    telegram: new Set(telegramBiz.map(t => t.businessId).filter(Boolean)),
   };
-  const paymentMethods: Record<string, number> = {};
-  for (const t of allTransactions) { const m = t.paymentType || "cash"; paymentMethods[m] = (paymentMethods[m] || 0) + 1; }
-  const txnTypes: Record<string, number> = {};
-  for (const t of allTransactions) { txnTypes[t.type] = (txnTypes[t.type] || 0) + 1; }
-  const sources: Record<string, number> = {};
-  for (const t of allTransactions) { const s = t.source || "manual"; sources[s] = (sources[s] || 0) + 1; }
+  const toRecord = (rows) => {
+    const o = {};
+    for (const r of rows) { const k = r.key == null ? 'unknown' : String(r.key); o[k] = Number(r.count || 0); }
+    return o;
+  };
+  const paymentMethods = toRecord(pmAgg);
+  const txnTypes = toRecord(typeAgg);
+  const sources = toRecord(srcAgg);
   return res.json({ ok: true, features: { shopsUsingCredit: shopsUsing.credit.size, shopsUsingSuppliers: shopsUsing.suppliers.size, shopsUsingTelegram: shopsUsing.telegram.size }, paymentMethods, transactionTypes: txnTypes, sources });
 });
 
