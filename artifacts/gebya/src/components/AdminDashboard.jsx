@@ -92,15 +92,24 @@ export default function AdminDashboard({ onShopSelect, initialTab = 'overview' }
 
   const loadData = () => {
     setLoading(true);
-    Promise.all([apiFetch('/admin/overview'), apiFetch('/admin/shops'), apiFetch('/admin/features'), apiFetch('/admin/frictions')])
-      .then(([ov, sh, fe, fr]) => { setData(ov); setShops(sh); setFeatures(fe); setFrictions(fr); setLoading(false); })
-      .catch((err) => { setError(err.message); setLoading(false); });
+    const safe = async (path, setter, key) => {
+      try { setter(await apiFetch(path)); return null; }
+      catch (e) { return `${key}: ${e.message}`; }
+    };
+    Promise.all([
+      safe('/admin/overview', setData, 'overview'),
+      safe('/admin/shops', setShops, 'shops'),
+      safe('/admin/features', setFeatures, 'features'),
+      safe('/admin/frictions', setFrictions, 'frictions'),
+    ]).then((fails) => {
+      const f = fails.filter(Boolean);
+      setError(f.length ? `Couldn't load — ${f.join(' · ')}` : null);
+      setLoading(false);
+    });
   };
   useEffect(() => { loadData(); }, []);
 
   if (loading) return <div className="p-6 text-sm" style={{ color: 'var(--color-text-muted)' }}>Loading admin dashboard...</div>;
-  if (error) return <div className="p-6 text-sm text-red-500">Error: {error}</div>;
-  if (!data) return null;
   const d = data;
 
   return (
@@ -111,7 +120,13 @@ export default function AdminDashboard({ onShopSelect, initialTab = 'overview' }
         ))}
       </div>
 
-      {tab === 'overview' && (<>
+      {error && (
+        <div className="rounded-xl border p-3 text-xs font-bold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-danger-text)', background: 'var(--color-bg-hover)' }}>
+          {error} <button onClick={loadData} className="underline ml-1">Retry</button>
+        </div>
+      )}
+
+      {tab === 'overview' && data && (<>
         <Section title="Platform Numbers">
           <div className="grid grid-cols-3 gap-3">
             {[{ label: 'Shops', value: fmt(d.platformNumbers.shops) }, { label: 'Users', value: fmt(d.platformNumbers.users) }, { label: 'Devices', value: fmt(d.platformNumbers.devices) }, { label: 'Transactions', value: fmt(d.platformNumbers.transactions) }, { label: 'Sales', value: fmtBirr(d.platformNumbers.totalSalesBirr) }, { label: 'Credit', value: fmtBirr(d.platformNumbers.totalCreditBirr) }].map(s => (
@@ -139,10 +154,13 @@ export default function AdminDashboard({ onShopSelect, initialTab = 'overview' }
                 <div className="flex-1 flex items-center gap-1"><span className="w-6 text-right font-bold" style={{ color: 'var(--color-primary)' }}>{day.shops}</span><div className="flex-1"><Bar value={day.shops} max={Math.max(...d.growthTimeline.map(d => d.shops), 1)} /></div></div>
                 <div className="flex-1 flex items-center gap-1"><span className="w-6 text-right font-bold" style={{ color: 'var(--color-accent-amber)' }}>{day.users}</span><div className="flex-1"><Bar value={day.users} max={Math.max(...d.growthTimeline.map(d => d.users), 1)} color='var(--color-accent-amber)' /></div></div>
               </div>
-            ))}
+            ))
           </div>
         </Section>
       </>)}
+      {tab === 'overview' && !data && (
+        <Section title="Overview"><p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Failed to load. <button onClick={loadData} className="underline font-bold">Retry</button></p></Section>
+      )}
 
       {tab === 'shops' && shops && (
          <Section title="Shop Health Table">

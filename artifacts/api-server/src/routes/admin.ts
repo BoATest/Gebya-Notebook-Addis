@@ -94,10 +94,22 @@ router.get("/overview", async (req, res) => {
   const sevenDaysAgo = daysAgo(7);
   const oneDayAgo = daysAgo(1);
 
-  const [allUsers, allBusinesses, allDevices, allCustomers, allStaffMembers, allInvites, allOtps, allSnapshots] = await Promise.all([
+  const [allUsers, allBusinesses, allDevices, allCustomers, allStaffMembers, allInvites, otpAgg, snapAgg] = await Promise.all([
     db.select().from(users), db.select().from(businesses), db.select().from(devices),
-    db.select().from(customers), db.select().from(staffMembers), db.select().from(invites), db.select().from(otps), db.select().from(snapshots),
+    db.select().from(customers), db.select().from(staffMembers), db.select().from(invites),
+    db.select({
+      phoneNumber: otps.phoneNumber,
+      attempts: sql<number>`COALESCE(SUM(${otps.attempts}), 0)`,
+      consumed: sql<number>`COALESCE(SUM(CASE WHEN ${otps.consumed} THEN 1 ELSE 0 END), 0)`,
+    }).from(otps).groupBy(otps.phoneNumber),
+    db.select({
+      userId: snapshots.userId,
+      sizeBytes: sql<number>`COALESCE(MAX(${snapshots.sizeBytes}), 0)`,
+      createdAt: sql<number>`COALESCE(MAX(${snapshots.createdAt}), 0)`,
+    }).from(snapshots).groupBy(snapshots.userId),
   ]);
+  const allOtps = otpAgg;
+  const allSnapshots = snapAgg.map((s) => ({ userId: s.userId, sizeBytes: s.sizeBytes, createdAt: s.createdAt }));
 
   const [salesTotal, txnCountResult, shopsDistinct, shopsWeekDistinct, shopsTodayDistinct, creditTotalResult, repaidTotalResult, custBalanceRows] = await Promise.all([
     db.select({ total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)` }).from(transactions).where(eq(transactions.type, "sale")).then(r => r[0]?.total ?? 0),
@@ -203,21 +215,44 @@ router.get("/shops", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
   const sevenDaysAgo = daysAgo(7);
-  const [allBusinesses, allTransactions, allUsers, allCustomerTransactions] = await Promise.all([
-    db.select().from(businesses), db.select().from(transactions), db.select().from(users), db.select().from(customerTransactions),
+  const [allBusinesses, allUsers, txAgg, ctAgg] = await Promise.all([
+    db.select().from(businesses),
+    db.select().from(users),
+    db.select({
+      businessId: transactions.businessId,
+      totalTxn: sql<number>`COUNT(*)`,
+      totalSales: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'sale' THEN ${transactions.amount} ELSE 0 END), 0)`,
+      lastTxn: sql<number>`COALESCE(MAX(${transactions.createdAt}), 0)`,
+    }).from(transactions).groupBy(transactions.businessId),
+    db.select({
+      businessId: customerTransactions.businessId,
+      credit: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'credit_add' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
+      payment: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'payment' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
+      reversal: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'reversal' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
+    }).from(customerTransactions).groupBy(customerTransactions.businessId),
   ]);
-  const shopStats = allBusinesses.map(biz => {
-    const bizTxns = allTransactions.filter(t => t.businessId === biz.id);
-    const bizCustTxns = allCustomerTransactions.filter(t => t.businessId === biz.id);
-    const user = allUsers.find(u => u.id === biz.ownerUserId);
-    const lastTxn = bizTxns.length > 0 ? Math.max(...bizTxns.map(t => t.createdAt || 0)) : null;
-    const totalSales = bizTxns.filter(t => t.type === "sale").reduce((s, t) => s + (Number(t.amount) || 0), 0);
-    const totalCredit = bizCustTxns.filter(t => t.type === "credit_add").reduce((s, t) => s + (Number(t.amount) || 0), 0);
-    const outstanding = bizCustTxns.filter(t => t.type === "credit_add").reduce((s, t) => s + (Number(t.amount) || 0), 0) - bizCustTxns.filter(t => t.type === "payment").reduce((s, t) => s + (Number(t.amount) || 0), 0) - bizCustTxns.filter(t => t.type === "reversal").reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const txByBiz = new Map(txAgg.map((t) => [t.businessId, t]));
+  const ctByBiz = new Map(ctAgg.map((c) => [c.businessId, c]));
+  const shopStats = allBusinesses.map((biz) => {
+    const t = txByBiz.get(biz.id);
+    const c = ctByBiz.get(biz.id);
+    const totalTxn = Number(t?.totalTxn ?? 0);
+    const totalSales = Number(t?.totalSales ?? 0);
+    const lastTxn = Number(t?.lastTxn ?? 0);
+    const totalCredit = Number(c?.credit ?? 0);
+    const paid = Number(c?.payment ?? 0);
+    const reversed = Number(c?.reversal ?? 0);
+    const outstanding = Math.max(totalCredit - paid - reversed, 0);
+    const user = allUsers.find((u) => u.id === biz.ownerUserId);
     let status: "active" | "dormant" | "new" = "new";
     if (lastTxn && lastTxn >= sevenDaysAgo) status = "active"; else if (lastTxn) status = "dormant";
-    return { id: biz.id, name: biz.name, ownerPhone: maskPhone(user?.phoneNumber || null), createdAt: biz.createdAt?.toISOString() || null, lastTransactionAt: lastTxn ? new Date(lastTxn).toISOString() : null, totalTransactions: bizTxns.length, totalSalesBirr: totalSales, totalCreditBirr: totalCredit, outstandingBirr: Math.max(outstanding, 0), status };
-   });
+    return {
+      id: biz.id, name: biz.name, ownerPhone: maskPhone(user?.phoneNumber || null),
+      createdAt: biz.createdAt?.toISOString() || null,
+      lastTransactionAt: lastTxn ? new Date(lastTxn).toISOString() : null,
+      totalTransactions: totalTxn, totalSalesBirr: totalSales, totalCreditBirr: totalCredit, outstandingBirr: outstanding, status,
+    };
+  });
    shopStats.sort((a, b) => { if (!a.lastTransactionAt && !b.lastTransactionAt) return 0; if (!a.lastTransactionAt) return 1; if (!b.lastTransactionAt) return -1; return new Date(b.lastTransactionAt).getTime() - new Date(a.lastTransactionAt).getTime(); });
   const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 2000);
   const offset = Math.max(Number(req.query.offset) || 0, 0);
