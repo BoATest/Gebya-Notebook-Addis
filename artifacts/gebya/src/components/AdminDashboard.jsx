@@ -5,7 +5,6 @@
 import { useState, useEffect } from 'react';
 import { useLang } from '../context/LangContext';
 import { apiFetch } from '../utils/shared-ui.jsx';
-import { getAuthToken } from '../utils/syncEngine';
 
 function fmt(n) { return n == null ? '0' : Number(n).toLocaleString('en-US'); }
 function fmtBirr(n) { return `${fmt(n)} ETB`; }
@@ -72,7 +71,7 @@ function FrictionGroup({ title, items, badge, onOpen }) {
   );
 }
 
-export default function AdminDashboard({ onShopSelect }) {
+export default function AdminDashboard({ onShopSelect, initialTab = 'overview' }) {
   const { lang } = useLang();
   const [data, setData] = useState(null);
   const [shops, setShops] = useState(null);
@@ -80,7 +79,7 @@ export default function AdminDashboard({ onShopSelect }) {
   const [frictions, setFrictions] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState(initialTab);
   const [shopSearch, setShopSearch] = useState('');
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastBody, setBroadcastBody] = useState('');
@@ -246,10 +245,8 @@ export default function AdminDashboard({ onShopSelect }) {
             <button onClick={async () => {
               if (!broadcastTitle || !broadcastBody) return;
               setBroadcastSending(true); setBroadcastResult(null);
-              const token = await getAuthToken();
               try {
-                const res = await fetch(`${API_BASE}/admin/broadcast`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ title: broadcastTitle, body: broadcastBody, type: 'announcement' }) });
-                const result = await res.json(); setBroadcastResult(result);
+                const result = await apiFetch('/admin/broadcast', { method: 'POST', body: JSON.stringify({ title: broadcastTitle, body: broadcastBody, type: 'announcement' }) }); setBroadcastResult(result);
                 if (result.ok) { setBroadcastTitle(''); setBroadcastBody(''); }
               } catch (err) { setBroadcastResult({ ok: false, error: err.message }); }
               setBroadcastSending(false);
@@ -267,10 +264,8 @@ export default function AdminDashboard({ onShopSelect }) {
             <button onClick={async () => {
               if (!pushTitle || !pushBody) return;
               setPushSending(true); setPushResult(null);
-              const token = await getAuthToken();
               try {
-                const res = await fetch(`${API_BASE}/admin/push-all`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ title: pushTitle, body: pushBody }) });
-                const result = await res.json(); setPushResult(result);
+                const result = await apiFetch('/admin/push-all', { method: 'POST', body: JSON.stringify({ title: pushTitle, body: pushBody }) }); setPushResult(result);
                 if (result.ok) { setPushTitle(''); setPushBody(''); }
               } catch (err) { setPushResult({ ok: false, error: err.message }); }
               setPushSending(false);
@@ -282,9 +277,8 @@ export default function AdminDashboard({ onShopSelect }) {
 
         <Section title="Export Shop List" subtitle="Download CSV of all shops">
           <button onClick={async () => {
-            const token = await getAuthToken();
-            const res = await fetch(`${API_BASE}/admin/export-shops`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
-            const blob = await res.blob(); const url = URL.createObjectURL(blob);
+            const csv = await apiFetch('/admin/export-shops');
+            const blob = new Blob([typeof csv === 'string' ? csv : JSON.stringify(csv)], { type: 'text/csv' }); const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url; a.download = `gebya-shops-${new Date().toISOString().split('T')[0]}.csv`; a.click(); URL.revokeObjectURL(url);
           }} className="w-full py-2.5 rounded-xl text-xs font-bold text-white min-h-[44px]" style={{ background: 'var(--color-text)' }}>Download CSV</button>
         </Section>

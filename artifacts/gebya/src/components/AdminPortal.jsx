@@ -19,10 +19,19 @@ const AdminShopDetail = lazy(() => import('./AdminShopDetail.jsx'));
 function Shell({ children }) {
   return (
     <div className="min-h-screen" style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}>
-      <div className="max-w-2xl mx-auto px-4 py-4">{children}</div>
+      <div className="max-w-6xl mx-auto px-4 py-4">{children}</div>
     </div>
   );
 }
+
+const NAV = [
+  { id: 'overview', label: 'Overview', am: 'አጠቃላይ' },
+  { id: 'shops', label: 'Shops', am: 'ሱቃች' },
+  { id: 'frictions', label: 'Frictions', am: 'ጥርጣሬዎች' },
+  { id: 'features', label: 'Features', am: 'ባህሪያት' },
+  { id: 'actions', label: 'Actions', am: 'እርምጃዎች' },
+  { id: 'team', label: 'Team', am: 'ቡድን' },
+];
 
 function Header() {
   const { lang } = useLang();
@@ -57,13 +66,26 @@ function AdminPortalInner() {
   const { user, checked, isPlatformAdmin, init } = useAuthStore();
   const { lang } = useLang();
   const [shop, setShop] = useState(null);
-  const [view, setView] = useState('dashboard');
+  const [section, setSection] = useState('overview');
 
   useEffect(() => {
     if (!checked) init();
   }, [checked, init]);
 
-  const goDashboard = () => { setView('dashboard'); setShop(null); };
+  const goBack = () => { setShop(null); };
+  const selectShop = (s) => { setShop(s); };
+  const navTo = (id) => { setShop(null); setSection(id); };
+
+  const navButton = (item, active, onClick) => (
+    <button
+      key={item.id}
+      onClick={onClick}
+      className="px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap"
+      style={active ? { background: 'var(--color-primary)', color: '#fff' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
+    >
+      {lang === 'am' ? item.am : item.label}
+    </button>
+  );
 
   return (
     <Shell>
@@ -77,39 +99,31 @@ function AdminPortalInner() {
         />
       ) : !isPlatformAdmin ? (
         <Notice
-          title={lang === 'am' ? 'የአስተዳዳሪ መዳረሻ የለም' : 'Admin access required'}
+          title={lang === 'am' ? 'የአስተዳደሪ መዳረሻ የለም' : 'Admin access required'}
           hint="Your phone is not on the platform-admin allowlist (PLATFORM_ADMIN_PHONES)."
         />
       ) : (
-        <>
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={goDashboard}
-              className="flex-1 py-2 rounded-xl text-xs font-bold"
-              style={view === 'dashboard' ? { background: 'var(--color-primary)', color: '#fff' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
-            >
-              {lang === 'am' ? 'ዳሽቦርድ' : 'Dashboard'}
-            </button>
-            <button
-              onClick={() => { setView('members'); setShop(null); }}
-              className="flex-1 py-2 rounded-xl text-xs font-bold"
-              style={view === 'members' ? { background: 'var(--color-primary)', color: '#fff' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
-            >
-              {lang === 'am' ? 'ቡድን' : 'Team'}
-            </button>
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <aside className="hidden md:flex md:flex-col gap-1 md:w-44 md:shrink-0">
+            {NAV.map((item) => navButton(item, section === item.id && !shop, () => navTo(item.id)))}
+          </aside>
+          <div className="md:hidden flex gap-2 overflow-x-auto pb-1 mb-1">
+            {NAV.map((item) => navButton(item, section === item.id && !shop, () => navTo(item.id)))}
           </div>
-          {view === 'members' ? (
-            <MembersPanel />
-          ) : shop ? (
-            <Suspense fallback={<div className="text-xs text-center py-10" style={{ color: 'var(--color-text-muted)' }}>Loading shop...</div>}>
-              <AdminShopDetail businessId={shop.id} onBack={goDashboard} />
-            </Suspense>
-          ) : (
-            <Suspense fallback={<div className="text-xs text-center py-10" style={{ color: 'var(--color-text-muted)' }}>Loading dashboard...</div>}>
-              <AdminDashboard onShopSelect={setShop} />
-            </Suspense>
-          )}
-        </>
+          <main className="flex-1 min-w-0">
+            {shop ? (
+              <Suspense fallback={<div className="text-xs text-center py-10" style={{ color: 'var(--color-text-muted)' }}>Loading shop...</div>}>
+                <AdminShopDetail businessId={shop.id} onBack={goBack} />
+              </Suspense>
+            ) : section === 'team' ? (
+              <MembersPanel />
+            ) : (
+              <Suspense fallback={<div className="text-xs text-center py-10" style={{ color: 'var(--color-text-muted)' }}>Loading dashboard...</div>}>
+                <AdminDashboard key={section} initialTab={section} onShopSelect={selectShop} />
+              </Suspense>
+            )}
+          </main>
+        </div>
       )}
     </Shell>
   );

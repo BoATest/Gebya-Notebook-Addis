@@ -3,7 +3,7 @@ import { useLang } from '../context/LangContext';
 import { apiFetch } from '../utils/shared-ui.jsx';
 import { getAuthToken } from '../utils/syncEngine';
 import { fmt } from '../utils/numformat';
-import { resetSmsQuota, addShopNote, nudgeOwner } from '../api/admin.js';
+import { resetSmsQuota, addShopNote, nudgeOwner, resendReminders } from '../api/admin.js';
 import { ChevronLeft, Activity, AlertTriangle } from 'lucide-react';
 
 const SupportPanel = lazy(() => import('./SupportPanel.jsx'));
