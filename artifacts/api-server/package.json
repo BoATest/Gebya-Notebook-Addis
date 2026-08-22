@@ -9,8 +9,10 @@
   },
   "scripts": {
     "dev": "NODE_ENV=development tsx ./src/main.ts",
+    "dev:listen": "tsx ./dev-listen.mjs",
     "build": "tsx ./build.ts",
     "test": "vitest run",
+    "test:harness": "node test-harness.js",
     "typecheck": "tsc -p tsconfig.build.json --noEmit"
   },
   "dependencies": {
