@@ -12,6 +12,7 @@ import { ThemeProvider } from '../context/ThemeContext';
 import { PrivacyProvider } from '../context/PrivacyContext';
 import { useAuthStore } from '../stores/authStore';
 import MembersPanel from './MembersPanel.jsx';
+import AuthGate from './AuthGate.jsx';
 
 const AdminDashboard = lazy(() => import('./AdminDashboard.jsx'));
 const AdminShopDetail = lazy(() => import('./AdminShopDetail.jsx'));
@@ -93,10 +94,7 @@ function AdminPortalInner() {
       {!checked ? (
         <div className="text-xs text-center py-10" style={{ color: 'var(--color-text-muted)' }}>Loading...</div>
       ) : !user ? (
-        <Notice
-          title={lang === 'am' ? 'መግባት ያስፈልጋል' : 'Sign in required'}
-          hint={lang === 'am' ? 'መጀመሪያ ወደ መተግበሪያው ይግቡ።' : 'Sign in to the app first, then open /admin again.'}
-        />
+        <AuthGate lang={lang} onAuthenticated={() => { useAuthStore.getState().init(); }} />
       ) : !isPlatformAdmin ? (
         <Notice
           title={lang === 'am' ? 'የአስተዳደሪ መዳረሻ የለም' : 'Admin access required'}
