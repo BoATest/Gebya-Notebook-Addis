@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from 'react';
 import { lazy, Suspense } from 'react';
-import { LangProvider, useLang } from '../context/LangContext';
+import { LangProvider, useLang, LangContext, ENGLISH_T } from '../context/LangContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import { PrivacyProvider } from '../context/PrivacyContext';
 import { useAuthStore } from '../stores/authStore';
@@ -37,20 +37,20 @@ const NAV = [
 function Header() {
   const { lang } = useLang();
   return (
-    <div className="flex items-center justify-between mb-4">
+    <header className="sticky top-0 z-20 flex items-center justify-between py-3 mb-4 -mx-4 px-4" style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
       <div className="flex items-center gap-2">
-        <span className="text-xl leading-none">Gebya</span>
+        <span className="text-xl leading-none font-black">Gebya</span>
         <div>
           <p className="text-sm font-black leading-tight">Command Center</p>
           <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
-            {lang === 'am' ? 'የመሣሪያ ስርዓት አስተዳደር' : 'Platform admin - shops - support - comms'}
+            {lang === 'am' ? 'የመሣሪያ ስርዓት አስተዳደር' : 'Platform admin · shops · frictions · comms'}
           </p>
         </div>
       </div>
-      <a href="/" className="text-xs font-bold px-3 py-2 rounded-xl" style={{ background: 'var(--color-bg-hover)' }}>
+      <a href="/" className="text-xs font-bold px-3 py-2 rounded-xl transition-colors" style={{ background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}>
         {lang === 'am' ? 'ወደ መተግበሪያው' : 'Open app'}
       </a>
-    </div>
+    </header>
   );
 }
 
@@ -177,10 +177,10 @@ function AdminPortalInner() {
         />
       ) : (
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-          <aside className="hidden md:flex md:flex-col gap-1 md:w-44 md:shrink-0">
+          <aside className="hidden md:flex md:flex-col gap-1 md:w-44 md:shrink-0 md:sticky md:top-20 md:self-start">
             {NAV.map((item) => navButton(item, section === item.id && !shop, () => navTo(item.id)))}
           </aside>
-          <div className="md:hidden flex gap-2 overflow-x-auto pb-1 mb-1">
+          <div className="md:hidden flex gap-2 overflow-x-auto pb-1 mb-1 sticky top-[57px] z-10 -mx-4 px-4" style={{ background: 'var(--color-bg)' }}>
             {NAV.map((item) => navButton(item, section === item.id && !shop, () => navTo(item.id)))}
           </div>
           <main className="flex-1 min-w-0">
@@ -192,7 +192,7 @@ function AdminPortalInner() {
               <MembersPanel />
             ) : (
               <Suspense fallback={<div className="text-xs text-center py-10" style={{ color: 'var(--color-text-muted)' }}>Loading dashboard...</div>}>
-                <AdminDashboard key={section} initialTab={section} onShopSelect={selectShop} />
+                <AdminDashboard key={section} tab={section} onShopSelect={selectShop} />
               </Suspense>
             )}
           </main>
@@ -207,7 +207,9 @@ export default function AdminPortal() {
     <LangProvider>
       <ThemeProvider>
         <PrivacyProvider>
-          <AdminPortalInner />
+          <LangContext.Provider value={{ lang: 'en', toggleLang: () => {}, t: ENGLISH_T }}>
+            <AdminPortalInner />
+          </LangContext.Provider>
         </PrivacyProvider>
       </ThemeProvider>
     </LangProvider>

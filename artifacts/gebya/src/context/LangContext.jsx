@@ -1511,7 +1511,7 @@ const AM_OVERRIDES = {
   chaseCount: '{count} ትኩረት ይፈልጋሉ',
 };
 
-const LangContext = createContext(null);
+export const LangContext = createContext(null);
 
 export function LangProvider({ children }) {
   // Default to English for the admin/command-center audience; shopkeepers can
@@ -1560,6 +1560,11 @@ export function LangProvider({ children }) {
 export function useLang() {
   return useContext(LangContext);
 }
+
+// Complete English-leaning dictionary (Amharic fallback for any key not yet
+// translated to English). Used to force the platform-admin Command Center to
+// render in English regardless of the visitor's saved language preference.
+export const ENGLISH_T = { ...AM, ...EN, ...EN_OVERRIDES };
 
 
 

@@ -71,7 +71,7 @@ function FrictionGroup({ title, items, badge, onOpen }) {
   );
 }
 
-export default function AdminDashboard({ onShopSelect, initialTab = 'overview' }) {
+export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
   const { lang } = useLang();
   const [data, setData] = useState(null);
   const [shops, setShops] = useState(null);
@@ -79,7 +79,6 @@ export default function AdminDashboard({ onShopSelect, initialTab = 'overview' }
   const [frictions, setFrictions] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [tab, setTab] = useState(initialTab);
   const [shopSearch, setShopSearch] = useState('');
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastBody, setBroadcastBody] = useState('');
@@ -114,12 +113,6 @@ export default function AdminDashboard({ onShopSelect, initialTab = 'overview' }
 
   return (
     <div className="space-y-4 pb-8">
-      <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--color-bg-hover)' }}>
-        {[{ id: 'overview', label: 'Overview' }, { id: 'shops', label: 'Shops' }, { id: 'frictions', label: 'Frictions' }, { id: 'features', label: 'Features' }, { id: 'actions', label: 'Actions' }].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className="flex-1 py-2 rounded-lg text-xs font-bold transition-all" style={tab === t.id ? { background: 'var(--color-primary)', color: 'var(--color-bg-white)' } : { color: 'var(--color-text-muted)' }}>{t.label}</button>
-        ))}
-      </div>
-
       {error && (
         <div className="rounded-xl border p-3 text-xs font-bold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-danger-text)', background: 'var(--color-bg-hover)' }}>
           {error} <button onClick={loadData} className="underline ml-1">Retry</button>
