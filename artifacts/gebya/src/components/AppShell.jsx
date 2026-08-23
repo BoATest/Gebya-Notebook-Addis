@@ -58,6 +58,7 @@ import { setAuthToken } from '../utils/syncEngine';
 import AuthRequiredPrompt from './shell/AuthRequiredPrompt';
 import { PanelFallback } from './shell/FallbackViews';
 import { LoadingScreen, StaffJoinScreenView, OnboardingScreenView } from './shell/AppShellScreens';
+import ErrorBoundary from './ErrorBoundary';
 import { lazyWithRetry, isBrowserOnline, runAfterFirstPaint, buildSavedOnDeviceMessage, getTransactionCloudProofRecordType, getCustomerCloudProofRecordType, getSupplierCloudProofRecordType } from '../utils/appShellUtils';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { useStaffOps } from '../hooks/useStaffOps';
@@ -2040,6 +2041,7 @@ export default function AppShell() {
 
       <main className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 pb-36">
         {activeTab === 'today' && (
+          <ErrorBoundary compact>
           <TodayTab
             transactions={transactions}
             todayTransactions={todayTransactions}
@@ -2048,9 +2050,11 @@ export default function AppShell() {
             lastSavedSnapshot={lastSavedSnapshot}
             onShareReport={handleShareReport}
           />
+          </ErrorBoundary>
         )}
 
         {activeTab === 'credit' && (
+          <ErrorBoundary compact>
           <CreditTab
             selectedCustomer={selectedCustomer}
             selectedSupplier={selectedSupplier}
@@ -2069,6 +2073,7 @@ export default function AppShell() {
             onRecordPromise={handleRecordPromise}
             onClearPromise={handleClearPromise}
           />
+          </ErrorBoundary>
         )}
 
         {/* ═══ Transaction Detail Sheet (customer) ═════════════════════════════ */}
@@ -2119,6 +2124,7 @@ export default function AppShell() {
         )}
 
         {activeTab === 'history' && (
+          <ErrorBoundary compact>
           <HistoryTab
             transactions={transactions}
             ledgerTransactions={ledgerTransactions}
@@ -2136,9 +2142,11 @@ export default function AppShell() {
             onShareReport={handleShareCustomReport}
             catalogEntries={activeCatalogEntries}
           />
+          </ErrorBoundary>
         )}
 
         {activeTab === 'staff' && (
+          <ErrorBoundary compact>
           <StaffPage
             activeStaffMemberId={activeStaffMemberId}
             currentActorLabel={currentActorLabel}
@@ -2152,11 +2160,13 @@ export default function AppShell() {
             onRejectDevice={handleRejectDevice}
             onRotateJoinCode={handleRotateJoinCode}
             lang={lang}
-            canManageTeam={canManageTeam}
-          />
+              canManageTeam={canManageTeam}
+            />
+          </ErrorBoundary>
         )}
 
         {activeTab === 'settings' && (
+          <ErrorBoundary compact>
           <Suspense fallback={<PanelFallback label={t.loading} />}>
             <SettingsPage
               shopId={shopProfile?.shop_id || shopProfile?.id}
@@ -2179,6 +2189,7 @@ export default function AppShell() {
               transactionCount={transactions.length}
             />
           </Suspense>
+          </ErrorBoundary>
         )}
       </main>
 

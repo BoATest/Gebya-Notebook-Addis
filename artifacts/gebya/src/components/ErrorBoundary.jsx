@@ -76,6 +76,52 @@ class ErrorBoundary extends Component {
   render() {
     if (!this.state.hasError) return this.props.children;
 
+    // ─── Inline (compact) mode · used to isolate individual tabs/panels ──
+    // so a crash in one section doesn't blank the entire owner app.
+    if (this.props.compact) {
+      return (
+        <div
+          style={{
+            margin: '12px 0',
+            padding: '18px 16px',
+            border: '1px solid var(--color-border)',
+            borderRadius: '14px',
+            background: 'var(--color-surface)',
+            textAlign: 'center',
+          }}
+        >
+          <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-warning)', marginBottom: 4 }}>
+            This section hit a problem.
+          </p>
+          <p style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginBottom: 12, wordBreak: 'break-word' }}>
+            {this.state.error?.message || 'Unknown error'}
+          </p>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+            <button
+              onClick={() => this.handleReload()}
+              style={{
+                background: 'var(--color-warning)', color: 'var(--color-bg-white)',
+                border: 'none', borderRadius: '12px', padding: '10px 18px',
+                fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', minHeight: 40,
+              }}
+            >
+              Reload
+            </button>
+            <button
+              onClick={() => this.handleCopy()}
+              style={{
+                background: 'var(--color-surface)', color: 'var(--color-warning)',
+                border: '1px solid var(--color-warning)', borderRadius: '12px',
+                padding: '10px 18px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', minHeight: 40,
+              }}
+            >
+              Copy error
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     // ─── Auto-recovery UI · post-deploy chunk reload in progress ────────
     if (this.state.autoReloading) {
       return (
