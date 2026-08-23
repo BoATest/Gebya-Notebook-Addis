@@ -2,7 +2,7 @@
  * AdminDashboard — platform-wide metrics + quick actions for the Gebya team.
  * Access: Settings → Dev Mode → Platform Admin
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLang } from '../context/LangContext';
 import { apiFetch } from '../utils/shared-ui.jsx';
 
@@ -12,10 +12,13 @@ function pct(a, b) { return !b ? '0%' : `${Math.round((a / b) * 100)}%`; }
 
 function Section({ title, subtitle, children }) {
   return (
-    <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
-      <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--color-border-light)' }}>
-        <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>{title}</p>
-        {subtitle && <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-soft)' }}>{subtitle}</p>}
+    <div className="rounded-2xl overflow-hidden" style={{ background: '#fff', border: '1px solid var(--color-border)', boxShadow: '0 1px 2px rgba(16,24,40,0.04), 0 12px 30px -18px rgba(16,24,40,0.22)' }}>
+      <div className="px-4 py-3 flex items-center gap-2" style={{ background: 'linear-gradient(90deg, rgba(27,67,50,0.05), rgba(27,67,50,0))' }}>
+        <span className="w-1.5 h-4 rounded-full" style={{ background: 'linear-gradient(180deg, var(--color-primary), var(--color-accent-amber))' }} />
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>{title}</p>
+          {subtitle && <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-soft)' }}>{subtitle}</p>}
+        </div>
       </div>
       <div className="p-4">{children}</div>
     </div>
@@ -79,6 +82,7 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
   const [frictions, setFrictions] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const retriedRef = useRef(false);
   const [shopSearch, setShopSearch] = useState('');
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastBody, setBroadcastBody] = useState('');
@@ -91,9 +95,15 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
 
   const loadData = () => {
     setLoading(true);
+    setError(null);
+    const friendly = (key, e) => {
+      const msg = String(e?.message || '');
+      if (/abort|timeout|timed out|signal/i.test(msg)) return `${key}: the server took too long (it may be warming up)`;
+      return `${key}: ${msg}`;
+    };
     const safe = async (path, setter, key) => {
       try { setter(await apiFetch(path)); return null; }
-      catch (e) { return `${key}: ${e.message}`; }
+      catch (e) { return friendly(key, e); }
     };
     Promise.all([
       safe('/admin/overview', setData, 'overview'),
@@ -102,7 +112,14 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
       safe('/admin/frictions', setFrictions, 'frictions'),
     ]).then((fails) => {
       const f = fails.filter(Boolean);
-      setError(f.length ? `Couldn't load — ${f.join(' · ')}` : null);
+      const aborted = f.some((s) => /warming up|abort|timed out|signal/i.test(s));
+      if (aborted && !retriedRef.current) {
+        retriedRef.current = true;
+        setError('Connecting to the server (warming up) — retrying once…');
+        setTimeout(() => loadData(), 1300);
+        return;
+      }
+      setError(f.length ? `Couldn't load — ${f.join(' · ')}. Tap Retry.` : null);
       setLoading(false);
     });
   };
@@ -123,7 +140,7 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
         <Section title="Platform Numbers">
           <div className="grid grid-cols-3 gap-3">
             {[{ label: 'Shops', value: fmt(d.platformNumbers.shops) }, { label: 'Users', value: fmt(d.platformNumbers.users) }, { label: 'Devices', value: fmt(d.platformNumbers.devices) }, { label: 'Transactions', value: fmt(d.platformNumbers.transactions) }, { label: 'Sales', value: fmtBirr(d.platformNumbers.totalSalesBirr) }, { label: 'Credit', value: fmtBirr(d.platformNumbers.totalCreditBirr) }].map(s => (
-              <div key={s.label} className="text-center p-2 rounded-xl" style={{ background: 'var(--color-surface-subtle)' }}><p className="text-lg font-black" style={{ color: 'var(--color-primary)' }}>{s.value}</p><p className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>{s.label}</p></div>
+              <div key={s.label} className="text-center p-3 rounded-2xl" style={{ background: '#fff', border: '1px solid var(--color-border)', boxShadow: '0 1px 2px rgba(16,24,40,0.04), 0 10px 22px -16px rgba(16,24,40,0.25)' }}><p className="text-xl font-black" style={{ color: 'var(--color-primary)' }}>{s.value}</p><p className="text-[10px] font-bold mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{s.label}</p></div>
             ))}
           </div>
         </Section>

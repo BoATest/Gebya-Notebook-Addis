@@ -37,9 +37,9 @@ const NAV = [
 function Header() {
   const { lang } = useLang();
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between py-3 mb-4 -mx-4 px-4" style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)' }}>
+    <header className="sticky top-0 z-20 flex items-center justify-between py-3 mb-4 -mx-4 px-4" style={{ background: 'linear-gradient(180deg, var(--color-bg) 75%, rgba(255,255,255,0))', borderBottom: '1px solid var(--color-border)', boxShadow: '0 1px 0 rgba(16,24,40,0.03)' }}>
       <div className="flex items-center gap-2">
-        <span className="text-xl leading-none font-black">Gebya</span>
+        <span className="text-xl leading-none font-black" style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent-amber))', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Gebya</span>
         <div>
           <p className="text-sm font-black leading-tight">Command Center</p>
           <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
@@ -149,7 +149,7 @@ function AdminPortalInner() {
       key={item.id}
       onClick={onClick}
       className="px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap"
-      style={active ? { background: 'var(--color-primary)', color: '#fff' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
+      style={active ? { background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))', color: '#fff', boxShadow: '0 6px 16px -8px rgba(27,67,50,0.45)' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
     >
       {lang === 'am' ? item.am : item.label}
     </button>
@@ -192,7 +192,7 @@ function AdminPortalInner() {
               <MembersPanel />
             ) : (
               <Suspense fallback={<div className="text-xs text-center py-10" style={{ color: 'var(--color-text-muted)' }}>Loading dashboard...</div>}>
-                <AdminDashboard key={section} tab={section} onShopSelect={selectShop} />
+                <AdminDashboard tab={section} onShopSelect={selectShop} />
               </Suspense>
             )}
           </main>

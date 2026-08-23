@@ -94,9 +94,11 @@ router.get("/overview", async (req, res) => {
   const sevenDaysAgo = daysAgo(7);
   const oneDayAgo = daysAgo(1);
 
-  const [allUsers, allBusinesses, allDevices, allCustomers, allStaffMembers, allInvites, otpAgg, snapAgg] = await Promise.all([
+  const [allUsers, allBusinesses, allDevices, custTotal, custTelegram, allStaffMembers, allInvites, otpAgg, snapAgg] = await Promise.all([
     db.select().from(users), db.select().from(businesses), db.select().from(devices),
-    db.select().from(customers), db.select().from(staffMembers), db.select().from(invites),
+    db.select({ count: sql<number>`COUNT(*)` }).from(customers).then(r => Number(r[0]?.count ?? 0)),
+    db.select({ count: sql<number>`COUNT(*)` }).from(customers).where(sql`${customers.telegramChatId} IS NOT NULL`).then(r => Number(r[0]?.count ?? 0)),
+    db.select().from(staffMembers), db.select().from(invites),
     db.select({
       phoneNumber: otps.phoneNumber,
       attempts: sql<number>`COALESCE(SUM(${otps.attempts}), 0)`,
@@ -165,7 +167,7 @@ router.get("/overview", async (req, res) => {
 
   const shopsWithStaff = new Set(allStaffMembers.filter(s => s.businessId).map(s => s.businessId));
   const totalActiveStaff = allStaffMembers.filter(s => s.active !== false).length;
-  const telegramLinked = allCustomers.filter(c => c.telegramChatId).length;
+  const telegramLinked = custTelegram;
 
   const latestBackups: Record<number, { sizeBytes: number; createdAt: number }> = {};
   for (const snap of allSnapshots) {
@@ -203,7 +205,7 @@ router.get("/overview", async (req, res) => {
     onboardingQuality: { avgOtpRetries: Number(avgOtpRetries), inviteSent: allInvites.length, inviteAccepted, inviteAcceptRate: allInvites.length > 0 ? Math.round((inviteAccepted / allInvites.length) * 100) : 0, deviceTotal: allDevices.length },
     creditOverview: { totalExtended: totalCredit, totalRepaid, totalReversed, recoveryRate: totalCredit > 0 ? Math.round((totalRepaid / totalCredit) * 100) : 0, outstandingBalance: totalCredit - totalRepaid - totalReversed, overdueExposure, uniqueCreditCustomers: Object.keys(customerBalances).length },
     staffAdoption: { shopsWithMultiStaff: shopsWithStaff.size, totalActiveStaff, avgStaffPerShop: allBusinesses.length > 0 ? (totalActiveStaff / allBusinesses.length).toFixed(1) : "0" },
-    deliveryHealth: { telegramLinked, telegramAdoptionRate: allCustomers.length > 0 ? Math.round((telegramLinked / allCustomers.length) * 100) : 0 },
+    deliveryHealth: { telegramLinked, telegramAdoptionRate: custTotal > 0 ? Math.round((telegramLinked / custTotal) * 100) : 0 },
     backupHealth: { shopsBackedUp: Object.keys(latestBackups).length, shopsNeverBackedUp: allUsers.length - Object.keys(latestBackups).length, backupRate: allUsers.length > 0 ? Math.round((Object.keys(latestBackups).length / allUsers.length) * 100) : 0 },
     systemHealth: { staleDevices, totalDevices: allDevices.length },
     growthTimeline,
@@ -217,7 +219,7 @@ router.get("/shops", async (req, res) => {
   const sevenDaysAgo = daysAgo(7);
   const [allBusinesses, allUsers, txAgg, ctAgg] = await Promise.all([
     db.select().from(businesses),
-    db.select().from(users),
+    db.select({ id: users.id, phoneNumber: users.phoneNumber }).from(users),
     db.select({
       businessId: transactions.businessId,
       totalTxn: sql<number>`COUNT(*)`,
@@ -293,6 +295,7 @@ router.delete("/members/:id", async (req, res) => {
 router.get("/shops/:businessId", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  try {
   const businessIdNum = Number(req.params.businessId);
   if (!Number.isInteger(businessIdNum)) {
     return res.status(400).json({ error: "Invalid businessId" });
@@ -318,7 +321,7 @@ router.get("/shops/:businessId", async (req, res) => {
   const bizTxnsFiltered = bizTxns;
   const totalSales = bizTxnsFiltered.filter(t => t.type === 'sale').reduce((s, t) => s + (Number(t.amount) || 0), 0);
   const totalExpenses = bizTxnsFiltered.filter(t => t.type === 'expense').reduce((s, t) => s + (Number(t.amount) || 0), 0);
-  const lastTxn = bizTxnsFiltered.length > 0 ? Math.max(...bizTxnsFiltered.map(t => t.createdAt || 0)) : null;
+  const lastTxn = bizTxnsFiltered.length > 0 ? bizTxnsFiltered.reduce((m, t) => Math.max(m, t.createdAt || 0), 0) : null;
 
   const totalCredit = bizCustTxns.filter(t => t.type === 'credit_add').reduce((s, t) => s + (Number(t.amount) || 0), 0);
   const totalPaid = bizCustTxns.filter(t => t.type === 'payment').reduce((s, t) => s + (Number(t.amount) || 0), 0);
@@ -344,7 +347,8 @@ router.get("/shops/:businessId", async (req, res) => {
   const recentSnapshots = await db.select().from(snapshots).where(eq(snapshots.userId, biz.ownerUserId)).orderBy(snapshots.createdAt, 'desc').limit(5);
 
   const customerTelegramLinked = bizCustomers.filter(c => c.telegramChatId).length;
-  const quota = await getQuotaInfo(businessIdNum);
+  let quota = { count: 0, limit: 0 };
+  try { quota = await getQuotaInfo(businessIdNum); } catch {}
   const deliveryFailures = bizCustTxns.filter(t => t.telegramDeliveryState && t.telegramDeliveryState !== 'sent').length;
 
   const logRows = await db.select().from(adminShopLogs).where(eq(adminShopLogs.businessId, businessIdNum)).orderBy(desc(adminShopLogs.createdAt)).limit(100);
@@ -400,6 +404,10 @@ router.get("/shops/:businessId", async (req, res) => {
     notes,
     log,
   });
+  } catch (e) {
+    console.error('[admin/shops/:id]', e);
+    return res.status(500).json({ error: 'Internal server error', detail: e instanceof Error ? e.message : String(e) });
+  }
 });
 
 // ─── Admin actions on a shop ──────────────────────────────────────────
@@ -574,11 +582,15 @@ router.get("/frictions", async (req, res) => {
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
   const sevenDaysAgo = daysAgo(7);
 
-  const [allBusinesses, allMembers, allUsers, allCustomers, txAgg, ctAgg] = await Promise.all([
+  const [allBusinesses, allMembers, allUsers, custAgg, txAgg, ctAgg] = await Promise.all([
     db.select().from(businesses),
     db.select().from(businessMembers),
     db.select().from(users),
-    db.select().from(customers),
+    db.select({
+      businessId: customers.businessId,
+      total: sql<number>`COUNT(*)`,
+      linked: sql<number>`COALESCE(SUM(CASE WHEN ${customers.telegramChatId} IS NOT NULL THEN 1 ELSE 0 END), 0)`,
+    }).from(customers).groupBy(customers.businessId),
     db.select({
       businessId: transactions.businessId,
       lastTxn: sql<number>`COALESCE(MAX(${transactions.createdAt}), 0)`,
@@ -596,11 +608,10 @@ router.get("/frictions", async (req, res) => {
     membersByBiz.get(m.businessId)!.push({ userId: m.userId, role: m.role });
   }
   const txByBiz = new Map<number, number>(txAgg.map((t) => [t.businessId, Number(t.lastTxn ?? 0)]));
-  const custByBiz = new Map<number, typeof allCustomers>();
-  for (const c of allCustomers) {
+  const custByBiz = new Map<number, { total: number; linked: number }>();
+  for (const c of custAgg) {
     if (c.businessId == null) continue;
-    if (!custByBiz.has(c.businessId)) custByBiz.set(c.businessId, []);
-    custByBiz.get(c.businessId)!.push(c);
+    custByBiz.set(Number(c.businessId), { total: Number(c.total ?? 0), linked: Number(c.linked ?? 0) });
   }
   const deliveryByBiz = new Map<number, number>(ctAgg.map((c) => [c.businessId, Number(c.deliveryFailures ?? 0)]));
 
@@ -636,10 +647,9 @@ router.get("/frictions", async (req, res) => {
 
     if (ownerUser && !ownerUser.telegramChatId) ownerNoTelegram.push(sample(biz));
 
-    const custs = custByBiz.get(biz.id) || [];
-    if (custs.length >= 5) {
-      const linked = custs.filter(c => c.telegramChatId).length;
-      const rate = Math.round((linked / custs.length) * 100);
+    const c = custByBiz.get(biz.id) || { total: 0, linked: 0 };
+    if (c.total >= 5) {
+      const rate = Math.round((c.linked / c.total) * 100);
       if (rate < 30) lowAdoption.push({ ...sample(biz), adoption: rate });
     }
   }
@@ -753,6 +763,7 @@ router.post("/push-all", async (req, res) => {
 router.get("/export-shops", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  try {
   const sevenDaysAgo = daysAgo(7);
   const [allBusinesses, allTransactions, allUsers, allCustomerTransactions, allStaffMembers] = await Promise.all([
     db.select().from(businesses), db.select().from(transactions), db.select().from(users), db.select().from(customerTransactions), db.select().from(staffMembers),
@@ -763,7 +774,7 @@ router.get("/export-shops", async (req, res) => {
     const bizCustTxns = allCustomerTransactions.filter(t => t.businessId === biz.id);
     const bizStaff = allStaffMembers.filter(s => s.businessId === biz.id);
     const user = allUsers.find(u => u.id === biz.ownerUserId);
-    const lastTxn = bizTxns.length > 0 ? Math.max(...bizTxns.map(t => t.createdAt || 0)) : null;
+    const lastTxn = bizTxns.length > 0 ? bizTxns.reduce((m, t) => Math.max(m, t.createdAt || 0), 0) : null;
     const totalSales = bizTxns.filter(t => t.type === "sale").reduce((s, t) => s + (Number(t.amount) || 0), 0);
     const totalCredit = bizCustTxns.filter(t => t.type === "credit_add").reduce((s, t) => s + (Number(t.amount) || 0), 0);
     const totalPaid = bizCustTxns.filter(t => t.type === "payment").reduce((s, t) => s + (Number(t.amount) || 0), 0);
@@ -774,6 +785,10 @@ router.get("/export-shops", async (req, res) => {
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", `attachment; filename="gebya-shops-${new Date().toISOString().split("T")[0]}.csv"`);
   return res.send(csvRows.join("\n"));
+  } catch (e) {
+    console.error('[admin/export-shops]', e);
+    return res.status(500).json({ error: 'Internal server error', detail: e instanceof Error ? e.message : String(e) });
+  }
 });
 
 export default router;
