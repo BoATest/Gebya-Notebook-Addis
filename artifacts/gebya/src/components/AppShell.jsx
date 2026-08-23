@@ -13,6 +13,7 @@ import CreditTab from './CreditTab';
 import HistoryTab from './HistoryTab';
 import AppActionBar from './AppActionBar';
 import AppBottomNav from './AppBottomNav';
+import SideNav from './SideNav';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import GlobalModals from './GlobalModals';
 
@@ -2012,7 +2013,29 @@ export default function AppShell() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col max-w-md mx-auto relative" style={{ background: P.bg }}>
+    <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col lg:max-w-[1400px] lg:flex-row" style={{ background: P.bg }}>
+
+      <SideNav
+        activeTab={activeTab}
+        onTabChange={(tabId) => {
+          setShowForm(null);
+          setShowItemizedSale(false);
+          setShowCustomerForm(false);
+          setShowSupplierForm(false);
+          setCustomerTransactionModal(null);
+          setCustomerTransactionEditTarget(null);
+          setSupplierTransactionModal(null);
+          setReminderTarget(null);
+          setActiveTab(tabId);
+          setSelectedCustomerId(null);
+          setSelectedSupplierId(null);
+        }}
+        creditMetrics={creditMetrics}
+        unreadNotifCount={unreadNotifCount}
+        showStaffTab={staffTabVisible}
+      />
+
+      <div className="flex min-h-screen w-full flex-1 flex-col lg:min-h-0">
 
       {/* Auth required overlay — shown when sync detects expired/invalid token */}
       {showAuthPrompt && (
@@ -2039,7 +2062,7 @@ export default function AppShell() {
         />
       )}
 
-      <main className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 pb-36">
+        <main className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 pb-36 lg:px-8 lg:pb-28">
         {activeTab === 'today' && (
           <ErrorBoundary compact>
           <TodayTab
@@ -2227,6 +2250,7 @@ export default function AppShell() {
         />
       )}
 
+      <div className="lg:hidden">
       <AppBottomNav
         activeTab={activeTab}
         onTabChange={(tabId) => {
@@ -2246,6 +2270,9 @@ export default function AppShell() {
         unreadNotifCount={unreadNotifCount}
         showStaffTab={staffTabVisible}
       />
+      </div>
+
+      </div>
 
       <GlobalModals
         enrichedCustomerSummaries={enrichedCustomerSummaries}

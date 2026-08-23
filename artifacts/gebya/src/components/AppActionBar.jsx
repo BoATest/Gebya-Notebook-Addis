@@ -118,8 +118,8 @@ export default function AppActionBar({
 }) {
   if (activeTab === 'today') {
     return (
-      <div className="fixed left-0 right-0 max-w-md mx-auto z-30 px-3 py-2 border-t"
-        style={{ bottom: '60px', background: 'var(--color-surface)', borderColor: 'var(--color-bg-disabled)' }}
+      <div className="fixed left-0 right-0 z-30 px-3 py-2 border-t max-w-md mx-auto bottom-[60px] lg:max-w-none lg:left-64 lg:right-0 lg:bottom-0 lg:px-8"
+        style={{ background: 'var(--color-surface)', borderColor: 'var(--color-bg-disabled)' }}
       >
         <TodayActionBar
           customerSummaries={customerSummaries}
@@ -139,8 +139,8 @@ export default function AppActionBar({
 
   if (activeTab === 'credit' && selectedCustomer) {
     return (
-      <div className="fixed left-0 right-0 max-w-md mx-auto z-30 px-3 py-2 border-t"
-        style={{ bottom: '60px', background: 'var(--color-surface)', borderColor: 'var(--color-bg-disabled)' }}
+      <div className="fixed left-0 right-0 z-30 px-3 py-2 border-t max-w-md mx-auto bottom-[60px] lg:max-w-none lg:left-64 lg:right-0 lg:bottom-0 lg:px-8"
+        style={{ background: 'var(--color-surface)', borderColor: 'var(--color-bg-disabled)' }}
       >
         <CreditDetailActionBar selectedCustomer={selectedCustomer} onAddCredit={onAddCredit} onRecordPayment={onRecordPayment} />
       </div>
