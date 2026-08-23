@@ -34,8 +34,8 @@ export default function AppHeader({
 
   return (
     <header
-      className="flex-shrink-0 px-3 sm:px-4 pt-3 sm:pt-4 pb-2 sm:pb-3"
-      style={{ background: 'var(--color-bg)', borderBottom: '1px solid rgba(0,0,0,0.06)' }}
+      className="flex-shrink-0 px-3 sm:px-4 lg:px-8 pt-3 sm:pt-4 pb-2 sm:pb-3"
+      style={{ background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border-light)', boxShadow: '0 4px 20px -16px rgba(27,67,50,0.35)' }}
     >
       <div className="flex items-center gap-2 sm:gap-3">
         <button
@@ -43,8 +43,10 @@ export default function AppHeader({
           className="flex-shrink-0 press-scale flex items-center justify-center rounded-full font-bold text-white"
           aria-label="Open profile"
           style={{
-            width: '36px', height: '36px', background: 'var(--color-text-muted)',
-            fontSize: '14px', letterSpacing: '0.02em',
+            width: '38px', height: '38px',
+            background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent-amber))',
+            fontSize: '15px', letterSpacing: '0.02em',
+            boxShadow: '0 4px 12px -4px rgba(27,67,50,0.45)',
           }}
         >
           {shopProfile.name.charAt(0).toUpperCase()}
