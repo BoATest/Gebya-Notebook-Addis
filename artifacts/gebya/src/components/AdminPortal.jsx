@@ -12,6 +12,7 @@ import { ThemeProvider } from '../context/ThemeContext';
 import { PrivacyProvider } from '../context/PrivacyContext';
 import { useAuthStore } from '../stores/authStore';
 import MembersPanel from './MembersPanel.jsx';
+import ActivityPanel from './ActivityPanel.jsx';
 import AuthGate from './AuthGate.jsx';
 
 const AdminDashboard = lazy(() => import('./AdminDashboard.jsx'));
@@ -31,6 +32,7 @@ const NAV = [
   { id: 'frictions', label: 'Frictions', am: 'ጥርጣሬዎች' },
   { id: 'features', label: 'Features', am: 'ባህሪያት' },
   { id: 'actions', label: 'Actions', am: 'እርምጃዎች' },
+  { id: 'activity', label: 'Activity', am: 'እንቅስቃሴ' },
   { id: 'team', label: 'Team', am: 'ቡድን' },
 ];
 
@@ -190,6 +192,8 @@ function AdminPortalInner() {
               </Suspense>
             ) : section === 'team' ? (
               <MembersPanel />
+            ) : section === 'activity' ? (
+              <ActivityPanel />
             ) : (
               <Suspense fallback={<div className="text-xs text-center py-10" style={{ color: 'var(--color-text-muted)' }}>Loading dashboard...</div>}>
                 <AdminDashboard tab={section} onShopSelect={selectShop} />

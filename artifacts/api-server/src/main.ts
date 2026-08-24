@@ -149,6 +149,13 @@ app.get("/", (_req, res) => {
   });
 });
 
+// In-app health check so /api/healthz resolves through the main Express app
+// (not only the separate Vercel function). Handy for uptime probes and confirms
+// the bundled server boots without depending on the standalone healthz file.
+app.get("/api/healthz", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 // ---- ROUTES ----
 // Bring the live DB schema in line with the code (idempotent, once per container)
 // so e.g. createShop's INSERTs against `businesses` don't fail on stale columns.

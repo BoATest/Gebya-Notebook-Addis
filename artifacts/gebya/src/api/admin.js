@@ -41,3 +41,7 @@ export function addAdminMember({ phone, email, note } = {}) {
 export function removeAdminMember(id) {
   return apiFetch(`/admin/members/${id}`, { method: 'DELETE' });
 }
+
+export function listAdminLogs({ limit = 50, offset = 0 } = {}) {
+  return apiFetch(`/admin/logs?limit=${limit}&offset=${offset}`);
+}

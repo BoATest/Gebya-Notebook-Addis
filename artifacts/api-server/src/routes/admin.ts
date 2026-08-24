@@ -855,4 +855,30 @@ router.get("/warmup", async (req, res) => {
   return res.json({ ok: true, results });
 });
 
+// ─── GET /admin/logs ────────────────────────────────────────────────────
+// Global, cross-shop admin action feed (audit trail). Returns recent rows from
+// admin_shop_logs ordered newest-first. Used by the Command Center "Activity"
+// tab so the team can see what was done, when, and by which admin phone.
+router.get("/logs", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  try {
+    const limit = Math.min(
+      Math.max(parseInt((req.query.limit as string) || "50", 10) || 50, 1),
+      200,
+    );
+    const offset = Math.max(parseInt((req.query.offset as string) || "0", 10) || 0, 0);
+    const rows = await db
+      .select()
+      .from(adminShopLogs)
+      .orderBy(desc(adminShopLogs.createdAt))
+      .limit(limit)
+      .offset(offset);
+    return res.json({ logs: rows, limit, offset });
+  } catch (e) {
+    console.error("[admin/logs]", e);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 export default router;
