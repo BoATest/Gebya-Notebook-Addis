@@ -226,9 +226,9 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
 
       {tab === 'features' && features && (<>
         <Section title="Feature Adoption">
-          <StatRow label="Using Credit" value={`${features.features.shopsUsingCredit}/${d.platformNumbers.shops}`} />
-          <StatRow label="Using Suppliers" value={`${features.features.shopsUsingSuppliers}/${d.platformNumbers.shops}`} />
-          <StatRow label="Using Telegram" value={`${features.features.shopsUsingTelegram}/${d.platformNumbers.shops}`} />
+        <StatRow label="Using Credit" value={`${features.features.shopsUsingCredit}/${d?.platformNumbers?.shops ?? 0}`} />
+        <StatRow label="Using Suppliers" value={`${features.features.shopsUsingSuppliers}/${d?.platformNumbers?.shops ?? 0}`} />
+        <StatRow label="Using Telegram" value={`${features.features.shopsUsingTelegram}/${d?.platformNumbers?.shops ?? 0}`} />
         </Section>
         <Section title="Payment Methods">
           {Object.entries(features.paymentMethods).sort((a, b) => b[1] - a[1]).map(([method, count]) => (
@@ -312,7 +312,7 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
         </Section>
       </>)}
 
-      <p className="text-center text-[9px]" style={{ color: 'var(--color-text-soft)' }}>Generated {new Date(d.generatedAt).toLocaleString()}</p>
+      {data && <p className="text-center text-[9px]" style={{ color: 'var(--color-text-soft)' }}>Generated {new Date(d.generatedAt).toLocaleString()}</p>}
     </div>
   );
 }
