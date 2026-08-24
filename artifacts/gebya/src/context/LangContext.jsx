@@ -377,7 +377,7 @@ const EN = {
   payMethodCash: 'Cash',
   payMethodBank: 'Bank Transfer',
   payMethodMobile: 'Mobile Money',
-  paymentExceedsOwed: 'Amount cannot exceed what is owed',
+  paymentExceedsOwed: 'Enter up to the amount they owe',
 
   tryAgain: 'Try again',
 
@@ -791,7 +791,7 @@ const AM = {
   payMethodCash: 'ጥሬ ገንዘብ',
   payMethodBank: 'ባንክ ዝውውር',
   payMethodMobile: 'ሞባይል ገንዘብ',
-  paymentExceedsOwed: 'መጠኑ ከሚገባው መጠን ሊበልጥ አይችልም',
+  paymentExceedsOwed: 'ከቀሪው ሂሳብ የበለጠ ማስገባት አይችልም',
 
   tryAgain: 'እንደገና ሞክር',
 
@@ -1212,7 +1212,7 @@ const AM_OVERRIDES = {
   payMethodCash: 'ጥሬ ገንዘብ',
   payMethodBank: 'ባንክ ዝውውር',
   payMethodMobile: 'ሞባይል ገንዘብ',
-  paymentExceedsOwed: 'መጠኑ ከሚገባው መጠን ሊበልጥ አይችልም',
+  paymentExceedsOwed: 'ከቀሪው ሂሳብ የበለጠ ማስገባት አይችልም',
   paymentMoreThanBalance: 'ክፍያው ከአሁኑ ቀሪ ሂሳብ ይበልጣል',
   noBalanceToRecordPayment: 'ገና የሚሰበሰብ ቀሪ ሂሳብ የለም',
   balanceAfterEntry: 'ከዚህ ግቤት በኋላ ያለ ቀሪ ሂሳብ',

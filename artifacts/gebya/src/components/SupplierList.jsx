@@ -22,12 +22,12 @@ function SupplierRow({ supplier, onSelect, t }) {
     <button
       onClick={() => onSelect(supplier)}
       className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left active:scale-[0.99] transition-transform"
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)' }}
+      style={{ background: 'var(--color-surface)', border: owes ? '2px solid #d97706' : '1px solid var(--color-bg-disabled)' }}
     >
-      <span
-        className="flex items-center justify-center w-10 h-10 rounded-full flex-shrink-0 font-bold text-sm"
-        style={{ background: 'var(--color-bg-disabled)', color: 'var(--color-text)' }}
-      >
+        <span
+          className="flex items-center justify-center w-10 h-10 rounded-full flex-shrink-0 font-bold text-sm"
+          style={{ background: 'var(--color-bg-disabled)', color: 'var(--color-text)', boxShadow: owes ? '0 0 0 2px #d97706' : 'none' }}
+        >
         {initial}
       </span>
 
@@ -111,7 +111,7 @@ export default function SupplierList({ suppliers = [], onSelectSupplier, onAddSu
       {/* Hero card — neutral, "Total I owe" */}
       <div
         className="w-full text-left px-4 py-4 rounded-2xl mb-3"
-        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)' }}
+        style={{ background: 'rgba(217,119,6,0.06)', border: '1px solid var(--color-bg-disabled)', borderLeft: '4px solid var(--color-accent-amber)' }}
       >
         <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t.totalIOwe}</p>
         <p className="text-3xl font-extrabold leading-tight" style={{ color: 'var(--color-text)' }}>

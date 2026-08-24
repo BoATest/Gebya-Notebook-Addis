@@ -176,15 +176,16 @@ function SupplierDetail({
               }}
             >
               {initials}
-              <span style={{
-                position: 'absolute', bottom: -2, right: -2,
-                width: 16, height: 16, borderRadius: '50%',
-                background: 'var(--color-surface)',
-                border: '1.5px solid var(--color-text)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '0.55rem',
-                color: 'var(--color-text)',
-              }}>📷</span>
+                <span style={{
+                  position: 'absolute', bottom: -4, right: -4,
+                  width: 28, height: 28, borderRadius: '50%',
+                  background: 'var(--color-surface)',
+                  border: '2px solid var(--color-text)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.85rem',
+                  color: 'var(--color-text)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                }}>📷</span>
             </button>
           )}
 

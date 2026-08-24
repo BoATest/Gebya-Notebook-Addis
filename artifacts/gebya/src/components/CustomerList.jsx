@@ -29,6 +29,7 @@ function customerStatus(c, t) {
 
 function CustomerRow({ customer, onSelect, t }) {
   const status = customerStatus(customer, t);
+  const severe = customer.has_overdue && (Number(customer.overdue_days) || 0) >= 30;
   const initial = (customer.display_name || '?').trim().charAt(0).toUpperCase() || '?';
   const lastSaleLabel = customer.last_activity_at ? daysAgoLabel(customer.last_activity_at) : null;
   const context = lastSaleLabel ? t.lastSaleLine.replace('{label}', lastSaleLabel) : null;
@@ -37,14 +38,14 @@ function CustomerRow({ customer, onSelect, t }) {
     <button
       onClick={() => onSelect(customer)}
       className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left active:scale-[0.99] transition-transform"
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)' }}
+      style={{ background: 'var(--color-surface)', border: severe ? '2px solid #b91c1c' : '1px solid var(--color-bg-disabled)' }}
     >
       <span
         className="flex items-center justify-center w-10 h-10 rounded-full flex-shrink-0 font-bold text-sm"
         style={{
           background: 'var(--color-bg-disabled)',
           color: 'var(--color-text)',
-          boxShadow: status.overdue ? '0 0 0 2px var(--color-danger)' : 'none',
+          boxShadow: severe ? '0 0 0 2px #b91c1c' : status.overdue ? '0 0 0 2px var(--color-danger)' : 'none',
         }}
       >
         {initial}
@@ -61,6 +62,7 @@ function CustomerRow({ customer, onSelect, t }) {
       </span>
 
       <span className="flex flex-col items-end flex-shrink-0">
+        {severe && <AlertTriangle className="w-4 h-4 mb-0.5" style={{ color: '#b91c1c' }} />}
         <span className="font-bold text-[15px]" style={{ color: status.overdue ? 'var(--color-danger)' : 'var(--color-text)' }}>
           {fmt(customer.balance)}
         </span>
@@ -150,7 +152,7 @@ export default function CustomerList({ customers = [], metrics, onSelectCustomer
         onClick={() => setShowOverview(true)}
         onKeyDown={(e) => { if (e.key === 'Enter') setShowOverview(true); }}
         className="w-full text-left px-4 py-4 rounded-2xl mb-3 cursor-pointer active:scale-[0.99] transition-transform"
-        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-bg-disabled)' }}
+        style={{ background: 'rgba(26,102,255,0.05)', border: '1px solid var(--color-bg-disabled)', borderLeft: '4px solid var(--color-accent-amber)' }}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

@@ -284,12 +284,13 @@ function CustomerDetail({
               >
                 {initials}
                 <span style={{
-                  position: 'absolute', bottom: -2, right: -2,
-                  width: 16, height: 16, borderRadius: '50%',
+                  position: 'absolute', bottom: -4, right: -4,
+                  width: 28, height: 28, borderRadius: '50%',
                   background: '#fff',
-                  border: '1.5px solid #171a17',
+                  border: '2px solid #171a17',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.55rem',
+                  fontSize: '0.85rem',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                 }}>📷</span>
               </button>
               <span style={{
@@ -599,7 +600,7 @@ function CustomerDetail({
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                {lang === 'am' ? '_balance ተከፍሏል' : 'Balance Fully Paid'}
+                {lang === 'am' ? 'ሙሉ በሙሉ ተከፍሏል' : 'Balance Fully Paid'}
               </div>
             )}
           </>
@@ -1211,7 +1212,7 @@ function CustomerDetail({
             color: '#fff', fontSize: 40,
           }}>✓</div>
           <p style={{ marginTop: 20, fontSize: '1.2rem', fontWeight: 800, color: '#2e6a47' }}>
-            {lang === 'am' ? '_balance ተከፍሏል!' : 'Balance Settled!'}
+            {lang === 'am' ? 'ሙሉ በሙሉ ተከፍሏል!' : 'Balance Settled!'}
           </p>
         </div>
       )}
