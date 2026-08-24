@@ -214,8 +214,13 @@ async function computeOverview() {
 router.get("/overview", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
-  const payload = await serveCached("admin:overview", computeOverview);
-  return res.json(payload);
+  try {
+    const payload = await serveCached("admin:overview", computeOverview);
+    return res.json(payload);
+  } catch (e) {
+    console.error("[admin/overview]", e);
+    return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
 });
 
 // ─── GET /admin/shops ──────────────────────────────────────────────────
@@ -270,9 +275,14 @@ async function computeShops(req: any) {
 router.get("/shops", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
-  const key = `admin:shops:${Number(req.query.limit) || ""}:${Number(req.query.offset) || 0}`;
-  const payload = await serveCached(key, () => computeShops(req));
-  return res.json(payload);
+  try {
+    const key = `admin:shops:${Number(req.query.limit) || ""}:${Number(req.query.offset) || 0}`;
+    const payload = await serveCached(key, () => computeShops(req));
+    return res.json(payload);
+  } catch (e) {
+    console.error("[admin/shops]", e);
+    return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
 });
 
 // ─── Team members (dynamic platform-admin allowlist) ──────────────────────
@@ -669,7 +679,7 @@ async function computeFrictions() {
     .slice(0, 20)
     .map(([businessId, failures]) => {
       const biz = allBusinesses.find(b => b.id === businessId);
-      return { ...sample(biz), failures };
+      return { ...(biz ? sample(biz) : { businessId, name: null, ownerPhone: null }), failures };
     });
 
   return {
@@ -700,8 +710,13 @@ async function computeFrictions() {
 router.get("/frictions", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
-  const payload = await serveCached("admin:frictions", computeFrictions);
-  return res.json(payload);
+  try {
+    const payload = await serveCached("admin:frictions", computeFrictions);
+    return res.json(payload);
+  } catch (e) {
+    console.error("[admin/frictions]", e);
+    return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
 });
 
 // ─── GET /admin/features ───────────────────────────────────────────────
@@ -733,8 +748,13 @@ async function computeFeatures() {
 router.get("/features", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
-  const payload = await serveCached("admin:features", computeFeatures);
-  return res.json(payload);
+  try {
+    const payload = await serveCached("admin:features", computeFeatures);
+    return res.json(payload);
+  } catch (e) {
+    console.error("[admin/features]", e);
+    return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+  }
 });
 
 // ─── POST /admin/broadcast ─────────────────────────────────────────────
