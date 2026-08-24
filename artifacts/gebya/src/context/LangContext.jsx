@@ -382,7 +382,6 @@ const EN = {
   tryAgain: 'Try again',
 
   close: 'Close',
-  done: 'Done',
 
   todaysBreakdown: "Today's Breakdown",
   payingVia: 'Paying via',

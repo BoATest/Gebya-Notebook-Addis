@@ -119,7 +119,7 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
         setTimeout(() => loadData(), 1300);
         return;
       }
-      setError(f.length ? `Couldn't load — ${f.join(' · ')}. Tap Retry.` : null);
+      setError(f.length ? `Couldn't load - ${f.join(' · ')}. Tap Retry.` : null);
       setLoading(false);
     });
   };
@@ -164,7 +164,7 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
                 <div className="flex-1 flex items-center gap-1"><span className="w-6 text-right font-bold" style={{ color: 'var(--color-primary)' }}>{day.shops}</span><div className="flex-1"><Bar value={day.shops} max={Math.max(...d.growthTimeline.map(d => d.shops), 1)} /></div></div>
                 <div className="flex-1 flex items-center gap-1"><span className="w-6 text-right font-bold" style={{ color: 'var(--color-accent-amber)' }}>{day.users}</span><div className="flex-1"><Bar value={day.users} max={Math.max(...d.growthTimeline.map(d => d.users), 1)} color='var(--color-accent-amber)' /></div></div>
               </div>
-            ))
+            ))}
           </div>
         </Section>
       </>)}
