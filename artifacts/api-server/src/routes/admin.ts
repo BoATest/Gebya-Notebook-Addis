@@ -12,7 +12,8 @@
  *   GET  /admin/export-shops      — CSV export
  */
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { db, warmDb } from "@workspace/db";
+import { serveCached, warmCache } from "../lib/adminCache.js";
 import {
   users,
   businesses,
@@ -87,9 +88,7 @@ function maskPhone(phone: string | null): string {
 }
 
 // ─── GET /admin/overview ────────────────────────────────────────────────
-router.get("/overview", async (req, res) => {
-  const ctx = await requireAdmin(req);
-  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+async function computeOverview() {
   const now = Date.now();
   const sevenDaysAgo = daysAgo(7);
   const oneDayAgo = daysAgo(1);
@@ -198,7 +197,7 @@ router.get("/overview", async (req, res) => {
     });
   }
 
-  return res.json({
+  return {
     ok: true, generatedAt: new Date().toISOString(),
     platformNumbers: { shops: allBusinesses.length, users: allUsers.length, devices: allDevices.length, transactions: allTransactionsCount, totalSalesBirr: totalSales, totalCreditBirr: totalCredit },
     onboardingFunnel: { registered: allUsers.length, createdShop: allBusinesses.length, madeFirstTxn: shopsWithTxn.size, activeWeek: shopsActiveWeek.size, activeToday: shopsActiveToday.size },
@@ -209,13 +208,18 @@ router.get("/overview", async (req, res) => {
     backupHealth: { shopsBackedUp: Object.keys(latestBackups).length, shopsNeverBackedUp: allUsers.length - Object.keys(latestBackups).length, backupRate: allUsers.length > 0 ? Math.round((Object.keys(latestBackups).length / allUsers.length) * 100) : 0 },
     systemHealth: { staleDevices, totalDevices: allDevices.length },
     growthTimeline,
-  });
+  };
+}
+
+router.get("/overview", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  const payload = await serveCached("admin:overview", computeOverview);
+  return res.json(payload);
 });
 
 // ─── GET /admin/shops ──────────────────────────────────────────────────
-router.get("/shops", async (req, res) => {
-  const ctx = await requireAdmin(req);
-  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+async function computeShops(req: any) {
   const sevenDaysAgo = daysAgo(7);
   const [allBusinesses, allUsers, txAgg, ctAgg] = await Promise.all([
     db.select().from(businesses),
@@ -260,7 +264,15 @@ router.get("/shops", async (req, res) => {
   const offset = Math.max(Number(req.query.offset) || 0, 0);
   const total = shopStats.length;
   const page = shopStats.slice(offset, offset + limit);
-  return res.json({ ok: true, shops: page, total, limit, offset });
+  return { ok: true, shops: page, total, limit, offset };
+}
+
+router.get("/shops", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  const key = `admin:shops:${Number(req.query.limit) || ""}:${Number(req.query.offset) || 0}`;
+  const payload = await serveCached(key, () => computeShops(req));
+  return res.json(payload);
 });
 
 // ─── Team members (dynamic platform-admin allowlist) ──────────────────────
@@ -577,9 +589,7 @@ router.post("/shops/:businessId/resend-reminders", async (req, res) => {
 // Operational "problems & friction" signals across the platform so the
 // Gebya team can find shops that need help (no activity, no Telegram, failed
 // reminder deliveries, SMS issues, orphaned businesses, etc).
-router.get("/frictions", async (req, res) => {
-  const ctx = await requireAdmin(req);
-  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+async function computeFrictions() {
   const sevenDaysAgo = daysAgo(7);
 
   const [allBusinesses, allMembers, allUsers, custAgg, txAgg, ctAgg] = await Promise.all([
@@ -662,7 +672,7 @@ router.get("/frictions", async (req, res) => {
       return { ...sample(biz), failures };
     });
 
-  return res.json({
+  return {
     ok: true,
     generatedAt: new Date().toISOString(),
     smsEnabled: isSmsEnabled(),
@@ -684,13 +694,18 @@ router.get("/frictions", async (req, res) => {
       onboardingStuck: onboardingStuck.slice(0, 15),
       deliveryFailures,
     },
-  });
+  };
+}
+
+router.get("/frictions", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  const payload = await serveCached("admin:frictions", computeFrictions);
+  return res.json(payload);
 });
 
 // ─── GET /admin/features ───────────────────────────────────────────────
-router.get("/features", async (req, res) => {
-  const ctx = await requireAdmin(req);
-  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+async function computeFeatures() {
   const [creditBiz, supplierBiz, telegramBiz, pmAgg, typeAgg, srcAgg] = await Promise.all([
     db.selectDistinct({ businessId: customerTransactions.businessId }).from(customerTransactions),
     db.selectDistinct({ businessId: supplierTransactions.businessId }).from(supplierTransactions),
@@ -712,7 +727,14 @@ router.get("/features", async (req, res) => {
   const paymentMethods = toRecord(pmAgg);
   const txnTypes = toRecord(typeAgg);
   const sources = toRecord(srcAgg);
-  return res.json({ ok: true, features: { shopsUsingCredit: shopsUsing.credit.size, shopsUsingSuppliers: shopsUsing.suppliers.size, shopsUsingTelegram: shopsUsing.telegram.size }, paymentMethods, transactionTypes: txnTypes, sources });
+  return { ok: true, features: { shopsUsingCredit: shopsUsing.credit.size, shopsUsingSuppliers: shopsUsing.suppliers.size, shopsUsingTelegram: shopsUsing.telegram.size }, paymentMethods, transactionTypes: txnTypes, sources };
+}
+
+router.get("/features", async (req, res) => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) return res.status(401).json({ error: "Admin access required" });
+  const payload = await serveCached("admin:features", computeFeatures);
+  return res.json(payload);
 });
 
 // ─── POST /admin/broadcast ─────────────────────────────────────────────
@@ -789,6 +811,28 @@ router.get("/export-shops", async (req, res) => {
     console.error('[admin/export-shops]', e);
     return res.status(500).json({ error: 'Internal server error', detail: e instanceof Error ? e.message : String(e) });
   }
+});
+
+// ─── GET /admin/warmup ─────────────────────────────────────────────────
+// Pre-heats the DB connection and all dashboard caches so the next admin
+// load is served instantly. Protected by ADMIN_WARMUP_SECRET (query, header,
+// or Vercel cron Bearer token). Intended to be hit by a scheduled cron.
+router.get("/warmup", async (req, res) => {
+  const secret =
+    (req.query.secret as string | undefined) ||
+    (req.headers["x-warmup-secret"] as string | undefined) ||
+    (req.headers["authorization"] as string | undefined)?.replace(/^Bearer\s+/i, "");
+  if (!process.env.ADMIN_WARMUP_SECRET || secret !== process.env.ADMIN_WARMUP_SECRET) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  const results = await Promise.all([
+    warmDb().then((ok) => ({ db: ok })),
+    warmCache("admin:overview", computeOverview),
+    warmCache("admin:shops:500:0", () => computeShops({ query: {} })),
+    warmCache("admin:features", computeFeatures),
+    warmCache("admin:frictions", computeFrictions),
+  ]);
+  return res.json({ ok: true, results });
 });
 
 export default router;
