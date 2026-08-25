@@ -1,95 +1,22 @@
 // shopStory.js — The brain that tells the owner what's happening.
 //
 // Every function answers ONE question:
-//   computeShopStory    → "Is my shop okay?"
-//   computeMoneySummary → "Where is my money?"
-//   computeSalesSummary → "What did we sell?"
-//   computeCreditSummary → "Who owes me?"
-//   computeStaffSummary → "How is everyone doing?"
+//   computeSalesSummary   → "What did we sell?"
+//   computeCreditSummary  → "Who owes me?"
+//   computeStaffSummary   → "How is everyone doing?"
 //   computeAttentionItems → "What needs me?"
-//   computeTimeline     → "What happened today?"
-//   computeShopDiary    → "What should I remember?"
+//   computeHeroStatus     → "Am I okay?" (single sentence + CTA)
+//   computeTodayStory     → "What should I remember today?"
+//   computeRecommendations→ "What should I know?"
+//   computePeriodVerdict  → "How was this period vs the last one?"
 //
 // All functions are pure — no side effects, no database calls.
 // Input: pre-computed rows and metrics from reportSelectors.js.
 // Output: structured objects ready for rendering.
 
-import { amountOf, isTransferPayment, actorName } from './reportSelectors';
+import { amountOf, isTransferPayment } from './reportSelectors.js';
 
 const DAY_MS = 86400000;
-
-// ─── SHOP STORY ──────────────────────────────────────────────
-// "Is my shop okay?"
-
-export function computeShopStory({
-  metrics,
-  priorMetrics = null,
-  overdueCount = 0,
-  overdueRatio = 0,
-  closingDone = false,
-  cashVariance = 0,
-  lang = 'en',
-}) {
-  const hasOverdue = overdueCount > 0;
-  const cashMismatch = closingDone && Math.abs(cashVariance) > (metrics.cashExpected || 1) * 0.05;
-  const salesCrash = priorMetrics && priorMetrics.totalSold > 0 && metrics.totalSold < priorMetrics.totalSold * 0.5;
-
-  // Build observations — plain sentences, no judgments
-  const observations = [];
-
-  // Sales count
-  const salesCount = metrics.saleRows?.length || 0;
-  if (salesCount === 0) {
-    observations.push(
-      lang === 'am' ? 'ዛሬ ምንም ሽያጅ አልተመዘገበም' : 'No sales recorded today'
-    );
-  }
-
-  // Credit
-  if (hasOverdue) {
-    observations.push(
-      lang === 'am'
-        ? `${overdueCount} ደንበኛ ዕዳ አለባቸው`
-        : `${overdueCount} customer${overdueCount !== 1 ? 's' : ''} still owe`
-    );
-  }
-
-  // Cash
-  if (closingDone) {
-    if (cashMismatch) {
-      observations.push(
-        lang === 'am' ? 'ገንዘብ ከመዝገብ ጋር አይጣጣምም' : 'Cash does not match records'
-      );
-    } else {
-      observations.push(
-        lang === 'am' ? 'ገንዘብ ከመዝገብ ጋር ይጣጣማል' : 'Cash matches records'
-      );
-    }
-  }
-
-  return { observations };
-}
-
-// ─── MONEY SUMMARY ───────────────────────────────────────────
-// "Where is my money?"
-
-export function computeMoneySummary(metrics, lang = 'en') {
-  const cashExpected = metrics.cashExpected || 0;
-  const transferRecorded = metrics.transferRecorded || 0;
-  const creditExtended = metrics.newDubie || 0;
-  const creditCollected = metrics.creditCollected || 0;
-  const expenses = metrics.spentToday || 0;
-  const sales = metrics.totalSold || 0;
-
-  return {
-    sales,
-    expenses,
-    cashExpected,
-    transferRecorded,
-    creditExtended,
-    creditCollected,
-  };
-}
 
 // ─── SALES SUMMARY ───────────────────────────────────────────
 // "What did we sell?"
@@ -228,7 +155,7 @@ export function computeAttentionItems({
       severity: 'urgent',
       message: lang === 'am' ? 'ገንዘብ አይዛመድም' : 'Cash does not match',
       detail: `${fmt(Math.abs(cashVariance))} ETB ${direction}`,
-      action: lang === 'am' ? '_firestore' : 'Review',
+      action: lang === 'am' ? '🔍 መመርመር' : 'Review',
       actionType: 'secondary',
     });
   }
@@ -280,103 +207,57 @@ export function computeAttentionItems({
   return items;
 }
 
-// ─── TIMELINE ────────────────────────────────────────────────
-// "What happened today?"
-
-export function computeTimeline(rows = [], lang = 'en') {
-  return rows.slice(0, 20).map(row => ({
-    id: row.report_id || row.id,
-    time: row.created_at,
-    label: row.title || row.item_name || row.customer_name || (lang === 'am' ? 'መዝገብ' : 'Record'),
-    amount: amountOf(row),
-    kind: row.report_kind || row.type,
-    payment: isTransferPayment(row) ? 'transfer' : 'cash',
-    staff: actorName(row),
-  }));
-}
-
-// ─── SHOP DIARY ──────────────────────────────────────────────
-// "What should I remember?"
-
-export function computeShopDiary({
-  metrics,
-  topItem = null,
-  overdueCount = 0,
-  closingDone = false,
-  cashMismatch = false,
-  staffSummary = null,
-  lang = 'en',
-}) {
-  const salesCount = metrics.saleRows?.length || 0;
-  const totalSold = metrics.totalSold || 0;
-
-  if (lang === 'am') {
-    const parts = [];
-
-    if (salesCount === 0) {
-      parts.push('ዛሬ ምንም ሽያጭ አልተከናወነም');
-    } else if (salesCount <= 5) {
-      parts.push('ዛሬ ጥቂት ሽያጮች ተመዝግበዋል');
-    } else if (salesCount <= 15) {
-      parts.push('ዛሬ መጠነኛ ሥራ ነበር');
-    } else {
-      parts.push('ዛሬ ሥራ የበዛበት ቀን ነበር');
-    }
-
-    if (topItem) {
-      parts.push(`${topItem.name} በብዛት ተሽጧል`);
-    }
-
-    if (closingDone && !cashMismatch) {
-      parts.push('ገንዘብ በትክክል ተጣጥሟል');
-    } else if (closingDone && cashMismatch) {
-      parts.push('ገንዘብ አልተጣጣመም');
-    }
-
-    if (overdueCount > 0) {
-      parts.push(`${overdueCount} ደንበኞች ዕዳ አለባቸው`);
-    }
-
-    return parts.join('። ') + '።';
-  }
-
-  // English diary
-  const parts = [];
-
-  if (salesCount === 0) {
-    parts.push('Quiet day — no sales recorded');
-  } else if (salesCount <= 5) {
-    parts.push('Slow day');
-  } else if (salesCount <= 15) {
-    parts.push('Busy day');
-  } else {
-    parts.push('Very strong day');
-  }
-
-  if (topItem) {
-    parts.push(`${topItem.name} sold the most`);
-  }
-
-  if (closingDone && !cashMismatch) {
-    parts.push('Cash matched perfectly');
-  } else if (closingDone && cashMismatch) {
-    parts.push('Cash did not match — needs review');
-  }
-
-  if (overdueCount > 0) {
-    parts.push(`${overdueCount} customer${overdueCount !== 1 ? 's' : ''} still owe`);
-  }
-
-  if (staffSummary && staffSummary.count > 0) {
-    parts.push(`${staffSummary.count} staff member${staffSummary.count !== 1 ? 's' : ''} on duty`);
-  }
-
-  return parts.join('. ') + '.';
-}
-
 // Helper: format number (inline to avoid circular dependency)
 function fmt(n) {
   return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// ─── PERIOD VERDICT ──────────────────────────────────────────
+// "How was this period vs the last one?" — one plain sentence.
+// Returns { text, tone } like computeRecommendations.
+
+export function computePeriodVerdict({ current = null, previous = null, lang = 'en' }) {
+  const cur = Number(current?.totalSold || 0);
+  const prev = Number(previous?.totalSold || 0);
+
+  if (prev <= 0 && cur <= 0) {
+    return {
+      tone: 'neutral',
+      text: lang === 'am' ? 'በዚህ ጊዜ ምንም ሽያጭ አልነበረም' : 'No sales in this period.',
+    };
+  }
+  if (prev <= 0) {
+    return {
+      tone: 'positive',
+      text: lang === 'am'
+        ? `${fmt(cur)} ETB ሽያጭ — ከቀዳሚ ጊዜ ጋር ለማነጻጸር አዲስ ነው`
+        : `${fmt(cur)} ETB in sales — nothing to compare with yet.`,
+    };
+  }
+
+  const pct = Math.round(((cur - prev) / prev) * 100);
+  if (pct > 10) {
+    return {
+      tone: 'positive',
+      text: lang === 'am'
+        ? `${fmt(cur)} ETB — ከቀዳሚ ጊዜ ${pct}% ጨምሯል 📈`
+        : `${fmt(cur)} ETB — ${pct}% more than last period 📈`,
+    };
+  }
+  if (pct < -10) {
+    return {
+      tone: 'warning',
+      text: lang === 'am'
+        ? `${fmt(cur)} ETB — ከቀዳሚ ጊዜ ${Math.abs(pct)}% ቀንሷል 📉`
+        : `${fmt(cur)} ETB — ${Math.abs(pct)}% less than last period 📉`,
+    };
+  }
+  return {
+    tone: 'neutral',
+    text: lang === 'am'
+      ? `${fmt(cur)} ETB — ከቀዳሚ ጊዜ ጋር ተመሳሳይ ነው`
+      : `${fmt(cur)} ETB — about the same as last period.`,
+  };
 }
 
 // ─── HERO STATUS ──────────────────────────────────────────────
@@ -547,7 +428,11 @@ export function computeTodayStory({
 }
 
 // ─── RECOMMENDATIONS ──────────────────────────────────────────
-// "What should I know?" — 4 insight sentences
+// "What should I know?" — up to 4 insight sentences.
+// Each rec carries a tone so the UI can colour-code it:
+//   'positive' → things going well (green)
+//   'warning'  → needs attention (amber)
+//   'neutral'  → plain observation
 
 export function computeRecommendations({
   metrics,
@@ -566,17 +451,26 @@ export function computeRecommendations({
     const diff = totalSold - priorMetrics.totalSold;
     const pct = Math.round((diff / priorMetrics.totalSold) * 100);
     if (pct > 20) {
-      recs.push(lang === 'am'
-        ? `ሽያጭ ከትናንት ${pct}% ጨምሯል`
-        : `Sales are ${pct}% higher than yesterday.`);
+      recs.push({
+        tone: 'positive',
+        text: lang === 'am'
+          ? `ሽያጭ ከትናንት ${pct}% ጨምሯል`
+          : `Sales are ${pct}% higher than yesterday.`,
+      });
     } else if (pct < -20) {
-      recs.push(lang === 'am'
-        ? `ሽያጭ ከትናንት ${Math.abs(pct)}% ቀንሷል`
-        : `Sales are ${Math.abs(pct)}% lower than yesterday.`);
+      recs.push({
+        tone: 'warning',
+        text: lang === 'am'
+          ? `ሽያጭ ከትናንት ${Math.abs(pct)}% ቀንሷል`
+          : `Sales are ${Math.abs(pct)}% lower than yesterday.`,
+      });
     } else {
-      recs.push(lang === 'am'
-        ? `ሽያጭ ከትናንት ጋር ሲነጻጸር የተረጋጋ ነው`
-        : `Sales are stable compared to yesterday.`);
+      recs.push({
+        tone: 'neutral',
+        text: lang === 'am'
+          ? `ሽያጭ ከትናንት ጋር ሲነጻጸር የተረጋጋ ነው`
+          : `Sales are stable compared to yesterday.`,
+      });
     }
   }
 
@@ -590,35 +484,50 @@ export function computeRecommendations({
   const topItems = Array.from(byItem.entries()).sort((a, b) => b[1] - a[1]);
   if (topItems.length > 0) {
     const [topName, topAmount] = topItems[0];
-    recs.push(lang === 'am'
-      ? `${topName} በብዛት ተሽጧል፦ ${fmt(topAmount)} ETB`
-      : `${topName} sold the most: ${fmt(topAmount)} ETB.`);
+    recs.push({
+      tone: 'positive',
+      text: lang === 'am'
+        ? `${topName} በብዛት ተሽጧል፦ ${fmt(topAmount)} ETB`
+        : `${topName} sold the most: ${fmt(topAmount)} ETB.`,
+    });
   }
 
   // Staff insight
   if (staffSummary?.staff?.length > 1) {
     const top = staffSummary.staff[0];
-    recs.push(lang === 'am'
-      ? `${top.name} ${top.sold} ETB ሸጠዋል — ከፍተኛ ሻጭ`
-      : `${top.name} sold ${fmt(top.sold)} ETB — top seller today.`);
+    recs.push({
+      tone: 'neutral',
+      text: lang === 'am'
+        ? `${top.name} ${top.sold} ETB ሸጠዋል — ከፍተኛ ሻጭ`
+        : `${top.name} sold ${fmt(top.sold)} ETB — top seller today.`,
+    });
   }
 
   // Debt collection insight
   if (creditCollected > 0) {
-    recs.push(lang === 'am'
-      ? `${fmt(creditCollected)} ETB ዕዳ ሰብስበሃል`
-      : `You collected ${fmt(creditCollected)} ETB in old debts. Good job!`);
+    recs.push({
+      tone: 'positive',
+      text: lang === 'am'
+        ? `${fmt(creditCollected)} ETB ዕዳ ሰብስበሃል`
+        : `You collected ${fmt(creditCollected)} ETB in old debts. Good job!`,
+    });
   } else if (overdueCount > 0) {
-    recs.push(lang === 'am'
-      ? `${overdueCount} ደንበኛ ዕዳ አለባቸው — ማስታወስ ያስፈልጋል`
-      : `${overdueCount} customer${overdueCount !== 1 ? 's' : ''} still owe — send reminders.`);
+    recs.push({
+      tone: 'warning',
+      text: lang === 'am'
+        ? `${overdueCount} ደንበኛ ዕዳ አለባቸው — ማስታወስ ያስፈልጋል`
+        : `${overdueCount} customer${overdueCount !== 1 ? 's' : ''} still owe — send reminders.`,
+    });
   }
 
-  // Pad to at least 2
+  // Pad to at least 1
   if (recs.length === 0) {
-    recs.push(lang === 'am'
-      ? 'ዛሬ ምንም ልዩ ነገር አልተስተዋለም'
-      : 'Nothing unusual to report today.');
+    recs.push({
+      tone: 'neutral',
+      text: lang === 'am'
+        ? 'ዛሬ ምንም ልዩ ነገር አልተስተዋለም'
+        : 'Nothing unusual to report today.',
+    });
   }
 
   return recs.slice(0, 4);

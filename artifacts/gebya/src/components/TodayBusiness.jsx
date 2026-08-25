@@ -2,12 +2,16 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { fmt } from '../utils/numformat';
+import MoneyFlowBar from './MoneyFlowBar';
 
 export default function TodayBusiness({
   metrics,
   closingState,
   lang,
   onClose,
+  showClosing = true,
+  selfCheck = false,
+  personName = null,
 }) {
   const { hidden } = usePrivacy();
   const [expanded, setExpanded] = useState(false);
@@ -52,13 +56,28 @@ export default function TodayBusiness({
             ETB {H(total)}
           </p>
           <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', marginTop: 2 }}>
-            {lang === 'am'
-              ? `ዛሬ ጠቅላላ ሽያጭ${staffCount > 0 ? ` (${staffCount + 1} ሰው)` : ''}`
-              : `Total sales${staffCount > 0 ? ` (you + ${staffCount} staff)` : ''}`}
+            {personName
+              ? `${personName}${lang === 'am' ? ' · የዛሬ ሽያጭ' : " · today's sales"}`
+              : (lang === 'am'
+                ? `ዛሬ ጠቅላላ ሽያጭ${staffCount > 0 ? ` (${staffCount + 1} ሰው)` : ''}`
+                : `Total sales${staffCount > 0 ? ` (you + ${staffCount} staff)` : ''}`)}
           </p>
         </div>
         {expanded ? <ChevronUp className="w-4 h-4" style={{ color: 'var(--color-text-soft)' }} /> : <ChevronDown className="w-4 h-4" style={{ color: 'var(--color-text-soft)' }} />}
       </button>
+
+      {/* Money map — visible without expanding, so "where is my money"
+          answers itself at a glance. Hidden in privacy mode. */}
+      {!hidden && (
+        <div style={{ padding: '0 16px 12px' }}>
+          <MoneyFlowBar
+            cash={cashExpected}
+            digital={digital}
+            owed={(m.newDubie || 0) + (m.partialRemaining || 0)}
+            lang={lang}
+          />
+        </div>
+      )}
 
       {expanded && (
         <div style={{ padding: '0 16px 14px', borderTop: '1px solid var(--color-bg-hover)', paddingTop: 10 }}>
@@ -82,7 +101,7 @@ export default function TodayBusiness({
           )}
           <div style={{ height: 1, background: 'var(--color-bg-disabled)', margin: '6px 0' }} />
           <Row label={lang === 'am' ? '💵 ሊኖርህ የሚገባ ገንዘብ' : '💵 Cash you should have'} value={cashYouShouldHave} hidden={hidden} bold />
-          {closingState.done && (
+          {showClosing && closingState.done && (
             <>
               <Row label={lang === 'am' ? '↓ በእጅህ ያለ ገንዘብ' : '↓ Cash in hand'} value={closingState.cashInHand || 0} hidden={hidden} />
               <Row
@@ -94,10 +113,12 @@ export default function TodayBusiness({
               />
             </>
           )}
-          {!closingState.done && (
+          {showClosing && !closingState.done && (
             <div style={{ marginTop: 8 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>
-                {lang === 'am' ? 'በእጅህ ያለ ገንዘብ' : 'Cash in hand'}
+                {selfCheck
+                  ? (lang === 'am' ? 'የቆጠርኩት ጥሬ ገንዘብ' : 'Cash I counted')
+                  : (lang === 'am' ? 'በእጅህ ያለ ገንዘብ' : 'Cash in hand')}
               </label>
               <div style={{ display: 'flex', gap: 6 }}>
                 <input
@@ -123,7 +144,9 @@ export default function TodayBusiness({
                     fontSize: 12, fontWeight: 800, cursor: 'pointer',
                   }}
                 >
-                  {lang === 'am' ? 'ዝጋ' : 'Close'}
+                  {selfCheck
+                    ? (lang === 'am' ? 'አረጋግጥ' : 'Check')
+                    : (lang === 'am' ? 'ዝጋ' : 'Close')}
                 </button>
               </div>
             </div>

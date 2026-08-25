@@ -237,13 +237,13 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
                            className="px-2 py-1 rounded-lg text-[10px] font-bold"
                            style={{ background: 'var(--color-primary)', color: 'var(--color-bg-white)' }}
                          >
-                           {lang === 'am' ? 'መመܩት' : 'Open'}
+                           {lang === 'am' ? 'ክፈት' : 'Open'}
                          </button>
                        </td>
                      </tr>
                    ))}
                     {shops.shops.length === 0 && (
-                     <tr><td colSpan={6} className="py-3 text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ምንም ሱቅ አልተፈጸም' : 'No shops found'}</td></tr>
+                     <tr><td colSpan={6} className="py-3 text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ምንም ሱቅ አልተገኘም' : 'No shops found'}</td></tr>
                    )}
                  </tbody>
                  </table>
@@ -254,11 +254,10 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
                   className="mt-2 w-full py-2 rounded-xl text-xs font-bold"
                   style={{ background: 'var(--color-surface-subtle)', color: 'var(--color-text)' }}
                 >
-                  {lang === 'am' ? 'ተጨማሪ ሂያ' : 'Load more'}
+                  {lang === 'am' ? 'ተጨማሪ ጫን' : 'Load more'}
                 </button>
               )}
-            </div>
-         </Section>
+          </Section>
        )}
 
       {tab === 'features' && features && (<>

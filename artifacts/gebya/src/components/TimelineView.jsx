@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { Search, X } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 import { fmt } from '../utils/numformat';
 import { formatEthiopianTime } from '../utils/ethiopianCalendar';
@@ -13,25 +12,12 @@ export default function TimelineView({
   onEdit,
 }) {
   const { hidden } = usePrivacy();
-  const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
 
   const filtered = useMemo(() => {
-    let rows = reportRows;
-    if (activeFilter !== 'all') {
-      rows = rows.filter(r => r.report_kind === activeFilter);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      rows = rows.filter(r =>
-        (r.title || '').toLowerCase().includes(q) ||
-        (r.item_name || '').toLowerCase().includes(q) ||
-        (r.customer_name || '').toLowerCase().includes(q) ||
-        String(r.amount || '').includes(q)
-      );
-    }
-    return rows;
-  }, [reportRows, searchQuery, activeFilter]);
+    if (activeFilter === 'all') return reportRows;
+    return reportRows.filter(r => r.report_kind === activeFilter);
+  }, [reportRows, activeFilter]);
 
   const filterLabels = {
     all: lang === 'am' ? 'ሁሉም' : 'All',
@@ -59,43 +45,9 @@ export default function TimelineView({
 
   return (
     <div style={{ marginTop: 4 }}>
-      {/* Search bar */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-        <div style={{ flex: 1, position: 'relative' }}>
-          <Search className="w-4 h-4" style={{
-            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
-            color: 'var(--color-text-soft)',
-          }} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder={lang === 'am' ? 'ፈልግ...' : 'Search entries...'}
-            style={{
-              width: '100%',
-              minHeight: 36,
-              padding: '4px 10px 4px 32px',
-              border: '1px solid var(--color-bg-disabled)',
-              borderRadius: 10,
-              fontSize: 12,
-              fontWeight: 600,
-              outline: 'none',
-              background: 'var(--color-surface-subtle)',
-            }}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              style={{
-                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                background: 'none', border: 'none', cursor: 'pointer', padding: 2,
-              }}
-            >
-              <X className="w-3.5 h-3.5" style={{ color: 'var(--color-text-soft)' }} />
-            </button>
-          )}
-        </div>
+      {/* Export — text search lives in the notebook's main search
+          (one search for everything: entries, customers, items). */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
         <button
           type="button"
           onClick={handleExport}
@@ -110,35 +62,40 @@ export default function TimelineView({
         </button>
       </div>
 
-      {/* Filter chips */}
+      {/* Filter chips — counts help semi-literate users scan at a glance */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
-        {FILTERS.map(f => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => setActiveFilter(f)}
-            style={{
-              padding: '4px 10px',
-              borderRadius: 999,
-              border: 'none',
-              background: activeFilter === f ? 'var(--color-primary)' : 'var(--color-bg-hover)',
-              color: activeFilter === f ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
-              fontSize: 11,
-              fontWeight: 800,
-              cursor: 'pointer',
-            }}
-          >
-            {filterLabels[f]}
-          </button>
-        ))}
+        {FILTERS.map(f => {
+          const count = f === 'all'
+            ? reportRows.length
+            : reportRows.filter(r => r.report_kind === f).length;
+          return (
+            <button
+              key={f}
+              type="button"
+              aria-pressed={activeFilter === f}
+              onClick={() => setActiveFilter(f)}
+              style={{
+                padding: '5px 11px',
+                borderRadius: 999,
+                border: 'none',
+                background: activeFilter === f ? 'var(--color-primary)' : 'var(--color-bg-hover)',
+                color: activeFilter === f ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
+                fontSize: 11,
+                fontWeight: 800,
+                cursor: 'pointer',
+                minHeight: 30,
+              }}
+            >
+              {filterLabels[f]} {count > 0 ? `· ${count}` : ''}
+            </button>
+          );
+        })}
       </div>
 
       {/* Entries */}
       {filtered.length === 0 ? (
         <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-soft)', textAlign: 'center', padding: '20px 0' }}>
-          {searchQuery
-            ? (lang === 'am' ? 'ምንም አልተገኘም' : 'No matching entries')
-            : (lang === 'am' ? 'ምንም እንቅስቃሴ የለም' : 'No entries yet')}
+          {lang === 'am' ? 'ምንም እንቅስቃሴ የለም' : 'No entries yet'}
         </p>
       ) : (
         <div style={{ background: 'var(--color-surface)', borderRadius: 12, border: '1px solid var(--color-border)', overflow: 'hidden' }}>
@@ -147,27 +104,36 @@ export default function TimelineView({
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: '10px 14px',
+              padding: '11px 14px',
+              minHeight: 44,
+              boxSizing: 'border-box',
               borderBottom: i < filtered.length - 1 ? '1px solid var(--color-bg-hover)' : 'none',
               cursor: onEdit ? 'pointer' : 'default',
             }}
               onClick={() => onEdit?.(row)}
             >
-              <span style={{ fontSize: 14, flexShrink: 0 }}>
+              <span aria-hidden="true" style={{ fontSize: 16, flexShrink: 0 }}>
                 {kindEmoji[row.report_kind] || '📄'}
               </span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)', truncate: true }}>
+                <p style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: 'var(--color-text)',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
                   {row.title || row.item_name || row.customer_name || (lang === 'am' ? 'መዝገብ' : 'Record')}
                 </p>
-                <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--color-text-soft)', marginTop: 1 }}>
+                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-soft)', marginTop: 1 }}>
                   {row.created_at ? formatEthiopianTime(row.created_at) : ''}
                   {row.actor_name ? ` · ${row.actor_name}` : ''}
                   {` · ${paymentLabel(row)}`}
                 </p>
               </div>
               <span style={{
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: 800,
                 color: row.report_kind === 'expense' ? 'var(--color-danger)' : 'var(--color-success)',
                 flexShrink: 0,

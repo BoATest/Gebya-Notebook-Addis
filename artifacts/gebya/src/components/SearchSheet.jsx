@@ -22,6 +22,7 @@ export default function SearchSheet({
 }) {
   const [query, setQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
+  const [timeScope, setTimeScope] = useState('any');
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function SearchSheet({
       if (itemName.includes(q) || amount.includes(q) || customerName.includes(q) || note.includes(q)) {
         allResults.push({
           id: `tx-${tx.id}`,
-          type: 'sale',
+          type: tx.type === 'expense' ? 'expense' : 'sale',
           kind: tx.type === 'expense' ? 'expense' : 'sale',
           label: tx.item_name || tx.item_note || (tx.type === 'expense' ? 'Expense' : 'Sale'),
           subtitle: tx.customer_name || '',
@@ -63,7 +64,7 @@ export default function SearchSheet({
       if (itemName.includes(q) || amount.includes(q) || customerName.includes(q)) {
         allResults.push({
           id: `ct-${entry.id}`,
-          type: 'credit',
+          type: entry.type === 'payment' ? 'collection' : 'credit',
           kind: entry.type === 'payment' ? 'collection' : 'credit',
           label: entry.item_note || 'Credit',
           subtitle: entry.customer_name || '',
@@ -108,16 +109,35 @@ export default function SearchSheet({
   }, [query, transactions, ledgerTransactions, customers, catalogEntries]);
 
   const filteredResults = useMemo(() => {
-    if (activeFilter === 'all') return results;
-    return results.filter(r => r.type === activeFilter);
-  }, [results, activeFilter]);
+    let out = results;
+    if (activeFilter !== 'all') {
+      out = out.filter(r => r.type === activeFilter);
+    }
+    if (timeScope !== 'any') {
+      const now = new Date();
+      now.setHours(23, 59, 59, 999);
+      const start = timeScope === 'week'
+        ? (() => { const d = new Date(now); d.setDate(d.getDate() - 6); d.setHours(0, 0, 0, 0); return d.getTime(); })()
+        : (() => { const d = new Date(now); d.setDate(1); d.setHours(0, 0, 0, 0); return d.getTime(); })();
+      out = out.filter(r => !r.time || Number(r.time) >= start);
+    }
+    return out;
+  }, [results, activeFilter, timeScope]);
 
   const filters = [
     { id: 'all', label: lang === 'am' ? 'ሁሉም' : 'All' },
     { id: 'sale', label: lang === 'am' ? 'ሽያጭ' : 'Sales' },
+    { id: 'expense', label: lang === 'am' ? 'ወጪ' : 'Expenses' },
     { id: 'credit', label: lang === 'am' ? 'ዱቤ' : 'Credit' },
+    { id: 'collection', label: lang === 'am' ? 'መሰብሰብ' : 'Collections' },
     { id: 'customer', label: lang === 'am' ? 'ደንበኛ' : 'Customers' },
     { id: 'item', label: lang === 'am' ? 'እቃ' : 'Items' },
+  ];
+
+  const scopes = [
+    { id: 'any', label: lang === 'am' ? 'በሙሉ ጊዜ' : 'Any time' },
+    { id: 'week', label: lang === 'am' ? 'በዚህ ሳምንት' : 'This week' },
+    { id: 'month', label: lang === 'am' ? 'በዚህ ወር' : 'This month' },
   ];
 
   return (
@@ -216,6 +236,32 @@ export default function SearchSheet({
           </div>
         ) : (
           <>
+            {/* Time scope — one search covers all history by default,
+                narrowable to this week or month */}
+            <div style={{ display: 'flex', gap: 4, marginBottom: 6, overflowX: 'auto' }}>
+              {scopes.map(s => (
+                <button
+                  key={s.id}
+                  type="button"
+                  aria-pressed={timeScope === s.id}
+                  onClick={() => setTimeScope(s.id)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 999,
+                    border: timeScope === s.id ? '1px solid var(--color-primary)' : '1px solid var(--color-bg-disabled)',
+                    background: timeScope === s.id ? 'var(--color-primary)' : 'var(--color-surface)',
+                    color: timeScope === s.id ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
+                    fontSize: 10.5,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  🕐 {s.label}
+                </button>
+              ))}
+            </div>
+
             {/* Filter chips */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 10, overflowX: 'auto' }}>
               {filters.map(f => (
@@ -241,6 +287,11 @@ export default function SearchSheet({
             </div>
 
             {/* Results */}
+            {query && filteredResults.length > 0 && (
+              <p style={{ fontSize: 10, fontWeight: 800, color: 'var(--color-text-soft)', margin: '0 0 4px' }}>
+                {filteredResults.length} {lang === 'am' ? 'ተገኝተዋል' : 'found'}
+              </p>
+            )}
             <div style={{ overflowY: 'auto', flex: 1 }}>
               {filteredResults.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '24px 0' }}>

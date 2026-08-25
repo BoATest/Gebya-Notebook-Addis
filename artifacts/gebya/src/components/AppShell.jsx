@@ -2152,18 +2152,14 @@ export default function AppShell() {
             transactions={transactions}
             ledgerTransactions={ledgerTransactions}
             enrichedCustomerSummaries={enrichedCustomerSummaries}
-            customerSummaries={customerSummaries}
-            supplierSummaries={supplierSummaries}
             customers={ledgerCustomers}
-            suppliers={suppliers}
             shopProfile={shopProfile}
             onEdit={setEditTarget}
-            onChaseOverdue={() => {
-              setActiveTab('credit');
-              setCreditView('customers');
-            }}
             onShareReport={handleShareCustomReport}
             catalogEntries={activeCatalogEntries}
+            staffMembers={staffMembers}
+            canSwitchPeople={canManageTeam}
+            myStaffId={activeStaffMemberId}
           />
           </ErrorBoundary>
         )}

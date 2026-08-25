@@ -1,17 +1,26 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
-import { Eye, EyeOff, Search } from 'lucide-react';
+import { Eye, EyeOff, Search, Share2 } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { usePrivacy } from '../context/PrivacyContext';
-import { getCurrentEthiopianDate } from '../utils/ethiopianCalendar';
+import { getCurrentEthiopianDate, formatEthiopianShort } from '../utils/ethiopianCalendar';
 import { useTimeOfDay } from '../hooks/useTimeOfDay';
 import {
   ALL_SCOPE,
+  OWNER_SCOPE,
   buildReportRows,
   buildStaffReportRows,
   computeReportMetrics,
   startOfLocalDay,
+  amountOf,
+  collectedAmount,
 } from '../utils/reportSelectors';
-import { computeCreditSummary, computeStaffSummary } from '../utils/shopStory';
+import {
+  computeCreditSummary,
+  computeStaffSummary,
+  computeSalesSummary,
+  computePeriodVerdict,
+} from '../utils/shopStory';
+import { fmt } from '../utils/numformat';
 
 import HeroStatus from './HeroStatus';
 import TodayBusiness from './TodayBusiness';
@@ -19,10 +28,13 @@ import DoThisNext from './DoThisNext';
 import WhatINoticed from './WhatINoticed';
 import TodayStory from './TodayStory';
 import TimelineView from './TimelineView';
+import PeriodInsights from './PeriodInsights';
 import SearchSheet from './SearchSheet';
 import ErrorBoundary from './report/ErrorBoundary';
 
 const DAY_MS = 86400000;
+
+const EMPTY_CLOSING = { done: false, cashVariance: 0, cashInHand: 0, staffReports: {} };
 
 function startOfWeek(ms = Date.now()) {
   const d = new Date(ms);
@@ -72,7 +84,11 @@ export default function ReportView({
   catalogEntries = [],
   shopProfile,
   onEdit,
+  onShareReport,
   scope = ALL_SCOPE,
+  staffMembers = [],
+  canSwitchPeople = false,
+  myStaffId = null,
 }) {
   const { lang } = useLang();
   const { hidden, toggle: togglePrivacy } = usePrivacy();
@@ -93,21 +109,42 @@ export default function ReportView({
   });
   const [showSearchSheet, setShowSearchSheet] = useState(false);
 
+  // ── Per-person day view ──────────────────────────────────────
+  // RBAC: ONLY owner/manager (or explicitly permitted) devices may see
+  // other people's records and switch between them. Everyone else is
+  // locked to their own day — even if their device isn't linked yet
+  // (they then see an empty report instead of shop-wide data).
+  const UNLINKED_SCOPE = '__unlinked__';
+  const isPersonalLocked = !canSwitchPeople;
+  const [selectedPerson, setSelectedPerson] = useState(() => {
+    if (!canSwitchPeople) return String(myStaffId ?? UNLINKED_SCOPE);
+    try { return localStorage.getItem('gebya_report_person') || 'all'; } catch { return 'all'; }
+  });
+  const activePerson = isPersonalLocked ? String(myStaffId ?? UNLINKED_SCOPE) : selectedPerson;
+  const selectPerson = useCallback((id) => {
+    if (isPersonalLocked) return;
+    setSelectedPerson(id);
+    try { localStorage.setItem('gebya_report_person', id); } catch {}
+  }, [isPersonalLocked]);
+  const isPersonScoped = activePerson !== 'all';
+  const effectiveScope = activePerson === 'all' ? scope : activePerson;
+
+  const activePersonName = useMemo(() => {
+    if (!isPersonScoped) return '';
+    if (activePerson === OWNER_SCOPE) return lang === 'am' ? 'ባለቤት' : 'Owner';
+    const member = (staffMembers || []).find(m => String(m.id) === String(activePerson));
+    return member?.display_name || member?.name || '';
+  }, [activePerson, isPersonScoped, staffMembers, lang]);
+
+  const switchablePeople = useMemo(() => {
+    if (!canSwitchPeople) return [];
+    return (staffMembers || [])
+      .filter(m => m && m.id != null)
+      .map(m => ({ id: String(m.id), name: m.display_name || m.name || '?' }));
+  }, [canSwitchPeople, staffMembers]);
+
   const now = Date.now();
   const todayStart = startOfLocalDay(now);
-
-  const closingKey = `gebya_closing_${todayStart}`;
-  const [closingState, setClosingState] = useState(() => {
-    try {
-      const saved = localStorage.getItem(closingKey);
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return { done: false, cashVariance: 0, cashInHand: 0, staffReports: {} };
-  });
-
-  useEffect(() => {
-    try { localStorage.setItem(closingKey, JSON.stringify(closingState)); } catch {}
-  }, [closingKey, closingState]);
 
   const { period } = useTimeOfDay();
   const isToday = timeRange === 'today';
@@ -116,19 +153,51 @@ export default function ReportView({
     if (timeRange === 'week') return [startOfWeek(now), startOfWeek(now) + 7 * DAY_MS];
     if (timeRange === 'month') return [startOfMonth(now), endOfMonth(now)];
     if (timeRange === 'custom') {
-      const start = customFrom ? new Date(`${customFrom}T00:00:00`).getTime() : todayStart;
-      const endDate = customTo ? new Date(`${customTo}T00:00:00`) : new Date(todayStart);
-      endDate.setDate(endDate.getDate() + 1);
-      return [start, endDate.getTime()];
+      const fromMs = customFrom ? new Date(`${customFrom}T00:00:00`).getTime() : todayStart;
+      const toMs = customTo
+        ? new Date(`${customTo}T00:00:00`).getTime() + DAY_MS
+        : todayStart + DAY_MS;
+      // Guard against a reversed range (From after To) — swap instead of
+      // silently rendering an empty report.
+      if (fromMs > toMs) return [toMs - DAY_MS, fromMs + DAY_MS];
+      return [fromMs, toMs];
     }
     return [todayStart, todayStart + DAY_MS];
-  }, [timeRange, customFrom, customTo, todayStart]);
+  }, [timeRange, customFrom, customTo, todayStart, now]);
+
+  // ── Closing / self-check record, scoped per period (+person) ──
+  // The Everyone view closes the whole day; a person view keeps its own
+  // separate self-check record ("does my counted cash match my records?").
+  const closingKey = useMemo(
+    () => `gebya_closing_${isToday ? todayStart : rangeBounds[0]}${isPersonScoped ? `_${activePerson}` : ''}`,
+    [isToday, todayStart, rangeBounds, isPersonScoped, activePerson]
+  );
+  const [closing, setClosing] = useState({ key: null, data: EMPTY_CLOSING });
+
+  // Load the record for the selected period (runs on period switch).
+  useEffect(() => {
+    let data = EMPTY_CLOSING;
+    try {
+      const saved = localStorage.getItem(closingKey);
+      if (saved) data = JSON.parse(saved);
+    } catch {}
+    setClosing({ key: closingKey, data });
+  }, [closingKey]);
+
+  // Persist only when the in-memory state belongs to the current period,
+  // so switching periods never writes stale data into the new key.
+  useEffect(() => {
+    if (closing.key !== closingKey) return;
+    try { localStorage.setItem(closingKey, JSON.stringify(closing.data)); } catch {}
+  }, [closing.key, closing.data, closingKey]);
+
+  const closingState = closing.data || EMPTY_CLOSING;
 
   const [from, to] = rangeBounds;
 
   const reportRows = useMemo(
-    () => buildReportRows({ transactions, ledgerTransactions, customers, from, to, scope, viewerStaffId: null, filters: {} }),
-    [transactions, ledgerTransactions, customers, from, to, scope]
+    () => buildReportRows({ transactions, ledgerTransactions, customers, from, to, scope: effectiveScope, viewerStaffId: null, filters: {} }),
+    [transactions, ledgerTransactions, customers, from, to, effectiveScope]
   );
 
   const metrics = useMemo(() => computeReportMetrics(reportRows), [reportRows]);
@@ -147,7 +216,7 @@ export default function ReportView({
   );
 
   const priorMetrics = useMemo(() => {
-    if (!isToday) return null;
+    if (!isToday || isPersonScoped) return null;
     const yesterdayStart = todayStart - DAY_MS;
     const priorRows = buildReportRows({
       transactions, ledgerTransactions, customers,
@@ -155,7 +224,73 @@ export default function ReportView({
       scope, viewerStaffId: null, filters: {},
     });
     return computeReportMetrics(priorRows);
-  }, [transactions, ledgerTransactions, customers, todayStart, scope, isToday]);
+  }, [transactions, ledgerTransactions, customers, todayStart, scope, isToday, isPersonScoped]);
+
+  const isEmpty = reportRows.length === 0 && (ledgerTransactions || []).length === 0;
+  // An established shop looking at a quiet period is different from a
+  // brand-new shop — each needs its own message.
+  const quietPeriod = isEmpty && ((transactions || []).length > 0 || (ledgerTransactions || []).length > 0);
+  const unlinkedDevice = isPersonalLocked && !myStaffId;
+
+  // ── Beyond-one-day insights (Week / Month / Custom views) ────
+  // The immediately preceding period of equal length — for the verdict.
+  const priorPeriodMetrics = useMemo(() => {
+    if (isToday || isPersonScoped || isEmpty) return null;
+    const len = to - from;
+    const priorRows = buildReportRows({
+      transactions, ledgerTransactions, customers,
+      from: from - len, to: from,
+      scope: effectiveScope, viewerStaffId: null, filters: {},
+    });
+    return computeReportMetrics(priorRows);
+  }, [isToday, isPersonScoped, isEmpty, from, to, transactions, ledgerTransactions, customers, effectiveScope]);
+
+  const periodVerdict = useMemo(
+    () => computePeriodVerdict({ current: metrics, previous: priorPeriodMetrics, lang }),
+    [metrics, priorPeriodMetrics, lang]
+  );
+
+  // Top sellers for the selected period (revived computeSalesSummary).
+  const salesSummary = useMemo(
+    () => computeSalesSummary(metrics, lang),
+    [metrics, lang]
+  );
+
+  // Per-day money-in buckets for the Week view's day strip.
+  const weekDays = useMemo(() => {
+    if (timeRange !== 'week' || isPersonScoped || isEmpty) return [];
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const ds = from + i * DAY_MS;
+      const d = new Date(ds);
+      days.push({
+        start: ds,
+        total: 0,
+        label: d.toLocaleDateString(lang === 'am' ? 'am-ET' : 'en-US', { weekday: 'short' }),
+        sub: formatEthiopianShort(ds),
+        isToday: ds === todayStart,
+      });
+    }
+    for (const row of reportRows) {
+      const ts = Number(row.created_at || 0);
+      const idx = Math.floor((ts - from) / DAY_MS);
+      if (idx < 0 || idx >= 7) continue;
+      // Net money-in per day: sales/collections count positive,
+      // expenses subtract.
+      days[idx].total += row.report_kind === 'expense'
+        ? -amountOf(row)
+        : collectedAmount(row);
+    }
+    return days;
+  }, [timeRange, isPersonScoped, isEmpty, from, reportRows, lang, todayStart]);
+
+  const handlePickDay = useCallback((dayStart) => {
+    const d = new Date(dayStart - new Date(dayStart).getTimezoneOffset() * 60000);
+    const iso = d.toISOString().slice(0, 10);
+    setTimeRange('custom');
+    setCustomFrom(iso);
+    setCustomTo(iso);
+  }, []);
 
 
 
@@ -175,9 +310,7 @@ export default function ReportView({
     const totalSales = Array.from(salesByDay.values()).reduce((s, v) => s + v, 0);
     const totalExpenses = Array.from(expensesByDay.values()).reduce((s, v) => s + v, 0);
     return { avgSalesCount: Math.round(totalSales / 7), avgExpenses: Math.round(totalExpenses / 7) };
-  }, [transactions, ledgerTransactions, todayStart, isToday]);
-
-  const isEmpty = reportRows.length === 0 && (ledgerTransactions || []).length === 0;
+  }, [transactions, todayStart, isToday]);
 
   const handleExport = useCallback(() => {
     const header = ['date', 'type', 'amount', 'item_or_person', 'payment', 'status'];
@@ -195,7 +328,8 @@ export default function ReportView({
       csvEscape(row.status || 'recorded'),
     ].join(','));
     const csv = [header.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    // BOM so Excel renders Amharic item names correctly.
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -207,8 +341,11 @@ export default function ReportView({
   }, [reportRows]);
 
   const handleClose = useCallback(({ cashInHand, cashVariance }) => {
-    setClosingState(prev => ({ ...prev, done: true, cashInHand, cashVariance }));
-  }, []);
+    setClosing(prev => ({
+      key: closingKey,
+      data: { ...(prev.key === closingKey ? prev.data : EMPTY_CLOSING), done: true, cashInHand, cashVariance },
+    }));
+  }, [closingKey]);
 
   const handleAction = useCallback((actionType) => {
     if (actionType === 'count_cash') {
@@ -233,6 +370,37 @@ export default function ReportView({
       : timeRange === 'month'
         ? (lang === 'am' ? 'ወር' : 'This Month')
         : (lang === 'am' ? 'ብጁ ክልል' : 'Custom Range');
+
+  // Share summary — plain text for Telegram/WhatsApp via the existing
+  // ShareModal flow. Privacy mode masks every amount.
+  const buildShareText = useCallback(() => {
+    const H = (v) => (hidden ? '••••' : fmt(v || 0));
+    const shopName = shopProfile?.name || (lang === 'am' ? 'ሱቅ' : 'My shop');
+    const lines = lang === 'am'
+      ? [
+          `📒 ${shopName} · ${timeRangeLabel}`,
+          `🛒 ጠቅላላ ሽያጭ: ${H(metrics.totalSold)} ETB`,
+          `📤 ወጪ: ${H(metrics.spentToday)} ETB`,
+          `💰 የዕዳ መሰብሰብ: ${H(metrics.creditCollected)} ETB`,
+          `📝 አዲስ ዱቤ: ${H(metrics.newDubie)} ETB`,
+          `💵 የሚጠበቅ ጥሬ ገንዘብ: ${H(metrics.cashExpected)} ETB`,
+        ]
+      : [
+          `📒 ${shopName} · ${timeRangeLabel}`,
+          `🛒 Total sales: ${H(metrics.totalSold)} ETB`,
+          `📤 Expenses: ${H(metrics.spentToday)} ETB`,
+          `💰 Debt collected: ${H(metrics.creditCollected)} ETB`,
+          `📝 New credit given: ${H(metrics.newDubie)} ETB`,
+          `💵 Cash expected: ${H(metrics.cashExpected)} ETB`,
+        ];
+    const top = salesSummary?.topItems?.[0];
+    if (top) {
+      lines.push(lang === 'am'
+        ? `🏅 ብዙ የተሸጠ: ${top.name} · ${H(top.revenue)} ETB`
+        : `🏅 Top seller: ${top.name} · ${H(top.revenue)} ETB`);
+    }
+    return lines.join('\n');
+  }, [hidden, lang, shopProfile, timeRangeLabel, metrics, salesSummary]);
 
   return (
     <div style={{
@@ -277,14 +445,14 @@ export default function ReportView({
         </button>
       </div>
 
-      {/* ── Search Bar (opens SearchSheet) ── */}
-      <div style={{ paddingBottom: 8 }}>
+      {/* ── Search + Share ── */}
+      <div style={{ paddingBottom: 8, display: 'flex', gap: 6 }}>
         <button
           type="button"
           onClick={() => setShowSearchSheet(true)}
           aria-label={lang === 'am' ? 'ፈልግ' : 'Search notebook'}
           style={{
-            display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+            display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0,
             border: '1px solid var(--color-bg-disabled)', borderRadius: 10, padding: '6px 10px',
             minHeight: 38, background: 'var(--color-surface)', cursor: 'pointer',
             fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-soft)',
@@ -294,6 +462,23 @@ export default function ReportView({
           <Search className="w-4 h-4" style={{ color: 'var(--color-text-soft)', flexShrink: 0 }} />
           <span>{lang === 'am' ? 'ፈልግ... (/)' : 'Search notebook... (/)'}</span>
         </button>
+        {onShareReport && (
+          <button
+            type="button"
+            onClick={() => onShareReport(buildShareText())}
+            aria-label={lang === 'am' ? 'አጋራ' : 'Share report summary'}
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              minHeight: 38, padding: '6px 14px', flexShrink: 0,
+              border: '1px solid var(--color-primary)', borderRadius: 10,
+              background: 'var(--color-primary)', color: 'var(--color-bg-white)',
+              fontSize: 12, fontWeight: 800, cursor: 'pointer',
+            }}
+          >
+            <Share2 className="w-4 h-4" />
+            <span>{lang === 'am' ? 'አጋራ' : 'Share'}</span>
+          </button>
+        )}
       </div>
 
       {showSearchSheet && (
@@ -317,10 +502,10 @@ export default function ReportView({
           background: 'rgba(27,67,50,0.08)', borderRadius: 12, padding: 4,
         }}>
           {[
-            ['today', lang === 'am' ? 'ዛሬ' : 'Today'],
-            ['week', lang === 'am' ? 'ሳምንት' : 'Week'],
-            ['month', lang === 'am' ? 'ወር' : 'Month'],
-            ['custom', 'Custom'],
+            ['today', `🌅 ${lang === 'am' ? 'ዛሬ' : 'Today'}`],
+            ['week', `📅 ${lang === 'am' ? 'ሳምንት' : 'Week'}`],
+            ['month', `🗓 ${lang === 'am' ? 'ወር' : 'Month'}`],
+            ['custom', `✏️ ${lang === 'am' ? 'ብጁ' : 'Custom'}`],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -338,6 +523,49 @@ export default function ReportView({
           ))}
         </div>
       </div>
+
+      {/* ── Person Switcher — reconcile the day person by person ── */}
+      {(canSwitchPeople && switchablePeople.length > 0) && (
+        <div style={{
+          display: 'flex', gap: 4, overflowX: 'auto',
+          paddingBottom: 6, marginBottom: 4, WebkitOverflowScrolling: 'touch',
+        }}>
+          {[
+            ['all', `👥 ${lang === 'am' ? 'ሁሉም' : 'Everyone'}`],
+            [OWNER_SCOPE, `🧑 ${lang === 'am' ? 'ባለቤት' : 'Owner'}`],
+            ...switchablePeople.map(p => [p.id, `👤 ${p.name}`]),
+          ].map(([id, label]) => {
+            const selected = activePerson === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => selectPerson(id)}
+                style={{
+                  flexShrink: 0, minHeight: 32, padding: '4px 12px',
+                  border: selected ? '1px solid var(--color-primary)' : '1px solid var(--color-bg-disabled)',
+                  borderRadius: 999,
+                  background: selected ? 'var(--color-primary)' : 'var(--color-surface)',
+                  color: selected ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
+                  fontSize: 11.5, fontWeight: 800,
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {isPersonalLocked && (
+        <p style={{
+          fontSize: 10, fontWeight: 900, color: 'var(--color-text-soft)',
+          letterSpacing: '0.06em', margin: '0 4px 6px',
+        }}>
+          👤 {lang === 'am' ? 'የእኔ ቀን' : 'MY DAY'}
+        </p>
+      )}
 
       {timeRange === 'custom' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
@@ -365,12 +593,24 @@ export default function ReportView({
           border: '1px solid var(--color-success-border)', borderRadius: 16, padding: 24,
           marginTop: 8, textAlign: 'center',
         }}>
-          <div style={{ fontSize: 48, marginBottom: 12 }}>📒</div>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>{unlinkedDevice ? '🔗' : quietPeriod ? '🌙' : '📒'}</div>
           <h2 style={{ fontSize: 18, fontWeight: 900, color: 'var(--color-primary)', marginBottom: 8 }}>
-            {lang === 'am' ? 'ወደ ሱቅ ታሪክ እንኳን በደህና መጡ' : 'Welcome to your shop'}
+            {unlinkedDevice
+              ? (lang === 'am' ? 'መሣሪያዎ ገና አልተገናኘም' : 'Device not linked yet')
+              : quietPeriod
+                ? (lang === 'am' ? 'በዚህ ጊዜ ውስጥ ምንም እንቅስቃሴ የለም' : 'Nothing recorded in this period')
+                : (lang === 'am' ? 'ወደ ሱቅ ታሪክ እንኳን በደህና መጡ' : 'Welcome to your shop')}
           </h2>
           <p style={{ fontSize: 13, color: 'var(--color-text-muted)', lineHeight: 1.6, marginBottom: 16, maxWidth: 320, margin: '0 auto 16px' }}>
-            {lang === 'am' ? 'ዝግጁ ሲሆን ሽያጭ ወይም ወጪ መዝግብ። ሱቅዎ ሁኔታ ይሄ በፈጣን ይዘርጋል።' : 'Record a sale or expense to get started.'}
+            {unlinkedDevice
+              ? (lang === 'am'
+                ? 'መሣሪያዎን ከሰራተኛ መገለጫዎ ጋር እንዲገናኝ ባለቤቱን ይጠይቁ።'
+                : 'Ask the owner to link this device to your staff profile.')
+              : quietPeriod
+                ? (lang === 'am'
+                  ? 'በመረጡት ቀናት ውስጥ መዝገብ የለም። ሌላ ጊዜ ይምረጡ ወይም አዲስ እንቅስቃሴ ይመዝግብ።'
+                  : 'No entries in the selected dates. Pick another period or record something new.')
+                : (lang === 'am' ? 'ዝግጁ ሲሆን ሽያጭ ወይም ወጪ መዝግብ። ሱቅዎ ሁኔታ ይሄ በፈጣን ይዘርጋል።' : 'Record a sale or expense to get started.')}
           </p>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'sale' } }))}
@@ -390,10 +630,39 @@ export default function ReportView({
       )}
 
       {!isEmpty && (
+        isPersonScoped ? (
+          <>
+            {/* ════════════════════════════════════════════ */}
+            {/* PERSONAL DAY VIEW — one person's numbers only */}
+            {/* Shop-level rituals (cash closing, overdue     */}
+            {/* reminders) stay in the Everyone view.         */}
+            {/* ════════════════════════════════════════════ */}
+            <SectionHeading label={
+              activePersonName
+                ? `${activePersonName} · ${lang === 'am' ? 'የእኔ ቀን' : 'MY DAY'}`
+                : (lang === 'am' ? 'የእኔ ቀን' : 'MY DAY')
+            } />
+            <div id="today-business">
+              <ErrorBoundary>
+                <TodayBusiness
+                  metrics={metrics}
+                  closingState={closingState}
+                  lang={lang}
+                  onClose={handleClose}
+                  showClosing
+                  selfCheck
+                  personName={activePersonName}
+                />
+              </ErrorBoundary>
+            </div>
+
+            <SectionHeading label={lang === 'am' ? 'እንቅስቃሴዎች' : 'ENTRIES'} />
+            <ErrorBoundary>
+              <TimelineView reportRows={reportRows} lang={lang} handleExport={handleExport} onEdit={onEdit} />
+            </ErrorBoundary>
+          </>
+        ) : (
         <>
-          {/* ════════════════════════════════════════════ */}
-          {/* TODAY VIEW — full 7-section layout           */}
-          {/* ════════════════════════════════════════════ */}
           {isToday ? (
             <>
               {/* 1. Hero Status */}
@@ -483,6 +752,17 @@ export default function ReportView({
                 />
               </ErrorBoundary>
 
+              {/* Period insights: verdict vs last period, day strip, top items */}
+              <ErrorBoundary>
+                <PeriodInsights
+                  verdict={periodVerdict}
+                  days={weekDays}
+                  topItems={(salesSummary?.topItems || []).slice(0, 3)}
+                  lang={lang}
+                  onPickDay={handlePickDay}
+                />
+              </ErrorBoundary>
+
               {/* Business Summary */}
               <SectionHeading label={lang === 'am' ? 'የንግድ ማጠቃለያ' : 'BUSINESS SUMMARY'} />
               <ErrorBoundary>
@@ -503,6 +783,7 @@ export default function ReportView({
 
 
         </>
+        )
       )}
     </div>
   );
