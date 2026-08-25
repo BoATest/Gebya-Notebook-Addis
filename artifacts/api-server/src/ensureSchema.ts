@@ -45,13 +45,14 @@ function splitSqlStatements(source: string): string[] {
 }
 
 async function runStatement(
+  client: NonNullable<typeof db>,
   stmt: string,
   ok: { n: number },
   fail: { n: number },
   label: string,
 ): Promise<void> {
   try {
-    await db.execute(sql.raw(stmt.replace(/;\s*$/, "")));
+    await client.execute(sql.raw(stmt.replace(/;\s*$/, "")));
     ok.n++;
   } catch (e) {
     fail.n++;
@@ -74,7 +75,7 @@ export function ensureSchema(): Promise<void> {
       // guarantees every column the app expects exists, even if a prior
       // bootstrap left a table incomplete.
       for (const stmt of BOOTSTRAP_ALTERS) {
-        await runStatement(stmt, ok, fail, "alter");
+        await runStatement(db, stmt, ok, fail, "alter");
       }
 
       // Full table creation, only when the core table is missing.
@@ -88,7 +89,7 @@ export function ensureSchema(): Promise<void> {
       if (needsBootstrap) {
         for (const fileSql of BOOTSTRAP_FILES) {
           for (const stmt of splitSqlStatements(fileSql)) {
-            await runStatement(stmt, ok, fail, "bootstrap statement");
+            await runStatement(db, stmt, ok, fail, "bootstrap statement");
           }
         }
       }
