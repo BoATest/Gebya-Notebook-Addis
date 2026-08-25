@@ -93,9 +93,10 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
   const [pushSending, setPushSending] = useState(false);
   const [pushResult, setPushResult] = useState(null);
 
-  const loadData = () => {
+  const loadData = (attempt = 1) => {
     setLoading(true);
     setError(null);
+    const MAX_ATTEMPTS = 3;
     const friendly = (key, e) => {
       const msg = String(e?.message || '');
       if (/abort|timeout|timed out|signal/i.test(msg)) return `${key}: the server took too long (it may be warming up)`;
@@ -112,11 +113,13 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
       safe('/admin/frictions', setFrictions, 'frictions'),
     ]).then((fails) => {
       const f = fails.filter(Boolean);
-      const aborted = f.some((s) => /warming up|abort|timed out|signal/i.test(s));
-      if (aborted && !retriedRef.current) {
-        retriedRef.current = true;
-        setError('Connecting to the server (warming up) — retrying once…');
-        setTimeout(() => loadData(), 1300);
+      // Retry while the server is still warming up its cold cache (503 "warming up"
+      // or a client-side fetch timeout). The background compute keeps populating the
+      // cache, so a subsequent attempt returns instantly.
+      const warming = f.some((s) => /warming up|warming|abort|timed out|signal/i.test(s));
+      if (warming && attempt < MAX_ATTEMPTS) {
+        setError(`Connecting to the server (warming up) — retrying ${attempt}/${MAX_ATTEMPTS}…`);
+        setTimeout(() => loadData(attempt + 1), attempt === 1 ? 2000 : 4000);
         return;
       }
       setError(f.length ? `Couldn't load - ${f.join(' · ')}. Tap Retry.` : null);

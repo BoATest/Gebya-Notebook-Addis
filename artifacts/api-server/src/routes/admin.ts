@@ -13,7 +13,7 @@
  */
 import { Router } from "express";
 import { db, warmDb } from "@workspace/db";
-import { serveCached, warmCache } from "../lib/adminCache.js";
+import { serveCached, warmCache, serveCachedBounded } from "../lib/adminCache.js";
 import {
   users,
   businesses,
@@ -94,10 +94,13 @@ async function computeOverview() {
   const oneDayAgo = daysAgo(1);
 
   const [allUsers, allBusinesses, allDevices, custTotal, custTelegram, allStaffMembers, allInvites, otpAgg, snapAgg] = await Promise.all([
-    db.select().from(users), db.select().from(businesses), db.select().from(devices),
+    db.select({ id: users.id, createdAt: users.createdAt }).from(users),
+    db.select({ id: businesses.id, createdAt: businesses.createdAt }).from(businesses),
+    db.select({ lastSeenAt: devices.lastSeenAt }).from(devices),
     db.select({ count: sql<number>`COUNT(*)` }).from(customers).then(r => Number(r[0]?.count ?? 0)),
     db.select({ count: sql<number>`COUNT(*)` }).from(customers).where(sql`${customers.telegramChatId} IS NOT NULL`).then(r => Number(r[0]?.count ?? 0)),
-    db.select().from(staffMembers), db.select().from(invites),
+    db.select({ businessId: staffMembers.businessId, active: staffMembers.active }).from(staffMembers),
+    db.select({ acceptedAt: invites.acceptedAt }).from(invites),
     db.select({
       phoneNumber: otps.phoneNumber,
       attempts: sql<number>`COALESCE(SUM(${otps.attempts}), 0)`,
@@ -215,8 +218,9 @@ router.get("/overview", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
   try {
-    const payload = await serveCached("admin:overview", computeOverview);
-    return res.json(payload);
+    const { value, status } = await serveCachedBounded("admin:overview", computeOverview);
+    if (status === "warming") return res.status(503).json({ error: "warming up", retryAfter: 3 });
+    return res.json(value);
   } catch (e) {
     console.error("[admin/overview]", e);
     return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -227,7 +231,7 @@ router.get("/overview", async (req, res) => {
 async function computeShops(req: any) {
   const sevenDaysAgo = daysAgo(7);
   const [allBusinesses, allUsers, txAgg, ctAgg] = await Promise.all([
-    db.select().from(businesses),
+    db.select({ id: businesses.id, name: businesses.name, createdAt: businesses.createdAt, ownerUserId: businesses.ownerUserId }).from(businesses),
     db.select({ id: users.id, phoneNumber: users.phoneNumber }).from(users),
     db.select({
       businessId: transactions.businessId,
@@ -277,8 +281,9 @@ router.get("/shops", async (req, res) => {
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
   try {
     const key = `admin:shops:${Number(req.query.limit) || ""}:${Number(req.query.offset) || 0}`;
-    const payload = await serveCached(key, () => computeShops(req));
-    return res.json(payload);
+    const { value, status } = await serveCachedBounded(key, () => computeShops(req));
+    if (status === "warming") return res.status(503).json({ error: "warming up", retryAfter: 3 });
+    return res.json(value);
   } catch (e) {
     console.error("[admin/shops]", e);
     return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -603,9 +608,9 @@ async function computeFrictions() {
   const sevenDaysAgo = daysAgo(7);
 
   const [allBusinesses, allMembers, allUsers, custAgg, txAgg, ctAgg] = await Promise.all([
-    db.select().from(businesses),
-    db.select().from(businessMembers),
-    db.select().from(users),
+    db.select({ id: businesses.id, name: businesses.name, createdAt: businesses.createdAt, ownerUserId: businesses.ownerUserId }).from(businesses),
+    db.select({ userId: businessMembers.userId, role: businessMembers.role, businessId: businessMembers.businessId }).from(businessMembers),
+    db.select({ id: users.id, phoneNumber: users.phoneNumber, telegramChatId: users.telegramChatId }).from(users),
     db.select({
       businessId: customers.businessId,
       total: sql<number>`COUNT(*)`,
@@ -711,8 +716,9 @@ router.get("/frictions", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
   try {
-    const payload = await serveCached("admin:frictions", computeFrictions);
-    return res.json(payload);
+    const { value, status } = await serveCachedBounded("admin:frictions", computeFrictions);
+    if (status === "warming") return res.status(503).json({ error: "warming up", retryAfter: 3 });
+    return res.json(value);
   } catch (e) {
     console.error("[admin/frictions]", e);
     return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -749,8 +755,9 @@ router.get("/features", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
   try {
-    const payload = await serveCached("admin:features", computeFeatures);
-    return res.json(payload);
+    const { value, status } = await serveCachedBounded("admin:features", computeFeatures);
+    if (status === "warming") return res.status(503).json({ error: "warming up", retryAfter: 3 });
+    return res.json(value);
   } catch (e) {
     console.error("[admin/features]", e);
     return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -822,7 +829,7 @@ router.get("/export-shops", async (req, res) => {
     const totalPaid = bizCustTxns.filter(t => t.type === "payment").reduce((s, t) => s + (Number(t.amount) || 0), 0);
     const totalReversed = bizCustTxns.filter(t => t.type === "reversal").reduce((s, t) => s + (Number(t.amount) || 0), 0);
     let status = "new"; if (lastTxn && lastTxn >= sevenDaysAgo) status = "active"; else if (lastTxn) status = "dormant";
-    csvRows.push(`"${(biz.name || "").replace(/"/g, '""')}","${user?.phoneNumber || ""}","${biz.createdAt?.toISOString()?.split("T")[0] || ""}","${lastTxn ? new Date(lastTxn).toISOString()?.split("T")[0] : ""}",${bizTxns.length},${totalSales},${totalCredit},${Math.max(totalCredit - totalPaid - totalReversed, 0)},${bizStaff.length},${status}`);
+    csvRows.push(`"${(biz.name || "").replace(/"/g, '""')}","${maskPhone(user?.phoneNumber || null)}","${biz.createdAt?.toISOString()?.split("T")[0] || ""}","${lastTxn ? new Date(lastTxn).toISOString()?.split("T")[0] : ""}",${bizTxns.length},${totalSales},${totalCredit},${Math.max(totalCredit - totalPaid - totalReversed, 0)},${bizStaff.length},${status}`);
   }
   res.setHeader("Content-Type", "text/csv");
   res.setHeader("Content-Disposition", `attachment; filename="gebya-shops-${new Date().toISOString().split("T")[0]}.csv"`);
