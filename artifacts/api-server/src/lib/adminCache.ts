@@ -1,26 +1,95 @@
-// In-memory TTL cache with stale-while-revalidate, shared per warm serverless
-// instance. After the first successful compute, subsequent requests return
-// instantly from cache; when the entry goes stale it is served once more while
-// a background refresh repopulates it. This removes most DB load from the
-// admin dashboard and makes the first warm-instance response instant.
+// Two-tier admin cache.
+//
+// L1: in-memory TTL cache with stale-while-revalidate, per serverless instance.
+//     Makes the second request on a warm instance instant.
+// L2: a Postgres `admin_cache` table (created by bootstrap). Survives cold
+//     starts and is shared across all function instances, so a value computed
+//     by the warmup cron (or any instance) is served instantly everywhere.
+//
+// If the DB is unavailable, L2 is skipped and L1 alone is used — the dashboard
+// still works, just without cross-instance persistence.
 //
 // NOTE: this cache lives in the function instance's memory, so it does not
 // survive cold starts or span instances. For cross-instance persistence use
 // Upstash Redis (swap the store below). A cron warmup keeps it populated.
 type Entry = { value: unknown; expiresAt: number; refreshing: boolean };
 
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
+
 const store = new Map<string, Entry>();
+const refreshing = new Set<string>();
 const TTL_MS = Number(process.env.ADMIN_CACHE_TTL_MS || 60_000);
 const now = () => Date.now();
 
+// ─── L2 (Postgres) ─────────────────────────────────────────────────────────
+async function l2Get(key: string): Promise<{ value: unknown; expiresAt: number } | null> {
+  if (!db) return null;
+  try {
+    const res: any = await db.execute(
+      sql`SELECT value, expires_at FROM admin_cache WHERE key = ${key}`,
+    );
+    const rows = res?.rows ?? [];
+    if (!rows.length) return null;
+    const expiresAt = Number(rows[0].expires_at);
+    if (!Number.isFinite(expiresAt)) return null;
+    return { value: rows[0].value, expiresAt };
+  } catch (e) {
+    console.error("[adminCache] l2 get failed", key, e);
+    return null;
+  }
+}
+
+async function l2Set(key: string, value: unknown, expiresAt: number): Promise<void> {
+  if (!db) return;
+  try {
+    await db.execute(sql`
+      INSERT INTO admin_cache (key, value, expires_at)
+      VALUES (${key}, ${JSON.stringify(value)}::jsonb, ${expiresAt})
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, expires_at = EXCLUDED.expires_at
+    `);
+  } catch (e) {
+    console.error("[adminCache] l2 set failed", key, e);
+  }
+}
+
+async function l2Delete(key: string): Promise<void> {
+  if (!db) return;
+  try {
+    await db.execute(sql`DELETE FROM admin_cache WHERE key = ${key}`);
+  } catch {
+    /* non-fatal */
+  }
+}
+
+function cacheSet(key: string, value: unknown): void {
+  const expiresAt = now() + TTL_MS;
+  store.set(key, { value, expiresAt, refreshing: false });
+  void l2Set(key, value, expiresAt);
+}
+
+// Hydrate L1 from L2 when we have no in-memory entry (e.g. cold start on a
+// fresh instance that the warmup cron already populated).
+async function hydrate(key: string): Promise<Entry | undefined> {
+  if (store.has(key)) return store.get(key);
+  const h = await l2Get(key);
+  if (h && h.expiresAt > now()) {
+    const entry: Entry = { value: h.value, expiresAt: h.expiresAt, refreshing: false };
+    store.set(key, entry);
+    return entry;
+  }
+  if (h) void l2Delete(key);
+  return undefined;
+}
+
 export async function serveCached<T>(key: string, compute: () => Promise<T>): Promise<T> {
-  const hit = store.get(key);
+  const hit = await hydrate(key);
   if (hit && hit.expiresAt > now()) return hit.value as T;
   if (hit && !hit.refreshing) {
     hit.refreshing = true;
     Promise.resolve()
       .then(compute)
-      .then((v) => store.set(key, { value: v, expiresAt: now() + TTL_MS, refreshing: false }))
+      .then((v) => cacheSet(key, v))
       .catch((e) => {
         console.error("[adminCache] background refresh failed", key, e);
         if (hit) hit.refreshing = false;
@@ -28,14 +97,14 @@ export async function serveCached<T>(key: string, compute: () => Promise<T>): Pr
     return hit.value as T;
   }
   const v = await compute();
-  store.set(key, { value: v, expiresAt: now() + TTL_MS, refreshing: false });
+  cacheSet(key, v);
   return v;
 }
 
 export async function warmCache(key: string, compute: () => Promise<unknown>): Promise<boolean> {
   try {
     const v = await compute();
-    store.set(key, { value: v, expiresAt: now() + TTL_MS, refreshing: false });
+    cacheSet(key, v);
     return true;
   } catch (e) {
     console.error("[adminCache] warm failed", key, e);
@@ -52,7 +121,7 @@ export async function warmCache(key: string, compute: () => Promise<unknown>): P
  * function timeout, producing the "server took too long" error the client sees.
  *
  * This variant races the compute against `timeoutMs`. Outcomes:
- *   - fresh   → valid cache hit, return immediately.
+ *   - fresh   → valid cache hit (L1 or L2), return immediately.
  *   - stale   → return the stale value now, refresh in the background.
  *   - warming → the expensive compute is already in flight (started by this or
  *               a concurrent request); return `{ status: "warming" }` WITHOUT
@@ -70,13 +139,13 @@ export async function serveCachedBounded<T>(
   compute: () => Promise<T>,
   timeoutMs = 20_000,
 ): Promise<{ value: T | undefined; status: "fresh" | "stale" | "warming" }> {
-  const hit = store.get(key);
+  const hit = await hydrate(key);
   if (hit && hit.expiresAt > now()) return { value: hit.value as T, status: "fresh" };
   if (hit && hit.expiresAt <= now() && !hit.refreshing) {
     hit.refreshing = true;
     Promise.resolve()
       .then(compute)
-      .then((v) => store.set(key, { value: v, expiresAt: now() + TTL_MS, refreshing: false }))
+      .then((v) => cacheSet(key, v))
       .catch((e) => {
         console.error("[adminCache] background refresh failed", key, e);
         if (hit) hit.refreshing = false;
@@ -90,6 +159,7 @@ export async function serveCachedBounded<T>(
   // Cold start: kick off the compute and race it against the timeout.
   const entry: Entry = { value: undefined, expiresAt: now() + TTL_MS, refreshing: true };
   store.set(key, entry);
+  refreshing.add(key);
   let finished = false;
   let val: T | undefined;
   let err: unknown;
@@ -98,18 +168,18 @@ export async function serveCachedBounded<T>(
     .then((v) => {
       finished = true;
       val = v;
-      entry.value = v;
-      entry.refreshing = false;
+      cacheSet(key, v);
     })
     .catch((e) => {
       err = e;
-      entry.refreshing = false;
+      store.delete(key);
+      void l2Delete(key);
+    })
+    .finally(() => {
+      refreshing.delete(key);
     });
   await Promise.race([p, new Promise((r) => setTimeout(r, timeoutMs))]);
   if (finished) return { value: val, status: "fresh" };
-  if (err) {
-    store.delete(key);
-    throw err;
-  }
+  if (err) throw err;
   return { value: undefined, status: "warming" };
 }

@@ -2,7 +2,7 @@
  * AdminDashboard — platform-wide metrics + quick actions for the Gebya team.
  * Access: Settings → Dev Mode → Platform Admin
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLang } from '../context/LangContext';
 import { apiFetch } from '../utils/shared-ui.jsx';
 
@@ -84,6 +84,10 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
   const [error, setError] = useState(null);
   const retriedRef = useRef(false);
   const [shopSearch, setShopSearch] = useState('');
+  const SHOPS_LIMIT = 200;
+  const [shopOffset, setShopOffset] = useState(0);
+  const [shopHasMore, setShopHasMore] = useState(false);
+  const shopTimer = useRef(null);
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastBody, setBroadcastBody] = useState('');
   const [broadcastSending, setBroadcastSending] = useState(false);
@@ -108,7 +112,7 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
     };
     Promise.all([
       safe('/admin/overview', setData, 'overview'),
-      safe('/admin/shops', setShops, 'shops'),
+      safe(`/admin/shops?limit=${SHOPS_LIMIT}&offset=0`, setShops, 'shops'),
       safe('/admin/features', setFeatures, 'features'),
       safe('/admin/frictions', setFrictions, 'frictions'),
     ]).then((fails) => {
@@ -127,6 +131,28 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
     });
   };
   useEffect(() => { loadData(); }, []);
+
+  // Server-backed shop search + pagination (fixes the old 500-row cap). The
+  // initial load (above) fetches the first page; search and "Load more" refetch
+  // through here. Results are cached+L2 on the server, so repeated searches are
+  // cheap once warm.
+  const fetchShops = useCallback(async (q, offset, append) => {
+    try {
+      const data = await apiFetch(`/admin/shops?q=${encodeURIComponent(q)}&limit=${SHOPS_LIMIT}&offset=${offset}`);
+      setShops((prev) => {
+        const base = append && prev ? prev.shops : [];
+        return { ...data, shops: [...base, ...(data.shops || [])] };
+      });
+      setShopOffset(offset + (data.shops?.length || 0));
+      return data;
+    } catch (e) {
+      return null;
+    }
+  }, [SHOPS_LIMIT]);
+
+  useEffect(() => {
+    if (shops) setShopHasMore((shops.shops?.length || 0) >= SHOPS_LIMIT);
+  }, [shops]);
 
   if (loading) return <div className="p-6 text-sm" style={{ color: 'var(--color-text-muted)' }}>Loading admin dashboard...</div>;
   const d = data;
@@ -181,24 +207,24 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
              <input
                type="text"
                value={shopSearch}
-               onChange={e => setShopSearch(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setShopSearch(v);
+                  if (shopTimer.current) clearTimeout(shopTimer.current);
+                  shopTimer.current = setTimeout(() => {
+                    setShopOffset(0);
+                    fetchShops(v, 0, false);
+                  }, 350);
+                }}
                placeholder={lang === 'am' ? 'መፈላገት ሱቅ...' : 'Search shops...'}
                className="w-full px-3 py-2 rounded-xl text-xs border-2 focus:outline-none"
                style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-subtle)' }}
              />
            </div>
-           {(() => {
-             const q = shopSearch.trim().toLowerCase();
-             const filtered = q
-               ? shops.shops.filter(s =>
-                   (s.name || '').toLowerCase().includes(q) ||
-                   (s.ownerPhone || '').toLowerCase().includes(q))
-               : shops.shops;
-             return (
-               <div className="overflow-x-auto">
+            <div className="overflow-x-auto">
                  <table className="w-full text-[10px]">
                    <thead><tr style={{ color: 'var(--color-text-muted)' }}><th className="text-left py-1 font-bold">Shop</th><th className="text-left py-1 font-bold">Phone</th><th className="text-right py-1 font-bold">Txns</th><th className="text-right py-1 font-bold">Sales</th><th className="text-center py-1 font-bold">Status</th><th className="text-center py-1 font-bold">Detail</th></tr></thead>
-                   <tbody>{filtered.map(shop => (
+                   <tbody>                    {shops.shops.map(shop => (
                      <tr key={shop.id} className="border-t" style={{ borderColor: 'var(--color-border-light)' }}>
                        <td className="py-1.5 font-bold" style={{ color: 'var(--color-text)' }}>{shop.name}</td>
                        <td className="py-1.5" style={{ color: 'var(--color-text-muted)' }}>{shop.ownerPhone}</td>
@@ -216,14 +242,22 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
                        </td>
                      </tr>
                    ))}
-                   {filtered.length === 0 && (
+                    {shops.shops.length === 0 && (
                      <tr><td colSpan={6} className="py-3 text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ምንም ሱቅ አልተፈጸም' : 'No shops found'}</td></tr>
                    )}
                  </tbody>
                  </table>
-               </div>
-             );
-           })()}
+                </div>
+              {shopHasMore && (
+                <button
+                  onClick={() => fetchShops(shopSearch, shopOffset, true)}
+                  className="mt-2 w-full py-2 rounded-xl text-xs font-bold"
+                  style={{ background: 'var(--color-surface-subtle)', color: 'var(--color-text)' }}
+                >
+                  {lang === 'am' ? 'ተጨማሪ ሂያ' : 'Load more'}
+                </button>
+              )}
+            </div>
          </Section>
        )}
 

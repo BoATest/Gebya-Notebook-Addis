@@ -25,6 +25,16 @@ export const pool = connectionString
       allowExitOnIdle: true,
     })
   : null;
+
+if (pool) {
+  // Bound every query so a runaway analytic (e.g. a full-table admin aggregate)
+  // can never pin the serverless function or exhaust the connection pool.
+  // Individual calls may raise "canceling statement due to statement timeout";
+  // the admin routes already catch and degrade on those.
+  pool.on("connect", (client) => {
+    client.query("SET statement_timeout = '15000'").catch(() => {});
+  });
+}
 export const db = pool ? drizzle(pool, { schema }) : null;
 
 export function requireDb(): NonNullable<typeof db> {

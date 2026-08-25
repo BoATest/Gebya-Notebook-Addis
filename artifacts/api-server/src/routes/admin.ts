@@ -33,10 +33,11 @@ import {
   bankDataShares,
   adminShopLogs,
 } from "@workspace/db/schema";
-import { eq, and, gt, desc, sql } from "drizzle-orm";
+import { eq, and, gt, desc, inArray, sql } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
 import { isPlatformAdminUser, listAdminMembers, addAdminMember, removeAdminMember } from "../services/platformAdmin.js";
 import { getQuotaInfo, resetQuota } from "../services/smsQuota.js";
+import { checkAdminRateLimit } from "../lib/adminRateLimit.js";
 import { isSmsEnabled, sendSms } from "../services/smsSender.js";
 import { sendTelegramTextMessage, getTelegramBotUsername } from "../services/telegramBotService.js";
 
@@ -248,7 +249,17 @@ async function computeShops(req: any) {
   ]);
   const txByBiz = new Map(txAgg.map((t) => [t.businessId, t]));
   const ctByBiz = new Map(ctAgg.map((c) => [c.businessId, c]));
-  const shopStats = allBusinesses.map((biz) => {
+  const q = (req.query.q || "").toString().trim().toLowerCase();
+  const userPhoneById = new Map(allUsers.map((u) => [u.id, u.phoneNumber || ""]));
+  const matched = q
+    ? allBusinesses.filter((b) => {
+        const name = (b.name || "").toLowerCase();
+        const phone = (userPhoneById.get(b.ownerUserId) || "").replace(/[^0-9]/g, "");
+        const qn = q.replace(/[^0-9]/g, "");
+        return name.includes(q) || (qn.length > 2 && phone.includes(qn));
+      })
+    : allBusinesses;
+  const shopStats = matched.map((biz) => {
     const t = txByBiz.get(biz.id);
     const c = ctByBiz.get(biz.id);
     const totalTxn = Number(t?.totalTxn ?? 0);
@@ -280,7 +291,7 @@ router.get("/shops", async (req, res) => {
   const ctx = await requireAdmin(req);
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
   try {
-    const key = `admin:shops:${Number(req.query.limit) || ""}:${Number(req.query.offset) || 0}`;
+    const key = `admin:shops:${Number(req.query.limit) || ""}:${Number(req.query.offset) || 0}:${String(req.query.q || "").toString().trim().toLowerCase()}`;
     const { value, status } = await serveCachedBounded(key, () => computeShops(req));
     if (status === "warming") return res.status(503).json({ error: "warming up", retryAfter: 3 });
     return res.json(value);
@@ -445,6 +456,8 @@ router.post("/shops/:businessId/reset-sms-quota", async (req, res) => {
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
   const businessIdNum = Number(req.params.businessId);
   if (!Number.isInteger(businessIdNum)) return res.status(400).json({ error: "Invalid businessId" });
+  const rl = checkAdminRateLimit(`admin:${ctx.phone}:reset-sms-quota`, 5, 60_000);
+  if (!rl.ok) return res.status(429).json({ error: "Rate limited", retryAfter: rl.retryAfterSec });
   const exists = await db.select({ id: businesses.id }).from(businesses).where(eq(businesses.id, businessIdNum)).limit(1);
   if (!exists[0]) return res.status(404).json({ error: "Shop not found" });
   await resetQuota(businessIdNum);
@@ -471,6 +484,8 @@ router.post("/shops/:businessId/nudge", async (req, res) => {
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
   const businessIdNum = Number(req.params.businessId);
   if (!Number.isInteger(businessIdNum)) return res.status(400).json({ error: "Invalid businessId" });
+  const rl = checkAdminRateLimit(`admin:${ctx.phone}:nudge`, 30, 60_000);
+  if (!rl.ok) return res.status(429).json({ error: "Rate limited", retryAfter: rl.retryAfterSec });
   const biz = await db.select().from(businesses).where(eq(businesses.id, businessIdNum)).limit(1);
   if (!biz[0]) return res.status(404).json({ error: "Shop not found" });
   const ownerMember = await db.select({ userId: businessMembers.userId }).from(businessMembers).where(and(eq(businessMembers.businessId, businessIdNum), eq(businessMembers.role, 'owner'))).limit(1);
@@ -528,6 +543,8 @@ router.post("/shops/:businessId/resend-reminders", async (req, res) => {
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
   const businessIdNum = Number(req.params.businessId);
   if (!Number.isInteger(businessIdNum)) return res.status(400).json({ error: "Invalid businessId" });
+  const rl = checkAdminRateLimit(`admin:${ctx.phone}:resend-reminders`, 10, 60_000);
+  if (!rl.ok) return res.status(429).json({ error: "Rate limited", retryAfter: rl.retryAfterSec });
   const biz = await db.select({ id: businesses.id, name: businesses.name }).from(businesses).where(eq(businesses.id, businessIdNum)).limit(1);
   if (!biz[0]) return res.status(404).json({ error: "Shop not found" });
 
@@ -541,6 +558,8 @@ router.post("/shops/:businessId/resend-reminders", async (req, res) => {
   let sent = 0;
   let failed = 0;
   const details: any[] = [];
+  const sentIds: number[] = [];
+  const failedIds: number[] = [];
 
   for (const cid of failedCustomerIds) {
     const custRows = await db.select().from(customers).where(eq(customers.id, cid)).limit(1);
@@ -586,14 +605,23 @@ router.post("/shops/:businessId/resend-reminders", async (req, res) => {
     } catch (e) {
       result = { success: false, error: e instanceof Error ? e.message : String(e) };
     }
-    if (result?.success) sent++;
-    else failed++;
+    if (result?.success) { sent++; sentIds.push(cid); }
+    else { failed++; failedIds.push(cid); }
     details.push({ customerId: cid, name: c.displayName || c.name, success: !!result?.success, error: result?.error || null });
-    const newState = result?.success ? "sent" : "failed";
+  }
+
+  // Batch the delivery-state flips instead of one UPDATE per customer (was N+1).
+  if (sentIds.length) {
     await db
       .update(customerTransactions)
-      .set({ telegramDeliveryState: newState })
-      .where(and(eq(customerTransactions.businessId, businessIdNum), eq(customerTransactions.customerId, cid), sql`${customerTransactions.telegramDeliveryState} IS NOT NULL AND ${customerTransactions.telegramDeliveryState} <> 'sent'`));
+      .set({ telegramDeliveryState: "sent" })
+      .where(and(eq(customerTransactions.businessId, businessIdNum), inArray(customerTransactions.customerId, sentIds), sql`${customerTransactions.telegramDeliveryState} IS NOT NULL AND ${customerTransactions.telegramDeliveryState} <> 'sent'`));
+  }
+  if (failedIds.length) {
+    await db
+      .update(customerTransactions)
+      .set({ telegramDeliveryState: "failed" })
+      .where(and(eq(customerTransactions.businessId, businessIdNum), inArray(customerTransactions.customerId, failedIds), sql`${customerTransactions.telegramDeliveryState} IS NOT NULL AND ${customerTransactions.telegramDeliveryState} <> 'sent'`));
   }
 
   await insertAdminLog({ businessId: businessIdNum, adminPhone: ctx.phone, type: 'action', channel: 'telegram', title: 'Resend failed reminders', body: `scanned=${failedCustomerIds.length} sent=${sent} failed=${failed}`, status: failed === 0 ? 'ok' : 'failed' });
@@ -770,6 +798,8 @@ router.post("/broadcast", async (req, res) => {
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
   const { title, body, type, business_id } = req.body;
   if (!title || typeof title !== "string" || !body || typeof body !== "string") return res.status(400).json({ error: "title and body are required" });
+  const rl = checkAdminRateLimit(`admin:${ctx.phone}:broadcast`, 10, 60_000);
+  if (!rl.ok) return res.status(429).json({ error: "Rate limited", retryAfter: rl.retryAfterSec });
 
   // Single-shop broadcast: filter ownerMembers to just the requested business
   const whereClause = business_id
@@ -798,6 +828,8 @@ router.post("/push-all", async (req, res) => {
   if (!ctx) return res.status(401).json({ error: "Admin access required" });
   const { title, body, business_id } = req.body;
   if (!title || typeof title !== "string" || !body || typeof body !== "string") return res.status(400).json({ error: "title and body are required" });
+  const rl = checkAdminRateLimit(`admin:${ctx.phone}:push-all`, 10, 60_000);
+  if (!rl.ok) return res.status(429).json({ error: "Rate limited", retryAfter: rl.retryAfterSec });
   const { sendPushToOwner } = await import("../services/pushNotificationSender.js");
   const allSubs = await db.select().from(pushSubscriptions);
   const uniqueBusinessIds = [...new Set(allSubs.map(s => s.businessId))].filter(id => !business_id || id === Number(business_id));
