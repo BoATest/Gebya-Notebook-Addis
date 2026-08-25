@@ -605,6 +605,16 @@ db.version(26).stores({
   settlements: '++id, settlement_id, staff_id, status, settled_at, updated_at, business_id, [settled_at+business_id], remote_local_id, [device_id+remote_local_id], reconciliation_status',
 });
 
+// Version 27: Durable push outbox for syncEngine. Every local create/update on
+// a synced entity table records its primary key here; entries are removed only
+// after the server acknowledges the push. This makes "Pending sync" truthful
+// (count = outbox size) and prevents writes made during an active sync from
+// being silently skipped by timestamp-based push queries.
+// Only the new store is declared — Dexie merges schemas across versions.
+db.version(27).stores({
+  sync_outbox: 'key, table, created_at',
+});
+
 db.on('ready', async () => {
   const privacySetting = await db.settings.get('privacy_mode');
   if (!privacySetting) {

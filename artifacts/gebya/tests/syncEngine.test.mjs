@@ -11,12 +11,15 @@ const { mockDb, mockFetch, mockGetOrCreateCloudProofDeviceId, mockUseSyncStore }
     const table = {
       where: vi.fn().mockReturnThis(),
       above: vi.fn().mockReturnThis(),
+      equals: vi.fn().mockReturnThis(),
       count: vi.fn().mockResolvedValue(0),
       toArray: vi.fn().mockResolvedValue([]),
       add: vi.fn(),
       put: vi.fn(),
       get: vi.fn(),
       delete: vi.fn(),
+      bulkGet: vi.fn().mockResolvedValue([]),
+      bulkDelete: vi.fn().mockResolvedValue(undefined),
       and: vi.fn().mockReturnThis(),
       first: vi.fn().mockResolvedValue(undefined),
       hook: vi.fn((event, cb) => {
@@ -29,6 +32,7 @@ const { mockDb, mockFetch, mockGetOrCreateCloudProofDeviceId, mockUseSyncStore }
 
   const mockDb = {
     settings: makeTable(),
+    sync_outbox: makeTable(),
     transactions: makeTable(),
     customers: makeTable(),
     customer_transactions: makeTable(),
@@ -61,6 +65,14 @@ const { mockDb, mockFetch, mockGetOrCreateCloudProofDeviceId, mockUseSyncStore }
 vi.mock('../src/db.js', () => ({ default: mockDb, db: mockDb }));
 vi.mock('../src/utils/cloudProof.js', () => ({ getOrCreateCloudProofDeviceId: mockGetOrCreateCloudProofDeviceId }));
 vi.mock('../src/stores/syncStore.js', () => ({ useSyncStore: mockUseSyncStore }));
+// syncEngine dynamic-imports syncQueue after a successful sync (silent
+// Telegram drain). Mock it so tests never load the real telegram client.
+vi.mock('../src/utils/syncQueue.js', () => ({
+  drainTelegramSyncQueue: vi.fn().mockResolvedValue({ processed: 0, records: [] }),
+  drainCloudProofQueue: vi.fn().mockResolvedValue({ processed: 0 }),
+  enqueueTelegramLedgerUpdate: vi.fn(),
+  countPendingTelegramSync: vi.fn().mockResolvedValue(0),
+}));
 
 // ─── Import after mocks ───
 
@@ -104,9 +116,17 @@ describe('JWT helpers', () => {
 describe('SyncEngine init', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset outbox mocks explicitly: clearAllMocks keeps mockResolvedValue
+    // implementations, and a leaked non-zero count would trigger init-time
+    // auto-sync inside unrelated tests.
+    mockDb.sync_outbox.count.mockResolvedValue(0);
+    mockDb.sync_outbox.toArray.mockResolvedValue([]);
     destroySyncEngine();
     Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, writable: true, configurable: true });
-    Object.defineProperty(globalThis, 'document', { value: { visibilityState: 'visible' }, writable: true, configurable: true });
+    Object.defineProperty(globalThis, 'document', {
+      value: { visibilityState: 'visible', addEventListener: vi.fn(), removeEventListener: vi.fn() },
+      writable: true, configurable: true,
+    });
     if (!globalThis.window) {
       globalThis.window = { addEventListener: vi.fn(), removeEventListener: vi.fn() };
     }
@@ -146,9 +166,17 @@ describe('SyncEngine.sync', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // Reset outbox mocks explicitly: clearAllMocks keeps mockResolvedValue
+    // implementations, and a leaked non-zero count would trigger init-time
+    // auto-sync inside unrelated tests.
+    mockDb.sync_outbox.count.mockResolvedValue(0);
+    mockDb.sync_outbox.toArray.mockResolvedValue([]);
     destroySyncEngine();
     Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, writable: true, configurable: true });
-    Object.defineProperty(globalThis, 'document', { value: { visibilityState: 'visible' }, writable: true, configurable: true });
+    Object.defineProperty(globalThis, 'document', {
+      value: { visibilityState: 'visible', addEventListener: vi.fn(), removeEventListener: vi.fn() },
+      writable: true, configurable: true,
+    });
     if (!globalThis.window) {
       globalThis.window = { addEventListener: vi.fn(), removeEventListener: vi.fn() };
     }
@@ -220,34 +248,42 @@ describe('SyncEngine.sync', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   }, 10000);
 
-  it('skips sync when offline', async () => {
-    engine.online = false;
-    await engine.sync();
-    expect(mockFetch).not.toHaveBeenCalled();
-  }, 10000);
-});
-
-describe('SyncEngine._schedulePush', () => {
-  let engine;
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    destroySyncEngine();
-    vi.useFakeTimers();
-    Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, writable: true, configurable: true });
-    Object.defineProperty(globalThis, 'document', { value: { visibilityState: 'visible' }, writable: true, configurable: true });
-    if (!globalThis.window) {
-      globalThis.window = { addEventListener: vi.fn(), removeEventListener: vi.fn() };
-    }
-    globalThis.fetch = mockFetch;
-    mockDb.settings.get.mockImplementation((key) => {
-      if (key === 'gebya_auth_token') return Promise.resolve({ value: 'test-token' });
-      return Promise.resolve(undefined);
-    });
+  it('attempts sync even when navigator.onLine is false (PWA-safe)', async () => {
+    // navigator.onLine is unreliable in installed PWAs and previously caused
+    // endless "Pending sync". sync() must attempt and surface real errors.
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ ok: true, tables: {}, hasMore: false }),
     });
+    engine.online = false;
+    await engine.sync();
+    expect(mockFetch).toHaveBeenCalled();
+  }, 10000);
+});
+
+describe('SyncEngine outbox enqueue', () => {
+  let engine;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    // Reset outbox mocks explicitly: clearAllMocks keeps mockResolvedValue
+    // implementations, and a leaked non-zero count would trigger init-time
+    // auto-sync inside unrelated tests.
+    mockDb.sync_outbox.count.mockResolvedValue(0);
+    mockDb.sync_outbox.toArray.mockResolvedValue([]);
+    destroySyncEngine();
+    vi.useFakeTimers();
+    Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, writable: true, configurable: true });
+    Object.defineProperty(globalThis, 'document', {
+      value: { visibilityState: 'visible', addEventListener: vi.fn(), removeEventListener: vi.fn() },
+      writable: true, configurable: true,
+    });
+    if (!globalThis.window) {
+      globalThis.window = { addEventListener: vi.fn(), removeEventListener: vi.fn() };
+    }
+    mockDb.settings.get.mockResolvedValue(undefined);
+    mockDb.sync_outbox.put.mockResolvedValue(1);
+    mockDb.sync_outbox.count.mockResolvedValue(1);
 
     const { initSyncEngine } = await import('../src/utils/syncEngine.js');
     engine = await initSyncEngine();
@@ -256,27 +292,36 @@ describe('SyncEngine._schedulePush', () => {
   afterEach(() => {
     destroySyncEngine();
     vi.useRealTimers();
-    delete globalThis.fetch;
   });
 
-  it('increments pending count', () => {
-    engine._pulling = false;
-    engine._schedulePush('transactions', 'create', {});
-    expect(engine.pendingCount).toBe(1);
+  it('writes an outbox entry and recounts pending from the outbox', async () => {
+    mockDb.sync_outbox.count.mockResolvedValue(3);
+    engine._enqueueOutbox('transactions', 7);
+    expect(mockDb.sync_outbox.put).toHaveBeenCalledWith({
+      key: 'transactions:7', table: 'transactions', record_id: 7, created_at: expect.any(Number),
+    });
+    await vi.waitFor(() => expect(engine.pendingCount).toBe(3));
   });
 
-  it('does not schedule push when pulling', () => {
+  it('does not schedule a push while pulling', () => {
     engine._pulling = true;
-    engine._schedulePush('transactions', 'create', {});
-    expect(engine.pendingCount).toBe(0);
+    engine._enqueueOutbox('transactions', 7);
+    expect(engine._pushDebounce).toBeNull();
   });
 
-  it('debounces multiple pushes', () => {
-    engine._pulling = false;
-    engine._schedulePush('transactions', 'create', {});
-    engine._schedulePush('customers', 'create', {});
-    expect(engine.pendingCount).toBe(2);
-    expect(engine._pushDebounce).toBeDefined();
+  it('does not enqueue pulled rows while pulling', () => {
+    // Regression: _pullAll writes fire the same Dexie hooks; enqueuing them
+    // would re-push server-acked rows and inflate the pending count.
+    engine._pulling = true;
+    engine._enqueueOutbox('transactions', 9);
+    expect(mockDb.sync_outbox.put).not.toHaveBeenCalled();
+  });
+
+  it('debounces burst writes into one scheduled sync', () => {
+    engine._enqueueOutbox('transactions', 1);
+    engine._enqueueOutbox('customers', 2);
+    expect(mockDb.sync_outbox.put).toHaveBeenCalledTimes(2);
+    expect(engine._pushDebounce).not.toBeNull();
   });
 });
 
@@ -285,9 +330,17 @@ describe('SyncEngine.fullSync', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // Reset outbox mocks explicitly: clearAllMocks keeps mockResolvedValue
+    // implementations, and a leaked non-zero count would trigger init-time
+    // auto-sync inside unrelated tests.
+    mockDb.sync_outbox.count.mockResolvedValue(0);
+    mockDb.sync_outbox.toArray.mockResolvedValue([]);
     destroySyncEngine();
     Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, writable: true, configurable: true });
-    Object.defineProperty(globalThis, 'document', { value: { visibilityState: 'visible' }, writable: true, configurable: true });
+    Object.defineProperty(globalThis, 'document', {
+      value: { visibilityState: 'visible', addEventListener: vi.fn(), removeEventListener: vi.fn() },
+      writable: true, configurable: true,
+    });
     if (!globalThis.window) {
       globalThis.window = { addEventListener: vi.fn(), removeEventListener: vi.fn() };
     }
@@ -344,10 +397,18 @@ describe('SyncEngine._pullAll', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // Reset outbox mocks explicitly: clearAllMocks keeps mockResolvedValue
+    // implementations, and a leaked non-zero count would trigger init-time
+    // auto-sync inside unrelated tests.
+    mockDb.sync_outbox.count.mockResolvedValue(0);
+    mockDb.sync_outbox.toArray.mockResolvedValue([]);
     destroySyncEngine();
     vi.useFakeTimers();
     Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, writable: true, configurable: true });
-    Object.defineProperty(globalThis, 'document', { value: { visibilityState: 'visible' }, writable: true, configurable: true });
+    Object.defineProperty(globalThis, 'document', {
+      value: { visibilityState: 'visible', addEventListener: vi.fn(), removeEventListener: vi.fn() },
+      writable: true, configurable: true,
+    });
     if (!globalThis.window) {
       globalThis.window = { addEventListener: vi.fn(), removeEventListener: vi.fn() };
     }
@@ -417,10 +478,18 @@ describe('SyncEngine._pushAll', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // Reset outbox mocks explicitly: clearAllMocks keeps mockResolvedValue
+    // implementations, and a leaked non-zero count would trigger init-time
+    // auto-sync inside unrelated tests.
+    mockDb.sync_outbox.count.mockResolvedValue(0);
+    mockDb.sync_outbox.toArray.mockResolvedValue([]);
     destroySyncEngine();
     vi.useFakeTimers();
     Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, writable: true, configurable: true });
-    Object.defineProperty(globalThis, 'document', { value: { visibilityState: 'visible' }, writable: true, configurable: true });
+    Object.defineProperty(globalThis, 'document', {
+      value: { visibilityState: 'visible', addEventListener: vi.fn(), removeEventListener: vi.fn() },
+      writable: true, configurable: true,
+    });
     if (!globalThis.window) {
       globalThis.window = { addEventListener: vi.fn(), removeEventListener: vi.fn() };
     }
@@ -446,7 +515,10 @@ describe('SyncEngine._pushAll', () => {
   });
 
   it('sends push with correct headers', async () => {
-    mockDb.transactions.toArray.mockResolvedValue([{ id: 1, updated_at: 2000 }]);
+    mockDb.sync_outbox.toArray.mockResolvedValue([
+      { key: 'transactions:1', table: 'transactions', record_id: 1, created_at: 1 },
+    ]);
+    mockDb.transactions.bulkGet.mockResolvedValue([{ id: 1, updated_at: 2000 }]);
 
     mockFetch.mockResolvedValue({
       ok: true,
@@ -468,9 +540,42 @@ describe('SyncEngine._pushAll', () => {
     );
   });
 
+  it('retires outbox entries after a successful push', async () => {
+    mockDb.sync_outbox.toArray.mockResolvedValue([
+      { key: 'transactions:1', table: 'transactions', record_id: 1, created_at: 1 },
+    ]);
+    mockDb.transactions.bulkGet.mockResolvedValue([{ id: 1, updated_at: 2000 }]);
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ ok: true, business_id: 1 }),
+    });
+
+    await engine._pushAll('test-token');
+    expect(mockDb.sync_outbox.bulkDelete).toHaveBeenCalledWith(['transactions:1']);
+  });
+
+  it('drops outbox entries whose local row vanished before push', async () => {
+    mockDb.sync_outbox.toArray.mockResolvedValue([
+      { key: 'transactions:9', table: 'transactions', record_id: 9, created_at: 1 },
+    ]);
+    mockDb.transactions.bulkGet.mockResolvedValue([undefined]);
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ ok: true }),
+    });
+
+    await engine._pushAll('test-token');
+    // Nothing to send (payload had no rows) and no fetch happened.
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockDb.sync_outbox.bulkDelete).not.toHaveBeenCalled();
+  });
+
   it('handles 403 permission error', async () => {
     vi.useFakeTimers();
-    mockDb.transactions.toArray.mockResolvedValue([{ id: 1, updated_at: 2000 }]);
+    mockDb.sync_outbox.toArray.mockResolvedValue([
+      { key: 'transactions:1', table: 'transactions', record_id: 1, created_at: 1 },
+    ]);
+    mockDb.transactions.bulkGet.mockResolvedValue([{ id: 1, updated_at: 2000 }]);
 
     mockFetch.mockResolvedValue({
       ok: false,
@@ -480,6 +585,7 @@ describe('SyncEngine._pushAll', () => {
     });
 
     const promise = engine._pushAll('test-token');
+    promise.catch(() => {});
     for (let i = 0; i < 4; i++) {
       await vi.advanceTimersByTimeAsync(1000 * Math.pow(2, i));
     }
@@ -488,7 +594,10 @@ describe('SyncEngine._pushAll', () => {
   }, 30000);
 
   it('stores business_id from response', async () => {
-    mockDb.transactions.toArray.mockResolvedValue([{ id: 1, updated_at: 2000 }]);
+    mockDb.sync_outbox.toArray.mockResolvedValue([
+      { key: 'transactions:1', table: 'transactions', record_id: 1, created_at: 1 },
+    ]);
+    mockDb.transactions.bulkGet.mockResolvedValue([{ id: 1, updated_at: 2000 }]);
 
     mockFetch.mockResolvedValue({
       ok: true,
@@ -505,10 +614,18 @@ describe('SyncEngine.onChange', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // Reset outbox mocks explicitly: clearAllMocks keeps mockResolvedValue
+    // implementations, and a leaked non-zero count would trigger init-time
+    // auto-sync inside unrelated tests.
+    mockDb.sync_outbox.count.mockResolvedValue(0);
+    mockDb.sync_outbox.toArray.mockResolvedValue([]);
     destroySyncEngine();
     vi.useFakeTimers();
     Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, writable: true, configurable: true });
-    Object.defineProperty(globalThis, 'document', { value: { visibilityState: 'visible' }, writable: true, configurable: true });
+    Object.defineProperty(globalThis, 'document', {
+      value: { visibilityState: 'visible', addEventListener: vi.fn(), removeEventListener: vi.fn() },
+      writable: true, configurable: true,
+    });
     if (!globalThis.window) {
       globalThis.window = { addEventListener: vi.fn(), removeEventListener: vi.fn() };
     }
@@ -543,10 +660,18 @@ describe('SyncEngine._countPending', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // Reset outbox mocks explicitly: clearAllMocks keeps mockResolvedValue
+    // implementations, and a leaked non-zero count would trigger init-time
+    // auto-sync inside unrelated tests.
+    mockDb.sync_outbox.count.mockResolvedValue(0);
+    mockDb.sync_outbox.toArray.mockResolvedValue([]);
     destroySyncEngine();
     vi.useFakeTimers();
     Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, writable: true, configurable: true });
-    Object.defineProperty(globalThis, 'document', { value: { visibilityState: 'visible' }, writable: true, configurable: true });
+    Object.defineProperty(globalThis, 'document', {
+      value: { visibilityState: 'visible', addEventListener: vi.fn(), removeEventListener: vi.fn() },
+      writable: true, configurable: true,
+    });
     if (!globalThis.window) {
       globalThis.window = { addEventListener: vi.fn(), removeEventListener: vi.fn() };
     }
@@ -561,23 +686,16 @@ describe('SyncEngine._countPending', () => {
     vi.useRealTimers();
   });
 
-  it('counts records from all tables', async () => {
-    mockDb.transactions.count.mockResolvedValue(3);
-    mockDb.customers.count.mockResolvedValue(2);
+  it('counts pending from the sync_outbox table', async () => {
+    mockDb.sync_outbox.count.mockResolvedValue(5);
     await engine._countPending();
     expect(engine.pendingCount).toBe(5);
+    expect(mockDb.sync_outbox.count).toHaveBeenCalled();
   });
 
-  it('resets count to zero when no pending', async () => {
+  it('resets count to zero when outbox is empty', async () => {
     engine.pendingCount = 10;
-    Object.values(mockDb).forEach((t) => {
-      if (t && typeof t === 'object' && t.count) t.count.mockReset();
-      if (t && typeof t === 'object' && t.toArray) t.toArray.mockReset();
-    });
-    Object.values(mockDb).forEach((t) => {
-      if (t && typeof t === 'object' && t.count) t.count.mockResolvedValue(0);
-      if (t && typeof t === 'object' && t.toArray) t.toArray.mockResolvedValue([]);
-    });
+    mockDb.sync_outbox.count.mockResolvedValue(0);
     await engine._countPending();
     expect(engine.pendingCount).toBe(0);
   });

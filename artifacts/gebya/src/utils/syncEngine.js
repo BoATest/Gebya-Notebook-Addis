@@ -7,6 +7,29 @@ const AUTH_TOKEN_KEY = 'gebya_auth_token';
 const LAST_SYNC_AT_KEY = 'gebya_last_sync_at';
 const TABLE_LAST_SYNC_KEY = 'gebya_table_last_sync';
 const BUSINESS_ID_KEY = 'gebya_business_id';
+const OUTBOX_SEED_KEY = 'gebya_outbox_seeded_v1';
+
+// Entity tables tracked by the durable outbox (create/update hooks + push).
+const SYNC_TABLES = [
+  'transactions',
+  'customers',
+  'customer_transactions',
+  'catalog_entries',
+  'suppliers',
+  'supplier_transactions',
+  'staff_members',
+  'settlements',
+];
+// Key-value tables keep the legacy timestamp-based push (device-scoped noise,
+// not user-facing "pending" data).
+const KV_TABLES = ['settings', 'analytics'];
+
+// Pull requests re-read a safety window behind the cursor so records stamped by
+// devices with skewed clocks are never skipped. Re-delivered rows are deduped
+// by the version-aware merge below.
+const PULL_OVERLAP_MS = 60 * 1000;
+// Batch window for hook-triggered pushes.
+const PUSH_DEBOUNCE_MS = 500;
 
 function _deepEqual(a, b) {
   if (a === b) return true;
@@ -62,7 +85,10 @@ function mapPullRow(row) {
 }
 
 // ─── Retry with exponential backoff ───
-async function fetchWithRetry(url, options, retries = 5, baseDelay = 1000) {
+// 3 retries ≈ 7s worst case per request; the engine reschedules itself on
+// online/visibility/periodic events, so longer blocking loops only delay the
+// UI status from returning to idle.
+async function fetchWithRetry(url, options, retries = 3, baseDelay = 1000) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(url, options);
@@ -102,6 +128,7 @@ class SyncEngine {
     this._pushDebounce = null;
     this._pulling = false;
     this.pendingCount = 0;
+    this._wroteDuringSync = false;
   }
 
   _notify() {
@@ -199,16 +226,44 @@ class SyncEngine {
     this._setupOnlineListeners();
     this._setupDexieHooks();
     this._setupPeriodicSync();
+    await this._seedOutbox();
     await this._countPending();
 
-    if (this.pendingCount > 0 && this.online) {
+    // No navigator.onLine gate here: it is unreliable in installed PWAs and
+    // previously caused endless "Pending sync". sync() attempts unconditionally
+    // and surfaces real network failures instead.
+    if (this.pendingCount > 0) {
       this.sync();
     }
   }
 
+  /**
+   * One-time migration: seed the outbox with any entity rows newer than the
+   * last acknowledged sync so upgrades never lose already-pending writes.
+   */
+  async _seedOutbox() {
+    try {
+      const seeded = await db.settings.get(OUTBOX_SEED_KEY);
+      if (seeded?.value) return;
+      const now = Date.now();
+      for (const name of SYNC_TABLES) {
+        const table = db[name];
+        if (!table) continue;
+        const rows = await table.where('updated_at').above(this.lastSyncAt).toArray();
+        for (const row of rows) {
+          if (row?.id == null) continue;
+          await db.sync_outbox.put({ key: `${name}:${row.id}`, table: name, record_id: row.id, created_at: now });
+        }
+      }
+      await db.settings.put({ key: OUTBOX_SEED_KEY, value: true });
+    } catch { /* non-fatal: worst case the next hook write re-enqueues */ }
+  }
+
   _setupPeriodicSync() {
     this.timer = setInterval(() => {
-      if (document.visibilityState === 'visible' && this.online) {
+      // Only gate on visibility (battery courtesy), not navigator.onLine —
+      // see note in sync().
+      if (document.visibilityState === 'visible') {
         this.sync();
       }
     }, 5 * 60 * 1000);
@@ -230,7 +285,7 @@ class SyncEngine {
     // event and the periodic timer, this means sync "just happens" on
     // reconnect or resume — no tap, no sign-in required.
     const onVisible = () => {
-      if (document.visibilityState === 'visible' && this.online && this.pendingCount > 0) {
+      if (document.visibilityState === 'visible' && this.pendingCount > 0) {
         this.sync();
       }
     };
@@ -239,18 +294,7 @@ class SyncEngine {
   }
 
   _setupDexieHooks() {
-    const tables = [
-      'transactions',
-      'customers',
-      'customer_transactions',
-      'catalog_entries',
-      'suppliers',
-      'supplier_transactions',
-      'staff_members',
-      'settlements',
-    ];
-
-    tables.forEach((tableName) => {
+    SYNC_TABLES.forEach((tableName) => {
       const table = db[tableName];
       if (!table?.hook) return;
 
@@ -259,7 +303,7 @@ class SyncEngine {
         if (obj.sync_version === undefined || obj.sync_version === null) {
           obj.sync_version = 1;
         }
-        this._schedulePush(tableName, 'create', obj);
+        this._enqueueOutbox(tableName, primKey);
       };
       const onUpdate = (modifications, primKey, obj, trans) => {
         // Increment sync_version on updates (if not already set by caller)
@@ -267,7 +311,7 @@ class SyncEngine {
           const currentVersion = obj.sync_version || 1;
           modifications.sync_version = currentVersion + 1;
         }
-        this._schedulePush(tableName, 'update', obj);
+        this._enqueueOutbox(tableName, primKey);
       };
 
       table.hook('creating', onCreate);
@@ -279,22 +323,21 @@ class SyncEngine {
       });
     });
 
-    const kvTables = ['settings', 'analytics'];
-    kvTables.forEach((tableName) => {
+    KV_TABLES.forEach((tableName) => {
       const table = db[tableName];
       if (!table?.hook) return;
       const onCreate = (primKey, obj, trans) => {
         if (obj.sync_version === undefined || obj.sync_version === null) {
           obj.sync_version = 1;
         }
-        this._schedulePush(tableName, 'create', obj);
+        this._schedulePush();
       };
       const onUpdate = (modifications, primKey, obj, trans) => {
         if (!modifications.sync_version) {
           const currentVersion = obj.sync_version || 1;
           modifications.sync_version = currentVersion + 1;
         }
-        this._schedulePush(tableName, 'update', obj);
+        this._schedulePush();
       };
       table.hook('creating', onCreate);
       table.hook('updating', onUpdate);
@@ -305,28 +348,47 @@ class SyncEngine {
     });
   }
 
-  _schedulePush(table, operation, record) {
+  /**
+   * Record a local write in the durable outbox and schedule a push.
+   * Safe to call from synchronous Dexie hooks (fire-and-forget promise).
+   */
+  _enqueueOutbox(tableName, recordId) {
+    // Rows written by _pullAll are server-acknowledged state — never
+    // re-enqueue them, or every pull would inflate the pending queue and
+    // re-push remote data back to the server.
     if (this._pulling) return;
-    this.pendingCount++;
+    if (recordId == null || !db.sync_outbox) return;
+    if (this.status === 'syncing') this._wroteDuringSync = true;
+    Promise.resolve(
+      db.sync_outbox.put({ key: `${tableName}:${recordId}`, table: tableName, record_id: recordId, created_at: Date.now() })
+    )
+      .then(() => this._refreshPending())
+      .catch(() => { /* outbox unavailable — legacy timestamp scan still covers it */ });
+    this._schedulePush();
+  }
+
+  /** Recount pending from the authoritative source (the outbox itself). */
+  async _refreshPending() {
+    try {
+      this.pendingCount = await db.sync_outbox.count();
+      this._notify();
+    } catch { /* ignore */ }
+  }
+
+  /** Debounce a near-term sync burst into one network round-trip. */
+  _schedulePush() {
+    if (this._pulling) return;
     if (this._pushDebounce) clearTimeout(this._pushDebounce);
-    this._pushDebounce = setTimeout(() => this.sync(), 800);
+    this._pushDebounce = setTimeout(() => this.sync(), PUSH_DEBOUNCE_MS);
   }
 
   async _countPending() {
-    const tables = [
-      'transactions', 'customers', 'customer_transactions',
-      'catalog_entries', 'suppliers', 'supplier_transactions',
-      'staff_members', 'settlements',
-    ];
-    let count = 0;
-    for (const name of tables) {
-      count += await db[name].where('updated_at').above(this.lastSyncAt).count();
+    // The outbox is the single source of truth for unacknowledged writes.
+    try {
+      this.pendingCount = await db.sync_outbox.count();
+    } catch {
+      this.pendingCount = 0;
     }
-    for (const name of ['settings', 'analytics']) {
-      const all = await db[name].toArray();
-      count += all.filter((r) => (r.updated_at || r.created_at || 0) > this.lastSyncAt).length;
-    }
-    this.pendingCount = count;
   }
 
   async sync() {
@@ -359,6 +421,20 @@ class SyncEngine {
       await db.settings.put({ key: TABLE_LAST_SYNC_KEY, value: this.tableLastSync });
       await this._countPending();
       this.status = 'idle';
+      // If records were written while this cycle was pushing, their debounced
+      // sync was swallowed by the 'syncing' guard — schedule another now so
+      // they never sit behind the next periodic tick.
+      if (this._wroteDuringSync) {
+        this._wroteDuringSync = false;
+        this._schedulePush();
+      }
+      // Silent background follow-through for integration queues (fire-and-
+      // forget; dynamic import avoids a static import cycle with syncQueue).
+      if (typeof window !== 'undefined') {
+        import('./syncQueue')
+          .then((m) => m.drainTelegramSyncQueue({ limit: 3 }).catch(() => {}))
+          .catch(() => {});
+      }
     } catch (err) {
       if (err.message?.includes('401') || err.message?.includes('403')) {
         this.status = 'unauthenticated';
@@ -407,6 +483,10 @@ class SyncEngine {
       await db.settings.put({ key: TABLE_LAST_SYNC_KEY, value: this.tableLastSync });
       await this._countPending();
       this.status = 'idle';
+      if (this._wroteDuringSync) {
+        this._wroteDuringSync = false;
+        this._schedulePush();
+      }
     } catch (err) {
       this.lastSyncAt = previousLastSync;
       this.tableLastSync = previousTableLastSync;
@@ -426,34 +506,42 @@ class SyncEngine {
   }
 
   async _pushAll(token) {
-    const tables = [
-      'transactions',
-      'customers',
-      'customer_transactions',
-      'catalog_entries',
-      'suppliers',
-      'supplier_transactions',
-      'staff_members',
-      'settlements',
-    ];
     const payload = { device_id: this.deviceId, tables: {} };
+    // Outbox entries acknowledged by the server. They are removed only after
+    // a successful response, so a failed/aborted push naturally retries the
+    // exact same record set next cycle.
+    const ackKeys = [];
 
-    for (const name of tables) {
-      const rows = await db[name]
-        .where('updated_at')
-        .above(this.lastSyncAt)
-        .toArray();
-      if (rows.length) payload.tables[name] = rows.map((row) =>
-        // Rows pulled from another device carry their origin here. Re-key them
-        // to that origin so edits (e.g. an owner's settlement review) update the
-        // same server row instead of spawning a duplicate.
+    const entries = db.sync_outbox ? await db.sync_outbox.toArray() : [];
+    const byTable = {};
+    for (const entry of entries) {
+      if (!byTable[entry.table]) byTable[entry.table] = [];
+      byTable[entry.table].push(entry);
+    }
+
+    for (const name of SYNC_TABLES) {
+      const tableEntries = byTable[name];
+      if (!tableEntries?.length) continue;
+
+      const ids = tableEntries.map((e) => e.record_id);
+      const rows = ((await db[name].bulkGet(ids)) || []).filter(Boolean);
+
+      // Rows pulled from another device carry their origin here. Re-key them
+      // to that origin so edits (e.g. an owner's settlement review) update the
+      // same server row instead of spawning a duplicate.
+      payload.tables[name] = rows.map((row) =>
         (row.remote_local_id != null && row.device_id)
           ? { ...row, id: row.remote_local_id, device_id: row.device_id }
           : row
       );
+
+      // Entries whose local row vanished before the push (deleted locally)
+      // have nothing left to send — acknowledge and drop them too.
+      tableEntries.forEach((entry) => ackKeys.push(entry.key));
+      if (!rows.length) delete payload.tables[name];
     }
 
-    for (const name of ['settings', 'analytics']) {
+    for (const name of KV_TABLES) {
       const all = await db[name].toArray();
       const changed = all.filter((r) => (r.updated_at || r.created_at || 0) > this.lastSyncAt);
       if (changed.length) payload.tables[name] = changed;
@@ -493,6 +581,11 @@ class SyncEngine {
       throw new Error(friendly);
     }
 
+    // Server acknowledged — retire the pushed outbox entries.
+    if (ackKeys.length && db.sync_outbox) {
+      try { await db.sync_outbox.bulkDelete(ackKeys); } catch { /* recount heals */ }
+    }
+
     const response = await res.json();
 
     // Track business_id from server if returned
@@ -513,62 +606,77 @@ class SyncEngine {
   }
 
   async _resolveConflicts(conflicts, token) {
-    // For each conflict, fetch the server record, merge with local, and re-push
-    const conflictMap = {};
-    const resolveConflicts = []; // collect field-level diffs
+    // Batched resolution: ONE pull request covers every conflicting record,
+    // instead of the previous one-request-per-record pattern that multiplied
+    // latency (and rate-limit pressure) during multi-record conflicts.
+    const resolveConflicts = []; // field-level diffs surfaced to the user
+    if (!Array.isArray(conflicts) || conflicts.length === 0) return;
 
+    // Load local records once (by provenance first; localId is the origin id
+    // for rows re-keyed from another device).
+    const locals = new Map(); // `${table}:${localId}` -> localRecord
+    let minUpdatedAt = Infinity;
     for (const conflict of conflicts) {
-      if (!conflictMap[conflict.table]) conflictMap[conflict.table] = [];
-      conflictMap[conflict.table].push(conflict.localId);
+      const tableName = conflict.table;
+      const localId = conflict.localId;
+      let localRecord = await db[tableName]?.get(localId);
+      if (!localRecord && tableName !== 'settings' && tableName !== 'analytics') {
+        localRecord = await db[tableName]?.where('remote_local_id').equals(localId).first();
+      }
+      if (!localRecord) continue;
+      locals.set(`${tableName}:${localId}`, { localRecord, table: tableName, localId });
+      minUpdatedAt = Math.min(minUpdatedAt, localRecord.updated_at || 0);
+    }
+    if (locals.size === 0) return;
+
+    // Single server pull covering every conflicted row.
+    const resolveHeaders = { 'Authorization': `Bearer ${token}` };
+    if (this.businessId) resolveHeaders['x-business-id'] = String(this.businessId);
+    let serverTables = {};
+    try {
+      const serverRes = await fetch(
+        `${SYNC_API_BASE}/sync/pull?since=${Math.max(0, minUpdatedAt - 1)}&limit=1000`,
+        { headers: resolveHeaders }
+      );
+      if (serverRes.ok) ({ tables: serverTables = {} } = await serverRes.json());
+    } catch { /* network hiccup — keep local versions, next cycle retries */ }
+
+    // Index server rows by origin localId per table.
+    const serverIndex = {};
+    for (const [tableName, rows] of Object.entries(serverTables || {})) {
+      serverIndex[tableName] = new Map();
+      for (const row of rows || []) {
+        serverIndex[tableName].set(row.localId != null ? row.localId : row.id, row);
+      }
     }
 
-    for (const [tableName, localIds] of Object.entries(conflictMap)) {
-      for (const localId of localIds) {
-        try {
-          // Fetch local record (by provenance first; localId is the origin id
-          // for rows re-keyed from another device)
-          let localRecord = await db[tableName].get(localId);
-          if (!localRecord && tableName !== 'settings' && tableName !== 'analytics') {
-            localRecord = await db[tableName].where('remote_local_id').equals(localId).first();
-          }
-          if (!localRecord) continue;
+    for (const { localRecord, table: tableName, localId } of locals.values()) {
+      try {
+        const serverRecord = serverIndex[tableName]?.get(localId);
+        if (!serverRecord) continue;
 
-          // Fetch server record via pull
-          const resolveHeaders = { 'Authorization': `Bearer ${token}` };
-          if (this.businessId) resolveHeaders['x-business-id'] = String(this.businessId);
-          const serverRes = await fetch(
-            `${SYNC_API_BASE}/sync/pull?since=${(localRecord.updated_at || 0) - 1}&limit=50`,
-            { headers: resolveHeaders }
-          );
-          if (!serverRes.ok) continue;
-          const { tables } = await serverRes.json();
-          const serverRows = tables?.[tableName] || [];
-          const serverRecord = serverRows.find((r) => r.localId === localId || r.id === localId);
-          if (!serverRecord) continue;
-
-          // Compute diff before resolving
-          const mappedServer = mapPullRow(serverRecord);
-          const changedFields = this._diffFields(localRecord, mappedServer);
-          if (changedFields.length > 0) {
-            resolveConflicts.push({
-              table: tableName,
-              recordId: localId,
-              transactionId: localRecord.transaction_id || null,
-              changedFields,
-              localVersion: localRecord,
-              serverVersion: mappedServer,
-            });
-          }
-
-          // Merge: accept server version but bump local version so next push wins
-          const merged = { ...localRecord };
-          merged.sync_version = (serverRecord.syncVersion || 1) + 1;
-          merged.updated_at = Date.now();
-
-          await db[tableName].put(merged);
-        } catch (err) {
-          if (import.meta.env.DEV) console.error('[sync] conflict resolution failed:', err);
+        // Compute diff before resolving
+        const mappedServer = mapPullRow(serverRecord);
+        const changedFields = this._diffFields(localRecord, mappedServer);
+        if (changedFields.length > 0) {
+          resolveConflicts.push({
+            table: tableName,
+            recordId: localId,
+            transactionId: localRecord.transaction_id || null,
+            changedFields,
+            localVersion: localRecord,
+            serverVersion: mappedServer,
+          });
         }
+
+        // Merge: accept server version but bump local version so next push wins
+        const merged = { ...localRecord };
+        merged.sync_version = (serverRecord.syncVersion || 1) + 1;
+        merged.updated_at = Date.now();
+
+        await db[tableName].put(merged);
+      } catch (err) {
+        if (import.meta.env.DEV) console.error('[sync] conflict resolution failed:', err);
       }
     }
 
@@ -600,7 +708,11 @@ class SyncEngine {
       const allTables = [...tables, ...kvTables];
 
       let hasMore = true;
-      let cursor = this.lastSyncAt;
+      // Start slightly behind the cursor: other devices' `updated_at` values
+      // come from their own clocks, so a strict `>` cutoff can permanently
+      // skip rows stamped by a skewed device. Re-delivered rows are cheap —
+      // the merge below is idempotent and version-aware.
+      let cursor = Math.max(0, this.lastSyncAt - PULL_OVERLAP_MS);
       let pulledAny = false;
       const pullConflicts = [];
 
@@ -671,7 +783,15 @@ class SyncEngine {
                   delete mapped.id;
                   await table.add(mapped);
                 } else {
-                  if ((local.updated_at || 0) >= (mapped.updated_at || 0)) continue;
+                  // Skip only when the local copy is strictly not older.
+                  // Comparing sync_version as a tie-breaker protects against
+                  // clock skew between devices (same timestamp, newer version
+                  // must still win).
+                  const lUpd = local.updated_at || 0;
+                  const rUpd = mapped.updated_at || 0;
+                  const lVer = local.sync_version || 0;
+                  const rVer = mapped.sync_version || 0;
+                  if (lUpd > rUpd || (lUpd === rUpd && lVer >= rVer)) continue;
                   const changedFields = this._diffFields(local, mapped);
                   if (changedFields.length > 0) {
                     pullConflicts.push({
