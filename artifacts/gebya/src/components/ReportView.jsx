@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Eye, EyeOff, Search, Share2 } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { usePrivacy } from '../context/PrivacyContext';
@@ -21,6 +21,7 @@ import {
   computePeriodVerdict,
 } from '../utils/shopStory';
 import { fmt } from '../utils/numformat';
+import { fireToast } from './Toast';
 
 import HeroStatus from './HeroStatus';
 import TodayBusiness from './TodayBusiness';
@@ -29,8 +30,11 @@ import WhatINoticed from './WhatINoticed';
 import TodayStory from './TodayStory';
 import TimelineView from './TimelineView';
 import PeriodInsights from './PeriodInsights';
+import HandoverStatus from './HandoverStatus';
 import SearchSheet from './SearchSheet';
 import ErrorBoundary from './report/ErrorBoundary';
+
+const SettlementSheet = lazy(() => import('./report/SettlementSheet'));
 
 const DAY_MS = 86400000;
 
@@ -109,6 +113,10 @@ export default function ReportView({
   });
   const [showSearchSheet, setShowSearchSheet] = useState(false);
 
+  // ── Surrender / handover (reuses the existing SettlementSheet flow) ──
+  const [sheetTarget, setSheetTarget] = useState(null); // { staff, settlement|null }
+  const [handoverRefresh, setHandoverRefresh] = useState(0);
+
   // ── Per-person day view ──────────────────────────────────────
   // RBAC: ONLY owner/manager (or explicitly permitted) devices may see
   // other people's records and switch between them. Everyone else is
@@ -142,6 +150,12 @@ export default function ReportView({
       .filter(m => m && m.id != null)
       .map(m => ({ id: String(m.id), name: m.display_name || m.name || '?' }));
   }, [canSwitchPeople, staffMembers]);
+
+  // The staff member being viewed in the personal day view (if any).
+  const surrenderStaff = useMemo(() => {
+    if (!isPersonScoped || activePerson === OWNER_SCOPE) return null;
+    return (staffMembers || []).find(m => String(m.id) === String(activePerson)) || null;
+  }, [isPersonScoped, activePerson, staffMembers]);
 
   const now = Date.now();
   const todayStart = startOfLocalDay(now);
@@ -356,6 +370,8 @@ export default function ReportView({
       handleClose({ cashInHand: cashYouShouldHave, cashVariance: 0 });
     } else if (actionType === 'overdue') {
       window.dispatchEvent(new CustomEvent('gebya:navigate', { detail: { tab: 'credit' } }));
+    } else if (actionType === 'collect_staff') {
+      window.dispatchEvent(new CustomEvent('gebya:navigate', { detail: { tab: 'staff' } }));
     } else if (actionType === 'sale') {
       window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'sale' } }));
     } else if (actionType === 'view_details' || actionType === 'review') {
@@ -642,6 +658,40 @@ export default function ReportView({
                 ? `${activePersonName} · ${lang === 'am' ? 'የእኔ ቀን' : 'MY DAY'}`
                 : (lang === 'am' ? 'የእኔ ቀን' : 'MY DAY')
             } />
+
+            {/* Surrender card — hands today's collection to the owner via
+                the existing settlement flow */}
+            {surrenderStaff && (
+              <div style={{
+                background: 'linear-gradient(135deg, var(--color-success-bg) 0%, #ecfdf5 100%)',
+                border: '1px solid var(--color-success-border)',
+                borderRadius: 16,
+                padding: '14px 16px',
+                marginBottom: 10,
+              }}>
+                <p style={{ fontSize: 13, fontWeight: 900, color: 'var(--color-primary)', marginBottom: 3 }}>
+                  🤝 {lang === 'am' ? 'ገንዘብ ለማስረከብ ዝግጁ ነዎት?' : 'Ready to hand over?'}
+                </p>
+                <p style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 10 }}>
+                  {lang === 'am'
+                    ? `የሚጠበቅ: 💵 ${hidden ? '••••' : fmt(metrics.cashExpected)} · 📱 ${hidden ? '••••' : fmt(metrics.transferRecorded)} ETB`
+                    : `Expected: 💵 ${hidden ? '••••' : fmt(metrics.cashExpected)} cash · 📱 ${hidden ? '••••' : fmt(metrics.transferRecorded)} digital`}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSheetTarget({ staff: surrenderStaff, settlement: null })}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '9px 18px', borderRadius: 10, border: 'none',
+                    background: 'var(--color-primary)', color: 'var(--color-bg-white)',
+                    fontSize: 13, fontWeight: 800, cursor: 'pointer',
+                  }}
+                >
+                  🤝 {lang === 'am' ? 'አሳልፍ' : 'Surrender'}
+                </button>
+              </div>
+            )}
+
             <div id="today-business">
               <ErrorBoundary>
                 <TodayBusiness
@@ -706,6 +756,22 @@ export default function ReportView({
                   onAction={handleAction}
                 />
               </ErrorBoundary>
+
+              {/* Staff handover status — who has surrendered today */}
+              {canSwitchPeople && switchablePeople.length > 0 && (
+                <>
+                  <SectionHeading label={lang === 'am' ? '🤝 የሰራተኛ ማስረከቢያ' : 'STAFF HANDOVER'} />
+                  <ErrorBoundary>
+                    <HandoverStatus
+                      staffMembers={staffMembers}
+                      todayStart={todayStart}
+                      lang={lang}
+                      refreshKey={handoverRefresh}
+                      onOpen={(member, settlement) => setSheetTarget({ staff: member, settlement })}
+                    />
+                  </ErrorBoundary>
+                </>
+              )}
 
               {/* 4. What I Noticed */}
               <SectionHeading label={lang === 'am' ? 'ያስተዋልኩት' : 'WHAT I NOTICED'} />
@@ -784,6 +850,32 @@ export default function ReportView({
 
         </>
         )
+      )}
+
+      {/* ── Settlement sheet overlay — surrender / review ── */}
+      {sheetTarget && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'var(--color-overlay)', backdropFilter: 'blur(2px)' }}>
+          <div className="w-full max-w-md rounded-2xl bg-white px-4 pb-6 pt-2 max-h-[90vh] overflow-y-auto" style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16 }}>
+            <div className="w-9 h-1 rounded-full bg-gray-300 mx-auto mb-3" />
+            <Suspense fallback={
+              <p style={{ textAlign: 'center', padding: 24, fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)' }}>
+                {lang === 'am' ? 'በመጫን ላይ...' : 'Loading...'}
+              </p>
+            }>
+              <SettlementSheet
+                staff={sheetTarget.staff}
+                existingSettlement={sheetTarget.settlement}
+                lang={lang}
+                onSaved={() => {
+                  setSheetTarget(null);
+                  setHandoverRefresh(k => k + 1);
+                  fireToast(lang === 'am' ? 'ማስረከቢያ ተመዝግቧል ✓' : 'Handover recorded ✓', 2400);
+                }}
+                onCancel={() => setSheetTarget(null)}
+              />
+            </Suspense>
+          </div>
+        </div>
       )}
     </div>
   );

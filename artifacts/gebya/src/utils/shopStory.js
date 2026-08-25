@@ -143,7 +143,7 @@ export function computeAttentionItems({
         ? `የሚጠበቅ: ${fmt(cashExpected)} ETB`
         : `Expected: ${fmt(cashExpected)} ETB`,
       action: lang === 'am' ? 'ገንዘብ ቅጠል' : 'Count Cash',
-      actionType: 'primary',
+      actionType: 'count_cash',
     });
   }
 
@@ -156,7 +156,7 @@ export function computeAttentionItems({
       message: lang === 'am' ? 'ገንዘብ አይዛመድም' : 'Cash does not match',
       detail: `${fmt(Math.abs(cashVariance))} ETB ${direction}`,
       action: lang === 'am' ? '🔍 መመርመር' : 'Review',
-      actionType: 'secondary',
+      actionType: 'review',
     });
   }
 
@@ -172,7 +172,7 @@ export function computeAttentionItems({
         ? `ጠቅላላ: ${fmt(overdueAmount)} ETB`
         : `Total: ${fmt(overdueAmount)} ETB · Oldest: ${largestOverdueDays} days`,
       action: lang === 'am' ? 'ያስታውሱ' : 'Remind',
-      actionType: 'secondary',
+      actionType: 'overdue',
     });
   }
 
