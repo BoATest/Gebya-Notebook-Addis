@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Platform Admin Dashboard — API Routes
  *
@@ -12,7 +11,7 @@
  *   GET  /admin/export-shops      — CSV export
  */
 import { Router } from "express";
-import { db, warmDb } from "@workspace/db";
+import { requireDb, warmDb } from "@workspace/db";
 import { warmCache, serveCachedBounded } from "../lib/adminCache.js";
 import { maskPhone, daysAgo, computeOverview, computeShops, computeFrictions, computeFeatures } from "./adminCompute.js";
 import { safeEqual } from "../lib/secure.js";
@@ -53,15 +52,13 @@ async function requireAdmin(req: any) {
   if (!token) return null;
   const decoded = verifyJwt(token);
   if (!decoded || !decoded.userId) return null;
-  const userRows = await db
-    .select({ phoneNumber: users.phoneNumber, email: users.email })
+  const userRows = await requireDb().select({ phoneNumber: users.phoneNumber, email: users.email })
     .from(users)
     .where(eq(users.id, decoded.userId))
     .limit(1);
   const user = userRows[0];
   if (!user || !(await isPlatformAdminUser(user))) return null;
-  const memberRows = await db
-    .select({ role: businessMembers.role, businessId: businessMembers.businessId })
+  const memberRows = await requireDb().select({ role: businessMembers.role, businessId: businessMembers.businessId })
     .from(businessMembers)
     .where(and(eq(businessMembers.userId, decoded.userId), eq(businessMembers.active, true)))
     .limit(1);
@@ -77,7 +74,7 @@ async function insertAdminLog(entry: {
   body?: string | null;
   status?: string | null;
 }) {
-  const [row] = await db.insert(adminShopLogs).values(entry).returning();
+  const [row] = await requireDb().insert(adminShopLogs).values(entry).returning();
   return row;
 }
 
@@ -153,21 +150,21 @@ router.get("/shops/:businessId", async (req, res) => {
   }
 
   const [bizRow, ownerMemberRows, bizTxns, bizCustTxns, bizCustomers, bizStaff, bizDevices, bizShares] = await Promise.all([
-    db.select().from(businesses).where(eq(businesses.id, businessIdNum)).limit(1),
-    db.select({ role: businessMembers.role, userId: businessMembers.userId, displayName: businessMembers.displayName }).from(businessMembers).where(eq(businessMembers.businessId, businessIdNum)),
-    db.select().from(transactions).where(eq(transactions.businessId, businessIdNum)),
-    db.select().from(customerTransactions).where(eq(customerTransactions.businessId, businessIdNum)),
-    db.select().from(customers).where(eq(customers.businessId, businessIdNum)),
-    db.select().from(staffMembers).where(eq(staffMembers.businessId, businessIdNum)),
-    db.select().from(devices).where(eq(devices.shopId, businessIdNum)),
-    db.select().from(bankDataShares).where(eq(bankDataShares.businessId, businessIdNum)),
+    requireDb().select().from(businesses).where(eq(businesses.id, businessIdNum)).limit(1),
+    requireDb().select({ role: businessMembers.role, userId: businessMembers.userId, displayName: businessMembers.displayName }).from(businessMembers).where(eq(businessMembers.businessId, businessIdNum)),
+    requireDb().select().from(transactions).where(eq(transactions.businessId, businessIdNum)),
+    requireDb().select().from(customerTransactions).where(eq(customerTransactions.businessId, businessIdNum)),
+    requireDb().select().from(customers).where(eq(customers.businessId, businessIdNum)),
+    requireDb().select().from(staffMembers).where(eq(staffMembers.businessId, businessIdNum)),
+    requireDb().select().from(devices).where(eq(devices.shopId, businessIdNum)),
+    requireDb().select().from(bankDataShares).where(eq(bankDataShares.businessId, businessIdNum)),
   ]);
 
   const biz = bizRow[0];
   if (!biz) return res.status(404).json({ error: "Shop not found" });
 
   const owner = ownerMemberRows.find(m => m.role === 'owner') || ownerMemberRows[0];
-  const ownerUser = owner ? await db.select({ phoneNumber: users.phoneNumber, telegramChatId: users.telegramChatId, createdAt: users.createdAt }).from(users).where(eq(users.id, owner.userId)).limit(1).then(r => r[0] || null) : null;
+  const ownerUser = owner ? await requireDb().select({ phoneNumber: users.phoneNumber, telegramChatId: users.telegramChatId, createdAt: users.createdAt }).from(users).where(eq(users.id, owner.userId)).limit(1).then(r => r[0] || null) : null;
 
   const bizTxnsFiltered = bizTxns;
   const totalSales = bizTxnsFiltered.filter(t => t.type === 'sale').reduce((s, t) => s + (Number(t.amount) || 0), 0);
@@ -195,14 +192,14 @@ router.get("/shops/:businessId", async (req, res) => {
   const overdueCustomers = Object.values(custBalances).filter(b => b.dueDate && b.dueDate < now && b.credit - b.paid - b.reversed > 0);
   const totalOverdueExposure = overdueCustomers.reduce((s, b) => s + (b.credit - b.paid - b.reversed), 0);
 
-  const recentSnapshots = await db.select().from(snapshots).where(eq(snapshots.userId, biz.ownerUserId)).orderBy(snapshots.createdAt, 'desc').limit(5);
+  const recentSnapshots = await requireDb().select().from(snapshots).where(eq(snapshots.userId, biz.ownerUserId)).orderBy(desc(snapshots.createdAt)).limit(5);
 
   const customerTelegramLinked = bizCustomers.filter(c => c.telegramChatId).length;
   let quota = { count: 0, limit: 0 };
   try { quota = await getQuotaInfo(businessIdNum); } catch {}
   const deliveryFailures = bizCustTxns.filter(t => t.telegramDeliveryState && t.telegramDeliveryState !== 'sent').length;
 
-  const logRows = await db.select().from(adminShopLogs).where(eq(adminShopLogs.businessId, businessIdNum)).orderBy(desc(adminShopLogs.createdAt)).limit(100);
+  const logRows = await requireDb().select().from(adminShopLogs).where(eq(adminShopLogs.businessId, businessIdNum)).orderBy(desc(adminShopLogs.createdAt)).limit(100);
   const notes = logRows.filter(r => r.type === 'note').map(r => ({ id: r.id, body: r.body, createdAt: r.createdAt?.toISOString() || null, adminPhone: r.adminPhone || null }));
   const log = logRows.filter(r => r.type !== 'note').map(r => ({ id: r.id, type: r.type, channel: r.channel, title: r.title, body: r.body, status: r.status, createdAt: r.createdAt?.toISOString() || null }));
 
@@ -251,7 +248,7 @@ router.get("/shops/:businessId", async (req, res) => {
       totalOverdueExposure,
     },
     bankShares: bizShares.map(s => ({ bankName: s.bankName, status: s.status, shareSalesData: s.shareSalesData, shareCreditData: s.shareCreditData, shareCustomerData: s.shareCustomerData, consentGivenAt: s.consentGivenAt?.toISOString() || null, expiresAt: s.expiresAt?.toISOString() || null })),
-    recentSnapshots: recentSnapshots.map(s => ({ createdAt: s.createdAt?.toISOString() || null, sizeBytes: s.sizeBytes || 0, status: s.status || null })),
+    recentSnapshots: recentSnapshots.map(s => ({ createdAt: s.createdAt ? new Date(s.createdAt).toISOString() : null, sizeBytes: s.sizeBytes || 0, status: null })),
     notes,
     log,
   });
@@ -271,7 +268,7 @@ router.post("/shops/:businessId/reset-sms-quota", async (req, res) => {
   if (!Number.isInteger(businessIdNum)) return res.status(400).json({ error: "Invalid businessId" });
   const rl = checkAdminRateLimit(`admin:${ctx.phone}:reset-sms-quota`, 5, 60_000);
   if (!rl.ok) return res.status(429).json({ error: "Rate limited", retryAfter: rl.retryAfterSec });
-  const exists = await db.select({ id: businesses.id }).from(businesses).where(eq(businesses.id, businessIdNum)).limit(1);
+  const exists = await requireDb().select({ id: businesses.id }).from(businesses).where(eq(businesses.id, businessIdNum)).limit(1);
   if (!exists[0]) return res.status(404).json({ error: "Shop not found" });
   await resetQuota(businessIdNum);
   await insertAdminLog({ businessId: businessIdNum, adminPhone: ctx.phone, type: 'action', channel: 'system', title: 'Reset SMS quota', status: 'ok' });
@@ -286,7 +283,7 @@ router.post("/shops/:businessId/notes", async (req, res) => {
   if (!Number.isInteger(businessIdNum)) return res.status(400).json({ error: "Invalid businessId" });
   const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
   if (!note) return res.status(400).json({ error: "note is required" });
-  const [row] = await db.insert(adminShopLogs).values({ businessId: businessIdNum, adminPhone: ctx.phone, type: 'note', body: note, status: 'ok' }).returning();
+  const [row] = await requireDb().insert(adminShopLogs).values({ businessId: businessIdNum, adminPhone: ctx.phone, type: 'note', body: note, status: 'ok' }).returning();
   return res.json({ ok: true, note: { id: row.id, body: row.body, createdAt: row.createdAt?.toISOString() || null, adminPhone: row.adminPhone || null } });
 });
 
@@ -299,17 +296,17 @@ router.post("/shops/:businessId/nudge", async (req, res) => {
   if (!Number.isInteger(businessIdNum)) return res.status(400).json({ error: "Invalid businessId" });
   const rl = checkAdminRateLimit(`admin:${ctx.phone}:nudge`, 30, 60_000);
   if (!rl.ok) return res.status(429).json({ error: "Rate limited", retryAfter: rl.retryAfterSec });
-  const biz = await db.select().from(businesses).where(eq(businesses.id, businessIdNum)).limit(1);
+  const biz = await requireDb().select().from(businesses).where(eq(businesses.id, businessIdNum)).limit(1);
   if (!biz[0]) return res.status(404).json({ error: "Shop not found" });
-  const ownerMember = await db.select({ userId: businessMembers.userId }).from(businessMembers).where(and(eq(businessMembers.businessId, businessIdNum), eq(businessMembers.role, 'owner'))).limit(1);
+  const ownerMember = await requireDb().select({ userId: businessMembers.userId }).from(businessMembers).where(and(eq(businessMembers.businessId, businessIdNum), eq(businessMembers.role, 'owner'))).limit(1);
   const ownerId = ownerMember[0]?.userId;
   if (!ownerId) return res.status(404).json({ error: "Shop has no owner" });
-  const ownerUser = await db.select({ phoneNumber: users.phoneNumber, telegramChatId: users.telegramChatId, displayName: users.displayName, email: users.email }).from(users).where(eq(users.id, ownerId)).limit(1);
+  const ownerUser = await requireDb().select({ phoneNumber: users.phoneNumber, telegramChatId: users.telegramChatId, email: users.email }).from(users).where(eq(users.id, ownerId)).limit(1);
   const owner = ownerUser[0];
   if (!owner) return res.status(404).json({ error: "Owner not found" });
 
   const customMsg = typeof req.body?.message === 'string' && req.body.message.trim() ? req.body.message.trim() : null;
-  const defaultMsg = `Hi ${owner.displayName || 'there'}, this is the Gebya team. Let's get your shop fully set up so your customers receive reminders automatically. Tap the link below to connect your Telegram and start getting updates.`;
+  const defaultMsg = `Hi there, this is the Gebya team. Let's get your shop fully set up so your customers receive reminders automatically. Tap the link below to connect your Telegram and start getting updates.`;
   const message = customMsg || defaultMsg;
 
   const bot = getTelegramBotUsername();
@@ -328,7 +325,7 @@ router.post("/shops/:businessId/nudge", async (req, res) => {
       // Owner not linked yet: mint a one-time owner link token so tapping the
       // deep link connects their Telegram to this account automatically.
       const linkToken = crypto.randomUUID();
-      await db.update(users).set({ telegramLinkToken: linkToken }).where(eq(users.id, ownerId));
+      await requireDb().update(users).set({ telegramLinkToken: linkToken }).where(eq(users.id, ownerId));
       deepLink = bot ? `https://t.me/${bot.replace(/^@+/, '')}?start=${encodeURIComponent(linkToken)}` : null;
       const fullMsg = deepLink ? `${message}\n\nConnect Telegram: ${deepLink}` : message;
       let reached = false;
@@ -372,11 +369,10 @@ router.post("/shops/:businessId/resend-reminders", async (req, res) => {
   if (!Number.isInteger(businessIdNum)) return res.status(400).json({ error: "Invalid businessId" });
   const rl = checkAdminRateLimit(`admin:${ctx.phone}:resend-reminders`, 10, 60_000);
   if (!rl.ok) return res.status(429).json({ error: "Rate limited", retryAfter: rl.retryAfterSec });
-  const biz = await db.select({ id: businesses.id, name: businesses.name }).from(businesses).where(eq(businesses.id, businessIdNum)).limit(1);
+  const biz = await requireDb().select({ id: businesses.id, name: businesses.name }).from(businesses).where(eq(businesses.id, businessIdNum)).limit(1);
   if (!biz[0]) return res.status(404).json({ error: "Shop not found" });
 
-  const failedTxns = await db
-    .select()
+  const failedTxns = await requireDb().select()
     .from(customerTransactions)
     .where(and(eq(customerTransactions.businessId, businessIdNum), sql`${customerTransactions.telegramDeliveryState} IS NOT NULL AND ${customerTransactions.telegramDeliveryState} <> 'sent'`));
   const failedCustomerIds = [...new Set(failedTxns.map((t) => t.customerId).filter((id): id is number => typeof id === "number"))];
@@ -389,10 +385,10 @@ router.post("/shops/:businessId/resend-reminders", async (req, res) => {
   const failedIds: number[] = [];
 
   for (const cid of failedCustomerIds) {
-    const custRows = await db.select().from(customers).where(eq(customers.id, cid)).limit(1);
+    const custRows = await requireDb().select().from(customers).where(eq(customers.id, cid)).limit(1);
     const c = custRows[0];
     if (!c) continue;
-    const cTxns = await db.select().from(customerTransactions).where(and(eq(customerTransactions.businessId, businessIdNum), eq(customerTransactions.customerId, cid)));
+    const cTxns = await requireDb().select().from(customerTransactions).where(and(eq(customerTransactions.businessId, businessIdNum), eq(customerTransactions.customerId, cid)));
     let balance = 0;
     let dueDate: number | null = null;
     for (const t of cTxns) {
@@ -439,14 +435,12 @@ router.post("/shops/:businessId/resend-reminders", async (req, res) => {
 
   // Batch the delivery-state flips instead of one UPDATE per customer (was N+1).
   if (sentIds.length) {
-    await db
-      .update(customerTransactions)
+    await requireDb().update(customerTransactions)
       .set({ telegramDeliveryState: "sent" })
       .where(and(eq(customerTransactions.businessId, businessIdNum), inArray(customerTransactions.customerId, sentIds), sql`${customerTransactions.telegramDeliveryState} IS NOT NULL AND ${customerTransactions.telegramDeliveryState} <> 'sent'`));
   }
   if (failedIds.length) {
-    await db
-      .update(customerTransactions)
+    await requireDb().update(customerTransactions)
       .set({ telegramDeliveryState: "failed" })
       .where(and(eq(customerTransactions.businessId, businessIdNum), inArray(customerTransactions.customerId, failedIds), sql`${customerTransactions.telegramDeliveryState} IS NOT NULL AND ${customerTransactions.telegramDeliveryState} <> 'sent'`));
   }
@@ -497,7 +491,7 @@ router.post("/broadcast", async (req, res) => {
     ? and(eq(businessMembers.role, "owner"), eq(businessMembers.active, true), eq(businessMembers.businessId, Number(business_id)))
     : and(eq(businessMembers.role, "owner"), eq(businessMembers.active, true));
 
-  const ownerMembers = await db.select({ userId: businessMembers.userId, businessId: businessMembers.businessId }).from(businessMembers).where(whereClause);
+  const ownerMembers = await requireDb().select({ userId: businessMembers.userId, businessId: businessMembers.businessId }).from(businessMembers).where(whereClause);
   if (ownerMembers.length === 0) return res.json({ ok: true, sent: 0, message: business_id ? "Shop not found or no active owner" : "No active shops found" });
 
   const values = ownerMembers.map((m) => ({
@@ -508,7 +502,7 @@ router.post("/broadcast", async (req, res) => {
     body,
     read: false,
   }));
-  await db.insert(notifications).values(values);
+  await requireDb().insert(notifications).values(values);
 
   // Best-effort email via SendGrid to every owner who has an address. Failures
   // here never break the in-app broadcast above.
@@ -517,7 +511,7 @@ router.post("/broadcast", async (req, res) => {
   let emailSkipped = ownerMembers.length;
   if (isEmailConfigured()) {
     const ownerIds = ownerMembers.map((m) => m.userId);
-    const owners = await db.select({ id: users.id, email: users.email }).from(users).where(inArray(users.id, ownerIds));
+    const owners = await requireDb().select({ id: users.id, email: users.email }).from(users).where(inArray(users.id, ownerIds));
     const withEmail = owners.filter((o) => (o.email || "").trim());
     emailSkipped = ownerMembers.length - withEmail.length;
     const results = await Promise.allSettled(
@@ -540,7 +534,7 @@ router.post("/push-all", async (req, res) => {
   const rl = checkAdminRateLimit(`admin:${ctx.phone}:push-all`, 10, 60_000);
   if (!rl.ok) return res.status(429).json({ error: "Rate limited", retryAfter: rl.retryAfterSec });
   const { sendPushToOwner } = await import("../services/pushNotificationSender.js");
-  const allSubs = await db.select().from(pushSubscriptions);
+  const allSubs = await requireDb().select().from(pushSubscriptions);
   const uniqueBusinessIds = [...new Set(allSubs.map(s => s.businessId))].filter(id => !business_id || id === Number(business_id));
   let totalSent = 0; let totalFailed = 0;
   for (const bizId of uniqueBusinessIds) {
@@ -556,7 +550,7 @@ router.get("/export-shops", async (req, res) => {
   try {
   const sevenDaysAgo = daysAgo(7);
   const [allBusinesses, allTransactions, allUsers, allCustomerTransactions, allStaffMembers] = await Promise.all([
-    db.select().from(businesses), db.select().from(transactions), db.select().from(users), db.select().from(customerTransactions), db.select().from(staffMembers),
+    requireDb().select().from(businesses), requireDb().select().from(transactions), requireDb().select().from(users), requireDb().select().from(customerTransactions), requireDb().select().from(staffMembers),
   ]);
   const csvRows = ["Shop Name,Owner Phone,Created,Last Transaction,Total Txns,Total Sales (birr),Total Credit (birr),Outstanding (birr),Staff Count,Status"];
   for (const biz of allBusinesses) {
@@ -617,8 +611,7 @@ router.get("/logs", async (req, res) => {
       200,
     );
     const offset = Math.max(parseInt((req.query.offset as string) || "0", 10) || 0, 0);
-    const rows = await db
-      .select()
+    const rows = await requireDb().select()
       .from(adminShopLogs)
       .orderBy(desc(adminShopLogs.createdAt))
       .limit(limit)

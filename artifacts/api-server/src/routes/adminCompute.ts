@@ -3,8 +3,7 @@
 // Extracted from routes/admin.ts so the route file stays focused on HTTP
 // concerns. These are pure DB aggregates (no request/response handling) and are
 // cached via serveCachedBounded/warmCache in the route handlers.
-// @ts-nocheck
-import { db } from "@workspace/db";
+import { requireDb } from "@workspace/db";
 import { sql, eq, gt } from "drizzle-orm";
 import {
   users,
@@ -40,19 +39,19 @@ export async function computeOverview() {
   const oneDayAgo = daysAgo(1);
 
   const [allUsers, allBusinesses, allDevices, custTotal, custTelegram, allStaffMembers, allInvites, otpAgg, snapAgg] = await Promise.all([
-    db.select({ id: users.id, createdAt: users.createdAt }).from(users),
-    db.select({ id: businesses.id, createdAt: businesses.createdAt }).from(businesses),
-    db.select({ lastSeenAt: devices.lastSeenAt }).from(devices),
-    db.select({ count: sql<number>`COUNT(*)` }).from(customers).then(r => Number(r[0]?.count ?? 0)),
-    db.select({ count: sql<number>`COUNT(*)` }).from(customers).where(sql`${customers.telegramChatId} IS NOT NULL`).then(r => Number(r[0]?.count ?? 0)),
-    db.select({ businessId: staffMembers.businessId, active: staffMembers.active }).from(staffMembers),
-    db.select({ acceptedAt: invites.acceptedAt }).from(invites),
-    db.select({
-      phoneNumber: maskPhone(otps.phoneNumber),
+    requireDb().select({ id: users.id, createdAt: users.createdAt }).from(users),
+    requireDb().select({ id: businesses.id, createdAt: businesses.createdAt }).from(businesses),
+    requireDb().select({ lastSeenAt: devices.lastSeenAt }).from(devices),
+    requireDb().select({ count: sql<number>`COUNT(*)` }).from(customers).then(r => Number(r[0]?.count ?? 0)),
+    requireDb().select({ count: sql<number>`COUNT(*)` }).from(customers).where(sql`${customers.telegramChatId} IS NOT NULL`).then(r => Number(r[0]?.count ?? 0)),
+    requireDb().select({ businessId: staffMembers.businessId, active: staffMembers.active }).from(staffMembers),
+    requireDb().select({ acceptedAt: invites.acceptedAt }).from(invites),
+    requireDb().select({
+      phoneNumber: otps.phoneNumber,
       attempts: sql<number>`COALESCE(SUM(${otps.attempts}), 0)`,
       consumed: sql<number>`COALESCE(SUM(CASE WHEN ${otps.consumed} THEN 1 ELSE 0 END), 0)`,
     }).from(otps).groupBy(otps.phoneNumber),
-    db.select({
+    requireDb().select({
       userId: snapshots.userId,
       sizeBytes: sql<number>`COALESCE(MAX(${snapshots.sizeBytes}), 0)`,
       createdAt: sql<number>`COALESCE(MAX(${snapshots.createdAt}), 0)`,
@@ -62,14 +61,14 @@ export async function computeOverview() {
   const allSnapshots = snapAgg.map((s) => ({ userId: s.userId, sizeBytes: s.sizeBytes, createdAt: s.createdAt }));
 
   const [salesTotal, txnCountResult, shopsDistinct, shopsWeekDistinct, shopsTodayDistinct, creditTotalResult, repaidTotalResult, custBalanceRows] = await Promise.all([
-    db.select({ total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)` }).from(transactions).where(eq(transactions.type, "sale")).then(r => r[0]?.total ?? 0),
-    db.select({ count: sql<number>`COUNT(*)` }).from(transactions).then(r => ({ count: r[0]?.count ?? 0 })),
-    db.selectDistinct({ businessId: transactions.businessId }).from(transactions).then(r => new Set(r.map(t => t.businessId).filter(Boolean))),
-    db.selectDistinct({ businessId: transactions.businessId }).from(transactions).where(gt(transactions.createdAt, sevenDaysAgo)).then(r => new Set(r.map(t => t.businessId).filter(Boolean))),
-    db.selectDistinct({ businessId: transactions.businessId }).from(transactions).where(gt(transactions.createdAt, oneDayAgo)).then(r => new Set(r.map(t => t.businessId).filter(Boolean))),
-    db.select({ total: sql<number>`COALESCE(SUM(${customerTransactions.amount}), 0)` }).from(customerTransactions).where(eq(customerTransactions.type, "credit_add")).then(r => r[0]?.total ?? 0),
-    db.select({ total: sql<number>`COALESCE(SUM(${customerTransactions.amount}), 0)` }).from(customerTransactions).where(eq(customerTransactions.type, "payment")).then(r => r[0]?.total ?? 0),
-    db.select({
+    requireDb().select({ total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)` }).from(transactions).where(eq(transactions.type, "sale")).then(r => r[0]?.total ?? 0),
+    requireDb().select({ count: sql<number>`COUNT(*)` }).from(transactions).then(r => ({ count: r[0]?.count ?? 0 })),
+    requireDb().selectDistinct({ businessId: transactions.businessId }).from(transactions).then(r => new Set(r.map(t => t.businessId).filter(Boolean))),
+    requireDb().selectDistinct({ businessId: transactions.businessId }).from(transactions).where(gt(transactions.createdAt, sevenDaysAgo)).then(r => new Set(r.map(t => t.businessId).filter(Boolean))),
+    requireDb().selectDistinct({ businessId: transactions.businessId }).from(transactions).where(gt(transactions.createdAt, oneDayAgo)).then(r => new Set(r.map(t => t.businessId).filter(Boolean))),
+    requireDb().select({ total: sql<number>`COALESCE(SUM(${customerTransactions.amount}), 0)` }).from(customerTransactions).where(eq(customerTransactions.type, "credit_add")).then(r => r[0]?.total ?? 0),
+    requireDb().select({ total: sql<number>`COALESCE(SUM(${customerTransactions.amount}), 0)` }).from(customerTransactions).where(eq(customerTransactions.type, "payment")).then(r => r[0]?.total ?? 0),
+    requireDb().select({
       customerId: customerTransactions.customerId,
       credit: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'credit_add' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
       paid: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'payment' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
@@ -126,7 +125,7 @@ export async function computeOverview() {
 
   // Daily transaction counts for growth timeline (14 days) from SQL
   const fourteenDaysAgo = daysAgo(14);
-  const txnDailyRows = await db.select({
+  const txnDailyRows = await requireDb().select({
     dayBucket: sql<number>`FLOOR(${transactions.createdAt} / 86400000)`,
     count: sql<number>`COUNT(*)`,
   }).from(transactions).where(gt(transactions.createdAt, fourteenDaysAgo)).groupBy(sql`1`);
@@ -163,15 +162,15 @@ export async function computeOverview() {
 export async function computeShops(req: any) {
   const sevenDaysAgo = daysAgo(7);
   const [allBusinesses, allUsers, txAgg, ctAgg] = await Promise.all([
-    db.select({ id: businesses.id, name: businesses.name, createdAt: businesses.createdAt, ownerUserId: businesses.ownerUserId }).from(businesses),
-    db.select({ id: users.id, phoneNumber: users.phoneNumber }).from(users),
-    db.select({
+    requireDb().select({ id: businesses.id, name: businesses.name, createdAt: businesses.createdAt, ownerUserId: businesses.ownerUserId }).from(businesses),
+    requireDb().select({ id: users.id, phoneNumber: users.phoneNumber }).from(users),
+    requireDb().select({
       businessId: transactions.businessId,
       totalTxn: sql<number>`COUNT(*)`,
       totalSales: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'sale' THEN ${transactions.amount} ELSE 0 END), 0)`,
       lastTxn: sql<number>`COALESCE(MAX(${transactions.createdAt}), 0)`,
     }).from(transactions).groupBy(transactions.businessId),
-    db.select({
+    requireDb().select({
       businessId: customerTransactions.businessId,
       credit: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'credit_add' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
       payment: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'payment' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
@@ -222,19 +221,19 @@ export async function computeFrictions() {
   const sevenDaysAgo = daysAgo(7);
 
   const [allBusinesses, allMembers, allUsers, custAgg, txAgg, ctAgg] = await Promise.all([
-    db.select({ id: businesses.id, name: businesses.name, createdAt: businesses.createdAt, ownerUserId: businesses.ownerUserId }).from(businesses),
-    db.select({ userId: businessMembers.userId, role: businessMembers.role, businessId: businessMembers.businessId }).from(businessMembers),
-    db.select({ id: users.id, phoneNumber: users.phoneNumber, telegramChatId: users.telegramChatId }).from(users),
-    db.select({
+    requireDb().select({ id: businesses.id, name: businesses.name, createdAt: businesses.createdAt, ownerUserId: businesses.ownerUserId }).from(businesses),
+    requireDb().select({ userId: businessMembers.userId, role: businessMembers.role, businessId: businessMembers.businessId }).from(businessMembers),
+    requireDb().select({ id: users.id, phoneNumber: users.phoneNumber, telegramChatId: users.telegramChatId }).from(users),
+    requireDb().select({
       businessId: customers.businessId,
       total: sql<number>`COUNT(*)`,
       linked: sql<number>`COALESCE(SUM(CASE WHEN ${customers.telegramChatId} IS NOT NULL THEN 1 ELSE 0 END), 0)`,
     }).from(customers).groupBy(customers.businessId),
-    db.select({
+    requireDb().select({
       businessId: transactions.businessId,
       lastTxn: sql<number>`COALESCE(MAX(${transactions.createdAt}), 0)`,
     }).from(transactions).groupBy(transactions.businessId),
-    db.select({
+    requireDb().select({
       businessId: customerTransactions.businessId,
       deliveryFailures: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.telegramDeliveryState} IS NOT NULL AND ${customerTransactions.telegramDeliveryState} <> 'sent' THEN 1 ELSE 0 END), 0)`,
     }).from(customerTransactions).groupBy(customerTransactions.businessId),
@@ -327,20 +326,20 @@ export async function computeFrictions() {
 
 export async function computeFeatures() {
   const [creditBiz, supplierBiz, telegramBiz, pmAgg, typeAgg, srcAgg] = await Promise.all([
-    db.selectDistinct({ businessId: customerTransactions.businessId }).from(customerTransactions),
-    db.selectDistinct({ businessId: supplierTransactions.businessId }).from(supplierTransactions),
-    db.selectDistinct({ businessId: customers.businessId }).from(customers).where(sql`${customers.telegramChatId} IS NOT NULL`),
-    db.select({ key: transactions.paymentType, count: sql<number>`COUNT(*)` }).from(transactions).groupBy(transactions.paymentType),
-    db.select({ key: transactions.type, count: sql<number>`COUNT(*)` }).from(transactions).groupBy(transactions.type),
-    db.select({ key: transactions.source, count: sql<number>`COUNT(*)` }).from(transactions).groupBy(transactions.source),
+    requireDb().selectDistinct({ businessId: customerTransactions.businessId }).from(customerTransactions),
+    requireDb().selectDistinct({ businessId: supplierTransactions.businessId }).from(supplierTransactions),
+    requireDb().selectDistinct({ businessId: customers.businessId }).from(customers).where(sql`${customers.telegramChatId} IS NOT NULL`),
+    requireDb().select({ key: transactions.paymentType, count: sql<number>`COUNT(*)` }).from(transactions).groupBy(transactions.paymentType),
+    requireDb().select({ key: transactions.type, count: sql<number>`COUNT(*)` }).from(transactions).groupBy(transactions.type),
+    requireDb().select({ key: transactions.source, count: sql<number>`COUNT(*)` }).from(transactions).groupBy(transactions.source),
   ]);
   const shopsUsing = {
     credit: new Set(creditBiz.map(t => t.businessId).filter(Boolean)),
     suppliers: new Set(supplierBiz.map(t => t.businessId).filter(Boolean)),
     telegram: new Set(telegramBiz.map(t => t.businessId).filter(Boolean)),
   };
-  const toRecord = (rows) => {
-    const o = {};
+  const toRecord = (rows: Array<{ key: unknown; count: unknown }>) => {
+    const o: Record<string, number> = {};
     for (const r of rows) { const k = r.key == null ? 'unknown' : String(r.key); o[k] = Number(r.count || 0); }
     return o;
   };
