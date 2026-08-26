@@ -19,7 +19,6 @@ import supportRouter from "./support.js";
 const router: IRouter = Router();
 
 router.use("/healthz", healthRouter);
-router.use("/health", healthRouter);
 router.use("/telegram", telegramRouter);
 router.use("/sync", syncRouter);
 router.use("/auth", authRouter);

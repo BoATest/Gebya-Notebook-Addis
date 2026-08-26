@@ -11,27 +11,7 @@ import { customerTransactions } from "../schema/customer_transactions.js";
 import { customerBalanceExpression } from "./balance.js";
 import { eq, sql, type SQL, type SQLWrapper } from "drizzle-orm";
 
-// Inline EligibleCustomer to avoid circular dependency with api-server
-export interface EligibleCustomer {
-  customerId: number;
-  customerName: string;
-  balance: number;
-  dueDate: number | null;
-  customerCreatedAt: number;
-  chatId: string;
-  updatesEnabled: boolean;
-  telegramLanguage: "am" | "en";
-  reminderConfig: {
-    id: string;
-    shopId: number;
-    customerId: number;
-    frequency: "daily" | "weekly" | "disabled";
-    lastReminderSentAt: number | null;
-    enabled: boolean;
-    createdAt: number;
-    updatedAt: number;
-  };
-}
+
 
 /**
  * Raw balance row calculated from the transaction ledger.
@@ -104,31 +84,3 @@ export async function getCustomerBalances(
   return rows;
 }
 
-/**
- * Enrich customer balances with Telegram session data so they match EligibleCustomer.
- */
-export function enrichWithTelegram(
-  row: CustomerBalanceRow,
-  customer: CustomerWithTelegram
-): EligibleCustomer {
-  return {
-    customerId: row.customerId,
-    customerName: customer.name ?? `Customer ${row.customerId}`,
-    balance: row.balance,
-    dueDate: row.dueDate,
-    customerCreatedAt: row.createdAt,
-    chatId: customer.chatId ?? "",
-    updatesEnabled: Boolean(customer.chatId && customer.telegramNotifyEnabled),
-    telegramLanguage: customer.telegramUsername?.toLowerCase().startsWith("am") ? "am" : "en",
-    reminderConfig: {
-      id: `cfg-${row.customerId}`,
-      shopId: 0, // filled by caller
-      customerId: row.customerId,
-      frequency: "weekly",
-      lastReminderSentAt: null,
-      enabled: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    },
-  };
-}

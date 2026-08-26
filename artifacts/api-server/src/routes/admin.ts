@@ -13,7 +13,7 @@
  */
 import { Router } from "express";
 import { db, warmDb } from "@workspace/db";
-import { serveCached, warmCache, serveCachedBounded } from "../lib/adminCache.js";
+import { warmCache, serveCachedBounded } from "../lib/adminCache.js";
 import { safeEqual } from "../lib/secure.js";
 import {
   users,

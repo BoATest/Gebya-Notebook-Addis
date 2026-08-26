@@ -82,25 +82,6 @@ async function hydrate(key: string): Promise<Entry | undefined> {
   return undefined;
 }
 
-export async function serveCached<T>(key: string, compute: () => Promise<T>): Promise<T> {
-  const hit = await hydrate(key);
-  if (hit && hit.expiresAt > now()) return hit.value as T;
-  if (hit && !hit.refreshing) {
-    hit.refreshing = true;
-    Promise.resolve()
-      .then(compute)
-      .then((v) => cacheSet(key, v))
-      .catch((e) => {
-        console.error("[adminCache] background refresh failed", key, e);
-        if (hit) hit.refreshing = false;
-      });
-    return hit.value as T;
-  }
-  const v = await compute();
-  cacheSet(key, v);
-  return v;
-}
-
 export async function warmCache(key: string, compute: () => Promise<unknown>): Promise<boolean> {
   try {
     const v = await compute();
