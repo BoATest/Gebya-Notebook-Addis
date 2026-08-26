@@ -16,70 +16,14 @@ if (!process.env.JWT_SECRET) {
     "Set JWT_SECRET in your environment before booting."
   );
 }
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = "30d";
-const JWT_COOKIE_NAME = "gebya_token";
+export const JWT_SECRET = process.env.JWT_SECRET;
+export const JWT_EXPIRES_IN = "30d";
+export const JWT_COOKIE_NAME = "gebya_token";
 const OTP_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
 const OTP_MAX_ATTEMPTS = 5;
 
-/**
- * Extract JWT from Authorization header (Bearer) or httpOnly cookie.
- * Cookie is used by the bank dashboard; header is used by the merchant app.
- */
-function getToken(req: Request) {
-  const authHeader = req.headers.authorization || "";
-  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
-  if (bearerMatch) return bearerMatch[1];
-  return req.cookies?.[JWT_COOKIE_NAME] || null;
-}
-
-function setTokenCookie(res: Response, token: string) {
-  const isProduction = process.env.NODE_ENV === "production";
-  res.cookie(JWT_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: "lax",
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    path: "/",
-  });
-}
-
-function clearTokenCookie(res: Response) {
-  res.clearCookie(JWT_COOKIE_NAME, { path: "/" });
-}
-
-function hashOtp(plain: string) {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(plain, salt, 100000, 64, 'sha512').toString('hex');
-  return `${salt}:${hash}`;
-}
-
-function verifyOtp(plain: string, hashed: string): boolean {
-  if (!hashed.includes(':')) {
-    return hashOtp(plain) === hashed;
-  }
-  const [salt, hash] = hashed.split(':');
-  if (!salt || !hash) return false;
-  const computedHash = crypto.pbkdf2Sync(plain, salt, 100000, 64, 'sha512').toString('hex');
-  return crypto.timingSafeEqual(Buffer.from(computedHash, 'hex'), Buffer.from(hash, 'hex'));
-}
-
-function generateOtp() {
-  // 6-digit numeric OTP — use crypto for unpredictability
-  return String(crypto.randomInt(100000, 1000000));
-}
-
-function signJwt(userId: number) {
-  return jwt.sign({ userId, type: "access" }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-}
-
-export function verifyJwt(token: string) {
-  try {
-    return jwt.verify(token, JWT_SECRET, { clockTolerance: 60 }) as { userId: number; type: string };
-  } catch {
-    return null;
-  }
-}
+import { getToken, setTokenCookie, clearTokenCookie, hashOtp, verifyOtp, generateOtp, signJwt, verifyJwt } from "./authHelpers.js";
+export { verifyJwt };
 
 // Per-phone OTP request rate limit (blunts OTP-bombing). In-memory windowing is
 // per-instance only — on serverless (multiple instances, cold starts) it is not
