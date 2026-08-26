@@ -22,6 +22,7 @@
 // no comparisons to other shops.
 
 import { CUSTOMER_TRANSACTION_TYPES } from './customerTransactionTypes';
+import { fmtCsvTimestamp, fmtCsvType, escapeCsv, fmtBirr } from './customerMetricsHelpers.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -374,30 +375,6 @@ export async function exportCreditReport(report, filename = 'credit-report') {
   return 'downloaded';
 }
 
-function fmtCsvTimestamp(ts) {
-  if (!ts) return ['', ''];
-  const d = new Date(Number(ts));
-  if (isNaN(d.getTime())) return ['', ''];
-  const date = d.toISOString().split('T')[0];
-  const time = d.toTimeString().split(' ')[0];
-  return [date, time];
-}
-
-function fmtCsvType(raw) {
-  if (raw === 'credit_add') return 'Credit';
-  if (raw === 'payment') return 'Payment';
-  if (raw === 'reversal') return 'Reversal';
-  return raw || '';
-}
-
-function escapeCsv(val) {
-  const s = String(val ?? '');
-  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-    return '"' + s.replace(/"/g, '""') + '"';
-  }
-  return s;
-}
-
 export function exportCreditReportCsv(report, customerTransactions = [], filename = 'credit-report') {
   const lines = [];
   lines.push('\uFEFFCredit Report');
@@ -616,6 +593,4 @@ ${customers.length > 0 ? `
   return 'opened';
 }
 
-function fmtBirr(n) {
-  return 'birr ' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
+
