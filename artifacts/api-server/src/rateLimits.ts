@@ -1,4 +1,3 @@
-// @ts-nocheck
 // @ts-ignore
 import rateLimit from "express-rate-limit";
 

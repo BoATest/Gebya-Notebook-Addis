@@ -1,6 +1,5 @@
-// @ts-nocheck
 import 'dotenv/config';
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 // @ts-ignore
 import helmet from "helmet";
@@ -70,7 +69,7 @@ try {
 // ---- CORS PREFLIGHT HANDLER ----
 // Vercel serverless intercepts OPTIONS before reaching cors middleware,
 // so we handle it explicitly BEFORE cors middleware to ensure it returns 200.
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.method === "OPTIONS") {
     const origin = req.headers.origin;
     // Only echo the origin when it is actually allowed. Sending "*" together
@@ -84,7 +83,8 @@ app.use((req, res, next) => {
       res.setHeader("Access-Control-Allow-Credentials", "true");
       res.setHeader("Access-Control-Max-Age", "86400");
     }
-    return res.status(200).end();
+    res.status(200).end();
+    return;
   }
   next();
 });
@@ -170,7 +170,7 @@ app.use("/", router);
 app.use("/api", router);
 
 // ---- ERROR HANDLER ----
-app.use((err, req, res, _next) => {
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   const requestId = res.locals.requestId || createRequestId();
   console.error("[api:error]", JSON.stringify({
     requestId,
