@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Bank analytics API routes.
  *
@@ -15,7 +14,7 @@
  *   GET    /analytics/aggregate         — cross-shop aggregation for NBE/DFI
  */
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { requireDb } from "@workspace/db";
 import {
   bankUsers,
   bankDataShares,
@@ -44,8 +43,7 @@ async function getBankUserFromToken(req: any): Promise<{ bankUser: typeof bankUs
   if (!decoded || !decoded.userId) return null;
 
   // Check if this userId maps to a bank_user
-  const rows = await db
-    .select()
+  const rows = await requireDb().select()
     .from(bankUsers)
     .where(eq(bankUsers.id, decoded.userId))
     .limit(1);
@@ -55,10 +53,10 @@ async function getBankUserFromToken(req: any): Promise<{ bankUser: typeof bankUs
 
 async function buildReportPayload(businessId: number, share: typeof bankDataShares.$inferSelect) {
   const [bizRows, txRows, custRows, custTxRows] = await Promise.all([
-    db.select().from(businesses).where(eq(businesses.id, businessId)).limit(1),
-    db.select().from(transactions).where(and(eq(transactions.businessId, businessId), isNull(transactions.deletedAt))),
-    db.select().from(customers).where(eq(customers.businessId, businessId)),
-    db.select().from(customerTransactions).where(eq(customerTransactions.businessId, businessId)),
+    requireDb().select().from(businesses).where(eq(businesses.id, businessId)).limit(1),
+    requireDb().select().from(transactions).where(and(eq(transactions.businessId, businessId), isNull(transactions.deletedAt))),
+    requireDb().select().from(customers).where(eq(customers.businessId, businessId)),
+    requireDb().select().from(customerTransactions).where(eq(customerTransactions.businessId, businessId)),
   ]);
 
   const biz = bizRows[0];
@@ -179,8 +177,7 @@ router.post("/share", async (req, res) => {
   }
 
   // Check for existing active share
-  const existing = await db
-    .select()
+  const existing = await requireDb().select()
     .from(bankDataShares)
     .where(and(
       eq(bankDataShares.businessId, ctx.businessId),
@@ -191,8 +188,7 @@ router.post("/share", async (req, res) => {
 
   if (existing.length > 0) {
     // Update existing share
-    await db
-      .update(bankDataShares)
+    await requireDb().update(bankDataShares)
       .set({
         shareSalesData: shareSalesData ?? existing[0].shareSalesData,
         shareCreditData: shareCreditData ?? existing[0].shareCreditData,
@@ -206,8 +202,7 @@ router.post("/share", async (req, res) => {
     return res.json({ ok: true, shareId: existing[0].id, updated: true });
   }
 
-  const [share] = await db
-    .insert(bankDataShares)
+  const [share] = await requireDb().insert(bankDataShares)
     .values({
       businessId: ctx.businessId,
       bankName,
@@ -231,8 +226,7 @@ router.delete("/share/:id", async (req, res) => {
   const shareId = Number(req.params.id);
   if (!Number.isInteger(shareId)) return res.status(400).json({ error: "Invalid share ID" });
 
-  const share = await db
-    .select()
+  const share = await requireDb().select()
     .from(bankDataShares)
     .where(and(
       eq(bankDataShares.id, shareId),
@@ -242,8 +236,7 @@ router.delete("/share/:id", async (req, res) => {
 
   if (share.length === 0) return res.status(404).json({ error: "Share not found" });
 
-  await db
-    .update(bankDataShares)
+  await requireDb().update(bankDataShares)
     .set({ status: "revoked", consentRevokedAt: new Date(), updatedAt: new Date() })
     .where(eq(bankDataShares.id, shareId));
 
@@ -255,8 +248,7 @@ router.get("/shares", async (req, res) => {
   const ctx = await requireDeviceContext(req);
   if (!ctx) return res.status(401).json({ error: "Unauthorized" });
 
-  const shares = await db
-    .select()
+  const shares = await requireDb().select()
     .from(bankDataShares)
     .where(eq(bankDataShares.businessId, ctx.businessId))
     .orderBy(desc(bankDataShares.createdAt));
@@ -275,8 +267,7 @@ router.get("/shop/:businessId", async (req, res) => {
   if (!Number.isInteger(businessId)) return res.status(400).json({ error: "Invalid business ID" });
 
   // Verify consent exists and is active
-  const share = await db
-    .select()
+  const share = await requireDb().select()
     .from(bankDataShares)
     .where(and(
       eq(bankDataShares.businessId, businessId),
@@ -306,8 +297,7 @@ router.get("/shops", async (req, res) => {
   const bankInfo = await getBankUserFromToken(req);
   if (!bankInfo) return res.status(401).json({ error: "Unauthorized — bank token required" });
 
-  const shares = await db
-    .select({
+  const shares = await requireDb().select({
       shareId: bankDataShares.id,
       businessId: bankDataShares.businessId,
       bankName: bankDataShares.bankName,
@@ -327,7 +317,7 @@ router.get("/shops", async (req, res) => {
   // Enrich with business names
   const enriched = [];
   for (const s of shares) {
-    const biz = await db.select().from(businesses).where(eq(businesses.id, s.businessId)).limit(1);
+    const biz = await requireDb().select().from(businesses).where(eq(businesses.id, s.businessId)).limit(1);
     enriched.push({
       ...s,
       shop_name: biz[0]?.name || "Unknown",

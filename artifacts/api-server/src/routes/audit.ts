@@ -1,6 +1,5 @@
-// @ts-nocheck
-import { Router } from "express";
-import { db } from "@workspace/db";
+import { Router, type Request } from "express";
+import { requireDb } from "@workspace/db";
 import { auditLog, businessMembers, users } from "@workspace/db/schema";
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
@@ -11,9 +10,8 @@ const router = Router();
 // Resolve the effective businessId for the request:
 //   - platform admins may pass ?business_id= to inspect any shop
 //   - owners are scoped to their own active business
-async function resolveAuditScope(req, decodedUserId) {
-  const userRows = await db
-    .select({ phoneNumber: users.phoneNumber, email: users.email })
+async function resolveAuditScope(req: Request, decodedUserId: number) {
+  const userRows = await requireDb().select({ phoneNumber: users.phoneNumber, email: users.email })
     .from(users)
     .where(eq(users.id, decodedUserId))
     .limit(1);
@@ -27,8 +25,7 @@ async function resolveAuditScope(req, decodedUserId) {
     return { businessId: param, isAdmin: true };
   }
 
-  const memberRows = await db
-    .select({ role: businessMembers.role, businessId: businessMembers.businessId })
+  const memberRows = await requireDb().select({ role: businessMembers.role, businessId: businessMembers.businessId })
     .from(businessMembers)
     .where(and(eq(businessMembers.userId, decodedUserId), eq(businessMembers.active, true)))
     .limit(1);
@@ -62,12 +59,11 @@ router.get("/violations", async (req, res) => {
   const scope = await resolveAuditScope(req, decoded.userId);
   if (scope.error) return res.status(403).json({ error: scope.error });
 
-  const violations = await db
-    .select()
+  const violations = await requireDb().select()
     .from(auditLog)
     .where(and(
       eq(auditLog.action, "ATTEMPTED_VIOLATION"),
-      eq(auditLog.businessId, scope.businessId)
+      eq(auditLog.businessId, scope.businessId as number)
     ))
     .orderBy(desc(auditLog.createdAt))
     .limit(200);
@@ -132,7 +128,7 @@ router.get("/activity", async (req, res) => {
   }
 
   const conditions: any[] = [
-    eq(auditLog.businessId, businessIdNum),
+    eq(auditLog.businessId, businessIdNum as number),
     gte(auditLog.createdAt, dateFrom),
     sql`${auditLog.action} <> 'ATTEMPTED_VIOLATION'`,
   ];
@@ -147,8 +143,7 @@ router.get("/activity", async (req, res) => {
     conditions.push(lte(auditLog.createdAt, dateTo));
   }
 
-  const activity = await db
-    .select()
+  const activity = await requireDb().select()
     .from(auditLog)
     .where(and(...conditions))
     .orderBy(desc(auditLog.createdAt))
