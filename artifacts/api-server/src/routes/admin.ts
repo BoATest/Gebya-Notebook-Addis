@@ -446,7 +446,7 @@ router.get("/shops/:businessId", async (req, res) => {
   });
   } catch (e) {
     console.error('[admin/shops/:id]', e);
-    return res.status(500).json({ error: 'Internal server error', detail: e instanceof Error ? e.message : String(e) });
+    return res.status(500).json({ error: "Internal server error", request_id: res.locals.requestId });
   }
 });
 
@@ -547,7 +547,7 @@ router.post("/shops/:businessId/nudge", async (req, res) => {
     }
   } catch (e) {
     status = 'failed';
-    detail = e instanceof Error ? e.message : String(e);
+    detail = "Delivery failed";
   }
   await insertAdminLog({ businessId: businessIdNum, adminPhone: ctx.phone, type: 'message', channel, title: 'Owner nudge', body: message, status });
   return res.json({ ok: status !== 'failed', channel, status, deepLink, detail, message });
@@ -902,7 +902,7 @@ router.get("/export-shops", async (req, res) => {
   return res.send(csvRows.join("\n"));
   } catch (e) {
     console.error('[admin/export-shops]', e);
-    return res.status(500).json({ error: 'Internal server error', detail: e instanceof Error ? e.message : String(e) });
+    return res.status(500).json({ error: "Internal server error", request_id: res.locals.requestId });
   }
 });
 

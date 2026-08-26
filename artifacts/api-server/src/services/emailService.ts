@@ -52,6 +52,6 @@ export async function sendEmail(opts: {
     }
     return { success: true };
   } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : String(e) };
+    return { success: false, error: "Email delivery failed" };
   }
 }

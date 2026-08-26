@@ -120,9 +120,10 @@ router.all("/run", async (req: Request, res: Response) => {
       const signingSecret = process.env.VERCEL_CRON_SIGNING_SECRET?.trim();
       if (!signingSecret) {
         console.error("[security] VERCEL_CRON_SIGNING_SECRET is not set — rejecting Vercel cron request");
-        return res.status(500).json({
-          error: "Server misconfigured: VERCEL_CRON_SIGNING_SECRET environment variable is not set",
-        });
+      return res.status(500).json({
+        error: "Internal server error",
+        request_id: res.locals.requestId,
+      });
       }
       const signature = req.headers["x-vercel-signature"] as string | undefined;
       if (!safeEqual(signature, signingSecret)) {
@@ -130,9 +131,10 @@ router.all("/run", async (req: Request, res: Response) => {
         return res.status(401).json({ error: "unauthorized" });
       }
     } else if (!process.env.REMINDER_CRON_SECRET) {
-      return res.status(500).json({
-        error: "Server misconfigured: REMINDER_CRON_SECRET environment variable is not set",
-      });
+    return res.status(500).json({
+      error: "Internal server error",
+      request_id: res.locals.requestId,
+    });
       } else if (!safeEqual(cronSecret, process.env.REMINDER_CRON_SECRET)) {
       return res.status(401).json({ error: "unauthorized" });
     }
@@ -320,7 +322,7 @@ router.all("/run", async (req: Request, res: Response) => {
       error: error instanceof Error ? error.message : String(error),
     });
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Internal server error",
+      error: "Internal server error", request_id: res.locals.requestId,
     });
   }
 });
@@ -338,7 +340,7 @@ router.get("/config", verifyShopOwnership, requirePermission("can_view_reports")
     return res.json({ shopId, frequency, enabled });
   } catch (error) {
     return res.status(400).json({
-      error: error instanceof Error ? error.message : "Invalid request",
+      error: "Invalid request",
     });
   }
 });
@@ -366,7 +368,7 @@ router.post("/config", verifyShopOwnership, requirePermission("can_edit_settings
     });
   } catch (error) {
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Internal server error",
+      error: "Internal server error", request_id: res.locals.requestId,
     });
   }
 });
@@ -393,7 +395,7 @@ router.get("/config/:customerId", verifyShopOwnership, requirePermission("can_vi
     });
   } catch (error) {
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Internal server error",
+      error: "Internal server error", request_id: res.locals.requestId,
     });
   }
 });
@@ -427,7 +429,7 @@ router.post("/config/:customerId", verifyShopOwnership, requirePermission("can_e
     });
   } catch (error) {
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Internal server error",
+      error: "Internal server error", request_id: res.locals.requestId,
     });
   }
 });
@@ -452,7 +454,7 @@ router.delete("/config/:customerId", verifyShopOwnership, requirePermission("can
     });
   } catch (error) {
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Internal server error",
+      error: "Internal server error", request_id: res.locals.requestId,
     });
   }
 });
@@ -479,7 +481,7 @@ router.get("/history", verifyShopOwnership, requirePermission("can_view_reports"
     return res.json(result);
   } catch (error) {
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Internal server error",
+      error: "Internal server error", request_id: res.locals.requestId,
     });
   }
 });
@@ -548,7 +550,7 @@ router.post("/test/:customerId", verifyShopOwnership, requirePermission("can_add
     }
   } catch (error) {
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Internal server error",
+      error: "Internal server error", request_id: res.locals.requestId,
     });
   }
 });
@@ -570,7 +572,7 @@ router.post("/pause", verifyShopOwnership, requirePermission("can_edit_settings"
     });
   } catch (error) {
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Internal server error",
+      error: "Internal server error", request_id: res.locals.requestId,
     });
   }
 });
@@ -592,7 +594,7 @@ router.post("/resume", verifyShopOwnership, requirePermission("can_edit_settings
     });
   } catch (error) {
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Internal server error",
+      error: "Internal server error", request_id: res.locals.requestId,
     });
   }
 });
@@ -709,7 +711,7 @@ router.post("/remind/:customerId", verifyShopOwnership, requirePermission("can_a
   } catch (error) {
     log("error", "Manual reminder failed", { error: error instanceof Error ? error.message : String(error) });
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Internal server error",
+      error: "Internal server error", request_id: res.locals.requestId,
     });
   }
 });
@@ -772,7 +774,7 @@ router.get("/critical-overdue", verifyShopOwnership, requirePermission("can_view
   } catch (error) {
     log("error", "Failed to scan critical overdue", { error: error instanceof Error ? error.message : String(error) });
     return res.status(500).json({
-      error: error instanceof Error ? error.message : "Internal server error",
+      error: "Internal server error", request_id: res.locals.requestId,
     });
   }
 });
@@ -890,7 +892,7 @@ router.post("/payment-confirmed", verifyShopOwnership, requirePermission("can_ad
     return res.json({ ok: true, shopId, customerId });
   } catch (error) {
     log("error", "Payment-confirmed webhook failed", { error: error instanceof Error ? error.message : String(error) });
-    return res.status(500).json({ error: error instanceof Error ? error.message : "Internal server error" });
+    return res.status(500).json({ error: "Internal server error", request_id: res.locals.requestId });
   }
 });
 

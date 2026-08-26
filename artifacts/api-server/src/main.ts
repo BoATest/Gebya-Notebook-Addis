@@ -175,7 +175,7 @@ app.use((err, req, res, _next) => {
   console.error("[api:error]", JSON.stringify({
     requestId,
     method: req.method,
-    path: req.originalUrl || req.url,
+    path: scrubUrl(req.originalUrl || req.url),
     message: err instanceof Error ? err.message : "Unhandled error",
     cause:
       err instanceof Error && (err as any).cause

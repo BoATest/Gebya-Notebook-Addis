@@ -522,7 +522,8 @@ router.post("/send-ledger-update", async (req: Request, res: Response) => {
     return res.status(502).json({
       delivered: false,
       delivery: "bot",
-      error: error instanceof Error ? error.message : "Telegram send failed",
+      error: "Telegram send failed",
+      request_id: res.locals.requestId,
       state: formatTelegramSessionState(await getTelegramLinkSession(input.token)),
     });
   }
@@ -555,7 +556,8 @@ router.post("/resend-latest", async (req: Request, res: Response) => {
     return res.status(502).json({
       delivered: false,
       delivery: "bot",
-      error: error instanceof Error ? error.message : "Telegram resend failed",
+      error: "Telegram resend failed",
+      request_id: res.locals.requestId,
       state: formatTelegramSessionState(session),
     });
   }
@@ -689,7 +691,8 @@ router.post("/webhook", async (req: Request, res: Response) => {
         });
         return res.status(500).json({
           ok: false,
-          error: error instanceof Error ? error.message : "Failed to unsubscribe",
+          error: "Failed to unsubscribe",
+          request_id: res.locals.requestId,
         });
       }
     }
@@ -727,7 +730,8 @@ router.post("/webhook", async (req: Request, res: Response) => {
         });
         return res.status(500).json({
           ok: false,
-          error: error instanceof Error ? error.message : "Failed to subscribe",
+          error: "Failed to subscribe",
+          request_id: res.locals.requestId,
         });
       }
     }
