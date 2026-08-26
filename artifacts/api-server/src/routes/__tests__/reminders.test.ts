@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 
 import reminders from "../../routes/reminders.js";
@@ -136,6 +136,7 @@ function createRes() {
     body: undefined,
     _statusCalled: false,
     headers: {},
+    locals: {},
     status: vi.fn(function (this: any, code: number) {
       this.statusCode = code;
       this._statusCalled = true;

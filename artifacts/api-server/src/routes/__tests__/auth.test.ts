@@ -18,7 +18,7 @@ const { mockDbSelect, mockDbInsert, mockDbUpdate, mockDb } = vi.hoisted(() => {
   return { mockDbSelect, mockDbInsert, mockDbUpdate, mockDb };
 });
 
-vi.mock("@workspace/db", () => ({ db: mockDb }));
+vi.mock("@workspace/db", () => ({ db: mockDb, requireDb: vi.fn(() => mockDb) }));
 
 vi.mock("@workspace/db/schema", () => ({
   users: { id: "id", phoneNumber: "phone_number", active: "active", preferredLang: "preferred_lang", createdAt: "created_at" },
@@ -34,6 +34,7 @@ vi.mock("drizzle-orm", () => ({
   and: vi.fn(() => ({})),
   gt: vi.fn(() => ({})),
   inArray: vi.fn(() => ({})),
+  desc: vi.fn(() => ({})),
 }));
 
 vi.mock("jsonwebtoken", () => ({

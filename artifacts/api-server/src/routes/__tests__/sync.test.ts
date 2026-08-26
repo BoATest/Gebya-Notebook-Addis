@@ -20,7 +20,7 @@ const { mockDbSelect, mockDbInsert, mockDbUpdate, mockDbTransaction, mockDb } = 
   return { mockDbSelect, mockDbInsert, mockDbUpdate, mockDbTransaction, mockDb };
 });
 
-vi.mock("@workspace/db", () => ({ db: mockDb, customerBalanceExpression: vi.fn() }));
+vi.mock("@workspace/db", () => ({ db: mockDb, requireDb: vi.fn(() => mockDb), customerBalanceExpression: vi.fn() }));
 
 vi.mock("@workspace/db/schema", () => ({
   transactions: { businessId: "businessId", updatedAt: "updatedAt", deviceId: "deviceId", localId: "localId", syncVersion: "syncVersion", id: "id" },

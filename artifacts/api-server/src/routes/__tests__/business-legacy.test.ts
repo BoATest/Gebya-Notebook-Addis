@@ -8,14 +8,19 @@ process.env.APP_BASE_URL = "http://localhost:3000";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
-const mockDbSelect = vi.fn();
-const mockDbUpdate = vi.fn();
-
-vi.mock("@workspace/db", () => ({
-  db: {
+const { mockDbSelect, mockDbUpdate, mockDb } = vi.hoisted(() => {
+  const mockDbSelect = vi.fn();
+  const mockDbUpdate = vi.fn();
+  const mockDb = {
     select: (...a: any[]) => mockDbSelect(...a),
     update: (...a: any[]) => mockDbUpdate(...a),
-  },
+  };
+  return { mockDbSelect, mockDbUpdate, mockDb };
+});
+
+vi.mock("@workspace/db", () => ({
+  db: mockDb,
+  requireDb: vi.fn(() => mockDb),
 }));
 
 vi.mock("@workspace/db/schema", () => ({
