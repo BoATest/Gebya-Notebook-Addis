@@ -7,60 +7,11 @@ import crypto from "crypto";
 import { requireRole } from "../middlewares/requireRole.js";
 import { verifyJwt } from "./auth.js";
 import { resolvePermissions, getRoleDefault } from "@workspace/db/schema/permission-defaults";
+import { getUserIdFromRequest, getRequestedBizId, getBusinessForUser, findValidInvite } from "./businessHelpers.js";
 
 const router = Router();
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://gebya.app";
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-
-function getUserIdFromRequest(req: any): number | null {
-  const token = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-  if (!token) return null;
-  return verifyJwt(token)?.userId || null;
-}
-
-function getRequestedBizId(req: any): number | undefined {
-  const h = req.headers["x-business-id"];
-  const id = h ? Number(h) : undefined;
-  return id && Number.isInteger(id) ? id : undefined;
-}
-
-async function getBusinessForUser(userId: number, businessId?: number) {
-    const filters: any[] = [eq(businessMembers.userId, userId)];
-    if (businessId) filters.push(eq(businessMembers.businessId, businessId));
-    const rows = await requireDb()
-      .select({ businessId: businessMembers.businessId, displayName: businessMembers.displayName })
-      .from(businessMembers)
-      .where(and(...filters))
-      .limit(1);
-
-    return rows[0]?.businessId ?? null;
-  }
-
-async function findValidInvite(tx: any, token: string) {
-    const rows = await tx
-      .select({
-        id: invites.id,
-        businessId: invites.businessId,
-        role: invites.role,
-        invitedByUserId: invites.invitedByUserId,
-        staffName: invites.staffName,
-        acceptedAt: invites.acceptedAt,
-        revokedAt: invites.revokedAt,
-        expiresAt: invites.expiresAt,
-      })
-    .from(invites)
-    .where(
-      and(
-        eq(invites.token, token),
-        isNull(invites.acceptedAt),
-        isNull(invites.revokedAt),
-        gt(invites.expiresAt, new Date())
-      )
-    )
-    .limit(1);
-
-  return rows[0] ?? null;
-}
 
 router.post("/invite", requireRole("owner"), async (req, res) => {
   const userId = getUserIdFromRequest(req);
