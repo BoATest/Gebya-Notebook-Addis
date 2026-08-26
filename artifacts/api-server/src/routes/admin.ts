@@ -14,6 +14,7 @@
 import { Router } from "express";
 import { db, warmDb } from "@workspace/db";
 import { serveCached, warmCache, serveCachedBounded } from "../lib/adminCache.js";
+import { safeEqual } from "../lib/secure.js";
 import {
   users,
   businesses,
@@ -104,7 +105,7 @@ async function computeOverview() {
     db.select({ businessId: staffMembers.businessId, active: staffMembers.active }).from(staffMembers),
     db.select({ acceptedAt: invites.acceptedAt }).from(invites),
     db.select({
-      phoneNumber: otps.phoneNumber,
+      phoneNumber: maskPhone(otps.phoneNumber),
       attempts: sql<number>`COALESCE(SUM(${otps.attempts}), 0)`,
       consumed: sql<number>`COALESCE(SUM(CASE WHEN ${otps.consumed} THEN 1 ELSE 0 END), 0)`,
     }).from(otps).groupBy(otps.phoneNumber),
@@ -144,7 +145,7 @@ async function computeOverview() {
 
   const otpGroups: Record<string, { attempts: number; consumed: number }> = {};
   for (const otp of allOtps) {
-    const key = otp.phoneNumber;
+    const key = maskPhone(otp.phoneNumber);
     if (!otpGroups[key]) otpGroups[key] = { attempts: 0, consumed: 0 };
     otpGroups[key].attempts += otp.attempts || 0;
     if (otp.consumed) otpGroups[key].consumed += 1;
@@ -225,7 +226,7 @@ router.get("/overview", async (req, res) => {
     return res.json(value);
   } catch (e) {
     console.error("[admin/overview]", e);
-    return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+    return res.status(500).json({ error: "Internal server error", request_id: res.locals.requestId });
   }
 });
 
@@ -298,7 +299,7 @@ router.get("/shops", async (req, res) => {
     return res.json(value);
   } catch (e) {
     console.error("[admin/shops]", e);
-    return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+    return res.status(500).json({ error: "Internal server error", request_id: res.locals.requestId });
   }
 });
 
@@ -618,7 +619,7 @@ router.post("/shops/:businessId/resend-reminders", async (req, res) => {
     try {
       result = await sendReminder(reminder);
     } catch (e) {
-      result = { success: false, error: e instanceof Error ? e.message : String(e) };
+      result = { success: false, error: "Failed to complete request" };
     }
     if (result?.success) { sent++; sentIds.push(cid); }
     else { failed++; failedIds.push(cid); }
@@ -764,7 +765,7 @@ router.get("/frictions", async (req, res) => {
     return res.json(value);
   } catch (e) {
     console.error("[admin/frictions]", e);
-    return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+    return res.status(500).json({ error: "Internal server error", request_id: res.locals.requestId });
   }
 });
 
@@ -803,7 +804,7 @@ router.get("/features", async (req, res) => {
     return res.json(value);
   } catch (e) {
     console.error("[admin/features]", e);
-    return res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
+    return res.status(500).json({ error: "Internal server error", request_id: res.locals.requestId });
   }
 });
 
@@ -910,11 +911,12 @@ router.get("/export-shops", async (req, res) => {
 // load is served instantly. Protected by ADMIN_WARMUP_SECRET (query, header,
 // or Vercel cron Bearer token). Intended to be hit by a scheduled cron.
 router.get("/warmup", async (req, res) => {
+  // Secret accepted only via header (x-warmup-secret or Authorization: Bearer),
+  // never as a query param (which would be logged and could leak credentials).
   const secret =
-    (req.query.secret as string | undefined) ||
     (req.headers["x-warmup-secret"] as string | undefined) ||
     (req.headers["authorization"] as string | undefined)?.replace(/^Bearer\s+/i, "");
-  if (!process.env.ADMIN_WARMUP_SECRET || secret !== process.env.ADMIN_WARMUP_SECRET) {
+  if (!safeEqual(secret, process.env.ADMIN_WARMUP_SECRET)) {
     return res.status(401).json({ error: "Unauthorized" });
   }
   const results = await Promise.all([

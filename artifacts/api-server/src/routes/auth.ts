@@ -82,6 +82,14 @@ export function verifyJwt(token: string) {
   }
 }
 
+// Per-phone OTP request rate limit (blunts OTP-bombing). In-memory windowing is
+// per-instance only — on serverless (multiple instances, cold starts) it is not
+// shared, so pair with a persistent limiter (Redis/DB) for strong production
+// guarantees. It still raises the cost of abuse on a single warm instance.
+const otpRate = new Map<string, number[]>();
+const OTP_RATE_WINDOW_MS = 10 * 60 * 1000;
+const OTP_RATE_MAX = 5;
+
 // --- POST /api/auth/otp ---
 router.post("/otp", async (req, res) => {
   const { phone_number } = req.body;
@@ -93,6 +101,15 @@ router.post("/otp", async (req, res) => {
   if (!normalizedPhone) {
     return res.status(400).json({ error: "Invalid Ethiopian phone number" });
   }
+
+  // Throttle OTP generation per phone number.
+  const now = Date.now();
+  const recent = (otpRate.get(normalizedPhone) ?? []).filter((t) => now - t < OTP_RATE_WINDOW_MS);
+  if (recent.length >= OTP_RATE_MAX) {
+    return res.status(429).json({ error: "Too many OTP requests. Please wait before retrying." });
+  }
+  recent.push(now);
+  otpRate.set(normalizedPhone, recent);
 
   // Check for existing user and telegram chat_id
   const existingUser = await db.select().from(users).where(eq(users.phoneNumber, normalizedPhone)).limit(1);
@@ -261,99 +278,7 @@ router.post("/verify", async (req, res) => {
     });
   });
 
-// --- POST /api/auth/verify-otp ---
-router.post("/verify-otp", async (req, res) => {
-  const { otpId, otpCode } = req.body;
-  if (!otpId || !otpCode) {
-    return res.status(400).json({ error: "otpId and otpCode are required" });
-  }
 
-  const otpRecord = await db
-    .select()
-    .from(otps)
-    .where(eq(otps.id, Number(otpId)))
-    .limit(1);
-
-  if (!otpRecord.length) {
-    return res.status(400).json({ error: "Invalid or expired OTP" });
-  }
-
-  const otp = otpRecord[0];
-
-  // Check if OTP has expired
-  if (new Date() > otp.expiresAt) {
-    return res.status(400).json({ error: "OTP has expired" });
-  }
-
-  // Check if OTP is already verified
-  if (otp.verifiedAt !== null) {
-    return res.status(400).json({ error: "OTP already used" });
-  }
-
-  // Check if OTP is locked
-  if (otp.lockedAt !== null) {
-    return res.status(400).json({ error: "OTP is locked due to too many attempts" });
-  }
-
-  // Verify OTP
-  const isValid = verifyOtp(otpCode, otp.otpHash);
-  
-  // Update attempt count
-  const attempts = (otp.attempts || 0) + 1;
-  await db.update(otps).set({ attempts }).where(eq(otps.id, otp.id));
-
-  if (!isValid) {
-    const remainingAttempts = OTP_MAX_ATTEMPTS - attempts;
-    if (remainingAttempts <= 0) {
-      // Lock OTP after max attempts
-      await db.update(otps).set({ lockedAt: new Date() }).where(eq(otps.id, otp.id));
-      
-      return res.status(400).json({ 
-        error: "Maximum attempts exceeded. OTP locked.", 
-        attemptsLeft: 0 
-      });
-    }
-    
-    return res.status(400).json({ 
-      error: "Invalid OTP code", 
-      attemptsLeft: Math.max(0, remainingAttempts) 
-    });
-  }
-
-  // Mark OTP as verified
-  await db.update(otps).set({ verifiedAt: new Date() }).where(eq(otps.id, otp.id));
-
-  // Generate JWT token
-  const token = signJwt(otp.userId);
-  setTokenCookie(res, token);
-
-  // Fetch user details
-  const user = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, otp.userId))
-    .limit(1);
-
-  if (!user.length) {
-    return res.status(400).json({ error: "User not found" });
-  }
-
-  // Fetch user's business memberships
-  const memberRows = await db
-    .select()
-    .from(businessMembers)
-    .where(eq(businessMembers.userId, user[0].id));
-
-  return res.json({
-    token,
-    user: {
-      id: user[0].id,
-      phone_number: user[0].phoneNumber,
-      preferred_lang: user[0].preferredLang,
-      created_at: user[0].createdAt,
-    },
-  });
-});
 
 // --- POST /api/auth/link-device ---
 router.post("/link-device", async (req, res) => {
@@ -636,6 +561,10 @@ router.post("/google-admin", async (req, res) => {
 
   if (!payload || payload.aud !== clientId) {
     return res.status(401).json({ error: "Invalid Google token (audience mismatch)" });
+  }
+  // Reject tokens that did not originate from Google's OIDC issuer.
+  if (payload.iss !== "https://accounts.google.com" && payload.iss !== "accounts.google.com") {
+    return res.status(401).json({ error: "Invalid Google token issuer" });
   }
   if (String(payload.email_verified) !== "true") {
     return res.status(403).json({ error: "Google email is not verified" });

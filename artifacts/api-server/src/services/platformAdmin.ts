@@ -49,7 +49,9 @@ export async function isPlatformAdminPhone(phone: string | null | undefined): Pr
     console.warn("[platformAdmin] DB member check failed:", e instanceof Error ? e.message : String(e));
   }
 
-  if (ENV_ALLOWLIST.length === 0 && !isProduction) return true;
+  // Fail closed: never grant platform-admin implicitly. Admin requires an
+  // explicit allowlist entry (PLATFORM_ADMIN_PHONES / PLATFORM_ADMIN_EMAILS
+  // env vars, or a platform_admin_members row).
   return false;
 }
 

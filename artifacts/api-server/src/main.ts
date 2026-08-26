@@ -9,6 +9,7 @@ import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 import router from "./routes/index.js";
 import { ensureSchema } from "./ensureSchema.js";
+import { scrubUrl } from "./lib/secure.js";
 
 const app: Express = express();
 // Trust the first proxy hop (Vercel) so req.ip reflects the real client IP
@@ -47,10 +48,12 @@ function isAllowedOrigin(origin?: string | null) {
     console.error("[security] CORS_ORIGIN is not set in production. Rejecting all cross-origin requests.");
     return false;
   }
-  // Allow all Vercel deployments (production + every random preview subdomain
-  // such as <project>-<hash>-<scope>.vercel.app) and local dev origins.
-  if (origin.endsWith(".vercel.app")) return true;
-  if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) return true;
+  // Local dev origins only outside production. Preview *.vercel.app subdomains
+  // are attacker-controllable, so they are NEVER trusted — they must be added
+  // explicitly via CORS_ORIGIN.
+  if (!isProduction && (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1"))) {
+    return true;
+  }
   return allowedOrigins.includes(origin);
 }
 
@@ -127,7 +130,7 @@ app.use((req, res, next) => {
     console.info("[api]", JSON.stringify({
       requestId,
       method: req.method,
-      path: req.originalUrl || req.url,
+      path: scrubUrl(req.originalUrl || req.url),
       statusCode: res.statusCode,
       durationMs: Date.now() - startedAt,
     }));
@@ -184,7 +187,6 @@ app.use((err, req, res, _next) => {
   }
   res.status(500).json({
     error: "Internal server error",
-    message: err instanceof Error ? err.message : "Unhandled error",
     request_id: requestId,
   });
 });

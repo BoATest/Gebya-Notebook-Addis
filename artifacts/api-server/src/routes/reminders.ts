@@ -14,6 +14,7 @@
  */
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
+import { safeEqual } from "../lib/secure.js";
 import {
   getShopDefault,
   setShopDefault,
@@ -124,7 +125,7 @@ router.all("/run", async (req: Request, res: Response) => {
         });
       }
       const signature = req.headers["x-vercel-signature"] as string | undefined;
-      if (!signature || signature !== signingSecret) {
+      if (!safeEqual(signature, signingSecret)) {
         console.error("[security] Invalid Vercel cron signature");
         return res.status(401).json({ error: "unauthorized" });
       }
@@ -132,7 +133,7 @@ router.all("/run", async (req: Request, res: Response) => {
       return res.status(500).json({
         error: "Server misconfigured: REMINDER_CRON_SECRET environment variable is not set",
       });
-    } else if (!cronSecret || cronSecret !== process.env.REMINDER_CRON_SECRET) {
+      } else if (!safeEqual(cronSecret, process.env.REMINDER_CRON_SECRET)) {
       return res.status(401).json({ error: "unauthorized" });
     }
 
