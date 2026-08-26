@@ -33,6 +33,7 @@ import { sendTelegramTextMessage } from "../services/telegramBotService.js";
 import { createHistoryEntry } from "../services/reminderHistory.js";
 import { sendPushToOwner } from "../services/pushNotificationSender.js";
 import { verifyShopOwnership, requirePermission } from "./rbac.js";
+import { getShopId, log } from "./remindersHelpers.js";
 import { db, requireDb } from "@workspace/db";
 import { customers as customersTable, businesses as businessesTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
@@ -79,27 +80,6 @@ const runSchema = z.object({
 
 // ─── middleware: parse shopId from request ─────────────────────────────
 
-function getShopId(req: Request): number {
-  // Try from body, then query, then header
-  const shopId =
-    Number(req.body?.shopId) ||
-    Number(req.query?.shopId) ||
-    Number(req.headers?.["x-shop-id"]) ||
-    0;
-  if (!Number.isInteger(shopId) || shopId <= 0) {
-    throw new Error("Missing or invalid shopId");
-  }
-  return shopId;
-}
-
-// ─── logging helper ────────────────────────────────────────────────────
-
-function log(level: "info" | "warn" | "error", message: string, context?: Record<string, unknown>): void {
-  const logLine = [`[reminders] ${level.toUpperCase()}`, message, context ? JSON.stringify(context) : ""].join(" ");
-  if (level === "error") console.error(logLine);
-  else if (level === "warn") console.warn(logLine);
-  else console.log(logLine);
-}
 
 // ─── endpoints ─────────────────────────────────────────────────────────
 
