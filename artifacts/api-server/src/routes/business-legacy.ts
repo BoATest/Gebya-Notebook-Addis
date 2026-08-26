@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { Request, Response } from "express";
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { requireDb } from "@workspace/db";
 import { users, devices, otps, businesses, businessMembers, invites } from "@workspace/db/schema";
 import { normalizePhone } from "@workspace/db/schema";
 import { eq, and, gt, isNull } from "drizzle-orm";
@@ -36,7 +35,7 @@ function getUserIdFromRequest(req: Request): number | null {
 }
 
 async function getBusinessForUser(userId: number) {
-  const rows = await db
+  const rows = await requireDb()
     .select({
       businessId: businessMembers.businessId,
       role: businessMembers.role,
@@ -53,14 +52,14 @@ async function ensureUser(phone?: string): Promise<number> {
   if (phone) {
     const normalized = normalizePhone(phone);
     if (normalized) {
-      const rows = await db.select().from(users).where(eq(users.phoneNumber, normalized)).limit(1);
+      const rows = await requireDb().select().from(users).where(eq(users.phoneNumber, normalized)).limit(1);
       if (rows.length > 0) return rows[0].id;
-      const [inserted] = await db.insert(users).values({ phoneNumber: normalized, active: true }).returning();
+      const [inserted] = await requireDb().insert(users).values({ phoneNumber: normalized, active: true }).returning();
       return inserted.id;
     }
   }
   const placeholder = `anon-${crypto.randomUUID()}@local`;
-  const [inserted] = await db.insert(users).values({ phoneNumber: placeholder, active: true }).returning();
+  const [inserted] = await requireDb().insert(users).values({ phoneNumber: placeholder, active: true }).returning();
   return inserted.id;
 }
 
@@ -89,12 +88,12 @@ router.post("/shops", async (req: Request, res: Response) => {
     userId = await ensureUser(phone);
   }
 
-  const [biz] = await db.insert(businesses).values({
+  const [biz] = await requireDb().insert(businesses).values({
     ownerUserId: userId,
     name: display_name.trim(),
   }).returning();
 
-  await db.insert(businessMembers).values({
+  await requireDb().insert(businessMembers).values({
     businessId: biz.id,
     userId,
     displayName: display_name.trim(),
@@ -107,7 +106,7 @@ router.post("/shops", async (req: Request, res: Response) => {
   const normalizedJoinCode = joinCode.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
   const joinCodeToken = crypto.createHmac('sha256', JOIN_CODE_SIGNING_KEY).update(normalizedJoinCode).digest("hex");
   const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-  await db.insert(invites).values({
+  await requireDb().insert(invites).values({
     businessId: biz.id,
     invitedByUserId: userId,
     phoneNumber: phone ? normalizePhone(phone) || "unknown" : "unknown",
@@ -117,7 +116,7 @@ router.post("/shops", async (req: Request, res: Response) => {
     expiresAt,
   });
 
-  const userRows = await db.select({ phoneNumber: users.phoneNumber }).from(users).where(eq(users.id, userId)).limit(1);
+  const userRows = await requireDb().select({ phoneNumber: users.phoneNumber }).from(users).where(eq(users.id, userId)).limit(1);
   const permissions = resolvePermissions("owner", null);
   const authToken = signJwt(userId);
 
@@ -154,7 +153,7 @@ router.get("/shops/join/:code/verify", async (req: Request, res: Response) => {
   const cleanCode = code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
   const codeHash = crypto.createHmac('sha256', JOIN_CODE_SIGNING_KEY).update(cleanCode).digest("hex");
 
-  const inviteRows = await db
+  const inviteRows = await requireDb()
     .select({
       id: invites.id,
       businessId: invites.businessId,
@@ -182,7 +181,7 @@ router.get("/shops/join/:code/verify", async (req: Request, res: Response) => {
     return;
   }
 
-  const bizRows = await db.select({ name: businesses.name }).from(businesses).where(eq(businesses.id, invite.businessId)).limit(1);
+  const bizRows = await requireDb().select({ name: businesses.name }).from(businesses).where(eq(businesses.id, invite.businessId)).limit(1);
   if (!bizRows.length) {
     res.status(404).json({ error: "Shop not found." });
     return;
@@ -209,7 +208,7 @@ router.post("/shops/join", async (req: Request, res: Response) => {
   const cleanCode = join_code.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
   const codeHash = crypto.createHmac('sha256', JOIN_CODE_SIGNING_KEY).update(cleanCode).digest("hex");
 
-  const inviteRows = await db
+  const inviteRows = await requireDb()
     .select({
       id: invites.id,
       businessId: invites.businessId,
@@ -232,14 +231,14 @@ router.post("/shops/join", async (req: Request, res: Response) => {
   }
 
   const invite = inviteRows[0];
-  const bizRows = await db.select().from(businesses).where(eq(businesses.id, invite.businessId)).limit(1);
+  const bizRows = await requireDb().select().from(businesses).where(eq(businesses.id, invite.businessId)).limit(1);
   if (!bizRows.length) {
     res.status(404).json({ error: "Shop not found." });
     return;
   }
   const shop = bizRows[0];
 
-  const existing = await db
+  const existing = await requireDb()
     .select({ id: businessMembers.id })
     .from(businessMembers)
     .where(and(eq(businessMembers.businessId, shop.id), eq(businessMembers.userId, userId)))
@@ -256,7 +255,7 @@ router.post("/shops/join", async (req: Request, res: Response) => {
     ? requestedRole
     : inviteRole;
 
-  await db.insert(businessMembers).values({
+  await requireDb().insert(businessMembers).values({
     businessId: shop.id,
     userId,
     displayName: display_name?.trim() || null,
@@ -266,7 +265,7 @@ router.post("/shops/join", async (req: Request, res: Response) => {
     active: true,
   });
 
-  await db.update(invites).set({ acceptedAt: new Date() }).where(eq(invites.id, invite.id));
+  await requireDb().update(invites).set({ acceptedAt: new Date() }).where(eq(invites.id, invite.id));
 
   const permissions = resolvePermissions(role, null);
   const authToken = signJwt(userId);
@@ -309,13 +308,13 @@ router.get("/me", async (req: Request, res: Response) => {
     return;
   }
 
-  const [biz] = await db
+  const [biz] = await requireDb()
     .select({ name: businesses.name })
     .from(businesses)
     .where(eq(businesses.id, member.businessId))
     .limit(1);
 
-  const [userRec] = await db
+  const [userRec] = await requireDb()
     .select({ phoneNumber: users.phoneNumber })
     .from(users)
     .where(eq(users.id, userId))
@@ -369,7 +368,7 @@ router.post("/shops/:shop_id/staff", async (req: Request, res: Response) => {
   const normalizedPhone = phone ? normalizePhone(phone) : null;
   let userId = await ensureUser(normalizedPhone || undefined);
 
-  const existing = await db
+  const existing = await requireDb()
     .select({ id: businessMembers.id })
     .from(businessMembers)
     .where(and(eq(businessMembers.businessId, shopId), eq(businessMembers.userId, userId)))
@@ -382,7 +381,7 @@ router.post("/shops/:shop_id/staff", async (req: Request, res: Response) => {
   const allowedRoles = ["cashier", "viewer", "manager", "trusted_staff"];
   const role = requestedRole && allowedRoles.includes(requestedRole) ? requestedRole : "cashier";
 
-  await db.insert(businessMembers).values({
+  await requireDb().insert(businessMembers).values({
     businessId: shopId,
     userId,
     displayName: display_name.trim(),
@@ -432,7 +431,7 @@ router.get("/shops/:shop_id/staff", async (req: Request, res: Response) => {
     return;
   }
 
-  const rows = await db
+  const rows = await requireDb()
     .select({
       id: businessMembers.id,
       userId: businessMembers.userId,
@@ -491,7 +490,7 @@ router.post("/shops/:shop_id/rotate-code", async (req: Request, res: Response) =
   const joinCodeToken = crypto.createHmac('sha256', JOIN_CODE_SIGNING_KEY).update(normalizedJoinCode).digest("hex");
   const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
 
-  await db.insert(invites).values({
+  await requireDb().insert(invites).values({
     businessId: shopId,
     invitedByUserId: userId,
     phoneNumber: "unknown",
@@ -529,7 +528,7 @@ router.post("/shops/:shop_id/settings", async (req: Request, res: Response) => {
   const phoneRequired = !!req.body?.phone_required;
   const approvalRequired = !!req.body?.approval_required;
 
-  await db
+  await requireDb()
     .update(businesses)
     .set({
       phoneRequired,
@@ -566,7 +565,7 @@ router.get("/shops/:shop_id/settings", async (req: Request, res: Response) => {
     return;
   }
 
-  const rows = await db
+  const rows = await requireDb()
     .select({ phoneRequired: businesses.phoneRequired, approvalRequired: businesses.approvalRequired })
     .from(businesses)
     .where(eq(businesses.id, shopId))
@@ -605,7 +604,7 @@ router.post("/staff/:staff_id/permissions", async (req: Request, res: Response) 
     return;
   }
 
-  const targetRows = await db
+  const targetRows = await requireDb()
     .select({ id: businessMembers.id, permissions: businessMembers.permissions })
     .from(businessMembers)
     .where(and(eq(businessMembers.businessId, member.businessId), eq(businessMembers.userId, targetUserId)))
@@ -623,7 +622,7 @@ router.post("/staff/:staff_id/permissions", async (req: Request, res: Response) 
     next.can_create_customer_credit = can_create_customer_credit;
   }
 
-  await db
+  await requireDb()
     .update(businessMembers)
     .set({ permissions: next })
     .where(eq(businessMembers.id, targetRows[0].id));
@@ -662,7 +661,7 @@ router.post("/staff/:staff_id/deactivate", async (req: Request, res: Response) =
     return;
   }
 
-  const targetRows = await db
+  const targetRows = await requireDb()
     .select({ id: businessMembers.id })
     .from(businessMembers)
     .where(and(eq(businessMembers.businessId, member.businessId), eq(businessMembers.userId, targetUserId)))
@@ -673,7 +672,7 @@ router.post("/staff/:staff_id/deactivate", async (req: Request, res: Response) =
     return;
   }
 
-  await db
+  await requireDb()
     .update(businessMembers)
     .set({ active: false })
     .where(eq(businessMembers.id, targetRows[0].id));
@@ -703,7 +702,7 @@ router.post("/staff/:staff_id/reactivate", async (req: Request, res: Response) =
     return;
   }
 
-  const targetRows = await db
+  const targetRows = await requireDb()
     .select({ id: businessMembers.id })
     .from(businessMembers)
     .where(and(eq(businessMembers.businessId, member.businessId), eq(businessMembers.userId, targetUserId)))
@@ -714,7 +713,7 @@ router.post("/staff/:staff_id/reactivate", async (req: Request, res: Response) =
     return;
   }
 
-  await db
+  await requireDb()
     .update(businessMembers)
     .set({ active: true })
     .where(eq(businessMembers.id, targetRows[0].id));
@@ -733,10 +732,10 @@ router.post("/devices/:device_id/approve", async (req: Request, res: Response) =
   }
 
   const deviceId = req.params.device_id;
-  const deviceRows = await db
+  const deviceRows = await requireDb()
     .select({ id: devices.id, shopId: devices.shopId, status: devices.status })
     .from(devices)
-    .where(eq(devices.deviceId, deviceId))
+      .where(eq(devices.deviceId, String(deviceId)))
     .limit(1);
 
   if (!deviceRows.length) {
@@ -753,7 +752,7 @@ router.post("/devices/:device_id/approve", async (req: Request, res: Response) =
     }
   }
 
-  await db
+  await requireDb()
     .update(devices)
     .set({ status: "active" })
     .where(eq(devices.id, device.id));
@@ -772,10 +771,10 @@ router.post("/devices/:device_id/reject", async (req: Request, res: Response) =>
   }
 
   const deviceId = req.params.device_id;
-  const deviceRows = await db
+  const deviceRows = await requireDb()
     .select({ id: devices.id, shopId: devices.shopId })
     .from(devices)
-    .where(eq(devices.deviceId, deviceId))
+      .where(eq(devices.deviceId, String(deviceId)))
     .limit(1);
 
   if (!deviceRows.length) {
@@ -792,7 +791,7 @@ router.post("/devices/:device_id/reject", async (req: Request, res: Response) =>
     }
   }
 
-  await db
+  await requireDb()
     .update(devices)
     .set({ status: "revoked" })
     .where(eq(devices.id, device.id));
@@ -811,10 +810,10 @@ router.post("/devices/:device_id/revoke", async (req: Request, res: Response) =>
   }
 
   const deviceId = req.params.device_id;
-  const deviceRows = await db
+  const deviceRows = await requireDb()
     .select({ id: devices.id, shopId: devices.shopId })
     .from(devices)
-    .where(eq(devices.deviceId, deviceId))
+      .where(eq(devices.deviceId, String(deviceId)))
     .limit(1);
 
   if (!deviceRows.length) {
@@ -831,7 +830,7 @@ router.post("/devices/:device_id/revoke", async (req: Request, res: Response) =>
     }
   }
 
-  await db
+  await requireDb()
     .update(devices)
     .set({ status: "revoked" })
     .where(eq(devices.id, device.id));

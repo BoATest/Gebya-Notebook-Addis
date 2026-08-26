@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { requireDb } from "@workspace/db";
 import { businesses, businessMembers, invites, users } from "@workspace/db/schema";
 import { normalizePhone } from "@workspace/db/schema";
 import { and, eq, gt, isNull } from "drizzle-orm";
@@ -19,16 +18,16 @@ function getUserIdFromRequest(req: any): number | null {
   return verifyJwt(token)?.userId || null;
 }
 
-function getRequestedBizId(req: any): number | null {
+function getRequestedBizId(req: any): number | undefined {
   const h = req.headers["x-business-id"];
-  const id = h ? Number(h) : null;
-  return id && Number.isInteger(id) ? id : null;
+  const id = h ? Number(h) : undefined;
+  return id && Number.isInteger(id) ? id : undefined;
 }
 
 async function getBusinessForUser(userId: number, businessId?: number) {
     const filters: any[] = [eq(businessMembers.userId, userId)];
     if (businessId) filters.push(eq(businessMembers.businessId, businessId));
-    const rows = await db
+    const rows = await requireDb()
       .select({ businessId: businessMembers.businessId, displayName: businessMembers.displayName })
       .from(businessMembers)
       .where(and(...filters))
@@ -86,7 +85,7 @@ router.post("/invite", requireRole("owner"), async (req, res) => {
    const token = crypto.randomBytes(32).toString("hex");
    const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
 
-   await db.insert(invites).values({
+   await requireDb().insert(invites).values({
      businessId,
      invitedByUserId: userId,
      phoneNumber: normalizedInvitePhone,
@@ -109,7 +108,7 @@ router.get("/invites/pending", requireRole("owner", "manager"), async (req, res)
   if (!userId) return res.status(401).json({ error: "Authorization required" });
   const businessId = await getBusinessForUser(userId, getRequestedBizId(req));
   if (!businessId) return res.status(403).json({ error: "No business found" });
-  const rows = await db
+  const rows = await requireDb()
     .select()
     .from(invites)
     .where(
@@ -126,14 +125,14 @@ router.get("/invites/pending", requireRole("owner", "manager"), async (req, res)
 router.get("/invites/pending-for-me", async (req, res) => {
   const userId = getUserIdFromRequest(req);
   if (!userId) return res.json({ ok: true, pending: [] });
-  const userRows = await db
+  const userRows = await requireDb()
     .select({ phone: users.phoneNumber })
     .from(users)
     .where(eq(users.id, userId))
     .limit(1);
   if (!userRows.length) return res.json({ ok: true, pending: [] });
   const phone = userRows[0].phone;
-  const rows = await db
+  const rows = await requireDb()
     .select({
       id: invites.id,
       businessId: invites.businessId,
@@ -155,7 +154,7 @@ router.get("/invites/pending-for-me", async (req, res) => {
     .limit(5);
   const enriched = await Promise.all(
     rows.map(async (inv) => {
-      const biz = await db
+      const biz = await requireDb()
         .select({ name: businesses.name })
         .from(businesses)
         .where(eq(businesses.id, inv.businessId))
@@ -171,7 +170,7 @@ router.post("/invites/:inviteId/accept", async (req, res) => {
   if (!userId) return res.status(401).json({ error: "Authorization required" });
   const inviteId = Number(req.params.inviteId);
   if (!Number.isFinite(inviteId)) return res.status(400).json({ error: "Invalid inviteId" });
-  const result = await db.transaction(async (tx) => {
+  const result = await requireDb().transaction(async (tx) => {
     const rows = await tx
       .select()
       .from(invites)
@@ -227,7 +226,7 @@ router.post("/invites/:inviteId/decline", async (req, res) => {
   if (!userId) return res.status(401).json({ error: "Authorization required" });
   const inviteId = Number(req.params.inviteId);
   if (!Number.isFinite(inviteId)) return res.status(400).json({ error: "Invalid inviteId" });
-  const rows = await db
+  const rows = await requireDb()
     .select()
     .from(invites)
     .where(eq(invites.id, inviteId))
@@ -237,7 +236,7 @@ router.post("/invites/:inviteId/decline", async (req, res) => {
   if (inv.acceptedAt) return res.status(410).json({ error: "Already accepted" });
   if (inv.revokedAt) return res.status(410).json({ error: "Invite was revoked" });
   if (inv.declinedAt) return res.status(410).json({ error: "Already declined" });
-  await db.update(invites).set({ declinedAt: new Date() }).where(eq(invites.id, inviteId));
+  await requireDb().update(invites).set({ declinedAt: new Date() }).where(eq(invites.id, inviteId));
   return res.json({ ok: true });
 });
 
@@ -248,7 +247,7 @@ router.delete("/invites/:inviteId", requireRole("owner", "manager"), async (req,
   if (!Number.isFinite(inviteId)) return res.status(400).json({ error: "Invalid inviteId" });
   const businessId = await getBusinessForUser(userId, getRequestedBizId(req));
   if (!businessId) return res.status(403).json({ error: "No business found" });
-  const rows = await db
+  const rows = await requireDb()
     .select()
     .from(invites)
     .where(and(eq(invites.id, inviteId), eq(invites.businessId, businessId)))
@@ -257,7 +256,7 @@ router.delete("/invites/:inviteId", requireRole("owner", "manager"), async (req,
   const inv = rows[0];
   if (inv.acceptedAt) return res.status(410).json({ error: "Invite already accepted" });
   if (inv.revokedAt) return res.status(410).json({ error: "Invite already revoked" });
-  await db.update(invites).set({ revokedAt: new Date() }).where(eq(invites.id, inviteId));
+  await requireDb().update(invites).set({ revokedAt: new Date() }).where(eq(invites.id, inviteId));
   return res.json({ ok: true });
 });
 
@@ -265,7 +264,7 @@ router.post("/join/:token", async (req, res) => {
   const { token } = req.params;
   const userId = getUserIdFromRequest(req);
 
-  const result = await db.transaction(async (tx) => {
+  const result = await requireDb().transaction(async (tx) => {
     const invite = await findValidInvite(tx, token);
     if (!invite) {
       const existing = await tx
@@ -357,7 +356,7 @@ router.get("/members", requireRole("owner", "manager"), async (req, res) => {
   const businessId = await getBusinessForUser(userId, getRequestedBizId(req));
   if (!businessId) return res.status(403).json({ error: "No business found" });
 
-  const rows = await db
+  const rows = await requireDb()
     .select({
       id: businessMembers.id,
       userId: businessMembers.userId,
@@ -401,7 +400,7 @@ router.patch("/members/:userId/permissions", requireRole("owner", "manager"), as
   if (!businessId) return res.status(403).json({ error: "No business found" });
 
   // Verify target is a member of this business
-  const targetRows = await db
+  const targetRows = await requireDb()
     .select({ id: businessMembers.id, role: businessMembers.role, permissions: businessMembers.permissions })
     .from(businessMembers)
     .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.userId, targetUserId)))
@@ -439,7 +438,7 @@ router.patch("/members/:userId/permissions", requireRole("owner", "manager"), as
     permissionsToStore = null;
   }
 
-  await db
+  await requireDb()
     .update(businessMembers)
     .set({ permissions: permissionsToStore })
     .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.userId, targetUserId)));

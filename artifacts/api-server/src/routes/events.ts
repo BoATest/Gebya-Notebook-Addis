@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { Router, type Request, type Response } from "express";
-import { db } from "@workspace/db";
+import { requireDb } from "@workspace/db";
 import { staffEvents } from "@workspace/db/schema/staff_events";
 import { and, eq, desc, sql, inArray } from "drizzle-orm";
 import { PushEventsBody, type SyncEventEnvelopeT, type PushEventsBodyT } from "@workspace/api-zod/events";
@@ -99,7 +98,7 @@ router.post("/events/push", async (req: Request, res: Response) => {
   // Batch idempotency check (1 query instead of N)
   const clientEventIds = validEvents.map((e) => e.client_event_id);
   const existingEvents = clientEventIds.length > 0
-    ? await db
+    ? await requireDb()
         .select({ id: staffEvents.id, clientEventId: staffEvents.clientEventId })
         .from(staffEvents)
         .where(and(eq(staffEvents.businessId, ctx.businessId), inArray(staffEvents.clientEventId, clientEventIds)))
@@ -113,7 +112,7 @@ router.post("/events/push", async (req: Request, res: Response) => {
   // Batch insert (1 query instead of N)
   let accepted: { client_event_id: string; status: "accepted"; event_id: string; created_at_server: string | undefined }[] = [];
   if (toInsert.length > 0) {
-    const inserted = await db.insert(staffEvents).values(
+    const inserted = await requireDb().insert(staffEvents).values(
       toInsert.map((event) => ({
         businessId: ctx.businessId,
         userId: ctx.userId,
@@ -152,7 +151,7 @@ router.get("/events/activity", async (req: Request, res: Response) => {
     return;
   }
 
-  const rows = await db
+  const rows = await requireDb()
     .select()
     .from(staffEvents)
     .where(

@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { requireDb } from "@workspace/db";
 import { pushSubscriptions, notifications } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
@@ -19,7 +18,7 @@ function getUserIdFromRequest(req: any): number | null {
 
 async function getOwnerBusiness(userId: number): Promise<{ businessId: number; isOwner: boolean } | null> {
   const { businessMembers } = await import("@workspace/db/schema");
-  const rows = await db
+  const rows = await requireDb()
     .select({ businessId: businessMembers.businessId, role: businessMembers.role })
     .from(businessMembers)
     .where(and(eq(businessMembers.userId, userId), eq(businessMembers.active, true)))
@@ -53,19 +52,19 @@ router.post("/subscribe", async (req, res) => {
   }
 
   // Upsert by endpoint (one subscription per browser)
-  const existing = await db
+  const existing = await requireDb()
     .select({ id: pushSubscriptions.id })
     .from(pushSubscriptions)
     .where(eq(pushSubscriptions.endpoint, endpoint))
     .limit(1);
 
   if (existing.length > 0) {
-    await db
+    await requireDb()
       .update(pushSubscriptions)
       .set({ p256dh, auth, userId })
       .where(eq(pushSubscriptions.id, existing[0].id));
   } else {
-    await db.insert(pushSubscriptions).values({
+    await requireDb().insert(pushSubscriptions).values({
       userId,
       businessId: owner.businessId,
       endpoint,
@@ -88,7 +87,7 @@ router.post("/unsubscribe", async (req, res) => {
     res.status(400).json({ error: "Missing endpoint" }); return;
   }
 
-  await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
+  await requireDb().delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
   res.json({ ok: true });
 });
 
@@ -107,7 +106,7 @@ router.post("/test", async (req, res) => {
   }
 
   // Insert a test notification
-  const [notif] = await db
+  const [notif] = await requireDb()
     .insert(notifications)
     .values({
       businessId: owner.businessId,

@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { Router } from "express";
-import { db, customerBalanceExpression } from "@workspace/db";
+import { requireDb, customerBalanceExpression } from "@workspace/db";
 import {
   transactions, customers, customerTransactions, catalogEntries,
   suppliers, supplierTransactions, staffMembers, settings, analytics,
@@ -35,14 +34,14 @@ async function validateAndLinkDevice(
   deviceId: string,
   tokenHash: string
 ): Promise<{ success: boolean; staffId: number | null }> {
-  const existing = await db
+  const existing = await requireDb()
     .select({ userId: devices.userId, tokenHash: devices.tokenHash, staffId: devices.staffId })
     .from(devices)
     .where(eq(devices.deviceId, deviceId))
     .limit(1);
 
   if (existing.length === 0) {
-    await db.insert(devices).values({ userId, deviceId, tokenHash }).onConflictDoUpdate({
+    await requireDb().insert(devices).values({ userId, deviceId, tokenHash }).onConflictDoUpdate({
       target: devices.deviceId,
       set: { userId, tokenHash, lastSeenAt: new Date() },
     });
@@ -51,14 +50,14 @@ async function validateAndLinkDevice(
 
   if (existing[0].userId !== userId) return { success: false, staffId: null };
 
-  await db.update(devices).set({ lastSeenAt: new Date(), tokenHash }).where(eq(devices.deviceId, deviceId));
+  await requireDb().update(devices).set({ lastSeenAt: new Date(), tokenHash }).where(eq(devices.deviceId, deviceId));
   return { success: true, staffId: existing[0].staffId ?? null };
 }
 
 export async function getBusinessForUser(userId: number, businessId?: number): Promise<number | null> {
   const filters: any[] = [eq(businessMembers.userId, userId)];
   if (businessId) filters.push(eq(businessMembers.businessId, businessId));
-  const rows = await db
+  const rows = await requireDb()
     .select({ businessId: businessMembers.businessId })
     .from(businessMembers)
     .where(and(...filters))
@@ -179,12 +178,12 @@ async function pushTable(
   const mutations: MutationRecord[] = [];
   const CHUNK_SIZE = 100;
 
-  const exec = tx || db;
+  const exec = tx || requireDb();
 
   for (let i = 0; i < capped.length; i += CHUNK_SIZE) {
     const chunk = capped.slice(i, i + CHUNK_SIZE);
 
-    const chunkResult = await db.transaction(async (innerTx) => {
+    const chunkResult = await requireDb().transaction(async (innerTx) => {
       const chunkConflicts: ConflictRecord[] = [];
       const chunkMutations: MutationRecord[] = [];
       let chunkCount = 0;
@@ -273,7 +272,7 @@ router.post("/push",
   const results: Record<string, { count: number; conflicts: number }> = {};
   const allConflicts: ConflictRecord[] = [];
 
-  await db.transaction(async (tx) => {
+  await requireDb().transaction(async (tx) => {
     const pushResults = await Promise.all([
       pushTable("transactions", transactions, [transactions.deviceId, transactions.localId], device_id, tables?.transactions, mapTx, transactions.localId, transactions.deviceId, transactions.syncVersion, transactions.updatedAt, businessId, deviceResult.staffId, tx),
       pushTable("customers", customers, [customers.deviceId, customers.localId], device_id, tables?.customers, mapCustomer, customers.localId, customers.deviceId, customers.syncVersion, customers.updatedAt, businessId, deviceResult.staffId, tx),
@@ -369,7 +368,7 @@ router.post("/push",
           .filter((row: any) => row.type === "payment" && row.customer_id);
 
         if (paymentRows.length > 0) {
-          const customerIds = [...new Set(paymentRows.map((r: any) => Number(r.customer_id)))];
+          const customerIds = [...new Set(paymentRows.map((r: any) => Number(r.customer_id)))] as number[];
           const customerInfo = await tx
             .select({ id: customers.id, name: customers.name, displayName: customers.displayName, telegramChatId: customers.telegramChatId })
             .from(customers)
@@ -461,7 +460,7 @@ router.get("/pull",
   if (!businessId) return res.status(403).json({ error: "No business associated with this account" });
 
   async function pullTable(table: any, businessIdCol: any, updatedAtCol: any) {
-    const rows = await db.select().from(table).where(and(eq(businessIdCol, businessId), gt(updatedAtCol, sinceMs))).orderBy(asc(updatedAtCol)).limit(pullLimit + 1);
+    const rows = await requireDb().select().from(table).where(and(eq(businessIdCol, businessId), gt(updatedAtCol, sinceMs))).orderBy(asc(updatedAtCol)).limit(pullLimit + 1);
     const hasMore = rows.length > pullLimit;
     const returnedRows = hasMore ? rows.slice(0, pullLimit) : rows;
     const nextCursor = hasMore && returnedRows.length > 0 ? returnedRows[returnedRows.length - 1].updatedAt : null;
@@ -514,7 +513,7 @@ router.get("/balance-check/:customerId",
     }
 
     // Recompute balance from immutable transaction log using shared expression
-    const [result] = await db
+    const [result] = await requireDb()
       .select({
         balance: customerBalanceExpression(),
         transactionCount: sql<number>`COUNT(*)`,

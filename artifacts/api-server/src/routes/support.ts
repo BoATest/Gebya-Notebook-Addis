@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { requireDb } from "@workspace/db";
 import {
   supportTickets,
   supportMessages,
@@ -26,7 +25,7 @@ async function getAuthUser(req: any) {
 }
 
 async function getUserBusiness(userId: number) {
-  const rows = await db
+  const rows = await requireDb()
     .select({ businessId: businessMembers.businessId, role: businessMembers.role })
     .from(businessMembers)
     .where(and(eq(businessMembers.userId, userId), eq(businessMembers.active, true)))
@@ -36,7 +35,7 @@ async function getUserBusiness(userId: number) {
 }
 
 async function isTicketOwner(ticketId: number, userId: number) {
-  const rows = await db
+  const rows = await requireDb()
     .select({ ownerUserId: supportTickets.ownerUserId })
     .from(supportTickets)
     .where(eq(supportTickets.id, ticketId))
@@ -45,13 +44,13 @@ async function isTicketOwner(ticketId: number, userId: number) {
 }
 
 async function isBusinessMemberOfTicket(ticketId: number, userId: number) {
-  const rows = await db
+  const rows = await requireDb()
     .select({ businessId: supportTickets.businessId })
     .from(supportTickets)
     .where(eq(supportTickets.id, ticketId))
     .limit(1);
   if (!rows[0]) return false;
-  const members = await db
+  const members = await requireDb()
     .select({ id: businessMembers.id })
     .from(businessMembers)
     .where(
@@ -81,7 +80,7 @@ router.post("/tickets", async (req: any, res: any) => {
       return res.status(403).json({ error: "No active business membership" });
     }
 
-    const rows = await db
+    const rows = await requireDb()
       .insert(supportTickets)
       .values({
         businessId: business.businessId,
@@ -94,7 +93,7 @@ router.post("/tickets", async (req: any, res: any) => {
       .returning();
     const ticket = rows[0];
 
-    await db.insert(supportMessages).values({
+    await requireDb().insert(supportMessages).values({
       ticketId: ticket.id,
       senderUserId: auth.userId,
       senderRole: "owner",
@@ -118,7 +117,7 @@ router.get("/tickets", async (req: any, res: any) => {
     let tickets;
     if (admin) {
       const filterBusinessId = typeof req.query.business_id === "string" ? Number(req.query.business_id) : null;
-      const query = db
+      const query = requireDb()
         .select({
           id: supportTickets.id,
           businessId: supportTickets.businessId,
@@ -140,7 +139,7 @@ router.get("/tickets", async (req: any, res: any) => {
         ? await query.where(eq(supportTickets.businessId, filterBusinessId)).orderBy(desc(supportTickets.createdAt))
         : await query.orderBy(desc(supportTickets.createdAt));
     } else {
-      const memberships = await db
+      const memberships = await requireDb()
         .select({ businessId: businessMembers.businessId })
         .from(businessMembers)
         .where(and(eq(businessMembers.userId, auth.userId), eq(businessMembers.active, true)));
@@ -148,7 +147,7 @@ router.get("/tickets", async (req: any, res: any) => {
       if (businessIds.length === 0) {
         return res.json({ tickets: [] });
       }
-      tickets = await db
+      tickets = await requireDb()
         .select()
         .from(supportTickets)
         .where(inArray(supportTickets.businessId, businessIds))
@@ -176,10 +175,10 @@ router.get("/tickets/:id", async (req: any, res: any) => {
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    const ticketRows = await db.select().from(supportTickets).where(eq(supportTickets.id, ticketId)).limit(1);
+    const ticketRows = await requireDb().select().from(supportTickets).where(eq(supportTickets.id, ticketId)).limit(1);
     if (!ticketRows[0]) return res.status(404).json({ error: "Not found" });
 
-    const messages = await db
+    const messages = await requireDb()
       .select()
       .from(supportMessages)
       .where(eq(supportMessages.ticketId, ticketId))
@@ -210,7 +209,7 @@ router.post("/tickets/:id/reply", async (req: any, res: any) => {
     }
 
     const senderRole = admin ? "admin" : "owner";
-    await db.insert(supportMessages).values({
+    await requireDb().insert(supportMessages).values({
       ticketId,
       senderUserId: auth.userId,
       senderRole,
@@ -218,19 +217,19 @@ router.post("/tickets/:id/reply", async (req: any, res: any) => {
     });
 
     const newStatus = senderRole === "admin" ? "replied" : "open";
-    await db
+    await requireDb()
       .update(supportTickets)
       .set({ status: newStatus, updatedAt: sql`now()` })
       .where(eq(supportTickets.id, ticketId));
 
     if (senderRole === "admin") {
-      const ticketRows = await db
+      const ticketRows = await requireDb()
         .select({ businessId: supportTickets.businessId, ownerUserId: supportTickets.ownerUserId })
         .from(supportTickets)
         .where(eq(supportTickets.id, ticketId))
         .limit(1);
       if (ticketRows[0]) {
-        await db.insert(notifications).values({
+        await requireDb().insert(notifications).values({
           businessId: ticketRows[0].businessId,
           ownerUserId: ticketRows[0].ownerUserId,
           type: "support_reply",
@@ -268,7 +267,7 @@ router.patch("/tickets/:id/status", async (req: any, res: any) => {
     }
 
     const isClosed = status === "resolved" || status === "closed";
-    await db
+    await requireDb()
       .update(supportTickets)
       .set({
         status,

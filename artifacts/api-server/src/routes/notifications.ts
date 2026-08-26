@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { requireDb } from "@workspace/db";
 import { notifications, businessMembers } from "@workspace/db/schema";
 import { eq, and, desc, count } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
@@ -17,7 +16,7 @@ function getUserIdFromRequest(req: any): number | null {
 }
 
 async function getOwnerBusiness(userId: number): Promise<{ businessId: number; isOwner: boolean } | null> {
-  const rows = await db
+  const rows = await requireDb()
     .select({ businessId: businessMembers.businessId, role: businessMembers.role })
     .from(businessMembers)
     .where(and(eq(businessMembers.userId, userId), eq(businessMembers.active, true)))
@@ -39,7 +38,7 @@ router.get("/", async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 200);
   const offset = Number(req.query.offset) || 0;
 
-  const rows = await db
+  const rows = await requireDb()
     .select()
     .from(notifications)
     .where(and(
@@ -50,7 +49,7 @@ router.get("/", async (req, res) => {
     .limit(limit)
     .offset(offset);
 
-  const [totalRow] = await db
+  const [totalRow] = await requireDb()
     .select({ total: count() })
     .from(notifications)
     .where(and(
@@ -71,7 +70,7 @@ router.get("/unread-count", async (req, res) => {
     res.status(403).json({ error: "Owner only" }); return;
   }
 
-  const [row] = await db
+  const [row] = await requireDb()
     .select({ total: count() })
     .from(notifications)
     .where(and(
@@ -98,7 +97,7 @@ router.post("/:id/read", async (req, res) => {
     res.status(400).json({ error: "Invalid notification id" }); return;
   }
 
-  await db
+  await requireDb()
     .update(notifications)
     .set({ read: true })
     .where(and(
@@ -120,7 +119,7 @@ router.post("/read-all", async (req, res) => {
     res.status(403).json({ error: "Owner only" }); return;
   }
 
-  await db
+  await requireDb()
     .update(notifications)
     .set({ read: true })
     .where(and(
@@ -143,7 +142,7 @@ router.post("/", async (req, res) => {
   }
 
   // Verify the actor belongs to this business
-  const actorMember = await db
+  const actorMember = await requireDb()
     .select({ role: businessMembers.role })
     .from(businessMembers)
     .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.userId, userId), eq(businessMembers.active, true)))
@@ -154,7 +153,7 @@ router.post("/", async (req, res) => {
   }
 
   // Find the owner(s) of this business to notify
-  const owners = await db
+  const owners = await requireDb()
     .select({ userId: businessMembers.userId })
     .from(businessMembers)
     .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.role, "owner"), eq(businessMembers.active, true)));
@@ -163,7 +162,7 @@ router.post("/", async (req, res) => {
     res.status(404).json({ error: "No owner found for this business" }); return;
   }
 
-  const inserted = await db.insert(notifications).values(
+  const inserted = await requireDb().insert(notifications).values(
     owners.map(owner => ({
       businessId: Number(businessId),
       ownerUserId: owner.userId,
@@ -173,7 +172,7 @@ router.post("/", async (req, res) => {
       entityType: entityType || null,
       entityId: entityId || null,
       actorName: actorName || null,
-      amount: amount != null ? Number(amount) : null,
+      amount: amount != null ? String(amount) : null,
       read: false,
     }))
   ).returning();

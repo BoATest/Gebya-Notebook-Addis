@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { Router } from "express";
-import { db } from "@workspace/db";
+import { requireDb } from "@workspace/db";
 import { snapshots } from "@workspace/db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
@@ -46,7 +45,7 @@ router.post("/create", async (req, res) => {
   }
 
   // Enforce max snapshots per user
-  const existing = await db
+  const existing = await requireDb()
     .select({ id: snapshots.id })
     .from(snapshots)
     .where(eq(snapshots.userId, userId))
@@ -56,14 +55,14 @@ router.post("/create", async (req, res) => {
     // Delete oldest snapshots to make room
     const toDelete = existing.slice(MAX_SNAPSHOTS_PER_USER - 1);
     for (const row of toDelete) {
-      await db.delete(snapshots).where(eq(snapshots.id, row.id));
+      await requireDb().delete(snapshots).where(eq(snapshots.id, row.id));
     }
   }
 
   const checksum = crypto.createHash("sha256").update(payload).digest("hex");
   const now = Date.now();
 
-  const result = await db
+  const result = await requireDb()
     .insert(snapshots)
     .values({
       userId,
@@ -88,7 +87,7 @@ router.get("/list", async (req, res) => {
   const userId = getUserIdFromRequest(req);
   if (!userId) return res.status(401).json({ error: "Authorization required" });
 
-  const rows = await db
+  const rows = await requireDb()
     .select({
       id: snapshots.id,
       name: snapshots.name,
@@ -117,7 +116,7 @@ router.get("/download/:id", async (req, res) => {
     return res.status(400).json({ error: "Invalid snapshot ID" });
   }
 
-  const rows = await db
+  const rows = await requireDb()
     .select()
     .from(snapshots)
     .where(and(eq(snapshots.id, snapshotId), eq(snapshots.userId, userId)))
@@ -165,7 +164,7 @@ router.delete("/delete/:id", async (req, res) => {
     return res.status(400).json({ error: "Invalid snapshot ID" });
   }
 
-  const result = await db
+  const result = await requireDb()
     .delete(snapshots)
     .where(and(eq(snapshots.id, snapshotId), eq(snapshots.userId, userId)));
 
