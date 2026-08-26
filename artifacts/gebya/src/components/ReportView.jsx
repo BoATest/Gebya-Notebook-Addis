@@ -371,7 +371,13 @@ export default function ReportView({
     } else if (actionType === 'overdue') {
       window.dispatchEvent(new CustomEvent('gebya:navigate', { detail: { tab: 'credit' } }));
     } else if (actionType === 'collect_staff') {
-      window.dispatchEvent(new CustomEvent('gebya:navigate', { detail: { tab: 'staff' } }));
+      // Open the settlement sheet inline so the owner can review
+      // staff handovers directly from the report, without leaving.
+      // HandoverStatus already tracks each staff's latest settlement live;
+      // passing null lets the sheet load and pull expected amounts.
+      if (staffMembers.length > 0) {
+        setSheetTarget({ staff: staffMembers[0], settlement: null });
+      }
     } else if (actionType === 'sale') {
       window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'sale' } }));
     } else if (actionType === 'view_details' || actionType === 'review') {
