@@ -533,19 +533,4 @@ export function computeRecommendations({
   return recs.slice(0, 4);
 }
 
-// ─── STAFF RECONCILIATION ────────────────────────────────────
-// Per-staff cash expected for multi-staff reconciliation
 
-export function computeStaffReconciliation(staffRows = [], closingState = {}) {
-  return staffRows.map(s => ({
-    id: s.id,
-    name: s.name,
-    records: s.records || 0,
-    cashExpected: s.cash || 0,
-    digitalExpected: s.transfer || 0,
-    sold: s.sold || 0,
-    cashReceived: closingState.staffReports?.[s.id]?.cashReceived ?? null,
-    digitalReceived: closingState.staffReports?.[s.id]?.digitalReceived ?? null,
-    confirmed: Boolean(closingState.staffReports?.[s.id]?.confirmed),
-  }));
-}
