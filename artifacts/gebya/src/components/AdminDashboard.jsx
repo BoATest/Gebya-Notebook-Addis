@@ -74,15 +74,49 @@ function FrictionGroup({ title, items, badge, onOpen }) {
   );
 }
 
+function SkeletonSection({ title }) {
+  return (
+    <Section title={title}>
+      <div className="space-y-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-3 rounded" style={{ width: `${92 - i * 16}%`, background: 'var(--color-bg-hover)' }} />
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function ErrorCard({ msg, onRetry }) {
+  const { lang } = useLang();
+  return (
+    <div className="rounded-2xl border p-6 text-center" style={{ borderColor: 'var(--color-border)' }}>
+      <p className="text-sm font-black mb-1" style={{ color: 'var(--color-danger-text)' }}>{lang === 'am' ? 'ስህተት' : 'Couldn’t load'}</p>
+      <p className="text-xs mb-3" style={{ color: 'var(--color-text-muted)' }}>{msg}</p>
+      <button onClick={onRetry} className="px-4 py-2 rounded-xl text-xs font-bold text-white" style={{ background: 'var(--color-primary)' }}>
+        {lang === 'am' ? 'እንደገና ሞክር' : 'Retry'}
+      </button>
+    </div>
+  );
+}
+
+function relTime(ts, now) {
+  const s = Math.max(0, Math.round((now - ts) / 1000));
+  if (s < 60) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  return `${Math.round(m / 60)}h ago`;
+}
+
 export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
   const { lang } = useLang();
   const [data, setData] = useState(null);
   const [shops, setShops] = useState(null);
   const [features, setFeatures] = useState(null);
   const [frictions, setFrictions] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const retriedRef = useRef(false);
+  const [errors, setErrors] = useState({});
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [nowTick, setNowTick] = useState(Date.now());
+  const setErr = (name, msg) => setErrors((e) => ({ ...e, [name]: msg || null }));
   const [shopSearch, setShopSearch] = useState('');
   const SHOPS_LIMIT = 200;
   const [shopOffset, setShopOffset] = useState(0);
@@ -97,40 +131,35 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
   const [pushSending, setPushSending] = useState(false);
   const [pushResult, setPushResult] = useState(null);
 
-  const loadData = (attempt = 1) => {
-    setLoading(true);
-    setError(null);
-    const MAX_ATTEMPTS = 3;
-    const friendly = (key, e) => {
-      const msg = String(e?.message || '');
-      if (/abort|timeout|timed out|signal/i.test(msg)) return `${key}: the server took too long (it may be warming up)`;
-      return `${key}: ${msg}`;
+  const loadSection = (name, attempt = 1) => {
+    setErr(name, null);
+    const map = {
+      overview: ['/admin/overview', setData],
+      shops: [`/admin/shops?limit=${SHOPS_LIMIT}&offset=0`, setShops],
+      features: ['/admin/features', setFeatures],
+      frictions: ['/admin/frictions', setFrictions],
     };
-    const safe = async (path, setter, key) => {
-      try { setter(await apiFetch(path)); return null; }
-      catch (e) { return friendly(key, e); }
-    };
-    Promise.all([
-      safe('/admin/overview', setData, 'overview'),
-      safe(`/admin/shops?limit=${SHOPS_LIMIT}&offset=0`, setShops, 'shops'),
-      safe('/admin/features', setFeatures, 'features'),
-      safe('/admin/frictions', setFrictions, 'frictions'),
-    ]).then((fails) => {
-      const f = fails.filter(Boolean);
-      // Retry while the server is still warming up its cold cache (503 "warming up"
-      // or a client-side fetch timeout). The background compute keeps populating the
-      // cache, so a subsequent attempt returns instantly.
-      const warming = f.some((s) => /warming up|warming|abort|timed out|signal/i.test(s));
-      if (warming && attempt < MAX_ATTEMPTS) {
-        setError(`Connecting to the server (warming up) — retrying ${attempt}/${MAX_ATTEMPTS}…`);
-        setTimeout(() => loadData(attempt + 1), attempt === 1 ? 2000 : 4000);
-        return;
-      }
-      setError(f.length ? `Couldn't load - ${f.join(' · ')}. Tap Retry.` : null);
-      setLoading(false);
-    });
+    const [path, setter] = map[name];
+    apiFetch(path)
+      .then((v) => { setter(v); setErr(name, null); setLastUpdated(Date.now()); })
+      .catch((err) => {
+        const msg = String(err?.message || 'Failed to load');
+        const warming = /warming up|warming|abort|timed out|signal/i.test(msg);
+        // Server returns 503 "warming up" (or the client fetch times out) while a
+        // cold-cache compute runs in the background. Retry with backoff so the user
+        // sees data once it lands instead of a dead-end error.
+        if (warming && attempt < 3) { setTimeout(() => loadSection(name, attempt + 1), attempt === 1 ? 2000 : 4000); return; }
+        setErr(name, msg);
+      });
   };
-  useEffect(() => { loadData(); }, []);
+
+  useEffect(() => {
+    ['overview', 'shops', 'features', 'frictions'].forEach((n) => loadSection(n));
+  }, []);
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   // Server-backed shop search + pagination (fixes the old 500-row cap). The
   // initial load (above) fetches the first page; search and "Load more" refetch
@@ -146,6 +175,7 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
       setShopOffset(offset + (data.shops?.length || 0));
       return data;
     } catch (e) {
+      setErr('shops', String(e?.message || 'Failed to load'));
       return null;
     }
   }, [SHOPS_LIMIT]);
@@ -154,19 +184,22 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
     if (shops) setShopHasMore((shops.shops?.length || 0) >= SHOPS_LIMIT);
   }, [shops]);
 
-  if (loading) return <div className="p-6 text-sm" style={{ color: 'var(--color-text-muted)' }}>Loading admin dashboard...</div>;
   const d = data;
 
   return (
     <div className="space-y-4 pb-8">
-      {error && (
-        <div className="rounded-xl border p-3 text-xs font-bold" style={{ borderColor: 'var(--color-border)', color: 'var(--color-danger-text)', background: 'var(--color-bg-hover)' }}>
-          {error} <button onClick={loadData} className="underline ml-1">Retry</button>
+      {tab !== 'actions' && lastUpdated && (
+        <div className="flex items-center justify-between text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+          <span>{lang === 'am' ? `የተዘመነው ${relTime(lastUpdated, nowTick)}` : `Updated ${relTime(lastUpdated, nowTick)}`}</span>
+          <button onClick={() => ['overview', 'shops', 'features', 'frictions'].forEach((n) => loadSection(n))} className="underline font-bold">{lang === 'am' ? 'አዘምን' : 'Refresh'}</button>
         </div>
       )}
 
-      {tab === 'overview' && data && (<>
-        <Section title="Platform Numbers">
+      {tab === 'overview' && (
+        errors.overview ? <ErrorCard msg={errors.overview} onRetry={() => loadSection('overview')} /> :
+        !data ? <SkeletonSection title={lang === 'am' ? 'አጠቃላይ' : 'Platform Numbers'} /> :
+        (<>
+          <Section title="Platform Numbers">
           <div className="grid grid-cols-3 gap-3">
             {[{ label: 'Shops', value: fmt(d.platformNumbers.shops) }, { label: 'Users', value: fmt(d.platformNumbers.users) }, { label: 'Devices', value: fmt(d.platformNumbers.devices) }, { label: 'Transactions', value: fmt(d.platformNumbers.transactions) }, { label: 'Sales', value: fmtBirr(d.platformNumbers.totalSalesBirr) }, { label: 'Credit', value: fmtBirr(d.platformNumbers.totalCreditBirr) }].map(s => (
               <div key={s.label} className="text-center p-3 rounded-2xl" style={{ background: '#fff', border: '1px solid var(--color-border)', boxShadow: '0 1px 2px rgba(16,24,40,0.04), 0 10px 22px -16px rgba(16,24,40,0.25)' }}><p className="text-xl font-black" style={{ color: 'var(--color-primary)' }}>{s.value}</p><p className="text-[10px] font-bold mt-0.5" style={{ color: 'var(--color-text-muted)' }}>{s.label}</p></div>
@@ -196,13 +229,12 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
             ))}
           </div>
         </Section>
-      </>)}
-      {tab === 'overview' && !data && (
-        <Section title="Overview"><p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Failed to load. <button onClick={loadData} className="underline font-bold">Retry</button></p></Section>
-      )}
+      </>))}
 
-      {tab === 'shops' && shops && (
-         <Section title="Shop Health Table">
+      {tab === 'shops' && (
+        errors.shops ? <ErrorCard msg={errors.shops} onRetry={() => loadSection('shops')} /> :
+        !shops ? <SkeletonSection title={lang === 'am' ? 'የሱቅ ጤና' : 'Shop Health Table'} /> :
+        (<Section title="Shop Health Table">
            <div className="mb-2">
              <input
                type="text"
@@ -257,11 +289,13 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
                   {lang === 'am' ? 'ተጨማሪ ጫን' : 'Load more'}
                 </button>
               )}
-          </Section>
-       )}
-
-      {tab === 'features' && features && (<>
-        <Section title="Feature Adoption">
+           </Section>
+        ))}
+      {tab === 'features' && (
+        errors.features ? <ErrorCard msg={errors.features} onRetry={() => loadSection('features')} /> :
+        !features ? <SkeletonSection title={lang === 'am' ? 'ባህሪያት' : 'Feature Adoption'} /> :
+        (<>
+          <Section title="Feature Adoption">
         <StatRow label="Using Credit" value={`${features.features.shopsUsingCredit}/${d?.platformNumbers?.shops ?? 0}`} />
         <StatRow label="Using Suppliers" value={`${features.features.shopsUsingSuppliers}/${d?.platformNumbers?.shops ?? 0}`} />
         <StatRow label="Using Telegram" value={`${features.features.shopsUsingTelegram}/${d?.platformNumbers?.shops ?? 0}`} />
@@ -271,10 +305,12 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
             <div key={method}><div className="flex justify-between items-center py-1"><span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>{method}</span><span className="text-xs font-black" style={{ color: 'var(--color-text)' }}>{count}</span></div><Bar value={count} max={Math.max(...Object.values(features.paymentMethods))} /></div>
           ))}
         </Section>
-      </>)}
-
-      {tab === 'frictions' && frictions && (<>
-        <Section title="Friction Summary" subtitle="Shops that may need help">
+      </>))}
+      {tab === 'frictions' && (
+        errors.frictions ? <ErrorCard msg={errors.frictions} onRetry={() => loadSection('frictions')} /> :
+        !frictions ? <SkeletonSection title={lang === 'am' ? 'ጥርጣሬዎች' : 'Friction Summary'} /> :
+        (<>
+          <Section title="Friction Summary" subtitle="Shops that may need help">
           <div className="grid grid-cols-2 gap-2">
             <FrictionCount label="Dormant (no txn 7d)" value={frictions.counts.dormantShops} />
             <FrictionCount label="Zero transactions" value={frictions.counts.zeroTransactionShops} />
@@ -294,11 +330,11 @@ export default function AdminDashboard({ onShopSelect, tab = 'overview' }) {
         <FrictionGroup title="Owners without Telegram" items={frictions.samples.ownerTelegramNotLinked} onOpen={onShopSelect} />
         <FrictionGroup title="Low Telegram adoption (<30%)" items={frictions.samples.lowTelegramAdoption} badge={(i) => i.adoption + '%'} onOpen={onShopSelect} />
         <FrictionGroup title="Reminder delivery failures" items={frictions.samples.deliveryFailures} badge={(i) => i.failures + ' failed'} onOpen={onShopSelect} />
-      </>)}
-
+      </>))}
       {tab === 'actions' && (<>
+
         <Section title="Refresh Data">
-          <button onClick={loadData} className="w-full py-2.5 rounded-xl text-xs font-bold text-white min-h-[44px]" style={{ background: 'var(--color-primary)' }}>Refresh Dashboard</button>
+          <button onClick={() => ['overview', 'shops', 'features', 'frictions'].forEach((n) => loadSection(n))} className="w-full py-2.5 rounded-xl text-xs font-bold text-white min-h-[44px]" style={{ background: 'var(--color-primary)' }}>Refresh Dashboard</button>
         </Section>
 
         <Section title="Broadcast Notification" subtitle="Send in-app notification to all shops">

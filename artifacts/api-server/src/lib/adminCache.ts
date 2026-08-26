@@ -180,6 +180,12 @@ export async function serveCachedBounded<T>(
     });
   await Promise.race([p, new Promise((r) => setTimeout(r, timeoutMs))]);
   if (finished) return { value: val, status: "fresh" };
-  if (err) throw err;
+  if (err) {
+    // Compute failed with no cache to fall back to. Surface as "warming" so the
+    // client's existing backoff retries (and a cron/warmup can repopulate) rather
+    // than hitting a hard 500 that shows a scary error on first load.
+    console.error("[adminCache] compute failed", key, err);
+    return { value: undefined, status: "warming" };
+  }
   return { value: undefined, status: "warming" };
 }
