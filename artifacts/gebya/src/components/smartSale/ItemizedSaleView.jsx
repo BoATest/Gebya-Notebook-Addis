@@ -14,27 +14,8 @@ import RecentSalesSheet from './RecentSalesSheet';
 import { getDueDateOptions } from '../../utils/ethiopianCalendar';
 import InlineDatePicker from '../InlineDatePicker';
 import { normalizeEthiopianPhone } from '../../utils/phoneNumber';
+import { MAX_PHOTOS, DRAFT_KEY, loadDraft, saveDraft, clearDraft } from "./itemizedSaleHelpers";
 
-const MAX_PHOTOS = 3;
-const DRAFT_KEY = 'gebya_sale_draft';
-
-function loadDraft() {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.rows)) return null;
-    return parsed;
-  } catch { return null; }
-}
-
-function saveDraft(data) {
-  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(data)); } catch {}
-}
-
-function clearDraft() {
-  try { localStorage.removeItem(DRAFT_KEY); } catch {}
-}
 
 export default function ItemizedSaleView({
   onSave,
