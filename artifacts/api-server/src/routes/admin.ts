@@ -40,6 +40,7 @@ import { getQuotaInfo, resetQuota } from "../services/smsQuota.js";
 import { checkAdminRateLimit } from "../lib/adminRateLimit.js";
 import { isSmsEnabled, sendSms } from "../services/smsSender.js";
 import { sendTelegramTextMessage, getTelegramBotUsername } from "../services/telegramBotService.js";
+import { sendEmail, isEmailConfigured } from "../services/emailService.js";
 
 const router = Router();
 
@@ -491,7 +492,7 @@ router.post("/shops/:businessId/nudge", async (req, res) => {
   const ownerMember = await db.select({ userId: businessMembers.userId }).from(businessMembers).where(and(eq(businessMembers.businessId, businessIdNum), eq(businessMembers.role, 'owner'))).limit(1);
   const ownerId = ownerMember[0]?.userId;
   if (!ownerId) return res.status(404).json({ error: "Shop has no owner" });
-  const ownerUser = await db.select({ phoneNumber: users.phoneNumber, telegramChatId: users.telegramChatId, displayName: users.displayName }).from(users).where(eq(users.id, ownerId)).limit(1);
+  const ownerUser = await db.select({ phoneNumber: users.phoneNumber, telegramChatId: users.telegramChatId, displayName: users.displayName, email: users.email }).from(users).where(eq(users.id, ownerId)).limit(1);
   const owner = ownerUser[0];
   if (!owner) return res.status(404).json({ error: "Owner not found" });
 
@@ -518,15 +519,29 @@ router.post("/shops/:businessId/nudge", async (req, res) => {
       await db.update(users).set({ telegramLinkToken: linkToken }).where(eq(users.id, ownerId));
       deepLink = bot ? `https://t.me/${bot.replace(/^@+/, '')}?start=${encodeURIComponent(linkToken)}` : null;
       const fullMsg = deepLink ? `${message}\n\nConnect Telegram: ${deepLink}` : message;
+      let reached = false;
       if (isSmsEnabled() && owner.phoneNumber) {
         const sms = await sendSms(owner.phoneNumber, fullMsg);
-        channel = 'sms';
-        status = sms?.success === false ? 'failed' : 'ok';
-        detail = sms?.error || (deepLink ? 'SMS sent with connect link' : null);
-      } else {
+        if (sms?.success !== false) {
+          channel = 'sms';
+          status = 'ok';
+          detail = sms?.error || (deepLink ? 'SMS sent with connect link' : null);
+          reached = true;
+        }
+      }
+      if (!reached && owner.email) {
+        const em = await sendEmail({ to: owner.email, subject: 'Gebya — finish setting up your shop', text: fullMsg });
+        if (em.success) {
+          channel = 'email';
+          status = 'ok';
+          detail = 'Email sent with connect link';
+          reached = true;
+        }
+      }
+      if (!reached) {
         channel = 'manual';
         status = 'pending';
-        detail = deepLink ? 'No SMS reach — share this link with the owner to connect their Telegram.' : 'Telegram bot username not configured; cannot build a link.';
+        detail = deepLink ? 'No SMS/email reach — share this link with the owner to connect their Telegram.' : 'Telegram/email not configured; cannot build a link.';
       }
     }
   } catch (e) {
@@ -819,7 +834,25 @@ router.post("/broadcast", async (req, res) => {
   }));
   await db.insert(notifications).values(values);
 
-  return res.json({ ok: true, sent: values.length, total: ownerMembers.length });
+  // Best-effort email via SendGrid to every owner who has an address. Failures
+  // here never break the in-app broadcast above.
+  let emailSent = 0;
+  let emailFailed = 0;
+  let emailSkipped = ownerMembers.length;
+  if (isEmailConfigured()) {
+    const ownerIds = ownerMembers.map((m) => m.userId);
+    const owners = await db.select({ id: users.id, email: users.email }).from(users).where(inArray(users.id, ownerIds));
+    const withEmail = owners.filter((o) => (o.email || "").trim());
+    emailSkipped = ownerMembers.length - withEmail.length;
+    const results = await Promise.allSettled(
+      withEmail.map((o) => sendEmail({ to: o.email as string, subject: title.slice(0, 255), text: body })),
+    );
+    emailSent = results.filter((r) => r.status === "fulfilled" && (r.value as { success: boolean }).success).length;
+    emailFailed = results.length - emailSent;
+    if (emailFailed > 0) console.error(`[admin/broadcast] ${emailFailed} email(s) failed to send`);
+  }
+
+  return res.json({ ok: true, sent: values.length, total: ownerMembers.length, emailSent, emailFailed, emailSkipped });
 });
 
 // ─── POST /admin/push-all (single-shop override via business_id) ──────────────────────
