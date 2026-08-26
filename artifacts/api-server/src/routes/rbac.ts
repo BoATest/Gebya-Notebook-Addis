@@ -1,6 +1,5 @@
-// @ts-nocheck
 import { Request, Response, NextFunction } from "express";
-import { db } from "@workspace/db";
+import { requireDb } from "@workspace/db";
 import { businessMembers } from "@workspace/db/schema";
 import { auditLog } from "@workspace/db/schema/audit_log";
 import { resolvePermissions } from "@workspace/db/schema/permission-defaults";
@@ -44,8 +43,7 @@ export async function requireDeviceContext(req: Request): Promise<DeviceContext 
     filters.push(eq(businessMembers.businessId, requestedBizId));
   }
 
-  const memberRows = await db
-    .select({
+  const memberRows = await requireDb().select({
       role: businessMembers.role,
       permissions: businessMembers.permissions,
       businessId: businessMembers.businessId,
@@ -91,7 +89,7 @@ export function requirePermission(requiredPermission: PermissionKey) {
     const allowed = ctx.permissions[requiredPermission] === true;
     if (!allowed) {
       // Log violation attempt
-      await db.insert(auditLog).values({
+      await requireDb().insert(auditLog).values({
         businessId: ctx.businessId,
         actorStaffMemberId: sql`NULL`,
         actorDeviceId: sql`NULL`,
