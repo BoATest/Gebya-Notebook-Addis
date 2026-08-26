@@ -18,7 +18,7 @@ function formatTime(ts) {
   return formatEthiopianTime(ts);
 }
 
-function formatDateLabel(ts, lang) {
+function formatDateLabel(ts, t) {
   const now = new Date();
   const date = new Date(ts);
   const isToday = date.toDateString() === now.toDateString();
@@ -26,17 +26,18 @@ function formatDateLabel(ts, lang) {
   yesterday.setDate(yesterday.getDate() - 1);
   const isYesterday = date.toDateString() === yesterday.toDateString();
 
-  if (isToday) return lang === 'am' ? 'ዛሬ' : 'Today';
-  if (isYesterday) return lang === 'am' ? 'ትናንት' : 'Yesterday';
+  if (isToday) return t.today;
+  if (isYesterday) return t.yesterday;
   return date.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 export default function RecentSalesSheet({ transactions = [], onClose, onHistory, onViewTransaction }) {
+  const { t } = useLang();
+  const currency = t.currencyShort;
   const handleRowTap = (tx) => {
     onClose?.();
     onViewTransaction?.(tx);
   };
-  const { lang } = useLang();
   const [search, setSearch] = useState('');
 
   const todayDateStr = new Date().toDateString();
@@ -59,13 +60,13 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
   }, [todaySales, search]);
 
   const handleShareAgain = async (tx) => {
-    const text = `Gebya Sale: ${tx.item_name || 'Sale'} — ${fmt(tx.amount)} ETB (${tx.payment_type || 'cash'})`;
+    const text = `Gebya Sale: ${tx.item_name || 'Sale'} — ${fmt(tx.amount)} ${currency} (${tx.payment_type || 'cash'})`;
     try {
       if (navigator.share) {
         await navigator.share({ title: 'Gebya Sale', text });
       } else {
         await navigator.clipboard.writeText(text);
-        alert(lang === 'am' ? 'ተገልብጧል' : 'Copied to clipboard');
+        alert(t.copiedToClipboard);
       }
     } catch {}
   };
@@ -78,7 +79,7 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
           <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
         </button>
         <h2 className="text-base font-bold flex-1" style={{ color: 'var(--color-text)' }}>
-          {lang === 'am' ? 'የዛሬ ሽያጭ' : "Today's Sales"}
+          {t.todaySalesTitle}
         </h2>
         <span className="text-xs font-bold" style={{ color: 'var(--color-text-soft)' }}>
           {todaySales.length}
@@ -93,7 +94,7 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={lang === 'am' ? 'ፈልግ...' : 'Search...'}
+            placeholder={t.searchShortPlaceholder}
             className="w-full pl-9 pr-3 py-2.5 border-2 text-sm focus:outline-none"
             style={{ borderRadius: 'var(--radius-md)', borderColor: 'var(--color-border)', minHeight: '44px' }}
           />
@@ -105,22 +106,20 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
         {sales.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-              {search.trim()
-                ? (lang === 'am' ? 'ለፍለጋውምንም ውጤት የለም' : 'No matching sales')
-                : (lang === 'am' ? 'ዛሬ ሽያጭ የለም' : 'No sales today')}
+              {search.trim() ? t.noMatchingSales : t.noSalesToday}
             </p>
           </div>
         ) : (
           sales.map(group => (
             <div key={group.date} className="mb-3">
               <p className="text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
-                {formatDateLabel(group.date, lang)}
+                {formatDateLabel(group.date, t)}
               </p>
               <div className="space-y-1">
                 {group.transactions.map(tx => {
-                  const paymentLabel = tx.payment_type === 'cash' ? '💵 Cash'
-                    : tx.payment_type === 'credit' ? '👥 Credit'
-                    : tx.payment_type === 'partial' ? (tx.payment_provider ? `½ Partial · ${tx.payment_provider}` : '½ Partial')
+                  const paymentLabel = tx.payment_type === 'cash' ? `💵 ${t.cash}`
+                    : tx.payment_type === 'credit' ? `⏳ ${t.credit}`
+                    : tx.payment_type === 'partial' ? (tx.payment_provider ? `½ ${t.partialPayment} · ${tx.payment_provider}` : `½ ${t.partialPayment}`)
                     : tx.payment_provider || tx.payment_type || '—';
                   return (
                     <div
@@ -132,7 +131,7 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold truncate" style={{ color: 'var(--color-text)' }}>
-                            {tx.item_name || (lang === 'am' ? 'ሽያጭ' : 'Sale')}
+                            {tx.item_name || t.saleFallback}
                           </p>
                           <p className="text-[11px] truncate" style={{ color: 'var(--color-text-muted)' }}>
                             {tx.customer_name && <span>{tx.customer_name} · </span>}
@@ -140,19 +139,19 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
                           </p>
                           {tx.items && tx.items.length > 1 && (
                             <p className="text-[10px]" style={{ color: 'var(--color-text-soft)' }}>
-                              {tx.items.length} {lang === 'am' ? 'ንጥሎች' : 'items'}
+                              {tx.items.length} {t.itemsSuffix}
                             </p>
                           )}
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <span className="text-sm font-black" style={{ color: 'var(--color-success-text)' }}>
-                            {fmt(tx.amount)} ETB
+                            {fmt(tx.amount)} {currency}
                           </span>
                           <button
                             onClick={() => handleShareAgain(tx)}
                             className="flex items-center justify-center press-scale"
                             style={{ minWidth: '36px', minHeight: '36px' }}
-                            aria-label={lang === 'am' ? 'አጋራ' : 'Share'}
+                            aria-label={t.shareToggle}
                           >
                             <Share2 className="w-3.5 h-3.5" style={{ color: 'var(--color-text-muted)' }} onClick={(e) => { e.stopPropagation(); handleShareAgain(tx); }} />
                           </button>
@@ -173,7 +172,7 @@ export default function RecentSalesSheet({ transactions = [], onClose, onHistory
             className="text-xs font-bold underline press-scale"
             style={{ color: 'var(--color-text-muted)' }}
           >
-            {lang === 'am' ? 'ሁሉንም ታሪክ ይመልከቱ' : 'See All History'}
+            {t.seeAllHistory}
           </button>
         </div>
       </div>

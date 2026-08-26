@@ -86,7 +86,7 @@ export default function MerchantMemoryAutocomplete({
   lastSaleItems = [],
   className = '',
 }) {
-  const { lang, t } = useLang();
+  const { t } = useLang();
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const listRef = useRef(null);
   const P = MEMORY_PARAMS;
@@ -212,7 +212,7 @@ export default function MerchantMemoryAutocomplete({
       {quickRepeatItems.length > 0 && (
         <>
           <div className="px-2 py-1 text-[8px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-soft)', background: 'var(--color-surface-subtle)' }}>
-            {lang === 'am' ? 'የመጨረሻ ሽያጭ' : 'LAST SALE'}
+            {t.lastSaleSection}
           </div>
           {quickRepeatItems.map((item, idx) => {
             const isHighlighted = idx === highlightIndex;
@@ -309,7 +309,7 @@ export default function MerchantMemoryAutocomplete({
         >
           <span className="text-[11px]">+</span>
           <span className="text-[11px] font-bold" style={{ color: 'var(--color-primary)' }}>
-            {lang === 'am' ? `አስታውስ "${query}"` : `Remember "${query}"`}
+            {t.rememberPrefix} "{query}"
           </span>
         </button>
       )}

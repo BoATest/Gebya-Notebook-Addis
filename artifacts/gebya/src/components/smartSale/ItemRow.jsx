@@ -18,7 +18,7 @@ export default function ItemRow({
   isLastRow = false,
   autoFocus = false,
 }) {
-  const { lang } = useLang();
+  const { t } = useLang();
   const itemRef = useRef(null);
   const qtyRef = useRef(null);
   const priceRef = useRef(null);
@@ -136,7 +136,7 @@ export default function ItemRow({
           className="w-full h-full flex items-center justify-center text-white text-xs font-bold"
           style={{ minHeight: '44px' }}
         >
-          {lang === 'am' ? 'ሰርዝ' : 'Delete'}
+          {t.deleteRowBtn}
         </button>
       </div>
 
@@ -165,7 +165,7 @@ export default function ItemRow({
             onKeyDown={handleItemKeyDown}
             onFocus={() => { if (row.name.trim()) setShowAutocomplete(true); }}
             onBlur={() => setTimeout(() => setShowAutocomplete(false), 200)}
-            placeholder={lang === 'am' ? 'ንጥል...' : 'Item...'}
+            placeholder={t.itemPlaceholder}
             className="w-full px-1 text-[13px] font-medium bg-transparent focus:outline-none truncate"
             style={{ minHeight: ROW_H, border: 'none', overflow: 'hidden' }}
             autoComplete="off"

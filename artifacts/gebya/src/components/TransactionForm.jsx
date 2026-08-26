@@ -91,7 +91,7 @@ function TransactionForm({
     : (lang === 'am' ? 'ዕቃ / አገልግሎት (አማራጭ)' : 'Item / Service (Optional)');
 
   const saveButtonText = isCredit
-    ? (lang === 'am' ? 'ዱቤ አስቀምጥ' : 'Save Dubie')
+    ? (lang === 'am' ? 'ዱቤ አስቀምጥ' : 'Save Credit')
     : isExpense
       ? (lang === 'am' ? 'ወጪ አስቀምጥ' : 'Save Expense')
       : (lang === 'am' ? 'ሽያጭ አስቀምጥ' : 'Save Sale');

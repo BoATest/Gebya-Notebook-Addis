@@ -104,7 +104,7 @@ export default function ItemizedSaleView({
   const restoreDraft = () => {
     if (!draft) return;
     setShowDraftBanner(false);
-    fireToast(lang === 'am' ? 'ያልተጠናቀቀ ሽያጭ ተመልሷል' : 'Unfinished sale restored', 2000);
+    fireToast(t.toastDraftRestored, 2000);
   };
 
   const discardDraft = () => {
@@ -182,20 +182,21 @@ export default function ItemizedSaleView({
     if (shopPhone) lines.push(shopPhone);
     lines.push('');
     items.forEach(it => {
-      if (it.name) lines.push(`${it.name}  ×${it.qty}  ${fmt(it.amount)} ETB`);
+      if (it.name) lines.push(`${it.name}  ×${it.qty}  ${fmt(it.amount)} ${t.currencyShort}`);
     });
     lines.push('');
-    if (discount > 0) lines.push(`Subtotal: ${fmt(totalAmount)} ETB`);
-    if (discount > 0) lines.push(`Discount: -${fmt(discount)} ETB`);
-    lines.push(`Total: ${fmt(grandTotalVal)} ETB`);
-    lines.push(`Payment: ${paymentType === 'cash' ? 'Cash' : paymentProvider || paymentType}`);
+    if (discount > 0) lines.push(`${t.subtotalLabel}: ${fmt(totalAmount)} ${t.currencyShort}`);
+    if (discount > 0) lines.push(`-${t.discountLabel}: ${fmt(discount)} ${t.currencyShort}`);
+    lines.push(`${t.totalLabel}: ${fmt(grandTotalVal)} ${t.currencyShort}`);
+    lines.push(`${t.paymentLabel}: ${paymentType === 'cash' ? t.cash : paymentProvider || paymentType}`);
     lines.push('');
     lines.push('via Gebya');
 
     return lines.join('\n');
-  }, [shopProfile, actorLabel, buildItemsArray, totalAmount, discount, paymentType, paymentProvider]);
+  }, [shopProfile, actorLabel, buildItemsArray, totalAmount, discount, paymentType, paymentProvider, t]);
 
   // --- Save ---
+  const currency = t.currencyShort;
   const isCredit = paymentType === 'credit';
   const grandTotal = Math.max(0, totalAmount - discount);
   const partialReceivedAmount = parseFloat(parseInput(partialReceived)) || 0;
@@ -300,9 +301,7 @@ export default function ItemizedSaleView({
       clearDraft();
 
       fireToast(
-        shareAuto
-          ? (lang === 'am' ? 'ተጠናቋል · ተጋሯል' : 'Completed · Shared')
-          : (lang === 'am' ? 'ተጠናቋል' : 'Completed'),
+        shareAuto ? t.toastCompletedShared : t.toastCompleted,
         1500
       );
 
@@ -315,7 +314,7 @@ export default function ItemizedSaleView({
             navigator.share({ title: 'Gebya Sale', text: shareText }).catch(() => {});
           } else {
             navigator.clipboard.writeText(shareText).then(() => {
-              fireToast(lang === 'am' ? 'ኮፒ ተደርጓል' : 'Copied to clipboard', 2000);
+              fireToast(t.copiedToClipboard, 2000);
             }).catch(() => {});
           }
         }
@@ -323,7 +322,7 @@ export default function ItemizedSaleView({
 
       setTimeout(() => onDone(), 200);
     } catch (err) {
-      fireToast(lang === 'am' ? 'መቀመጫ አልተሳካም — እንደገና ይሞክሩ' : "Couldn't save — retry", 3000);
+      fireToast(t.saveFailed, 3000);
     } finally {
       setIsSaving(false);
     }
@@ -348,20 +347,11 @@ export default function ItemizedSaleView({
   // --- Undo delete ---
   useEffect(() => {
     if (!undoStack) return;
-    fireToast(
-      lang === 'am' ? 'ተሰርዟል · UNDO' : 'Deleted · UNDO',
-      5000,
-      () => undoDelete()
-    );
-  }, [undoStack, lang, undoDelete]);
+    fireToast(t.toastDeletedUndo, 5000, () => undoDelete());
+  }, [undoStack, t, undoDelete]);
 
   // --- Save button label ---
-  const saveLabel = (() => {
-    if (shareAuto) {
-      return lang === 'am' ? 'አጠናቅ እና አጋራ' : 'Complete & Share';
-    }
-    return lang === 'am' ? 'ሽያጩን አጠናቅ' : 'Complete Sale';
-  })();
+  const saveLabel = shareAuto ? t.completeShareBtn : t.completeSaleBtn;
 
   return (
     <div className="fixed inset-x-0 top-0 bottom-[60px] max-w-md mx-auto flex flex-col" style={{ background: 'var(--color-surface)' }}>
@@ -371,14 +361,14 @@ export default function ItemizedSaleView({
       {showDraftBanner && draft && (
         <div className="flex-shrink-0 px-2 py-1.5 flex items-center justify-between" style={{ background: 'var(--color-warning-bg)' }}>
           <span className="text-[11px] font-bold" style={{ color: 'var(--color-warning)' }}>
-            {lang === 'am' ? 'ያልተጠናቀቀ ሽያጭ ተገኝቷል' : 'Unfinished sale'}
+            {t.draftBannerTitle}
           </span>
           <div className="flex gap-2">
             <button onClick={restoreDraft} className="text-[11px] font-bold px-1.5" style={{ color: 'var(--color-success-text)' }}>
-              {lang === 'am' ? 'ወደነበረበት መልስ' : 'Restore'}
+              {t.restoreDraft}
             </button>
             <button onClick={discardDraft} className="text-[11px] font-bold px-1.5" style={{ color: 'var(--color-danger)' }}>
-              {lang === 'am' ? 'አስወግድ' : 'Discard'}
+              {t.discardDraft}
             </button>
           </div>
         </div>
@@ -388,21 +378,21 @@ export default function ItemizedSaleView({
       <div className="flex-shrink-0 px-2 py-1.5 flex items-center justify-between">
         <button
           onClick={handleBack}
-          aria-label={lang === 'am' ? 'ተመለስ' : 'Back'}
-          title={lang === 'am' ? 'ተመለስ' : 'Back'}
+          aria-label={t.backAria}
+          title={t.backAria}
           className="press-scale flex items-center justify-center"
           style={{ minWidth: '44px', minHeight: '44px' }}
         >
           <ArrowLeft className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
         </button>
         <h2 className="text-sm font-bold" style={{ color: 'var(--color-success)' }}>
-          {lang === 'am' ? 'አዲስ ሽያጭ' : 'New Sale'}
+          {t.newSaleTitle}
         </h2>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setShowCamera(true)}
-            aria-label={lang === 'am' ? 'ፎቶ አክል' : 'Take or choose photo'}
-            title={lang === 'am' ? 'ፎቶ አክል' : 'Take photo'}
+            aria-label={t.photoAddAria}
+            title={t.photoAddAria}
             className="press-scale flex items-center justify-center relative"
             style={{ minWidth: '44px', minHeight: '44px' }}
             disabled={photoLoading}
@@ -422,8 +412,8 @@ export default function ItemizedSaleView({
             onClick={() => setShowRecentSales(true)}
             className="press-scale flex items-center justify-center"
             style={{ minWidth: '44px', minHeight: '44px' }}
-            aria-label={lang === 'am' ? 'የዛሬ ሽያጭ' : "Today's Sales"}
-            title={lang === 'am' ? 'የዛሬ ሽያጭ' : "Today's Sales"}
+            aria-label={t.todaySalesTitle}
+            title={t.todaySalesTitle}
           >
             <span className="text-base">📋</span>
           </button>
@@ -452,16 +442,16 @@ export default function ItemizedSaleView({
       {/* Column headers — like notebook column labels */}
       <div className="flex-shrink-0 px-2 flex gap-1 items-center" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
         <span className="text-[10px] font-bold uppercase tracking-widest truncate" style={{ flex: '34 0 0%', color: 'var(--color-text-soft)', minWidth: 0 }}>
-          {lang === 'am' ? 'ንጥል' : 'Item'}
+          {t.colItem}
         </span>
         <span className="text-[10px] font-bold text-center uppercase tracking-widest flex-shrink-0" style={{ width: '64px', color: 'var(--color-text-soft)' }}>
-          {lang === 'am' ? 'ብዛት' : 'Qty'}
+          {t.colQty}
         </span>
         <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0" style={{ width: '84px', color: 'var(--color-text-soft)' }}>
-          {lang === 'am' ? 'ዋጋ' : 'Price'}
+          {t.colPrice}
         </span>
         <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0 total-col" style={{ width: '88px', color: 'var(--color-text-soft)' }}>
-          {lang === 'am' ? 'ጠቅላላ' : 'Total'}
+          {t.colTotal}
         </span>
       </div>
 
@@ -494,7 +484,7 @@ export default function ItemizedSaleView({
               style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-text-soft)', borderRadius: '4px', minHeight: '40px', background: 'var(--color-surface-subtle)' }}
             >
               <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span>
-              <span>{lang === 'am' ? '3 ተጨማሪ ረድፎች' : 'Add 3 Rows'}</span>
+              <span>{t.addRowsBtn}</span>
             </button>
           </div>
         )}
@@ -506,18 +496,18 @@ export default function ItemizedSaleView({
         <div className="px-2 py-1 space-y-0.5">
           <div className="flex justify-between items-center text-[11px]">
             <span style={{ color: 'var(--color-text-soft)' }}>
-              {lang === 'am' ? 'እቃዎች' : 'Items'}: <span className="font-bold" style={{ color: 'var(--color-text)' }}>{filledRows.length}</span>
+              {t.itemsCountLabel}: <span className="font-bold" style={{ color: 'var(--color-text)' }}>{filledRows.length}</span>
               <span className="ml-2">
-                {lang === 'am' ? 'ብዛት' : 'Qty'}: <span className="font-bold" style={{ color: 'var(--color-text)' }}>{totalQty}</span>
+                {t.colQty}: <span className="font-bold" style={{ color: 'var(--color-text)' }}>{totalQty}</span>
               </span>
             </span>
             <span className="text-[11px]" style={{ color: 'var(--color-text-soft)' }}>
-              {lang === 'am' ? 'ድምር' : 'Subtotal'}: <span className="font-bold" style={{ color: 'var(--color-text)' }}>{fmt(totalAmount)}</span>
+              {t.subtotalLabel}: <span className="font-bold" style={{ color: 'var(--color-text)' }}>{fmt(totalAmount)}</span>
             </span>
           </div>
           {showDiscount && (
             <div className="flex justify-between items-center" style={{ background: 'var(--color-warning-bg)', borderRadius: '3px', padding: '2px 6px', border: '1px solid var(--color-warning-border)' }}>
-              <span className="text-[11px]" style={{ color: 'var(--color-warning)' }}>{lang === 'am' ? 'ቅናሽ' : 'Discount'}</span>
+              <span className="text-[11px]" style={{ color: 'var(--color-warning)' }}>{t.discountLabel}</span>
               <div className="flex items-center gap-1">
                 <span className="text-[11px]" style={{ color: 'var(--color-danger)' }}>−</span>
                 <input
@@ -543,13 +533,13 @@ export default function ItemizedSaleView({
               className="text-[11px] font-bold press-scale"
               style={{ color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', borderRadius: '3px', padding: '4px 10px', minHeight: '34px' }}
             >
-              + {lang === 'am' ? 'ቅናሽ' : 'Discount'}
+              + {t.discountLabel}
             </button>
           )}
           <div className="flex justify-between items-center pt-0.5">
-            <span className="text-[13px] font-black" style={{ color: 'var(--color-text)' }}>{lang === 'am' ? 'ጠቅላላ' : 'TOTAL'}</span>
+            <span className="text-[13px] font-black" style={{ color: 'var(--color-text)' }}>{t.totalLabel}</span>
             <span className="text-base font-black" style={{ color: 'var(--color-success)' }}>
-              {fmt(grandTotal)} ETB
+              {fmt(grandTotal)} {currency}
             </span>
           </div>
         </div>
@@ -558,7 +548,7 @@ export default function ItemizedSaleView({
         {isPartial && (
           <div className="px-2 py-1.5">
             <label className="block text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
-              {lang === 'am' ? 'የተቀበሉት መጠን' : 'Amount Received'} <span style={{ color: 'var(--color-danger)' }}>*</span>
+              {t.amountReceivedLabel} <span style={{ color: 'var(--color-danger)' }}>*</span>
             </label>
             <div className="relative">
               <input
@@ -571,22 +561,22 @@ export default function ItemizedSaleView({
                 style={{ borderRadius: 'var(--radius-md)', borderColor: partialReceivedAmount > 0 && partialReceivedAmount < grandTotal ? 'var(--color-primary)' : 'var(--color-border)' }}
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-base font-semibold" style={{ color: 'var(--color-text-soft)' }}>
-                {lang === 'am' ? 'ብር' : 'birr'}
+                {currency}
               </span>
             </div>
             {partialReceivedAmount > 0 && partialReceivedAmount < grandTotal && (
               <p className="text-xs mt-1.5 font-semibold" style={{ color: 'var(--color-accent-amber)' }}>
-                {lang === 'am' ? 'ቀሪ ዱቤ' : 'Credit owed'}: {fmt(remainingAmount)} {lang === 'am' ? 'ብር' : 'birr'}
+                {t.creditOwedLabel}: {fmt(remainingAmount)} {currency}
               </p>
             )}
             {partialReceivedAmount >= grandTotal && grandTotal > 0 && (
               <p className="text-xs mt-1.5 font-medium" style={{ color: 'var(--color-danger)' }}>
-                {lang === 'am' ? 'የተቀበሉት ሙሉ ነው — "ጥሬ" ይምረጡ' : 'Amount received is the full sale — use Cash instead.'}
+                {t.fullAmountUseCash}
               </p>
             )}
             {isPartial && partialReceivedAmount > 0 && paymentType !== 'cash' && paymentProvider && (
               <p className="text-xs mt-1.5 font-semibold" style={{ color: 'var(--color-success-text)' }}>
-                → {fmt(partialReceivedAmount)} {lang === 'am' ? 'ብር' : 'ETB'} {lang === 'am' ? 'በ' : 'via'} {paymentProvider}
+                → {fmt(partialReceivedAmount)} {currency} {t.viaShort} {paymentProvider}
               </p>
             )}
           </div>
@@ -603,7 +593,7 @@ export default function ItemizedSaleView({
                   type="text"
                   value={creditCustomerSearch}
                   onChange={e => setCreditCustomerSearch(e.target.value)}
-                  placeholder={lang === 'am' ? 'ደንበኛ ፈልግ...' : 'Customer name...'}
+                  placeholder={t.customerNamePlaceholder}
                   className="w-full px-2 py-1.5 text-[11px] border font-bold"
                   style={{ borderColor: creditCustomerId ? 'var(--color-success)' : 'var(--color-border-light)', borderRadius: 'var(--radius-sm)', minHeight: '38px' }}
                 />
@@ -645,13 +635,13 @@ export default function ItemizedSaleView({
                             className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-t border-dashed"
                             style={{ borderColor: 'var(--color-success)', color: 'var(--color-success)', minHeight: '40px' }}
                           >
-                            + {lang === 'am' ? 'እንደ አዲስ ደንበኛ አክል' : 'Add as new customer'}
+                            + {t.addAsNewCustomer}
                           </button>
                         )}
                       </>
                     ) : (
                       <div className="px-2.5 py-2.5 text-[11px]" style={{ color: 'var(--color-text-soft)' }}>
-                        {lang === 'am' ? 'ደንበኛ አልተገኘም' : 'No customer found'}
+                        {t.noCustomerMatch}
                       </div>
                     )}
                   </div>
@@ -676,7 +666,7 @@ export default function ItemizedSaleView({
                 className="flex-shrink-0 px-3 text-[11px] font-bold border press-scale"
                 style={{ borderColor: 'var(--color-success)', color: 'var(--color-success)', borderRadius: 'var(--radius-sm)', minHeight: '38px', background: 'rgba(22,163,74,0.06)' }}
               >
-                <span className="text-[14px] mr-1">+</span>{lang === 'am' ? 'አክል' : 'Add'}
+                <span className="text-[14px] mr-1">+</span>{t.addShortBtn}
               </button>
             </div>
 
@@ -709,7 +699,7 @@ export default function ItemizedSaleView({
                 <span className="text-[13px] font-bold flex-1">{creditCustomerName}</span>
                 {creditCustomerPhone && <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{creditCustomerPhone}</span>}
                 <span className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>
-                  {lang === 'am' ? 'ዱቤ' : 'BAL'} {fmt(creditCustomerBalance)}
+                  {t.balanceShort} {fmt(creditCustomerBalance)}
                 </span>
                 <button
                   type="button"
@@ -731,7 +721,7 @@ export default function ItemizedSaleView({
             {/* Due date — compact chip row */}
             <div>
               <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-soft)' }}>
-                {lang === 'am' ? 'መክፈያ ቀን' : 'Due date'}
+                {t.dueDate}
               </div>
               <div className="flex gap-2 mb-2">
                 {dueDateOptions.map(opt => {
@@ -763,7 +753,7 @@ export default function ItemizedSaleView({
                     cursor: 'pointer', flexShrink: 0,
                     display: 'flex', alignItems: 'center', gap: 4,
                   }}>
-                  📅 <span>{lang === 'am' ? 'ምረጥ' : 'Pick'}</span>
+                  📅 <span>{t.pickShort}</span>
                 </button>
               </div>
             </div>
@@ -806,13 +796,13 @@ export default function ItemizedSaleView({
             <div className="relative w-7 h-4 rounded-full transition-colors flex-shrink-0" style={{ background: shareAuto ? 'var(--color-success)' : 'var(--color-text-soft)' }}>
               <div className="absolute top-[2px] left-[2px] w-3 h-3 rounded-full bg-white transition-transform" style={{ transform: shareAuto ? 'translateX(12px)' : 'translateX(0)' }} />
             </div>
-            {lang === 'am' ? 'አጋራ' : 'Share'}
+            {t.shareToggle}
           </label>
 
           {showPhonePrompt && (
             <div className="flex items-center gap-1 flex-1">
               <span className="text-[10px]" style={{ color: 'var(--color-text-soft)' }}>
-                {lang === 'am' ? 'ስልክ:' : 'Phone:'}
+                {t.phoneShortLabel}
               </span>
               <input
                 type="text"
@@ -822,7 +812,7 @@ export default function ItemizedSaleView({
                   const v = e.target.value.replace(/\D/g, '').slice(0, 9);
                   setPendingSharePhone(v);
                 }}
-                placeholder={lang === 'am' ? '0912345678' : '0912345678'}
+                placeholder="0912345678"
                 className="flex-1 text-[11px] font-bold px-1 py-0.5"
                 style={{ border: 'none', borderBottom: '1px solid var(--color-border)', background: 'transparent', minHeight: '20px' }}
               />
@@ -836,18 +826,18 @@ export default function ItemizedSaleView({
                     const shareText = buildShareText();
                     if (navigator.share) {
                       navigator.share({ title: 'Gebya Sale', text: shareText }).catch(() => {});
-                    } else {
-                      navigator.clipboard.writeText(shareText).then(() => {
-                        fireToast(lang === 'am' ? 'ኮፒ ተደርጓል' : 'Copied to clipboard', 2000);
-                      }).catch(() => {});
-                    }
-                  }
-                }}
-                className="text-[10px] font-bold px-1.5 py-0.5"
-                style={{ color: 'var(--color-success)', background: 'var(--color-success-bg)', borderRadius: '3px' }}
-              >
-                {lang === 'am' ? 'ተቀጥል' : 'Done'}
-              </button>
+                     } else {
+                       navigator.clipboard.writeText(shareText).then(() => {
+                         fireToast(t.copiedToClipboard, 2000);
+                       }).catch(() => {});
+                     }
+                   }
+                 }}
+                 className="text-[10px] font-bold px-1.5 py-0.5"
+                 style={{ color: 'var(--color-success)', background: 'var(--color-success-bg)', borderRadius: '3px' }}
+               >
+                 {t.doneBtn}
+               </button>
             </div>
           )}
 
@@ -857,10 +847,10 @@ export default function ItemizedSaleView({
             type="button"
             onClick={() => setShowReceipt(true)}
             disabled={!canSave}
-            className="px-2.5 py-1.5 text-[11px] font-bold press-scale"
-            style={{ color: canSave ? 'var(--color-text-muted)' : 'var(--color-text-soft)', cursor: canSave ? 'pointer' : 'not-allowed', minHeight: '36px' }}
+            className="px-2.5 py-2 text-xs font-bold press-scale"
+            style={{ color: canSave ? 'var(--color-text-muted)' : 'var(--color-text-soft)', cursor: canSave ? 'pointer' : 'not-allowed', minHeight: '44px' }}
           >
-            📄 {lang === 'am' ? 'ቅድመ-እይታ' : 'Preview'}
+            📄 {t.previewBtn}
           </button>
 
           <span className="text-[16px]" style={{ color: 'var(--color-bg-disabled)' }}>·</span>
@@ -869,13 +859,13 @@ export default function ItemizedSaleView({
             type="button"
             onClick={handleSave}
             disabled={!canSave}
-            className="px-4 py-1.5 font-black text-[11px] flex items-center justify-center gap-1 transition-all press-scale"
+            className="px-4 py-2 font-black text-xs flex items-center justify-center gap-1 transition-all press-scale"
             style={{
               background: canSave ? 'var(--color-success)' : 'var(--color-bg-disabled)',
               color: canSave ? 'var(--color-bg-white)' : 'var(--color-text-soft)',
               cursor: canSave ? 'pointer' : 'not-allowed',
               borderRadius: '3px',
-              minHeight: '36px',
+              minHeight: '44px',
             }}
           >
             <Save className="w-3.5 h-3.5" />
@@ -897,9 +887,9 @@ export default function ItemizedSaleView({
             </div>
             <div className="border-t border-b py-1 mb-1.5" style={{ borderColor: 'var(--color-text-soft)' }}>
               <div className="flex justify-between text-[10px] font-bold mb-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                <span style={{ flex: 2 }}>{lang === 'am' ? 'ንጥል' : 'Item'}</span>
-                <span style={{ width: '28px', textAlign: 'center' }}>{lang === 'am' ? 'ብ' : 'Qty'}</span>
-                <span style={{ width: '56px', textAlign: 'right' }}>{lang === 'am' ? 'ድምር' : 'Total'}</span>
+                <span style={{ flex: 2 }}>{t.colItem}</span>
+                <span style={{ width: '28px', textAlign: 'center' }}>{t.colQty}</span>
+                <span style={{ width: '56px', textAlign: 'right' }}>{t.colTotal}</span>
               </div>
               {buildItemsArray().map((it, i) => (
                 <div key={i} className="flex justify-between text-[11px] py-0.5">
@@ -911,22 +901,22 @@ export default function ItemizedSaleView({
             </div>
             <div className="space-y-0.5 text-[11px] mb-2">
               <div className="flex justify-between">
-                <span style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ድምር' : 'Subtotal'}</span>
+                <span style={{ color: 'var(--color-text-muted)' }}>{t.subtotalLabel}</span>
                 <span className="font-bold">{fmt(totalAmount)}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between">
-                  <span style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ቅናሽ' : 'Discount'}</span>
+                  <span style={{ color: 'var(--color-text-muted)' }}>{t.discountLabel}</span>
                   <span style={{ color: 'var(--color-danger)' }}>−{fmt(discount)}</span>
                 </div>
               )}
               <div className="flex justify-between border-t pt-0.5" style={{ borderColor: 'var(--color-text-soft)' }}>
-                <span className="font-bold">{lang === 'am' ? 'ጠቅላላ' : 'Grand Total'}</span>
-                <span className="font-bold">{fmt(grandTotal)} ETB</span>
+                <span className="font-bold">{t.grandTotalLabel}</span>
+                <span className="font-bold">{fmt(grandTotal)} {currency}</span>
               </div>
               <div className="flex justify-between" style={{ color: 'var(--color-text-muted)' }}>
-                <span>{lang === 'am' ? 'ክፍያ' : 'Payment'}</span>
-                <span>{paymentType === 'cash' ? 'Cash' : paymentProvider || paymentType}</span>
+                <span>{t.paymentLabel}</span>
+                <span>{paymentType === 'cash' ? t.cash : paymentProvider || paymentType}</span>
               </div>
             </div>
             <button
@@ -934,7 +924,7 @@ export default function ItemizedSaleView({
               className="w-full py-1.5 text-[10px] font-bold press-scale"
               style={{ color: 'var(--color-text-muted)', minHeight: '36px' }}
             >
-              {lang === 'am' ? 'ዝጋ' : 'Close'}
+              {t.closeReceiptBtn}
             </button>
           </div>
         </div>
@@ -945,10 +935,10 @@ export default function ItemizedSaleView({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.3)' }}>
           <div className="bg-white rounded-xl p-4 max-w-sm w-full">
             <h3 className="text-sm font-bold mb-1.5" style={{ color: 'var(--color-text)' }}>
-              {lang === 'am' ? 'ሽያጩን ይተው?' : 'Discard Sale?'}
+              {t.discardSaleTitle}
             </h3>
             <p className="text-[11px] mb-3" style={{ color: 'var(--color-text-muted)' }}>
-              {lang === 'am' ? 'ያልተቀመጠ ሁሉ ይጠፋል' : 'Unsaved data will be lost'}
+              {t.discardSaleBody}
             </p>
             <div className="flex gap-2">
               <button
@@ -956,14 +946,14 @@ export default function ItemizedSaleView({
                 className="flex-1 py-2 text-[11px] font-bold border-2 press-scale"
                 style={{ borderColor: 'var(--color-border)', borderRadius: 'var(--radius-md)', minHeight: '40px' }}
               >
-                {lang === 'am' ? 'ቀጥል' : 'Continue'}
+                {t.continueBtn}
               </button>
               <button
                 onClick={confirmDiscard}
                 className="flex-1 py-2 text-[11px] font-bold text-white press-scale"
                 style={{ background: 'var(--color-danger)', borderRadius: 'var(--radius-md)', minHeight: '40px' }}
               >
-                {lang === 'am' ? 'ተው' : 'Discard'}
+                {t.discardConfirmBtn}
               </button>
             </div>
           </div>
