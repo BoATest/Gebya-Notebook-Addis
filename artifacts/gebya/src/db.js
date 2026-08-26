@@ -1,17 +1,8 @@
 import Dexie from 'dexie';
 import { startOfLocalDay } from './utils/reportSelectors';
+import { toTimestamp, normalizeText } from './dbHelpers.js';
 
 export const db = new Dexie('GebyaDB');
-
-function toTimestamp(value, fallback = Date.now()) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
-
-function normalizeText(value) {
-  const text = String(value || '').trim();
-  return text || null;
-}
 
 async function migrateLegacyCredits(tx) {
   const legacyCreditsTable = tx.table('credit_records');
