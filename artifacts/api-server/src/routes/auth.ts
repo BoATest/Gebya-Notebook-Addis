@@ -1,9 +1,8 @@
-// @ts-nocheck
-import { Router } from "express";
-import { db } from "@workspace/db";
+import { Router, Request, Response } from "express";
+import { requireDb } from "@workspace/db";
 import { users, devices, otps, businesses, businessMembers } from "@workspace/db/schema";
 import { normalizePhone } from "@workspace/db/schema";
-import { eq, and, gt, inArray } from "drizzle-orm";
+import { eq, and, gt, inArray, desc } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { sendTelegramTextMessage } from "../services/telegramBotService.js";
@@ -27,14 +26,14 @@ const OTP_MAX_ATTEMPTS = 5;
  * Extract JWT from Authorization header (Bearer) or httpOnly cookie.
  * Cookie is used by the bank dashboard; header is used by the merchant app.
  */
-function getToken(req) {
+function getToken(req: Request) {
   const authHeader = req.headers.authorization || "";
   const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
   if (bearerMatch) return bearerMatch[1];
   return req.cookies?.[JWT_COOKIE_NAME] || null;
 }
 
-function setTokenCookie(res, token) {
+function setTokenCookie(res: Response, token: string) {
   const isProduction = process.env.NODE_ENV === "production";
   res.cookie(JWT_COOKIE_NAME, token, {
     httpOnly: true,
@@ -45,7 +44,7 @@ function setTokenCookie(res, token) {
   });
 }
 
-function clearTokenCookie(res) {
+function clearTokenCookie(res: Response) {
   res.clearCookie(JWT_COOKIE_NAME, { path: "/" });
 }
 
@@ -112,7 +111,7 @@ router.post("/otp", async (req, res) => {
   otpRate.set(normalizedPhone, recent);
 
   // Check for existing user and telegram chat_id
-  const existingUser = await db.select().from(users).where(eq(users.phoneNumber, normalizedPhone)).limit(1);
+  const existingUser = await requireDb().select().from(users).where(eq(users.phoneNumber, normalizedPhone)).limit(1);
   const user = existingUser[0];
 
   const plainOtp = generateOtp();
@@ -120,7 +119,7 @@ router.post("/otp", async (req, res) => {
   const expiresAt = new Date(Date.now() + OTP_EXPIRES_MS);
 
   // Insert OTP record
-  await db.insert(otps).values({
+  await requireDb().insert(otps).values({
     phoneNumber: normalizedPhone,
     codeHash,
     attempts: 0,
@@ -169,8 +168,7 @@ router.post("/verify", async (req, res) => {
     return res.status(400).json({ error: "Invalid Ethiopian phone number" });
   }
   // Find the most recent unconsumed OTP for this phone
-  const otpRows = await db
-    .select()
+  const otpRows = await requireDb().select()
     .from(otps)
     .where(
       and(
@@ -179,7 +177,7 @@ router.post("/verify", async (req, res) => {
         gt(otps.expiresAt, new Date())
       )
     )
-    .orderBy(otps.createdAt, "desc")
+    .orderBy(desc(otps.createdAt))
     .limit(1);
 
   const otpRecord = otpRows[0];
@@ -195,8 +193,7 @@ router.post("/verify", async (req, res) => {
   }
 
   // Increment attempts
-  await db
-    .update(otps)
+  await requireDb().update(otps)
     .set({ attempts: attempts + 1 })
     .where(eq(otps.id, otpRecord.id));
 
@@ -205,15 +202,14 @@ router.post("/verify", async (req, res) => {
   }
 
   // Mark consumed
-  await db.update(otps).set({ consumed: true }).where(eq(otps.id, otpRecord.id));
+  await requireDb().update(otps).set({ consumed: true }).where(eq(otps.id, otpRecord.id));
 
   // Get or create user
-  let userRows = await db.select().from(users).where(eq(users.phoneNumber, normalizedPhone)).limit(1);
+  let userRows = await requireDb().select().from(users).where(eq(users.phoneNumber, normalizedPhone)).limit(1);
   let user = userRows[0];
 
   if (!user) {
-    const inserted = await db
-      .insert(users)
+    const inserted = await requireDb().insert(users)
       .values({ phoneNumber: normalizedPhone, active: true })
       .returning();
     user = inserted[0];
@@ -227,8 +223,7 @@ router.post("/verify", async (req, res) => {
   // Fetch all business memberships (gracefully handle if table has schema issues)
   let memberRows: any[] = [];
   try {
-    memberRows = await db
-      .select({
+    memberRows = await requireDb().select({
         businessId: businessMembers.businessId,
         role: businessMembers.role,
         permissions: businessMembers.permissions,
@@ -246,8 +241,7 @@ router.post("/verify", async (req, res) => {
     try {
       if (memberRows.length > 0) {
         const bizIds = memberRows.map((m) => m.businessId);
-        const bizRows = await db
-          .select({ id: businesses.id, name: businesses.name })
+        const bizRows = await requireDb().select({ id: businesses.id, name: businesses.name })
           .from(businesses)
           .where(inArray(businesses.id, bizIds));
         const bizMap = new Map(bizRows.map((b) => [b.id, b.name]));
@@ -298,8 +292,7 @@ router.post("/link-device", async (req, res) => {
   }
 
   // Upsert device link
-  await db
-    .insert(devices)
+  await requireDb().insert(devices)
     .values({
       userId: decoded.userId,
       deviceId: device_id,
@@ -331,15 +324,14 @@ router.get("/me", async (req, res) => {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 
-  const userRows = await db.select().from(users).where(eq(users.id, decoded.userId)).limit(1);
+  const userRows = await requireDb().select().from(users).where(eq(users.id, decoded.userId)).limit(1);
   const user = userRows[0];
   if (!user) {
     return res.status(404).json({ error: "User not found" });
   }
 
   // Fetch all business memberships
-  const memberRows = await db
-    .select({
+  const memberRows = await requireDb().select({
       businessId: businessMembers.businessId,
       role: businessMembers.role,
       permissions: businessMembers.permissions,
@@ -352,8 +344,7 @@ router.get("/me", async (req, res) => {
   let businessList: any[] = [];
   if (memberRows.length > 0) {
     const bizIds = memberRows.map((m) => m.businessId);
-    const bizRows = await db
-      .select({ id: businesses.id, name: businesses.name, plan: businesses.plan })
+    const bizRows = await requireDb().select({ id: businesses.id, name: businesses.name, plan: businesses.plan })
       .from(businesses)
       .where(inArray(businesses.id, bizIds));
     const bizMap = new Map(bizRows.map((b) => [b.id, b]));
@@ -403,8 +394,7 @@ router.post("/set-password", async (req, res) => {
   }
 
   const passwordHash = hashOtp(password); // Reuse PBKDF2 hashing
-  await db
-    .update(users)
+  await requireDb().update(users)
     .set({
       passwordHash,
       passwordSetAt: new Date(),
@@ -429,8 +419,7 @@ router.post("/login", async (req, res) => {
     return res.status(400).json({ error: "Invalid Ethiopian phone number" });
   }
 
-  const userRows = await db
-    .select()
+  const userRows = await requireDb().select()
     .from(users)
     .where(eq(users.phoneNumber, normalizedPhone))
     .limit(1);
@@ -453,13 +442,12 @@ router.post("/login", async (req, res) => {
       update.passwordLockedUntil = new Date(Date.now() + PASSWORD_LOCKOUT_MS);
       update.passwordAttempts = 0;
     }
-    await db.update(users).set(update).where(eq(users.id, user.id));
+    await requireDb().update(users).set(update).where(eq(users.id, user.id));
     return res.status(401).json({ error: "Invalid phone number or password" });
   }
 
   // Reset attempts on success
-  await db
-    .update(users)
+  await requireDb().update(users)
     .set({ passwordAttempts: 0, passwordLockedUntil: null })
     .where(eq(users.id, user.id));
 
@@ -467,8 +455,7 @@ router.post("/login", async (req, res) => {
   setTokenCookie(res, token);
 
   // Fetch businesses (same as /verify)
-  const memberRows = await db
-    .select({
+  const memberRows = await requireDb().select({
       businessId: businessMembers.businessId,
       role: businessMembers.role,
       permissions: businessMembers.permissions,
@@ -481,8 +468,7 @@ router.post("/login", async (req, res) => {
   try {
     if (memberRows.length > 0) {
       const bizIds = memberRows.map((m) => m.businessId);
-      const bizRows = await db
-        .select({ id: businesses.id, name: businesses.name })
+      const bizRows = await requireDb().select({ id: businesses.id, name: businesses.name })
         .from(businesses)
         .where(inArray(businesses.id, bizIds));
       const bizMap = new Map(bizRows.map((b) => [b.id, b.name]));
@@ -523,8 +509,7 @@ router.post("/remove-password", async (req, res) => {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 
-  await db
-    .update(users)
+  await requireDb().update(users)
     .set({
       passwordHash: null,
       passwordSetAt: null,
@@ -579,13 +564,13 @@ router.post("/google-admin", async (req, res) => {
   }
 
   const syntheticPhone = `gadmin:${email}`;
-  let userRows = await db.select().from(users).where(eq(users.phoneNumber, syntheticPhone)).limit(1);
+  let userRows = await requireDb().select().from(users).where(eq(users.phoneNumber, syntheticPhone)).limit(1);
   let user = userRows[0];
   if (!user) {
-    const inserted = await db.insert(users).values({ phoneNumber: syntheticPhone, email, active: true }).returning();
+    const inserted = await requireDb().insert(users).values({ phoneNumber: syntheticPhone, email, active: true }).returning();
     user = inserted[0];
   } else if (!user.email) {
-    await db.update(users).set({ email }).where(eq(users.id, user.id));
+    await requireDb().update(users).set({ email }).where(eq(users.id, user.id));
   }
 
   const token = signJwt(user.id);
