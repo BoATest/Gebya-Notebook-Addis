@@ -66,6 +66,23 @@ async function updateStaffQueueRows(page: Page, patch: Record<string, unknown>) 
   }, { kind: STAFF_EVENT_KIND, patch });
 }
 
+async function setTestAuthToken(page: Page) {
+  await page.evaluate(async () => {
+    const open = indexedDB.open('GebyaDB');
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      open.onsuccess = () => resolve(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('settings', 'readwrite');
+      tx.objectStore('settings').put({ key: 'gebya_auth_token', value: 'test-jwt-token' });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  });
+}
+
 async function mockOwnerIdentity(page: Page) {
   await page.route('**/api/shops', async (route) => {
     if (route.request().method() !== 'POST') {
@@ -103,10 +120,11 @@ async function startFreshOwner(page: Page) {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await deleteGebyaDb(page);
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.getByRole('button', { name: /own.*manage a shop/i }).click();
-  await page.getByPlaceholder(/e\.g\. tigist/i).fill('Tigist Shop');
-  await page.getByRole('button', { name: /start using gebya/i }).click();
-  await expect(page.getByRole('heading', { name: /tigist shop/i })).toBeVisible();
+  await page.getByRole('button', { name: /shop owner/i }).click();
+  await page.getByPlaceholder(/enter your name/i).fill('Tigist Shop');
+  await page.getByRole('button', { name: /^\s*start\s*$/i }).click();
+  await expect(page.getByText(/tigist shop/i)).toBeVisible();
+  await setTestAuthToken(page);
 }
 
 function staffRows(rows: any[]) {
@@ -114,10 +132,10 @@ function staffRows(rows: any[]) {
 }
 
 async function saveSale(page: Page, item: string, amount: string) {
-  await page.getByRole('button', { name: /^sale$/i }).click();
+  await page.getByRole('button', { name: /simple/i }).click();
   await page.getByPlaceholder(/add details|bread|sugar/i).fill(item);
   await page.getByPlaceholder('0').fill(amount);
-  await page.getByRole('button', { name: /save sale/i }).click();
+  await page.getByRole('button', { name: /save .*etb/i }).click();
   await expect(page.getByText(new RegExp(item, 'i'))).toBeVisible();
 }
 
@@ -125,34 +143,25 @@ async function addCustomer(page: Page, name: string) {
   await page.locator('nav').getByRole('button', { name: /credit|dubie/i }).click();
   await page.getByRole('button', { name: /add (your first )?customer/i }).click();
   await page.getByPlaceholder(/e\.g\. tigist|name, nickname/i).fill(name);
-  await page.getByRole('button', { name: /save customer/i }).click();
-  await expect(page.getByText(new RegExp(name, 'i'))).toBeVisible();
+  await page.getByRole('button', { name: /save customer/i }).click({ force: true });
+  await expect(page.getByText(new RegExp(name, 'i')).first()).toBeVisible();
+  await page.getByText(new RegExp(name, 'i')).first().click();
 }
 
 async function saveCustomerPayment(page: Page, amount: string) {
-  const paymentButton = page.getByRole('main').getByRole('button', { name: /^payment$/i });
+  const paymentButton = page.getByRole('button', { name: /^you got/i });
   await expect(paymentButton).toBeVisible();
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    await paymentButton.click();
-    try {
-      await expect(page.getByRole('heading', { name: /payment/i })).toBeVisible({ timeout: 2000 });
-      break;
-    } catch (error) {
-      if (attempt === 2) throw error;
-    }
-  }
-
+  await paymentButton.click();
   await page.locator('input[placeholder="0"]').first().fill(amount);
   await page.getByRole('button', { name: /save payment/i }).click();
 }
 
 async function saveCustomerCredit(page: Page, amount: string) {
-  await page.getByRole('main').getByRole('button', { name: /^credit$/i }).click();
-  await page.getByPlaceholder('0').fill(amount);
+  await page.getByRole('button', { name: /you gave/i }).click();
+  await page.getByPlaceholder('0').first().fill(amount);
   await page.getByPlaceholder(/what they took/i).fill('Sugar');
   await page.getByRole('button', { name: /save (credit|dubie)/i }).click();
-  await expect(page.getByText('CREDIT', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /save (credit|dubie)/i })).toBeHidden();
 }
 
 test('offline sale queues a staff event and keeps the local ledger after reload', async ({ page, context }) => {

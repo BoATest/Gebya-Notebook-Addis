@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import db from '../db';
+import db, { getIdentity, setIdentity } from '../db';
 import { fireToast } from '../components/Toast';
 import {
   buildDefaultChannels,
@@ -72,6 +72,14 @@ export function useShopOps({ shopProfile, setShopProfile, setEnabledProviders, s
       const result = await identityApi.rotateJoinCode(shopId, token);
       const current = shopProfile || {};
       setShopProfile(current ? { ...current, join_code: result.join_code, join_url: result.join_url } : current);
+      // Persist to the local identity so the owner still sees the (rotated) code after a reload.
+      // The backend only returns join_code on create/rotate, never on a plain GET.
+      try {
+        const identity = await getIdentity();
+        if (identity) {
+          await setIdentity({ ...identity, join_code: result.join_code, join_url: result.join_url });
+        }
+      } catch { /* non-critical — in-session display already updated above */ }
       return result;
     } catch (err) {
       const msg = err?.data?.error || err?.message || 'Unknown error';

@@ -14,6 +14,7 @@ import { Router } from "express";
 import { requireDb, warmDb } from "@workspace/db";
 import { warmCache, serveCachedBounded } from "../lib/adminCache.js";
 import { maskPhone, daysAgo, computeOverview, computeShops, computeFrictions, computeFeatures } from "./adminCompute.js";
+import { computeCustomerCreditPerformance } from "../lib/creditPerformance.js";
 import { safeEqual } from "../lib/secure.js";
 import {
   users,
@@ -160,6 +161,11 @@ router.get("/shops/:businessId", async (req, res) => {
   const overdueCustomers = Object.values(custBalances).filter(b => b.dueDate && b.dueDate < now && b.credit - b.paid - b.reversed > 0);
   const totalOverdueExposure = overdueCustomers.reduce((s, b) => s + (b.credit - b.paid - b.reversed), 0);
 
+  // Per-customer payment behavior (On-time %, avg pay period) for the Admin
+  // "Payment behavior" panel. Repositioned here — the shop owner's customer
+  // page no longer shows the On-time % KPI, but admins still need it.
+  const creditPerformance = computeCustomerCreditPerformance(bizCustTxns, bizCustomers, now);
+
   const recentSnapshots = await requireDb().select().from(snapshots).where(eq(snapshots.userId, biz.ownerUserId)).orderBy(desc(snapshots.createdAt)).limit(5);
 
   const customerTelegramLinked = bizCustomers.filter(c => c.telegramChatId).length;
@@ -215,6 +221,7 @@ router.get("/shops/:businessId", async (req, res) => {
       overdueCustomers: overdueCustomers.length,
       totalOverdueExposure,
     },
+    creditPerformance,
     bankShares: bizShares.map(s => ({ bankName: s.bankName, status: s.status, shareSalesData: s.shareSalesData, shareCreditData: s.shareCreditData, shareCustomerData: s.shareCustomerData, consentGivenAt: s.consentGivenAt?.toISOString() || null, expiresAt: s.expiresAt?.toISOString() || null })),
     recentSnapshots: recentSnapshots.map(s => ({ createdAt: s.createdAt ? new Date(s.createdAt).toISOString() : null, sizeBytes: s.sizeBytes || 0, status: null })),
     notes,

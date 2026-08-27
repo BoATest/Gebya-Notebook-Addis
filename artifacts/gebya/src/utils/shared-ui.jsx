@@ -119,6 +119,7 @@ export const ROLE_BADGE = {
   manager: { label: 'Manager', bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' },
   cashier: { label: 'Sales Staff', bg: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' },
   viewer: { label: 'Auditor', bg: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' },
+  trusted_staff: { label: 'Trusted Staff', bg: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' },
 };
 
 export function RoleBadge({ role }) {

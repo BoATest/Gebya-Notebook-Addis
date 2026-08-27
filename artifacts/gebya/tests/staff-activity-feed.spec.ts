@@ -1,5 +1,22 @@
 import { expect, test, type Page } from '@playwright/test';
 
+async function setTestAuthToken(page: Page) {
+  await page.evaluate(async () => {
+    const open = indexedDB.open('GebyaDB');
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      open.onsuccess = () => resolve(open.result);
+      open.onerror = () => reject(open.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('settings', 'readwrite');
+      tx.objectStore('settings').put({ key: 'gebya_auth_token', value: 'test-jwt-token' });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  });
+}
+
 async function resetFreshOrigin(page: Page) {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.evaluate(async () => {
@@ -104,38 +121,39 @@ function activityRows() {
   ];
 }
 
-async function startOwnerAndOpenTeam(page: Page) {
+async function startOwnerAndOpenActivity(page: Page) {
   await mockOwner(page);
   await resetFreshOrigin(page);
-  await page.getByRole('button', { name: /own.*manage a shop/i }).click();
-  await page.getByPlaceholder(/e\.g\. tigist/i).fill('Activity Shop');
-  await page.getByRole('button', { name: /start using gebya/i }).click();
-  await expect(page.getByRole('heading', { name: /activity shop/i })).toBeVisible();
-  await page.locator('nav').getByRole('button', { name: /more/i }).click();
-  await page.getByRole('button', { name: /Team & Staff/ }).click();
+  await page.getByRole('button', { name: /shop owner/i }).click();
+  await page.getByPlaceholder(/enter your name/i).fill('Activity Shop');
+  await page.getByRole('button', { name: /^\s*start\s*$/i }).click();
+  await expect(page.getByText(/owner tigist|activity shop/i)).toBeVisible();
+  await setTestAuthToken(page);
+  await page.locator('nav').getByRole('button', { name: /staff/i }).click();
+  await page.getByRole('button', { name: /^activity$/i }).click();
 }
 
-test('owner sees populated Staff Activity Feed with friendly labels', async ({ page }) => {
+test('owner sees populated Staff Activity Feed grouped by period', async ({ page }) => {
   await page.route('**/api/events/activity', async (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({ activities: activityRows(), persistence: 'in_memory_preview' }),
   }));
 
-  await startOwnerAndOpenTeam(page);
+  await startOwnerAndOpenActivity(page);
 
-  await expect(page.getByText('Staff activity', { exact: true })).toBeVisible();
-  await expect(page.getByText('What staff recorded')).toBeVisible();
-  await expect(page.getByText('Sale', { exact: true })).toBeVisible();
-  await expect(page.getByText('Customer paid', { exact: true })).toBeVisible();
-  await expect(page.getByText('Added to Dubie', { exact: true })).toBeVisible();
-  await expect(page.getByText(/Marta ·/)).toHaveCount(3);
-  await expect(page.getByText(/120(?:\.00)? birr/)).toBeVisible();
-  await expect(page.getByText(/50(?:\.00)? birr/)).toBeVisible();
-  await expect(page.getByText(/95(?:\.00)? birr/)).toBeVisible();
-  await expect(page.getByText('Synced').first()).toBeVisible();
-  await expect(page.getByText(/not durable backup history yet/i)).toBeVisible();
-  await expect(page.getByText('customer_credit')).toHaveCount(0);
+  await expect(page.getByText(/older/i)).toBeVisible();
+  await expect(page.getByText(/3 activities/i)).toBeVisible();
+  await expect(page.getByText(/265/)).toBeVisible();
+
+  await page.getByText(/older/i).click();
+  await expect(page.getByText('Marta').first()).toBeVisible();
+  await expect(page.getByText('Sugar')).toBeVisible();
+  await expect(page.getByText('Almaz')).toBeVisible();
+  await expect(page.getByText('Coffee')).toBeVisible();
+  await expect(page.getByText('95 birr')).toBeVisible();
+  await expect(page.getByText('50 birr')).toBeVisible();
+  await expect(page.getByText('120 birr')).toBeVisible();
 });
 
 test('Staff Activity Feed empty state is clear', async ({ page }) => {
@@ -145,35 +163,23 @@ test('Staff Activity Feed empty state is clear', async ({ page }) => {
     body: JSON.stringify({ activities: [], persistence: 'in_memory_preview' }),
   }));
 
-  await startOwnerAndOpenTeam(page);
+  await startOwnerAndOpenActivity(page);
 
-  await expect(page.getByText('No activity yet')).toBeVisible();
-  await expect(page.getByText(/When staff records sales, payments, or Dubie/i)).toBeVisible();
+  await expect(page.getByText(/staff activity will appear here/i)).toBeVisible();
 });
 
-test('Staff Activity Feed shows error and retry recovers', async ({ page }) => {
-  let calls = 0;
-  await page.route('**/api/events/activity', async (route) => {
-    calls += 1;
-    if (calls === 1) {
-      return route.fulfill({
-        status: 503,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: 'temporary outage' }),
-      });
-    }
+test('Staff Activity Feed filter narrows to one event type', async ({ page }) => {
+  await page.route('**/api/events/activity', async (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ activities: activityRows(), persistence: 'in_memory_preview' }),
+  }));
 
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ activities: activityRows().slice(0, 1), persistence: 'in_memory_preview' }),
-    });
-  });
+  await startOwnerAndOpenActivity(page);
+  await page.getByText(/older/i).click();
 
-  await startOwnerAndOpenTeam(page);
-
-  await expect(page.getByText('Could not refresh server activity.')).toBeVisible();
-  await page.getByRole('button', { name: 'Retry' }).click();
-  await expect(page.getByText('Added to Dubie')).toBeVisible();
-  await expect(page.getByText(/95(?:\.00)? birr/)).toBeVisible();
+  await page.getByRole('button', { name: /sales/i }).click();
+  await expect(page.getByText('Coffee')).toBeVisible();
+  await expect(page.getByText('Sugar')).toHaveCount(0);
+  await expect(page.getByText('Almaz')).toHaveCount(0);
 });

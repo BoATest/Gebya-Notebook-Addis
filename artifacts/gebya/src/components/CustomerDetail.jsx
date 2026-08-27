@@ -1,21 +1,28 @@
-// CustomerDetail.jsx — credit detail page (Interactive Design v2)
+// CustomerDetail.jsx — credit detail page (Timeline Intelligence enhancement)
 //
 // Layout (top → bottom):
-//   1. White header          · back + status pill + avatar/name/phone + edit/transfer
-//   2. Balance block (sticky)· owes me + stats + mark fully paid
-//   3. Quick Actions         · Call + SMS + Telegram (three-button row)
-//   4. Promise to pay        · inline date picker form
-//   5. History               · search + filter + grouped by date with left border stripe
+//   1. White header          · back + status pill + avatar/name/phone + edit
+//   2. Balance block (sticky)· you are owed + stats + mark fully paid
+//   3. Quick Actions         · Call + SMS + Transfer + Telegram + More
+//                              (More sheet: Send Reminder / Edit / Archive —
+//                               every previous action stays reachable)
+//   4. Follow-up             · Promise to pay + Reminder history, grouped
+//   5. Timeline              · search + filter + grouped by date, direction stripe
 //   6. Trust line            · 🔒 Backed up securely. Amounts auto-hide for privacy.
 //   7. Bottom action bar     · You gave / You got (fixed to bottom)
+//
+// Shop-owner view intentionally omits the "On-time %" KPI. The underlying
+// calculation is untouched and remains visible in the Credit Report (print/
+// PDF/CSV), the bank analytics payload, and the platform Admin shop deep-dive.
 //
 // Touch targets ≥44px · privacy mode · Ethiopian calendar.
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, MessageSquare, Pencil, Phone, Wallet, Search, X, ArrowRightLeft, Send,
+  ArrowLeft, Archive, ArchiveRestore, MessageSquare, MoreVertical, Pencil, Phone, Wallet, Search, Send, X, ArrowRightLeft,
 } from 'lucide-react';
 import { fmt } from '../utils/numformat';
+import { formatDays, formatDaysOverdue } from '../utils/durationFormat';
 import { toTelUrl, isValidEthiopianPhone } from '../utils/phoneNumber';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
@@ -76,6 +83,9 @@ function CustomerDetail({
   // ─── Archive confirmation state ────────────────────────────────────
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
 
+  // ─── More-actions bottom sheet state ────────────────────────────────
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
+
   // ─── Search & Filter state ──────────────────────────────────────────
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all'); // 'all' | 'credit' | 'pay'
@@ -112,17 +122,35 @@ function CustomerDetail({
     return rows;
   }, [historyRows, filterType, searchTerm]);
 
-  // ─── Sticky balance scroll handler ──────────────────────────────────
+    // ─── Sticky balance scroll handler ──────────────────────────────────
   useEffect(() => {
-    const scrollable = document.getElementById('scrollable');
-    if (!scrollable) return;
+    // The scroll container used to carry id="scrollable"; the current AppShell
+    // layout scrolls <main>. Fall back to it so the sticky balance block
+    // actually collapses on scroll (restores the intended behavior).
+    // Also listen to window scroll as a robustness fallback — on some layouts
+    // (e.g. desktop viewport where <main> content doesn't overflow) the window
+    // is the effective scroll container.
+    const scrollable =
+      document.getElementById('scrollable')
+      || document.querySelector('main');
 
     const handleScroll = () => {
-      setIsBalanceCollapsed(scrollable.scrollTop > 30);
+      let scrollTop = 0;
+      if (scrollable) scrollTop = scrollable.scrollTop;
+      // Window scroll as fallback when the container itself can't scroll
+      if (scrollTop === 0) {
+        scrollTop = window.scrollY || window.pageYOffset || 0;
+      }
+      setIsBalanceCollapsed(scrollTop > 30);
     };
 
-    scrollable.addEventListener('scroll', handleScroll, { passive: true });
-    return () => scrollable.removeEventListener('scroll', handleScroll);
+    scrollable?.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      scrollable?.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('scroll', handleScroll);
+    };
   }, []);
 
   // ─── Promise handlers ───────────────────────────────────────────────
@@ -198,7 +226,7 @@ function CustomerDetail({
               letterSpacing: '0.04em',
               flexShrink: 0,
             }}>
-              {customer.overdue_days}{lang === 'am' ? 'ቀን ያለፈው' : 'd OVERDUE'}
+              {formatDaysOverdue(customer.overdue_days, lang)}
             </span>
           )}
           {isSettled && (
@@ -316,26 +344,6 @@ function CustomerDetail({
               <Pencil className="w-3.5 h-3.5" />
             </button>
           )}
-          {onTransfer && (
-            <button
-              type="button"
-              onClick={() => onTransfer(customer)}
-              className="press-scale"
-              aria-label={lang === 'am' ? 'ዱቤ ያስተላልፉ' : 'Transfer credit'}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: 32, height: 32,
-                borderRadius: '50%',
-                background: '#f5f6f2',
-                border: 'none',
-                color: '#5b6158',
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
-            >
-              <ArrowRightLeft className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
       </div>
 
@@ -395,7 +403,7 @@ function CustomerDetail({
             fontSize: '0.58rem', fontWeight: 800,
             flexShrink: 0,
           }}>
-            {customer.overdue_days}d
+            {formatDays(customer.overdue_days, lang)}
           </span>
         )}
         {isSettled && (
@@ -435,7 +443,7 @@ function CustomerDetail({
               }}>
                 {isSettled
                   ? (lang === 'am' ? 'ተከፍሏል' : 'Settled')
-                  : (lang === 'am' ? 'ለእኔ ይከፍላሉ' : 'Owes me')}
+                  : (lang === 'am' ? 'ለእኔ ይከፍላሉ' : 'You are owed')}
               </span>
               <p style={{
                 fontFamily: "'JetBrains Mono', monospace",
@@ -496,7 +504,7 @@ function CustomerDetail({
                 }}>
                   {isSettled
                     ? (lang === 'am' ? 'ተከፍሏል' : 'Settled')
-                    : (lang === 'am' ? 'ለእኔ ይከፍላሉ' : 'Owes me')}
+                    : (lang === 'am' ? 'ለእኔ ይከፍላሉ' : 'You are owed')}
                 </p>
                 <p style={{
                   fontFamily: "'JetBrains Mono', monospace",
@@ -520,21 +528,12 @@ function CustomerDetail({
                   <span style={{ fontWeight: 700, color: '#171a17' }}>{customer.transaction_count || 0}</span>{' '}
                   {lang === 'am' ? 'መዝገብ' : 'entries'}
                 </span>
-                {customer.on_time_eligible > 0 && (() => {
-                  const pct = Math.round((customer.on_time_count / customer.on_time_eligible) * 100);
-                  return (
-                    <span>
-                      <span style={{ fontWeight: 700, color: pct >= 80 ? '#2e6a47' : pct >= 50 ? '#7a5416' : '#a0402a' }}>
-                        {pct}%
-                      </span>{' '}
-                      {lang === 'am' ? 'በወቅቱ' : 'on time'}
-                    </span>
-                  );
-                })()}
+                {/* On-time % intentionally not shown in the shop-owner view.
+                    Data + calculation remain available for admin/analytics. */}
                 {customer.avg_pay_days !== null && customer.avg_pay_days !== undefined && (
                   <span>
                     {lang === 'am' ? 'አማካይ ክፍያ' : 'Avg pay'}:{' '}
-                    <span style={{ fontWeight: 700, color: '#171a17' }}>{customer.avg_pay_days}d</span>
+                    <span style={{ fontWeight: 700, color: '#171a17' }}>{formatDays(customer.avg_pay_days, lang)}</span>
                   </span>
                 )}
               </div>
@@ -598,13 +597,13 @@ function CustomerDetail({
           </div>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 8, padding: '14px 14px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '14px 14px' }}>
         {isValidEthiopianPhone(customer.phone_number) && (
           <a
             href={toTelUrl(customer.phone_number)}
             className="press-scale"
             style={{
-              flex: 1,
+              flex: '1 1 88px',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               background: '#e7f0e9',
               border: '1px solid transparent',
@@ -627,7 +626,7 @@ function CustomerDetail({
             onClick={() => onSmsCustomer?.(customer)}
             className="press-scale"
             style={{
-              flex: 1,
+              flex: '1 1 88px',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               background: '#e6f0f7',
               border: '1px solid transparent',
@@ -644,27 +643,29 @@ function CustomerDetail({
             SMS
           </button>
         )}
-        {hasBalance && hasLinkedBorrower && onRemind && (
+        {/* Send Reminder moved to the More sheet — still one tap away. */}
+        {onTransfer && (
           <button
             type="button"
-            onClick={() => onRemind?.(customer)}
+            onClick={() => onTransfer(customer)}
             className="press-scale"
+            aria-label={lang === 'am' ? 'ዱቤ አስተላልፍ · Transfer credit' : 'Transfer credit'}
             style={{
-              flex: 1,
+              flex: '1 1 88px',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              background: '#f3e8fd',
+              background: '#f9eed4',
               border: '1px solid transparent',
               borderRadius: 10,
               padding: '10px 0',
-              color: '#7b2cbf',
+              color: '#7a5416',
               fontWeight: 700,
               fontSize: '0.78rem',
               cursor: 'pointer',
               minHeight: 44,
             }}
           >
-            <Send className="w-4 h-4" />
-            {lang === 'am' ? 'ረማመ᪵ክ' : 'Send Reminder'}
+            <ArrowRightLeft className="w-4 h-4" />
+            {lang === 'am' ? 'አስተላልፍ' : 'Transfer'}
           </button>
         )}
         <button
@@ -672,7 +673,7 @@ function CustomerDetail({
           onClick={onOpenTelegramConnect}
           className="press-scale"
           style={{
-            flex: 1,
+            flex: '1 1 88px',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             background: tg === 'linked' ? '#e7f0e9' : tg === 'manual' ? '#f9eed4' : '#fff',
             border: `1px solid ${tg === 'linked' ? 'transparent' : tg === 'manual' ? 'transparent' : '#e4e6df'}`,
@@ -716,14 +717,46 @@ function CustomerDetail({
             </button>
           )}
         </button>
+        {(
+          <button
+            type="button"
+            onClick={() => setShowMoreSheet(true)}
+            className="press-scale"
+            aria-label={lang === 'am' ? 'ተጨማሪ እርምጃዎች' : 'More actions'}
+            style={{
+              flex: '1 1 88px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              background: '#fff',
+              border: '1px solid #e4e6df',
+              borderRadius: 10,
+              padding: '10px 0',
+              color: '#5b6158',
+              fontWeight: 700,
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              minHeight: 44,
+            }}
+          >
+            <MoreVertical className="w-4 h-4" />
+            {lang === 'am' ? 'ተጨማሪ' : 'More'}
+          </button>
+        )}
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
-          4. PROMISE TO PAY
+          4. FOLLOW-UP · Promise to pay + Reminders (one logical group)
           ═══════════════════════════════════════════════════════════════ */}
-      {onRecordPromise && (
+      {(onRecordPromise || customer.has_overdue) && (
         <div style={{ padding: '0 14px 12px' }}>
-          {(() => {
+          <p style={{
+            fontSize: '0.62rem', fontWeight: 800, color: '#8b9086',
+            letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 6px',
+          }}>
+            {lang === 'am' ? 'ተከታተል' : 'Follow-up'}
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {onRecordPromise &&
+              (() => {
             const promiseDateVal = customer.promised_pay_date;
             const now = Date.now();
             const isMissed = promiseDateVal && promiseDateVal < now;
@@ -882,20 +915,18 @@ function CustomerDetail({
                 </div>
               </div>
             );
-          })()}
+            })()
+            }
+            {customer.has_overdue && (
+              <CustomerReminderHistory
+                customerId={customer.id || customer.customer_id}
+                shopId={customer.shop_id || customer.business_id}
+                lang={lang}
+                onResend={() => onRemind?.(customer)}
+              />
+            )}
+          </div>
         </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════════════════════
-          5. REMINDER HISTORY (collapsible)
-          ═══════════════════════════════════════════════════════════════ */}
-      {customer.has_overdue && (
-        <CustomerReminderHistory
-          customerId={customer.id || customer.customer_id}
-          shopId={customer.shop_id || customer.business_id}
-          lang={lang}
-          onResend={() => onRemind?.(customer)}
-        />
       )}
 
       {/* ═══════════════════════════════════════════════════════════════
@@ -905,7 +936,7 @@ function CustomerDetail({
         {/* History header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px 8px' }}>
           <p style={{ fontSize: '0.62rem', fontWeight: 800, color: '#8b9086', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>
-            {lang === 'am' ? 'መዝገብ' : 'History'}
+            {lang === 'am' ? 'መዝገብ' : 'Timeline'}
           </p>
           <span
             style={{
@@ -1161,6 +1192,126 @@ function CustomerDetail({
           BOTTOM SPACER — enough room for the fixed AppActionBar
           ═══════════════════════════════════════════════════════════════ */}
       <div style={{ height: 80 }} />
+
+      {/* ═══════════════════════════════════════════════════════════════
+          MORE ACTIONS SHEET — secondary actions stay reachable
+          (Send Reminder / Edit / Archive — nothing was removed)
+          ═══════════════════════════════════════════════════════════════ */}
+      {showMoreSheet && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setShowMoreSheet(false); }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 70,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+          }}
+        >
+          <div style={{
+            width: '100%', maxWidth: 480,
+            background: '#fff',
+            borderRadius: '20px 20px 0 0',
+            maxHeight: '85vh', overflowY: 'auto',
+            boxShadow: '0 -8px 32px -8px rgba(0,0,0,0.25)',
+          }}>
+            <div style={{ width: 38, height: 4, background: '#e4e6df', borderRadius: 999, margin: '10px auto 0' }} />
+            <div style={{
+              padding: '8px 16px 10px',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              borderBottom: '1px solid #e4e6df',
+            }}>
+              <p style={{ fontSize: '0.85rem', fontWeight: 800, color: '#171a17', margin: 0 }}>
+                {lang === 'am' ? 'ተጨማሪ እርምጃዎች' : 'More actions'}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowMoreSheet(false)}
+                aria-label={lang === 'am' ? 'ዝጋ' : 'Close'}
+                style={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: '#f5f6f2', border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={16} color="#5b6158" />
+              </button>
+            </div>
+            <div style={{ padding: '8px 8px 16px', display: 'flex', flexDirection: 'column' }}>
+              {hasBalance && hasLinkedBorrower && onRemind && (
+                <button
+                  type="button"
+                  className="history-row-active"
+                  onClick={() => { setShowMoreSheet(false); onRemind?.(customer); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 10px', background: 'none', border: 'none',
+                    borderRadius: 10, cursor: 'pointer', minHeight: 48, textAlign: 'left',
+                  }}
+                >
+                  <span style={{
+                    width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                    background: '#f3e8fd', color: '#7b2cbf',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Send size={16} />
+                  </span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#171a17' }}>
+                    {lang === 'am' ? 'አስታወስ' : 'Send Reminder'}
+                  </span>
+                </button>
+              )}
+              {onEditCustomer && (
+                <button
+                  type="button"
+                  className="history-row-active"
+                  onClick={() => { setShowMoreSheet(false); onEditCustomer(customer); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 10px', background: 'none', border: 'none',
+                    borderRadius: 10, cursor: 'pointer', minHeight: 48, textAlign: 'left',
+                  }}
+                >
+                  <span style={{
+                    width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                    background: '#eef0ea', color: '#5b6158',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Pencil size={16} />
+                  </span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#171a17' }}>
+                    {lang === 'am' ? 'ደንበኛ አስተካክል' : 'Edit customer'}
+                  </span>
+                </button>
+              )}
+              {onArchiveCustomer && (
+                <button
+                  type="button"
+                  className="history-row-active"
+                  onClick={() => { setShowMoreSheet(false); setShowArchiveConfirm(true); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 10px', background: 'none', border: 'none',
+                    borderRadius: 10, cursor: 'pointer', minHeight: 48, textAlign: 'left',
+                  }}
+                >
+                  <span style={{
+                    width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                    background: '#f5e7e1', color: '#a0402a',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {customer.archived_at ? <ArchiveRestore size={16} /> : <Archive size={16} />}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#171a17' }}>
+                    {customer.archived_at
+                      ? (lang === 'am' ? 'ደንበኛ መልስ' : 'Restore customer')
+                      : (lang === 'am' ? 'ደንበኛ አርክስ' : 'Archive customer')}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════
           SUCCESS OVERLAY

@@ -982,7 +982,7 @@ export const EN_OVERRIDES = {
   promiseCleared: 'Promise cleared',
   clearPromise: 'Clear promise',
   promisePayToday: 'Promised to pay today',
-  daysOverdue: '{days}d overdue',
+  daysOverdue: '{days} days overdue',
   needAttention: 'Need attention',
   chaseCount: '{count} need attention',
 

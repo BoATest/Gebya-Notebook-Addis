@@ -397,10 +397,10 @@ describe('daysAgoLabel', () => {
     expect(daysAgoLabel(now - 1000 * 60 * 30, 'am')).toBe('ዛሬ');
   });
 
-  it('returns "1d ago" for one day ago (English)', () => {
+  it('returns "1 day ago" for one day ago (English)', () => {
     const now = realNow();
     Date.now = () => now;
-    expect(daysAgoLabel(now - 1000 * 60 * 60 * 24 * 1.5, 'en')).toBe('1d ago');
+    expect(daysAgoLabel(now - 1000 * 60 * 60 * 24 * 1.5, 'en')).toBe('1 day ago');
   });
 
   it('returns "ከ1 ቀን በፊት" for one day ago (Amharic)', () => {
@@ -409,10 +409,10 @@ describe('daysAgoLabel', () => {
     expect(daysAgoLabel(now - 1000 * 60 * 60 * 24 * 1.5, 'am')).toBe('ከ1 ቀን በፊት');
   });
 
-  it('returns "5d ago" for multiple days (English)', () => {
+  it('returns "5 days ago" for multiple days (English)', () => {
     const now = realNow();
     Date.now = () => now;
-    expect(daysAgoLabel(now - 1000 * 60 * 60 * 24 * 5.5, 'en')).toBe('5d ago');
+    expect(daysAgoLabel(now - 1000 * 60 * 60 * 24 * 5.5, 'en')).toBe('5 days ago');
   });
 
   it('returns "ከ5 ቀን በፊት" for multiple days (Amharic)', () => {

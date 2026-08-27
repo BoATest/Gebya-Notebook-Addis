@@ -13,12 +13,14 @@ const ROLE_PRESETS = {
   manager: { can_manage_team: true, can_delete_records: true, can_edit_settings: true, can_add_records: true, can_view_reports: true },
   cashier: { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: true, can_view_reports: true },
   viewer: { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: false, can_view_reports: true },
+  trusted_staff: { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: true, can_view_reports: true },
 };
 
 const ROLE_OPTIONS = [
   { value: 'manager', label: { en: 'Manager', am: 'ማኔጀር' } },
   { value: 'cashier', label: { en: 'Sales Staff', am: 'ሰራተኛ' } },
   { value: 'viewer', label: { en: 'Auditor', am: 'ኦዲተር' } },
+  { value: 'trusted_staff', label: { en: 'Trusted Staff', am: 'ተስፋ ያለው ሰራተኛ' } },
 ];
 
 const PERMISSION_LABELS = {
@@ -272,11 +274,16 @@ export const useStaffStore = create((set, get) => ({
       const lastSettlement = lastSettlementPerStaff[String(staffId)];
       const periodStart = lastSettlement ? lastSettlement.settled_at : 0;
       const calc = await calculateExpected(String(staffId), periodStart, Date.now());
-      await saveSettlement({
-        settlement_id: generateSettlementId(),
+      const now = Date.now();
+      const newEntry = createReconciliationEntry('staff', 'submitted', staffCollectNote.trim() || t('Staff submitted collection', 'ሰራተኛ ስብስብ አስገብቷል'));
+      // Re-submitting updates the existing open submission instead of creating a duplicate.
+      const existing = get().settlements.find(
+        s => String(s.staff_id) === String(staffId) && s.reconciliation_status === 'staff_submitted'
+      );
+      const settlementPayload = {
         staff_id: staffId,
         period_start: periodStart,
-        period_end: Date.now(),
+        period_end: now,
         expected_cash: calc.expectedCash,
         expected_transfer: calc.expectedTransfer,
         expected_total: calc.expectedTotal,
@@ -287,12 +294,19 @@ export const useStaffStore = create((set, get) => ({
         reconciliation_status: 'staff_submitted',
         staff_reported_cash: cash,
         staff_reported_transfer: transfer,
-        staff_submitted_at: Date.now(),
+        staff_submitted_at: now,
         staff_note: staffCollectNote.trim() || null,
-        settled_at: Date.now(),
+        settled_at: now,
         settled_by: staffId,
-        reconciliation_log: [createReconciliationEntry('staff', 'submitted', staffCollectNote.trim() || t('Staff submitted collection', 'ሰራተኛ ስብስብ አስገብቷል'))],
-      });
+        reconciliation_log: existing?.reconciliation_log
+          ? [...existing.reconciliation_log, newEntry]
+          : [newEntry],
+      };
+      if (existing) {
+        await updateSettlement(existing.settlement_id, settlementPayload);
+      } else {
+        await saveSettlement({ settlement_id: generateSettlementId(), ...settlementPayload });
+      }
       fireToast(t('✓ Collection submitted', '✓ ስብስብ ተልኳል'), 1800);
       set({ staffCollectCash: '', staffCollectTransfer: '', staffCollectNote: '', staffCollecting: false });
       get().refreshSettlements();
@@ -300,7 +314,7 @@ export const useStaffStore = create((set, get) => ({
       const clouds = get().cloudMembers || [];
       const member = clouds.find(m => String(m.userId || m.id) === String(staffId)) ||
         clouds.find(m => String(m.id) === String(staffId));
-      const bizId = useAuthStore.getState().businessId;
+      const bizId = useAuthStore.getState().currentBusinessId;
       const staffName = member?.display_name || member?.displayName || 'Staff';
       if (bizId) {
         apiFetch('/notifications', {

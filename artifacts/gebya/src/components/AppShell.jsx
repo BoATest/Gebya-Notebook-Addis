@@ -2174,6 +2174,7 @@ export default function AppShell() {
             activeStaffMemberId={activeStaffMemberId}
             currentActorLabel={currentActorLabel}
             shopProfile={shopProfile}
+            staffMembers={staffMembers}
             onSetActiveStaffMember={handleSetActiveStaffMember}
           onSaveStaffMember={handleSaveStaffMember}
           onUpdateStaffMember={handleUpdateStaffMember}

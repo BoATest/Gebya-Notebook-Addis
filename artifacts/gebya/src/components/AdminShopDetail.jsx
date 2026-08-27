@@ -4,6 +4,7 @@ import { apiFetch } from '../utils/shared-ui.jsx';
 import { getAuthToken } from '../utils/syncEngine';
 import { fmt } from '../utils/numformat';
 import { resetSmsQuota, addShopNote, nudgeOwner, resendReminders } from '../api/admin.js';
+import { formatDays, formatDaysOverdue } from '../utils/durationFormat';
 import { ChevronLeft, Activity, AlertTriangle } from 'lucide-react';
 
 const SupportPanel = lazy(() => import('./SupportPanel.jsx'));
@@ -239,6 +240,56 @@ export default function AdminShopDetail({ businessId, onBack, lang: propLang }) 
         <div className="bg-white rounded-xl border p-3" style={{ borderColor: 'var(--color-danger-border)', background: 'var(--color-danger-bg)' }}>
           <div className="text-xs font-bold text-red-800">
             {l === 'am' ? `${st.overdueCustomers} የቆየ ደንበር ይሁዳል ${fmt(st.totalOverdueExposure)} ብር` : `${st.overdueCustomers} customers overdue — ${fmt(st.totalOverdueExposure)} ETB exposure`}
+          </div>
+        </div>
+      )}
+
+      {/* Payment behavior — per-customer On-time %, avg payment period.
+          This is where the On-time metric lives for admins (removed from the
+          shop owner's customer page, calculation unchanged). */}
+      {Array.isArray(shop.creditPerformance) && shop.creditPerformance.length > 0 && (
+        <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface-subtle)' }}>
+            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
+              {l === 'am' ? 'የክፍያ ባህሪ' : 'PAYMENT BEHAVIOR'}
+            </span>
+          </div>
+          <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
+            {shop.creditPerformance.map((c) => {
+              const rate = c.on_time_rate_percent;
+              const rateColor = rate == null
+                ? 'var(--color-text-muted)'
+                : rate >= 80
+                  ? 'var(--color-success-text)'
+                  : rate >= 50
+                    ? 'var(--color-warning)'
+                    : 'var(--color-danger-text)';
+              return (
+                <div key={c.customer_id} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold truncate" style={{ color: 'var(--color-text)' }}>
+                      {c.display_name || `Customer ${c.customer_id}`}
+                    </div>
+                    <div className="text-[10px] font-semibold" style={{ color: 'var(--color-text-muted)' }}>
+                      {c.avg_pay_days !== null && c.avg_pay_days !== undefined
+                        ? (l === 'am' ? `አማካይ ክፍያ: ${formatDays(c.avg_pay_days, 'am')}` : `Avg pay: ${formatDays(c.avg_pay_days, 'en')}`)
+                        : (l === 'am' ? 'ገና አልተከፈለም' : 'Nothing settled yet')}
+                      {' · '}{fmt(c.outstanding_birr)} ETB
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-xs font-black" style={{ color: rateColor }}>
+                      {rate == null ? '—' : `${rate}% ${l === 'am' ? 'በወቅቱ' : 'on time'}`}
+                    </div>
+                    {c.overdue_days > 0 && (
+                      <div className="text-[10px] font-bold" style={{ color: 'var(--color-danger-text)' }}>
+                        {formatDaysOverdue(c.overdue_days, l === 'am' ? 'am' : 'en')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

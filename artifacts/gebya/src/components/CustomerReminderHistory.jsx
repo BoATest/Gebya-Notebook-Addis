@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { remindersApi } from '../api/reminders';
 import { formatEthiopianTime } from '../utils/ethiopianCalendar';
+import { formatDaysAgo } from '../utils/durationFormat';
 
 const STATUS_CONFIG = {
   sent:    { en: 'Sent',    am: 'ተልኳል',    bg: 'var(--color-success-bg)', border: 'var(--color-success-border)', color: 'var(--color-success-text)' },
@@ -30,8 +31,7 @@ function daysAgo(ts, lang) {
   if (!ts) return null;
   const days = Math.floor((Date.now() - Number(ts)) / (1000 * 60 * 60 * 24));
   if (days <= 0) return lang === 'am' ? 'ዛሬ' : 'today';
-  if (days === 1) return lang === 'am' ? 'ከ1 ቀን በፊት' : '1d ago';
-  return lang === 'am' ? `ከ${days} ቀን በፊት` : `${days}d ago`;
+  return formatDaysAgo(days, lang);
 }
 
 export default function CustomerReminderHistory({ customerId, shopId, lang, onResend }) {

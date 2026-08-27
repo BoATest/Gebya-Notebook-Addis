@@ -34,6 +34,7 @@ export default function StaffPage({
   onSaveStaffMember,
   lang,
   canManageTeam,
+  staffMembers,
 }) {
   const t = (en, am) => lang === 'am' ? am : en;
 
@@ -73,17 +74,30 @@ export default function StaffPage({
           .then(rows => rows.filter(t => !t.deletedAt));
         if (cancelled) return;
         const salesMap = {};
+        const txnMap = {};
         for (const txn of txns) {
           if (txn.type !== 'sale') continue;
           const staffId = txn.actor_staff_member_id;
           if (!staffId) continue;
           if (!salesMap[staffId]) salesMap[staffId] = { count: 0, total: 0, cashTotal: 0, transferTotal: 0 };
+          if (!txnMap[staffId]) txnMap[staffId] = [];
           salesMap[staffId].count += 1;
           salesMap[staffId].total += Number(txn.amount || 0);
-          if (txn.payment_type === 'transfer' || txn.payment_type === 'bank') salesMap[staffId].transferTotal += Number(txn.amount || 0);
-          else salesMap[staffId].cashTotal += Number(txn.amount || 0);
+          const isCredit = txn.is_credit || String(txn.payment_type || '').toLowerCase() === 'credit';
+          if (txn.payment_type === 'transfer' || txn.payment_type === 'bank') {
+            salesMap[staffId].transferTotal += Number(txn.amount || 0);
+          } else if (isCredit) {
+            // Credit sale — money not yet collected, so exclude from "cash collected"
+            // to keep the staff's reported cash consistent with calculateExpected().
+          } else {
+            salesMap[staffId].cashTotal += Number(txn.amount || 0);
+          }
+          txnMap[staffId].push(txn);
         }
-        if (!cancelled) store.setTodayStaffSales(salesMap);
+        if (!cancelled) {
+          store.setTodayStaffSales(salesMap);
+          store.setTodayStaffTransactions(txnMap);
+        }
       } catch {}
     })();
     return () => { cancelled = true; };
@@ -112,8 +126,14 @@ export default function StaffPage({
     return () => document.removeEventListener('keydown', handle);
   }, [store.settling, store.viewingSettlement]);
 
-  // ─── Canonical staff list (cloud = single source of truth) ───
-  const combinedStaffList = useMemo(() => store.cloudMembers || [], [store.cloudMembers]);
+  // ─── Canonical staff list ───
+  // Owners/managers use the cloud roster (supports permission editing). Non-managers
+  // cannot fetch /business/members (backend requires owner/manager), so they fall back
+  // to the locally-synced db.staff_members roster for their own surface.
+  const combinedStaffList = useMemo(() => {
+    if (canManageTeam) return store.cloudMembers || [];
+    return staffMembers || [];
+  }, [store.cloudMembers, canManageTeam, staffMembers]);
 
   const filteredMembers = useMemo(() => {
     if (!store.searchQuery.trim()) return combinedStaffList;
@@ -498,6 +518,8 @@ export default function StaffPage({
             lastSettlementPerStaff={lastSettlementPerStaff}
             lang={lang}
             t={t}
+            openCollectionSheet={openCollectionSheet}
+            setOpenCollectionSheet={setOpenCollectionSheet}
           />
 
           <StaffTodayTeam

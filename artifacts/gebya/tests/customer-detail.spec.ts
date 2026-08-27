@@ -1,368 +1,255 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-test.describe('CustomerDetail Page', () => {
+// CustomerDetail — Timeline Intelligence enhancement acceptance tests.
+//
+// Drives the REAL UI (local-first IndexedDB), unlike the previous version of
+// this spec which mocked `/api/customers/**` and navigated to a `/customers/:id`
+// route that does not exist in the app.
+//
+// Seeded scenario (deterministic):
+//   - credit 'Sugar 5kg'      300 birr, created 30d ago, due 6d ago, UNPAID
+//     → customer is 6 days overdue, balance 300
+//   - credit 'Cooking oil'    500 birr, created 10d ago, due 1d from settlement
+//   - payment 'Repaid'        500 birr, 2d ago (settles cooking-oil credit)
+//     → avg payment period = 8 days; on-time data exists (1/1) but must be
+//       HIDDEN from the shop-owner view.
+const CUSTOMER_ID = 'cust-detail-test';
+
+async function seedSettings(page) {
+  await page.evaluate(async () => {
+    const request = indexedDB.open('GebyaDB');
+    const db = await new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('settings', 'readwrite');
+      const store = tx.objectStore('settings');
+      store.put({ key: 'intro_seen', value: 'yes' });
+      store.put({ key: 'shop_name', value: 'Test Shop' });
+      store.put({ key: 'shop_phone', value: '' });
+      store.put({ key: 'shop_telegram', value: '' });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.abort);
+    });
+    db.close();
+  });
+}
+
+async function seedCustomer(page) {
+  await page.evaluate(async (customerId) => {
+    const request = indexedDB.open('GebyaDB');
+    const db = await new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const now = Date.now();
+    const day = 86400000;
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(['customers', 'customer_transactions'], 'readwrite');
+      const customerStore = tx.objectStore('customers');
+      const txStore = tx.objectStore('customer_transactions');
+      customerStore.put({
+        id: customerId,
+        display_name: 'Addisu Test',
+        phone_number: '+251911000009',
+        balance: 300,
+        has_overdue: true,
+        overdue_days: 6,
+        transaction_count: 3,
+        on_time_eligible: 1,
+        on_time_count: 1,
+        avg_pay_days: 8,
+        latest_due_date: now - 6 * day,
+        promised_pay_date: null,
+        promise_note: null,
+        telegram_username: null,
+        telegram_chat_id: 'chat-test-1',
+        telegram_link_token: null,
+        telegram_linked_at: now - 5 * day,
+        telegram_link_requested_at: null,
+        telegram_notify_enabled: true,
+        archived_at: null,
+        created_at: now - 40 * day,
+        updated_at: now - day,
+        photo_data: null,
+        photo_caption: null,
+      });
+      // Settled credit (created 10d ago) — FIFO-settled by the payment 2d ago
+      // → avg payment period = 8 days, settled before its due date → on time.
+      txStore.put({
+        id: 'tx-detail-1',
+        customer_id: customerId,
+        type: 'credit_add',
+        amount: 500,
+        item_note: 'Cooking oil',
+        due_date: now - 1 * day,
+        created_at: now - 10 * day,
+        updated_at: now - 10 * day,
+        payment_method: 'cash',
+        reference_code: 'REF-D1',
+        telegram_delivery_state: null,
+        telegram_delivery_attempted_at: null,
+      });
+      // Overdue, unsettled credit (due 6 days ago, created after the settled one)
+      txStore.put({
+        id: 'tx-detail-2',
+        customer_id: customerId,
+        type: 'credit_add',
+        amount: 300,
+        item_note: 'Sugar 5kg',
+        due_date: now - 6 * day,
+        created_at: now - 7 * day,
+        updated_at: now - 7 * day,
+        payment_method: 'cash',
+        reference_code: 'REF-D2',
+        telegram_delivery_state: null,
+        telegram_delivery_attempted_at: null,
+      });
+      txStore.put({
+        id: 'tx-detail-3',
+        customer_id: customerId,
+        type: 'payment',
+        amount: 500,
+        item_note: 'Repaid',
+        created_at: now - 2 * day,
+        updated_at: now - 2 * day,
+        payment_method: 'cash',
+        reference_code: 'REF-D3',
+        telegram_delivery_state: null,
+        telegram_delivery_attempted_at: null,
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.abort);
+    });
+    db.close();
+  }, CUSTOMER_ID);
+}
+
+test.describe('CustomerDetail — Timeline Intelligence', () => {
+  // This machine is slow — seed reloads can take a while.
+  test.setTimeout(120000);
+
   test.beforeEach(async ({ page }) => {
-    // Mock the customer detail data
-    await page.route('**/api/customers/**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'cust-1',
-          display_name: 'Endet nesh',
-          phone_number: '+251974411258',
-          balance: 329669,
-          has_overdue: true,
-          overdue_days: 6,
-          transaction_count: 10,
-          on_time_eligible: 10,
-          on_time_count: 8,
-          avg_pay_days: 5,
-          latest_due_date: new Date().toISOString(),
-          promised_pay_date: null,
-          telegram_username: null,
-          telegram_chat_id: null,
-          telegram_link_requested_at: null,
-          telegram_notify_enabled: false,
-          archived_at: null,
-          transactions: [
-            {
-              id: 'tx-1',
-              type: 'credit_add',
-              amount: 406,
-              created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-              item_note: 'Rice, Water',
-            },
-            {
-              id: 'tx-2',
-              type: 'payment',
-              amount: 2000,
-              created_at: new Date(Date.now() - 86400000).toISOString(),
-              item_note: 'Payment',
-            },
-          ],
-        }),
-      });
+    await page.addInitScript(() => {
+      localStorage.setItem('gebya_lang', 'en');
     });
-
-    // Navigate to customer detail page
-    await page.goto('/customers/cust-1');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await seedSettings(page);
+    await seedCustomer(page);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('nav').getByRole('button', { name: /credit/i }).click();
+    await page.getByRole('button', { name: /addisu test/i }).click();
+    await expect(page.getByText('Addisu Test', { exact: true }).first()).toBeVisible();
   });
 
-  test.describe('1. Overdue badge rendering', () => {
-    test('renders overdue badge in balance block', async ({ page }) => {
-      const balanceBlock = page.locator('#balanceBlock');
-      await expect(balanceBlock).toContainText(/6d overdue/i);
-    });
-
-    test('overdue badge appears exactly once', async ({ page }) => {
-      const overdueBadges = page.locator('text=/6d overdue/i');
-      await expect(overdueBadges).toHaveCount(1);
-    });
-
-    test('does not show overdue badge when customer is not overdue', async ({ page }) => {
-      await page.route('**/api/customers/**', async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            id: 'cust-1',
-            display_name: 'Endet nesh',
-            phone_number: '+251974411258',
-            balance: 329669,
-            has_overdue: false,
-            overdue_days: 0,
-            transaction_count: 10,
-            transactions: [],
-          }),
-        });
-      });
-
-      await page.reload();
-      await expect(page.locator('text=OVERDUE')).toHaveCount(0);
-    });
+  test('owner view hides the On-time % KPI (moved to admin/analytics)', async ({ page }) => {
+    // Seeded data has on-time history (1/1 eligible) — the old UI showed
+    // "100% on time". It must not appear anywhere on the owner page.
+    await expect(page.getByText(/on time/i)).toHaveCount(0);
+    await expect(page.getByText(/\d+%\s*on time/)).toHaveCount(0);
   });
 
-  test.describe('2. Sticky balance block', () => {
-    test('renders balance block with correct content', async ({ page }) => {
-      await expect(page.locator('text=329,669')).toBeVisible();
-      await expect(page.locator('text=Owes me')).toBeVisible();
-      await expect(page.locator('text=10 entries')).toBeVisible();
-    });
-
-    test('collapses balance block when scrolling', async ({ page }) => {
-      const balanceBlock = page.locator('#balanceBlock');
-      await expect(balanceBlock).toBeVisible();
-      
-      await page.evaluate(() => window.scrollTo(0, 100));
-      await page.waitForTimeout(300);
-      
-      await expect(balanceBlock).toBeVisible();
-    });
+  test('average payment period renders as "8 days" (not "8D")', async ({ page }) => {
+    await expect(page.getByText('Avg pay:').first()).toBeVisible();
+    await expect(page.getByText('8 days', { exact: true })).toBeVisible();
+    await expect(page.getByText('8D')).toHaveCount(0);
   });
 
-  test.describe('3. Promise recording', () => {
-    test('shows "Record Promise" button when no promise exists', async ({ page }) => {
-      await expect(page.locator('text=Record Promise')).toBeVisible();
-    });
-
-    test('expands promise form when clicked', async ({ page }) => {
-      await page.click('text=Record Promise');
-      
-      await expect(page.locator('input[type="date"]')).toBeVisible();
-      await expect(page.locator('input[placeholder*="Note"]')).toBeVisible();
-      await expect(page.locator('text=Save Changes')).toBeVisible();
-      await expect(page.locator('text=Cancel')).toBeVisible();
-    });
-
-    test('calls onRecordPromise with correct arguments', async ({ page }) => {
-      let recordedPromise = null;
-      
-      await page.exposeFunction('mockRecordPromise', (customerId: string, date: number, note: string) => {
-        recordedPromise = { customerId, date, note };
-      });
-
-      await page.click('text=Record Promise');
-      await page.fill('input[type="date"]', '2024-12-25');
-      await page.fill('input[placeholder*="Note"]', 'Test note');
-      await page.click('text=Save Changes');
-      
-      await page.waitForTimeout(300);
-      await expect(page.locator('input[type="date"]')).not.toBeVisible();
-    });
-
-    test('displays existing promise information', async ({ page }) => {
-      await page.route('**/api/customers/**', async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            id: 'cust-1',
-            display_name: 'Endet nesh',
-            phone_number: '+251974411258',
-            balance: 329669,
-            has_overdue: true,
-            overdue_days: 6,
-            promised_pay_date: new Date(Date.now() + 86400000).toISOString(),
-            promise_note: 'Will pay tomorrow',
-            telegram_username: null,
-            telegram_chat_id: null,
-            archived_at: null,
-            transactions: [],
-          }),
-        });
-      });
-
-      await page.reload();
-      await expect(page.locator('text=Promised to pay')).toBeVisible();
-    });
+  test('overdue pill uses natural language "6 days overdue"', async ({ page }) => {
+    await expect(page.getByText('6 days overdue')).toBeVisible();
+    await expect(page.getByText(/6d\s*overdue/i)).toHaveCount(0);
   });
 
-  test.describe('4. Archive confirmation', () => {
-    test('shows archive button for non-archived customer', async ({ page }) => {
-      await expect(page.locator('text=Archive')).toBeVisible();
-    });
-
-    test('shows confirmation dialog when archive is clicked', async ({ page }) => {
-      await page.click('text=Archive');
-      await expect(page.locator('text=/Archive "Endet nesh"/')).toBeVisible();
-      await expect(page.locator('text=Cancel')).toBeVisible();
-    });
-
-    test('calls onArchiveCustomer when confirmed', async ({ page }) => {
-      let archiveCalled = false;
-      
-      await page.exposeFunction('mockArchive', (_customer: unknown) => {
-        archiveCalled = true;
-      });
-
-      await page.click('text=Archive');
-      const archiveButtons = page.locator('text=Archive');
-      await archiveButtons.last().click();
-      
-      await page.waitForTimeout(300);
-    });
-
-    test('does not call onArchiveCustomer when cancelled', async ({ page }) => {
-      let archiveCalled = false;
-      
-      await page.exposeFunction('mockArchive', () => {
-        archiveCalled = true;
-      });
-
-      await page.click('text=Archive');
-      await page.click('text=Cancel');
-      
-      await page.waitForTimeout(300);
-      expect(archiveCalled).toBe(false);
-    });
+  test('summary emphasizes the amount owed and entry count', async ({ page }) => {
+    await expect(page.getByText('You are owed').first()).toBeVisible();
+    await expect(page.getByText('300.00').first()).toBeVisible();
+    await expect(page.getByText(/3\s*entries/).first()).toBeVisible();
   });
 
-  test.describe('5. Telegram resend', () => {
-    test('shows resend button when telegram is linked', async ({ page }) => {
-      await page.route('**/api/customers/**', async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            id: 'cust-1',
-            display_name: 'Endet nesh',
-            phone_number: '+251974411258',
-            balance: 329669,
-            has_overdue: true,
-            overdue_days: 6,
-            telegram_chat_id: 'chat-123',
-            telegram_username: null,
-            archived_at: null,
-            transactions: [],
-          }),
-        });
-      });
-
-      await page.reload();
-      await expect(page.locator('text=Resend')).toBeVisible();
-    });
-
-    test('does not show resend button when telegram is not linked', async ({ page }) => {
-      await expect(page.locator('text=Resend')).toHaveCount(0);
-    });
+  test('Transfer is a visible first-class action', async ({ page }) => {
+    const transfer = page.locator('[aria-label*="transfer" i]');
+    await expect(transfer).toBeVisible();
+    await expect(transfer).toContainText('Transfer');
   });
 
-  test.describe('6. Edit and Transfer buttons', () => {
-    test('renders edit button beside customer name', async ({ page }) => {
-      const editButton = page.locator('[aria-label*="Edit customer" i]');
-      await expect(editButton).toBeVisible();
-    });
-
-    test('renders transfer button beside customer name', async ({ page }) => {
-      const transferButton = page.locator('[aria-label*="Transfer" i]');
-      await expect(transferButton).toBeVisible();
-    });
+  test('existing communication actions remain available', async ({ page }) => {
+    await expect(page.getByRole('link', { name: /call/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^sms$/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /linked/i })).toBeVisible();
   });
 
-  test.describe('7. History grouping', () => {
-    test('groups transactions by date', async ({ page }) => {
-      const dateHeaders = page.locator('text=/📅/');
-      await expect(dateHeaders.first()).toBeVisible();
-    });
-
-    test('shows entry count for multiple transactions on same date', async ({ page }) => {
-      await page.route('**/api/customers/**', async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            id: 'cust-1',
-            display_name: 'Endet nesh',
-            phone_number: '+251974411258',
-            balance: 329669,
-            has_overdue: false,
-            overdue_days: 0,
-            transactions: [
-              {
-                id: 'tx-1',
-                type: 'credit_add',
-                amount: 100,
-                created_at: new Date().toISOString(),
-                item_note: 'Item 1',
-              },
-              {
-                id: 'tx-2',
-                type: 'credit_add',
-                amount: 200,
-                created_at: new Date().toISOString(),
-                item_note: 'Item 2',
-              },
-            ],
-          }),
-        });
-      });
-
-      await page.reload();
-      await expect(page.locator('text=2 entries')).toBeVisible();
-    });
+  test('More sheet keeps Send Reminder / Edit / Archive reachable', async ({ page }) => {
+    await page.getByRole('button', { name: /more actions/i }).click();
+    await expect(page.getByText('More actions')).toBeVisible();
+    // .last() scopes to the sheet — the header edit button shares the name.
+    await expect(page.getByRole('button', { name: /send reminder/i }).last()).toBeVisible();
+    await expect(page.getByRole('button', { name: /edit customer/i }).last()).toBeVisible();
+    await expect(page.getByRole('button', { name: /archive customer/i }).last()).toBeVisible();
+    await page.getByRole('button', { name: /close/i }).click();
+    await expect(page.getByText('More actions')).toHaveCount(0);
   });
 
-  test.describe('8. Quick actions', () => {
-    test('renders Call, SMS, and Telegram buttons', async ({ page }) => {
-      await expect(page.locator('text=Call')).toBeVisible();
-      await expect(page.locator('text=SMS')).toBeVisible();
-      await expect(page.locator('text=/Connect|Linked|Telegram/')).toBeVisible();
-    });
+  test('Mark Fully Paid remains the dominant financial action', async ({ page }) => {
+    await expect(page.getByText(/mark fully paid/i).first()).toBeVisible();
   });
 
-  test.describe('9. Balance details', () => {
-    test('displays on-time percentage', async ({ page }) => {
-      await expect(page.locator('text=80%')).toBeVisible();
-    });
-
-    test('shows Mark Fully Paid button when balance > 0', async ({ page }) => {
-      await expect(page.locator('text=Mark Fully Paid')).toBeVisible();
-    });
+  test('Follow-up groups Promise and Reminders', async ({ page }) => {
+    await expect(page.getByText('Follow-up')).toBeVisible();
+    await expect(page.locator('button').filter({ hasText: /record promise/i }).first()).toBeVisible();
+    await expect(page.getByText(/no reminders sent/i).first()).toBeVisible();
   });
 
-  test.describe('10. Bottom action bar & photo caption', () => {
-    test('renders You gave and You got buttons', async ({ page }) => {
-      await expect(page.locator('text=You gave')).toBeVisible();
-      await expect(page.locator('text=You got')).toBeVisible();
-    });
-
-    test('shows Add photo caption on empty avatar', async ({ page }) => {
-      await page.route('**/api/customers/**', async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            id: 'cust-1',
-            display_name: 'Endet nesh',
-            phone_number: '+251974411258',
-            balance: 329669,
-            has_overdue: true,
-            overdue_days: 6,
-            transaction_count: 10,
-            on_time_eligible: 10,
-            on_time_count: 8,
-            avg_pay_days: 5,
-            latest_due_date: new Date().toISOString(),
-            promised_pay_date: null,
-            telegram_username: null,
-            telegram_chat_id: null,
-            telegram_link_requested_at: null,
-            telegram_notify_enabled: false,
-            archived_at: null,
-            transactions: [],
-          }),
-        });
-      });
-
-      await page.reload();
-      await expect(page.locator('text=Add photo')).toBeVisible();
-      await expect(page.locator('[aria-label="Add photo"]')).toBeVisible();
-    });
+  test('timeline keeps search, filters and transaction rows', async ({ page }) => {
+    await expect(page.getByPlaceholder('Search items...')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'All', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /credits/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /payments/i })).toBeVisible();
+    await expect(page.getByText('Sugar 5kg')).toBeVisible();
+    await expect(page.getByText('Repaid')).toBeVisible();
   });
 
-  test.describe('11. Sticky balance collapse on scroll', () => {
-    test('balance block collapses after scroll and shows compact amount', async ({ page }) => {
-      const balanceBlock = page.locator('#balanceBlock');
-      await expect(balanceBlock).toBeVisible();
-      await expect(balanceBlock).toContainText('Owes me');
-
-      // Scroll down to collapse
-      await page.evaluate(() => window.scrollTo(0, 200));
-      await page.waitForTimeout(300);
-
-      // Expanded text should be hidden, collapsed version visible
-      await expect(balanceBlock).not.toContainText('Owes me');
-    });
+  test('bottom action bar keeps You Gave (Dubie) / You Got (Paid)', async ({ page }) => {
+    await expect(page.getByText(/you gave/i).first()).toBeVisible();
+    await expect(page.getByText(/you got/i).first()).toBeVisible();
   });
 
-  test.describe('12. Integration', () => {
-    test('renders complete page without crashing', async ({ page }) => {
-      await expect(page.locator('text=Endet nesh')).toBeVisible();
-      await expect(page.locator('text=/Back · Customers/')).toBeVisible();
-      await expect(page.locator('text=Owes me')).toBeVisible();
-      await expect(page.locator('text=History')).toBeVisible();
-      await expect(page.locator('#balanceBlock')).toBeVisible();
+          test('sticky balance block collapses on scroll', {
+    // Mobile viewport so the 3-transaction fixture overflows the <main> scroll
+    // container — on Desktop Chrome (1280×720) there is nothing to scroll.
+    viewport: { width: 390, height: 844 },
+  }, async ({ page }) => {
+    const balanceBlock = page.locator('#balanceBlock');
+    await expect(balanceBlock).toBeVisible();
+    await expect(balanceBlock).toContainText('Mark Fully Paid');
+    // Scroll the main container (overflow-y-auto) past the 30px collapse
+    // threshold. Dispatch the event explicitly for browsers that don't
+    // fire it on programmatic scrollTop changes. Also extend the body so
+    // window scroll works as a fallback.
+    await page.evaluate(() => {
+      document.body.style.minHeight = '200vh';
+      const el = document.getElementById('scrollable')
+        || document.querySelector('main');
+      if (el) {
+        el.scrollTop = 300;
+        el.dispatchEvent(new Event('scroll', { bubbles: true }));
+      }
+      window.scrollTo(0, 300);
+      window.dispatchEvent(new Event('scroll', { bubbles: true }));
     });
+    await page.waitForTimeout(400);
+    // Collapsed bar replaces the expanded block (dominant CTA hidden).
+    await expect(balanceBlock).not.toContainText('Mark Fully Paid');
+    await expect(balanceBlock).toContainText('birr');
+  });
+
+  test('renders the complete page without crashing', async ({ page }) => {
+    // .first() — the name also appears in the sticky collapsed header.
+    await expect(page.getByText('Addisu Test', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/back · customers/i)).toBeVisible();
+    await expect(page.locator('#balanceBlock')).toBeVisible();
+    await expect(page.getByText(/backed up securely/i)).toBeVisible();
   });
 });

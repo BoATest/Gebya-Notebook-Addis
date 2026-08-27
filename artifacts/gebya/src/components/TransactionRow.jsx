@@ -89,6 +89,12 @@ export function TransactionRow({
   const amountText = transactionAmountText(tx);
   const label = transactionLabel(tx, lang, t);
   const statusBadge = transactionStatusBadge(tx, lang, t);
+  // Timeline direction stripe — "You Gave (Dubie)" vs "You Got (Paid)"
+  const stripeColor = tx.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT
+    ? '#2e6a47'
+    : tx.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD
+      ? '#a0402a'
+      : '#e4e6df';
 
   return (
     <div
@@ -103,6 +109,7 @@ export function TransactionRow({
         borderRadius: 12,
         boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
         border: '1px solid #e4e6df',
+        borderLeft: `3px solid ${stripeColor}`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',

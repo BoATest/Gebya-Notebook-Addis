@@ -11,6 +11,8 @@
 //
 // Templates use {name} {shop} {amount} variable substitution.
 
+import { formatDaysAgo } from './durationFormat';
+
 export const REMINDER_TEMPLATES = {
   gentle: {
     am: 'ሰላም {name}፣ ለ{shop} {amount} ብር ዱቤ አለዎት። ሲቻልዎ ያስታውሱ። እናመሰግናለን።',
@@ -141,6 +143,5 @@ export function daysAgoLabel(ts, lang) {
   if (!ts) return null;
   const days = Math.floor((Date.now() - Number(ts)) / (1000 * 60 * 60 * 24));
   if (days <= 0) return lang === 'am' ? 'ዛሬ' : 'today';
-  if (days === 1) return lang === 'am' ? 'ከ1 ቀን በፊት' : '1d ago';
-  return lang === 'am' ? `ከ${days} ቀን በፊት` : `${days}d ago`;
+  return formatDaysAgo(days, lang);
 }
