@@ -1,5 +1,6 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import db, { getIdentity, setIdentity } from '../db';
+import { recent } from '../utils/recentRows';
 import { getAuthToken } from '../utils/syncEngine';
 import identityApi from '../api/identity';
 import { PrivacyProvider, usePrivacy } from '../context/PrivacyContext';
@@ -285,11 +286,14 @@ export default function AppShell() {
         // Unified payment channels (Commit C.4) + legacy custom lists for migration
         paymentChannelsRow, customBanksRow, customWalletsRow, identityRow,
       ] = await Promise.all([
-        db.transactions.limit(500).toArray().then(r => r.filter(t => !t.deletedAt)),
-        db.customers.limit(500).toArray().then(r => r.filter(c => !c.deletedAt)),
-        db.customer_transactions.limit(500).toArray(),
-        db.catalog_entries?.limit?.(500)?.toArray?.() || [],
-        db.staff_members?.limit?.(500)?.toArray?.() || [],
+        // recency util keeps the FRESHEST inserts under the cap — the old
+        // limit(500) returned the OLDEST 500 rows, so shops past the cap
+        // lost every new record from all views after reload.
+        recent(db.transactions).toArray().then(r => r.filter(t => !t.deletedAt)),
+        recent(db.customers).toArray().then(r => r.filter(c => !c.deletedAt)),
+        recent(db.customer_transactions).toArray(),
+        recent(db.catalog_entries).toArray(),
+        recent(db.staff_members).toArray(),
         db.settings.get('shop_name'),
         db.settings.get('shop_phone'),
         db.settings.get('enabled_payment_methods'),
