@@ -98,7 +98,9 @@ export default function StaffPage({
           store.setTodayStaffSales(salesMap);
           store.setTodayStaffTransactions(txnMap);
         }
-      } catch {}
+      } catch (err) {
+        if (import.meta.env?.DEV) console.warn('[StaffPage] failed to compute today staff aggregates', err);
+      }
     })();
     return () => { cancelled = true; };
   }, [store.todayRefreshKey, store.setTodayStaffSales]);
