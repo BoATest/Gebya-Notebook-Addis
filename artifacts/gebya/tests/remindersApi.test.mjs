@@ -80,12 +80,9 @@ describe('remindersApi.sendManualReminder', () => {
       text: () => Promise.resolve(JSON.stringify({})),
     });
 
-    try {
-      await remindersApi.sendManualReminder('shop-1', 'cust-42', {
-        balance: 0, dueDate: null, language: 'en',
-      });
-      expect.fail('Should have thrown');
-        }
+    await expect(remindersApi.sendManualReminder('shop-1', 'cust-42', {
+      balance: 0, dueDate: null, language: 'en',
+    })).rejects.toThrow(/HTTP 500/);
   });
 });
 
