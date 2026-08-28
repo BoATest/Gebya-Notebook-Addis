@@ -25,6 +25,13 @@ const SYNC_TABLES = [
 // not user-facing "pending" data).
 const KV_TABLES = ['settings', 'analytics'];
 
+// Hard cap on rows per table in a single push payload. Must match the
+// server's MAX_ROWS_PER_TABLE_PUSH in api-server/src/routes/sync.ts — if
+// either side raises the limit, the other must follow. Without this cap
+// the server silently slices the payload and the client would ack rows the
+// server never applied (permanent data loss for long-offline devices).
+const MAX_PUSH_ROWS_PER_TABLE = 500;
+
 // Pull requests re-read a safety window behind the cursor so records stamped by
 // devices with skewed clocks are never skipped. Re-delivered rows are deduped
 // by the version-aware merge below.
@@ -182,6 +189,7 @@ class SyncEngine {
     this._setupOnlineListeners();
     this._setupDexieHooks();
     this._setupPeriodicSync();
+    this._requestPersistentStorage();
     await this._seedOutbox();
     await this._countPending();
 
@@ -191,6 +199,21 @@ class SyncEngine {
     if (this.pendingCount > 0) {
       this.sync();
     }
+  }
+
+  /**
+   * Request persistent storage so the OS does not evict our IndexedDB under
+   * disk pressure. The browser may grant or deny (and may not support the
+   * API at all in private mode); any of those outcomes is fine — we just try.
+   */
+  _requestPersistentStorage() {
+    if (typeof navigator === 'undefined' || !navigator.storage?.persist) return;
+    navigator.storage.persist().then((granted) => {
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.debug('[sync] persistent storage', granted ? 'granted' : 'not granted');
+      }
+    }).catch(() => { /* non-fatal */ });
   }
 
   /**
@@ -463,10 +486,13 @@ class SyncEngine {
 
   async _pushAll(token) {
     const payload = { device_id: this.deviceId, tables: {} };
-    // Outbox entries acknowledged by the server. They are removed only after
-    // a successful response, so a failed/aborted push naturally retries the
-    // exact same record set next cycle.
-    const ackKeys = [];
+    // Per-table ack keys so the server's per-table applied-count can decide
+    // which entries are safe to retire (defence-in-depth against the server
+    // capping rows and the client not knowing which were dropped).
+    const ackKeysByTable = Object.create(null);
+    // Per-table count of rows actually included in the payload — compared
+    // against response.results[name].count to detect truncation.
+    const sentCountByTable = Object.create(null);
 
     const entries = db.sync_outbox ? await db.sync_outbox.toArray() : [];
     const byTable = {};
@@ -480,7 +506,11 @@ class SyncEngine {
       if (!tableEntries?.length) continue;
 
       const ids = tableEntries.map((e) => e.record_id);
-      const rows = ((await db[name].bulkGet(ids)) || []).filter(Boolean);
+      const loaded = (await db[name].bulkGet(ids)) || [];
+      // Cap the per-table payload at the server's hard limit. The remaining
+      // outbox entries for this table stay queued and ship on the next cycle
+      // — never silently dropped.
+      const rows = loaded.filter(Boolean).slice(0, MAX_PUSH_ROWS_PER_TABLE);
 
       // Rows pulled from another device carry their origin here. Re-key them
       // to that origin so edits (e.g. an owner's settlement review) update the
@@ -491,9 +521,13 @@ class SyncEngine {
           : row
       );
 
-      // Entries whose local row vanished before the push (deleted locally)
-      // have nothing left to send — acknowledge and drop them too.
-      tableEntries.forEach((entry) => ackKeys.push(entry.key));
+      // Only mark outbox entries whose rows we actually included in the
+      // payload. Entries beyond the cap stay in the outbox for next cycle.
+      const includedIds = new Set(rows.map((r) => r.id));
+      ackKeysByTable[name] = tableEntries
+        .filter((entry) => includedIds.has(entry.record_id))
+        .map((entry) => entry.key);
+      sentCountByTable[name] = rows.length;
       if (!rows.length) delete payload.tables[name];
     }
 
@@ -537,12 +571,33 @@ class SyncEngine {
       throw new Error(friendly);
     }
 
-    // Server acknowledged — retire the pushed outbox entries.
+    const response = await res.json();
+
+    // Server acknowledged — retire only the outbox entries the server
+    // confirmed it applied. If a table was truncated (results[name].count
+    // < sentCountByTable[name]), KEEP those entries: they will retry on the
+    // next sync cycle instead of being silently lost. If `results` is absent
+    // (older server / cached response), fall back to the legacy behaviour
+    // and trust the HTTP 200.
+    const ackKeys = [];
+    const results = response?.results;
+    for (const name of Object.keys(ackKeysByTable)) {
+      const applied = results?.[name]?.count;
+      if (typeof applied === 'number' && applied < (sentCountByTable[name] || 0)) {
+        if (import.meta.env.DEV) {
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[sync] push truncated on ${name}: sent ${sentCountByTable[name]}, ` +
+            `server applied ${applied} — keeping outbox entries for retry`
+          );
+        }
+        continue;
+      }
+      ackKeys.push(...ackKeysByTable[name]);
+    }
     if (ackKeys.length && db.sync_outbox) {
       try { await db.sync_outbox.bulkDelete(ackKeys); } catch { /* recount heals */ }
     }
-
-    const response = await res.json();
 
     // Track business_id from server if returned
     if (response.business_id) {

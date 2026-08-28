@@ -547,11 +547,65 @@ describe('SyncEngine._pushAll', () => {
     mockDb.transactions.bulkGet.mockResolvedValue([{ id: 1, updated_at: 2000 }]);
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ ok: true, business_id: 1 }),
+      json: () => Promise.resolve({ ok: true, business_id: 1, results: { transactions: { count: 1, conflicts: 0 } } }),
     });
 
     await engine._pushAll('test-token');
     expect(mockDb.sync_outbox.bulkDelete).toHaveBeenCalledWith(['transactions:1']);
+  });
+
+  it('keeps outbox entries when server reports truncated applied count', async () => {
+    // Regression: the server caps pushes at MAX_ROWS_PER_TABLE_PUSH. If we
+    // sent more than the cap and the server silently dropped the excess, the
+    // old code deleted ALL outbox keys (permanent data loss). The new code
+    // keeps the truncated entries and lets the next cycle retry them.
+    mockDb.sync_outbox.toArray.mockResolvedValue([
+      { key: 'transactions:1', table: 'transactions', record_id: 1, created_at: 1 },
+    ]);
+    mockDb.transactions.bulkGet.mockResolvedValue([{ id: 1, updated_at: 2000 }]);
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        ok: true,
+        results: { transactions: { count: 0, conflicts: 0 } },
+      }),
+    });
+
+    await engine._pushAll('test-token');
+    expect(mockDb.sync_outbox.bulkDelete).not.toHaveBeenCalled();
+  });
+
+  it('caps per-table push payload at the server hard limit', async () => {
+    // Regression: long-offline devices accumulate >500 entries in one table.
+    // The push must slice the payload so the server's MAX_ROWS_PER_TABLE_PUSH
+    // never silently drops rows. The remainder stays in the outbox.
+    const manyEntries = Array.from({ length: 600 }, (_, i) => ({
+      key: `transactions:${i + 1}`,
+      table: 'transactions',
+      record_id: i + 1,
+      created_at: i + 1,
+    }));
+    const manyRows = manyEntries.map((e) => ({ id: e.record_id, updated_at: 2000 + e.record_id }));
+    mockDb.sync_outbox.toArray.mockResolvedValue(manyEntries);
+    mockDb.transactions.bulkGet.mockResolvedValue(manyRows);
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        ok: true,
+        results: { transactions: { count: 500, conflicts: 0 } },
+      }),
+    });
+
+    await engine._pushAll('test-token');
+
+    // Server gets exactly 500 rows in the transactions table.
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.tables.transactions).toHaveLength(500);
+
+    // Only the 500 included entries are acked; the remaining 100 stay queued.
+    const deleted = mockDb.sync_outbox.bulkDelete.mock.calls[0][0];
+    expect(deleted).toHaveLength(500);
   });
 
   it('drops outbox entries whose local row vanished before push', async () => {
