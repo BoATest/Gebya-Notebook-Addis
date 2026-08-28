@@ -221,7 +221,9 @@ test.describe('CustomerDetail — Timeline Intelligence', () => {
     test('sticky balance block collapses on scroll', async ({ page }) => {
       const balanceBlock = page.locator('#balanceBlock');
       await expect(balanceBlock).toBeVisible();
-      await expect(balanceBlock).toContainText('Mark Fully Paid');
+      // Mark Fully Paid is now the dominant Tier‑1 action in the Quick Actions
+      // row (beside Transfer), not inside the balance block.
+      await expect(page.getByRole('button', { name: /mark fully paid/i }).first()).toBeVisible();
       // Scroll the main container (overflow-y-auto) past the 30px collapse
       // threshold. Dispatch the event explicitly for browsers that don't
       // fire it on programmatic scrollTop changes. Also extend the body so

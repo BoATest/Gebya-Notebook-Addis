@@ -2,8 +2,9 @@
 //
 // Layout (top → bottom):
 //   1. White header          · back + status pill + avatar/name/phone + edit
-//   2. Balance block (sticky)· you are owed + stats + mark fully paid
-//   3. Quick Actions         · Call + SMS + Transfer + Telegram + More
+//   2. Balance block (sticky)· you are owed + stats (Mark Fully Paid lives in row 3)
+//   3. Quick Actions         · Mark Fully Paid (Tier 1, dominant) + Transfer + Call
+//                              + SMS + Telegram + More
 //                              (More sheet: Send Reminder / Edit / Archive —
 //                               every previous action stays reachable)
 //   4. Follow-up             · Promise to pay + Reminder history, grouped
@@ -538,26 +539,6 @@ function CustomerDetail({
                 )}
               </div>
             </div>
-            {/* Mark Fully Paid button */}
-            {hasBalance && onMarkFullyPaid && (
-              <button
-                type="button"
-                onClick={handleMarkFullyPaid}
-                className="press-scale"
-                style={{
-                  width: '100%', padding: '12px',
-                  background: '#1b4332', color: '#fff',
-                  border: 'none', borderRadius: 10,
-                  fontSize: '0.82rem', fontWeight: 800,
-                  cursor: 'pointer', minHeight: 44,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  transition: 'all 0.3s ease',
-                }}
-              >
-                <Wallet className="w-4 h-4" />
-                {lang === 'am' ? `ሁሉንም ይክፈሉ · ${fmt(balance)} ብር` : `Mark Fully Paid · ${fmt(balance)} birr`}
-              </button>
-            )}
             {isSettled && (
               <div style={{
                 width: '100%', padding: '12px',
@@ -598,6 +579,56 @@ function CustomerDetail({
         </div>
       )}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '14px 14px' }}>
+        {/* Tier 1 — financially critical. Placed as the dominant action,
+            immediately beside Transfer per the design hierarchy. */}
+        {hasBalance && onMarkFullyPaid && (
+          <button
+            type="button"
+            onClick={handleMarkFullyPaid}
+            className="press-scale"
+            style={{
+              flex: '1 1 120px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              background: '#1b4332',
+              border: '1px solid transparent',
+              borderRadius: 10,
+              padding: '10px 0',
+              color: '#fff',
+              fontWeight: 800,
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              minHeight: 44,
+            }}
+          >
+            <Wallet className="w-4 h-4" />
+            {lang === 'am' ? 'ሁሉንም ይክፈሉ' : 'Mark Fully Paid'}
+          </button>
+        )}
+        {/* Send Reminder lives in the More sheet — still one tap away. */}
+        {onTransfer && (
+          <button
+            type="button"
+            onClick={() => onTransfer(customer)}
+            className="press-scale"
+            aria-label={lang === 'am' ? 'ዱቤ አስተላልፍ · Transfer credit' : 'Transfer credit'}
+            style={{
+              flex: '1 1 88px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              background: '#f9eed4',
+              border: '1px solid transparent',
+              borderRadius: 10,
+              padding: '10px 0',
+              color: '#7a5416',
+              fontWeight: 700,
+              fontSize: '0.78rem',
+              cursor: 'pointer',
+              minHeight: 44,
+            }}
+          >
+            <ArrowRightLeft className="w-4 h-4" />
+            {lang === 'am' ? 'አስተላልፍ' : 'Transfer'}
+          </button>
+        )}
         {isValidEthiopianPhone(customer.phone_number) && (
           <a
             href={toTelUrl(customer.phone_number)}
@@ -641,31 +672,6 @@ function CustomerDetail({
           >
             <MessageSquare className="w-4 h-4" />
             SMS
-          </button>
-        )}
-        {/* Send Reminder moved to the More sheet — still one tap away. */}
-        {onTransfer && (
-          <button
-            type="button"
-            onClick={() => onTransfer(customer)}
-            className="press-scale"
-            aria-label={lang === 'am' ? 'ዱቤ አስተላልፍ · Transfer credit' : 'Transfer credit'}
-            style={{
-              flex: '1 1 88px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              background: '#f9eed4',
-              border: '1px solid transparent',
-              borderRadius: 10,
-              padding: '10px 0',
-              color: '#7a5416',
-              fontWeight: 700,
-              fontSize: '0.78rem',
-              cursor: 'pointer',
-              minHeight: 44,
-            }}
-          >
-            <ArrowRightLeft className="w-4 h-4" />
-            {lang === 'am' ? 'አስተላልፍ' : 'Transfer'}
           </button>
         )}
         <button
@@ -1189,9 +1195,10 @@ function CustomerDetail({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════
-          BOTTOM SPACER — enough room for the fixed AppActionBar
+          BOTTOM SPACER — clears the fixed AppActionBar (You Gave / You Got),
+          which is position:fixed bottom-[60px] with ~120px total footprint.
           ═══════════════════════════════════════════════════════════════ */}
-      <div style={{ height: 80 }} />
+      <div style={{ height: 132 }} />
 
       {/* ═══════════════════════════════════════════════════════════════
           MORE ACTIONS SHEET — secondary actions stay reachable
