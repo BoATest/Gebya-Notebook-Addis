@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 // CustomerDetail — Timeline Intelligence enhancement acceptance tests.
 //
@@ -15,14 +15,14 @@ import { expect, test } from '@playwright/test';
 //       HIDDEN from the shop-owner view.
 const CUSTOMER_ID = 'cust-detail-test';
 
-async function seedSettings(page) {
+async function seedSettings(page: Page) {
   await page.evaluate(async () => {
     const request = indexedDB.open('GebyaDB');
-    const db = await new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result);
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result as IDBDatabase);
       request.onerror = () => reject(request.error);
     });
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const tx = db.transaction('settings', 'readwrite');
       const store = tx.objectStore('settings');
       store.put({ key: 'intro_seen', value: 'yes' });
@@ -37,16 +37,16 @@ async function seedSettings(page) {
   });
 }
 
-async function seedCustomer(page) {
-  await page.evaluate(async (customerId) => {
+async function seedCustomer(page: Page) {
+  await page.evaluate(async (customerId: string) => {
     const request = indexedDB.open('GebyaDB');
-    const db = await new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result);
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result as IDBDatabase);
       request.onerror = () => reject(request.error);
     });
     const now = Date.now();
     const day = 86400000;
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(['customers', 'customer_transactions'], 'readwrite');
       const customerStore = tx.objectStore('customers');
       const txStore = tx.objectStore('customer_transactions');
@@ -216,33 +216,32 @@ test.describe('CustomerDetail — Timeline Intelligence', () => {
     await expect(page.getByText(/you got/i).first()).toBeVisible();
   });
 
-          test('sticky balance block collapses on scroll', {
-    // Mobile viewport so the 3-transaction fixture overflows the <main> scroll
-    // container — on Desktop Chrome (1280×720) there is nothing to scroll.
-    viewport: { width: 390, height: 844 },
-  }, async ({ page }) => {
-    const balanceBlock = page.locator('#balanceBlock');
-    await expect(balanceBlock).toBeVisible();
-    await expect(balanceBlock).toContainText('Mark Fully Paid');
-    // Scroll the main container (overflow-y-auto) past the 30px collapse
-    // threshold. Dispatch the event explicitly for browsers that don't
-    // fire it on programmatic scrollTop changes. Also extend the body so
-    // window scroll works as a fallback.
-    await page.evaluate(() => {
-      document.body.style.minHeight = '200vh';
-      const el = document.getElementById('scrollable')
-        || document.querySelector('main');
-      if (el) {
-        el.scrollTop = 300;
-        el.dispatchEvent(new Event('scroll', { bubbles: true }));
-      }
-      window.scrollTo(0, 300);
-      window.dispatchEvent(new Event('scroll', { bubbles: true }));
+  test.describe('mobile viewport', () => {
+    test.use({ viewport: { width: 390, height: 844 } });
+    test('sticky balance block collapses on scroll', async ({ page }) => {
+      const balanceBlock = page.locator('#balanceBlock');
+      await expect(balanceBlock).toBeVisible();
+      await expect(balanceBlock).toContainText('Mark Fully Paid');
+      // Scroll the main container (overflow-y-auto) past the 30px collapse
+      // threshold. Dispatch the event explicitly for browsers that don't
+      // fire it on programmatic scrollTop changes. Also extend the body so
+      // window scroll works as a fallback.
+      await page.evaluate(() => {
+        document.body.style.minHeight = '200vh';
+        const el = document.getElementById('scrollable')
+          || document.querySelector('main');
+        if (el) {
+          el.scrollTop = 300;
+          el.dispatchEvent(new Event('scroll', { bubbles: true }));
+        }
+        window.scrollTo(0, 300);
+        window.dispatchEvent(new Event('scroll', { bubbles: true }));
+      });
+      await page.waitForTimeout(400);
+      // Collapsed bar replaces the expanded block (dominant CTA hidden).
+      await expect(balanceBlock).not.toContainText('Mark Fully Paid');
+      await expect(balanceBlock).toContainText('birr');
     });
-    await page.waitForTimeout(400);
-    // Collapsed bar replaces the expanded block (dominant CTA hidden).
-    await expect(balanceBlock).not.toContainText('Mark Fully Paid');
-    await expect(balanceBlock).toContainText('birr');
   });
 
   test('renders the complete page without crashing', async ({ page }) => {
