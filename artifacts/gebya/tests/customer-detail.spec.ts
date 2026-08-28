@@ -202,6 +202,38 @@ test.describe('CustomerDetail — Timeline Intelligence', () => {
     await expect(page.getByText(/no reminders sent/i).first()).toBeVisible();
   });
 
+  test('promise to pay also appears as a timeline entry', async ({ page }) => {
+    test.setTimeout(120000);
+    await page.addInitScript(() => localStorage.setItem('gebya_lang', 'en'));
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await seedSettings(page);
+    await seedCustomer(page);
+    // Record a promise on the seeded customer.
+    await page.evaluate((cid) => new Promise((res) => {
+      const r = indexedDB.open('GebyaDB');
+      r.onsuccess = () => {
+        const db = r.result;
+        const tx = db.transaction('customers', 'readwrite');
+        const store = tx.objectStore('customers');
+        const get = store.get(cid);
+        get.onsuccess = () => {
+          const c = get.result;
+          c.promised_pay_date = Date.now() + 2 * 86400000;
+          c.promise_note = 'Friday market';
+          store.put(c);
+          tx.oncomplete = () => { db.close(); res(); };
+        };
+      };
+    }), CUSTOMER_ID);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.locator('nav').getByRole('button', { name: /credit/i }).click();
+    await page.getByRole('button', { name: /addisu test/i }).click();
+    await expect(page.getByText('Addisu Test', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/promise to pay/i).first()).toBeVisible();
+    // "Friday market" appears in both the Follow-up note and the timeline entry.
+    await expect(page.getByText('Friday market').first()).toBeVisible();
+  });
+
   test('timeline keeps search, filters and transaction rows', async ({ page }) => {
     await expect(page.getByPlaceholder('Search items...')).toBeVisible();
     await expect(page.getByRole('button', { name: 'All', exact: true })).toBeVisible();

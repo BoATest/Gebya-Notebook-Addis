@@ -20,7 +20,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, Archive, ArchiveRestore, MessageSquare, MoreVertical, Pencil, Phone, Wallet, Search, Send, X, ArrowRightLeft,
+  ArrowLeft, Archive, ArchiveRestore, CreditCard, MessageSquare, MoreVertical, Pencil, Phone, Wallet, Search, Send, X, ArrowRightLeft,
 } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { formatDays, formatDaysOverdue } from '../utils/durationFormat';
@@ -106,11 +106,25 @@ function CustomerDetail({
     });
   }, [customer.transactions, balance]);
 
-  // ─── Filtered history rows ──────────────────────────────────────────
+  // ─── Filtered history rows (incl. Promise-to-Pay as a timeline entry) ───
   const filteredRows = useMemo(() => {
-    let rows = historyRows;
+    // Promise to Pay is surfaced in the timeline, grouped by its due date.
+    const promiseEntry = customer.promised_pay_date
+      ? {
+          id: 'promise-entry',
+          isPromise: true,
+          type: 'promise',
+          created_at: customer.promised_pay_date,
+          item_note: customer.promise_note || '',
+          promiseNote: customer.promise_note || '',
+        }
+      : null;
+    let rows = promiseEntry ? [...historyRows, promiseEntry] : [...historyRows];
+    // Newest first so the promise lands under its own due-date group.
+    rows = rows.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
     if (filterType !== 'all') {
       rows = rows.filter(tx => {
+        if (tx.isPromise) return false; // promise is neither a credit nor a payment
         if (filterType === 'credit') return tx.type === CUSTOMER_TRANSACTION_TYPES.CREDIT_ADD;
         if (filterType === 'pay') return tx.type === CUSTOMER_TRANSACTION_TYPES.PAYMENT;
         return true;
@@ -118,10 +132,13 @@ function CustomerDetail({
     }
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
-      rows = rows.filter(tx => (tx.item_note || '').toLowerCase().includes(term));
+      rows = rows.filter(tx => {
+        if (tx.isPromise) return (tx.promiseNote || '').toLowerCase().includes(term);
+        return (tx.item_note || '').toLowerCase().includes(term);
+      });
     }
     return rows;
-  }, [historyRows, filterType, searchTerm]);
+  }, [historyRows, filterType, searchTerm, customer.promised_pay_date, customer.promise_note]);
 
     // ─── Sticky balance scroll handler ──────────────────────────────────
   useEffect(() => {
@@ -1077,6 +1094,54 @@ function CustomerDetail({
                   );
                   lastDate = txDate;
                 }
+                if (tx.isPromise) {
+                  elements.push(
+                    <div
+                      key="promise-entry"
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                        padding: '12px 14px', borderRadius: 12,
+                        background: '#f9eed4', border: '1px solid #E4D5B0',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                        <span style={{
+                          width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                          background: '#f0e2bd', color: '#7a5416',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem',
+                        }}>📅</span>
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: '#7a5416' }}>
+                            {lang === 'am' ? 'የተስፋፉበት' : 'Promise to Pay'}
+                          </p>
+                          {tx.promiseNote && (
+                            <p style={{
+                              margin: 0, fontSize: '0.72rem', color: '#7a5416',
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }}>
+                              {tx.promiseNote}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {onClearPromise && (
+                        <button
+                          type="button"
+                          onClick={() => onClearPromise(customer.id)}
+                          className="press-scale"
+                          style={{
+                            flexShrink: 0, background: 'none', border: 'none',
+                            fontSize: '0.65rem', fontWeight: 700, color: '#8b9086',
+                            cursor: 'pointer', padding: '4px 8px',
+                          }}
+                        >
+                          {lang === 'am' ? 'አስወግድ' : 'Clear'}
+                        </button>
+                      )}
+                    </div>
+                  );
+                  return;
+                }
                 elements.push(
                   <TransactionRow
                     key={tx.id || idx}
@@ -1195,10 +1260,53 @@ function CustomerDetail({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════
-          BOTTOM SPACER — clears the fixed AppActionBar (You Gave / You Got),
-          which is position:fixed bottom-[60px] with ~120px total footprint.
+          PERSISTENT ACTIONS — You Gave (Dubie) / You Got (Paid)
+          Rendered in-flow at the bottom of the page (scrolls with content),
+          per the redesigned layout. Bottom padding clears the fixed tab nav.
           ═══════════════════════════════════════════════════════════════ */}
-      <div style={{ height: 132 }} />
+      <div style={{ padding: '12px 14px 76px' }}>
+        <p style={{
+          fontSize: '0.62rem', fontWeight: 800, color: '#8b9086',
+          letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 6px',
+        }}>
+          {lang === 'am' ? 'ቋሚ እርምጃዎች' : 'Persistent actions'}
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            onClick={onAddCredit}
+            className="press-scale"
+            style={{
+              flex: 1, padding: '13px',
+              background: '#E75645', border: 'none', borderRadius: 14,
+              color: '#fff', fontWeight: 800, fontSize: '0.82rem',
+              cursor: 'pointer', minHeight: 48,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}
+          >
+            <CreditCard className="w-4 h-4" />
+            {t.creditGave}
+          </button>
+          <button
+            type="button"
+            onClick={onRecordPayment}
+            disabled={!hasBalance}
+            className="press-scale"
+            style={{
+              flex: 1, padding: '13px',
+              background: '#2EAB6F', border: 'none', borderRadius: 14,
+              color: '#fff', fontWeight: 800, fontSize: '0.82rem',
+              cursor: hasBalance ? 'pointer' : 'not-allowed',
+              minHeight: 48,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              opacity: hasBalance ? 1 : 0.5,
+            }}
+          >
+            <Wallet className="w-4 h-4" />
+            {t.creditGot}
+          </button>
+        </div>
+      </div>
 
       {/* ═══════════════════════════════════════════════════════════════
           MORE ACTIONS SHEET — secondary actions stay reachable
