@@ -317,7 +317,7 @@ function CustomerDetail({
               letterSpacing: '0.04em',
               flexShrink: 0,
             }}>
-              {lang === 'am' ? 'ተስፋፎ' : 'PROMISE'}
+              {lang === 'am' ? 'ተስፋ' : 'PROMISE'}
             </span>
           )}
         </div>
@@ -587,7 +587,7 @@ function CustomerDetail({
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
-                {lang === 'am' ? 'ሙሉ በሙሉ ተከፍሏል' : 'Balance Fully Paid'}
+                {lang === 'am' ? 'ሙሉ ተከፍሏል' : 'Balance Fully Paid'}
               </div>
             )}
           </>
@@ -629,7 +629,7 @@ function CustomerDetail({
             }}
           >
             <Wallet className="w-4 h-4" />
-            {lang === 'am' ? 'ሁሉንም ይክፈሉ' : 'Mark Fully Paid'}
+            {lang === 'am' ? 'ሙሉ ይከፍሉ' : 'Mark Fully Paid'}
           </button>
         )}
         {/* Tier 2 — Promise to Pay (record). Hidden while a promise is active;
@@ -654,7 +654,7 @@ function CustomerDetail({
             }}
           >
             <CalendarClock className="w-4 h-4" />
-            {lang === 'am' ? 'የተስፋፉበት' : 'Promise'}
+            {lang === 'am' ? 'ተስፋፍ' : 'Promise'}
           </button>
         )}
         {isValidEthiopianPhone(customer.phone_number) && (
@@ -888,7 +888,7 @@ function CustomerDetail({
                   onClick={() => { setPromiseDate(''); setPromiseNote(''); setPromiseAmount(''); setShowPromiseForm(true); }}
                   style={{ padding: '12px', background: '#1b4332', border: 'none', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, color: '#fff', cursor: 'pointer', width: '100%' }}
                 >
-                  📅 {lang === 'am' ? 'የተስፋፉበትን ቀን ይመዝግቡ' : 'Record a Promise'}
+                  📅 {lang === 'am' ? 'ተስፋፍ ይመዝግቡ' : 'Record a Promise'}
                 </button>
               );
             }
