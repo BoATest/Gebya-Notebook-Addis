@@ -33,6 +33,7 @@ import { useLang } from '../context/LangContext';
 import CustomerReminderHistory from './CustomerReminderHistory';
 import { TransactionRow, transactionLabel, transactionStatusBadge } from '@/components/TransactionRow';
 import { TelegramIcon, initialsOf, telegramState, DAY_MS } from "./customerDetailHelpers";
+import { useAppStore } from '../stores/appStore';
 
 
 // ─── component ────────────────────────────────────────────────────────
@@ -87,6 +88,13 @@ function CustomerDetail({
 
   // ─── More-actions bottom sheet state ────────────────────────────────
   const [showMoreSheet, setShowMoreSheet] = useState(false);
+
+  // Hide the persistent bottom action bar while a transaction sheet/modal is
+  // open over it — otherwise the fixed bar (z-45) intercepts clicks meant for
+  // the sheet's controls and visually bleeds through.
+  const transactionSheetOpen = useAppStore(
+    (s) => !!s.customerTransactionModal || !!s.customerTransactionEditTarget || !!s.supplierTransactionModal
+  );
 
   // ─── Tabs + new-tab state (Timeline | Promises | Notes) ───────────────
   const [activeTab, setActiveTab] = useState('timeline');
@@ -1361,6 +1369,7 @@ function CustomerDetail({
       {/* Constant action bar pinned just above the bottom tab nav so the
           primary money actions are always reachable. Opaque + themed so it
           never lets content show through, and offset clear of the nav. */}
+      {!transactionSheetOpen && (
       <div className="left-0 right-0 lg:left-64" style={{
         position: 'fixed',
         bottom: 76,
@@ -1409,6 +1418,7 @@ function CustomerDetail({
           </div>
         </div>
       </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════
            MORE ACTIONS SHEET — secondary actions stay reachable

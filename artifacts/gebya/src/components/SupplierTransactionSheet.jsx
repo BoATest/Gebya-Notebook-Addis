@@ -181,7 +181,7 @@ function SupplierTransactionSheet({
 
   return (
     <div
-      className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-30 max-w-md mx-auto flex flex-col"
+      className="fixed inset-x-0 top-0 bottom-[60px] bg-white z-50 max-w-md mx-auto flex flex-col"
       style={{ background: 'var(--color-surface)' }}
     >
       {/* Header */}
