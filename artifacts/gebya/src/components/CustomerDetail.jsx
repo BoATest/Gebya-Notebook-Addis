@@ -785,7 +785,7 @@ function CustomerDetail({
       >
         {[
           { key: 'timeline', label: lang === 'am' ? 'ታሪክ' : 'Timeline' },
-          { key: 'promises', label: lang === 'am' ? 'የተስፋፉ' : 'Promises' },
+          { key: 'promises', label: lang === 'am' ? 'ቃል የተገባ' : 'Promises' },
           { key: 'notes', label: lang === 'am' ? 'ማስታወሻዎች' : 'Notes' },
         ].map(tab => {
           const active = activeTab === tab.key;
@@ -1003,14 +1003,14 @@ function CustomerDetail({
             }
               {promiseHistory.length > 0 && (
                 <div style={{ marginTop: 10 }}>
-                  <p style={{ fontSize: '0.66rem', fontWeight: 800, color: '#8b9086', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 6px' }}>{lang === 'am' ? 'ያለፉ የተስፋፉ' : 'Past Promises'}</p>
+                  <p style={{ fontSize: '0.66rem', fontWeight: 800, color: '#8b9086', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 6px' }}>{lang === 'am' ? 'ያለፉ ቃል የተገባ' : 'Past Promises'}</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {promiseHistory.map(p => {
                       const sColor = p.status === 'missed' ? '#a0402a' : p.status === 'paid' ? '#1b7a3d' : '#5b6158';
                       return (
                         <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#fff', border: '1px solid #e4e6df', borderRadius: 10 }}>
                           <div style={{ minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 600, color: '#171a17' }}>{p.amount ? fmt(Number(p.amount)) : (lang === 'am' ? 'የተስፋፉ' : 'Promise')}</p>
+                            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 600, color: '#171a17' }}>{p.amount ? fmt(Number(p.amount)) : (lang === 'am' ? 'ቃል የተገባ' : 'Promise')}</p>
                             <p style={{ margin: 0, fontSize: '0.68rem', color: '#8b9086' }}>{p.due ? formatEthiopian(p.due) : ''} · {new Date(p.at).toLocaleDateString(lang === 'am' ? 'am-ET' : 'en-GB')}</p>
                           </div>
                           <span style={{ fontSize: '0.66rem', fontWeight: 800, color: sColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
