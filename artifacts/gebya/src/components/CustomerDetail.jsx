@@ -20,12 +20,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, Archive, ArchiveRestore, CreditCard, MessageSquare, MoreVertical, Pencil, Phone, Wallet, Search, Send, X, ArrowRightLeft,
+  ArrowLeft, Archive, ArchiveRestore, CalendarClock, CreditCard, MessageSquare, MoreVertical, Pencil, Phone, Wallet, Search, Send, X, ArrowRightLeft, SlidersHorizontal,
 } from 'lucide-react';
 import { fmt } from '../utils/numformat';
 import { formatDays, formatDaysOverdue } from '../utils/durationFormat';
 import { toTelUrl, isValidEthiopianPhone } from '../utils/phoneNumber';
 import { formatEthiopian } from '../utils/ethiopianCalendar';
+import db from '../db';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
 import { getCreditAllocationStatus, getPaymentSettlementCount } from '../utils/customerLedgerMutations';
 import { useLang } from '../context/LangContext';
@@ -86,6 +87,17 @@ function CustomerDetail({
 
   // ─── More-actions bottom sheet state ────────────────────────────────
   const [showMoreSheet, setShowMoreSheet] = useState(false);
+
+  // ─── Tabs + new-tab state (Timeline | Promises | Notes) ───────────────
+  const [activeTab, setActiveTab] = useState('timeline');
+  const [dateRange, setDateRange] = useState('all');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [promiseAmount, setPromiseAmount] = useState('');
+  const [notesList, setNotesList] = useState(() => Array.isArray(customer.notes) ? customer.notes : []);
+  const [promiseHistory, setPromiseHistory] = useState(() => Array.isArray(customer.promise_history) ? customer.promise_history : []);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editNoteText, setEditNoteText] = useState('');
 
   // ─── Search & Filter state ──────────────────────────────────────────
   const [searchTerm, setSearchTerm] = useState('');
@@ -186,6 +198,45 @@ function CustomerDetail({
     setShowPromiseForm(false);
     setPromiseDate('');
     setPromiseNote('');
+  };
+
+  // ─── Notes (private, per-customer) ────────────────────────────────────
+  const persistNotes = (next) => {
+    setNotesList(next);
+    db.customers.update(customer.id, { notes: next }).catch(() => {});
+  };
+  const addNote = (text) => persistNotes([...notesList, { id: 'n_' + Date.now(), text, created_at: Date.now() }]);
+  const updateNote = (id, text) => persistNotes(notesList.map(n => n.id === id ? { ...n, text } : n));
+  const deleteNote = (id) => persistNotes(notesList.filter(n => n.id !== id));
+
+  // ─── Promise history (past promises: cleared / missed / paid) ─────────
+  const recordPromiseHistory = (status) => {
+    const entry = {
+      id: 'p_' + Date.now(),
+      due: customer.promised_pay_date || null,
+      amount: customer.promise_amount || null,
+      status,
+      at: Date.now(),
+    };
+    const next = [entry, ...promiseHistory];
+    setPromiseHistory(next);
+    db.customers.update(customer.id, { promise_history: next }).catch(() => {});
+  };
+  const handleRecordPromiseExt = () => {
+    if (!promiseDate) return;
+    const parsed = new Date(promiseDate + 'T23:59:59').getTime();
+    if (isNaN(parsed)) return;
+    const amt = promiseAmount ? Number(promiseAmount) : null;
+    onRecordPromise?.(customer.id, parsed, promiseNote, amt);
+    setShowPromiseForm(false);
+    setPromiseDate('');
+    setPromiseNote('');
+    setPromiseAmount('');
+  };
+  const handleClearPromiseExt = () => {
+    const missed = customer.promised_pay_date && customer.promised_pay_date < Date.now();
+    recordPromiseHistory(missed ? 'missed' : 'cleared');
+    onClearPromise?.(customer.id);
   };
 
   // ─── Archive handler ────────────────────────────────────────────────
@@ -413,42 +464,32 @@ function CustomerDetail({
             {fmt(balance)} <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#8b9086' }}>{lang === 'am' ? 'ብር' : 'birr'}</span>
           </p>
         </div>
-        {/* Status pill */}
-        {(customer.has_overdue && customer.overdue_days > 0) && (
-          <span style={{
-            background: '#f5e7e1', color: '#a0402a',
-            padding: '3px 8px', borderRadius: 999,
-            fontSize: '0.58rem', fontWeight: 800,
-            flexShrink: 0,
-          }}>
-            {formatDays(customer.overdue_days, lang)}
-          </span>
-        )}
-        {isSettled && (
-          <span style={{
-            background: '#e7f0e9', color: '#2e6a47',
-            padding: '3px 8px', borderRadius: 999,
-            fontSize: '0.58rem', fontWeight: 800,
-            flexShrink: 0,
-          }}>
-            ✓
-          </span>
-        )}
+        {/* Contextual date/status chip — keeps the key "when" visible on scroll */}
+        {(() => {
+          const due = customer.promised_pay_date;
+          const isPromise = due && due > Date.now();
+          if (isSettled) {
+            return <span style={{ background: '#e7f0e9', color: '#2e6a47', padding: '3px 8px', borderRadius: 999, fontSize: '0.58rem', fontWeight: 800, flexShrink: 0 }}>✓ {lang === 'am' ? 'ተከፍሏል' : 'Settled'}</span>;
+          }
+          if (isPromise) {
+            return <span style={{ background: '#f9eed4', color: '#7a5416', padding: '3px 8px', borderRadius: 999, fontSize: '0.58rem', fontWeight: 800, flexShrink: 0 }}>{lang === 'am' ? 'የሚከፍለው' : 'Due'} {formatEthiopian(due)}</span>;
+          }
+          if (customer.has_overdue && customer.overdue_days > 0) {
+            return <span style={{ background: '#f5e7e1', color: '#a0402a', padding: '3px 8px', borderRadius: 999, fontSize: '0.58rem', fontWeight: 800, flexShrink: 0 }}>{formatDays(customer.overdue_days, lang)}</span>;
+          }
+          return null;
+        })()}
       </div>
       <div
         id="balanceBlock"
         style={{
           background: '#f5f6f2',
-          padding: isBalanceCollapsed ? '10px 14px' : '8px 14px 14px',
+          padding: '8px 14px 14px',
           position: 'sticky',
-          top: isBalanceCollapsed ? 52 : 0,
+          top: 0,
           zIndex: 10,
-          transition: 'all 0.3s ease',
-          boxShadow: isBalanceCollapsed ? '0 4px 12px rgba(0,0,0,0.03)' : 'none',
-          display: isBalanceCollapsed ? 'flex' : 'block',
-          alignItems: isBalanceCollapsed ? 'center' : undefined,
-          justifyContent: isBalanceCollapsed ? 'space-between' : undefined,
-          gap: isBalanceCollapsed ? 12 : undefined,
+          transition: 'opacity 0.2s ease',
+          display: isBalanceCollapsed ? 'none' : 'block',
         }}
       >
         {isBalanceCollapsed ? (
@@ -477,27 +518,7 @@ function CustomerDetail({
                 {fmt(balance)} <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#8b9086' }}>{lang === 'am' ? 'ብር' : 'birr'}</span>
               </p>
             </div>
-            {hasBalance && onMarkFullyPaid && (
-              <button
-                type="button"
-                onClick={handleMarkFullyPaid}
-                className="press-scale"
-                style={{
-                  padding: '8px 14px',
-                  background: '#1b4332',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  height: 36,
-                }}
-              >
-                {lang === 'am' ? 'ክፍል' : 'Pay'}
-              </button>
-            )}
+
             {isSettled && (
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -578,24 +599,14 @@ function CustomerDetail({
            ═══════════════════════════════════════════════════════════════ */}
       {shopPlan !== 'plus' && hasBalance && hasLinkedBorrower && (
         <div style={{ padding: '0 14px 8px' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '8px 12px', borderRadius: 10,
-            background: '#feffe8', border: '1px solid #facc15',
-          }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ca8a00" strokeWidth="2">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5M2 12l10 5 10-5" />
-            </svg>
-            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#7a5416' }}>
-              {lang === 'am'
-                ? 'ሊሆን የሚያስፈላገው የአዲስ መዋረያዊ ዝግጅት ነው'
-                : 'Automated reminders are a Plus feature. On-demand reminders still work.'}
-            </span>
-          </div>
+          <p style={{ margin: 0, fontSize: '0.66rem', color: '#a8ada2', lineHeight: 1.4 }}>
+            {lang === 'am'
+              ? 'ራስ-ሰር ማስታወሻ የ Plus ምርቅ ነው — ከፈለጉ በኩል ማስታወሻ ይሠራል።'
+              : 'Automated reminders are a Plus feature — on-demand reminders still work.'}
+          </p>
         </div>
       )}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '14px 14px' }}>
+      <div className="hide-scrollbar" style={{ display: 'flex', flexWrap: 'nowrap', gap: 8, padding: '14px 14px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         {/* Tier 1 — financially critical. Placed as the dominant action,
             immediately beside Transfer per the design hierarchy. */}
         {hasBalance && onMarkFullyPaid && (
@@ -604,12 +615,12 @@ function CustomerDetail({
             onClick={handleMarkFullyPaid}
             className="press-scale"
             style={{
-              flex: '1 1 120px',
+              flex: '0 0 auto',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               background: '#1b4332',
               border: '1px solid transparent',
               borderRadius: 10,
-              padding: '10px 0',
+              padding: '10px 12px',
               color: '#fff',
               fontWeight: 800,
               fontSize: '0.78rem',
@@ -621,20 +632,20 @@ function CustomerDetail({
             {lang === 'am' ? 'ሁሉንም ይክፈሉ' : 'Mark Fully Paid'}
           </button>
         )}
-        {/* Send Reminder lives in the More sheet — still one tap away. */}
-        {onTransfer && (
+        {/* Tier 2 — Promise to Pay (record). Hidden while a promise is active;
+            the Follow-up section shows the live promise state + Clear. */}
+        {!customer.promised_pay_date && onRecordPromise && (
           <button
             type="button"
-            onClick={() => onTransfer(customer)}
+            onClick={() => { setShowPromiseForm(true); setActiveTab('promises'); }}
             className="press-scale"
-            aria-label={lang === 'am' ? 'ዱቤ አስተላልፍ · Transfer credit' : 'Transfer credit'}
             style={{
-              flex: '1 1 88px',
+              flex: '0 0 auto',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               background: '#f9eed4',
               border: '1px solid transparent',
               borderRadius: 10,
-              padding: '10px 0',
+              padding: '10px 12px',
               color: '#7a5416',
               fontWeight: 700,
               fontSize: '0.78rem',
@@ -642,8 +653,8 @@ function CustomerDetail({
               minHeight: 44,
             }}
           >
-            <ArrowRightLeft className="w-4 h-4" />
-            {lang === 'am' ? 'አስተላልፍ' : 'Transfer'}
+            <CalendarClock className="w-4 h-4" />
+            {lang === 'am' ? 'የተስፋፉበት' : 'Promise'}
           </button>
         )}
         {isValidEthiopianPhone(customer.phone_number) && (
@@ -651,12 +662,12 @@ function CustomerDetail({
             href={toTelUrl(customer.phone_number)}
             className="press-scale"
             style={{
-              flex: '1 1 88px',
+              flex: '0 0 auto',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               background: '#e7f0e9',
               border: '1px solid transparent',
               borderRadius: 10,
-              padding: '10px 0',
+              padding: '10px 12px',
               color: '#2e6a47',
               fontWeight: 700,
               fontSize: '0.78rem',
@@ -674,12 +685,12 @@ function CustomerDetail({
             onClick={() => onSmsCustomer?.(customer)}
             className="press-scale"
             style={{
-              flex: '1 1 88px',
+              flex: '0 0 auto',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               background: '#e6f0f7',
               border: '1px solid transparent',
               borderRadius: 10,
-              padding: '10px 0',
+              padding: '10px 12px',
               color: '#2a6690',
               fontWeight: 700,
               fontSize: '0.78rem',
@@ -691,55 +702,8 @@ function CustomerDetail({
             SMS
           </button>
         )}
-        <button
-          type="button"
-          onClick={onOpenTelegramConnect}
-          className="press-scale"
-          style={{
-            flex: '1 1 88px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            background: tg === 'linked' ? '#e7f0e9' : tg === 'manual' ? '#f9eed4' : '#fff',
-            border: `1px solid ${tg === 'linked' ? 'transparent' : tg === 'manual' ? 'transparent' : '#e4e6df'}`,
-            borderRadius: 10,
-            padding: '10px 0',
-            color: tg === 'linked' ? '#2e6a47' : tg === 'manual' ? '#7a5416' : '#171a17',
-            fontWeight: 700,
-            fontSize: '0.78rem',
-            cursor: 'pointer',
-            minHeight: 44,
-            position: 'relative',
-          }}
-        >
-          <TelegramIcon />
-          {tg === 'linked'
-            ? (lang === 'am' ? 'ተገናኝቷል' : 'Linked')
-            : tg === 'manual'
-              ? (lang === 'am' ? 'ቴሌግራም' : 'Telegram')
-              : (lang === 'am' ? 'አገናኝ' : 'Connect')}
-          {tg === 'linked' && onResendTelegramUpdate && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onResendTelegramUpdate?.();
-              }}
-              style={{
-                position: 'absolute',
-                top: 2,
-                right: 4,
-                background: 'none',
-                border: 'none',
-                color: '#8b9086',
-                fontSize: '0.6rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                padding: '2px 4px',
-              }}
-            >
-              {lang === 'am' ? 'እንደገና ላክ' : 'Resend'}
-            </button>
-          )}
-        </button>
+        {/* Transfer, Telegram/Connect and the rest live in the More sheet to
+            reduce visual competition (hierarchy pass). */}
         {(
           <button
             type="button"
@@ -747,12 +711,12 @@ function CustomerDetail({
             className="press-scale"
             aria-label={lang === 'am' ? 'ተጨማሪ እርምጃዎች' : 'More actions'}
             style={{
-              flex: '1 1 88px',
+              flex: '0 0 auto',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               background: '#fff',
               border: '1px solid #e4e6df',
               borderRadius: 10,
-              padding: '10px 0',
+              padding: '10px 12px',
               color: '#5b6158',
               fontWeight: 700,
               fontSize: '0.78rem',
@@ -766,10 +730,99 @@ function CustomerDetail({
         )}
       </div>
 
+      {/* ─── Compact context rows (point 5): active promise + reminders, only when relevant ─── */}
+      {(() => {
+        const promiseDateVal = customer.promised_pay_date;
+        const now = Date.now();
+        const isMissed = promiseDateVal && promiseDateVal < now;
+        const isToday = promiseDateVal && Math.abs(promiseDateVal - now) < 86400000;
+        const showPromise = !!promiseDateVal && onRecordPromise;
+        const showReminder = customer.has_overdue;
+        if (!showPromise && !showReminder) return null;
+        return (
+          <div style={{ padding: '8px 14px 0' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {showPromise && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderRadius: 10, background: isMissed ? '#f5e7e1' : '#f9eed4', border: `1px solid ${isMissed ? '#E7C3B7' : '#E4D5B0'}` }}>
+                  <span style={{ fontSize: '0.76rem', fontWeight: 600, color: isMissed ? '#a0402a' : '#7a5416', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    📅 {isMissed
+                      ? (lang === 'am' ? `የጠበቀው ቀን አልፏል — ${formatEthiopian(promiseDateVal)}` : `Missed promise — due ${formatEthiopian(promiseDateVal)}`)
+                      : isToday
+                        ? (lang === 'am' ? 'ዛሬ ይከፍላል ብሏል' : 'Promised to pay today')
+                        : (lang === 'am' ? `እስከ ${formatEthiopian(promiseDateVal)} ይከፍላል ብሏል` : `Promised to pay by ${formatEthiopian(promiseDateVal)}`)}
+                    {customer.promise_note && <span style={{ fontWeight: 400, opacity: 0.8 }}> — {customer.promise_note}</span>}
+                  </span>
+                  <button type="button" onClick={handleClearPromiseExt} style={{ background: 'none', border: 'none', fontSize: '0.65rem', fontWeight: 700, color: '#8b9086', cursor: 'pointer', padding: '4px 8px' }}>{lang === 'am' ? 'አስወግድ' : 'Clear'}</button>
+                </div>
+              )}
+              {showReminder && (
+                <div style={{ padding: '2px 0' }}>
+                  <CustomerReminderHistory
+                    customerId={customer.id || customer.customer_id}
+                    shopId={customer.shop_id || customer.business_id}
+                    lang={lang}
+                    onResend={() => onRemind?.(customer)}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ─── Tabs (point 6): Timeline | Promises | Notes ─── */}
+      <div
+        role="tablist"
+        aria-label="Customer detail sections"
+        style={{
+          display: 'flex',
+          gap: 4,
+          padding: '6px 12px 0',
+          marginTop: 8,
+          borderBottom: '1px solid #e4e6df',
+          background: 'var(--color-surface)',
+        }}
+      >
+        {[
+          { key: 'timeline', label: lang === 'am' ? 'ታሪክ' : 'Timeline' },
+          { key: 'promises', label: lang === 'am' ? 'የተስፋፉ' : 'Promises' },
+          { key: 'notes', label: lang === 'am' ? 'ማስታወሻዎች' : 'Notes' },
+        ].map(tab => {
+          const active = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              role="tab"
+              aria-selected={active}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className="press-scale"
+              style={{
+                appearance: 'none',
+                background: 'none',
+                border: 'none',
+                padding: '10px 10px 12px',
+                fontSize: '0.82rem',
+                fontWeight: active ? 800 : 600,
+                color: active ? '#171a17' : '#8b9086',
+                cursor: 'pointer',
+                position: 'relative',
+                fontFamily: 'inherit',
+              }}
+            >
+              {tab.label}
+              {active && (
+                <span style={{ position: 'absolute', left: 8, right: 8, bottom: -1, height: 2, background: '#171a17', borderRadius: 2 }} />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {/* ═══════════════════════════════════════════════════════════════
           4. FOLLOW-UP · Promise to pay + Reminders (one logical group)
           ═══════════════════════════════════════════════════════════════ */}
-      {(onRecordPromise || customer.has_overdue) && (
+      {activeTab === 'promises' && (onRecordPromise || customer.has_overdue) && (
         <div style={{ padding: '0 14px 12px' }}>
           <p style={{
             fontSize: '0.62rem', fontWeight: 800, color: '#8b9086',
@@ -832,20 +885,10 @@ function CustomerDetail({
               return (
                 <button
                   type="button"
-                  onClick={() => setShowPromiseForm(true)}
-                  className="press-scale"
-                  style={{
-                    display: 'block', width: '100%',
-                    background: '#fff',
-                    border: '1px dashed #8b9086',
-                    borderRadius: 10,
-                    padding: '10px 14px',
-                    fontSize: '0.78rem', fontWeight: 700,
-                    color: '#5b6158',
-                    cursor: 'pointer',
-                  }}
+                  onClick={() => { setPromiseDate(''); setPromiseNote(''); setPromiseAmount(''); setShowPromiseForm(true); }}
+                  style={{ padding: '12px', background: '#1b4332', border: 'none', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, color: '#fff', cursor: 'pointer', width: '100%' }}
                 >
-                  + {lang === 'am' ? 'የተስፋፉበትን ቀን ይመዝግቡ' : 'Record Promise to Pay'}
+                  📅 {lang === 'am' ? 'የተስፋፉበትን ቀን ይመዝግቡ' : 'Record a Promise'}
                 </button>
               );
             }
@@ -867,6 +910,24 @@ function CustomerDetail({
                   type="date"
                   value={promiseDate}
                   onChange={(e) => setPromiseDate(e.target.value)}
+                  className="promise-input"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '1px solid #e4e6df',
+                    borderRadius: 8,
+                    fontSize: '0.85rem',
+                    fontFamily: 'inherit',
+                    color: '#171a17',
+                    background: '#fff',
+                  }}
+                />
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={promiseAmount}
+                  onChange={(e) => setPromiseAmount(e.target.value)}
+                  placeholder={lang === 'am' ? 'መጠን (ምርጫ)' : 'Amount (optional)'}
                   className="promise-input"
                   style={{
                     width: '100%',
@@ -917,7 +978,7 @@ function CustomerDetail({
                   </button>
                   <button
                     type="button"
-                    onClick={handleRecordPromise}
+                    onClick={handleRecordPromiseExt}
                     disabled={!promiseDate}
                     style={{
                       flex: 1,
@@ -940,14 +1001,27 @@ function CustomerDetail({
             );
             })()
             }
-            {customer.has_overdue && (
-              <CustomerReminderHistory
-                customerId={customer.id || customer.customer_id}
-                shopId={customer.shop_id || customer.business_id}
-                lang={lang}
-                onResend={() => onRemind?.(customer)}
-              />
-            )}
+              {promiseHistory.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <p style={{ fontSize: '0.66rem', fontWeight: 800, color: '#8b9086', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 6px' }}>{lang === 'am' ? 'ያለፉ የተስፋፉ' : 'Past Promises'}</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {promiseHistory.map(p => {
+                      const sColor = p.status === 'missed' ? '#a0402a' : p.status === 'paid' ? '#1b7a3d' : '#5b6158';
+                      return (
+                        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#fff', border: '1px solid #e4e6df', borderRadius: 10 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 600, color: '#171a17' }}>{p.amount ? fmt(Number(p.amount)) : (lang === 'am' ? 'የተስፋፉ' : 'Promise')}</p>
+                            <p style={{ margin: 0, fontSize: '0.68rem', color: '#8b9086' }}>{p.due ? formatEthiopian(p.due) : ''} · {new Date(p.at).toLocaleDateString(lang === 'am' ? 'am-ET' : 'en-GB')}</p>
+                          </div>
+                          <span style={{ fontSize: '0.66rem', fontWeight: 800, color: sColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            {p.status === 'missed' ? (lang === 'am' ? 'ተጠራቀመ' : 'Missed') : p.status === 'paid' ? (lang === 'am' ? 'ተከፍሏል' : 'Paid') : (lang === 'am' ? 'ተሰረዘ' : 'Cleared')}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
           </div>
         </div>
       )}
@@ -955,7 +1029,7 @@ function CustomerDetail({
       {/* ═══════════════════════════════════════════════════════════════
           6. HISTORY · search + filter + grouped by date
           ═══════════════════════════════════════════════════════════════ */}
-      <div>
+      {activeTab === 'timeline' && (<div>
         {/* History header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px 8px' }}>
           <p style={{ fontSize: '0.62rem', fontWeight: 800, color: '#8b9086', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>
@@ -1004,7 +1078,7 @@ function CustomerDetail({
               </button>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             {[
               { key: 'all', label: lang === 'am' ? 'ሁሉም' : 'All' },
               { key: 'credit', label: lang === 'am' ? 'ዱቤ' : 'Credits' },
@@ -1029,141 +1103,161 @@ function CustomerDetail({
                 {chip.label}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setShowFilterMenu(v => !v)}
+              className="press-scale"
+              style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 999, background: '#fff', border: '1px solid #e4e6df', fontSize: '0.7rem', fontWeight: 700, color: '#5b6158', cursor: 'pointer' }}
+            >
+              <SlidersHorizontal size={12} /> {lang === 'am' ? 'ማጣሪያ' : 'Filter'}
+            </button>
           </div>
+          {showFilterMenu && (
+            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {[{ key: 'all', label: lang === 'am' ? 'ሁሉም ጊዜ' : 'All time' }, { key: '30', label: lang === 'am' ? 'የመጨረሻ 30 ቀናት' : 'Last 30 days' }, { key: '90', label: lang === 'am' ? 'የመጨረሻ 90 ቀናት' : 'Last 90 days' }, { key: '365', label: lang === 'am' ? 'የመጨረሻ አመት' : 'Last year' }].map(opt => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => { setDateRange(opt.key); setShowFilterMenu(false); }}
+                  style={{ padding: '4px 10px', borderRadius: 999, background: dateRange === opt.key ? '#1b4332' : '#fff', border: `1px solid ${dateRange === opt.key ? '#1b4332' : '#e4e6df'}`, fontSize: '0.68rem', fontWeight: 700, color: dateRange === opt.key ? '#fff' : '#5b6158', cursor: 'pointer' }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Ledger list — individual card rows */}
-        {filteredRows.length === 0 ? (
-          <div style={{
-            margin: '0 14px',
-            padding: 40,
-            background: '#fff',
-            border: '1px solid #e4e6df',
-            borderRadius: 12,
-            textAlign: 'center',
-          }}>
-            <p style={{ fontSize: '0.85rem', color: '#8b9086', margin: 0 }}>
-              {searchTerm || filterType !== 'all'
-                ? (lang === 'am' ? 'ምንም ውጤት አልተገኘም' : 'No entries found')
-                : (lang === 'am' ? 'መዝገብ የለም' : 'No entries yet')}
-            </p>
-            {!searchTerm && filterType === 'all' && (
-              <p style={{ fontSize: '0.7rem', color: '#8b9086', marginTop: 8 }}>
-                {lang === 'am' ? 'ለመጀመር ዱቤ ይጨምሩ' : 'Tap + Credit to start'}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-            margin: '0 14px',
-          }}>
-            {(() => {
-              const elements = [];
-              let lastDate = null;
-              filteredRows.forEach((tx, idx) => {
-                const txDate = formatEthiopian(tx.created_at);
-                if (txDate !== lastDate) {
-                  const sameDayCount = filteredRows.filter(
-                    r => formatEthiopian(r.created_at) === txDate
-                  ).length;
-                  elements.push(
-                    <div
-                      key={`date_${txDate}_${idx}`}
-                      style={{
-                        padding: '4px 4px 0',
-                        fontSize: '0.65rem',
-                        fontWeight: 800,
-                        color: '#8b9086',
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <span>📅 {txDate}</span>
-                      {sameDayCount > 1 && (
-                        <span style={{ color: '#8b9086', fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
-                          {sameDayCount} {lang === 'am' ? 'መዝገብ' : 'entries'}
-                        </span>
-                      )}
-                    </div>
-                  );
-                  lastDate = txDate;
-                }
-                if (tx.isPromise) {
-                  elements.push(
-                    <div
-                      key="promise-entry"
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-                        padding: '12px 14px', borderRadius: 12,
-                        background: '#f9eed4', border: '1px solid #E4D5B0',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                        <span style={{
-                          width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-                          background: '#f0e2bd', color: '#7a5416',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem',
-                        }}>📅</span>
-                        <div style={{ minWidth: 0 }}>
-                          <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: '#7a5416' }}>
-                            {lang === 'am' ? 'የተስፋፉበት' : 'Promise to Pay'}
-                          </p>
-                          {tx.promiseNote && (
-                            <p style={{
-                              margin: 0, fontSize: '0.72rem', color: '#7a5416',
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            }}>
-                              {tx.promiseNote}
-                            </p>
-                          )}
+        {/* Connected vertical timeline (points 7-9) */}
+        {(() => {
+          const now = Date.now();
+          let rows = filteredRows.filter(r => !r.isPromise);
+          if (filterType === 'credit') rows = rows.filter(r => r.type === 'credit' || r.type === 'credit_allocation');
+          else if (filterType === 'pay') rows = rows.filter(r => r.type === 'pay' || r.type === 'payment_allocation' || r.type === 'credit_payment');
+          if (dateRange !== 'all') {
+            const min = now - Number(dateRange) * 86400000;
+            rows = rows.filter(r => (r.created_at || 0) >= min);
+          }
+          if (rows.length === 0) {
+            return (
+              <div style={{ margin: '0 14px', padding: 40, background: '#fff', border: '1px solid #e4e6df', borderRadius: 12, textAlign: 'center' }}>
+                <p style={{ fontSize: '0.85rem', color: '#8b9086', margin: 0 }}>{lang === 'am' ? 'ምንም ውጤት አልተገኘም' : 'No entries found'}</p>
+              </div>
+            );
+          }
+          const groups = [];
+          let lastDate = null;
+          rows.forEach(tx => {
+            const d = formatEthiopian(tx.created_at);
+            if (d !== lastDate) { groups.push({ date: d, items: [] }); lastDate = d; }
+            groups[groups.length - 1].items.push(tx);
+          });
+          const isPayment = (tx) => tx.type === 'pay' || tx.type === 'payment_allocation' || tx.type === 'credit_payment';
+          const dotColor = (tx) => isPayment(tx) ? '#1b7a3d' : '#c0392b';
+          const amtColor = (tx) => isPayment(tx) ? '#1b7a3d' : '#c0392b';
+          const amtSign = (tx) => isPayment(tx) ? '−' : '+';
+          const label = (tx) => {
+            if (tx.item) return tx.item;
+            return isPayment(tx) ? (lang === 'am' ? 'ክፍያ' : 'Payment') : (lang === 'am' ? 'ዱቤ' : 'Credit');
+          };
+          const sub = (tx) => tx.note || (isPayment(tx) ? (lang === 'am' ? 'ክፍል ተቀባይቷል' : 'Payment received') : (lang === 'am' ? 'ዱቤ ተሰጥቷል' : 'Credit given'));
+          const timeStr = (ts) => { try { return new Date(ts).toLocaleTimeString(lang === 'am' ? 'am-ET' : 'en-GB', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; } };
+          return (
+            <div style={{ margin: '0 14px 16px' }}>
+              {groups.map((g) => (
+                <div key={g.date} style={{ marginBottom: 2 }}>
+                  <div style={{ padding: '6px 0 2px', fontSize: '0.66rem', fontWeight: 800, color: '#8b9086', letterSpacing: '0.04em', textTransform: 'uppercase', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>📅 {g.date}</span>
+                    {g.items.length > 1 && <span style={{ fontWeight: 600, textTransform: 'none' }}>{g.items.length} {lang === 'am' ? 'መዝገብ' : 'entries'}</span>}
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'absolute', left: 7, top: 8, bottom: 8, width: 2, background: '#e4e6df' }} />
+                    {g.items.map((tx, i) => (
+                      <div key={tx.id || i} style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', gap: 10, padding: '7px 0' }} onClick={() => onSelectTransaction?.(tx)}>
+                        <span style={{ position: 'relative', zIndex: 1, width: 16, height: 16, borderRadius: '50%', marginTop: 3, background: dotColor(tx), border: '2px solid #fff', boxShadow: '0 0 0 1px #e4e6df', flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#171a17', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label(tx)}</span>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: amtColor(tx), whiteSpace: 'nowrap' }}>{amtSign(tx)}{fmt(Math.abs(Number(tx.amount)))}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                            <span style={{ fontSize: '0.7rem', color: '#8b9086', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub(tx)}</span>
+                            <span style={{ fontSize: '0.68rem', color: '#8b9086', whiteSpace: 'nowrap' }}>{timeStr(tx.created_at)}</span>
+                          </div>
                         </div>
                       </div>
-                      {onClearPromise && (
-                        <button
-                          type="button"
-                          onClick={() => onClearPromise(customer.id)}
-                          className="press-scale"
-                          style={{
-                            flexShrink: 0, background: 'none', border: 'none',
-                            fontSize: '0.65rem', fontWeight: 700, color: '#8b9086',
-                            cursor: 'pointer', padding: '4px 8px',
-                          }}
-                        >
-                          {lang === 'am' ? 'አስወግድ' : 'Clear'}
-                        </button>
-                      )}
-                    </div>
-                  );
-                  return;
-                }
-                elements.push(
-                  <TransactionRow
-                    key={tx.id || idx}
-                    tx={tx}
-                    isLast={idx === filteredRows.length - 1}
-                    lang={lang}
-                    onSelectTransaction={onSelectTransaction}
-                    t={t}
-                  />
-                );
-              });
-              return elements;
-            })()}
-          </div>
-        )}
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
+      )}
+
+      {/* ─── Notes tab (points 13-14): private dated notes ─── */}
+      {activeTab === 'notes' && (
+        <div style={{ padding: '12px 14px 24px' }}>
+          {notesList.length === 0 && (
+            <p style={{ fontSize: '0.8rem', color: '#8b9086', textAlign: 'center', padding: 20, margin: 0 }}>
+              {lang === 'am' ? 'ምንም ማስታወሻ የለም' : 'No notes yet'}
+            </p>
+          )}
+          {notesList.map(n => (
+            <div key={n.id} style={{ padding: '10px 12px', background: '#fff', border: '1px solid #e4e6df', borderRadius: 10, marginBottom: 8 }}>
+              {editingNoteId === n.id ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <textarea
+                    value={editNoteText}
+                    onChange={(e) => setEditNoteText(e.target.value)}
+                    rows={2}
+                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #e4e6df', borderRadius: 8, fontSize: '0.82rem', fontFamily: 'inherit', color: '#171a17', resize: 'vertical' }}
+                  />
+                  <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                    <button type="button" onClick={() => setEditingNoteId(null)} style={{ padding: '6px 10px', background: '#f5f6f2', border: '1px solid #e4e6df', borderRadius: 8, fontSize: '0.74rem', fontWeight: 700, color: '#171a17', cursor: 'pointer' }}>{t.cancel}</button>
+                    <button type="button" onClick={() => { updateNote(n.id, editNoteText); setEditingNoteId(null); }} disabled={!editNoteText.trim()} style={{ padding: '6px 10px', background: '#1b4332', border: 'none', borderRadius: 8, fontSize: '0.74rem', fontWeight: 700, color: '#fff', cursor: 'pointer' }}>{t.saveChanges}</button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: '#171a17', whiteSpace: 'pre-wrap' }}>{n.text}</p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                    <span style={{ fontSize: '0.66rem', color: '#8b9086' }}>{new Date(n.created_at).toLocaleString(lang === 'am' ? 'am-ET' : 'en-GB')}</span>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="button" onClick={() => { setEditingNoteId(n.id); setEditNoteText(n.text); }} style={{ background: 'none', border: 'none', fontSize: '0.68rem', fontWeight: 700, color: '#5b6158', cursor: 'pointer' }}>{lang === 'am' ? 'አስተካክል' : 'Edit'}</button>
+                      <button type="button" onClick={() => deleteNote(n.id)} style={{ background: 'none', border: 'none', fontSize: '0.68rem', fontWeight: 700, color: '#a0402a', cursor: 'pointer' }}>{lang === 'am' ? 'ሰርዝ' : 'Delete'}</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              rows={2}
+              placeholder={lang === 'am' ? 'ማስታወሻ ይጻፉ...' : 'Write a note...'}
+              style={{ width: '100%', padding: '10px 12px', border: '1px solid #e4e6df', borderRadius: 10, fontSize: '0.85rem', fontFamily: 'inherit', color: '#171a17', resize: 'vertical' }}
+            />
+            <button
+              type="button"
+              onClick={() => { if (noteDraft.trim()) { addNote(noteDraft.trim()); setNoteDraft(''); } }}
+              disabled={!noteDraft.trim()}
+              style={{ alignSelf: 'flex-end', padding: '9px 16px', background: '#1b4332', border: 'none', borderRadius: 8, fontSize: '0.8rem', fontWeight: 700, color: '#fff', cursor: noteDraft.trim() ? 'pointer' : 'not-allowed', opacity: noteDraft.trim() ? 1 : 0.5 }}
+            >
+              {lang === 'am' ? 'ጨምር' : 'Add note'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════
           7. TRUST LINE
           ═══════════════════════════════════════════════════════════════ */}
       <p style={{
-        textAlign: 'center', fontSize: '0.66rem', color: '#8b9086',
+        textAlign: 'center', fontSize: '0.6rem', color: '#a8ada2',
         padding: '16px 14px 4px',
       }}>
         🔒 {lang === 'am'
@@ -1264,53 +1358,61 @@ function CustomerDetail({
           Rendered in-flow at the bottom of the page (scrolls with content),
           per the redesigned layout. Bottom padding clears the fixed tab nav.
           ═══════════════════════════════════════════════════════════════ */}
-      <div style={{ padding: '12px 14px 76px' }}>
-        <p style={{
-          fontSize: '0.62rem', fontWeight: 800, color: '#8b9086',
-          letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 6px',
-        }}>
-          {lang === 'am' ? 'ቋሚ እርምጃዎች' : 'Persistent actions'}
-        </p>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            type="button"
-            onClick={onAddCredit}
-            className="press-scale"
-            style={{
-              flex: 1, padding: '13px',
-              background: '#E75645', border: 'none', borderRadius: 14,
-              color: '#fff', fontWeight: 800, fontSize: '0.82rem',
-              cursor: 'pointer', minHeight: 48,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            }}
-          >
-            <CreditCard className="w-4 h-4" />
-            {t.creditGave}
-          </button>
-          <button
-            type="button"
-            onClick={onRecordPayment}
-            disabled={!hasBalance}
-            className="press-scale"
-            style={{
-              flex: 1, padding: '13px',
-              background: '#2EAB6F', border: 'none', borderRadius: 14,
-              color: '#fff', fontWeight: 800, fontSize: '0.82rem',
-              cursor: hasBalance ? 'pointer' : 'not-allowed',
-              minHeight: 48,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              opacity: hasBalance ? 1 : 0.5,
-            }}
-          >
-            <Wallet className="w-4 h-4" />
-            {t.creditGot}
-          </button>
+      {/* Constant action bar pinned just above the bottom tab nav so the
+          primary money actions are always reachable. Opaque + themed so it
+          never lets content show through, and offset clear of the nav. */}
+      <div className="left-0 right-0 lg:left-64" style={{
+        position: 'fixed',
+        bottom: 76,
+        zIndex: 45,
+        background: 'var(--color-surface)',
+        borderTop: '1px solid var(--color-border-light)',
+        boxShadow: '0 -8px 24px -12px rgba(27,67,50,0.25)',
+        padding: '8px 0 10px',
+        pointerEvents: 'auto',
+      }}>
+        <div style={{ width: 'min(100%, 480px)', margin: '0 auto', padding: '0 14px' }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              onClick={onAddCredit}
+              className="press-scale"
+              style={{
+                flex: 1, padding: '13px',
+                background: '#E75645', border: 'none', borderRadius: 14,
+                color: '#fff', fontWeight: 800, fontSize: '0.82rem',
+                cursor: 'pointer', minHeight: 48,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+            >
+              <CreditCard className="w-4 h-4" />
+              {t.creditGave}
+            </button>
+            <button
+              type="button"
+              onClick={onRecordPayment}
+              disabled={!hasBalance}
+              className="press-scale"
+              style={{
+                flex: 1, padding: '13px',
+                background: '#2EAB6F', border: 'none', borderRadius: 14,
+                color: '#fff', fontWeight: 800, fontSize: '0.82rem',
+                cursor: hasBalance ? 'pointer' : 'not-allowed',
+                minHeight: 48,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                opacity: hasBalance ? 1 : 0.5,
+              }}
+            >
+              <Wallet className="w-4 h-4" />
+              {t.creditGot}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
-          MORE ACTIONS SHEET — secondary actions stay reachable
-          (Send Reminder / Edit / Archive — nothing was removed)
+           MORE ACTIONS SHEET — secondary actions stay reachable
+           (Transfer / Telegram / Send Reminder / Edit / Archive — nothing removed)
           ═══════════════════════════════════════════════════════════════ */}
       {showMoreSheet && (
         <div
@@ -1351,7 +1453,56 @@ function CustomerDetail({
                 <X size={16} color="#5b6158" />
               </button>
             </div>
-            <div style={{ padding: '8px 8px 16px', display: 'flex', flexDirection: 'column' }}>
+             <div style={{ padding: '8px 8px 16px', display: 'flex', flexDirection: 'column' }}>
+              {onTransfer && (
+                <button
+                  type="button"
+                  className="history-row-active"
+                  onClick={() => { setShowMoreSheet(false); onTransfer(customer); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 10px', background: 'none', border: 'none',
+                    borderRadius: 10, cursor: 'pointer', minHeight: 48, textAlign: 'left',
+                  }}
+                >
+                  <span style={{
+                    width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                    background: '#f9eed4', color: '#7a5416',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <ArrowRightLeft size={16} />
+                  </span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#171a17' }}>
+                    {lang === 'am' ? 'ዱቤ አስተላልፍ' : 'Transfer credit'}
+                  </span>
+                </button>
+              )}
+              {onOpenTelegramConnect && (
+                <button
+                  type="button"
+                  className="history-row-active"
+                  onClick={() => { setShowMoreSheet(false); onOpenTelegramConnect(); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '12px 10px', background: 'none', border: 'none',
+                    borderRadius: 10, cursor: 'pointer', minHeight: 48, textAlign: 'left',
+                  }}
+                >
+                  <span style={{
+                    width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                    background: tg === 'linked' ? '#e7f0e9' : '#fff',
+                    color: tg === 'linked' ? '#2e6a47' : '#171a17',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <TelegramIcon />
+                  </span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#171a17' }}>
+                    {tg === 'linked'
+                      ? (lang === 'am' ? 'ቴሌግራም' : 'Telegram')
+                      : (lang === 'am' ? 'ቴሌግራም አገናኝ' : 'Connect Telegram')}
+                  </span>
+                </button>
+              )}
               {hasBalance && hasLinkedBorrower && onRemind && (
                 <button
                   type="button"

@@ -364,42 +364,41 @@ export default function AppShell() {
         if ((a.active !== false) !== (b.active !== false)) return a.active === false ? 1 : -1;
         return String(a.display_name || '').localeCompare(String(b.display_name || ''));
       }));
-      try {
-        const { tier, entitlements: ents } = await getCurrentEntitlements();
-        setPlanTier(tier);
-        setEntitlements(ents);
-      } catch { /* non-critical */ }
-      let identityForProfile = identityRow || null;
-      if (!identityForProfile && nameRow?.value) {
-        try {
-           const result = await identityApi.createShop({
-             display_name: nameRow.value,
-             phone: phoneRow?.value || undefined,
-           });
-          identityForProfile = {
-            shop_id: result.shop_id,
-            shop_name: result.shop_name || nameRow.value,
-            join_code: result.join_code,
-            join_url: result.join_url,
-            device_id: result.device_id,
-            device_token: result.device_token,
-            staff_id: result.staff_id,
-            display_name: result.display_name || nameRow.value,
-            phone_number: phoneRow?.value || '',
-            role: 'owner',
-            permissions: result.permissions || {},
-            device_status: result.device_status || 'active',
-            phone_required: result.phone_required ?? false,
-            approval_required: result.approval_required ?? false,
-          };
-          await setIdentity(identityForProfile);
-          if (result.auth_token) {
-            await setAuthToken(result.auth_token);
-          }
-        } catch {
-          identityForProfile = null;
-        }
-      }
+       // Non-blocking: plan entitlements power Plus features but must never stall boot.
+       getCurrentEntitlements()
+         .then(({ tier, entitlements: ents }) => { setPlanTier(tier); setEntitlements(ents); })
+         .catch(() => { /* non-critical */ });
+
+       let identityForProfile = identityRow || null;
+       if (!identityForProfile && nameRow?.value) {
+         // Fire-and-forget: registering the shop with the backend must not block
+         // the UI. On success we persist identity; failures are retried by sync.
+         identityApi.createShop({
+           display_name: nameRow.value,
+           phone: phoneRow?.value || undefined,
+         })
+           .then((result) => {
+             const prof = {
+               shop_id: result.shop_id,
+               shop_name: result.shop_name || nameRow.value,
+               join_code: result.join_code,
+               join_url: result.join_url,
+               device_id: result.device_id,
+               device_token: result.device_token,
+               staff_id: result.staff_id,
+               display_name: result.display_name || nameRow.value,
+               phone_number: phoneRow?.value || '',
+               role: 'owner',
+               permissions: result.permissions || {},
+               device_status: result.device_status || 'active',
+               phone_required: result.phone_required ?? false,
+               approval_required: result.approval_required ?? false,
+             };
+             setIdentity(prof);
+             if (result.auth_token) setAuthToken(result.auth_token);
+           })
+           .catch(() => { /* non-critical — sync will retry */ });
+       }
       const profileName = nameRow?.value || identityForProfile?.shop_name || null;
       // Commit C.4: derive legacy shapes from the canonical channels array so
       // PaymentTypeChips (reads enabledProviders) and ReminderSheet (reads
@@ -1220,10 +1219,11 @@ export default function AppShell() {
     }
   };
 
-  const handleRecordPromise = async (customerId, promisedPayDate, promiseNote) => {
+  const handleRecordPromise = async (customerId, promisedPayDate, promiseNote, promiseAmount) => {
     await handleUpdateCustomerRecord(customerId, {
       promised_pay_date: promisedPayDate,
       promise_note: promiseNote || null,
+      promise_amount: (promiseAmount && !isNaN(Number(promiseAmount))) ? Number(promiseAmount) : null,
     });
     fireToast(t.promiseSaved || 'Promise recorded', 2000);
   };
@@ -1232,6 +1232,7 @@ export default function AppShell() {
     await handleUpdateCustomerRecord(customerId, {
       promised_pay_date: null,
       promise_note: null,
+      promise_amount: null,
     });
     fireToast(t.promiseCleared || 'Promise cleared', 2000);
   };

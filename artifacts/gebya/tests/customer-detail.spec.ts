@@ -169,16 +169,19 @@ test.describe('CustomerDetail — Timeline Intelligence', () => {
     await expect(page.getByText(/3\s*entries/).first()).toBeVisible();
   });
 
-  test('Transfer is a visible first-class action', async ({ page }) => {
-    const transfer = page.locator('[aria-label*="transfer" i]');
-    await expect(transfer).toBeVisible();
-    await expect(transfer).toContainText('Transfer');
+  test('Transfer is reachable from the More sheet', async ({ page }) => {
+    await page.getByRole('button', { name: /more actions/i }).click();
+    await expect(page.getByRole('button', { name: /transfer credit/i })).toBeVisible();
+    await page.getByRole('button', { name: /close/i }).click();
+    await expect(page.getByText('More actions')).toHaveCount(0);
   });
 
   test('existing communication actions remain available', async ({ page }) => {
     await expect(page.getByRole('link', { name: /call/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /^sms$/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /linked/i })).toBeVisible();
+    await page.getByRole('button', { name: /more actions/i }).click();
+    await expect(page.getByRole('button', { name: /telegram|connect telegram/i })).toBeVisible();
+    await page.getByRole('button', { name: /close/i }).click();
   });
 
   test('More sheet keeps Send Reminder / Edit / Archive reachable', async ({ page }) => {
@@ -188,6 +191,8 @@ test.describe('CustomerDetail — Timeline Intelligence', () => {
     await expect(page.getByRole('button', { name: /send reminder/i }).last()).toBeVisible();
     await expect(page.getByRole('button', { name: /edit customer/i }).last()).toBeVisible();
     await expect(page.getByRole('button', { name: /archive customer/i }).last()).toBeVisible();
+    await expect(page.getByRole('button', { name: /transfer credit/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /telegram|connect telegram/i })).toBeVisible();
     await page.getByRole('button', { name: /close/i }).click();
     await expect(page.getByText('More actions')).toHaveCount(0);
   });
@@ -196,13 +201,14 @@ test.describe('CustomerDetail — Timeline Intelligence', () => {
     await expect(page.getByText(/mark fully paid/i).first()).toBeVisible();
   });
 
-  test('Follow-up groups Promise and Reminders', async ({ page }) => {
-    await expect(page.getByText('Follow-up')).toBeVisible();
-    await expect(page.locator('button').filter({ hasText: /record promise/i }).first()).toBeVisible();
-    await expect(page.getByText(/no reminders sent/i).first()).toBeVisible();
+  test('Promises tab surfaces the promise affordance', async ({ page }) => {
+    await expect(page.getByRole('tab', { name: /promises/i })).toBeVisible();
+    await page.getByRole('tab', { name: /promises/i }).click();
+    // With no active promise, the tab offers a quick "Record a Promise" action.
+    await expect(page.getByRole('button', { name: /record a promise/i })).toBeVisible();
   });
 
-  test('promise to pay also appears as a timeline entry', async ({ page }) => {
+  test('recorded promise surfaces in the Promises tab, not the financial timeline', async ({ page }) => {
     test.setTimeout(120000);
     await page.addInitScript(() => localStorage.setItem('gebya_lang', 'en'));
     await page.goto('/', { waitUntil: 'domcontentloaded' });
@@ -229,9 +235,22 @@ test.describe('CustomerDetail — Timeline Intelligence', () => {
     await page.locator('nav').getByRole('button', { name: /credit/i }).click();
     await page.getByRole('button', { name: /addisu test/i }).click();
     await expect(page.getByText('Addisu Test', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(/promise to pay/i).first()).toBeVisible();
-    // "Friday market" appears in both the Follow-up note and the timeline entry.
-    await expect(page.getByText('Friday market').first()).toBeVisible();
+    // The active promise is surfaced in the compact context above the tabs.
+    await expect(page.getByText(/friday market/i).first()).toBeVisible();
+    // It also appears under the Promises tab with a Clear action.
+    await page.getByRole('tab', { name: /promises/i }).click();
+    await expect(page.getByText(/friday market/i).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /clear/i })).toBeVisible();
+    // The financial Timeline must NOT contain a "Promise logged" entry.
+    await page.getByRole('tab', { name: /timeline/i }).click();
+    await expect(page.getByText(/promise logged/i)).toHaveCount(0);
+  });
+
+  test('Notes tab lets you add a private note', async ({ page }) => {
+    await page.getByRole('tab', { name: /notes/i }).click();
+    await page.getByPlaceholder('Write a note...').fill('Call back Thursday');
+    await page.getByRole('button', { name: /add note/i }).click();
+    await expect(page.getByText('Call back Thursday')).toBeVisible();
   });
 
   test('timeline keeps search, filters and transaction rows', async ({ page }) => {

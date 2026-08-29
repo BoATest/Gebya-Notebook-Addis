@@ -81,11 +81,20 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
       ? `${total} ማስታወሻ ተልኳል${lastSentLabel ? ` · መጨረሻ: ${lastSentLabel}` : ''}`
       : `${total} reminder${total !== 1 ? 's' : ''} sent${lastSentLabel ? ` · last: ${lastSentLabel}` : ''}`;
 
+  // When empty and collapsed, render as a subtle muted line (not a card) so it
+  // doesn't compete with the customer's financial activity.
+  const isEmptyCollapsed = total === 0 && !expanded;
+
+  // When there's no reminder history and the widget isn't expanded, render
+  // nothing — a bare "No reminders sent" line just clutters the detail view.
+  // (Sending a reminder is still reachable from the action row / More sheet.)
+  if (total === 0 && !expanded) return null;
+
   return (
     <div
       style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
+        background: isEmptyCollapsed ? 'transparent' : 'var(--color-surface)',
+        border: isEmptyCollapsed ? 'none' : '1px solid var(--color-border)',
         borderRadius: 12,
         overflow: 'hidden',
       }}
@@ -111,7 +120,7 @@ export default function CustomerReminderHistory({ customerId, shopId, lang, onRe
             role="status"
             style={{
               fontSize: '0.72rem', fontWeight: 700,
-              color: 'var(--color-text-muted)',
+              color: isEmptyCollapsed ? 'var(--color-text-soft)' : 'var(--color-text-muted)',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}
           >
