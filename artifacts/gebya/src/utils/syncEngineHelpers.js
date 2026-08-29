@@ -42,3 +42,58 @@ export async function fetchWithRetry(url, options, retries = 3, baseDelay = 1000
   }
   throw new Error("Unreachable");
 }
+
+/**
+ * fetchWithRetry + transparent 401 recovery. On a 401 response, calls
+ * `onAuthExpired` (typically `ensureFreshToken`) and retries the request
+ * once with the new bearer. Bounded — never loops. Concurrent 401s share a
+ * single in-flight refresh (handled by ensureFreshToken itself).
+ *
+ * `getToken` is invoked on every attempt to build the Authorization header
+ * — it must read the current token from the DB so the post-refresh retry
+ * picks up the new value.
+ */
+export async function fetchWithRetryAndAuthRefresh(
+  url,
+  options,
+  { retries = 3, baseDelay = 1000, onAuthExpired, getToken } = {}
+) {
+  let didRefresh = false;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const reqOptions = { ...(options || {}) };
+    if (typeof getToken === "function") {
+      const token = await getToken();
+      reqOptions.headers = {
+        ...(reqOptions.headers || {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+    }
+    try {
+      const res = await fetch(url, reqOptions);
+      if (res.ok) return res;
+      if (res.status === 401 && !didRefresh && typeof onAuthExpired === "function") {
+        try {
+          await onAuthExpired();
+          didRefresh = true;
+          continue; // retry with the new token (next iteration re-reads)
+        } catch {
+          return res; // refresh failed; surface the original 401
+        }
+      }
+      if (res.status >= 400 && res.status < 500) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      if (attempt < retries) {
+        const delay = baseDelay * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, delay));
+      } else {
+        throw new Error(`HTTP ${res.status}: ${res.statusText} after ${retries} retries`);
+      }
+    } catch (err) {
+      if (attempt >= retries) throw err;
+      const delay = baseDelay * Math.pow(2, attempt);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw new Error("Unreachable");
+}

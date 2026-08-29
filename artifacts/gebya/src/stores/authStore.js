@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { usePermissionsStore } from './permissionsStore';
 import { resolvePermissions } from '../utils/permissions';
 import { getAuthToken, setAuthToken, clearAuthToken } from '../utils/syncEngine';
-import { getCurrentUser } from '../utils/authClient';
+import { getCurrentUser, ensureFreshToken } from '../utils/authClient';
 import { setBusinesses, getBusinesses } from '../db';
 
 export const useAuthStore = create((set, get) => ({
@@ -22,9 +22,17 @@ export const useAuthStore = create((set, get) => ({
   init: async () => {
     const token = await getAuthToken();
     if (!token) {
-      set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null, hasPassword: false, isPlatformAdmin: false });
-      usePermissionsStore.getState().resetPermissions();
-      return;
+      // No token at all. Try one silent refresh: the token may have been
+      // evicted from IndexedDB (e.g. after a sync event cleared it) but
+      // still be refreshable server-side. If the refresh also fails, we
+      // truly are signed out.
+      try {
+        await ensureFreshToken();
+      } catch {
+        set({ user: false, checked: true, role: null, permissions: null, businesses: [], currentBusinessId: null, hasPassword: false, isPlatformAdmin: false });
+        usePermissionsStore.getState().resetPermissions();
+        return;
+      }
     }
     try {
       const data = await getCurrentUser(token);
@@ -43,6 +51,25 @@ export const useAuthStore = create((set, get) => ({
 
       set({ user, checked: true, role, permissions: rawPerms, businesses, currentBusinessId, hasPassword, isPlatformAdmin });
     } catch (err) {
+      // Token might be stale — try a silent refresh, then re-fetch /me.
+      let recovered = false;
+      try {
+        await ensureFreshToken();
+        const data2 = await getCurrentUser(await getAuthToken());
+        const resolvedPerms2 = resolvePermissions(data2.role || null, data2.permissions);
+        usePermissionsStore.getState().setPermissions(resolvedPerms2, data2.role || null);
+        await setBusinesses(data2.businesses || []);
+        set({
+          user: data2.user, checked: true, role: data2.role || null, permissions: data2.permissions,
+          businesses: data2.businesses || [],
+          currentBusinessId: data2.businesses?.[0]?.business_id || null,
+          hasPassword: data2.has_password || false,
+          isPlatformAdmin: data2.is_platform_admin === true,
+        });
+        recovered = true;
+      } catch { /* still failed */ }
+      if (recovered) return;
+
       try {
         const cached = await getBusinesses();
         if (cached?.list?.length) {

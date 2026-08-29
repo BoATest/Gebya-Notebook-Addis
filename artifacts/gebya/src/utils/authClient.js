@@ -2,6 +2,77 @@ const AUTH_API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
 
 export { getAuthToken } from './syncEngine';
 
+// ─── Silent token refresh ───
+//
+// Long-lived tokens (1y for owners, 30d for staff) can still go stale before
+// the client knows about it (forced revocation, clock drift, server config
+// change). The /api/auth/refresh endpoint accepts an expired token within
+// (TTL + REFRESH_WINDOW) and returns a new one. Callers wrap any server
+// fetch with `withFreshToken` so a 401 transparently renews and retries.
+//
+// The dedupe: if N concurrent requests all see 401 simultaneously, they all
+// await the same in-flight refresh promise — not N parallel refresh calls.
+let _refreshInFlight = null;
+export function _resetRefreshForTest() {
+  _refreshInFlight = null;
+}
+
+export async function ensureFreshToken() {
+  if (_refreshInFlight) return _refreshInFlight;
+  _refreshInFlight = (async () => {
+    const { getAuthToken, setAuthToken } = await import('./syncEngine.js');
+    const current = await getAuthToken();
+    const res = await fetch(`${AUTH_API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(current ? { Authorization: `Bearer ${current}` } : {}),
+      },
+      credentials: 'include',
+    });
+    if (!res.ok) {
+      const err = new Error(`refresh_failed_${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    const data = await res.json();
+    if (data?.token) await setAuthToken(data.token);
+    return data;
+  })().finally(() => {
+    _refreshInFlight = null;
+  });
+  return _refreshInFlight;
+}
+
+/**
+ * Wrap a fetch call: on 401, try one silent refresh and retry the original
+ * request with the new bearer. Bounded — never loops. Concurrent 401s share
+ * a single in-flight refresh.
+ */
+export async function authedFetch(url, options = {}) {
+  const { getAuthToken } = await import('./syncEngine.js');
+  const doFetch = async () => {
+    const token = await getAuthToken();
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      credentials: 'include',
+    });
+  };
+
+  const res = await doFetch();
+  if (res.status !== 401) return res;
+  try {
+    await ensureFreshToken();
+  } catch {
+    return res; // refresh failed; surface the original 401
+  }
+  return doFetch(); // retry once with the new token
+}
+
 // ─── Request OTP ───
 export async function requestOtp(phoneNumber) {
   const res = await fetch(`${AUTH_API_BASE}/auth/otp`, {

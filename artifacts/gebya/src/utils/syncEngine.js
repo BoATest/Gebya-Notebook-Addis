@@ -1,6 +1,6 @@
 import db from '../db';
 import { getOrCreateCloudProofDeviceId } from './cloudProof';
-import { camelToSnake, mapPullRow, fetchWithRetry } from './syncEngineHelpers.js';
+import { camelToSnake, mapPullRow, fetchWithRetry, fetchWithRetryAndAuthRefresh } from './syncEngineHelpers.js';
 import { useSyncStore } from '../stores/syncStore';
 
 const SYNC_API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
@@ -542,15 +542,17 @@ class SyncEngine {
 
     const headers = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
     };
     if (this.businessId) headers['x-business-id'] = String(this.businessId);
 
-    const res = await fetchWithRetry(`${SYNC_API_BASE}/sync/push`, {
+    const res = await fetchWithRetryAndAuthRefresh(`${SYNC_API_BASE}/sync/push`, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
-    }, 3);
+    }, {
+      onAuthExpired: () => import('./authClient.js').then((m) => m.ensureFreshToken()),
+      getToken,
+    });
 
     if (!res.ok) {
       let friendly = `Push failed: ${res.status}`;
@@ -641,13 +643,17 @@ class SyncEngine {
     if (locals.size === 0) return;
 
     // Single server pull covering every conflicted row.
-    const resolveHeaders = { 'Authorization': `Bearer ${token}` };
+    const resolveHeaders = {};
     if (this.businessId) resolveHeaders['x-business-id'] = String(this.businessId);
     let serverTables = {};
     try {
-      const serverRes = await fetch(
+      const serverRes = await fetchWithRetryAndAuthRefresh(
         `${SYNC_API_BASE}/sync/pull?since=${Math.max(0, minUpdatedAt - 1)}&limit=1000`,
-        { headers: resolveHeaders }
+        { headers: resolveHeaders },
+        {
+          onAuthExpired: () => import('./authClient.js').then((m) => m.ensureFreshToken()),
+          getToken,
+        }
       );
       if (serverRes.ok) ({ tables: serverTables = {} } = await serverRes.json());
     } catch { /* network hiccup — keep local versions, next cycle retries */ }
