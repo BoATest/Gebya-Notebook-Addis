@@ -4,8 +4,8 @@ import { useLang } from '../../context/LangContext';
 import { useStaffStore } from '../../stores/staffStore';
 import { loadStaffActivityFeed } from '../../utils/staffActivityFeed';
 import { startOfLocalDay } from '../../utils/reportSelectors';
-import db from '../../db';
 import { fmt } from '../../utils/numformat';
+import { computeTodayStaffAggregates } from '../../utils/todayStaffAggregates';
 
 export default function StaffActivityFeed({ todayRefreshKey }) {
   const { lang } = useLang();
@@ -24,28 +24,10 @@ export default function StaffActivityFeed({ todayRefreshKey }) {
         .catch(() => { if (!cancelled) setActivities([]); }),
       (async () => {
         try {
-          const todayStart = startOfLocalDay();
-          const todayEnd = todayStart + 86400000;
-          const txns = await db.transactions.where('created_at').between(todayStart, todayEnd).toArray().then(r => r.filter(t => !t.deletedAt));
+          const { salesMap, txnMap } = await computeTodayStaffAggregates();
           if (cancelled) return;
-          const salesMap = {};
-          const txnMap = {};
-          for (const t of txns) {
-            if (t.type !== 'sale') continue;
-            const staffId = t.actor_staff_member_id;
-            if (!staffId) continue;
-            if (!salesMap[staffId]) salesMap[staffId] = { count: 0, total: 0, cashTotal: 0, transferTotal: 0 };
-            salesMap[staffId].count += 1;
-            salesMap[staffId].total += Number(t.amount || 0);
-            if (t.payment_type === 'transfer' || t.payment_type === 'bank') {
-              salesMap[staffId].transferTotal += Number(t.amount || 0);
-            } else {
-              salesMap[staffId].cashTotal += Number(t.amount || 0);
-            }
-            if (!txnMap[staffId]) txnMap[staffId] = [];
-            txnMap[staffId].push(t);
-          }
-          if (!cancelled) { store.setTodayStaffSales(salesMap); store.setTodayStaffTransactions(txnMap); }
+          store.setTodayStaffSales(salesMap);
+          store.setTodayStaffTransactions(txnMap);
         } catch {}
       })(),
     ]).finally(() => { if (!cancelled) setLoading(false); });

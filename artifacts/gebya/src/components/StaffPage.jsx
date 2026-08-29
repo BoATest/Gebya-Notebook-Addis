@@ -3,9 +3,8 @@ import { useLang } from '../context/LangContext';
 import { useStaffStore } from '../stores/staffStore';
 import { fireToast } from './Toast';
 import ConfirmDialog from './ConfirmDialog';
-import db from '../db';
-import { startOfLocalDay } from '../utils/reportSelectors';
 import { calculateExpected } from '../utils/settlementSelectors';
+import { computeTodayStaffAggregates } from '../utils/todayStaffAggregates';
 import { fmt } from '../utils/numformat';
 
 import StaffStats from './staff/StaffStats';
@@ -67,37 +66,10 @@ export default function StaffPage({
     let cancelled = false;
     (async () => {
       try {
-        const todayStart = startOfLocalDay();
-        const todayEnd = todayStart + 86400000;
-        const txns = await db.transactions
-          .where('created_at').between(todayStart, todayEnd).toArray()
-          .then(rows => rows.filter(t => !t.deletedAt));
+        const { salesMap, txnMap } = await computeTodayStaffAggregates();
         if (cancelled) return;
-        const salesMap = {};
-        const txnMap = {};
-        for (const txn of txns) {
-          if (txn.type !== 'sale') continue;
-          const staffId = txn.actor_staff_member_id;
-          if (!staffId) continue;
-          if (!salesMap[staffId]) salesMap[staffId] = { count: 0, total: 0, cashTotal: 0, transferTotal: 0 };
-          if (!txnMap[staffId]) txnMap[staffId] = [];
-          salesMap[staffId].count += 1;
-          salesMap[staffId].total += Number(txn.amount || 0);
-          const isCredit = txn.is_credit || String(txn.payment_type || '').toLowerCase() === 'credit';
-          if (txn.payment_type === 'transfer' || txn.payment_type === 'bank') {
-            salesMap[staffId].transferTotal += Number(txn.amount || 0);
-          } else if (isCredit) {
-            // Credit sale — money not yet collected, so exclude from "cash collected"
-            // to keep the staff's reported cash consistent with calculateExpected().
-          } else {
-            salesMap[staffId].cashTotal += Number(txn.amount || 0);
-          }
-          txnMap[staffId].push(txn);
-        }
-        if (!cancelled) {
-          store.setTodayStaffSales(salesMap);
-          store.setTodayStaffTransactions(txnMap);
-        }
+        store.setTodayStaffSales(salesMap);
+        store.setTodayStaffTransactions(txnMap);
       } catch (err) {
         if (import.meta.env?.DEV) console.warn('[StaffPage] failed to compute today staff aggregates', err);
       }
@@ -136,15 +108,6 @@ export default function StaffPage({
     if (canManageTeam) return store.cloudMembers || [];
     return staffMembers || [];
   }, [store.cloudMembers, canManageTeam, staffMembers]);
-
-  const filteredMembers = useMemo(() => {
-    if (!store.searchQuery.trim()) return combinedStaffList;
-    const q = store.searchQuery.toLowerCase();
-    return combinedStaffList.filter(m =>
-      (m.display_name || m.displayName || m.name || '').toLowerCase().includes(q) ||
-      (m.phone || m.phoneNumber || m.phone_snapshot || '').toLowerCase().includes(q)
-    );
-  }, [combinedStaffList, store.searchQuery]);
 
   const activeStaff = useMemo(() => combinedStaffList.filter(m => m.active !== false), [combinedStaffList]);
   const inactiveStaff = useMemo(() => combinedStaffList.filter(m => m.active === false), [combinedStaffList]);

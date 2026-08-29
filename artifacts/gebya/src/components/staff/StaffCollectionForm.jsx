@@ -1,5 +1,6 @@
 import { useStaffStore } from '../../stores/staffStore';
 import { fmt } from '../../utils/numformat';
+import { useIsMobile } from '../../hooks/useIsMobile';
 import ReconStatusBadge from './ReconStatusBadge';
 
 export default function StaffCollectionForm({
@@ -7,6 +8,7 @@ export default function StaffCollectionForm({
   openCollectionSheet, setOpenCollectionSheet
 }) {
   const store = useStaffStore();
+  const isMobile = useIsMobile(768);
 
   if (activeStaffMemberId == null) return null;
   const me = activeStaff.find(m => String(m.id) === String(activeStaffMemberId));
@@ -18,9 +20,6 @@ export default function StaffCollectionForm({
     || myLastSettlement?.reconciliation_status === 'owner_reviewed'
     || myLastSettlement?.reconciliation_status === 'disputed';
   const myTodaySales = store.todayStaffSales[activeStaffMemberId];
-
-  // Mobile bottom sheet detection
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   return (
     <>

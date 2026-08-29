@@ -6,7 +6,7 @@ import { fmt } from '../../utils/numformat';
 export default function StaffTodayTeam({
   activeStaff, inactiveStaff, canManageTeam, lastSettlementPerStaff,
   todayStaffSales, todayStaffTransactions, expandedStaffDrilldown,
-  estimatedAmounts, estimatesLoading, onReactivateStaffMember, onSetSettling,
+  onReactivateStaffMember, onSetSettling,
   onViewSettlement, t
 }) {
   const store = useStaffStore();
@@ -206,7 +206,7 @@ export default function StaffTodayTeam({
               </div>
             </div>
             {canManageTeam && (
-              <button onClick={() => onReactivateStaffMember?.(m.id)}
+              <button onClick={() => onReactivateStaffMember?.(m.userId || m.id)}
                 className="px-3 py-1.5 rounded-lg text-xs font-bold"
                 style={{ background: 'var(--color-success-bg)', color: 'var(--color-success-text)' }}
               >{t('Reactivate', 'ንቁ አድርግ')}</button>

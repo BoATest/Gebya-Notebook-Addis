@@ -29,12 +29,12 @@ export default function StaffPastSettlements({ activeStaff, hasUnresolvedSettlem
         {store.expandedSections.pastSettlements ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
       </button>
       <div style={{
-        overflow: 'hidden',
+        overflowY: store.expandedSections.pastSettlements ? 'auto' : 'hidden',
         maxHeight: store.expandedSections.pastSettlements ? '400px' : '0',
         opacity: store.expandedSections.pastSettlements ? 1 : 0,
         transition: 'max-height 0.3s ease, opacity 0.25s ease',
       }}>
-        <div className="divide-y max-h-60 overflow-y-auto" style={{ borderColor: 'var(--color-border-light)' }}>
+        <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
           {store.settlements.slice().sort((a, b) => b.settled_at - a.settled_at).slice(0, 20).map((s, i) => {
             const staff = activeStaff.find(r => String(r.id) === String(s.staff_id));
             const rStatus = s.reconciliation_status;

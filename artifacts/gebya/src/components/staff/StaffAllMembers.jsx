@@ -67,7 +67,10 @@ export default function StaffAllMembers({
               const mid = m.id || m.userId;
               const memberKey = mid;
               const displayName = m.display_name || m.displayName || m.name || 'Staff';
-              const phoneStr = m.phone_snapshot || m.phoneNumber || m.phone || '';
+                const phoneStr = m.phone_snapshot || m.phoneNumber || m.phone || '';
+                const baseRoleLabel = ROLE_BADGE[m.role]?.label || m.role;
+                const effectiveRoleLabel = store.getEffectiveRoleLabel(m, store.localPermOverrides, lang);
+                const isCustomRole = effectiveRoleLabel !== baseRoleLabel;
               return (
                 <div key={memberKey}>
                   <button
@@ -84,7 +87,7 @@ export default function StaffAllMembers({
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         {phoneStr && <span className="text-xs text-gray-500">{formatEthiopianPhone(phoneStr)}</span>}
-                        {store.getEffectiveRoleLabel(m, store.localPermOverrides, lang) !== (ROLE_BADGE[m.role]?.label || m.role) && (
+                        {isCustomRole && (
                           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--color-warning-bg)', color: 'var(--color-warning)' }}>
                             {t('Custom', 'የተበጀ')}
                           </span>
@@ -111,7 +114,7 @@ export default function StaffAllMembers({
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">
                               {t('Role', 'ሚና')}
                             </span>
-                            {store.getEffectiveRoleLabel(m, store.localPermOverrides, lang) !== (ROLE_BADGE[m.role]?.label || m.role) && (
+                            {isCustomRole && (
                               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--color-warning-bg)', color: 'var(--color-warning)' }}>
                                 {t('Custom', 'የተበጀ')}
                               </span>
@@ -120,7 +123,7 @@ export default function StaffAllMembers({
                           <div className="flex gap-1.5 flex-wrap">
                             {store.ROLE_OPTIONS.map(opt => {
                               const label = lang === 'am' ? opt.label.am : opt.label.en;
-                              const isActive = m.role === opt.value && store.getEffectiveRoleLabel(m, store.localPermOverrides, lang) === label;
+                              const isActive = m.role === opt.value && effectiveRoleLabel === label;
                               return (
                                 <button
                                   key={opt.value}
@@ -155,13 +158,14 @@ export default function StaffAllMembers({
                         const overrideVal = store.localPermOverrides[mid]?.[key];
                         const effectiveVal = overrideVal !== undefined ? overrideVal : (perms[key] ?? false);
                         return (
-                          <PermissionToggle
-                            key={key}
-                            keyName={key}
-                            value={isOwnerRole ? true : effectiveVal}
-                            onChange={isOwnerRole ? () => {} : (key, val) => store.handleTogglePermission(m, key, val, lang)}
-                            lang={lang}
-                          />
+                         <PermissionToggle
+                             key={key}
+                             keyName={key}
+                             value={isOwnerRole ? true : effectiveVal}
+                             onChange={isOwnerRole ? () => {} : (key, val) => store.handleTogglePermission(m, key, val, lang)}
+                             disabled={!isOwnerRole && store.savingPerms}
+                             lang={lang}
+                           />
                         );
                       })}
                       {isOwnerRole && (
