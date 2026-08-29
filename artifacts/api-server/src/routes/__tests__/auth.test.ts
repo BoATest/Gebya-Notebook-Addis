@@ -26,6 +26,7 @@ vi.mock("@workspace/db/schema", () => ({
   otps: { id: "id", phoneNumber: "phone_number", codeHash: "code_hash", otpHash: "otp_hash", attempts: "attempts", maxAttempts: "max_attempts", expiresAt: "expires_at", consumed: "consumed", userId: "user_id", verifiedAt: "verified_at", lockedAt: "locked_at", createdAt: "created_at" },
   businesses: { id: "id", name: "name", plan: "plan" },
   businessMembers: { userId: "user_id", businessId: "business_id", role: "role", permissions: "permissions" },
+  revokedTokens: { jti: "jti", userId: "user_id", revokedAt: "revoked_at", expiresAt: "expires_at", reason: "reason" },
   normalizePhone: vi.fn((p: string) => (p && p.length >= 8 ? `+251${p.replace(/^0/, "")}` : null)),
 }));
 
@@ -38,7 +39,11 @@ vi.mock("drizzle-orm", () => ({
 }));
 
 vi.mock("jsonwebtoken", () => ({
-  default: { sign: vi.fn(() => "mock-jwt-token"), verify: vi.fn(() => ({ userId: 1, type: "access" })) },
+  default: {
+    sign: vi.fn(() => "mock-jwt-token"),
+    verify: vi.fn(() => ({ userId: 1, type: "access" })),
+    decode: vi.fn(() => ({ userId: 1, type: "access", role: "owner", jti: "mock-jti", exp: Math.floor(Date.now() / 1000) + 3600, iat: Math.floor(Date.now() / 1000) })),
+  },
 }));
 
 vi.mock("../../services/telegramBotService.js", () => ({
@@ -301,5 +306,82 @@ describe("GET /api/auth/me", () => {
     expect(res.body.ok).toBe(true);
     expect(res.body.user).toBeDefined();
     expect(res.body.user.phone_number).toBe("+251911111111");
+  });
+});
+
+describe("POST /api/auth/refresh", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDbSelect.mockReset();
+    mockDbInsert.mockReset();
+    mockDbUpdate.mockReset();
+    // Default verify: returns a valid decoded payload with role/jti/exp.
+    const nowSec = Math.floor(Date.now() / 1000);
+    mockJwtVerify.mockImplementation((_token: string, _secret: any, options?: any) => {
+      if (options?.ignoreExpiration) return { userId: 1, type: "access", role: "owner", jti: "mock-jti", exp: nowSec - 60, iat: nowSec - 3600 };
+      return { userId: 1, type: "access", role: "owner", jti: "mock-jti", exp: nowSec + 3600, iat: nowSec };
+    });
+  });
+
+  it("returns 401 when no token is presented", async () => {
+    const handler = findHandler("post", "/refresh");
+    const req = makeReq({ headers: {} });
+    const res = makeRes();
+    await handler(req, res, () => {});
+    expect(res.statusCode).toBe(401);
+    expect(res.body.error).toMatch(/token/i);
+  });
+
+  it("returns 401 for a token that is past the refresh window", async () => {
+    const nowSec = Math.floor(Date.now() / 1000);
+    // token is 2 years old — well past the 1y + 30d window
+    mockJwtVerify.mockImplementation((_t: string, _s: any, options?: any) => ({
+      userId: 1, type: "access", role: "owner", jti: "old-jti",
+      exp: nowSec - 365 * 24 * 60 * 60, iat: nowSec - 2 * 365 * 24 * 60 * 60,
+      ...(options?.ignoreExpiration ? {} : {}),
+    }));
+    // jwt.decode (not the verify mock) is what the handler reads for iat
+    vi.mocked(jwt.decode).mockReturnValueOnce({
+      userId: 1, role: "owner", jti: "old-jti",
+      exp: nowSec - 365 * 24 * 60 * 60, iat: nowSec - 2 * 365 * 24 * 60 * 60,
+    } as any);
+    const handler = findHandler("post", "/refresh");
+    const req = makeReq({ headers: { authorization: "Bearer expired-old-token" } });
+    const res = makeRes();
+    await handler(req, res, () => {});
+    expect(res.statusCode).toBe(401);
+    expect(res.body.error).toBe("refresh_window_closed");
+  });
+
+  it("returns 401 when the token has been revoked", async () => {
+    const nowSec = Math.floor(Date.now() / 1000);
+    vi.mocked(jwt.decode).mockReturnValueOnce({
+      userId: 1, role: "owner", jti: "revoked-jti",
+      exp: nowSec + 3600, iat: nowSec,
+    } as any);
+    mockDbSelect.mockReturnValueOnce(chainable([{ jti: "revoked-jti" }]));
+    const handler = findHandler("post", "/refresh");
+    const req = makeReq({ headers: { authorization: "Bearer revoked-token" } });
+    const res = makeRes();
+    await handler(req, res, () => {});
+    expect(res.statusCode).toBe(401);
+    expect(res.body.error).toBe("token_revoked");
+  });
+
+  it("returns a new token for a valid in-window token", async () => {
+    const nowSec = Math.floor(Date.now() / 1000);
+    vi.mocked(jwt.decode).mockReturnValueOnce({
+      userId: 1, role: "owner", jti: "fresh-jti",
+      exp: nowSec + 3600, iat: nowSec,
+    } as any);
+    mockDbSelect.mockReturnValueOnce(chainable([])); // not revoked
+    const handler = findHandler("post", "/refresh");
+    const req = makeReq({ headers: { authorization: "Bearer fresh-token" } });
+    const res = makeRes();
+    await handler(req, res, () => {});
+    expect(res.statusCode).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.token).toBe("mock-jwt-token");
+    expect(res.body.role).toBe("owner");
   });
 });

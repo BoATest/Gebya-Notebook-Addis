@@ -24,9 +24,15 @@ if (!process.env.JWT_SECRET) {
 }
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = "30d";
+const JWT_TTL_OWNER_DAYS = Number(process.env.JWT_TTL_OWNER_DAYS || 365);
+const JWT_TTL_STAFF_DAYS = Number(process.env.JWT_TTL_STAFF_DAYS || 30);
+const LONG_TOKEN_ENABLED = process.env.LONG_TOKEN_ENABLED === "true";
 
-function signJwt(userId: number) {
-  return jwt.sign({ userId, type: "access" }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+function signJwt(userId: number, role?: string | null) {
+  const expiresIn = (LONG_TOKEN_ENABLED
+    ? `${role === "staff" ? JWT_TTL_STAFF_DAYS : JWT_TTL_OWNER_DAYS}d`
+    : JWT_EXPIRES_IN) as jwt.SignOptions["expiresIn"];
+  return jwt.sign({ userId, type: "access", role: role || "owner", jti: crypto.randomUUID() }, JWT_SECRET, { expiresIn });
 }
 
 // ---------------------------------------------------------------------------
@@ -74,7 +80,7 @@ router.post("/shops", async (req: Request, res: Response) => {
 
   const userRows = await requireDb().select({ phoneNumber: users.phoneNumber }).from(users).where(eq(users.id, userId)).limit(1);
   const permissions = resolvePermissions("owner", null);
-  const authToken = signJwt(userId);
+  const authToken = signJwt(userId, "owner");
 
   res.status(201).json({
     shop_id: biz.id,
@@ -224,7 +230,7 @@ router.post("/shops/join", async (req: Request, res: Response) => {
   await requireDb().update(invites).set({ acceptedAt: new Date() }).where(eq(invites.id, invite.id));
 
   const permissions = resolvePermissions(role, null);
-  const authToken = signJwt(userId);
+  const authToken = signJwt(userId, "staff");
   const phoneNormalized = phone ? normalizePhone(phone) : null;
 
   // Auto-approve device by default (default ON for fastest onboarding)

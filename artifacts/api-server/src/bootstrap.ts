@@ -699,5 +699,8 @@ export const BOOTSTRAP_ALTERS: string[] = [
   "ALTER TABLE \"admin_shop_logs\" ADD COLUMN IF NOT EXISTS \"admin_phone\" varchar(32);",
   "ALTER TABLE \"admin_shop_logs\" ADD COLUMN IF NOT EXISTS \"created_at\" timestamp;",
   "ALTER TABLE \"platform_admin_members\" ADD COLUMN IF NOT EXISTS \"added_by_phone\" text;",
-  "ALTER TABLE \"platform_admin_members\" ADD COLUMN IF NOT EXISTS \"created_at\" timestamp;"
+  "ALTER TABLE \"platform_admin_members\" ADD COLUMN IF NOT EXISTS \"created_at\" timestamp;",
+  "-- Token-revocation list for the long-lived JWT refresh flow. Created\n-- here (rather than via the drizzle migration journal) because the live\n-- production database has not had its drizzle migrations applied; this\n-- bootstrap is what actually creates the table on server boot.\nCREATE TABLE IF NOT EXISTS \"revoked_tokens\" (\n  \"jti\" text PRIMARY KEY NOT NULL,\n  \"user_id\" text NOT NULL,\n  \"revoked_at\" timestamptz DEFAULT now() NOT NULL,\n  \"expires_at\" timestamptz NOT NULL,\n  \"reason\" text\n);",
+  "CREATE INDEX IF NOT EXISTS \"revoked_tokens_user_idx\" ON \"revoked_tokens\" USING btree (\"user_id\");",
+  "CREATE INDEX IF NOT EXISTS \"revoked_tokens_expires_at_idx\" ON \"revoked_tokens\" USING btree (\"expires_at\");"
 ];

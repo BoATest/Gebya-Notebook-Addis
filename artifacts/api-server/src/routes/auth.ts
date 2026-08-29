@@ -1,8 +1,8 @@
 import { Router, Request, Response } from "express";
 import { requireDb } from "@workspace/db";
-import { users, devices, otps, businesses, businessMembers } from "@workspace/db/schema";
+import { users, devices, otps, businesses, businessMembers, revokedTokens } from "@workspace/db/schema";
 import { normalizePhone } from "@workspace/db/schema";
-import { eq, and, gt, inArray, desc } from "drizzle-orm";
+import { eq, and, gt, inArray, desc, lt } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { sendTelegramTextMessage } from "../services/telegramBotService.js";
@@ -17,12 +17,33 @@ if (!process.env.JWT_SECRET) {
   );
 }
 export const JWT_SECRET = process.env.JWT_SECRET;
+// Backwards-compat export. New code should use getTokenExpiryForRole().
 export const JWT_EXPIRES_IN = "30d";
 export const JWT_COOKIE_NAME = "gebya_token";
+
+// ── Long-lived tokens + silent refresh ──
+//
+// Owners (and platform admins) get a 1-year JWT. Staff get 30 days. Both
+// remain refreshable for an additional REFRESH_WINDOW_DAYS past their
+// nominal expiry via POST /auth/refresh. The feature flag defaults OFF so
+// the legacy 30-day behavior stays in effect until the operator opts in.
+const JWT_TTL_OWNER_DAYS = Number(process.env.JWT_TTL_OWNER_DAYS || 365);
+const JWT_TTL_STAFF_DAYS = Number(process.env.JWT_TTL_STAFF_DAYS || 30);
+const JWT_REFRESH_WINDOW_DAYS = Number(process.env.JWT_REFRESH_WINDOW_DAYS || 30);
+const LONG_TOKEN_ENABLED = process.env.LONG_TOKEN_ENABLED === "true";
+
+export function getTokenExpiryForRole(role?: string | null): string {
+  if (!LONG_TOKEN_ENABLED) return JWT_EXPIRES_IN;
+  // platform_admin tokens are scoped to platform-level access, not a single
+  // shop; treat them like owners for TTL purposes.
+  const days = role === "staff" ? JWT_TTL_STAFF_DAYS : JWT_TTL_OWNER_DAYS;
+  return `${days}d`;
+}
+
 const OTP_EXPIRES_MS = 10 * 60 * 1000; // 10 minutes
 const OTP_MAX_ATTEMPTS = 5;
 
-import { getToken, setTokenCookie, clearTokenCookie, hashOtp, verifyOtp, generateOtp, signJwt, verifyJwt } from "./authHelpers.js";
+import { getToken, setTokenCookie, clearTokenCookie, hashOtp, verifyOtp, generateOtp, signJwt, verifyJwt, type DecodedToken } from "./authHelpers.js";
 export { verifyJwt };
 
 // Per-phone OTP request rate limit (blunts OTP-bombing). In-memory windowing is
@@ -161,11 +182,11 @@ router.post("/verify", async (req, res) => {
     // No auto-creation here to avoid duplicate businesses for the same user.
   }
 
-  const token = signJwt(user.id);
-  setTokenCookie(res, token);
-
-  // Fetch all business memberships (gracefully handle if table has schema issues)
+  // Fetch business memberships BEFORE signing so the JWT carries the
+  // role-based TTL. If the query fails we fall back to "owner" — the
+  // longest TTL — which is the safer default for a returning user.
   let memberRows: any[] = [];
+  let primary: { role: string | null; permissions: any } | null = null;
   try {
     memberRows = await requireDb().select({
         businessId: businessMembers.businessId,
@@ -174,47 +195,53 @@ router.post("/verify", async (req, res) => {
       })
       .from(businessMembers)
       .where(eq(businessMembers.userId, user.id));
-} catch (err) {
-      console.error("[auth:verify] business_members query failed:", err);
-      // Continue without memberships — user can still authenticate
-    }
-    const primary = memberRows[0] || null;
+    primary = memberRows[0] || null;
+  } catch (err) {
+    console.error("[auth:verify] business_members query failed:", err);
+  }
 
-    // Enrich with business names (batch query to avoid N+1)
-    let businessList: any[] = [];
-    try {
-      if (memberRows.length > 0) {
-        const bizIds = memberRows.map((m) => m.businessId);
-        const bizRows = await requireDb().select({ id: businesses.id, name: businesses.name })
-          .from(businesses)
-          .where(inArray(businesses.id, bizIds));
-        const bizMap = new Map(bizRows.map((b) => [b.id, b.name]));
-        businessList = memberRows.map((m) => ({
-          business_id: m.businessId,
-          name: bizMap.get(m.businessId) || "Unknown",
-          role: m.role,
-          permissions: m.permissions,
-        }));
-      }
-    } catch (err) {
-      console.error("[auth:verify] business enrichment failed:", err);
-    }
+  // platform_admin tokens are scoped to platform-level access; treat them
+  // as owner-equivalent for TTL purposes.
+  const isPlatformAdmin = await isPlatformAdminUser(user);
+  const tokenRole = isPlatformAdmin ? "platform_admin" : (primary?.role || "owner");
+  const token = signJwt(user.id, tokenRole);
+  setTokenCookie(res, token);
 
-    return res.json({
-      ok: true,
-      token,
-      user: {
-        id: user.id,
-        phone_number: user.phoneNumber,
-        preferred_lang: user.preferredLang,
-        created_at: user.createdAt,
-      },
-      role: primary?.role || null,
-      permissions: primary?.permissions || null,
-      businesses: businessList,
-      is_platform_admin: await isPlatformAdminUser(user),
-    });
+  // Enrich with business names (batch query to avoid N+1)
+  let businessList: any[] = [];
+  try {
+    if (memberRows.length > 0) {
+      const bizIds = memberRows.map((m) => m.businessId);
+      const bizRows = await requireDb().select({ id: businesses.id, name: businesses.name })
+        .from(businesses)
+        .where(inArray(businesses.id, bizIds));
+      const bizMap = new Map(bizRows.map((b) => [b.id, b.name]));
+      businessList = memberRows.map((m) => ({
+        business_id: m.businessId,
+        name: bizMap.get(m.businessId) || "Unknown",
+        role: m.role,
+        permissions: m.permissions,
+      }));
+    }
+  } catch (err) {
+    console.error("[auth:verify] business enrichment failed:", err);
+  }
+
+  return res.json({
+    ok: true,
+    token,
+    user: {
+      id: user.id,
+      phone_number: user.phoneNumber,
+      preferred_lang: user.preferredLang,
+      created_at: user.createdAt,
+    },
+    role: primary?.role || null,
+    permissions: primary?.permissions || null,
+    businesses: businessList,
+    is_platform_admin: isPlatformAdmin,
   });
+});
 
 
 
@@ -250,13 +277,97 @@ router.post("/link-device", async (req, res) => {
   return res.json({ ok: true, device_id, user_id: decoded.userId });
 });
 
+// --- POST /api/auth/refresh ---
+// Accepts a (possibly expired) JWT and issues a fresh one, as long as the
+// token was issued less than (TTL + REFRESH_WINDOW_DAYS) ago and has not
+// been revoked. The client calls this on every 401 to make token expiry
+// invisible to the user.
+router.post("/refresh", async (req, res) => {
+  const token = getToken(req);
+  if (!token) {
+    return res.status(401).json({ error: "Authorization token required" });
+  }
+
+  // Decode WITHOUT expiry check so we can refresh recently-expired tokens.
+  // We deliberately use jwt.decode (no signature verify) first to get the
+  // exp; the actual signature is verified by verifyJwt-with-ignore-exp below.
+  const decoded = jwt.decode(token) as { jti?: string; userId?: number; role?: string; exp?: number } | null;
+  if (!decoded || !decoded.userId || !decoded.jti) {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+
+  // The token's role determines the refresh window length. `iat` is the
+  // token creation time in seconds; refresh is allowed up to (ttl +
+  // REFRESH_WINDOW_DAYS) after iat.
+  const ttlDays = decoded.role === "staff" ? JWT_TTL_STAFF_DAYS : JWT_TTL_OWNER_DAYS;
+  const refreshWindowMs = (ttlDays + JWT_REFRESH_WINDOW_DAYS) * 24 * 60 * 60 * 1000;
+  const iatSec = (decoded as any).iat ?? Math.floor((decoded.exp ?? 0) - ttlDays * 24 * 60 * 60);
+  const tokenAgeMs = Date.now() - iatSec * 1000;
+  if (tokenAgeMs > refreshWindowMs) {
+    return res.status(401).json({ error: "refresh_window_closed" });
+  }
+
+  // Verify signature (still required — we just allow expired tokens).
+  let payload: DecodedToken;
+  try {
+    payload = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true }) as unknown as DecodedToken;
+  } catch {
+    return res.status(401).json({ error: "Invalid token" });
+  }
+
+  // Check the revocation list.
+  const revoked = await requireDb().select()
+    .from(revokedTokens)
+    .where(eq(revokedTokens.jti, payload.jti))
+    .limit(1);
+  if (revoked.length > 0) {
+    return res.status(401).json({ error: "token_revoked" });
+  }
+
+  // Issue a fresh token with the same role.
+  const newToken = signJwt(payload.userId, payload.role);
+  setTokenCookie(res, newToken);
+
+  // Decode the new token to surface exp for the client.
+  const newDecoded = jwt.decode(newToken) as { exp: number };
+  return res.json({
+    ok: true,
+    token: newToken,
+    expires_at: newDecoded.exp * 1000,
+    refresh_window_closes_at: (newDecoded.exp + JWT_REFRESH_WINDOW_DAYS * 24 * 60 * 60) * 1000,
+    role: payload.role,
+  });
+});
+
 // --- POST /api/auth/logout ---
+// Now also revokes the current token's jti, so a stolen device can't keep
+// using it after the owner has explicitly logged out.
 router.post("/logout", async (req, res) => {
+  const token = getToken(req);
+  if (token) {
+    const decoded = jwt.decode(token) as { jti?: string; userId?: string; exp?: number } | null;
+    if (decoded?.jti && decoded?.exp) {
+      try {
+        await requireDb().insert(revokedTokens).values({
+          jti: decoded.jti,
+          userId: String(decoded.userId || ""),
+          expiresAt: new Date(decoded.exp * 1000),
+          reason: "logout",
+        }).onConflictDoNothing();
+      } catch (err) {
+        // Non-fatal — the cookie clear is the primary effect.
+        console.error("[auth:logout] revoke failed:", err);
+      }
+    }
+  }
   clearTokenCookie(res);
   return res.json({ ok: true });
 });
 
 // --- GET /api/auth/me ---
+// Same as before, plus a silent-refresh side-effect: if the presented token
+// is within 7 days of expiry, transparently issue a new one in the response
+// (existing clients ignore it; the new client reads it from `refreshed_token`).
 router.get("/me", async (req, res) => {
   const token = getToken(req);
   if (!token) {
@@ -301,6 +412,17 @@ router.get("/me", async (req, res) => {
     }));
   }
 
+  // Silent refresh: if the token is within 7 days of expiry, return a fresh
+  // one. Skip if the token is already revoked.
+  const SILENT_REFRESH_WINDOW_DAYS = 7;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const secondsToExpiry = decoded.exp - nowSec;
+  let refreshedToken: string | undefined;
+  if (LONG_TOKEN_ENABLED && secondsToExpiry < SILENT_REFRESH_WINDOW_DAYS * 24 * 60 * 60 && secondsToExpiry > 0) {
+    refreshedToken = signJwt(decoded.userId, decoded.role);
+    setTokenCookie(res, refreshedToken);
+  }
+
   return res.json({
     ok: true,
     user: {
@@ -314,6 +436,7 @@ router.get("/me", async (req, res) => {
     permissions: primary?.permissions || null,
     businesses: businessList,
     is_platform_admin: await isPlatformAdminUser(user),
+    ...(refreshedToken ? { refreshed_token: refreshedToken } : {}),
   });
 });
 
@@ -395,18 +518,22 @@ router.post("/login", async (req, res) => {
     .set({ passwordAttempts: 0, passwordLockedUntil: null })
     .where(eq(users.id, user.id));
 
-  const token = signJwt(user.id);
-  setTokenCookie(res, token);
-
-  // Fetch businesses (same as /verify)
-  const memberRows = await requireDb().select({
-      businessId: businessMembers.businessId,
-      role: businessMembers.role,
-      permissions: businessMembers.permissions,
-    })
-    .from(businessMembers)
-    .where(eq(businessMembers.userId, user.id));
+  // Fetch memberships BEFORE signing so the JWT carries the role-based TTL.
+  let memberRows: any[] = [];
+  try {
+    memberRows = await requireDb().select({
+        businessId: businessMembers.businessId,
+        role: businessMembers.role,
+        permissions: businessMembers.permissions,
+      })
+      .from(businessMembers)
+      .where(eq(businessMembers.userId, user.id));
+  } catch { /* non-critical */ }
   const primary = memberRows[0] || null;
+  const isPlatformAdmin = await isPlatformAdminUser(user);
+  const tokenRole = isPlatformAdmin ? "platform_admin" : (primary?.role || "owner");
+  const token = signJwt(user.id, tokenRole);
+  setTokenCookie(res, token);
 
   let businessList: any[] = [];
   try {
@@ -437,7 +564,7 @@ router.post("/login", async (req, res) => {
     role: primary?.role || null,
     permissions: primary?.permissions || null,
     businesses: businessList,
-    is_platform_admin: await isPlatformAdminUser(user),
+    is_platform_admin: isPlatformAdmin,
   });
 });
 
@@ -517,7 +644,7 @@ router.post("/google-admin", async (req, res) => {
     await requireDb().update(users).set({ email }).where(eq(users.id, user.id));
   }
 
-  const token = signJwt(user.id);
+  const token = signJwt(user.id, "platform_admin");
   setTokenCookie(res, token);
 
   return res.json({

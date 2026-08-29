@@ -28,3 +28,4 @@ export * from "./settlements";
 export * from "./support_tickets";
 export * from "./adminLogs";
 export * from "./platform_admin_members";
+export * from "./revoked_tokens";

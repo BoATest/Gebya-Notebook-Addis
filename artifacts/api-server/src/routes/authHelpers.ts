@@ -1,7 +1,7 @@
 import { type Request, type Response } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { JWT_SECRET, JWT_EXPIRES_IN, JWT_COOKIE_NAME } from "./auth.js";
+import { JWT_SECRET, JWT_COOKIE_NAME, getTokenExpiryForRole } from "./auth.js";
 
 export function getToken(req: Request) {
   const authHeader = req.headers.authorization || "";
@@ -16,7 +16,7 @@ export function setTokenCookie(res: Response, token: string) {
     httpOnly: true,
     secure: isProduction,
     sameSite: "lax",
-    maxAge: 30 * 24 * 60 * 60 * 1000,
+    maxAge: 365 * 24 * 60 * 60 * 1000, // upper bound; actual expiry is in the JWT
     path: "/",
   });
 }
@@ -45,13 +45,31 @@ export function generateOtp() {
   return String(crypto.randomInt(100000, 1000000));
 }
 
-export function signJwt(userId: number) {
-  return jwt.sign({ userId, type: "access" }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+/**
+ * Sign a JWT for a user. `role` picks the TTL — owner (and platform_admin)
+ * get a 1-year token, staff get 30 days, see getTokenExpiryForRole().
+ * `userId` is now a string to support both legacy serial PKs and UUID PKs
+ * (legacy owners use the serial users table; new tenants may use UUIDs).
+ */
+export function signJwt(userId: string | number, role?: string | null) {
+  const jti = crypto.randomUUID();
+  const expiresIn = getTokenExpiryForRole(role) as jwt.SignOptions["expiresIn"];
+  return jwt.sign({ userId: String(userId), type: "access", role: role || "owner", jti }, JWT_SECRET, {
+    expiresIn,
+  });
 }
 
-export function verifyJwt(token: string) {
+export interface DecodedToken {
+  userId: number;
+  role: string;
+  jti: string;
+  iat: number;
+  exp: number;
+}
+
+export function verifyJwt(token: string): DecodedToken | null {
   try {
-    return jwt.verify(token, JWT_SECRET, { clockTolerance: 60 }) as { userId: number; type: string };
+    return jwt.verify(token, JWT_SECRET, { clockTolerance: 60 }) as unknown as DecodedToken;
   } catch {
     return null;
   }
