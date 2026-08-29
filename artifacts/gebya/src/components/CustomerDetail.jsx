@@ -654,7 +654,7 @@ function CustomerDetail({
             }}
           >
             <CalendarClock className="w-4 h-4" />
-            {lang === 'am' ? 'ተስፋፍ' : 'Promise'}
+            {lang === 'am' ? 'ቃል የተገባ' : 'Promise'}
           </button>
         )}
         {isValidEthiopianPhone(customer.phone_number) && (
@@ -676,7 +676,7 @@ function CustomerDetail({
             }}
           >
             <Phone className="w-4 h-4" />
-            {lang === 'am' ? 'ጥሪ' : 'Call'}
+            {lang === 'am' ? 'ለመደወል' : 'Call'}
           </a>
         )}
         {isValidEthiopianPhone(customer.phone_number) && (
@@ -888,7 +888,7 @@ function CustomerDetail({
                   onClick={() => { setPromiseDate(''); setPromiseNote(''); setPromiseAmount(''); setShowPromiseForm(true); }}
                   style={{ padding: '12px', background: '#1b4332', border: 'none', borderRadius: 10, fontSize: '0.82rem', fontWeight: 700, color: '#fff', cursor: 'pointer', width: '100%' }}
                 >
-                  📅 {lang === 'am' ? 'ተስፋፍ ይመዝግቡ' : 'Record a Promise'}
+                  📅 {lang === 'am' ? 'ቃል የተገባ ይመዝግቡ' : 'Record a Promise'}
                 </button>
               );
             }
@@ -904,7 +904,7 @@ function CustomerDetail({
                 gap: 10,
               }}>
                 <p style={{ fontSize: '0.78rem', fontWeight: 700, margin: 0, color: '#171a17' }}>
-                  📅 {lang === 'am' ? 'የተስፋፉበትን ቀን ይመዝግቡ' : 'Record Promise to Pay'}
+                  📅 {lang === 'am' ? 'ቃል የተገባ ይመዝግቡ' : 'Record Promise to Pay'}
                 </p>
                 <input
                   type="date"
