@@ -79,7 +79,7 @@ export default function BankDataSharing({ shopId, lang }) {
     selectBank: lang === 'am' ? 'ባንክ ይምረጡ' : 'Select a bank',
     shareOptions: lang === 'am' ? 'የማጋራት ምርጫዎች' : 'What to share',
     salesData: lang === 'am' ? 'የሽያጭ መረጃ' : 'Sales data',
-    creditData: lang === 'am' ? 'የቪ딧 መረጃ' : 'Credit (dubie) data',
+    creditData: lang === 'am' ? 'የዱቤ መረጃ' : 'Credit (dubie) data',
     customerData: lang === 'am' ? 'የደንበኛ መረጃ (ስም፣ ስልክ)' : 'Customer info (name, phone)',
     customerDataHint: lang === 'am' ? '⚠️ ስም እና ስልክ ብቻ' : '⚠️ Includes PII — opt-in only',
     confirm: lang === 'am' ? 'ያረጋግጡ' : 'Confirm',

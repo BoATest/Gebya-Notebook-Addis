@@ -558,7 +558,7 @@ export function exportCreditReportPdf(report, lang = 'en') {
     <div class="value">${s.on_time_rate_percent ?? 0}%</div>
   </div>
   <div class="summary-card">
-    <div class="label">${isAm ? 'በ孙悟 የሚገኝ' : 'Overdue'}</div>
+    <div class="label">${isAm ? 'የዘገወ ክፍያ' : 'Overdue'}</div>
     <div class="value ${s.overdue_amount_birr > 0 ? 'red' : ''}">${fmtBirr(s.overdue_amount_birr || 0)}</div>
   </div>
 </div>
@@ -569,7 +569,7 @@ ${customers.length > 0 ? `
     <th>${isAm ? 'ስም' : 'Name'}</th>
     <th class="text-right">${isAm ? 'የተገዛ' : 'Outstanding'}</th>
     <th class="text-right">${isAm ? 'ጊዜ ተeming' : 'On-Time'}</th>
-    <th class="text-right">${isAm ? '孙悟 ቀን' : 'Overdue Days'}</th>
+    <th class="text-right">${isAm ? 'የዘገወ ቀን' : 'Overdue Days'}</th>
   </tr></thead>
   <tbody>${customers.map(c => `
     <tr>
