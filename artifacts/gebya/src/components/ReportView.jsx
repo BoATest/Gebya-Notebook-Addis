@@ -206,7 +206,9 @@ export default function ReportView({
           const saved = localStorage.getItem(closingKey);
           if (saved) {
             data = JSON.parse(saved);
-            db.settings.put({ key: closingKey, value: saved }).catch(() => {});
+            // Migrate the legacy record into the durable (synced) store.
+            const now = Date.now();
+            db.settings.put({ key: closingKey, value: saved, created_at: now, updated_at: now }).catch(() => {});
           }
         } catch {}
       }
@@ -219,9 +221,24 @@ export default function ReportView({
   // so switching periods never writes stale data into the new key.
   useEffect(() => {
     if (closing.key !== closingKey) return;
-    try { localStorage.setItem(closingKey, JSON.stringify(closing.data)); } catch {}
-    // Durable copy in IndexedDB — picked up by backup/restore flows.
-    db.settings.put({ key: closingKey, value: JSON.stringify(closing.data) }).catch(() => {});
+    const serialized = JSON.stringify(closing.data);
+    try { localStorage.setItem(closingKey, serialized); } catch {}
+    // Durable copy in IndexedDB. `settings` is a synced KV table — created_at/
+    // updated_at are required for the sync engine's KV push filter and the
+    // server's last-write-wins merge, so this record propagates to the owner's
+    // other devices and is picked up by backup/restore flows.
+    (async () => {
+      try {
+        const now = Date.now();
+        const existing = await db.settings.get(closingKey);
+        await db.settings.put({
+          key: closingKey,
+          value: serialized,
+          created_at: existing?.created_at || now,
+          updated_at: now,
+        });
+      } catch { /* non-fatal — localStorage copy remains */ }
+    })();
   }, [closing.key, closing.data, closingKey]);
 
   const closingState = closing.data || EMPTY_CLOSING;
