@@ -71,7 +71,7 @@ function ReminderSettings({ shopId, lang }) {
       fireToast(
         enabled
           ? (lang === 'am' ? 'ራስ-ሰር ማስታወቂያ ተከፍቷል' : 'Auto-reminders enabled')
-          : (lang === 'am' ? 'ራስ-ሰር ማስታወቂያ ተ偃ፍቷል' : 'Auto-reminders paused'),
+          : (lang === 'am' ? 'ራስ-ሰር ማስታወቂያ ተዘግቷል' : 'Auto-reminders paused'),
         2000
       );
     } catch (err) {
@@ -100,7 +100,7 @@ function ReminderSettings({ shopId, lang }) {
             <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
               {isEnabled
                 ? (lang === 'am' ? 'በየቀኑ ለسابقة ያላቸው ተጋዦች ማስታወቂያ ይላካል' : 'Sends daily reminders to customers with overdue credit')
-                : (lang === 'am' ? 'ማስታወቂያ ተ偃ፍቷል' : 'Reminders are paused')}
+                : (lang === 'am' ? 'ማስታወቂያ ተዘግቷል' : 'Reminders are paused')}
             </div>
           </div>
           <button
@@ -303,13 +303,21 @@ function SettingsPage({
   const [selectedShop, setSelectedShop] = useState(null); // shop object from AdminDashboard search
   const [aboutTapCount, setAboutTapCount] = useState(0);
   const [devModeRevealed, setDevModeRevealed] = useState(() => {
-    try { return localStorage.getItem('gebya_dev_mode') === 'true'; } catch { return false; }
+    // Dev mode is a session-only diagnostic aid. It never grants platform-admin
+    // access (see showPlatformAdmin below) and clears when the tab closes.
+    try {
+      // One-time cleanup: older builds persisted this flag in localStorage forever.
+      try { localStorage.removeItem('gebya_dev_mode'); } catch { /* ignore */ }
+      return sessionStorage.getItem('gebya_dev_mode') === 'true';
+    } catch { return false; }
   });
   // Shop owners see their own-shop admin tools automatically; the platform-wide
-  // admin dashboard is reserved for allowlisted platform admins (or dev mode).
+  // admin dashboard is reserved strictly for allowlisted platform admins.
+  // Dev mode (5 taps on the version string) only reveals session-scoped
+  // shop-level diagnostics — never the platform admin surfaces.
   const isOwner = role === 'owner';
   const showAdminSection = devModeRevealed || isOwner || isPlatformAdmin;
-  const showPlatformAdmin = devModeRevealed || isPlatformAdmin;
+  const showPlatformAdmin = isPlatformAdmin;
 
   const handleNavigate = (cardId, tabId) => {
     if (tabId) {
@@ -325,9 +333,11 @@ function SettingsPage({
     const next = aboutTapCount + 1;
     setAboutTapCount(next);
     if (next >= 5) {
-      try { localStorage.setItem('gebya_dev_mode', 'true'); } catch { /* ignore */ }
+      // Session-scoped: cleared when the app/tab closes, so a shared shop phone
+      // never keeps debug surfaces unlocked between users.
+      try { sessionStorage.setItem('gebya_dev_mode', 'true'); } catch { /* ignore */ }
       setDevModeRevealed(true);
-      fireToast(lang === 'am' ? '🛠 የልማት ሁነታ ተከፍቷል' : '🛠 Dev mode unlocked', 1800);
+      fireToast(lang === 'am' ? '🛠 የልማት ሁነታ ተከፍቷል (ለዚህ ክፍለ ጊዜ ብቻ)' : '🛠 Dev mode unlocked (this session only)', 1800);
     }
   };
 
@@ -477,13 +487,15 @@ function SettingsPage({
               >
                 {lang === 'am' ? 'ትንተና' : 'Analytics'}
               </button>
-              <button
-                onClick={() => setAdminSection(adminSection === 'curation' ? null : 'curation')}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${adminSection === 'curation' ? 'text-white' : ''}`}
-                style={adminSection === 'curation' ? { background: 'var(--color-primary)' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
-              >
-                {lang === 'am' ? 'ማስተካከያ ወረፋ' : 'Curation'}
-              </button>
+              {(isOwner || isPlatformAdmin) && (
+                <button
+                  onClick={() => setAdminSection(adminSection === 'curation' ? null : 'curation')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${adminSection === 'curation' ? 'text-white' : ''}`}
+                  style={adminSection === 'curation' ? { background: 'var(--color-primary)' } : { background: 'var(--color-bg-hover)', color: 'var(--color-text)' }}
+                >
+                  {lang === 'am' ? 'ማስተካከያ ወረፋ' : 'Curation'}
+                </button>
+              )}
               <button
                 onClick={() => setAdminSection(adminSection === 'activity' ? null : 'activity')}
                 className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${adminSection === 'activity' ? 'text-white' : ''}`}
@@ -524,7 +536,7 @@ function SettingsPage({
             )}
             {adminSection === 'metrics' && <div className="px-4 pb-3"><AdminMetricsView shopId={shopId} /></div>}
             {adminSection === 'analytics' && <div className="px-4 pb-3"><Suspense fallback={<div className="text-xs text-gray-400 py-4">Loading...</div>}><SimpleAnalytics /></Suspense></div>}
-            {adminSection === 'curation' && <div className="px-4 pb-3"><CrossShopCurationQueue /></div>}
+            {(isOwner || isPlatformAdmin) && adminSection === 'curation' && <div className="px-4 pb-3"><CrossShopCurationQueue /></div>}
             {adminSection === 'activity' && (
               <div className="px-4 pb-3">
                 <Suspense fallback={<div className="text-xs text-gray-400 py-4">Loading...</div>}>

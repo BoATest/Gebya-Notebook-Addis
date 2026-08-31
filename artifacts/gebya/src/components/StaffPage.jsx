@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useLang } from '../context/LangContext';
 import { useStaffStore } from '../stores/staffStore';
 import { fireToast } from './Toast';
@@ -48,7 +49,35 @@ export default function StaffPage({
   const [addStaffSaving, setAddStaffSaving] = useState(false);
 
   // ─── Global state for isolated component isolation ───
-  const store = useStaffStore();
+  // Select only the fields this page uses (shallow-compared) so unrelated
+  // store updates (search typing, collect form values, editing state) don't
+  // re-render the whole page on cheap phones.
+  const store = useStaffStore(useShallow((s) => ({
+    applyTogglePermission: s.applyTogglePermission,
+    clearSettlementOverlay: s.clearSettlementOverlay,
+    cloudMembers: s.cloudMembers,
+    expandedStaffDrilldown: s.expandedStaffDrilldown,
+    handleRoleChange: s.handleRoleChange,
+    handleSettlementSaved: s.handleSettlementSaved,
+    handleViewSettlement: s.handleViewSettlement,
+    pendingDeactivation: s.pendingDeactivation,
+    pendingNoPerms: s.pendingNoPerms,
+    pendingPermChange: s.pendingPermChange,
+    pendingRoleChange: s.pendingRoleChange,
+    setPendingDeactivation: s.setPendingDeactivation,
+    setPendingNoPerms: s.setPendingNoPerms,
+    setPendingPermChange: s.setPendingPermChange,
+    setPendingRoleChange: s.setPendingRoleChange,
+    setSettling: s.setSettling,
+    settlements: s.settlements,
+    settling: s.settling,
+    setTodayStaffSales: s.setTodayStaffSales,
+    setTodayStaffTransactions: s.setTodayStaffTransactions,
+    todayRefreshKey: s.todayRefreshKey,
+    todayStaffSales: s.todayStaffSales,
+    todayStaffTransactions: s.todayStaffTransactions,
+    viewingSettlement: s.viewingSettlement,
+  })));
   const loadCloudMembers = useStaffStore((s) => s.loadCloudMembers);
   const loadSettlements = useStaffStore((s) => s.loadSettlements);
   const refreshSettlements = useStaffStore((s) => s.refreshSettlements);
@@ -84,7 +113,10 @@ export default function StaffPage({
       refreshSettlements();
       refreshToday();
     };
-    const interval = setInterval(() => { if (!document.hidden) refresh(); }, 30000);
+    // Poll once a minute (visibility-guarded) — frequent polling drains
+    // battery/data on budget Android phones; the visibilitychange listener
+    // gives an instant refresh whenever the user returns to the app anyway.
+    const interval = setInterval(() => { if (!document.hidden) refresh(); }, 60000);
     document.addEventListener('visibilitychange', refresh);
     return () => {
       clearInterval(interval);
@@ -271,7 +303,7 @@ export default function StaffPage({
                             type="tel"
                             value={addStaffPhone}
                             onChange={e => { setAddStaffPhone(e.target.value); setAddStaffError(null); }}
-                            placeholder={t('Phone number', 'ስምንትና')}
+                            placeholder={t('Phone number', 'ስልክ ቁጥር')}
                             className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none"
                             style={{ borderColor: 'var(--color-border)' }}
                           />
@@ -308,7 +340,7 @@ export default function StaffPage({
                             onClick={async () => {
                               const { isValidEthiopianPhone, normalizeEthiopianPhone } = await import('../utils/phoneNumber');
                               if (!addStaffPhone || !isValidEthiopianPhone(addStaffPhone)) {
-                                setAddStaffError(t('A valid Ethiopian phone number is required', 'በዚህ ዘርባዊ የሆነ ቀድሞ ይሰማረው'));
+                                setAddStaffError(t('A valid Ethiopian phone number is required', 'ትክክለኛ የኢትዮጵያ ስልክ ቁጥር ያስፈልጋል'));
                                 return;
                               }
                               setAddStaffSaving(true);
@@ -563,7 +595,10 @@ export default function StaffPage({
         onConfirm={() => {
           const p = store.pendingDeactivation;
           store.setPendingDeactivation(null);
-          if (p) onDeactivateStaffMember?.(p.id);
+          if (p) {
+            if (onDeactivateStaffMember) onDeactivateStaffMember(p.id);
+            else fireToast(t('Could not deactivate — please try again', 'ማቆም አልተቻለም — እባክዎ እንደገና ይሞክሩ'), 2500);
+          }
         }}
         onCancel={() => store.setPendingDeactivation(null)}
       />

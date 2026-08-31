@@ -22,6 +22,7 @@ import {
 } from '../utils/shopStory';
 import { fmt } from '../utils/numformat';
 import { fireToast } from './Toast';
+import db, { getAllSettlements } from '../db';
 
 import HeroStatus from './HeroStatus';
 import TodayBusiness from './TodayBusiness';
@@ -189,13 +190,29 @@ export default function ReportView({
   const [closing, setClosing] = useState({ key: null, data: EMPTY_CLOSING });
 
   // Load the record for the selected period (runs on period switch).
+  // Prefer the durable copy in IndexedDB (survives cache/PWA data clears and is
+  // included in file/cloud backup + restore); fall back to the legacy
+  // localStorage key and migrate it into the durable store on first read.
   useEffect(() => {
-    let data = EMPTY_CLOSING;
-    try {
-      const saved = localStorage.getItem(closingKey);
-      if (saved) data = JSON.parse(saved);
-    } catch {}
-    setClosing({ key: closingKey, data });
+    let cancelled = false;
+    (async () => {
+      let data = EMPTY_CLOSING;
+      try {
+        const row = await db.settings.get(closingKey);
+        if (row?.value) data = JSON.parse(row.value);
+      } catch { /* IndexedDB unavailable — localStorage fallback below */ }
+      if (!cancelled && data === EMPTY_CLOSING) {
+        try {
+          const saved = localStorage.getItem(closingKey);
+          if (saved) {
+            data = JSON.parse(saved);
+            db.settings.put({ key: closingKey, value: saved }).catch(() => {});
+          }
+        } catch {}
+      }
+      if (!cancelled) setClosing({ key: closingKey, data });
+    })();
+    return () => { cancelled = true; };
   }, [closingKey]);
 
   // Persist only when the in-memory state belongs to the current period,
@@ -203,6 +220,8 @@ export default function ReportView({
   useEffect(() => {
     if (closing.key !== closingKey) return;
     try { localStorage.setItem(closingKey, JSON.stringify(closing.data)); } catch {}
+    // Durable copy in IndexedDB — picked up by backup/restore flows.
+    db.settings.put({ key: closingKey, value: JSON.stringify(closing.data) }).catch(() => {});
   }, [closing.key, closing.data, closingKey]);
 
   const closingState = closing.data || EMPTY_CLOSING;
@@ -330,8 +349,13 @@ export default function ReportView({
     const header = ['date', 'type', 'amount', 'item_or_person', 'payment', 'status'];
     const csvEscape = (v) => {
       if (v == null) return '';
-      const s = String(v);
-      return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+      let s = String(v);
+      // Neutralize spreadsheet formula injection: values starting with = + - @
+      // (or a tab/CR) would execute as formulas when opened in Excel/Sheets.
+      if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? `"${s.replace(/"/g, '""')}"`
+        : s;
     };
     const rows = reportRows.map(row => [
       row.created_at ? new Date(row.created_at).toISOString() : '',
@@ -373,17 +397,40 @@ export default function ReportView({
     } else if (actionType === 'collect_staff') {
       // Open the settlement sheet inline so the owner can review
       // staff handovers directly from the report, without leaving.
-      // HandoverStatus already tracks each staff's latest settlement live;
-      // passing null lets the sheet load and pull expected amounts.
-      if (staffMembers.length > 0) {
-        setSheetTarget({ staff: staffMembers[0], settlement: null });
-      }
+      // Pick the most urgent staff member — one awaiting owner review first,
+      // then one who hasn't handed over yet — instead of an arbitrary first row.
+      (async () => {
+        const candidates = staffMembers.filter(m => m && m.id != null && m.active !== false);
+        if (candidates.length === 0) return;
+        const latestByStaff = {};
+        try {
+          const rows = await getAllSettlements(todayStart, Date.now() + 60000);
+          for (const s of rows || []) {
+            const id = String(s.staff_id);
+            const prev = latestByStaff[id];
+            if (!prev || Number(s.updated_at || s.created_at || 0) >= Number(prev.updated_at || prev.created_at || 0)) {
+              latestByStaff[id] = s;
+            }
+          }
+        } catch { /* no settlement data — fall back to list order */ }
+        const urgency = (settlement) => {
+          const rs = settlement?.reconciliation_status;
+          if (rs === 'staff_submitted') return 3; // waiting for the owner's review
+          if (rs === 'disputed') return 2;        // unresolved mismatch
+          if (!rs) return 1;                      // not handed over yet
+          return 0;                               // confirmed — least urgent
+        };
+        candidates.sort((a, b) =>
+          urgency(latestByStaff[String(b.id)]) - urgency(latestByStaff[String(a.id)]));
+        const target = candidates[0];
+        setSheetTarget({ staff: target, settlement: latestByStaff[String(target.id)] || null });
+      })();
     } else if (actionType === 'sale') {
       window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'sale' } }));
     } else if (actionType === 'view_details' || actionType === 'review') {
       document.getElementById('today-business')?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [metrics, handleClose]);
+  }, [metrics, handleClose, staffMembers, todayStart]);
 
   const timeRangeLabel = isToday
     ? (lang === 'am' ? 'ዛሬ' : 'Today')

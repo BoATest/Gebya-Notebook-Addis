@@ -8,12 +8,16 @@ import { startOfLocalDay } from '../utils/reportSelectors';
 import { isValidEthiopianPhone, normalizeEthiopianPhone, extractSubscriberDigits } from '../utils/phoneNumber';
 import { useAuthStore } from './authStore';
 import { usePermissionsStore } from './permissionsStore';
+import { ROLE_DEFAULTS } from '../utils/permissions';
 
+// Single source of truth for role permission presets lives in
+// utils/permissions.js (mirrored by the server's permission-defaults.ts).
+// Derive the presets here instead of redefining them to prevent drift.
 const ROLE_PRESETS = {
-  manager: { can_manage_team: true, can_delete_records: true, can_edit_settings: true, can_add_records: true, can_view_reports: true },
-  cashier: { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: true, can_view_reports: true },
-  viewer: { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: false, can_view_reports: true },
-  trusted_staff: { can_manage_team: false, can_delete_records: false, can_edit_settings: false, can_add_records: true, can_view_reports: true },
+  manager: ROLE_DEFAULTS.manager,
+  cashier: ROLE_DEFAULTS.cashier,
+  viewer: ROLE_DEFAULTS.viewer,
+  trusted_staff: ROLE_DEFAULTS.trusted_staff,
 };
 
 const ROLE_OPTIONS = [
