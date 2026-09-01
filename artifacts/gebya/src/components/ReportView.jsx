@@ -395,12 +395,36 @@ export default function ReportView({
     URL.revokeObjectURL(url);
   }, [reportRows]);
 
-  const handleClose = useCallback(({ cashInHand, cashVariance }) => {
+    const handleClose = useCallback(({ cashInHand, cashVariance }) => {
     setClosing(prev => ({
       key: closingKey,
       data: { ...(prev.key === closingKey ? prev.data : EMPTY_CLOSING), done: true, cashInHand, cashVariance },
     }));
-  }, [closingKey]);
+    // Persist immediately so the record (the owner's cash-count evidence in
+    // any dispute with staff) is durable before we show feedback.
+    const payload = { done: true, cashInHand, cashVariance };
+    try { localStorage.setItem(closingKey, JSON.stringify(payload)); } catch {}
+    (async () => {
+      try {
+        const now = Date.now();
+        const existing = await db.settings.get(closingKey);
+        await db.settings.put({
+          key: closingKey,
+          value: JSON.stringify(payload),
+          created_at: existing?.created_at || now,
+          updated_at: now,
+        });
+      } catch { /* localStorage copy remains */ }
+    })();
+        const cashShould = (metrics?.cashExpected || 0) + (metrics?.creditCollected || 0) - (metrics?.spentToday || 0);
+    const variance = cashShould - (Number(cashInHand) || 0);
+    const msg = variance === 0
+      ? (lang === 'am' ? 'ዝጋ ተመዝገቧል ✓' : 'Closing recorded ✓')
+      : (lang === 'am'
+        ? `ልዩነት: ${fmt(variance)} ${variance > 0 ? 'ከፍተው' : 'ታመከ'} ✓`
+        : `Difference: ${fmt(variance)} ${variance > 0 ? 'over' : 'short'} ✓`);
+    fireToast(msg, 3500);
+    }, [closingKey, lang, metrics]);
 
   const handleAction = useCallback((actionType) => {
     if (actionType === 'count_cash') {

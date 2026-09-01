@@ -49,5 +49,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: i18n character check
         run: pnpm lint:i18n
+      - name: orphan scan
+        run: pnpm check:orphans
       - name: Build
         run: pnpm build
