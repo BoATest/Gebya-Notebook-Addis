@@ -47,5 +47,7 @@ jobs:
           cache-dependency-path: artifacts/gebya/pnpm-lock.yaml
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: i18n character check
+        run: pnpm lint:i18n
       - name: Build
         run: pnpm build
