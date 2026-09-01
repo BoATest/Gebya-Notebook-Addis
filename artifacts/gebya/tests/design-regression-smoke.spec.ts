@@ -73,15 +73,16 @@ test('design regression smoke protects core merchant surfaces', async ({ page },
 
   await expect(page.getByText('Gebya').first()).toBeVisible();
   await expect(page.locator('img[alt="Gebya"]')).toBeVisible();
-  await expect(page.getByText('How are you using Gebya?')).toBeVisible();
-  await expect(page.getByText('I own / manage a shop')).toBeVisible();
-  await expect(page.getByText('I was invited by a shop')).toBeVisible();
-  await expect(page.getByText('Gebya is a notebook, not a bank.')).toBeVisible();
+  // Current onboarding copy (Two ways / Select Account Type)
+  await expect(page.getByText('Two ways to use Gebya')).toBeVisible();
+  await expect(page.getByText('Shop Owner')).toBeVisible();
+  await expect(page.getByText('Join a Shop')).toBeVisible();
+  await expect(page.getByText('All data stays on your phone · Not connected with your bank · Free')).toBeVisible();
   await attachScreenshot(page, testInfo, '01-onboarding');
 
-  await page.getByText('I own / manage a shop').click();
-  await page.getByPlaceholder('e.g. Tigist').fill('Design Smoke Shop');
-  await page.getByRole('button', { name: 'Start using Gebya' }).click();
+  await page.getByText('Shop Owner').click();
+  await page.getByPlaceholder('Enter your name').fill('Design Smoke Shop');
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
 
   await expect(page.getByText('Recording as')).toBeVisible();
   await expect(page.getByText('Design Smoke Shop').first()).toBeVisible();
@@ -94,27 +95,33 @@ test('design regression smoke protects core merchant surfaces', async ({ page },
   await attachScreenshot(page, testInfo, '02-owner-home');
 
   await page.locator('nav').getByRole('button', { name: 'More' }).click();
-  await expect(page.getByText('Profile')).toBeVisible();
-  await expect(page.getByText('Payment channels')).toBeVisible();
-  await expect(page.getByText('Team & Staff')).toBeVisible();
-  await expect(page.getByText('Backup & data')).toBeVisible();
+  // Current settings layout: tabbed (Shop / Money / Data) with accordion cards
+  await expect(page.getByRole('button', { name: 'Shop', exact: true })).toBeVisible();
+  await expect(page.getByText('Shop Profile')).toBeVisible();
+  await expect(page.getByText('Items', { exact: true })).toBeVisible();
+  await expect(page.getByText('Recurring Expenses', { exact: true })).toBeVisible();
+  await expect(page.getByText('AUTO REMINDERS')).toBeVisible();
+  await expect(page.getByText('PASSWORD LOGIN')).toBeVisible();
   await attachScreenshot(page, testInfo, '03-settings-more');
 
-  await page.getByRole('button', { name: /Team & Staff/ }).click();
-  await expect(page.getByText('Owner-only area.')).toBeVisible();
-  await expect(page.getByText('Shop invite code')).toBeVisible();
+  // Team & Staff lives on the dedicated Staff tab (owner tab bar + join code)
+  await page.locator('nav').getByRole('button', { name: 'Staff' }).click();
+  await expect(page.getByRole('button', { name: 'Team', exact: true })).toBeVisible();
+  await expect(page.getByText('Join code')).toBeVisible();
   await expect(page.getByText('SAFE-UI12')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Copy' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Rotate' })).toBeVisible();
-  await expect(page.getByText('Require staff phone number')).toBeVisible();
-  await expect(page.getByText('Require device approval')).toBeVisible();
-  await attachScreenshot(page, testInfo, '04-team-and-staff');
+  await expect(page.getByRole('button', { name: 'Reset code' })).toBeVisible();
+  await expect(page.getByText('Add Staff')).toBeVisible();
+  await attachScreenshot(page, testInfo, '04-staff-team');
 
   await page.locator('nav').getByRole('button', { name: 'Report' }).click();
-  await expect(page.getByPlaceholder('Search item, code, customer, staff, amount, or date')).toBeVisible();
-  await expect(page.getByRole('main').getByRole('button', { name: 'today', exact: true })).toBeVisible();
-  await expect(page.getByRole('main').getByRole('button', { name: 'week', exact: true })).toBeVisible();
-  await expect(page.getByText('Total Sold')).toBeVisible();
-  await expect(page.getByText("Today's Closing Check")).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Notebook/ })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('button', { name: '🌅 Today' })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('button', { name: '📅 Week' })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('button', { name: '🗓 Month' })).toBeVisible();
+  // Empty shop renders the welcome/empty state
+  await expect(page.getByText('Welcome to your shop')).toBeVisible();
+  await expect(page.getByText('Record a sale or expense to get started.')).toBeVisible();
+  await expect(page.getByRole('main').getByRole('button', { name: /Sale/ })).toBeVisible();
   await attachScreenshot(page, testInfo, '05-report');
 });
