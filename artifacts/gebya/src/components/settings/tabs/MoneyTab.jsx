@@ -1,5 +1,6 @@
 import PlanPanel from '../PlanPanel';
 import PaymentChannelsSection from '../PaymentChannelsSection';
+import DubieRulesPanel from '../DubieRulesPanel';
 import TabCard from '../TabCard';
 import useAccordion from '../useAccordion';
 
@@ -57,6 +58,18 @@ export default function MoneyTab({
           onChange={(next) => onSavePaymentChannels?.(next)}
           lang={lang}
         />
+      </TabCard>
+
+      <TabCard
+        id="dubie-rules"
+        icon="⚖️"
+        title={lang === 'am' ? 'የዱቤ ህጎች' : 'Dubie (Credit) Rules'}
+        subtitle={lang === 'am' ? 'የዘገዬ ጊዜ እና ራስ-ሰር ማስታወቂያ' : 'Overdue threshold and auto-reminders'}
+        badgeTone="neutral"
+        open={openCards.has('dubie-rules')}
+        onToggle={() => toggleCard('dubie-rules')}
+      >
+        <DubieRulesPanel />
       </TabCard>
     </div>
   );

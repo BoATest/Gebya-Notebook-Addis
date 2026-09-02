@@ -1,7 +1,12 @@
+import { lazy, Suspense } from 'react';
 import BackupDataPanel from '../BackupDataPanel';
 import DisplayPrivacyPanel from '../DisplayPrivacyPanel';
 import ExportPanel from '../ExportPanel';
+import PwaInstallPanel from '../../PwaInstallPanel';
 import TabCard from '../TabCard';
+import { usePwaInstall } from '../../../hooks/usePwaInstall.js';
+
+const SimpleAnalytics = lazy(() => import('../../analytics/SimpleAnalytics.jsx'));
 
 export default function DataTab({
   transactions,
@@ -13,6 +18,7 @@ export default function DataTab({
   const dataTone = totalEntries > 0 ? 'ok' : 'neutral';
 
   const aboutTapHint = lang === 'am' ? 'ስሪት 1.0' : 'Version 1.0';
+  const pwa = usePwaInstall();
 
   return (
     <div>
@@ -49,6 +55,26 @@ export default function DataTab({
         badgeTone="neutral"
       >
         <DisplayPrivacyPanel />
+      </TabCard>
+
+      <TabCard
+        icon="📲"
+        title={lang === 'am' ? 'መተግበሪያውን ይጫኑ' : 'Install the App'}
+        subtitle={lang === 'am' ? 'እንደ መተግበሪያ ይክፈቱ — ከመስመር ውጭም ይሰራል' : 'Use it like a native app — works offline too'}
+        badgeTone="neutral"
+      >
+        <PwaInstallPanel pwa={pwa} />
+      </TabCard>
+
+      <TabCard
+        icon="📊"
+        title={lang === 'am' ? 'የመተግበሪያ አጠቃቀም' : 'App Usage'}
+        subtitle={lang === 'am' ? 'የእርስዎ ብቻ — ወደ ውጭ አይላክም' : 'Private — never leaves this device'}
+        badgeTone="neutral"
+      >
+        <Suspense fallback={null}>
+          <SimpleAnalytics />
+        </Suspense>
       </TabCard>
 
       <TabCard

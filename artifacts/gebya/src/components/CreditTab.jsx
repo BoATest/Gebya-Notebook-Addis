@@ -8,6 +8,7 @@ import { SUPPLIER_TRANSACTION_TYPES, buildSupplierReport, exportSupplierReportCs
 import { buildCreditReport, exportCreditReportCsv, exportCreditReportPdf } from '../utils/customerMetrics';
 import { fireToast } from './Toast';
 import DownloadMenuSheet from './DownloadMenuSheet';
+import OverdueCustomerFlags from './OverdueCustomerFlags';
 
 export default function CreditTab({
   selectedCustomer,
@@ -196,16 +197,19 @@ export default function CreditTab({
             />
           </Suspense>
         ) : (
-          <Suspense fallback={<PanelFallback label={t.loading} />}>
-            <CustomerList
-              customers={enrichedCustomerSummaries}
-              metrics={creditMetrics}
-              onSelectCustomer={(customer) => setSelectedCustomerId(customer.id)}
-              onAddCustomer={() => setShowCustomerForm(true)}
-              onRemind={handleBulkRemind}
-              onDownloadClick={() => setDownloadOpen(true)}
-            />
-          </Suspense>
+          <>
+            <OverdueCustomerFlags />
+            <Suspense fallback={<PanelFallback label={t.loading} />}>
+              <CustomerList
+                customers={enrichedCustomerSummaries}
+                metrics={creditMetrics}
+                onSelectCustomer={(customer) => setSelectedCustomerId(customer.id)}
+                onAddCustomer={() => setShowCustomerForm(true)}
+                onRemind={handleBulkRemind}
+                onDownloadClick={() => setDownloadOpen(true)}
+              />
+            </Suspense>
+          </>
         )
       )}
 

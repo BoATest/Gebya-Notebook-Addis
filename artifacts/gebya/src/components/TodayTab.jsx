@@ -4,6 +4,7 @@ import { useLang } from '../context/LangContext';
 import { useAppStore } from '../stores/appStore';
 import ProfitCard from './ProfitCard';
 import TxRow from './TxRow';
+import TrustCard from './TrustCard';
 import { PanelFallback } from './Fallbacks';
 import { DailySuggestions, LearningInsights } from '../utils/lazyImports';
 import { fmt } from '../utils/numformat';
@@ -17,7 +18,6 @@ export default function TodayTab({
   onShareReport,
 }) {
   const { lang, t } = useLang();
-  const setActiveTab = useAppStore(s => s.setActiveTab);
   const setShowForm = useAppStore(s => s.setShowForm);
   const setEditTarget = useAppStore(s => s.setEditTarget);
   const setDeleteTarget = useAppStore(s => s.setDeleteTarget);
@@ -51,36 +51,13 @@ export default function TodayTab({
             <p className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ገና ምንም ምዝገባ የለም' : 'No entries yet'}</p>
             <p className="text-xs mt-1" style={{ color: 'var(--color-text-soft)' }}>{lang === 'am' ? 'ለመጀመር ከላይ ይጫኑ' : 'Tap above to start'}</p>
             {transactions.length === 0 && ledgerTransactions.length === 0 && (
-              <div style={{
-                marginTop: 16,
-                padding: 16,
-                background: 'linear-gradient(135deg, var(--color-success-bg) 0%, var(--color-success-bg) 100%)',
-                border: '1px solid var(--color-success-border)',
-                borderRadius: 12,
-              }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary)', marginBottom: 12 }}>
-                  {lang === 'am' ? '📒 ደብተርዎን ጀምር' : '📒 Start your notebook'}
-                </p>
-                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
-                  {lang === 'am'
-                    ? 'ሽያጭ ወይም ወጪ መዝግብ። ሁሉም መረጃ በዚህ ስልክ ላይ ይቀመጣል።'
-                    : 'Record sales and expenses. All data stays on this phone.'
-                  }
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('credit')}
-                  className="press-scale"
-                  style={{
-                    background: 'var(--color-primary)',
-                    color: 'var(--color-bg-white)', border: 'none', borderRadius: 8,
-                    padding: '8px 16px', fontSize: 12, fontWeight: 800,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {lang === 'am' ? 'ተጨማሪ ይያዩ' : 'View Credit Page'} →
-                </button>
-              </div>
+              <TrustCard
+                totalEntries={0}
+                todayCount={0}
+                lastSavedSnapshot={lastSavedSnapshot}
+                onStartSale={() => setShowForm('sale')}
+                t={t}
+              />
             )}
           </div>
         ) : (

@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { db } from '../../db';
+import db from '../../db';
 import { useLang } from '../../context/LangContext';
 import { ArrowLeft, TrendingUp, Users, Activity, Calendar } from 'lucide-react';
 

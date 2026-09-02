@@ -52,8 +52,11 @@ jobs:
       - name: orphan scan
         run: pnpm check:orphans
         env:
-          # Known-dead files pending cleanup decision (bank feature, PWA panel,
-          # trust card, legacy hooks, .d.ts defs). NEW orphans still fail CI.
-          ALLOWED_ORPHANS: src/bank-main.tsx,src/components/analytics/SimpleAnalytics.jsx,src/components/AskNotebookFAB.jsx,src/components/BankDashboard.d.ts,src/components/BankDataSharing.jsx,src/components/OverdueCustomerFlags.jsx,src/components/PwaInstallPanel.jsx,src/components/settings/DubieRulesPanel.jsx,src/components/TopbarIdentity.jsx,src/components/TrustCard.jsx,src/hooks/use-mobile.tsx,src/hooks/useCatalog.js,src/hooks/useCustomers.js,src/hooks/useTransactions.js,src/pages/OnboardingPage.jsx,src/types/jsx-modules.d.ts,src/types/pwa-register.d.ts,src/utils/ethiopianTime.js
+          # Known-dead / parked files pending a decision (bank feature, legacy
+          # hooks kept for repurposing, .d.ts defs, superseded TopbarIdentity).
+          # NEW orphans still fail CI. Mounted features were removed from here:
+          # DubieRulesPanel, OverdueCustomerFlags, PwaInstallPanel, TrustCard,
+          # SimpleAnalytics are now wired into tabs.
+          ALLOWED_ORPHANS: src/bank-main.tsx,src/components/AskNotebookFAB.jsx,src/components/BankDashboard.d.ts,src/components/BankDataSharing.jsx,src/components/TopbarIdentity.jsx,src/hooks/use-mobile.tsx,src/hooks/useCatalog.js,src/hooks/useCustomers.js,src/hooks/useTransactions.js,src/pages/OnboardingPage.jsx,src/types/jsx-modules.d.ts,src/types/pwa-register.d.ts,src/utils/ethiopianTime.js
       - name: Build
         run: pnpm build
