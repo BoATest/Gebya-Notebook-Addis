@@ -1,6 +1,7 @@
 import db from '../db';
 import { getOrCreateCloudProofDeviceId } from './cloudProof';
 import { camelToSnake, mapPullRow, fetchWithRetry, fetchWithRetryAndAuthRefresh } from './syncEngineHelpers.js';
+import { ensureFreshToken as _ensureFreshToken } from './authClient.js';
 import { useSyncStore } from '../stores/syncStore';
 
 const SYNC_API_BASE = import.meta.env.VITE_SYNC_API_URL || '/api';
@@ -73,6 +74,15 @@ export async function setAuthToken(token) {
 
 export async function clearAuthToken() {
   await db.settings.delete(AUTH_TOKEN_KEY);
+}
+
+// Wrap ensureFreshToken for the 401-retry path: persist the refreshed token
+// so the very next getToken() read (same tick, retry attempt) sees the new
+// value. Idempotent with ensureFreshToken's own persistence.
+async function _refreshAuth() {
+  const result = await _ensureFreshToken();
+  if (result?.ok && result.token) await setAuthToken(result.token);
+  return result;
 }
 
 
@@ -550,8 +560,8 @@ class SyncEngine {
       headers,
       body: JSON.stringify(payload),
     }, {
-      onAuthExpired: () => import('./authClient.js').then((m) => m.ensureFreshToken()),
-      getToken,
+      onAuthExpired: _refreshAuth,
+      getToken: getAuthToken,
     });
 
     if (!res.ok) {
@@ -651,8 +661,8 @@ class SyncEngine {
         `${SYNC_API_BASE}/sync/pull?since=${Math.max(0, minUpdatedAt - 1)}&limit=1000`,
         { headers: resolveHeaders },
         {
-          onAuthExpired: () => import('./authClient.js').then((m) => m.ensureFreshToken()),
-          getToken,
+          onAuthExpired: _refreshAuth,
+          getToken: getAuthToken,
         }
       );
       if (serverRes.ok) ({ tables: serverTables = {} } = await serverRes.json());
@@ -734,13 +744,16 @@ class SyncEngine {
       const pullConflicts = [];
 
       while (hasMore) {
-        const pullHeaders = { 'Authorization': `Bearer ${token}` };
+        const pullHeaders = {};
         if (this.businessId) pullHeaders['x-business-id'] = String(this.businessId);
 
-        const res = await fetchWithRetry(
+        const res = await fetchWithRetryAndAuthRefresh(
           `${SYNC_API_BASE}/sync/pull?since=${cursor}&limit=200`,
           { headers: pullHeaders },
-          3
+          {
+            onAuthExpired: _refreshAuth,
+            getToken: getAuthToken,
+          }
         );
         if (!res.ok) throw new Error(`Pull failed: ${res.status}`);
         const { tables: serverTables, hasMore: pageHasMore, nextCursor, business_id } = await res.json();

@@ -73,6 +73,17 @@ vi.mock('../src/utils/syncQueue.js', () => ({
   enqueueTelegramLedgerUpdate: vi.fn(),
   countPendingTelegramSync: vi.fn().mockResolvedValue(0),
 }));
+// authClient's ensureFreshToken is called by the 401-aware fetch wrapper.
+// Default to a no-op so existing tests are unaffected; the 401-retry suite
+// overrides this per-test.
+vi.mock('../src/utils/authClient.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    ensureFreshToken: vi.fn().mockResolvedValue({ ok: true, token: 'new-jwt' }),
+    _resetRefreshForTest: vi.fn(),
+  };
+});
 
 // ─── Import after mocks ───
 
@@ -752,5 +763,97 @@ describe('SyncEngine._countPending', () => {
     mockDb.sync_outbox.count.mockResolvedValue(0);
     await engine._countPending();
     expect(engine.pendingCount).toBe(0);
+  });
+});
+
+describe('SyncEngine 401 retry with ensureFreshToken', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    // This describe has its own beforeEach, which replaces the main suite's —
+    // without this, `fetch is not defined` inside fetchWithRetryAndAuthRefresh.
+    globalThis.fetch = mockFetch;
+    mockDb.sync_outbox.count.mockResolvedValue(0);
+    mockDb.sync_outbox.toArray.mockResolvedValue([]);
+    destroySyncEngine();
+    Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, writable: true, configurable: true });
+    Object.defineProperty(globalThis, 'document', {
+      value: { visibilityState: 'visible', addEventListener: vi.fn(), removeEventListener: vi.fn() },
+      writable: true, configurable: true,
+    });
+    if (!globalThis.window) {
+      globalThis.window = { addEventListener: vi.fn(), removeEventListener: vi.fn() };
+    }
+    mockDb.settings.get.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    destroySyncEngine();
+  });
+
+  it('retries push with a refreshed token when the server returns 401', async () => {
+    const { initSyncEngine } = await import('../src/utils/syncEngine.js');
+    const engine = await initSyncEngine();
+
+    const authClient = await import('../src/utils/authClient.js');
+    const refreshMock = vi.mocked(authClient.ensureFreshToken);
+    refreshMock.mockResolvedValue({ ok: true, token: 'new-jwt' });
+    refreshMock.mockClear();
+
+    mockDb.sync_outbox.toArray.mockResolvedValue([
+      { key: 'transactions:1', table: 'transactions', record_id: 1, created_at: 1 },
+    ]);
+    mockDb.transactions.bulkGet.mockResolvedValue([{ id: 1, updated_at: 2000 }]);
+
+    // Track what token is "currently stored" — put updates the cached value.
+    let currentToken = 'old-jwt';
+    mockDb.settings.get.mockImplementation(async () =>
+      currentToken ? { value: currentToken } : undefined
+    );
+    mockDb.settings.put.mockImplementation(async (row) => {
+      if (row?.key === 'gebya_auth_token') currentToken = row.value;
+    });
+
+    // First call: 401. Second call: 200 (with the new token in the header).
+    mockFetch
+      .mockResolvedValueOnce({ ok: false, status: 401, json: () => Promise.resolve({}) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ ok: true, business_id: 1, results: { transactions: { count: 1, conflicts: 0 } } }) });
+
+    console.log('TEST: about to call _pushAll');
+    await engine._pushAll('test-token');
+    console.log('TEST: _pushAll returned');
+
+    // The fetch was called twice — once for the 401, once after the refresh.
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    // The second call carried the NEW token (post-refresh) because getToken
+    // is called fresh on every attempt and read the updated value.
+    const secondCall = mockFetch.mock.calls[1];
+    const headers = secondCall[1].headers;
+    expect(headers.Authorization).toBe('Bearer new-jwt');
+    // ensureFreshToken was called exactly once.
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+  }, 15000);
+
+  it('surfaces the original 401 when ensureFreshToken also fails', async () => {
+    const { initSyncEngine } = await import('../src/utils/syncEngine.js');
+    const engine = await initSyncEngine();
+
+    const authClient = await import('../src/utils/authClient.js');
+    const refreshMock = vi.mocked(authClient.ensureFreshToken);
+    refreshMock.mockRejectedValueOnce(new Error('refresh_failed_401'));
+    refreshMock.mockClear();
+
+    mockDb.sync_outbox.toArray.mockResolvedValue([
+      { key: 'transactions:1', table: 'transactions', record_id: 1, created_at: 1 },
+    ]);
+    mockDb.transactions.bulkGet.mockResolvedValue([{ id: 1, updated_at: 2000 }]);
+    mockDb.settings.get.mockResolvedValue({ value: 'old-jwt' });
+    mockFetch.mockResolvedValue({ ok: false, status: 401, json: () => Promise.resolve({}) });
+
+    // The engine should throw because the 401 ultimately surfaces (the fetch
+    // was called only once; the refresh failed and the response bubbles up).
+    await expect(engine._pushAll('test-token')).rejects.toThrow();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    // No silent retry loop: outbox entries are NOT deleted.
+    expect(mockDb.sync_outbox.bulkDelete).not.toHaveBeenCalled();
   });
 });
