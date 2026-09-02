@@ -55,6 +55,26 @@ export async function trackEvent(eventType, properties = {}) {
 }
 
 /**
+ * Track an event only once per shop/device — for first-time milestone analytics.
+ * Uses a `first_event_seen:<eventType>` setting key in IndexedDB. Safe to fire
+ * on every trigger; the guard prevents duplicate first-time events.
+ */
+export async function trackFirstEvent(eventType, properties = {}) {
+  try {
+    const flagKey = `first_event_seen:${eventType}`;
+    const existing = await db.settings.get(flagKey);
+    if (existing?.value === true) return false;
+
+    await db.settings.put({ key: flagKey, value: true });
+    await trackEvent(eventType, properties);
+    return true;
+  } catch (err) {
+    if (import.meta.env.DEV) console.warn('trackFirstEvent failed:', err);
+    return false;
+  }
+}
+
+/**
  * Track session end (on app close/minimize)
  */
 export function endSession() {

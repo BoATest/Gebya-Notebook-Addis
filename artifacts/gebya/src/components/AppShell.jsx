@@ -50,7 +50,7 @@ import {
 } from '../utils/paymentChannels';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useSyncRefresh } from '../hooks/useSyncRefresh';
-import { initSession, endSession, trackEvent } from '../utils/eventTracking';
+import { initSession, endSession, trackEvent, trackFirstEvent } from '../utils/eventTracking';
 import { useNotificationsStore } from '../stores/notificationsStore';
 import { useAppStore } from '../stores/appStore';
 import { useShopStore } from '../stores/shopStore';
@@ -1006,7 +1006,7 @@ export default function AppShell() {
       const toastMsg = { sale: t.saleSaved, expense: t.expenseSaved }[transaction.type] || 'Saved';
       const safeToastMsg = buildSavedOnDeviceMessage(toastMsg, isOnlineNow);
       
-      // Track transaction creation event
+            // Track transaction creation event
       trackEvent('transaction_created', {
         type: transaction.type,
         source: transaction.source || 'manual',
@@ -1017,6 +1017,15 @@ export default function AppShell() {
         settlement_mode: transaction.settlement_mode || null,
         has_credit: !!transaction.credit_amount && Number(transaction.credit_amount) > 0,
       });
+
+      // First-sale activation event (tracks only once per shop/device)
+      void trackFirstEvent('first_sale', {
+        type: transaction.type,
+        amount: transaction.amount,
+        payment_type: transaction.payment_type || 'cash',
+        has_credit: !!transaction.credit_amount && Number(transaction.credit_amount) > 0,
+      });
+
       
       // Non-destructive confirmation only. Corrections are made by tapping the
       // transaction row (Today/History) → edit/delete, which unwinds related
@@ -1215,11 +1224,18 @@ export default function AppShell() {
       const saved = await db.customers.get(id);
       setLedgerCustomers(prev => [...prev, saved]);
       
-      // Track customer added event
+            // Track customer added event
       trackEvent('customer_added', {
         has_phone: !!saved.phone_number,
         has_telegram: !!saved.telegram_username,
       });
+
+      // First-customer activation event (tracks only once per shop/device)
+      void trackFirstEvent('first_customer', {
+        has_phone: !!saved.phone_number,
+        has_telegram: !!saved.telegram_username,
+      });
+
       
       setShowCustomerForm(false);
       setSelectedCustomerId(id);

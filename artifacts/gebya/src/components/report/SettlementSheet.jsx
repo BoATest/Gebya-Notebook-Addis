@@ -183,9 +183,9 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           created_at: now,
           device_id: '',
         });
-        clearSettlementDraft(String(staff.id));
+              clearSettlementDraft(String(staff.id));
       }
-      onSaved?.();
+      onSaved?.(staff?.id);
     } catch {
       setError(t('Failed to save settlement', 'ማስተካከያ ማስቀመጥ አልተሳካም'));
     }

@@ -544,7 +544,7 @@ export default function StaffPage({
               staff={store.settling}
               existingSettlement={store.viewingSettlement?.settlement || null}
               lang={lang}
-              onSaved={store.handleSettlementSaved}
+              onSaved={(staffId) => store.handleSettlementSaved?.(staffId || store.settling?.id)}
               onCancel={() => store.clearSettlementOverlay()}
             />
           </div>

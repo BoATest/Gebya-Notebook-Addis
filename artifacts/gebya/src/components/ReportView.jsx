@@ -960,10 +960,11 @@ export default function ReportView({
                 staff={sheetTarget.staff}
                 existingSettlement={sheetTarget.settlement}
                 lang={lang}
-                onSaved={() => {
+                                                onSaved={(staffId) => {
                   setSheetTarget(null);
                   setHandoverRefresh(k => k + 1);
                   fireToast(lang === 'am' ? 'ማስረከቢያ ተመዝግቧል ✓' : 'Handover recorded ✓', 2400);
+                  store.handleSettlementSaved?.(staffId);
                 }}
                 onCancel={() => setSheetTarget(null)}
               />

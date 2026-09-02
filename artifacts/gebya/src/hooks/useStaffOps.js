@@ -4,7 +4,7 @@ import { getAuthToken } from '../utils/syncEngine';
 import identityApi from '../api/identity';
 import { useStaffStore } from '../stores/staffStore';
 import { normalizeStaffDraft } from '../utils/staffMembers';
-import { trackEvent } from '../utils/eventTracking';
+import { trackEvent, trackFirstEvent } from '../utils/eventTracking';
 
 export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMembers, activeStaffMemberId, shopProfile }) {
 
@@ -58,12 +58,22 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
     try {
       const shopId = shopProfile?.shop_id || shopProfile?.id;
       if (!shopId) return false;
-      const result = await identityApi.addStaff(shopId, {
+            const result = await identityApi.addStaff(shopId, {
         display_name: normalized.display_name,
         phone: payload.phone,
         role: normalized.role || 'cashier',
       }, token);
       await refreshStaffMembers();
+
+      // Staff join completion (only once per staff member)
+      void trackEvent('staff_added', {
+        role: normalized.role || 'cashier',
+        has_phone: !!payload.phone,
+      });
+      void trackFirstEvent('staff_join_complete', {
+        role: normalized.role || 'cashier',
+      });
+
       return result;
     } catch (err) {
       console.error('addStaff failed', err);
@@ -154,10 +164,16 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
     try {
       const token = await getAuthToken();
       if (!token) return null;
-      const result = await identityApi.approveDevice(deviceId, token);
+            const result = await identityApi.approveDevice(deviceId, token);
       await refreshStaffMembers();
       const { loadCloudMembers } = useStaffStore.getState();
       await loadCloudMembers();
+
+      // Device approval tracking (only once per device)
+      void trackFirstEvent('device_approved', {
+        device_id: deviceId,
+      });
+
       return result;
     } catch {
       return null;

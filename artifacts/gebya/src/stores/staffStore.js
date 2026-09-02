@@ -7,7 +7,7 @@ import { calculateExpected, createReconciliationEntry, generateSettlementId } fr
 import { startOfLocalDay } from '../utils/reportSelectors';
 import { isValidEthiopianPhone, normalizeEthiopianPhone, extractSubscriberDigits } from '../utils/phoneNumber';
 import { useAuthStore } from './authStore';
-import { usePermissionsStore } from './permissionsStore';
+import { trackFirstEvent } from '../utils/eventTracking';
 import { ROLE_DEFAULTS } from '../utils/permissions';
 
 // Single source of truth for role permission presets lives in
@@ -257,9 +257,16 @@ export const useStaffStore = create((set, get) => ({
     set({ viewingSettlement: { settlement, staff } });
   },
 
-  handleSettlementSaved() {
+    handleSettlementSaved(staffId) {
     set({ settling: null, viewingSettlement: null });
     get().refreshSettlements();
+
+    // First settlement completion (only once per staff member)
+    if (staffId) {
+      void trackFirstEvent('settlement_saved', {
+        first_time: true,
+      });
+    }
   },
 
   handleStaffSubmitCollection: async (activeStaffMemberId, lastSettlementPerStaff, lang) => {
