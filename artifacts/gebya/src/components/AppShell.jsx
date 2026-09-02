@@ -289,7 +289,16 @@ export default function AppShell() {
         // recency util keeps the FRESHEST inserts under the cap — the old
         // limit(500) returned the OLDEST 500 rows, so shops past the cap
         // lost every new record from all views after reload.
-        recent(db.transactions).toArray().then(r => r.filter(t => !t.deletedAt)),
+                recent(db.transactions).toArray().then(r => {
+          // Soft-deleted rows (tombstones) stay out of every view. Hard-purge
+          // them after 30 days so the local DB does not grow forever.
+          const cutoff = Date.now() - 30 * 86400000;
+          for (const t of r) {
+            const at = t.deleted_at || t.deletedAt;
+            if (at && at < cutoff) db.transactions.delete(t.id).catch(() => {});
+          }
+          return r.filter(t => !t.deleted_at && !t.deletedAt);
+        }),
         recent(db.customers).toArray().then(r => r.filter(c => !c.deletedAt)),
         recent(db.customer_transactions).toArray(),
         recent(db.catalog_entries).toArray(),
@@ -788,15 +797,16 @@ export default function AppShell() {
           .where('created_at')
           .between(monthStart, monthEnd, true, true)
           .toArray();
-        const monthCount = monthRows.filter(t => !t.deletedAt).length;
+                const monthCount = monthRows.filter(t => !t.deletedAt && !t.deleted_at).length;
         if (monthCount >= entitlements.max_transactions_per_month) {
-          fireToast({
-            type: 'error',
-            message: lang === 'am'
-              ? `በዚህ ወር ${entitlements.max_transactions_per_month} ግብይቶች በቂ ናቸው። Plus ወደ አድሶ ያዝ።`
-              : `You've reached the ${entitlements.max_transactions_per_month} transaction limit this month. Upgrade to Plus to continue.`,
-          });
-          return;
+          // Product ruling: recording must NEVER be hard-blocked on the free
+          // tier — a shop that cannot record today's sales deletes the app
+          // that same evening. Warn and continue; the Plan panel (Settings →
+          // Money) carries the upgrade path. Also fixes the old bug of calling
+          // fireToast with an object (it renders "[object Object]").
+          fireToast(lang === 'am'
+            ? `የዚህ ወር ${entitlements.max_transactions_per_month} ግብይቶች ተደርሰዋል። Plus ለማግኘት ቅንብሮች → ገንዘብ ይመልከቱ።`
+            : `Free plan limit (${entitlements.max_transactions_per_month}/month) reached — see Plus in Settings → Money.`, 5000);
         }
       }
 
@@ -1039,15 +1049,33 @@ export default function AppShell() {
     }
   };
 
-  const handleDeleteTransaction = async (id) => {
+    const handleDeleteTransaction = async (id) => {
     try {
-      await db.transactions.delete(id);
+      // Soft-delete (tombstone): keep the row locally and in sync so the owner
+      // can undo it and it never silently vanishes from their other devices.
+      // Hard purge happens after 30 days (see the load filter below).
+      const victim = await db.transactions.get(id);
+      if (!victim) { setDeleteTarget(null); return; }
+      await db.transactions.put({ ...victim, deleted_at: Date.now(), updated_at: Date.now() });
       const remainingTransactions = transactions.filter(t2 => t2.id !== id);
       setTransactions(remainingTransactions);
       if (remainingTransactions.length === 0 && ledgerTransactions.length === 0) {
         await clearLastSavedSnapshot();
       }
       setDeleteTarget(null);
+      fireToast(lang === 'am' ? 'ተሰርዟል' : 'Entry deleted', 8000, async () => {
+        try {
+          const restored = { ...victim, deleted_at: null, updated_at: Date.now() };
+          await db.transactions.put(restored);
+          setTransactions(prev => {
+            const without = prev.filter(t2 => t2.id !== id);
+            return [...without, restored].sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+          });
+          fireToast(lang === 'am' ? 'ተመልሷል ✓' : 'Restored ✓', 1800);
+        } catch (err) {
+          if (import.meta.env.DEV) console.error('Undo delete transaction failed:', err);
+        }
+      });
     } catch (err) {
       if (import.meta.env.DEV) console.error('Failed to delete:', err);
     }

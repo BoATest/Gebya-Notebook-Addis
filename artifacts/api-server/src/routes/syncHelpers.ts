@@ -58,6 +58,7 @@ export function mapTx(body: any) {
     saleSettlementMode: body.sale_settlement_mode,
     paidAmount: body.paid_amount,
     remainingAmount: body.remaining_amount,
+    deletedAt: body.deleted_at ?? null,
     settlementDueDate: body.settlement_due_date,
     source: body.source,
     wasEdited: body.was_edited,

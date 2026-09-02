@@ -4,23 +4,24 @@ import db from '../../db';
 
 export default function DubieRulesPanel({ onChange }) {
   const { lang, t } = useLang();
-  const [overdueDays, setOverdueDays] = useState(7);
-  const [autoSms, setAutoSms] = useState(false);
+    const [overdueDays, setOverdueDays] = useState(7);
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     db.settings.get('dubie_rules').then(row => {
       if (row?.value) {
         setOverdueDays(row.value.overdue_threshold_days ?? 7);
-        setAutoSms(row.value.auto_sms ?? false);
       }
     }).catch(() => {});
   }, []);
 
   const save = async () => {
-    await db.settings.put({ key: 'dubie_rules', value: { overdue_threshold_days: overdueDays, auto_sms: autoSms } });
+    // NOTE: the old auto_sms toggle was removed — no server-side automatic
+    // sender exists yet, and a setting that silently does nothing breaks
+    // trust. Reintroduce it together with the backend cron/bot loop.
+    await db.settings.put({ key: 'dubie_rules', value: { overdue_threshold_days: overdueDays } });
     setDirty(false);
-    onChange?.({ overdue_threshold_days: overdueDays, auto_sms: autoSms });
+    onChange?.({ overdue_threshold_days: overdueDays });
   };
 
   return (
@@ -47,19 +48,6 @@ export default function DubieRulesPanel({ onChange }) {
             ))}
           </div>
         </div>
-
-        <label className="flex items-center justify-between cursor-pointer">
-          <div>
-            <div className="text-sm font-bold text-gray-800">{lang === 'am' ? 'ራስ-ሰር SMS ማስታወቂያ' : 'Auto-SMS reminder'}</div>
-            <div className="text-xs text-gray-500 mt-0.5">
-              {lang === 'am' ? 'ዱቤ ሲያበቃ ደንበኞችን በራስ-ሰር ያሳውቁ' : 'Notify customers automatically when overdue'}
-            </div>
-          </div>
-          <label className="switch">
-            <input type="checkbox" checked={autoSms} onChange={(e) => { setAutoSms(e.target.checked); setDirty(true); }} />
-            <span className="slider" />
-          </label>
-        </label>
 
         {dirty && (
           <button
