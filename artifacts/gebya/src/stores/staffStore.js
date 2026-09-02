@@ -7,6 +7,7 @@ import { calculateExpected, createReconciliationEntry, generateSettlementId } fr
 import { startOfLocalDay } from '../utils/reportSelectors';
 import { isValidEthiopianPhone, normalizeEthiopianPhone, extractSubscriberDigits } from '../utils/phoneNumber';
 import { useAuthStore } from './authStore';
+import { usePermissionsStore } from './permissionsStore';
 import { trackFirstEvent } from '../utils/eventTracking';
 import { ROLE_DEFAULTS } from '../utils/permissions';
 
@@ -104,7 +105,10 @@ export const useStaffStore = create((set, get) => ({
 
   // ─── Load cloud members ───
   loadCloudMembers: async () => {
-    if (!usePermissionsStore.getState().hasPermission('can_manage_team')) return;
+    try {
+      const perms = usePermissionsStore?.getState?.();
+      if (!perms || !perms.hasPermission?.('can_manage_team')) return;
+    } catch { return; }
     set({ membersLoading: true });
     try {
       const data = await apiFetch('/business/members');
@@ -395,9 +399,12 @@ export const useStaffStore = create((set, get) => ({
   window.addEventListener('focus', () => {
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = setTimeout(() => {
-      if (!usePermissionsStore.getState().hasPermission('can_manage_team')) return;
-      const { loadCloudMembers } = useStaffStore.getState();
-      loadCloudMembers();
+      try {
+        const perms = usePermissionsStore?.getState?.();
+        if (!perms || !perms.hasPermission?.('can_manage_team')) return;
+        const { loadCloudMembers } = useStaffStore.getState();
+        loadCloudMembers();
+      } catch { /* never block the focus listener */ }
     }, 500);
   });
 }
