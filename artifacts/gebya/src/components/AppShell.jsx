@@ -17,6 +17,7 @@ import AppBottomNav from './AppBottomNav';
 import SideNav from './SideNav';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import GlobalModals from './GlobalModals';
+import RecoveryNudgeModal from './RecoveryNudgeModal';
 
 import TransferSheet from './TransferSheet';
 import { ToastContainer, fireToast } from './Toast';
@@ -102,6 +103,8 @@ export default function AppShell() {
   const fetchUnreadNotifCount = useNotificationsStore(s => s.fetchUnreadCount);
   const syncConflictWarning = useSyncStore(s => s.conflictWarning);
   const syncConflictDetails = useSyncStore(s => s.conflictDetails);
+  const authUser = useAuthStore(s => s.user);
+  const authChecked = useAuthStore(s => s.checked);
   // ─── Data state (local — not in stores) ───
   const [transactions, setTransactions] = useState([]);
   const [ledgerCustomers, setLedgerCustomers] = useState([]);
@@ -111,6 +114,7 @@ export default function AppShell() {
   const [activeStaffMemberId, setActiveStaffMemberId] = useState(null);
   const [onboardingType, setOnboardingType] = useState(null);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [showRecoveryNudge, setShowRecoveryNudge] = useState(false);
   const [enabledProviders, setEnabledProviders] = useState(DEFAULT_PROVIDERS);
   const [showItemizedSale, setShowItemizedSale] = useState(false);
   const [reminderDefaultChannel, setReminderDefaultChannel] = useState(null);
@@ -583,6 +587,74 @@ export default function AppShell() {
       endSession();
     };
   }, [loading]);
+
+  // ─── Phone-recovery nudge (data-loss protection) ──────────────────────────
+  // Owners who have NOT signed in have their records only on this phone. After
+  // ~50 recorded transactions we surface one warm, dismissible nudge so the
+  // shop's financial memory survives a lost/broken phone. Never blocks usage.
+  const RECOVERY_NUDGE_THRESHOLD = 50;
+  const RECOVERY_NUDGE_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+  const handleRecoveryNudgeProtect = useCallback(async (phone) => {
+    setShowRecoveryNudge(false);
+    // Persist the owner's recovery contact locally so it survives a reinstall.
+    try {
+      if (phone) {
+        await db.settings.put({ key: 'recovery_phone', value: phone });
+        const existing = await db.settings.get('shop_phone');
+        if (!existing?.value) {
+          await db.settings.put({ key: 'shop_phone', value: phone });
+        }
+      }
+      await db.settings.put({ key: 'recovery_nudge_dismissed', value: true });
+    } catch { /* non-critical */ }
+    trackEvent('recovery_setup_started', { has_phone: !!phone }).catch(() => {});
+    // Open the existing phone+OTP sign-in flow — once signed in, the sync
+    // engine mirrors records to the cloud and they become recoverable.
+    setShowAuthPrompt(true);
+  }, []);
+
+  const handleRecoveryNudgeSnooze = useCallback(async () => {
+    setShowRecoveryNudge(false);
+    try {
+      await db.settings.put({ key: 'recovery_nudge_snoozed_until', value: String(Date.now() + RECOVERY_NUDGE_SNOOZE_MS) });
+    } catch { /* non-critical */ }
+    trackEvent('recovery_nudge_snoozed').catch(() => {});
+  }, []);
+
+  const handleRecoveryNudgeDismiss = useCallback(async () => {
+    setShowRecoveryNudge(false);
+    try {
+      await db.settings.put({ key: 'recovery_nudge_dismissed', value: true });
+    } catch { /* non-critical */ }
+    trackEvent('recovery_nudge_dismissed').catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (loading || !authChecked) return;
+    if (authUser) return; // already has a cloud account — data is recoverable
+    if (transactions.length < RECOVERY_NUDGE_THRESHOLD) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const dismissed = await db.settings.get('recovery_nudge_dismissed');
+        if (dismissed?.value === true) return;
+        const snoozedUntil = await db.settings.get('recovery_nudge_snoozed_until');
+        if (snoozedUntil?.value && Number(snoozedUntil.value) > Date.now()) return;
+        if (cancelled) return;
+        setShowRecoveryNudge(true);
+        trackFirstEvent('recovery_nudge_shown', { transaction_count: transactions.length }).catch(() => {});
+      } catch { /* non-critical — nudge is best-effort */ }
+    })();
+    return () => { cancelled = true; };
+  }, [loading, authChecked, authUser, transactions.length]);
+
+  // When the owner completes sign-in, record the milestone (fires once).
+  useEffect(() => {
+    if (authUser) {
+      trackFirstEvent('recovery_setup_complete').catch(() => {});
+    }
+  }, [authUser]);
 
   const refreshQueuedTelegramRecords = useCallback(async () => {
     const result = await drainTelegramSyncQueue({ limit: 5 });
@@ -2091,6 +2163,17 @@ export default function AppShell() {
         <AuthRequiredPrompt
           lang={lang}
           onClose={() => setShowAuthPrompt(false)}
+        />
+      )}
+
+      {/* Phone-recovery nudge — one warm, dismissible prompt for owners who
+          haven't signed in but have reached the record threshold */}
+      {showRecoveryNudge && (
+        <RecoveryNudgeModal
+          lang={lang}
+          onProtect={handleRecoveryNudgeProtect}
+          onSnooze={handleRecoveryNudgeSnooze}
+          onDismiss={handleRecoveryNudgeDismiss}
         />
       )}
 
