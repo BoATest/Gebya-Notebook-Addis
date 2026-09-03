@@ -15,6 +15,7 @@ import HistoryTab from './HistoryTab';
 import AppActionBar from './AppActionBar';
 import AppBottomNav from './AppBottomNav';
 import SideNav from './SideNav';
+import { isSaleWorkspaceEnabled } from '../utils/featureFlags';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import GlobalModals from './GlobalModals';
 import RecoveryNudgeModal from './RecoveryNudgeModal';
@@ -120,6 +121,9 @@ export default function AppShell() {
   const [reminderDefaultChannel, setReminderDefaultChannel] = useState(null);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  // Unified Sale Workspace (v1) — computed once per mount; kill-switch via
+  // localStorage 'gebya_sale_workspace_v1' = 'off' (see utils/featureFlags).
+  const saleWorkspaceEnabled = isSaleWorkspaceEnabled();
   const [selectedSupplierTransaction, setSelectedSupplierTransaction] = useState(null);
   const [lastPayment, setLastPayment] = useState({
     sale:    { type: 'cash', provider: '', bankProvider: '', walletProvider: '' },
@@ -1103,6 +1107,10 @@ export default function AppShell() {
       // transaction row (Today/History) → edit/delete, which unwinds related
       // records (customer credit, Telegram, cloud-proof) via the proper paths.
       fireToast(safeToastMsg, isOnlineNow ? 4000 : 4500);
+
+      // Return the saved record so capture surfaces (Sale Workspace) can
+      // offer the post-save UNDO via the soft-delete path.
+      return saved;
     } catch (err) {
       if (import.meta.env.DEV) console.error('Failed to save:', err);
       fireToast(t.saveFailed || 'Could not save. Please try again.', 3500);
@@ -2204,6 +2212,22 @@ export default function AppShell() {
             ledgerTransactions={ledgerTransactions}
             lastSavedSnapshot={lastSavedSnapshot}
             onShareReport={handleShareReport}
+            saleWorkspaceEnabled={saleWorkspaceEnabled}
+            saleWorkspaceProps={{
+              onSave: handleAddTransaction,
+              onDeleteTransaction: handleDeleteTransaction,
+              enabledProviders,
+              catalogEntries: activeCatalogEntries,
+              customers: customerSummaries,
+              onSaveCatalogEntry: handleSaveCatalogEntry,
+              onAddCustomerInline: handleAddCustomerInline,
+              onAddProvider: handleQuickAddProvider,
+              transactions: todaySales,
+              actorLabel: currentActorLabel,
+              shopProfile,
+              initialPaymentType: lastPayment?.sale?.type,
+              initialPaymentProvider: lastPayment?.sale?.provider,
+            }}
           />
           </ErrorBoundary>
         )}
@@ -2352,6 +2376,7 @@ export default function AppShell() {
           selectedSupplier={selectedSupplier}
           creditView={creditView}
           customerSummaries={customerSummaries}
+          saleWorkspaceEnabled={saleWorkspaceEnabled}
           onCreditTap={() => {
             setActiveTab('credit');
             if (!customerSummaries || customerSummaries.length === 0) {
@@ -2422,6 +2447,7 @@ export default function AppShell() {
         showNotificationPanel={showNotificationPanel}
         setShowNotificationPanel={setShowNotificationPanel}
         handleAddTransaction={handleAddTransaction}
+        handleDeleteTransaction={handleDeleteTransaction}
         handleSaveCustomerTransaction={handleSaveCustomerTransaction}
         handleAddCustomer={handleAddCustomer}
         handleSaveSupplier={handleSaveSupplier}

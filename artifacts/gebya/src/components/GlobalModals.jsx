@@ -9,7 +9,9 @@ import {
   CustomerForm, CustomerTransactionSheet, CustomerTelegramConnectSheet,
   SupplierForm, SupplierTransactionSheet,
   ItemizedSaleView, NotificationPanel,
+  SaleWorkspace,
 } from '../utils/lazyImports';
+import { isSaleWorkspaceEnabled } from '../utils/featureFlags';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
 
 export default function GlobalModals({
@@ -31,6 +33,7 @@ export default function GlobalModals({
   showNotificationPanel,
   setShowNotificationPanel,
   handleAddTransaction,
+  handleDeleteTransaction,
   handleSaveCustomerTransaction,
   handleAddCustomer,
   handleSaveSupplier,
@@ -45,6 +48,9 @@ export default function GlobalModals({
 }) {
   const { t } = useLang();
   const shopProfile = useShopStore(s => s.shopProfile);
+  // Unified Sale Workspace (v1) — replaces both legacy sale entry points
+  // (TransactionForm sale branch + ItemizedSaleView) when enabled.
+  const saleWorkspaceOn = isSaleWorkspaceEnabled();
 
   const showForm = useAppStore(s => s.showForm);
   const setShowForm = useAppStore(s => s.setShowForm);
@@ -91,46 +97,94 @@ export default function GlobalModals({
     <>
       {showForm && (
         <Suspense fallback={<ModalFallback label={t.loading} />}>
-          <TransactionForm
-            type={showForm}
-            onSave={handleAddTransaction}
-            onDone={() => setShowForm(null)}
-            actorLabel={currentActorLabel}
-            enabledProviders={enabledProviders}
-            catalogEntries={activeCatalogEntries}
-            recurringExpenses={recurringExpenses}
-            onRecurringChange={setRecurringExpenses}
-            onSaveCatalogEntry={handleSaveCatalogEntry}
-            customers={customerSummaries}
-            onAddCustomerInline={handleAddCustomerInline}
-            onAddProvider={onAddProvider}
-            initialPaymentType={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.type : undefined}
-            initialPaymentProvider={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.provider : undefined}
-            lastPaymentHistory={(showForm === 'sale' || showForm === 'expense') ? {
-              bank:   lastPayment[showForm]?.bankProvider   || '',
-              wallet: lastPayment[showForm]?.walletProvider || '',
-            } : undefined}
-          />
+          {/* Flag ON: the 'sale' entry (TrustCard "start" path) opens the unified
+              workspace instead of the legacy sale branch. Expense/credit unchanged. */}
+          {saleWorkspaceOn && showForm === 'sale' ? (
+            <SaleWorkspace
+              variant="fullscreen"
+              onSave={handleAddTransaction}
+              onDeleteTransaction={handleDeleteTransaction}
+              onDone={() => setShowForm(null)}
+              actorLabel={currentActorLabel}
+              shopProfile={shopProfile}
+              enabledProviders={enabledProviders}
+              catalogEntries={activeCatalogEntries}
+              onSaveCatalogEntry={handleSaveCatalogEntry}
+              onAddCustomerInline={handleAddCustomerInline}
+              onAddProvider={onAddProvider}
+              customers={customerSummaries}
+              transactions={todaySales}
+              onHistory={() => { setShowForm(null); setActiveTab('history'); }}
+              onViewTransaction={(tx) => setEditTarget(tx)}
+              initialPaymentType={lastPayment?.sale?.type}
+              initialPaymentProvider={lastPayment?.sale?.provider}
+            />
+          ) : (
+            <TransactionForm
+              type={showForm}
+              onSave={handleAddTransaction}
+              onDone={() => setShowForm(null)}
+              actorLabel={currentActorLabel}
+              enabledProviders={enabledProviders}
+              catalogEntries={activeCatalogEntries}
+              recurringExpenses={recurringExpenses}
+              onRecurringChange={setRecurringExpenses}
+              onSaveCatalogEntry={handleSaveCatalogEntry}
+              customers={customerSummaries}
+              onAddCustomerInline={handleAddCustomerInline}
+              onAddProvider={onAddProvider}
+              initialPaymentType={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.type : undefined}
+              initialPaymentProvider={(showForm === 'sale' || showForm === 'expense') ? lastPayment[showForm]?.provider : undefined}
+              lastPaymentHistory={(showForm === 'sale' || showForm === 'expense') ? {
+                bank:   lastPayment[showForm]?.bankProvider   || '',
+                wallet: lastPayment[showForm]?.walletProvider || '',
+              } : undefined}
+            />
+          )}
         </Suspense>
       )}
 
       {showItemizedSale && (
         <Suspense fallback={<ModalFallback label={t.loading} />}>
-          <ItemizedSaleView
-            onSave={handleAddTransaction}
-            onDone={() => setShowItemizedSale(false)}
-            actorLabel={currentActorLabel}
-            shopProfile={shopProfile}
-            enabledProviders={enabledProviders}
-            catalogEntries={activeCatalogEntries}
-            onSaveCatalogEntry={handleSaveCatalogEntry}
-            onAddCustomerInline={handleAddCustomerInline}
-            onAddProvider={onAddProvider}
-            customers={customerSummaries}
-            transactions={todaySales}
-            onHistory={() => { setShowItemizedSale(false); setActiveTab('report'); }}
-            onViewTransaction={(tx) => setEditTarget(tx)}
-          />
+          {/* Flag ON: the action-bar New Sale button opens the unified workspace
+              (same mount point as the legacy ItemizedSaleView). Flag OFF: legacy. */}
+          {saleWorkspaceOn ? (
+            <SaleWorkspace
+              variant="fullscreen"
+              onSave={handleAddTransaction}
+              onDeleteTransaction={handleDeleteTransaction}
+              onDone={() => setShowItemizedSale(false)}
+              actorLabel={currentActorLabel}
+              shopProfile={shopProfile}
+              enabledProviders={enabledProviders}
+              catalogEntries={activeCatalogEntries}
+              onSaveCatalogEntry={handleSaveCatalogEntry}
+              onAddCustomerInline={handleAddCustomerInline}
+              onAddProvider={onAddProvider}
+              customers={customerSummaries}
+              transactions={todaySales}
+              onHistory={() => { setShowItemizedSale(false); setActiveTab('history'); }}
+              onViewTransaction={(tx) => setEditTarget(tx)}
+              initialPaymentType={lastPayment?.sale?.type}
+              initialPaymentProvider={lastPayment?.sale?.provider}
+            />
+          ) : (
+            <ItemizedSaleView
+              onSave={handleAddTransaction}
+              onDone={() => setShowItemizedSale(false)}
+              actorLabel={currentActorLabel}
+              shopProfile={shopProfile}
+              enabledProviders={enabledProviders}
+              catalogEntries={activeCatalogEntries}
+              onSaveCatalogEntry={handleSaveCatalogEntry}
+              onAddCustomerInline={handleAddCustomerInline}
+              onAddProvider={onAddProvider}
+              customers={customerSummaries}
+              transactions={todaySales}
+              onHistory={() => { setShowItemizedSale(false); setActiveTab('report'); }}
+              onViewTransaction={(tx) => setEditTarget(tx)}
+            />
+          )}
         </Suspense>
       )}
 

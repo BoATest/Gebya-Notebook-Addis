@@ -28,6 +28,7 @@ export function lazyWithRetry(importer, name) {
 // Stable import factories (module-level so they never re-create)
 export const importTransactionForm = () => import('../components/TransactionForm');
 export const importItemizedSaleView = () => import('../components/smartSale/ItemizedSaleView');
+export const importSaleWorkspace = () => import('../components/saleWorkspace/SaleWorkspace');
 export const importNotificationPanel = () => import('../components/NotificationPanel');
 export const importEditTransactionSheet = () => import('../components/EditTransactionSheet');
 export const importReminderSheet = () => import('../components/ReminderSheet');
@@ -50,6 +51,7 @@ export const importInlineDatePicker = () => import('../components/InlineDatePick
 
 export const TransactionForm = lazyWithRetry(importTransactionForm, 'TransactionForm');
 export const ItemizedSaleView = lazyWithRetry(importItemizedSaleView, 'ItemizedSaleView');
+export const SaleWorkspace = lazyWithRetry(importSaleWorkspace, 'SaleWorkspace');
 export const NotificationPanel = lazyWithRetry(importNotificationPanel, 'NotificationPanel');
 export const EditTransactionSheet = lazyWithRetry(importEditTransactionSheet, 'EditTransactionSheet');
 export const ReminderSheet = lazyWithRetry(importReminderSheet, 'ReminderSheet');

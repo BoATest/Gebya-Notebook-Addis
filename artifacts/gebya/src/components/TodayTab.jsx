@@ -6,7 +6,7 @@ import ProfitCard from './ProfitCard';
 import TxRow from './TxRow';
 import TrustCard from './TrustCard';
 import { PanelFallback } from './Fallbacks';
-import { DailySuggestions, LearningInsights } from '../utils/lazyImports';
+import { DailySuggestions, LearningInsights, SaleWorkspace } from '../utils/lazyImports';
 import { fmt } from '../utils/numformat';
 
 export default function TodayTab({
@@ -16,6 +16,8 @@ export default function TodayTab({
   ledgerTransactions,
   lastSavedSnapshot,
   onShareReport,
+  saleWorkspaceEnabled = false,
+  saleWorkspaceProps = {},
 }) {
   const { lang, t } = useLang();
   const setShowForm = useAppStore(s => s.setShowForm);
@@ -24,7 +26,16 @@ export default function TodayTab({
 
   return (
     <div className="space-y-4">
-      <ProfitCard transactions={todayTransactions} yesterdayNet={yesterdayNet} />
+      <ProfitCard transactions={todayTransactions} yesterdayNet={yesterdayNet} compact={saleWorkspaceEnabled} />
+
+      {/* Unified Sale Workspace — inline capture strip (zero-tap simple sales).
+          Grows in place via "+ Add details"; full-screen variant opens from
+          the action bar's "+ New Sale" button. */}
+      {saleWorkspaceEnabled && (
+        <Suspense fallback={<PanelFallback label={t.loading} />}>
+          <SaleWorkspace variant="inline" {...saleWorkspaceProps} />
+        </Suspense>
+      )}
 
       <Suspense fallback={<PanelFallback label={t.loading} />}>
         <DailySuggestions todayTransactions={todayTransactions} onAction={(type) => setShowForm(type)} />

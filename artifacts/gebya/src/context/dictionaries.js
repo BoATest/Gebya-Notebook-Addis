@@ -1042,6 +1042,15 @@ export const EN_OVERRIDES = {
   yesterday: 'Yesterday',
   addRowsBtn: 'Add 3 Rows',
   addShortBtn: 'Add',
+
+  // ── Unified Sale Workspace (v1) ──
+  newSaleBtn: 'New Sale',
+  addDetailsLabel: 'Add details (qty, price, more items)',
+  saveNextBtn: 'Save & Next',
+  savedUndoLabel: 'Saved ✓ — tap to undo',
+  proofHelper: 'Proof of payment — bank transfer, telebirr, or other',
+  customerPhoneLabel: 'Customer phone (optional)',
+  invalidPhone: 'Invalid phone number',
 };
 
 export const AM_OVERRIDES = {
@@ -1617,6 +1626,15 @@ export const AM_OVERRIDES = {
   yesterday: 'ትናንት',
   addRowsBtn: '3 ተጨማሪ ረድፎች',
   addShortBtn: 'አክል',
+
+  // ── የተዋሃደ የሽያጭ መመዝገቢያ (Unified Sale Workspace v1) ──
+  newSaleBtn: 'አዲስ ሽያጭ',
+  addDetailsLabel: 'ዝርዝር ጨምር (ብዛት፣ ዋጋ፣ ተጨማሪ እቃ)',
+  saveNextBtn: 'አስቀምጥ · ቀጥል',
+  savedUndoLabel: 'ተቀምጧል ✓ — ለመመለስ ይንኩ',
+  proofHelper: 'የክፍያ ማረጋገጫ — ባንክ ወይም ቴሌብር',
+  customerPhoneLabel: 'የደንበኛ ስልክ (አማራጭ)',
+  invalidPhone: 'ትክክለኛ ስልክ ቁጥር አይደለም',
 };
 
 

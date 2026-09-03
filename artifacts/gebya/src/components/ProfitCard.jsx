@@ -11,16 +11,21 @@
 // Profit-from-cost-prices is intentionally NOT shown — we don't force basic users
 // to enter cost prices. Net = Sales − Spent. Advanced profit calcs can come later.
 
-import { Eye, EyeOff } from 'lucide-react';
+import { useState } from 'react';
+import { Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { usePrivacy } from '../context/PrivacyContext';
 import { fmt } from '../utils/numformat';
 import { getCurrentEthiopianDate } from '../utils/ethiopianCalendar';
 import { heroFontSize } from '../utils/todaySummary';
 
-function ProfitCard({ transactions, yesterdayNet }) {
+function ProfitCard({ transactions, yesterdayNet, compact = false }) {
   const { lang } = useLang();
   const { hidden, toggle } = usePrivacy();
+  // Compact mode (Unified Sale Workspace v1): the scoreboard collapses to ONE
+  // line so the capture strip fits above the fold. Tap to expand for the full
+  // breakdown; the trust line and privacy toggle are preserved in both forms.
+  const [expanded, setExpanded] = useState(!compact);
 
   const sales = transactions.filter(tx => tx.type === 'sale');
   const expenses = transactions.filter(tx => tx.type === 'expense');
@@ -53,6 +58,51 @@ function ProfitCard({ transactions, yesterdayNet }) {
     day: 'numeric',
     month: 'short',
   });
+
+  // ─── Compact one-line scoreboard (tap to expand) ───
+  if (compact && !expanded) {
+    return (
+      <div
+        className="px-3 py-2 flex items-center gap-2"
+        style={{
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)',
+          boxShadow: 'var(--shadow-xs)',
+        }}
+      >
+        <span className="text-[10px] font-bold uppercase tracking-widest flex-shrink-0" style={{ color: 'var(--color-text-muted)' }}>
+          {lang === 'am' ? 'ዛሬ · ቀሪ' : 'TODAY · NET'}
+        </span>
+        <span className="text-base font-bold flex-shrink-0" style={{ color: netColor }}>
+          {display} {hidden ? '' : (lang === 'am' ? 'ብር' : 'birr')}
+        </span>
+        {trend && !hidden && (
+          <span className="text-[11px] font-semibold flex-shrink-0" style={{ color: trend.color }}>
+            {trend.arrow}{trend.pct}%
+          </span>
+        )}
+        <span className="ml-auto flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={toggle}
+            aria-label={lang === 'am' ? 'ቁጥሮችን ደብቅ/አሳይ' : 'Toggle privacy'}
+            className="press-scale flex items-center justify-center"
+            style={{ minWidth: '32px', minHeight: '32px', color: hidden ? 'var(--color-warning)' : 'var(--color-text-soft)' }}
+          >
+            {hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={() => setExpanded(true)}
+            aria-label={lang === 'am' ? 'ዝርዝር አሳይ' : 'Show details'}
+            className="press-scale flex items-center justify-center"
+            style={{ minWidth: '32px', minHeight: '32px', color: 'var(--color-text-soft)' }}
+          >
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -93,6 +143,16 @@ function ProfitCard({ transactions, yesterdayNet }) {
             <span>{lang === 'am' ? 'አሳይ' : 'Reveal'}</span>
           )}
         </button>
+        {compact && (
+          <button
+            onClick={() => setExpanded(false)}
+            aria-label={lang === 'am' ? 'አጥራ' : 'Collapse'}
+            className="press-scale flex items-center justify-center"
+            style={{ minWidth: '32px', minHeight: '32px', color: 'var(--color-text-soft)' }}
+          >
+            <ChevronUp className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Hero net number */}
