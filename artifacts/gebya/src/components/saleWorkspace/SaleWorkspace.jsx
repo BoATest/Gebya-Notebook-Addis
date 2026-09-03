@@ -42,6 +42,7 @@ import InlineDatePicker from '../InlineDatePicker';
 import { normalizeEthiopianPhone } from '../../utils/phoneNumber';
 import { MAX_PHOTOS, DRAFT_KEY, STRIP_DRAFT_KEY, loadDraft, saveDraft, clearDraft } from '../smartSale/itemizedSaleHelpers';
 import { usePermissionsStore } from '../../stores/permissionsStore';
+import Portal from './Portal';
 
 export default function SaleWorkspace({
   variant = 'fullscreen',          // 'fullscreen' | 'inline'
@@ -1202,6 +1203,7 @@ export default function SaleWorkspace({
 
       {/* Receipt Preview — paper style (ITEMIZED only, D21) */}
       {showReceipt && (
+        <Portal>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.2)' }} onClick={() => setShowReceipt(false)}>
           <div className="bg-white w-full max-w-sm p-4" style={{ fontFamily: 'monospace' }} onClick={e => e.stopPropagation()}>
             <div className="text-center mb-2">
@@ -1254,10 +1256,12 @@ export default function SaleWorkspace({
             </button>
           </div>
         </div>
+        </Portal>
       )}
 
       {/* Discard confirmation (fullscreen) */}
       {showDiscardConfirm && (
+        <Portal>
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.3)' }}>
           <div className="bg-white rounded-xl p-4 max-w-sm w-full">
             <h3 className="text-sm font-bold mb-1.5" style={{ color: 'var(--color-text)' }}>
@@ -1284,34 +1288,45 @@ export default function SaleWorkspace({
             </div>
           </div>
         </div>
+        </Portal>
       )}
 
       {/* Today's Sales sheet (D13) */}
       {showRecentSales && (
+        <Portal>
         <RecentSalesSheet
           transactions={transactions}
           onClose={() => setShowRecentSales(false)}
           onHistory={onHistory}
           onViewTransaction={onViewTransaction}
         />
+        </Portal>
       )}
 
       {/* Camera capture modal — proof photos, camera-only (D6) */}
-      <CameraCapture
-        open={showCamera}
-        onCapture={(dataUrl) => { handleCameraPhoto(dataUrl); setShowCamera(false); }}
-        onClose={() => setShowCamera(false)}
-        lang={lang}
-      />
+      {showCamera && (
+        <Portal>
+          <CameraCapture
+            open={showCamera}
+            onCapture={(dataUrl) => { handleCameraPhoto(dataUrl); setShowCamera(false); }}
+            onClose={() => setShowCamera(false)}
+            lang={lang}
+          />
+        </Portal>
+      )}
 
       {/* Ethiopian calendar custom due-date picker (D11) */}
-      <InlineDatePicker
-        open={showDatePicker}
-        value={customDueIso}
-        onChange={(iso) => { setCustomDueIso(iso); setSelectedDueTs(null); }}
-        onClose={() => setShowDatePicker(false)}
-        lang={lang}
-      />
+      {showDatePicker && (
+        <Portal>
+          <InlineDatePicker
+            open={showDatePicker}
+            value={customDueIso}
+            onChange={(iso) => { setCustomDueIso(iso); setSelectedDueTs(null); }}
+            onClose={() => setShowDatePicker(false)}
+            lang={lang}
+          />
+        </Portal>
+      )}
     </div>
   );
 }
