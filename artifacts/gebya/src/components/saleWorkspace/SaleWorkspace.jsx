@@ -42,6 +42,7 @@ import InlineDatePicker from '../InlineDatePicker';
 import { normalizeEthiopianPhone } from '../../utils/phoneNumber';
 import { MAX_PHOTOS, DRAFT_KEY, STRIP_DRAFT_KEY, loadDraft, saveDraft, clearDraft } from '../smartSale/itemizedSaleHelpers';
 import { usePermissionsStore } from '../../stores/permissionsStore';
+import { trackEvent } from '../../utils/eventTracking';
 import Portal from './Portal';
 
 export default function SaleWorkspace({
@@ -203,6 +204,21 @@ export default function SaleWorkspace({
     hasUnsavedChanges.current = filledRows.length > 0 || photos.length > 0 || sellingPrice > 0 || !!context.trim();
   }, [filledRows, photos, sellingPrice, context]);
 
+  // Telemetry: mount + draft-restored (fires once per mount).
+  useEffect(() => {
+    trackEvent('sale_workspace_open', { variant: isInline ? 'inline' : 'fullscreen' });
+    if (draft) {
+      const draftSavedAt = Number(draft.savedAt) || 0;
+      const draftAgeMs = draftSavedAt > 0 ? Math.max(0, Date.now() - draftSavedAt) : 0;
+      trackEvent('sale_workspace_draft_restored', {
+        variant: isInline ? 'inline' : 'fullscreen',
+        draft_stage: draft.stage || 'simple',
+        draft_age_ms: draftAgeMs,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const handler = (e) => {
       if (hasUnsavedChanges.current) {
@@ -254,6 +270,12 @@ export default function SaleWorkspace({
     setAmount('');
     setShowContextAc(false);
     setStage('itemized');
+    trackEvent('sale_workspace_stage_change', {
+      from: 'simple',
+      to: 'itemized',
+      carried_amount: sellingPrice,
+      had_context: !!context.trim(),
+    });
   }, [stage, rows, sellingPrice, context, updateRow]);
 
   // ─── Proof photo handlers — camera-only, max 3 (D6) ───
@@ -322,6 +344,8 @@ export default function SaleWorkspace({
   const handleSave = async () => {
     if (!canSave) return;
     setIsSaving(true);
+    const saveStartTime = Date.now();
+    const stageAtSave = stage; // captured for the undo toast event
     try {
       const photoFields = buildPhotoFields(photos);
       const dueTs = getEffectiveDueTs();
@@ -467,6 +491,22 @@ export default function SaleWorkspace({
       hasUnsavedChanges.current = false;
       clearDraft(draftKey);
 
+      // Telemetry: save success (one event per save, fires before any toasts).
+      trackEvent('sale_workspace_save', {
+        variant: isInline ? 'inline' : 'fullscreen',
+        stage: stageAtSave,
+        duration_ms: Date.now() - saveStartTime,
+        payment_type: paymentType,
+        payment_provider: paymentType !== 'cash' ? paymentProvider || null : null,
+        has_photos: photos.length > 0,
+        has_customer: !!creditCustomerId,
+        is_credit: isCredit,
+        is_partial: isPartial,
+        amount: stageAtSave === 'itemized' ? grandTotal : sellingPrice,
+        item_count: stageAtSave === 'itemized' ? filledRows.length : (context.trim() ? 1 : 0),
+        had_draft: !!draft,
+      });
+
       // 1.2s "Saved ✓" button flash (legacy justSaved morph)
       setJustSaved(true);
       if (justSavedTimerRef.current) clearTimeout(justSavedTimerRef.current);
@@ -475,7 +515,15 @@ export default function SaleWorkspace({
       // 4s UNDO toast (spec §16 / V2 §11) — soft-delete via the app's
       // existing tombstone path, which itself offers restore.
       if (savedId && onDeleteTransaction) {
-        fireToast(t.savedUndoLabel, 4000, () => onDeleteTransaction(savedId));
+        const finalTransactionId = savedId;
+        fireToast(t.savedUndoLabel, 4000, () => {
+          trackEvent('sale_workspace_undo_tapped', {
+            transaction_id: finalTransactionId,
+            variant: isInline ? 'inline' : 'fullscreen',
+            stage: stageAtSave,
+          });
+          onDeleteTransaction(finalTransactionId);
+        });
       } else {
         fireToast(shareAuto && isItemizedStage ? t.toastCompletedShared : t.toastCompleted, 2000);
       }
@@ -489,6 +537,13 @@ export default function SaleWorkspace({
         }
       }
     } catch (err) {
+      // Telemetry: save error (helpful to detect persistence/DB failures).
+      trackEvent('sale_workspace_save_error', {
+        variant: isInline ? 'inline' : 'fullscreen',
+        stage: stageAtSave,
+        duration_ms: Date.now() - saveStartTime,
+        error: String(err?.message || err || 'unknown'),
+      });
       // ERROR: all entered data stays intact for correction.
       fireToast(t.saveFailed, 3000);
     } finally {
@@ -544,6 +599,9 @@ export default function SaleWorkspace({
     setPaymentType('cash');
     setPaymentProvider('');
     resetCaptureState();
+    trackEvent('sale_workspace_draft_discarded', {
+      variant: isInline ? 'inline' : 'fullscreen',
+    });
   };
 
   // Viewers without record permission get nothing in the inline strip.
