@@ -16,8 +16,19 @@ export default function TodayTab({
   ledgerTransactions,
   lastSavedSnapshot,
   onShareReport,
-  saleWorkspaceEnabled = true,
-  saleWorkspaceProps = {},
+  onSave,
+  onDeleteTransaction,
+  enabledProviders,
+  catalogEntries,
+  customers,
+  onSaveCatalogEntry,
+  onAddCustomerInline,
+  onAddProvider,
+  transactions: todaySales,
+  actorLabel,
+  shopProfile,
+  initialPaymentType,
+  initialPaymentProvider,
 }) {
   const { lang, t } = useLang();
   const setShowForm = useAppStore(s => s.setShowForm);
@@ -26,16 +37,29 @@ export default function TodayTab({
 
   return (
     <div className="space-y-4">
-      <ProfitCard transactions={todayTransactions} yesterdayNet={yesterdayNet} compact={saleWorkspaceEnabled} />
+      <ProfitCard transactions={todayTransactions} yesterdayNet={yesterdayNet} compact={true} />
 
       {/* Unified Sale Workspace — inline capture strip (zero-tap simple sales).
           Grows in place via "+ Add details"; full-screen variant opens from
           the action bar's "+ New Sale" button. */}
-      {saleWorkspaceEnabled && (
-        <Suspense fallback={<PanelFallback label={t.loading} />}>
-          <SaleWorkspace variant="inline" {...saleWorkspaceProps} />
-        </Suspense>
-      )}
+      <Suspense fallback={<PanelFallback label={t.loading} />}>
+        <SaleWorkspace
+          variant="inline"
+          onSave={onSave}
+          onDeleteTransaction={onDeleteTransaction}
+          enabledProviders={enabledProviders}
+          catalogEntries={catalogEntries}
+          customers={customers}
+          onSaveCatalogEntry={onSaveCatalogEntry}
+          onAddCustomerInline={onAddCustomerInline}
+          onAddProvider={onAddProvider}
+          transactions={todaySales}
+          actorLabel={actorLabel}
+          shopProfile={shopProfile}
+          initialPaymentType={initialPaymentType}
+          initialPaymentProvider={initialPaymentProvider}
+        />
+      </Suspense>
 
       <Suspense fallback={<PanelFallback label={t.loading} />}>
         <DailySuggestions todayTransactions={todayTransactions} onAction={(type) => setShowForm(type)} />

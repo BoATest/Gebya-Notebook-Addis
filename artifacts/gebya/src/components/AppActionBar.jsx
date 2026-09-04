@@ -1,4 +1,4 @@
-import { Plus, Minus, ShoppingBag, RotateCw, NotebookPen } from 'lucide-react';
+import { Minus, RotateCw, NotebookPen } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 import { CUSTOMER_TRANSACTION_TYPES } from '../utils/customerTransactionTypes';
 import { usePermissionsStore } from '../stores/permissionsStore';
@@ -6,7 +6,6 @@ import { usePermissionsStore } from '../stores/permissionsStore';
 function TodayActionBar({
   customerSummaries,
   onCreditTap,
-  onItemizedSaleTap,
   onSimpleSaleTap,
   onExpenseTap,
   pressedBtn,
@@ -14,27 +13,19 @@ function TodayActionBar({
   onPointerUp,
   onPointerLeave,
   onPointerCancel,
-  saleWorkspaceEnabled = false,
 }) {
   const { t } = useLang();
   const canAddRecords = usePermissionsStore(s => s.hasPermission('can_add_records'));
 
-  const legacyButtons = [
-    { type: 'sale',    label: t.saleButton,    color: '#16a34a', icon: Plus        },
-    { type: 'simple',  label: t.itemsButton,   color: '#d97706', icon: ShoppingBag },
-    { type: 'expense', label: t.expenseButton,  color: '#dc2626', icon: Minus       },
-    { type: 'credit',  label: t.creditButton,  color: '#2563eb', icon: RotateCw     },
-  ];
-  // Unified Sale Workspace (v1): the two sale buttons merge into ONE
+  // Unified Sale Workspace (v1): the two legacy sale buttons merged into ONE
   // "+ New Sale" (opens the full-screen workspace). The inline capture strip
   // on the Today tab covers the zero-tap simple-sale case. Expense and
   // standalone credit keep their buttons and their forms unchanged.
-  const workspaceButtons = [
+  const buttons = [
     { type: 'sale',    label: t.newSaleBtn || t.newSaleTitle, color: '#16a34a', icon: NotebookPen },
     { type: 'expense', label: t.expenseButton,  color: '#dc2626', icon: Minus       },
     { type: 'credit',  label: t.creditButton,  color: '#2563eb', icon: RotateCw     },
   ];
-  const buttons = saleWorkspaceEnabled ? workspaceButtons : legacyButtons;
   // Staff without `can_add_records` (e.g. viewers) only get the customer-credit
   // action; business record entry is hidden.
   const visibleButtons = canAddRecords
@@ -47,8 +38,7 @@ function TodayActionBar({
         const pressed = pressedBtn === b.type;
         const Icon = b.icon;
         const handlers = {
-          sale:    () => onItemizedSaleTap?.(),
-          simple:  () => onSimpleSaleTap?.(),
+          sale:    () => onSimpleSaleTap?.(),
           expense: () => onExpenseTap?.(),
           credit:  () => onCreditTap?.(),
         };
@@ -83,7 +73,6 @@ export default function AppActionBar({
   selectedSupplier,
   customerSummaries,
   onCreditTap,
-  onItemizedSaleTap,
   onSimpleSaleTap,
   onExpenseTap,
   onAddCredit,
@@ -93,7 +82,6 @@ export default function AppActionBar({
   onPointerUp,
   onPointerLeave,
   onPointerCancel,
-  saleWorkspaceEnabled = true,
 }) {
   if (activeTab === 'today') {
     return (
@@ -103,7 +91,6 @@ export default function AppActionBar({
         <TodayActionBar
           customerSummaries={customerSummaries}
           onCreditTap={onCreditTap}
-          onItemizedSaleTap={onItemizedSaleTap}
           onSimpleSaleTap={onSimpleSaleTap}
           onExpenseTap={onExpenseTap}
           pressedBtn={pressedBtn}
@@ -111,7 +98,6 @@ export default function AppActionBar({
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerLeave}
           onPointerCancel={onPointerCancel}
-          saleWorkspaceEnabled={saleWorkspaceEnabled}
         />
       </div>
     );

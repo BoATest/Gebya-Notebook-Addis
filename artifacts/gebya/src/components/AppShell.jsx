@@ -15,7 +15,6 @@ import HistoryTab from './HistoryTab';
 import AppActionBar from './AppActionBar';
 import AppBottomNav from './AppBottomNav';
 import SideNav from './SideNav';
-import { isSaleWorkspaceEnabled } from '../utils/featureFlags';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import GlobalModals from './GlobalModals';
 import RecoveryNudgeModal from './RecoveryNudgeModal';
@@ -117,13 +116,9 @@ export default function AppShell() {
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [showRecoveryNudge, setShowRecoveryNudge] = useState(false);
   const [enabledProviders, setEnabledProviders] = useState(DEFAULT_PROVIDERS);
-  const [showItemizedSale, setShowItemizedSale] = useState(false);
   const [reminderDefaultChannel, setReminderDefaultChannel] = useState(null);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
-  // Unified Sale Workspace (v1) — computed once per mount; kill-switch via
-  // localStorage 'gebya_sale_workspace_v1' = 'off' (see utils/featureFlags).
-  const saleWorkspaceEnabled = isSaleWorkspaceEnabled();
   const [selectedSupplierTransaction, setSelectedSupplierTransaction] = useState(null);
   const [lastPayment, setLastPayment] = useState({
     sale:    { type: 'cash', provider: '', bankProvider: '', walletProvider: '' },
@@ -2148,7 +2143,6 @@ export default function AppShell() {
         activeTab={activeTab}
         onTabChange={(tabId) => {
           setShowForm(null);
-          setShowItemizedSale(false);
           setShowCustomerForm(false);
           setShowSupplierForm(false);
           setCustomerTransactionModal(null);
@@ -2212,22 +2206,19 @@ export default function AppShell() {
             ledgerTransactions={ledgerTransactions}
             lastSavedSnapshot={lastSavedSnapshot}
             onShareReport={handleShareReport}
-            saleWorkspaceEnabled={saleWorkspaceEnabled}
-            saleWorkspaceProps={{
-              onSave: handleAddTransaction,
-              onDeleteTransaction: handleDeleteTransaction,
-              enabledProviders,
-              catalogEntries: activeCatalogEntries,
-              customers: customerSummaries,
-              onSaveCatalogEntry: handleSaveCatalogEntry,
-              onAddCustomerInline: handleAddCustomerInline,
-              onAddProvider: handleQuickAddProvider,
-              transactions: todaySales,
-              actorLabel: currentActorLabel,
-              shopProfile,
-              initialPaymentType: lastPayment?.sale?.type,
-              initialPaymentProvider: lastPayment?.sale?.provider,
-            }}
+            onSave={handleAddTransaction}
+            onDeleteTransaction={handleDeleteTransaction}
+            enabledProviders={enabledProviders}
+            catalogEntries={activeCatalogEntries}
+            customers={customerSummaries}
+            onSaveCatalogEntry={handleSaveCatalogEntry}
+            onAddCustomerInline={handleAddCustomerInline}
+            onAddProvider={handleQuickAddProvider}
+            transactions={todaySales}
+            actorLabel={currentActorLabel}
+            shopProfile={shopProfile}
+            initialPaymentType={lastPayment?.sale?.type}
+            initialPaymentProvider={lastPayment?.sale?.provider}
           />
           </ErrorBoundary>
         )}
@@ -2369,21 +2360,19 @@ export default function AppShell() {
         )}
       </main>
 
-      {!showForm && !showCustomerForm && !showItemizedSale && !customerEditTarget && !customerTransactionModal && !customerTransactionEditTarget && !showSupplierForm && !supplierEditTarget && !supplierTransactionModal && !supplierTransactionEditTarget && (
+      {!showForm && !showCustomerForm && !customerEditTarget && !customerTransactionModal && !customerTransactionEditTarget && !showSupplierForm && !supplierEditTarget && !supplierTransactionModal && !supplierTransactionEditTarget && (
         <AppActionBar
           activeTab={activeTab}
           selectedCustomer={selectedCustomer}
           selectedSupplier={selectedSupplier}
           creditView={creditView}
           customerSummaries={customerSummaries}
-          saleWorkspaceEnabled={saleWorkspaceEnabled}
           onCreditTap={() => {
             setActiveTab('credit');
             if (!customerSummaries || customerSummaries.length === 0) {
               setShowCustomerForm(true);
             }
           }}
-          onItemizedSaleTap={() => setShowItemizedSale(true)}
           onSimpleSaleTap={() => setShowForm('sale')}
           onExpenseTap={() => setShowForm('expense')}
           onAddCustomer={() => setShowCustomerForm(true)}
@@ -2409,7 +2398,6 @@ export default function AppShell() {
         activeTab={activeTab}
         onTabChange={(tabId) => {
           setShowForm(null);
-          setShowItemizedSale(false);
           setShowCustomerForm(false);
           setShowSupplierForm(false);
           setCustomerTransactionModal(null);
@@ -2442,8 +2430,6 @@ export default function AppShell() {
         reminderDefaultChannel={reminderDefaultChannel}
         setReminderDefaultChannel={setReminderDefaultChannel}
         setSelectedSupplierId={setSelectedSupplierId}
-        showItemizedSale={showItemizedSale}
-        setShowItemizedSale={setShowItemizedSale}
         showNotificationPanel={showNotificationPanel}
         setShowNotificationPanel={setShowNotificationPanel}
         handleAddTransaction={handleAddTransaction}
