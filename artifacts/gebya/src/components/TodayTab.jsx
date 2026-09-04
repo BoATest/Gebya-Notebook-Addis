@@ -16,7 +16,7 @@ export default function TodayTab({
   ledgerTransactions,
   lastSavedSnapshot,
   onShareReport,
-  saleWorkspaceEnabled = false,
+  saleWorkspaceEnabled = true,
   saleWorkspaceProps = {},
 }) {
   const { lang, t } = useLang();

@@ -93,7 +93,7 @@ export default function AppActionBar({
   onPointerUp,
   onPointerLeave,
   onPointerCancel,
-  saleWorkspaceEnabled = false,
+  saleWorkspaceEnabled = true,
 }) {
   if (activeTab === 'today') {
     return (
