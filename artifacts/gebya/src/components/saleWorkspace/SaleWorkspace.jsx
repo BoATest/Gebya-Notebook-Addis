@@ -260,7 +260,7 @@ export default function SaleWorkspace({
   const handleCameraPhoto = async (dataUrl) => {
     if (!dataUrl) return;
     if (photos.length >= MAX_PROOF_PHOTOS) {
-      setPhotoError(lang === 'am' ? '3 ፎቶዎች ሙሉ በሙሉ ተያዝዋል' : 'You can attach up to 3 photos');
+      setPhotoError(t.photoMaxError);
       return;
     }
     setPhotoLoading(true);
@@ -271,7 +271,7 @@ export default function SaleWorkspace({
         setPhotos(prev => [...prev, proof].slice(0, MAX_PHOTOS));
       }
     } catch (err) {
-      setPhotoError(err.message || 'Photo failed');
+      setPhotoError(err.message || t.photoCaptureError);
     } finally {
       setPhotoLoading(false);
     }
@@ -285,7 +285,7 @@ export default function SaleWorkspace({
   // ─── Share text builder (receipt paper — ITEMIZED only, D21) ───
   const buildShareText = useCallback(() => {
     const items = buildItemsArray();
-    const shopName = shopProfile?.name || actorLabel || 'Shop';
+    const shopName = shopProfile?.name || actorLabel || t.shopFallback;
     const shopPhone = shopProfile?.phone || '';
     const grandTotalVal = Math.max(0, totalAmount - discount);
 
@@ -302,7 +302,7 @@ export default function SaleWorkspace({
     lines.push(`${t.totalLabel}: ${fmt(grandTotalVal)} ${t.currencyShort}`);
     lines.push(`${t.paymentLabel}: ${paymentType === 'cash' ? t.cash : paymentProvider || paymentType}`);
     lines.push('');
-    lines.push('via Gebya');
+    lines.push(t.shareFooter);
 
     return lines.join('\n');
   }, [shopProfile, actorLabel, buildItemsArray, totalAmount, discount, paymentType, paymentProvider, t]);
@@ -310,7 +310,7 @@ export default function SaleWorkspace({
   const doShare = useCallback(async () => {
     const shareText = buildShareText();
     if (navigator.share) {
-      navigator.share({ title: 'Gebya Sale', text: shareText }).catch(() => {});
+      navigator.share({ title: t.shareTitle, text: shareText }).catch(() => {});
     } else {
       navigator.clipboard.writeText(shareText).then(() => {
         fireToast(t.copiedToClipboard, 2000);
@@ -676,7 +676,7 @@ export default function SaleWorkspace({
                 value={fmtInput(amount)}
                 onChange={(e) => setAmount(e.target.value.replace(/,/g, '').replace(/[^\d.]/g, ''))}
                 placeholder="0"
-                aria-label={t.amount || 'Amount'}
+                aria-label={t.amountAria}
                 className="flex-1 min-w-0 font-black focus:outline-none bg-transparent"
                 style={{ fontSize: '38px', lineHeight: 1.2, color: 'var(--color-text)', minHeight: '52px', border: 'none' }}
               />
@@ -694,7 +694,7 @@ export default function SaleWorkspace({
                 }}
                 onFocus={() => { if (context.trim()) setShowContextAc(true); }}
                 onBlur={() => setTimeout(() => setShowContextAc(false), 200)}
-                placeholder={t.whatDidYouSell || (lang === 'am' ? 'ምን ሸጡ?' : 'What did you sell?')}
+                placeholder={t.whatDidYouSell}
                 className="w-full px-2 py-2 text-[13px] font-medium focus:outline-none"
                 style={{ border: '1px solid var(--color-border-light)', borderRadius: 'var(--radius-sm)', minHeight: '44px', background: 'var(--color-bg-white)' }}
                 autoComplete="off"

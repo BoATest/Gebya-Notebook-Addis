@@ -1051,6 +1051,13 @@ export const EN_OVERRIDES = {
   proofHelper: 'Proof of payment — bank transfer, telebirr, or other',
   customerPhoneLabel: 'Customer phone (optional)',
   invalidPhone: 'Invalid phone number',
+  amountAria: 'Amount',
+  // P1b i18n clean-up
+  photoMaxError: 'You can attach up to 3 photos',
+  photoCaptureError: 'Photo failed',
+  shopFallback: 'Shop',
+  shareFooter: 'via Gebya',
+  shareTitle: 'Gebya Sale',
 };
 
 export const AM_OVERRIDES = {
@@ -1635,6 +1642,13 @@ export const AM_OVERRIDES = {
   proofHelper: 'የክፍያ ማረጋገጫ — ባንክ ወይም ቴሌብር',
   customerPhoneLabel: 'የደንበኛ ስልክ (አማራጭ)',
   invalidPhone: 'ትክክለኛ ስልክ ቁጥር አይደለም',
+  amountAria: 'መጠን',
+  // P1b i18n clean-up
+  photoMaxError: '3 ፎቶዎች ሙሉ በሙሉ ተያዝዋል',
+  photoCaptureError: 'ፎቶ አልተሳካም',
+  shopFallback: 'መደብር',
+  shareFooter: 'በገበያ',
+  shareTitle: 'የገበያ ሽያጭ',
 };
 
 
