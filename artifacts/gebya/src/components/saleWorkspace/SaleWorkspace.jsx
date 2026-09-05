@@ -141,9 +141,7 @@ export default function SaleWorkspace({
   const [sessionRecentIds, setSessionRecentIds] = useState(new Set());
   const [lastSaleItems, setLastSaleItems] = useState([]);
 
-  // ─── Clear-form undo state ───
-  const [clearedSnapshot, setClearedSnapshot] = useState(null);
-  const clearedTimerRef = useRef(null);
+  // ─── Live-summary total pulse trigger ───
   const [totalPulseKey, setTotalPulseKey] = useState(0); // animation trigger
 
   // ─── Rows engine (reused unchanged from ItemizedSaleView) ───
@@ -181,9 +179,15 @@ export default function SaleWorkspace({
   const currency = t.currencyShort;
   const sellingPrice = parseFloat(parseInput(amount)) || 0;
   const isCredit = paymentType === 'credit';
-  const grandTotal = Math.max(0, totalAmount - discount);
-  // The single live total: typed amount in SIMPLE, Σ lines − discount in ITEMIZED.
-  const activeTotal = stage === 'itemized' ? grandTotal : sellingPrice;
+  // ITEMIZED: Σ lines - discount. SIMPLE: typed amount - discount.
+  // The discount must apply in BOTH stages so the Save button total and
+  // the recorded transaction are consistent.
+  const baseTotal = stage === 'itemized' ? totalAmount : sellingPrice;
+  const grandTotal = Math.max(0, baseTotal - discount);
+  // The single live total: gross (base) or net (after discount) — UI
+  // surfaces the net in the Save button, the live summary, and the
+  // bottom row so the merchant never has to do mental math.
+  const activeTotal = grandTotal;
   const partialReceivedAmount = parseFloat(parseInput(partialReceived)) || 0;
   const hasPartialAmount = partialReceivedAmount > 0 && partialReceivedAmount < activeTotal;
   const isPartial = paymentType === 'partial' || hasPartialAmount;
@@ -421,14 +425,18 @@ export default function SaleWorkspace({
           created_at: Date.now(),
         };
       } else {
-        // SIMPLE shape — identical to legacy TransactionForm sale branch.
+        // SIMPLE shape — identical to legacy TransactionForm sale branch
+        // with discount support. The amount field stores the NET total
+        // (after discount) so the recorded transaction shows the same
+        // value the merchant saw in the Save button. items_subtotal and
+        // discount are stored for transparency / receipts / analytics.
         data = {
           type: 'sale',
           item_name: context.trim() || null,
           catalog_entry_id: selectedCatalogEntryId || null,
           item_kind: selectedCatalogKind || null,
           quantity: 1,
-          amount: sellingPrice,
+          amount: grandTotal,                          // NET (after discount)
           cost_price: 0,
           profit: null,
           is_credit: false,
@@ -442,16 +450,16 @@ export default function SaleWorkspace({
           ...photoFields,
           items: null,
           settlement_mode: isCredit ? 'credit' : (isPartial ? 'partial' : 'paid'),
-          cash_received: isCredit ? 0 : (isPartial ? (paymentType === 'cash' ? partialReceivedAmount : 0) : (paymentType === 'cash' ? sellingPrice : 0)),
-          credit_amount: isPartial ? remainingAmount : (isCredit ? sellingPrice : 0),
+          cash_received: isCredit ? 0 : (isPartial ? (paymentType === 'cash' ? partialReceivedAmount : 0) : (paymentType === 'cash' ? grandTotal : 0)),
+          credit_amount: isPartial ? remainingAmount : (isCredit ? grandTotal : 0),
           sale_settlement_mode: isCredit ? 'credit' : (isPartial ? 'partial' : 'paid'),
-          paid_amount: isCredit ? 0 : (isPartial ? partialReceivedAmount : sellingPrice),
+          paid_amount: isCredit ? 0 : (isPartial ? partialReceivedAmount : grandTotal),
           remaining_amount: isPartial ? remainingAmount : 0,
           settlement_due_date: (isCredit || isPartial) ? dueTs : null,
-          entered_total: sellingPrice,
-          items_subtotal: null,
-          discount: null,
-          amount_basis: null,
+          entered_total: sellingPrice,                 // what the merchant typed
+          items_subtotal: sellingPrice,                 // gross before discount
+          discount: discount > 0 ? discount : null,
+          amount_basis: 'simple',
           created_at: Date.now(),
         };
       }
@@ -636,32 +644,22 @@ export default function SaleWorkspace({
     });
   };
 
-  // ─── Clear form (with 3s undo) ───
+  // ─── Clear form (no undo — keep it simple, the merchant can re-type) ───
+  // Per user feedback the undo toast added complexity without value, and the
+  // row content cannot be undone anyway (useSmartSaleRows has no setter).
+  // If there are filled itemized rows we block the clear path and tell the
+  // merchant to delete each row individually with the X button.
   const handleClearForm = () => {
     if (
       !sellingPrice && filledRows.length === 0 && !context.trim() &&
       photos.length === 0 && !creditCustomerId && discount === 0
     ) return; // nothing to clear
 
-    // If there are filled itemized rows, the undo cannot restore them
-    // (useSmartSaleRows has no setter). The merchant must use the X on
-    // each row to delete them. Block the clear-with-rows path so we
-    // don't silently destroy work the user thinks they can recover.
     if (filledRows.length > 0) {
       fireToast(t.clearFormHasRows, 3500);
       return;
     }
 
-    // Snapshot current state for undo. (row content excluded — see above.)
-    setClearedSnapshot({
-      amount, context, paymentType, paymentProvider, partialReceived,
-      creditCustomerId, creditCustomerName, creditCustomerPhone,
-      creditCustomerSearch, selectedDueTs, customDueIso,
-      shareAuto, photos, discount, showDiscount,
-      wasItemized: stage === 'itemized',
-    });
-    if (clearedTimerRef.current) clearTimeout(clearedTimerRef.current);
-    clearedTimerRef.current = setTimeout(() => setClearedSnapshot(null), 3000);
     // Reset all transaction-specific state.
     setAmount('');
     setContext('');
@@ -682,31 +680,7 @@ export default function SaleWorkspace({
     setSelectedCatalogKind(null);
     clearRows();
     setStage('simple');
-    fireToast(t.clearFormUndoLabel, 3000, undoClearForm);
-  };
-
-  const undoClearForm = () => {
-    if (clearedTimerRef.current) clearTimeout(clearedTimerRef.current);
-    const snap = clearedSnapshot;
-    if (!snap) return;
-    setClearedSnapshot(null);
-    setAmount(snap.amount);
-    setContext(snap.context);
-    setPaymentType(snap.paymentType);
-    setPaymentProvider(snap.paymentProvider);
-    setPartialReceived(snap.partialReceived);
-    setCreditCustomerId(snap.creditCustomerId);
-    setCreditCustomerName(snap.creditCustomerName);
-    setCreditCustomerPhone(snap.creditCustomerPhone);
-    setCreditCustomerSearch(snap.creditCustomerSearch);
-    setSelectedDueTs(snap.selectedDueTs);
-    setCustomDueIso(snap.customDueIso);
-    setShareAuto(snap.shareAuto);
-    setPhotos(snap.photos);
-    setDiscount(snap.discount);
-    setShowDiscount(snap.showDiscount);
-    setSelectedCatalogEntryId(snap.selectedCatalogEntryId);
-    setSelectedCatalogKind(snap.selectedCatalogKind);
+    fireToast(t.clearFormDone, 2500);
   };
 
   // Viewers without record permission get nothing in the inline strip.
