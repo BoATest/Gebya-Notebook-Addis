@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { useLang } from '../../context/LangContext';
 import { fmt, fmtInput } from '../../utils/numformat';
+import { X } from 'lucide-react';
 import MerchantMemoryAutocomplete from './MerchantMemoryAutocomplete';
 
 const ROW_H = '34px';
@@ -226,6 +227,20 @@ export default function ItemRow({
         >
           {row.lineTotal > 0 ? fmt(row.lineTotal) : '—'}
         </div>
+        {/* ⓧ delete button — locked decision 5.3.
+            Hidden for empty rows. For row 1 with content, clears the row content
+            (keeps the row for the auto-grow engine). For rows 2+, deletes the row. */}
+        {!(index === 0 && !row.name.trim() && !row.price) && (
+          <button
+            type="button"
+            onClick={handleConfirmDelete}
+            aria-label="Delete row"
+            className="press-scale flex items-center justify-center flex-shrink-0"
+            style={{ minWidth: '32px', minHeight: '32px', color: 'var(--color-danger)' }}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {lastPrice > 0 && (

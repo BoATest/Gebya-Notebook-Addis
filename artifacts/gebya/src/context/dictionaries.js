@@ -1058,6 +1058,16 @@ export const EN_OVERRIDES = {
   shopFallback: 'Shop',
   shareFooter: 'via Gebya',
   shareTitle: 'Gebya Sale',
+
+  // UX polish (sale workspace)
+  liveSummaryItems: 'Items',
+  liveSummaryQty: 'Qty',
+  liveSummaryTotal: 'Total',
+  clearFormBtn: 'Clear form',
+  clearFormConfirm: 'Clear this sale?',
+  clearFormUndoLabel: 'Form cleared · UNDO',
+  addDiscountBtn: '+ Add discount',
+  removeDiscountAria: 'Remove discount',
 };
 
 export const AM_OVERRIDES = {
@@ -1649,6 +1659,16 @@ export const AM_OVERRIDES = {
   shopFallback: 'መደብር',
   shareFooter: 'በገበያ',
   shareTitle: 'የገበያ ሽያጭ',
+
+  // UX polish (sale workspace)
+  liveSummaryItems: 'ንጥሎች',
+  liveSummaryQty: 'ብዛት',
+  liveSummaryTotal: 'ጠቅላላ',
+  clearFormBtn: 'ቅጽበት አጽዳ',
+  clearFormConfirm: 'ይህን ሽያጭ ይጽዳ?',
+  clearFormUndoLabel: 'ተጽዯል · UNDO',
+  addDiscountBtn: '+ ቅናሽ ጨምር',
+  removeDiscountAria: 'ቅናሽ አስወግድ',
 };
 
 

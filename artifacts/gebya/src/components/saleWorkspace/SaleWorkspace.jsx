@@ -23,7 +23,7 @@
 // Expense and standalone-credit forms are NOT touched by this component.
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { ArrowLeft, Camera, Save, Check } from 'lucide-react';
+import { ArrowLeft, Camera, Save, Check, Trash2, X } from 'lucide-react';
 import { useLang } from '../../context/LangContext';
 import { db } from '../../db';
 import { fmt, fmtInput, parseInput } from '../../utils/numformat';
@@ -32,7 +32,6 @@ import { photoSizeBytes } from '../../utils/photoCapture';
 import CameraCapture from '../CameraCapture';
 import { fireToast } from '../Toast';
 import PaymentTypeChips from '../PaymentTypeChips';
-import AddProviderButton from '../AddProviderButton';
 import ItemRow from '../smartSale/ItemRow';
 import { useSmartSaleRows } from '../smartSale/useSmartSaleRows';
 import RecentSalesSheet from '../smartSale/RecentSalesSheet';
@@ -121,6 +120,11 @@ export default function SaleWorkspace({
   const justSavedTimerRef = useRef(null);
   const [sessionRecentIds, setSessionRecentIds] = useState(new Set());
   const [lastSaleItems, setLastSaleItems] = useState([]);
+
+  // ─── Clear-form undo state ───
+  const [clearedSnapshot, setClearedSnapshot] = useState(null);
+  const clearedTimerRef = useRef(null);
+  const [totalPulseKey, setTotalPulseKey] = useState(0); // animation trigger
 
   // ─── Rows engine (reused unchanged from ItemizedSaleView) ───
   const {
@@ -218,6 +222,12 @@ export default function SaleWorkspace({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Pulse the live-summary total when it changes (200ms color flash).
+  useEffect(() => {
+    if (stage !== 'itemized') return;
+    setTotalPulseKey(k => k + 1);
+  }, [totalAmount, discount, stage]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -604,6 +614,74 @@ export default function SaleWorkspace({
     });
   };
 
+  // ─── Clear form (with 3s undo) ───
+  const handleClearForm = () => {
+    if (
+      !sellingPrice && filledRows.length === 0 && !context.trim() &&
+      photos.length === 0 && !creditCustomerId && discount === 0
+    ) return; // nothing to clear
+    // Snapshot current state for undo. Note: row content is not snapshotted
+    // (useSmartSaleRows doesn't expose a setter); undo restores SIMPLE state
+    // + customer + payment + photos + discount. For v1, the most common
+    // "clear" use case is the SIMPLE amount field anyway.
+    setClearedSnapshot({
+      amount, context, paymentType, paymentProvider, partialReceived,
+      creditCustomerId, creditCustomerName, creditCustomerPhone,
+      creditCustomerSearch, selectedDueTs, customDueIso,
+      shareAuto, photos, discount, showDiscount,
+      wasItemized: stage === 'itemized',
+    });
+    if (clearedTimerRef.current) clearTimeout(clearedTimerRef.current);
+    clearedTimerRef.current = setTimeout(() => setClearedSnapshot(null), 3000);
+    // Reset all transaction-specific state.
+    setAmount('');
+    setContext('');
+    setPaymentType('cash');
+    setPaymentProvider('');
+    setPartialReceived('');
+    setCreditCustomerId(null);
+    setCreditCustomerName('');
+    setCreditCustomerPhone('');
+    setCreditCustomerSearch('');
+    setSelectedDueTs(null);
+    setCustomDueIso('');
+    setShareAuto(false);
+    setPhotos([]);
+    setDiscount(0);
+    setShowDiscount(false);
+    setSelectedCatalogEntryId(null);
+    setSelectedCatalogKind(null);
+    clearRows();
+    setStage('simple');
+    fireToast(t.clearFormUndoLabel, 3000, undoClearForm);
+  };
+
+  const undoClearForm = () => {
+    if (clearedTimerRef.current) clearTimeout(clearedTimerRef.current);
+    const snap = clearedSnapshot;
+    if (!snap) return;
+    setClearedSnapshot(null);
+    setAmount(snap.amount);
+    setContext(snap.context);
+    setPaymentType(snap.paymentType);
+    setPaymentProvider(snap.paymentProvider);
+    setPartialReceived(snap.partialReceived);
+    setCreditCustomerId(snap.creditCustomerId);
+    setCreditCustomerName(snap.creditCustomerName);
+    setCreditCustomerPhone(snap.creditCustomerPhone);
+    setCreditCustomerSearch(snap.creditCustomerSearch);
+    setSelectedDueTs(snap.selectedDueTs);
+    setCustomDueIso(snap.customDueIso);
+    setShareAuto(snap.shareAuto);
+    setPhotos(snap.photos);
+    setDiscount(snap.discount);
+    setShowDiscount(snap.showDiscount);
+    setSelectedCatalogEntryId(snap.selectedCatalogEntryId);
+    setSelectedCatalogKind(snap.selectedCatalogKind);
+    // Note: row content cannot be restored in v1 (no row setter).
+    // Stage is forced back to simple so the user re-enters cleanly.
+  };
+
   // Viewers without record permission get nothing in the inline strip.
   if (isInline && !canAddRecords) return null;
 
@@ -635,18 +713,30 @@ export default function SaleWorkspace({
         </div>
       )}
 
-      {/* Fullscreen header — back · title · camera · recent sales */}
+      {/* Fullscreen header — back · clear · title · camera · recent sales */}
       {!isInline && (
         <div className="flex-shrink-0 px-2 py-1.5 flex items-center justify-between">
-          <button
-            onClick={handleBack}
-            aria-label={t.backAria}
-            title={t.backAria}
-            className="press-scale flex items-center justify-center"
-            style={{ minWidth: '44px', minHeight: '44px' }}
-          >
-            <ArrowLeft className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
-          </button>
+          <div className="flex items-center">
+            <button
+              onClick={handleBack}
+              aria-label={t.backAria}
+              title={t.backAria}
+              className="press-scale flex items-center justify-center"
+              style={{ minWidth: '44px', minHeight: '44px' }}
+            >
+              <ArrowLeft className="w-5 h-5" style={{ color: 'var(--color-text-muted)' }} />
+            </button>
+            <button
+              onClick={handleClearForm}
+              aria-label={t.clearFormBtn}
+              title={t.clearFormBtn}
+              className="press-scale flex items-center justify-center gap-1 px-2"
+              style={{ minHeight: '44px', color: 'var(--color-text-soft)' }}
+            >
+              <Trash2 className="w-4 h-4" />
+              <span className="text-[11px] font-bold hidden sm:inline">{t.clearFormBtn}</span>
+            </button>
+          </div>
           <h2 className="text-sm font-bold" style={{ color: 'var(--color-success)' }}>
             {t.newSaleTitle}
           </h2>
@@ -656,16 +746,16 @@ export default function SaleWorkspace({
               aria-label={t.photoAddAria}
               title={t.photoAddAria}
               className="press-scale flex items-center justify-center relative"
-              style={{ minWidth: '44px', minHeight: '44px' }}
+              style={{ minWidth: '48px', minHeight: '48px', borderRadius: '999px', background: photos.length > 0 ? 'var(--color-success-bg)' : 'transparent' }}
               disabled={photoLoading}
             >
               {photoLoading ? (
                 <span className="text-xs">...</span>
               ) : (
-                <Camera className="w-4 h-4" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-text-soft)' }} />
+                <Camera className="w-6 h-6" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-text-soft)' }} />
               )}
               {photos.length > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 text-[8px] font-black" style={{ color: 'var(--color-success)' }}>
+                <span className="absolute -top-0.5 -right-0.5 text-[10px] font-black px-1 rounded-full" style={{ color: 'white', background: 'var(--color-success)' }}>
                   {photos.length}
                 </span>
               )}
@@ -673,11 +763,11 @@ export default function SaleWorkspace({
             <button
               onClick={() => setShowRecentSales(true)}
               className="press-scale flex items-center justify-center"
-              style={{ minWidth: '44px', minHeight: '44px' }}
+              style={{ minWidth: '48px', minHeight: '48px', borderRadius: '999px' }}
               aria-label={t.todaySalesTitle}
               title={t.todaySalesTitle}
             >
-              <span className="text-base">📋</span>
+              <span className="text-xl">📋</span>
             </button>
           </div>
         </div>
@@ -779,14 +869,23 @@ export default function SaleWorkspace({
                 </div>
               )}
             </div>
-            {/* D3: grows THIS screen into the itemized view — typed amount becomes row 1 */}
+            {/* D3: grows THIS screen into the itemized view — typed amount becomes row 1.
+                Emerald forest button (distinct from Save) to make itemize-on-demand obvious. */}
             <button
               type="button"
               onClick={handleAddDetails}
-              className="w-full py-2 text-[11px] font-bold press-scale flex items-center justify-center gap-1"
-              style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-text-soft)', borderRadius: 'var(--radius-sm)', minHeight: '40px', background: 'var(--color-surface-subtle)' }}
+              className="w-full text-[13px] font-black press-scale flex items-center justify-center gap-2 transition-all"
+              style={{
+                minHeight: '48px',
+                borderRadius: 'var(--radius-md)',
+                border: '2px solid #047857',
+                background: '#ecfdf5',
+                color: '#047857',
+                boxShadow: '0 1px 0 rgba(4, 120, 87, 0.08)',
+              }}
             >
-              + {t.addDetailsLabel}
+              <span style={{ fontSize: '18px', lineHeight: 1, fontWeight: 900 }}>+</span>
+              <span>{t.addDetailsLabel}</span>
             </button>
           </div>
         )}
@@ -794,6 +893,39 @@ export default function SaleWorkspace({
         {/* ITEMIZED: notebook lines (3 pre-rendered, auto-grow engine, D6/D7/D8) */}
         {stage === 'itemized' && (
           <div>
+            {/* Live summary header — fullscreen only (locked decision 3+4).
+                3-column grid: Items / Qty / Total. Single source of truth, mirrors
+                the bottom summary. Subtle scale-flash on Total when it changes. */}
+            {!isInline && (
+              <div
+                className="px-2 py-1.5 mb-1 grid grid-cols-3 gap-1"
+                style={{
+                  background: 'linear-gradient(to bottom, var(--color-success-bg), transparent)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-border-light)',
+                }}
+              >
+                <div className="text-center">
+                  <div className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-soft)' }}>{t.liveSummaryItems}</div>
+                  <div className="text-[16px] font-black" style={{ color: 'var(--color-text)' }}>{filledRows.length}</div>
+                </div>
+                <div className="text-center" style={{ borderLeft: '1px solid var(--color-border-light)', borderRight: '1px solid var(--color-border-light)' }}>
+                  <div className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-soft)' }}>{t.liveSummaryQty}</div>
+                  <div className="text-[16px] font-black" style={{ color: 'var(--color-text)' }}>{totalQty}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-soft)' }}>{t.liveSummaryTotal}</div>
+                  <div
+                    key={totalPulseKey}
+                    className="text-[16px] font-black inline-block"
+                    style={{ color: 'var(--color-success)', transform: 'scale(1.08)', transition: 'transform 200ms ease-out' }}
+                    onAnimationEnd={() => {}}
+                  >
+                    {fmt(grandTotal)}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="px-2 flex gap-1 items-center" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
               <span className="text-[10px] font-bold uppercase tracking-widest truncate" style={{ flex: '34 0 0%', color: 'var(--color-text-soft)', minWidth: 0 }}>
                 {t.colItem}
@@ -827,18 +959,23 @@ export default function SaleWorkspace({
                   autoFocus={!isInline && idx === 0 && !sellingPrice}
                 />
               ))}
-              {filledRows.length >= 1 && (
-                <div className="py-1.5 px-1">
-                  <button
-                    onClick={() => addEmptyRows(3)}
-                    className="w-full py-2 text-[11px] font-bold press-scale flex items-center justify-center gap-1"
-                    style={{ color: 'var(--color-text-muted)', border: '1px dashed var(--color-text-soft)', borderRadius: '4px', minHeight: '40px', background: 'var(--color-surface-subtle)' }}
-                  >
-                    <span style={{ fontSize: '14px', lineHeight: 1 }}>+</span>
-                    <span>{t.addRowsBtn}</span>
-                  </button>
-                </div>
-              )}
+              {/* Always-visible "+ Add 3 rows" — discoverability (locked decision 5.2). */}
+              <div className="py-1.5 px-1">
+                <button
+                  onClick={() => addEmptyRows(3)}
+                  className="w-full text-[12px] font-bold press-scale flex items-center justify-center gap-1.5"
+                  style={{
+                    color: 'var(--color-text-muted)',
+                    border: '1.5px dashed var(--color-text-soft)',
+                    borderRadius: 'var(--radius-sm)',
+                    minHeight: '48px',
+                    background: 'var(--color-surface-subtle)',
+                  }}
+                >
+                  <span style={{ fontSize: '16px', lineHeight: 1, fontWeight: 900 }}>+</span>
+                  <span>{t.addRowsBtn}</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -867,22 +1004,7 @@ export default function SaleWorkspace({
           <p className="px-2 text-[10px] font-semibold" style={{ color: 'var(--color-danger)' }}>{photoError}</p>
         )}
 
-        {/* Payment chips — Cash / banks / wallets / Credit / Partial + add provider */}
-        <div className="px-2 py-1 flex items-center gap-1.5">
-          <div className="flex-1 min-w-0">
-            <PaymentTypeChips
-              paymentType={paymentType}
-              provider={paymentProvider}
-              onTypeChange={(type) => {
-                setPaymentType(type);
-                if (type === 'cash') setPaymentProvider('');
-              }}
-              onProviderChange={setPaymentProvider}
-              enabledProviders={enabledProviders}
-            />
-          </div>
-          <AddProviderButton onAddProvider={onAddProvider} />
-        </div>
+        {/* Payment chips — moved to bottom zone (locked decision: dedicated full-width band above total) */}
       </div>
 
       {/* ─── Bottom zone: partial · credit · summary · save ─── */}
@@ -1119,6 +1241,21 @@ export default function SaleWorkspace({
           </div>
         )}
 
+        {/* Payment chips — dedicated full-width band above total (locked decision 1).
+            Cash / banks / wallets / Credit / Partial + add provider. */}
+        <div className="px-2 py-1.5 border-y" style={{ borderColor: 'var(--color-border-light)' }}>
+          <PaymentTypeChips
+            paymentType={paymentType}
+            provider={paymentProvider}
+            onTypeChange={(type) => {
+              setPaymentType(type);
+              if (type === 'cash') setPaymentProvider('');
+            }}
+            onProviderChange={setPaymentProvider}
+            enabledProviders={enabledProviders}
+          />
+        </div>
+
         {/* ITEMIZED summary — Items / Qty / Subtotal / Discount / Total (D21) */}
         {stage === 'itemized' && (
           <div className="px-2 py-1 space-y-0.5">
@@ -1134,10 +1271,10 @@ export default function SaleWorkspace({
               </span>
             </div>
             {showDiscount && (
-              <div className="flex justify-between items-center" style={{ background: 'var(--color-warning-bg)', borderRadius: '3px', padding: '2px 6px', border: '1px solid var(--color-warning-border)' }}>
-                <span className="text-[11px]" style={{ color: 'var(--color-warning)' }}>{t.discountLabel}</span>
-                <div className="flex items-center gap-1">
-                  <span className="text-[11px]" style={{ color: 'var(--color-danger)' }}>−</span>
+              <div className="flex justify-between items-center" style={{ background: '#fef3c7', borderRadius: '6px', padding: '4px 8px', border: '1.5px solid #d97706' }}>
+                <span className="text-[11px] font-bold" style={{ color: '#92400e' }}>🏷️ {t.discountLabel}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold" style={{ color: '#dc2626' }}>−</span>
                   <input
                     ref={discountRef}
                     type="text"
@@ -1148,19 +1285,27 @@ export default function SaleWorkspace({
                       const val = parseFloat(raw) || 0;
                       setDiscount(Math.min(val, totalAmount));
                     }}
-                    className="w-14 text-right text-[11px] font-bold px-0.5"
-                    style={{ border: 'none', borderBottom: '1px solid var(--color-border)', borderRadius: '0', minHeight: '20px', background: 'transparent' }}
+                    className="w-16 text-right text-[12px] font-bold px-1"
+                    style={{ border: 'none', borderBottom: '1.5px solid #d97706', borderRadius: '0', minHeight: '28px', background: 'transparent', color: '#92400e' }}
                   />
+                  <button
+                    onClick={() => { setDiscount(0); setShowDiscount(false); }}
+                    aria-label={t.removeDiscountAria}
+                    className="press-scale flex items-center justify-center"
+                    style={{ minWidth: '28px', minHeight: '28px', color: '#dc2626' }}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </div>
             )}
-            {!showDiscount && totalAmount > 0 && (
+            {!showDiscount && (
               <button
-                onClick={() => setShowDiscount(true)}
+                onClick={() => { setShowDiscount(true); setTimeout(() => discountRef.current?.focus(), 50); }}
                 className="text-[11px] font-bold press-scale"
-                style={{ color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', borderRadius: '3px', padding: '4px 10px', minHeight: '34px' }}
+                style={{ color: '#92400e', border: '1.5px dashed #d97706', borderRadius: '6px', padding: '6px 10px', minHeight: '36px', background: '#fef3c7' }}
               >
-                + {t.discountLabel}
+                {t.addDiscountBtn}
               </button>
             )}
             <div className="flex justify-between items-center pt-0.5">
