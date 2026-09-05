@@ -8,6 +8,19 @@ function isTransfer(paymentType, paymentProvider) {
   );
 }
 
+export async function getStaffTransactions(staffId, periodStart, periodEnd) {
+  const all = await db.transactions
+    .where('created_at')
+    .between(periodStart, periodEnd)
+    .toArray();
+
+  return all.filter(t => {
+    if (t.deletedAt) return false;
+    const sid = t.actor_staff_member_id;
+    return sid !== undefined && sid !== null && String(sid) === String(staffId);
+  });
+}
+
 export async function calculateExpected(staffId, periodStart, periodEnd) {
   const all = await db.transactions
     .where('created_at')

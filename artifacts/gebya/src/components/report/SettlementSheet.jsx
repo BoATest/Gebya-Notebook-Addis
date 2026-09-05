@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { User, Shield, CheckCircle, AlertCircle, FileText } from 'lucide-react';
+import { User, Shield, CheckCircle, AlertCircle, FileText, Package, ChevronDown } from 'lucide-react';
 import { saveSettlement, updateSettlement } from '../../db';
-import { generateSettlementId, loadSettlementFromLocalStorage, saveSettlementDraft, clearSettlementDraft, createReconciliationEntry } from '../../utils/settlementSelectors';
+import { generateSettlementId, loadSettlementFromLocalStorage, saveSettlementDraft, clearSettlementDraft, createReconciliationEntry, getStaffTransactions } from '../../utils/settlementSelectors';
+import { aggregateSettlementItems } from '../../utils/settlementItems';
 import useCalculatedExpected from '../../utils/useCalculatedExpected';
 import { fmt } from '../../utils/numformat';
 import ReconStatusBadge from '../staff/ReconStatusBadge';
@@ -36,6 +37,8 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
   const [ownerReviewNote, setOwnerReviewNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [itemBreakdown, setItemBreakdown] = useState(null);
+  const [itemsExpanded, setItemsExpanded] = useState(false);
   const hasStaffReport = existingSettlement?.staff_reported_cash != null;
   const staffCash = Number(existingSettlement?.staff_reported_cash) || 0;
   const staffTransfer = Number(existingSettlement?.staff_reported_transfer) || 0;
@@ -60,6 +63,28 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       }
     }
   }, [staff?.id, existingSettlement]);
+
+  // Phase 8a: aggregate item lines for this settlement period (read-only)
+  useEffect(() => {
+    let cancelled = false;
+    setItemBreakdown(null);
+    const staffIdNum = Number(staff?.id);
+    if (!staffIdNum || !period || !period.end || period.end <= (period.start || 0)) return undefined;
+    (async () => {
+      try {
+        const txs = await getStaffTransactions(staffIdNum, period.start, period.end);
+        if (cancelled) return;
+        const sales = txs.filter(t => String(t.type || '').toLowerCase() === 'sale' && !t.is_credit && String(t.payment_type || '').toLowerCase() !== 'credit');
+        const breakdown = aggregateSettlementItems(sales);
+        const salesTotal = sales.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+        const simpleSales = sales.filter(tx => !Array.isArray(tx.items) || tx.items.length === 0).length;
+        setItemBreakdown({ ...breakdown, salesTotal, simpleSales });
+      } catch {
+        if (!cancelled) setItemBreakdown({ items: [], totalQty: 0, totalAmount: 0, transactionCount: 0, salesTotal: 0, simpleSales: 0 });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [staff?.id, period.start, period.end]);
 
   useEffect(() => {
     if (loading || isView) return;
@@ -248,6 +273,62 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           ))}
         </div>
       </div>
+
+      {/* Phase 8a: Items sold breakdown (read-only, collapsible) */}
+      {itemBreakdown && itemBreakdown.items.length > 0 && (
+        <div style={{ background: 'var(--color-surface)', borderRadius: C.radius, marginBottom: 12, border: `1px solid ${C.grayBorder}`, overflow: 'hidden' }}>
+          <button
+            onClick={() => setItemsExpanded(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '10px 14px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: C.font }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 800, color: C.text }}>
+              <Package className="w-3.5 h-3.5" style={{ color: C.amber }} />
+              {t('Items sold', 'የተሸጡ ዕቃዎች')}
+              <span style={{ fontWeight: 600, color: C.textMuted }}>
+                · {itemBreakdown.items.length} {t('types', 'አይነት')} · {itemBreakdown.totalQty} {t('qty', 'ብዛት')}
+              </span>
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 900, color: C.amber }}>{fmt(itemBreakdown.totalAmount)} ETB</span>
+              <ChevronDown className="w-4 h-4" style={{ color: C.textMuted, transform: itemsExpanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+            </span>
+          </button>
+          {itemsExpanded && (
+            <div style={{ padding: '0 14px 12px' }}>
+              {/* Column header */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, padding: '6px 0', borderBottom: `1px solid ${C.grayBorder}` }}>
+                <span style={{ fontSize: 9, fontWeight: 800, color: C.textFaint, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{t('Item', 'ዕቃ')}</span>
+                <span style={{ fontSize: 9, fontWeight: 800, color: C.textFaint, textTransform: 'uppercase', letterSpacing: '0.3px', textAlign: 'right' }}>{t('Qty × Price', 'ብዛት × ዋጋ')}</span>
+                <span style={{ fontSize: 9, fontWeight: 800, color: C.textFaint, textTransform: 'uppercase', letterSpacing: '0.3px', textAlign: 'right', minWidth: 70 }}>{t('Total', 'ድምር')}</span>
+              </div>
+              {itemBreakdown.items.slice(0, 30).map((item, i) => (
+                <div key={`${item.name}-${i}`} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, padding: '7px 0', borderBottom: `1px solid ${C.grayLight}`, alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                  <span style={{ fontSize: 11, color: C.textMuted, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {fmt(item.qty)} × {fmt(item.unitPrice)}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: C.text, textAlign: 'right', minWidth: 70 }}>{fmt(item.lineTotal)}</span>
+                </div>
+              ))}
+              {itemBreakdown.items.length > 30 && (
+                <p style={{ fontSize: 10, color: C.textMuted, margin: '8px 0 0', textAlign: 'center' }}>
+                  {t('+ more items not shown', '+ ተጨማሪ ዕቃዎች አልታዩም')}
+                </p>
+              )}
+              {/* Reconciliation footer */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 0', marginTop: 4, borderTop: `1px solid ${C.grayBorder}` }}>
+                <span style={{ fontSize: 10, color: C.textMuted }}>
+                  {t('Itemized sales', 'ዝርዝር ሽያጭ')} {fmt(itemBreakdown.totalAmount)}
+                  {itemBreakdown.simpleSales > 0 && ` · ${itemBreakdown.simpleSales} ${t('simple sale(s) without item details', 'ሽያጭ ያለ ዝርዝር')}`}
+                </span>
+                <span style={{ fontSize: 10, fontWeight: 800, color: C.textMuted }}>
+                  {t('of', 'ከ')} {fmt(itemBreakdown.salesTotal)} ETB {t('sales total', 'ከሽያጭ ድምር')}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Staff reported section (only in review mode) */}
       {hasStaffReport && (
