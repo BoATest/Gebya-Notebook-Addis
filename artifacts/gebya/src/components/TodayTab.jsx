@@ -7,6 +7,8 @@ import TxRow from './TxRow';
 import TrustCard from './TrustCard';
 import { PanelFallback } from './Fallbacks';
 import { DailySuggestions, LearningInsights, SaleWorkspace } from '../utils/lazyImports';
+import RunningTotalPill from './RunningTotalPill';
+import { computeStaffTodayTotals, computeTodayTotalsByStaff } from '../utils/staffTodayTotals';
 import { fmt } from '../utils/numformat';
 
 export default function TodayTab({
@@ -29,6 +31,8 @@ export default function TodayTab({
   shopProfile,
   initialPaymentType,
   initialPaymentProvider,
+  activeStaffMemberId = null,
+  staffMembers = [],
 }) {
   const todaySales = todaysSales;
   const { lang, t } = useLang();
@@ -36,9 +40,53 @@ export default function TodayTab({
   const setEditTarget = useAppStore(s => s.setEditTarget);
   const setDeleteTarget = useAppStore(s => s.setDeleteTarget);
 
+  // Phase 8c: live running totals
+  const isStaffActor = activeStaffMemberId != null
+    && staffMembers.some(m => String(m.id) === String(activeStaffMemberId) && m.active !== false);
+  const staffOwnTotals = isStaffActor
+    ? computeStaffTodayTotals(todayTransactions, activeStaffMemberId)
+    : null;
+  const ownerBreakdown = isStaffActor ? null : computeTodayTotalsByStaff(todayTransactions, staffMembers);
+  const activeStaffToday = ownerBreakdown ? ownerBreakdown.byStaff.filter(s => s.salesCount > 0) : [];
+
   return (
     <div className="space-y-4">
       <ProfitCard transactions={todayTransactions} yesterdayNet={yesterdayNet} compact={true} />
+
+      {/* Phase 8c: live running totals */}
+      {isStaffActor && staffOwnTotals ? (
+        <div>
+          <RunningTotalPill
+            total={staffOwnTotals.salesTotal}
+            count={staffOwnTotals.salesCount}
+            creditCount={staffOwnTotals.creditCount}
+            lang={lang}
+          />
+        </div>
+      ) : (ownerBreakdown && (ownerBreakdown.owner.salesCount > 0 || activeStaffToday.length > 0)) ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {ownerBreakdown.owner.salesCount > 0 && (
+            <RunningTotalPill
+              total={ownerBreakdown.owner.salesTotal}
+              count={ownerBreakdown.owner.salesCount}
+              creditCount={ownerBreakdown.owner.creditCount}
+              lang={lang}
+              compact
+            />
+          )}
+          {activeStaffToday.map(s => (
+            <RunningTotalPill
+              key={s.staffId}
+              label={s.name}
+              total={s.salesTotal}
+              count={s.salesCount}
+              creditCount={s.creditCount}
+              lang={lang}
+              compact
+            />
+          ))}
+        </div>
+      ) : null}
 
       {/* Unified Sale Workspace — inline capture strip (zero-tap simple sales).
           Grows in place via "+ Add details"; full-screen variant opens from

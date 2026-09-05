@@ -5,7 +5,7 @@ import { fmt } from '../utils/numformat';
  * Compact live counter: "Today: 1,200 ETB · 5 sales"
  * Presentational only — parent computes totals.
  */
-export default function RunningTotalPill({ total = 0, count = 0, creditCount = 0, lang = 'en', onTap, compact = false }) {
+export default function RunningTotalPill({ total = 0, count = 0, creditCount = 0, lang = 'en', label = null, onTap, compact = false }) {
   const t = (en, am) => (lang === 'am' ? am : en);
   const clickable = typeof onTap === 'function';
 
@@ -26,6 +26,11 @@ export default function RunningTotalPill({ total = 0, count = 0, creditCount = 0
         minHeight: 36,
       }}
     >
+      {label && (
+        <span style={{ fontSize: 12, fontWeight: 900, color: 'var(--color-text)', lineHeight: 1.2, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {label}
+        </span>
+      )}
       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)' }}>
         {t('Today', 'ዛሬ')}
       </span>

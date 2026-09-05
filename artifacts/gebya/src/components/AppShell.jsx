@@ -2219,6 +2219,8 @@ export default function AppShell() {
             shopProfile={shopProfile}
             initialPaymentType={lastPayment?.sale?.type}
             initialPaymentProvider={lastPayment?.sale?.provider}
+            activeStaffMemberId={activeStaffMemberId}
+            staffMembers={staffMembers}
           />
           </ErrorBoundary>
         )}
