@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { User, Shield, CheckCircle, AlertCircle, FileText, Package, ChevronDown } from 'lucide-react';
+import { User, Shield, CheckCircle, AlertCircle, FileText, Package, ChevronDown, Camera, X } from 'lucide-react';
 import { saveSettlement, updateSettlement } from '../../db';
 import { generateSettlementId, loadSettlementFromLocalStorage, saveSettlementDraft, clearSettlementDraft, createReconciliationEntry, getStaffTransactions } from '../../utils/settlementSelectors';
 import { aggregateSettlementItems } from '../../utils/settlementItems';
+import { createPhotoProof, normalizePhotos, MAX_PROOF_PHOTOS, canAddPhoto } from '../../utils/photoProof';
+import { photoSizeBytes } from '../../utils/photoCapture';
+import CameraCapture from '../CameraCapture';
 import useCalculatedExpected from '../../utils/useCalculatedExpected';
 import { fmt } from '../../utils/numformat';
 import ReconStatusBadge from '../staff/ReconStatusBadge';
@@ -39,6 +42,8 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
   const [error, setError] = useState('');
   const [itemBreakdown, setItemBreakdown] = useState(null);
   const [itemsExpanded, setItemsExpanded] = useState(false);
+  const [handoverPhotos, setHandoverPhotos] = useState([]);
+  const [showCamera, setShowCamera] = useState(false);
   const hasStaffReport = existingSettlement?.staff_reported_cash != null;
   const staffCash = Number(existingSettlement?.staff_reported_cash) || 0;
   const staffTransfer = Number(existingSettlement?.staff_reported_transfer) || 0;
@@ -53,7 +58,9 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       setActualTransfer(String(existingSettlement.actual_transfer || ''));
       setAdjustments(existingSettlement.adjustments || []);
       setNotes(existingSettlement.notes || '');
+      setHandoverPhotos(normalizePhotos(existingSettlement.handover_photos));
     } else {
+      setHandoverPhotos([]);
       const draft = loadSettlementFromLocalStorage(String(staff?.id));
       if (draft) {
         setActualCash(String(draft.actualCash || ''));
@@ -63,6 +70,14 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
       }
     }
   }, [staff?.id, existingSettlement]);
+
+  // Phase 8e: handover photo capture (optional, max 3)
+  const handleHandoverPhoto = (dataUrl) => {
+    setShowCamera(false);
+    if (!dataUrl || !canAddPhoto(handoverPhotos)) return;
+    const proof = createPhotoProof(dataUrl);
+    if (proof) setHandoverPhotos(prev => [...prev, proof]);
+  };
 
   // Phase 8a: aggregate item lines for this settlement period (read-only)
   useEffect(() => {
@@ -182,6 +197,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           reconciliation_log: [...recLog, logEntry],
           status: 'reconciled',
           notes: notes.trim() || (ownerNote || null),
+          handover_photos: handoverPhotos,
           reconciled_at: now,
           reconciled_by: staffIdNum,
           updated_at: now,
@@ -203,6 +219,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           final_variance: totalVariance,
           status: 'checked',
           notes: notes.trim(),
+          handover_photos: handoverPhotos,
           settled_at: now,
           settled_by: staffIdNum,
           created_at: now,
@@ -454,6 +471,52 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         </div>
       )}
 
+      {/* Phase 8e: handover photos (optional, max 3) */}
+      <div style={{ background: 'var(--color-surface)', borderRadius: C.radius, padding: 12, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: handoverPhotos.length > 0 ? 10 : 0 }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.3px', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <Camera className="w-3.5 h-3.5" />
+            {t('Photo of handover', 'የማስረከቢያ ፎቶ')}
+            <span style={{ fontWeight: 400, textTransform: 'none' }}>· {t('optional', 'አማራጭ')}</span>
+          </span>
+          {!readOnly && canAddPhoto(handoverPhotos) && (
+            <button
+              onClick={() => setShowCamera(true)}
+              className="press-scale"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: C.blueLight, color: C.blue, border: `1.5px solid ${C.blueBorder}`, borderRadius: 999, padding: '6px 13px', fontSize: 11, fontWeight: 800, cursor: 'pointer', minHeight: 36 }}
+            >
+              <Camera className="w-3.5 h-3.5" />
+              {t('Add photo', 'ፎቶ ያንሱ')}
+            </button>
+          )}
+        </div>
+        {handoverPhotos.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {handoverPhotos.map((photo) => (
+              <div key={photo.id} style={{ position: 'relative' }}>
+                <img
+                  src={photo.dataUrl}
+                  alt={t('Handover proof', 'የማስረከቢያ ማረጋገጫ')}
+                  style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: C.radius, border: `1.5px solid ${C.grayBorder}`, display: 'block' }}
+                />
+                <span style={{ position: 'absolute', bottom: 3, left: 3, fontSize: 8, fontWeight: 700, color: C.text, background: 'rgba(255,255,255,0.85)', borderRadius: 4, padding: '1px 4px' }}>
+                  {photoSizeBytes(photo.dataUrl)}
+                </span>
+                {!readOnly && (
+                  <button
+                    onClick={() => setHandoverPhotos(prev => prev.filter(p => p.id !== photo.id))}
+                    aria-label={t('Remove photo', 'ፎቶ አስወግድ')}
+                    style={{ position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: '50%', background: C.red, color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Variance */}
       {(actualCashVal > 0 || actualTransferVal > 0) && (
         <div style={{
@@ -699,6 +762,15 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           >{saving ? t('Saving...', 'በማስቀመጥ ላይ...') : t('Save Settlement', 'አስቀምጥ')}</button>
         )}
       </div>
+
+      {/* Phase 8e: handover photo camera */}
+      {showCamera && (
+        <CameraCapture
+          open={showCamera}
+          onCapture={handleHandoverPhoto}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
     </div>
   );
 }
