@@ -2214,7 +2214,7 @@ export default function AppShell() {
             onSaveCatalogEntry={handleSaveCatalogEntry}
             onAddCustomerInline={handleAddCustomerInline}
             onAddProvider={handleQuickAddProvider}
-            transactions={todaySales}
+            todaysSales={todaySales}
             actorLabel={currentActorLabel}
             shopProfile={shopProfile}
             initialPaymentType={lastPayment?.sale?.type}

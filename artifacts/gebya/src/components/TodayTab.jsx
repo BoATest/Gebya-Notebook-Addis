@@ -24,12 +24,13 @@ export default function TodayTab({
   onSaveCatalogEntry,
   onAddCustomerInline,
   onAddProvider,
-  transactions: todaySales,
+  todaysSales,
   actorLabel,
   shopProfile,
   initialPaymentType,
   initialPaymentProvider,
 }) {
+  const todaySales = todaysSales;
   const { lang, t } = useLang();
   const setShowForm = useAppStore(s => s.setShowForm);
   const setEditTarget = useAppStore(s => s.setEditTarget);
