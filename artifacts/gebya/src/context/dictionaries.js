@@ -1066,6 +1066,7 @@ export const EN_OVERRIDES = {
   clearFormBtn: 'Clear form',
   clearFormConfirm: 'Clear this sale?',
   clearFormUndoLabel: 'Form cleared · UNDO',
+  clearFormHasRows: 'Delete each row first (X button on the row)',
   addDiscountBtn: '+ Add discount',
   removeDiscountAria: 'Remove discount',
 };
@@ -1667,6 +1668,7 @@ export const AM_OVERRIDES = {
   clearFormBtn: 'ቅጽበት አጽዳ',
   clearFormConfirm: 'ይህን ሽያጭ ይጽዳ?',
   clearFormUndoLabel: 'ተጽዯል · UNDO',
+  clearFormHasRows: 'መስመሮችን ቅድሚያ ሰርዝ (X የመስመር ቁልፕ)',
   addDiscountBtn: '+ ቅናሽ ጨምር',
   removeDiscountAria: 'ቅናሽ አስወግድ',
 };

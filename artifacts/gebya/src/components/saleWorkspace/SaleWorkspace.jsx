@@ -24,6 +24,26 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ArrowLeft, Camera, Save, Check, Trash2, X } from 'lucide-react';
+
+// One-time global styles for the live-summary total pulse + other workspace polish.
+// Injected once per page load (idempotent).
+if (typeof document !== 'undefined' && !document.getElementById('sale-workspace-styles')) {
+  const style = document.createElement('style');
+  style.id = 'sale-workspace-styles';
+  style.textContent = `
+    @keyframes saleTotalPulse {
+      0%   { transform: scale(1);    color: var(--color-success); }
+      40%  { transform: scale(1.18); color: var(--color-success-text, var(--color-success)); }
+      100% { transform: scale(1);    color: var(--color-success); }
+    }
+    .sale-total-pulse {
+      display: inline-block;
+      animation: saleTotalPulse 280ms ease-out;
+      transform-origin: center;
+    }
+  `;
+  document.head.appendChild(style);
+}
 import { useLang } from '../../context/LangContext';
 import { db } from '../../db';
 import { fmt, fmtInput, parseInput } from '../../utils/numformat';
@@ -223,11 +243,13 @@ export default function SaleWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Pulse the live-summary total when it changes (200ms color flash).
+  // Pulse the live-summary total when row values change (NOT on every
+  // discount keystroke — that would strobe). Discount-driven changes are
+  // subtle (subtractive) and don't need a flash.
   useEffect(() => {
     if (stage !== 'itemized') return;
     setTotalPulseKey(k => k + 1);
-  }, [totalAmount, discount, stage]);
+  }, [totalAmount, stage]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -620,10 +642,17 @@ export default function SaleWorkspace({
       !sellingPrice && filledRows.length === 0 && !context.trim() &&
       photos.length === 0 && !creditCustomerId && discount === 0
     ) return; // nothing to clear
-    // Snapshot current state for undo. Note: row content is not snapshotted
-    // (useSmartSaleRows doesn't expose a setter); undo restores SIMPLE state
-    // + customer + payment + photos + discount. For v1, the most common
-    // "clear" use case is the SIMPLE amount field anyway.
+
+    // If there are filled itemized rows, the undo cannot restore them
+    // (useSmartSaleRows has no setter). The merchant must use the X on
+    // each row to delete them. Block the clear-with-rows path so we
+    // don't silently destroy work the user thinks they can recover.
+    if (filledRows.length > 0) {
+      fireToast(t.clearFormHasRows, 3500);
+      return;
+    }
+
+    // Snapshot current state for undo. (row content excluded — see above.)
     setClearedSnapshot({
       amount, context, paymentType, paymentProvider, partialReceived,
       creditCustomerId, creditCustomerName, creditCustomerPhone,
@@ -678,8 +707,6 @@ export default function SaleWorkspace({
     setShowDiscount(snap.showDiscount);
     setSelectedCatalogEntryId(snap.selectedCatalogEntryId);
     setSelectedCatalogKind(snap.selectedCatalogKind);
-    // Note: row content cannot be restored in v1 (no row setter).
-    // Stage is forced back to simple so the user re-enters cleanly.
   };
 
   // Viewers without record permission get nothing in the inline strip.
@@ -731,10 +758,10 @@ export default function SaleWorkspace({
               aria-label={t.clearFormBtn}
               title={t.clearFormBtn}
               className="press-scale flex items-center justify-center gap-1 px-2"
-              style={{ minHeight: '44px', color: 'var(--color-text-soft)' }}
+              style={{ minWidth: '44px', minHeight: '44px', color: 'var(--color-text-soft)' }}
             >
               <Trash2 className="w-4 h-4" />
-              <span className="text-[11px] font-bold hidden sm:inline">{t.clearFormBtn}</span>
+              <span className="text-[11px] font-bold">{t.clearFormBtn}</span>
             </button>
           </div>
           <h2 className="text-sm font-bold" style={{ color: 'var(--color-success)' }}>
@@ -779,21 +806,21 @@ export default function SaleWorkspace({
           <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
             {t.newSaleBtn}
           </span>
-          <div className="flex items-center">
+          <div className="flex items-center gap-0.5">
             <button
               onClick={() => setShowCamera(true)}
               aria-label={t.photoAddAria}
               className="press-scale flex items-center justify-center relative"
-              style={{ minWidth: '36px', minHeight: '36px' }}
+              style={{ minWidth: '44px', minHeight: '36px', borderRadius: '999px', background: photos.length > 0 ? 'var(--color-success-bg)' : 'transparent' }}
               disabled={photoLoading}
             >
               {photoLoading ? (
                 <span className="text-[10px]">…</span>
               ) : (
-                <Camera className="w-3.5 h-3.5" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-text-soft)' }} />
+                <Camera className="w-5 h-5" style={{ color: photos.length > 0 ? 'var(--color-success)' : 'var(--color-text-soft)' }} />
               )}
               {photos.length > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 text-[8px] font-black" style={{ color: 'var(--color-success)' }}>
+                <span className="absolute -top-0.5 -right-0.5 text-[9px] font-black px-1 rounded-full" style={{ color: 'white', background: 'var(--color-success)' }}>
                   {photos.length}
                 </span>
               )}
@@ -801,10 +828,10 @@ export default function SaleWorkspace({
             <button
               onClick={() => setShowRecentSales(true)}
               className="press-scale flex items-center justify-center"
-              style={{ minWidth: '36px', minHeight: '36px' }}
+              style={{ minWidth: '44px', minHeight: '36px', borderRadius: '999px' }}
               aria-label={t.todaySalesTitle}
             >
-              <span className="text-[13px]">📋</span>
+              <span className="text-base">📋</span>
             </button>
           </div>
         </div>
@@ -917,9 +944,8 @@ export default function SaleWorkspace({
                   <div className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-soft)' }}>{t.liveSummaryTotal}</div>
                   <div
                     key={totalPulseKey}
-                    className="text-[16px] font-black inline-block"
-                    style={{ color: 'var(--color-success)', transform: 'scale(1.08)', transition: 'transform 200ms ease-out' }}
-                    onAnimationEnd={() => {}}
+                    className="text-[16px] font-black sale-total-pulse"
+                    style={{ color: 'var(--color-success)' }}
                   >
                     {fmt(grandTotal)}
                   </div>
@@ -1274,7 +1300,7 @@ export default function SaleWorkspace({
               <div className="flex justify-between items-center" style={{ background: '#fef3c7', borderRadius: '6px', padding: '4px 8px', border: '1.5px solid #d97706' }}>
                 <span className="text-[11px] font-bold" style={{ color: '#92400e' }}>🏷️ {t.discountLabel}</span>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold" style={{ color: '#dc2626' }}>−</span>
+                  <span className="text-[11px] font-bold" style={{ color: '#92400e' }}>−</span>
                   <input
                     ref={discountRef}
                     type="text"
@@ -1292,7 +1318,7 @@ export default function SaleWorkspace({
                     onClick={() => { setDiscount(0); setShowDiscount(false); }}
                     aria-label={t.removeDiscountAria}
                     className="press-scale flex items-center justify-center"
-                    style={{ minWidth: '28px', minHeight: '28px', color: '#dc2626' }}
+                    style={{ minWidth: '28px', minHeight: '28px', color: '#92400e' }}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
