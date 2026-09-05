@@ -24,8 +24,6 @@ export default function ItemRow({
   const qtyRef = useRef(null);
   const priceRef = useRef(null);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
-  const [touchStart, setTouchStart] = useState(null);
-  const [swiped, setSwiped] = useState(false);
 
   useEffect(() => {
     if (autoFocus && itemRef.current) {
@@ -86,27 +84,6 @@ export default function ItemRow({
     qtyRef.current?.select();
   };
 
-  const handleTouchStart = (e) => {
-    setTouchStart(e.touches[0].clientX);
-  };
-
-  const handleTouchMove = (e) => {
-    if (touchStart === null) return;
-    const diff = touchStart - e.touches[0].clientX;
-    if (diff > 60) setSwiped(true);
-  };
-
-  const handleTouchEnd = () => {
-    setTouchStart(null);
-    if (!swiped) return;
-    setTimeout(() => setSwiped(false), 3000);
-  };
-
-  const handleConfirmDelete = () => {
-    onDelete(row.id);
-    setSwiped(false);
-  };
-
   const lastPrice = row.catalogEntryId
     ? catalogEntries.find(e => e.id === row.catalogEntryId)?.last_price
     : null;
@@ -122,31 +99,12 @@ export default function ItemRow({
   return (
     <div
       data-row-id={row.id}
-      className="relative overflow-hidden"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      className="relative"
     >
-      <div
-        className="absolute inset-y-0 right-0 flex items-center"
-        style={{ width: '80px', background: 'var(--color-danger)' }}
-      >
-        <button
-          type="button"
-          onClick={handleConfirmDelete}
-          className="w-full h-full flex items-center justify-center text-white text-xs font-bold"
-          style={{ minHeight: '44px' }}
-        >
-          {t.deleteRowBtn}
-        </button>
-      </div>
-
       <div
         className="flex gap-1 items-center relative"
         style={{
           minHeight: ROW_H,
-          transform: swiped ? 'translateX(-80px)' : 'translateX(0)',
-          transition: swiped ? 'transform 0.2s ease' : 'none',
           background: isPlaceholder ? 'rgba(249,250,251,0.6)' : 'var(--color-bg-white)',
           borderBottom: isPlaceholder ? '1px dashed var(--color-bg-disabled)' : '1px solid var(--color-border-light)',
           padding: '0',
@@ -223,22 +181,37 @@ export default function ItemRow({
 
         <div
           className="flex items-center justify-end text-[13px] font-black flex-shrink-0 total-col"
-          style={{ width: '88px', color: row.lineTotal > 0 ? 'var(--color-success-text)' : 'var(--color-text-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          style={{ width: '80px', color: row.lineTotal > 0 ? 'var(--color-success-text)' : 'var(--color-text-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
         >
           {row.lineTotal > 0 ? fmt(row.lineTotal) : '—'}
         </div>
-        {/* ⓧ delete button — locked decision 5.3.
-            Hidden for empty rows. For row 1 with content, clears the row content
-            (keeps the row for the auto-grow engine). For rows 2+, deletes the row. */}
+        {/* ⓧ delete button — locked decision 5.3 (swipe gesture removed).
+            Hidden on empty row 1. Visible on row 1 with content (clears
+            content, keeps the row for auto-grow) and on rows 2+ (deletes
+            the row, with the existing 5s row-level undo from useSmartSaleRows).
+            Visually a clear red pill — not a tiny gray icon — so the action
+            is obvious to a first-time merchant. */}
         {!(index === 0 && !row.name.trim() && !row.price) && (
           <button
             type="button"
-            onClick={handleConfirmDelete}
-            aria-label="Delete row"
-            className="press-scale flex items-center justify-center flex-shrink-0"
-            style={{ minWidth: '32px', minHeight: '32px', color: 'var(--color-danger)' }}
+            onClick={() => onDelete(row.id)}
+            aria-label={t.deleteRowBtn}
+            className="press-scale flex items-center justify-center flex-shrink-0 font-black"
+            style={{
+              minWidth: '36px',
+              minHeight: '32px',
+              padding: '0 8px',
+              gap: '2px',
+              background: '#fef2f2',
+              border: '1.5px solid #dc2626',
+              color: '#dc2626',
+              borderRadius: '6px',
+              fontSize: '12px',
+              marginRight: '4px',
+            }}
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" strokeWidth={3} />
+            <span className="hidden sm:inline">{t.deleteRowBtn}</span>
           </button>
         )}
       </div>

@@ -544,11 +544,11 @@ export default function SaleWorkspace({
       if (justSavedTimerRef.current) clearTimeout(justSavedTimerRef.current);
       justSavedTimerRef.current = setTimeout(() => setJustSaved(false), 1200);
 
-      // 4s UNDO toast (spec §16 / V2 §11) — soft-delete via the app's
+      // 5s UNDO toast (spec §16 / V2 §11) — soft-delete via the app's
       // existing tombstone path, which itself offers restore.
       if (savedId && onDeleteTransaction) {
         const finalTransactionId = savedId;
-        fireToast(t.savedUndoLabel, 4000, () => {
+        fireToast(t.savedUndoLabel, 5000, () => {
           trackEvent('sale_workspace_undo_tapped', {
             transaction_id: finalTransactionId,
             variant: isInline ? 'inline' : 'fullscreen',
@@ -840,10 +840,21 @@ export default function SaleWorkspace({
       {/* ─── Capture zone: simple amount / itemized rows + shared sections ─── */}
       <div className={isInline ? '' : 'flex-1 overflow-y-auto'}>
 
-        {/* SIMPLE: big amount + context field (writes item_name) with autocomplete */}
+        {/* SIMPLE: big amount + context field (writes item_name) with autocomplete.
+            Each input is its own visually-bounded row so the merchant can
+            tell where one ends and the next begins. */}
         {stage === 'simple' && (
-          <div className="px-2 py-1 space-y-1.5">
-            <div className="flex items-baseline gap-2">
+          <div className="px-2 py-2 space-y-2.5">
+            {/* Row 1: amount — bordered card, big bold number, currency suffix */}
+            <div
+              className="flex items-center gap-2 px-3 py-2"
+              style={{
+                background: 'var(--color-bg-white)',
+                border: '2px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                minHeight: '56px',
+              }}
+            >
               <input
                 ref={amountInputRef}
                 type="text"
@@ -853,11 +864,21 @@ export default function SaleWorkspace({
                 placeholder="0"
                 aria-label={t.amountAria}
                 className="flex-1 min-w-0 font-black focus:outline-none bg-transparent"
-                style={{ fontSize: '38px', lineHeight: 1.2, color: 'var(--color-text)', minHeight: '52px', border: 'none' }}
+                style={{ fontSize: '34px', lineHeight: 1.1, color: 'var(--color-text)', border: 'none' }}
               />
-              <span className="text-sm font-bold" style={{ color: 'var(--color-text-soft)' }}>{currency}</span>
+              <span className="text-sm font-bold flex-shrink-0" style={{ color: 'var(--color-text-soft)' }}>{currency}</span>
             </div>
-            <div className="relative">
+            {/* Row 2: context — distinct bordered card with a leading icon */}
+            <div
+              className="relative flex items-center gap-2 px-3 py-2"
+              style={{
+                background: 'var(--color-bg-white)',
+                border: '2px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                minHeight: '48px',
+              }}
+            >
+              <span className="text-[15px] flex-shrink-0" aria-hidden="true">📝</span>
               <input
                 type="text"
                 value={context}
@@ -870,8 +891,8 @@ export default function SaleWorkspace({
                 onFocus={() => { if (context.trim()) setShowContextAc(true); }}
                 onBlur={() => setTimeout(() => setShowContextAc(false), 200)}
                 placeholder={t.whatDidYouSell}
-                className="w-full px-2 py-2 text-[13px] font-medium focus:outline-none"
-                style={{ border: '1px solid var(--color-border-light)', borderRadius: 'var(--radius-sm)', minHeight: '44px', background: 'var(--color-bg-white)' }}
+                className="flex-1 min-w-0 text-[14px] font-medium focus:outline-none bg-transparent"
+                style={{ border: 'none', color: 'var(--color-text)' }}
                 autoComplete="off"
               />
               {showContextAc && context.trim() && (
@@ -920,10 +941,12 @@ export default function SaleWorkspace({
         {/* ITEMIZED: notebook lines (3 pre-rendered, auto-grow engine, D6/D7/D8) */}
         {stage === 'itemized' && (
           <div>
-            {/* Live summary header — fullscreen only (locked decision 3+4).
-                3-column grid: Items / Qty / Total. Single source of truth, mirrors
+            {/* Live summary header — fullscreen only, only when 3+ rows are
+                filled (locked decision: hidden until 3+ items to keep the
+                screen calm for the common short-basket case). 3-column
+                grid: Items / Qty / Total. Single source of truth, mirrors
                 the bottom summary. Subtle scale-flash on Total when it changes. */}
-            {!isInline && (
+            {!isInline && filledRows.length >= 3 && (
               <div
                 className="px-2 py-1.5 mb-1 grid grid-cols-3 gap-1"
                 style={{
@@ -962,7 +985,7 @@ export default function SaleWorkspace({
               <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0" style={{ width: '84px', color: 'var(--color-text-soft)' }}>
                 {t.colPrice}
               </span>
-              <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0" style={{ width: '88px', color: 'var(--color-text-soft)' }}>
+              <span className="text-[10px] font-bold text-right uppercase tracking-widest flex-shrink-0" style={{ width: '120px', color: 'var(--color-text-soft)' }}>
                 {t.colTotal}
               </span>
             </div>
@@ -1282,7 +1305,53 @@ export default function SaleWorkspace({
           />
         </div>
 
-        {/* ITEMIZED summary — Items / Qty / Subtotal / Discount / Total (D21) */}
+        {/* Discount block — shared by SIMPLE and ITEMIZED (locked decision 5).
+            Capped against activeTotal so the merchant can't over-discount. */}
+        <div className="px-2 pt-1">
+          {showDiscount ? (
+            <div className="flex items-center justify-between" style={{ background: '#fef3c7', borderRadius: '6px', padding: '6px 8px', border: '1.5px solid #d97706' }}>
+              <span className="text-[12px] font-bold" style={{ color: '#92400e' }}>🏷️ {t.discountLabel}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[12px] font-bold" style={{ color: '#92400e' }}>−</span>
+                <input
+                  ref={discountRef}
+                  type="text"
+                  inputMode="decimal"
+                  value={fmtInput(String(discount))}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
+                    const val = parseFloat(raw) || 0;
+                    setDiscount(Math.min(val, activeTotal));
+                  }}
+                  className="w-16 text-right text-[12px] font-bold px-1"
+                  style={{ border: 'none', borderBottom: '1.5px solid #d97706', borderRadius: '0', minHeight: '28px', background: 'transparent', color: '#92400e' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => { setDiscount(0); setShowDiscount(false); }}
+                  aria-label={t.removeDiscountAria}
+                  className="press-scale flex items-center justify-center"
+                  style={{ minWidth: '28px', minHeight: '28px', color: '#92400e' }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => { setShowDiscount(true); setTimeout(() => discountRef.current?.focus(), 50); }}
+              className="text-[12px] font-bold press-scale w-full"
+              style={{ color: '#92400e', border: '1.5px dashed #d97706', borderRadius: '6px', padding: '8px 10px', minHeight: '40px', background: '#fef3c7' }}
+            >
+              {t.addDiscountBtn}
+            </button>
+          )}
+        </div>
+
+        {/* ITEMIZED summary — Items / Qty / Subtotal / Total (D21).
+            Discount is rendered separately below the payment band so it
+            shows in BOTH SIMPLE and ITEMIZED states (locked decision 5). */}
         {stage === 'itemized' && (
           <div className="px-2 py-1 space-y-0.5">
             <div className="flex justify-between items-center text-[11px]">
@@ -1296,44 +1365,6 @@ export default function SaleWorkspace({
                 {t.subtotalLabel}: <span className="font-bold" style={{ color: 'var(--color-text)' }}>{fmt(totalAmount)}</span>
               </span>
             </div>
-            {showDiscount && (
-              <div className="flex justify-between items-center" style={{ background: '#fef3c7', borderRadius: '6px', padding: '4px 8px', border: '1.5px solid #d97706' }}>
-                <span className="text-[11px] font-bold" style={{ color: '#92400e' }}>🏷️ {t.discountLabel}</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-bold" style={{ color: '#92400e' }}>−</span>
-                  <input
-                    ref={discountRef}
-                    type="text"
-                    inputMode="decimal"
-                    value={fmtInput(String(discount))}
-                    onChange={(e) => {
-                      const raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
-                      const val = parseFloat(raw) || 0;
-                      setDiscount(Math.min(val, totalAmount));
-                    }}
-                    className="w-16 text-right text-[12px] font-bold px-1"
-                    style={{ border: 'none', borderBottom: '1.5px solid #d97706', borderRadius: '0', minHeight: '28px', background: 'transparent', color: '#92400e' }}
-                  />
-                  <button
-                    onClick={() => { setDiscount(0); setShowDiscount(false); }}
-                    aria-label={t.removeDiscountAria}
-                    className="press-scale flex items-center justify-center"
-                    style={{ minWidth: '28px', minHeight: '28px', color: '#92400e' }}
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            )}
-            {!showDiscount && (
-              <button
-                onClick={() => { setShowDiscount(true); setTimeout(() => discountRef.current?.focus(), 50); }}
-                className="text-[11px] font-bold press-scale"
-                style={{ color: '#92400e', border: '1.5px dashed #d97706', borderRadius: '6px', padding: '6px 10px', minHeight: '36px', background: '#fef3c7' }}
-              >
-                {t.addDiscountBtn}
-              </button>
-            )}
             <div className="flex justify-between items-center pt-0.5">
               <span className="text-[13px] font-black" style={{ color: 'var(--color-text)' }}>{t.totalLabel}</span>
               <span className="text-base font-black" style={{ color: 'var(--color-success)' }}>
