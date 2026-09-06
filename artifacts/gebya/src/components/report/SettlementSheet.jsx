@@ -44,6 +44,8 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
   const [itemsExpanded, setItemsExpanded] = useState(false);
   const [handoverPhotos, setHandoverPhotos] = useState([]);
   const [showCamera, setShowCamera] = useState(false);
+  const [showDisputeInput, setShowDisputeInput] = useState(false);
+  const [disputeInput, setDisputeInput] = useState('');
   const hasStaffReport = existingSettlement?.staff_reported_cash != null;
   const staffCash = Number(existingSettlement?.staff_reported_cash) || 0;
   const staffTransfer = Number(existingSettlement?.staff_reported_transfer) || 0;
@@ -141,24 +143,43 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
   };
 
   const handleMarkDisputed = async () => {
+    const reason = disputeInput.trim();
+    if (!reason) return;
     setSaving(true);
     setError('');
     try {
-      const ownerNote = ownerReviewNote.trim();
-      const logEntry = createReconciliationEntry('owner', 'disputed', ownerNote || t('Owner marked as disputed', 'ባለቤት አከራካሪ አድርጎ ምልክት አድርጓል'));
+      const logEntry = createReconciliationEntry('owner', 'disputed', reason);
       await updateSettlement(existingSettlement.id, {
         reconciliation_status: 'disputed',
         status: 'reconciled',
-        owner_note: ownerNote || null,
+        owner_note: reason,
+        dispute_reason: reason,
+        dispute_by: 'owner',
+        dispute_at: Date.now(),
         reconciliation_log: [...recLog, logEntry],
         updated_at: Date.now(),
       });
+      setShowDisputeInput(false);
+      setDisputeInput('');
       onSaved?.();
     } catch {
       setError(t('Failed to mark as disputed', 'አከራካሪ አድርጎ ምልክት ማድረግ አልተሳካም'));
     }
     setSaving(false);
   };
+
+  // Phase 8f: mark the dispute as seen (one-way — staff reads, cannot reply)
+  useEffect(() => {
+    const s = existingSettlement;
+    if (!s || s.reconciliation_status !== 'disputed' || !s.dispute_reason || s.dispute_read_by_staff) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!cancelled) await updateSettlement(s.id, { dispute_read_by_staff: true, dispute_read_at: Date.now() });
+      } catch { /* silent — read tracking is non-critical */ }
+    })();
+    return () => { cancelled = true; };
+  }, [existingSettlement?.id, existingSettlement?.reconciliation_status, existingSettlement?.dispute_reason, existingSettlement?.dispute_read_by_staff]);
 
   const handleSave = async () => {
     if (isView) return;
@@ -274,6 +295,27 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
           )}
         </div>
       </div>
+
+      {/* Phase 8f: dispute banner (one-way — owner's reason shown to staff) */}
+      {existingSettlement?.reconciliation_status === 'disputed' && (existingSettlement.dispute_reason || existingSettlement.owner_note) && (
+        <div style={{ background: C.redLight, borderRadius: C.radius, padding: 12, marginBottom: 12, border: `1px solid ${C.redBorder}` }}>
+          <p style={{ fontSize: 10, fontWeight: 900, color: C.red, margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 5, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+            <AlertCircle className="w-3.5 h-3.5" />
+            {t('Disputed by owner', 'በባለቤት ተከራክሯል')}
+            {existingSettlement.dispute_at && (
+              <span style={{ fontWeight: 600, textTransform: 'none', letterSpacing: 0, color: C.textMuted }}>
+                · {new Date(existingSettlement.dispute_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </span>
+            )}
+          </p>
+          <p style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: 0, lineHeight: 1.5 }}>
+            {existingSettlement.dispute_reason || existingSettlement.owner_note}
+          </p>
+          <p style={{ fontSize: 9, color: C.textMuted, margin: '6px 0 0' }}>
+            {t('The owner will review your settlement again to resolve this.', 'ባለቤቱ ይህንን ለመፍታት የእርስዎን ማስተካከያ እንደገና ይመለከታል።')}
+          </p>
+        </div>
+      )}
 
       {/* Summary card */}
       <div style={{ background: 'var(--color-surface)', borderRadius: C.radius, padding: 14, marginBottom: 12, border: `1px solid ${C.grayBorder}` }}>
@@ -694,6 +736,30 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         </div>
       )}
 
+      {/* Phase 8f: dispute reason input (required) */}
+      {isReview && showDisputeInput && (
+        <div style={{ background: C.redLight, borderRadius: C.radius, padding: 12, marginBottom: 10, border: `1px solid ${C.redBorder}` }}>
+          <label style={{ fontSize: 10, fontWeight: 800, color: C.red, display: 'block', marginBottom: 4 }}>
+            <AlertCircle className="w-3 h-3" style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+            {t('Why are you flagging this? (required — the staff will see this)', 'ለምን እንደሚከራከሩ ይጻፉ (አስፈላጊ — ሰራተኛው ያያል)')}
+          </label>
+          <textarea value={disputeInput} onChange={e => setDisputeInput(e.target.value)}
+            autoFocus
+            placeholder={t('e.g. Cash is 200 short', 'ለምሳሌ ጥሬ ገንዘብ በ200 አሳጥሯል')}
+            rows={2}
+            style={{ width: '100%', border: `1.5px solid ${C.redBorder}`, borderRadius: C.radius, padding: '8px 10px', fontSize: 12, outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: C.font, lineHeight: 1.5, background: 'var(--color-bg-white)' }}
+          />
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <button onClick={() => { setShowDisputeInput(false); setDisputeInput(''); }}
+              style={{ flex: 1, minHeight: 44, border: `1px solid ${C.grayBorder}`, borderRadius: C.radius, background: 'var(--color-surface)', color: C.text, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}
+            >{t('Cancel', 'ተዉ')}</button>
+            <button onClick={handleMarkDisputed} disabled={saving || !disputeInput.trim()}
+              style={{ flex: 2, minHeight: 44, border: 'none', borderRadius: C.radius, background: saving || !disputeInput.trim() ? C.textFaint : C.red, color: 'var(--color-bg-white)', fontSize: 12, fontWeight: 800, cursor: saving || !disputeInput.trim() ? 'not-allowed' : 'pointer' }}
+            >{saving ? t('Saving...', 'በማስቀመጥ ላይ...') : t('Confirm dispute', 'አከራካሪ አድርግ')}</button>
+          </div>
+        </div>
+      )}
+
       {/* Error */}
       {error && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', background: C.redLight, borderRadius: C.radius, marginBottom: 10, border: `1px solid ${C.redBorder}` }}>
@@ -726,7 +792,7 @@ export default function SettlementSheet({ staff, existingSettlement, lang = 'en'
         {isReview && (
           <div style={{ display: 'flex', gap: 8, flex: 2 }}>
             {existingSettlement?.reconciliation_status === 'staff_submitted' && (
-              <button onClick={handleMarkDisputed} disabled={saving}
+              <button onClick={() => { setShowDisputeInput(true); setDisputeInput(''); }} disabled={saving}
                 style={{
                   flex: 1, minHeight: 44, border: `1px solid ${C.redBorder}`, borderRadius: C.radius,
                   background: C.redLight, color: C.red,
