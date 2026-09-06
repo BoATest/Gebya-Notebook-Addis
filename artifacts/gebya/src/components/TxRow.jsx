@@ -26,6 +26,7 @@ export default function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
     : tx.payment_type === 'cash' ? 'cash' : (tx.payment_provider || tx.payment_type || 'cash');
   const time = formatEthiopianTime(tx.created_at);
   const hasBreakdown = Array.isArray(tx.items) && tx.items.length > 0;
+  const hasDiscount = Number(tx.discount) > 0;
 
   return (
     <div className="py-3">
@@ -34,6 +35,13 @@ export default function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
           <span className="font-bold text-sm flex-shrink-0" style={{ color: amountColor }}>
             {isCredit && '↻ '}{sign}{fmt(tx.amount || 0)} {lang === 'am' ? 'ብር' : 'birr'}
           </span>
+          {hasDiscount && !isCredit && !isExpense && (
+            <span className="text-[9px] font-bold flex-shrink-0 px-1 py-[2px] rounded-sm"
+              style={{ background: 'var(--color-warning-bg)', color: 'var(--color-warning-text)', border: '1px solid var(--color-warning-border)' }}
+            >
+              −{fmt(tx.discount)} {lang === 'am' ? 'ቅናሽ' : 'disc'}
+            </span>
+          )}
           <span className="text-sm text-gray-600 truncate min-w-0">
             {tx.item_name || '—'}
             <span className="text-gray-400"> · {method}</span>
@@ -92,6 +100,16 @@ export default function TxRow({ tx, onTap, onEdit, onDelete, t, lang, fmt }) {
           {(() => {
             const sum = tx.items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
             const delta = (Number(tx.amount) || 0) - sum;
+            const hasDisc = Number(tx.discount || 0) > 0;
+            // A discount explains the gap between the line total and the net amount.
+            if (hasDisc && Math.abs(delta + Number(tx.discount)) < 0.01) {
+              return (
+                <div className="flex justify-between items-baseline text-[10px] pt-1 mt-1" style={{ borderTop: '1px dashed rgba(0,0,0,0.08)', color: 'var(--color-accent-amber)' }}>
+                  <span>{lang === 'am' ? 'ቅናሽ' : 'Discount'}</span>
+                  <span className="font-semibold">−{fmt(tx.discount)} {lang === 'am' ? 'ብር' : 'birr'}</span>
+                </div>
+              );
+            }
             if (Math.abs(delta) < 0.01) return null;
             return (
               <div className="flex justify-between items-baseline text-[10px] pt-1 mt-1" style={{ borderTop: '1px dashed rgba(0,0,0,0.08)', color: 'var(--color-accent-amber)' }}>

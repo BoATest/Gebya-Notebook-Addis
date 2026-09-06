@@ -159,6 +159,14 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
   const breakdownSum = validBreakdown.reduce((s, it) => s + it.amount, 0);
   const breakdownDelta = sellingPrice - breakdownSum;
   const hadBreakdown = Array.isArray(transaction.items) && transaction.items.length > 0;
+  const origDiscount = Number(transaction.discount) || 0;
+  const origSubtotal = Number(transaction.items_subtotal) || 0;
+  // For a simple discounted sale: amount = net, items_subtotal = gross, so:
+  //   gross = max(amount + discount, items_subtotal) as the displayable original price
+  const origGross = origDiscount > 0
+    ? (origSubtotal > 0 ? origSubtotal : (Number(transaction.amount) || 0) + origDiscount)
+    : (Number(transaction.amount) || 0);
+  const [discount, setDiscount] = useState(() => origDiscount > 0 ? String(origDiscount) : '');
 
   const handleSave = async () => {
     if (!canSave || saving) return;
@@ -193,6 +201,11 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
         due_date: isCredit ? getEffectiveDueDate() : null,
         ...buildPhotoFields(photos),
         ...(useBreakdown ? { items: validBreakdown.length > 0 ? validBreakdown : null } : {}),
+        ...(origDiscount > 0 ? {
+          discount: Number(discount) || 0,
+          items_subtotal: origGross,
+          amount_basis: transaction.amount_basis || 'simple',
+        } : {}),
       };
       await onUpdate(transaction.id, updates);
       onClose();
@@ -501,6 +514,26 @@ function EditTransactionSheet({ transaction, enabledProviders, onAddProvider, on
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium font-sans">{t.birr}</span>
             </div>
           </div>
+
+          {!isCredit && origDiscount > 0 && (
+            <div className="flex items-center justify-between px-3 py-2.5" style={{ background: 'var(--color-warning-bg)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-warning-border)' }}>
+              <span className="flex items-center gap-2 text-xs font-bold" style={{ color: 'var(--color-warning-text)' }}>
+                {lang === 'am' ? 'ቅናሽ ተደርጓል' : 'DISCOUNT APPLIED'}
+              </span>
+              <span className="flex items-center gap-2 text-xs">
+                <span className="font-semibold" style={{ color: 'var(--color-text-muted)' }}>
+                  {fmt(origGross)} {t.birr} {lang === 'am' ? '−' : '−'}
+                </span>
+                <span className="font-black" style={{ color: 'var(--color-warning-text)' }}>
+                  −{fmt(Number(discount) || origDiscount)} {t.birr}
+                </span>
+                <span className="text-gray-400">=</span>
+                <span className="font-black" style={{ color: 'var(--color-text)' }}>
+                  {fmt(Number(amount) || 0)} {t.birr}
+                </span>
+              </span>
+            </div>
+          )}
 
           {isCredit && (
             <div>
