@@ -47,10 +47,9 @@ export async function trackEvent(eventType, properties = {}) {
       created_at: Date.now()
     };
 
-    await db.analytics.add(eventData);
-  } catch (err) {
+    await db.analytics.put(eventData);
+  } catch {
     // Silently fail - analytics should never break the app
-    console.warn('Analytics tracking failed:', err);
   }
 }
 
