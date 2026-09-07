@@ -186,6 +186,8 @@ export default function SaleWorkspace({
   // The discount must apply in BOTH stages so the Save button total and
   // the recorded transaction are consistent.
   const baseTotal = stage === 'itemized' ? totalAmount : sellingPrice;
+  // Discount may not exceed the gross total — surface a real error, not a silent clamp.
+  const discountOverTotal = discount > baseTotal;
   const grandTotal = Math.max(0, baseTotal - discount);
   // The single live total: gross (base) or net (after discount) — UI
   // surfaces the net in the Save button, the live summary, and the
@@ -196,15 +198,16 @@ export default function SaleWorkspace({
   const isPartial = paymentType === 'partial' || hasPartialAmount;
   const remainingAmount = isPartial ? Math.max(0, activeTotal - partialReceivedAmount) : 0;
 
-  // Optional customer phone (D10) — accepts 09… / +2519… / 9… digit forms.
+  // Optional customer phone (D10) — strict Ethiopian format: 9 digits,
+  // starting with 7 or 9 after +251. Accepts 09… / +2519… / 9… then normalizes.
   const phoneEntered = creditCustomerPhone.trim().length > 0;
-  const phoneDigitsClean = creditCustomerPhone.replace(/\D/g, '').slice(-9);
+  const phoneDigitsClean = creditCustomerPhone.replace(/[^\d]/g, '').replace(/^251/, '').replace(/^0/, '').slice(0, 9);
   const phoneValid = !phoneEntered || (phoneDigitsClean.length === 9 && /^[79]/.test(phoneDigitsClean));
 
   const getEffectiveDueTs = () =>
     customDueIso ? new Date(`${customDueIso}T12:00:00`).getTime() : selectedDueTs;
 
-  const canSave = activeTotal > 0 && !isSaving && !justSaved && phoneValid && (
+  const canSave = activeTotal > 0 && !isSaving && !justSaved && phoneValid && !discountOverTotal && (
     stage === 'simple'
       ? sellingPrice > 0
       : (filledRows.length > 0 && totalAmount > 0)
@@ -556,7 +559,10 @@ export default function SaleWorkspace({
           setCheckoutShare({
             link,
             message,
-            customerPhone: (creditCustomerPhone || '').replace(/[^0-9]/g, ''),
+            customerPhone: (() => {
+              const digits = (creditCustomerPhone || '').replace(/[^\d]/g, '').replace(/^251/, '').replace(/^0/, '');
+              return digits.length === 9 && /^[79]/.test(digits) ? `251${digits}` : '';
+            })(),
             owed: owedAmount,
           });
         }
@@ -1124,7 +1130,7 @@ export default function SaleWorkspace({
                               const cname = c.display_name || c.name || '';
                               setCreditCustomerId(c.id);
                               setCreditCustomerName(cname);
-                              setCreditCustomerPhone(c.phone || '');
+                              setCreditCustomerPhone((c.phone || '').replace(/[^\d]/g, '').replace(/^251/, '').replace(/^0/, '').slice(0, 9));
                               setCreditCustomerSearch(cname);
                             }}
                             className="w-full px-2.5 py-2 text-left text-[11px] font-bold border-b flex items-center gap-2"
@@ -1197,7 +1203,7 @@ export default function SaleWorkspace({
                       const cname = c.display_name || c.name || '';
                       setCreditCustomerId(c.id);
                       setCreditCustomerName(cname);
-                      setCreditCustomerPhone(c.phone || '');
+                      setCreditCustomerPhone((c.phone || '').replace(/[^\d]/g, '').replace(/^251/, '').replace(/^0/, '').slice(0, 9));
                       setCreditCustomerSearch(cname);
                     }}
                     className="px-2.5 py-1.5 text-[11px] font-bold border press-scale"
@@ -1243,7 +1249,11 @@ export default function SaleWorkspace({
                 type="text"
                 inputMode="numeric"
                 value={creditCustomerPhone}
-                onChange={(e) => setCreditCustomerPhone(e.target.value.replace(/[^\d]/g, '').slice(0, 12))}
+                onChange={e => {
+                  let digits = e.target.value.replace(/[^\d]/g, '').replace(/^251/, '').replace(/^0/, '');
+                  if (digits.length > 9) digits = digits.slice(0, 9);
+                  setCreditCustomerPhone(digits);
+                }}
                 placeholder="0912345678"
                 className="w-full px-2 py-1.5 text-[12px] font-bold"
                 style={{ border: '1px solid ' + (phoneEntered && !phoneValid ? 'var(--color-danger)' : 'var(--color-border-light)'), borderRadius: 'var(--radius-sm)', minHeight: '38px', background: 'var(--color-bg-white)' }}
@@ -1314,7 +1324,7 @@ export default function SaleWorkspace({
             Capped against activeTotal so the merchant can't over-discount. */}
         <div className="px-2 pt-1">
           {showDiscount ? (
-            <div className="flex items-center justify-between" style={{ background: '#fef3c7', borderRadius: '6px', padding: '6px 8px', border: '1.5px solid #d97706' }}>
+            <div className="flex items-center justify-between" style={{ background: '#fef3c7', borderRadius: '6px', padding: '6px 8px', border: `1.5px solid ${discountOverTotal ? '#dc2626' : '#d97706'}` }}>
               <span className="text-[12px] font-bold" style={{ color: '#92400e' }}>🏷️ {t.discountLabel}</span>
               <div className="flex items-center gap-1.5">
                 <span className="text-[12px] font-bold" style={{ color: '#92400e' }}>−</span>
@@ -1325,11 +1335,13 @@ export default function SaleWorkspace({
                   value={fmtInput(String(discount))}
                   onChange={(e) => {
                     const raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
-                    const val = parseFloat(raw) || 0;
-                    setDiscount(Math.min(val, activeTotal));
+                    const val = parseFloat(raw);
+                    // Keep the raw typed value so an over-discount shows clearly
+                    // as an error rather than silently snapping to the total.
+                    setDiscount(Number.isFinite(val) ? val : 0);
                   }}
                   className="w-16 text-right text-[12px] font-bold px-1"
-                  style={{ border: 'none', borderBottom: '1.5px solid #d97706', borderRadius: '0', minHeight: '28px', background: 'transparent', color: '#92400e' }}
+                  style={{ border: 'none', borderBottom: `1.5px solid ${discountOverTotal ? '#dc2626' : '#d97706'}`, borderRadius: '0', minHeight: '28px', background: 'transparent', color: discountOverTotal ? '#dc2626' : '#92400e' }}
                 />
                 <button
                   type="button"
@@ -1351,6 +1363,12 @@ export default function SaleWorkspace({
             >
               {t.addDiscountBtn}
             </button>
+          )}
+
+          {showDiscount && discountOverTotal && (
+            <p className="text-[10px] mt-1 font-bold" style={{ color: '#dc2626' }}>
+              {t.discountOverTotal || 'Discount can\'t be more than the total. Lower it or clear it.'}
+            </p>
           )}
         </div>
 
