@@ -50,6 +50,18 @@
   --color-input-error: #ef4444;
   --color-overlay: rgba(0, 0, 0, 0.35);
 
+  /* SaleWorkspace + SettlementSheet component tokens */
+  --color-add-details: #047857;
+  --color-add-details-bg: #ecfdf5;
+  --color-discount: #d97706;
+  --color-discount-bg: #fef3c7;
+  --color-discount-fg: #92400e;
+  --color-dispute: #dc2626;
+  --color-dispute-bg: #fef2f2;
+  --color-undo-pill: #ffffff;
+  --color-undo-pill-text: #047857;
+  --color-pulse-success: #10b981;
+
   --radius-sm: 12px;
   --radius-md: 18px;
   --radius-lg: 24px;

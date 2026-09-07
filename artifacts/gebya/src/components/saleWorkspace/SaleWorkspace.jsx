@@ -937,9 +937,9 @@ export default function SaleWorkspace({
               style={{
                 minHeight: '48px',
                 borderRadius: 'var(--radius-md)',
-                border: '2px solid #047857',
-                background: '#ecfdf5',
-                color: '#047857',
+                border: '2px solid var(--color-add-details)',
+                background: 'var(--color-add-details-bg)',
+                color: 'var(--color-add-details)',
                 boxShadow: '0 1px 0 rgba(4, 120, 87, 0.08)',
               }}
             >
@@ -1324,10 +1324,10 @@ export default function SaleWorkspace({
             Capped against activeTotal so the merchant can't over-discount. */}
         <div className="px-2 pt-1">
           {showDiscount ? (
-            <div className="flex items-center justify-between" style={{ background: '#fef3c7', borderRadius: '6px', padding: '6px 8px', border: `1.5px solid ${discountOverTotal ? '#dc2626' : '#d97706'}` }}>
-              <span className="text-[12px] font-bold" style={{ color: '#92400e' }}>🏷️ {t.discountLabel}</span>
+            <div className="flex items-center justify-between" style={{ background: 'var(--color-discount-bg)', borderRadius: '6px', padding: '6px 8px', border: `1.5px solid ${discountOverTotal ? 'var(--color-dispute)' : 'var(--color-discount)'}` }}>
+              <span className="text-[12px] font-bold" style={{ color: 'var(--color-discount-fg)' }}>🏷️ {t.discountLabel}</span>
               <div className="flex items-center gap-1.5">
-                <span className="text-[12px] font-bold" style={{ color: '#92400e' }}>−</span>
+                <span className="text-[12px] font-bold" style={{ color: 'var(--color-discount-fg)' }}>−</span>
                 <input
                   ref={discountRef}
                   type="text"
@@ -1341,14 +1341,14 @@ export default function SaleWorkspace({
                     setDiscount(Number.isFinite(val) ? val : 0);
                   }}
                   className="w-16 text-right text-[12px] font-bold px-1"
-                  style={{ border: 'none', borderBottom: `1.5px solid ${discountOverTotal ? '#dc2626' : '#d97706'}`, borderRadius: '0', minHeight: '28px', background: 'transparent', color: discountOverTotal ? '#dc2626' : '#92400e' }}
+                  style={{ border: 'none', borderBottom: `1.5px solid ${discountOverTotal ? 'var(--color-dispute)' : 'var(--color-discount)'}`, borderRadius: '0', minHeight: '28px', background: 'transparent', color: discountOverTotal ? 'var(--color-dispute)' : 'var(--color-discount-fg)' }}
                 />
                 <button
                   type="button"
                   onClick={() => { setDiscount(0); setShowDiscount(false); }}
                   aria-label={t.removeDiscountAria}
                   className="press-scale flex items-center justify-center"
-                  style={{ minWidth: '28px', minHeight: '28px', color: '#92400e' }}
+                  style={{ minWidth: '28px', minHeight: '28px', color: 'var(--color-discount-fg)' }}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1359,14 +1359,14 @@ export default function SaleWorkspace({
               type="button"
               onClick={() => { setShowDiscount(true); setTimeout(() => discountRef.current?.focus(), 50); }}
               className="text-[12px] font-bold press-scale w-full"
-              style={{ color: '#92400e', border: '1.5px dashed #d97706', borderRadius: '6px', padding: '8px 10px', minHeight: '40px', background: '#fef3c7' }}
+              style={{ color: 'var(--color-discount-fg)', border: '1.5px dashed var(--color-discount)', borderRadius: '6px', padding: '8px 10px', minHeight: '40px', background: 'var(--color-discount-bg)' }}
             >
               {t.addDiscountBtn}
             </button>
           )}
 
           {showDiscount && discountOverTotal && (
-            <p className="text-[10px] mt-1 font-bold" style={{ color: '#dc2626' }}>
+            <p className="text-[10px] mt-1 font-bold" style={{ color: 'var(--color-dispute)' }}>
               {t.discountOverTotal || 'Discount can\'t be more than the total. Lower it or clear it.'}
             </p>
           )}
