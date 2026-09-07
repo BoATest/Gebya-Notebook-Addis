@@ -415,8 +415,8 @@ function SettingsPage({
       {/* Tab Content */}
       <div className="px-4">
         <Suspense fallback={<SettingsPanelFallback label={t.loading} />}>
-          <div key={activeTab} className="animate-fade">
-          {activeTab === 'shop' && (
+          <div className="animate-fade">
+          <div style={{ display: activeTab === 'shop' ? 'block' : 'none' }}>
             <ShopTab
               shopProfile={shopProfile}
               catalogEntries={catalogEntries}
@@ -429,8 +429,8 @@ function SettingsPage({
               lang={lang}
               onNavigate={handleNavigate}
             />
-          )}
-          {activeTab === 'money' && (
+          </div>
+          <div style={{ display: activeTab === 'money' ? 'block' : 'none' }}>
             <MoneyTab
               paymentChannels={paymentChannels}
               shopProfile={shopProfile}
@@ -443,14 +443,14 @@ function SettingsPage({
               transactionCount={transactionCount}
               pendingCardId={pendingCardId}
             />
-          )}
-          {activeTab === 'data' && (
+          </div>
+          <div style={{ display: activeTab === 'data' ? 'block' : 'none' }}>
             <DataTab
               transactions={transactions}
               customerSummaries={customerSummaries}
               lang={lang}
             />
-          )}
+          </div>
           </div>
         </Suspense>
 
