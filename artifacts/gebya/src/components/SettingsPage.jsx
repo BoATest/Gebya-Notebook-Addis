@@ -601,7 +601,7 @@ function SettingsPage({
           className="text-center py-3 text-xs"
           style={{ color: 'var(--color-text-muted)' }}
         >
-          Gebya v1.0
+          Gebya dev
           {aboutTapCount > 0 && aboutTapCount < 5 && !showAdminSection && (
             <span className="ml-2" style={{ color: 'var(--color-accent-amber)' }}>
               · {5 - aboutTapCount} {lang === 'am' ? 'ተጨማሪ መታ' : 'more taps'}

@@ -6,7 +6,9 @@ import PwaInstallPanel from '../../PwaInstallPanel';
 import TabCard from '../TabCard';
 import { usePwaInstall } from '../../../hooks/usePwaInstall.js';
 
-const SimpleAnalytics = lazy(() => import('../../analytics/SimpleAnalytics.jsx'));
+// Build info injected at bundle time by Vite
+const BUILD_VERSION = import.meta.env?.VITE_APP_VERSION || 'dev';
+const BUILD_DATE = import.meta.env?.VITE_BUILD_DATE || '';
 
 export default function DataTab({
   transactions,
@@ -17,17 +19,17 @@ export default function DataTab({
   const dataBadge = totalEntries > 0 ? `${totalEntries}` : (lang === 'am' ? 'ባዶ' : 'Empty');
   const dataTone = totalEntries > 0 ? 'ok' : 'neutral';
 
-  const aboutTapHint = lang === 'am' ? 'ስሪት 1.0' : 'Version 1.0';
   const pwa = usePwaInstall();
 
   return (
     <div>
+      {/* Your Data — backup + export combined */}
       <TabCard
-        icon="☁️"
-        title={lang === 'am' ? 'ምትኬ እና ውሂብ' : 'Backup & Data'}
+        icon="📦"
+        title={lang === 'am' ? 'የእርስዎ ውሂብ' : 'Your Data'}
         subtitle={lang === 'am'
-          ? `${totalEntries} መዝገብ`
-          : `${totalEntries} entries`}
+          ? `${totalEntries} መዝገብ · ምትኬ እና ውጤት`
+          : `${totalEntries} entries · backup & export`}
         badge={dataBadge}
         badgeTone={dataTone}
       >
@@ -35,19 +37,12 @@ export default function DataTab({
           transactions={transactions}
           customerSummaries={customerSummaries}
         />
+        <div className="mt-3">
+          <ExportPanel transactions={transactions} />
+        </div>
       </TabCard>
 
-      <TabCard
-        icon="📤"
-        title={lang === 'am' ? 'ውሂብ ያስወጡ' : 'Export Data'}
-        subtitle={lang === 'am' ? 'ለሂሳብ ወይም ለብድር ማመልከቻ' : 'For accountant or loan application'}
-        badgeTone="neutral"
-      >
-        <ExportPanel
-          transactions={transactions}
-        />
-      </TabCard>
-
+      {/* Display & Privacy */}
       <TabCard
         icon="🎨"
         title={lang === 'am' ? 'ማሳያ እና ግላዊነት' : 'Display & Privacy'}
@@ -57,6 +52,7 @@ export default function DataTab({
         <DisplayPrivacyPanel />
       </TabCard>
 
+      {/* Install App */}
       <TabCard
         icon="📲"
         title={lang === 'am' ? 'መተግበሪያውን ይጫኑ' : 'Install the App'}
@@ -66,21 +62,30 @@ export default function DataTab({
         <PwaInstallPanel pwa={pwa} />
       </TabCard>
 
+      {/* Help & Support */}
       <TabCard
-        icon="📊"
-        title={lang === 'am' ? 'የመተግበሪያ አጠቃቀም' : 'App Usage'}
-        subtitle={lang === 'am' ? 'የእርስዎ ብቻ — ወደ ውጭ አይላክም' : 'Private — never leaves this device'}
+        icon="❓"
+        title={lang === 'am' ? 'እርዳታ እና ድጋፍ' : 'Help & Support'}
+        subtitle={lang === 'am' ? 'ጥያቄዎችን ያግኙ፡ ችግር ያመልክቱ' : 'Get answers, report a problem'}
         badgeTone="neutral"
       >
-        <Suspense fallback={null}>
-          <SimpleAnalytics />
-        </Suspense>
+        <div className="space-y-3">
+          <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden px-5 py-4 text-sm text-gray-500">
+            <p className="font-bold text-gray-800 mb-1">{lang === 'am' ? 'እንዴት እንደረዳን' : 'How can we help?'}</p>
+            <p className="text-xs mb-2">
+              {lang === 'am'
+                ? 'ስለ ሽያጭ፣ ዱቤ፣ ማስታወቂያ ወይም ሌላ ነገር ጥያቄ ካለዎት፣ ከዚህ ታች ያግኙን'
+                : 'Have a question about sales, dubie, reminders, or anything else? Reach us below'}
+            </p>
+          </div>
+        </div>
       </TabCard>
 
+      {/* About Gebya */}
       <TabCard
         icon="ℹ️"
         title={lang === 'am' ? 'ስለ ጌብያ' : 'About Gebya'}
-        subtitle={aboutTapHint}
+        subtitle={BUILD_VERSION}
         badgeTone="neutral"
       >
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden px-5 py-4 text-sm text-gray-500">
@@ -89,6 +94,11 @@ export default function DataTab({
           <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
             {lang === 'am' ? 'ሁሉም ውሂብ በዚህ ስልክ ላይ ብቻ ይቀመጣል' : 'All data stays on this phone only'}
           </p>
+          {BUILD_DATE && (
+            <p className="text-[10px] mt-2" style={{ color: 'var(--color-text-soft)' }}>
+              {lang === 'am' ? 'የግንባታ ቀን' : 'Built'}: {BUILD_DATE}
+            </p>
+          )}
         </div>
       </TabCard>
     </div>
