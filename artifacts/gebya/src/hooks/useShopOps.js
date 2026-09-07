@@ -68,7 +68,9 @@ export function useShopOps({ shopProfile, setShopProfile, setEnabledProviders, s
   const handleRotateJoinCode = useCallback(async (shopId) => {
     try {
       const token = await getAuthToken();
-      if (!token) return { error: 'No auth token available. Please re-login.' };
+      if (!token) return { error: lang === 'am'
+        ? 'የመቀላቀል ኮድ ለማመንጨት መለያ መግባት ያስፈልጋል። እባክዎ እንደገና ይግቡ።'
+        : 'You need to be signed in & connected to the internet to create a join code. Please re-login and try again.' };
       const result = await identityApi.rotateJoinCode(shopId, token);
       const current = shopProfile || {};
       setShopProfile(current ? { ...current, join_code: result.join_code, join_url: result.join_url } : current);

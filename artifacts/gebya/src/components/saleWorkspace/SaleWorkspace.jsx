@@ -23,7 +23,7 @@
 // Expense and standalone-credit forms are NOT touched by this component.
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { ArrowLeft, Camera, Save, Check, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Camera, Save, Check, Trash2, X, Share2, Copy } from 'lucide-react';
 
 // One-time global styles for the live-summary total pulse + other workspace polish.
 // Injected once per page load (idempotent).
@@ -49,6 +49,7 @@ import { db } from '../../db';
 import { fmt, fmtInput, parseInput } from '../../utils/numformat';
 import { buildPhotoFields, createPhotoProof, MAX_PROOF_PHOTOS } from '../../utils/photoProof';
 import { photoSizeBytes } from '../../utils/photoCapture';
+import { buildPayPageLink, buildPayPageMessage } from '../../utils/payPageLink';
 import CameraCapture from '../CameraCapture';
 import { fireToast } from '../Toast';
 import PaymentTypeChips from '../PaymentTypeChips';
@@ -138,6 +139,8 @@ export default function SaleWorkspace({
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const justSavedTimerRef = useRef(null);
+  // Post-save "share payment link" (Phase 9) — only set for credit/partial sales.
+  const [checkoutShare, setCheckoutShare] = useState(null);
   const [sessionRecentIds, setSessionRecentIds] = useState(new Set());
   const [lastSaleItems, setLastSaleItems] = useState([]);
 
@@ -530,6 +533,34 @@ export default function SaleWorkspace({
       setCustomDueIso('');
       hasUnsavedChanges.current = false;
       clearDraft(draftKey);
+
+      // Phase 9 — offer to share the customer-facing /pay link when money is still owed.
+      setCheckoutShare(null);
+      if ((isCredit || isPartial) && savedId) {
+        const owedAmount = isPartial ? remainingAmount : (isCredit ? grandTotal : 0);
+        if (Number(owedAmount) > 0) {
+          const link = buildPayPageLink({
+            shopName: actorLabel || shopProfile?.name,
+            amount: owedAmount,
+            customerName: creditCustomerName || creditCustomerSearch || undefined,
+            ref: savedId,
+            shopPhone: shopProfile?.phone,
+            shopTelegram: shopProfile?.telegram,
+            lang,
+          });
+          const message = buildPayPageMessage({
+            shopName: actorLabel || shopProfile?.name,
+            amount: owedAmount,
+            lang,
+          });
+          setCheckoutShare({
+            link,
+            message,
+            customerPhone: (creditCustomerPhone || '').replace(/[^0-9]/g, ''),
+            owed: owedAmount,
+          });
+        }
+      }
 
       // Telemetry: save success (one event per save, fires before any toasts).
       trackEvent('sale_workspace_save', {
@@ -1432,6 +1463,65 @@ export default function SaleWorkspace({
               ? t.saleSaved
               : `${saveCtaBase}${activeTotal > 0 ? ` · ${fmt(activeTotal)}` : ''}`}
           </button>
+
+          {/* Phase 9 — share payment link (credit/partial sales) */}
+          {checkoutShare && (
+            <div className="w-full px-3 py-3 flex flex-col gap-1.5" style={{ background: 'var(--color-info-bg)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-info-border)' }}>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-extrabold" style={{ color: 'var(--color-info)' }}>
+                  {t.sharePayLink || 'Share payment link'}
+                  <span className="font-semibold" style={{ color: 'var(--color-text-muted)' }}>
+                    {' · '}{fmt(checkoutShare.owed)} {t.birr || 'birr'}
+                  </span>
+                </span>
+                <button type="button" onClick={() => setCheckoutShare(null)} aria-label="Dismiss" className="press-scale" style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 2 }}>
+                  <X className="w-3.5 h-3.5" style={{ color: 'var(--color-text-muted)' }} />
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {checkoutShare.customerPhone && (
+                  <a
+                    href={`https://wa.me/${checkoutShare.customerPhone}?text=${encodeURIComponent(checkoutShare.message + ' ' + checkoutShare.link)}`}
+                    target="_blank" rel="noreferrer"
+                    className="press-scale inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-extrabold"
+                    style={{ borderRadius: '999px', background: '#25D366', color: '#fff', textDecoration: 'none' }}
+                  >
+                    WhatsApp
+                  </a>
+                )}
+                {checkoutShare.customerPhone && (
+                  <a
+                    href={`sms:${checkoutShare.customerPhone}?body=${encodeURIComponent(checkoutShare.message + ' ' + checkoutShare.link)}`}
+                    className="press-scale inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-extrabold"
+                    style={{ borderRadius: '999px', background: 'var(--color-success-bg)', color: 'var(--color-success)', border: '1px solid var(--color-success-border)', textDecoration: 'none' }}
+                  >
+                    SMS
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (navigator.share) navigator.share({ text: checkoutShare.message + ' ' + checkoutShare.link }).catch(() => {});
+                    else if (navigator.clipboard) { navigator.clipboard.writeText(checkoutShare.link); fireToast((t.copiedToClipboard || 'Copied link'), 2000); }
+                  }}
+                  className="press-scale inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-extrabold"
+                  style={{ borderRadius: '999px', background: 'var(--color-surface)', color: 'var(--color-text)', border: '1px solid var(--color-border)', cursor: 'pointer' }}
+                >
+                  <Share2 className="w-3 h-3" />
+                  {t.share || 'Share'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard?.writeText(checkoutShare.link).then(() => fireToast((t.copiedToClipboard || 'Copied link'), 2000)).catch(() => {}); }}
+                  className="press-scale inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-extrabold"
+                  style={{ borderRadius: '999px', background: 'var(--color-surface)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', cursor: 'pointer' }}
+                >
+                  <Copy className="w-3 h-3" />
+                  {t.copyLink || 'Copy link'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
