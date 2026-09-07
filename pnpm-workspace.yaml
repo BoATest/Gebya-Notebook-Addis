@@ -34,6 +34,22 @@ catalog:
 
 minimumReleaseAge: 1440
 
+minimumReleaseAgeExclude:
+  - orval@8.28.1
+  - '@orval/angular@8.28.1'
+  - '@orval/axios@8.28.1'
+  - '@orval/core@8.28.1'
+  - '@orval/zod@8.28.1'
+  - '@orval/fetch@8.28.1'
+  - '@orval/query@8.28.1'
+  - '@orval/swr@8.28.1'
+  - '@orval/mcp@8.28.1'
+  - '@orval/hono@8.28.1'
+  - '@orval/effect@8.28.1'
+  - '@orval/solid-start@8.28.1'
+  - '@orval/mock@8.28.1'
+  - '@scalar/openapi-types@0.9.4'
+
 onlyBuiltDependencies:
   - '@swc/core'
   - esbuild
