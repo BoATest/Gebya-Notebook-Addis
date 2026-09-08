@@ -177,7 +177,7 @@ function PasswordSettings({ lang }) {
   };
 
   const handleRemovePassword = async () => {
-    if (!confirm(lang === 'am' ? 'እንደገና OTP መረጃ ለማጠቃቀል ይሁኑ፣ የይምት ቃል መዲዛ ነው ለማስudya?' : 'You will use OTP again. Remove password?')) {
+    if (!confirm(lang === 'am' ? 'እንደገና OTP መረጃ ለማጠቃቀል ይሁኑ፣ የይምት ቃል መዲዛ ነው ለማስወገድ?' : 'You will use OTP again. Remove password?')) {
       return;
     }
     setLoading(true);
@@ -333,6 +333,15 @@ function SettingsPage({
     const next = aboutTapCount + 1;
     setAboutTapCount(next);
     if (next >= 5) {
+      const confirmed = confirm(
+        lang === 'am'
+          ? 'የልማት ሁነታ እንደገና ያንብት? ይህ ለመጠበቅ ይፈልጋል'
+          : 'Enable dev mode? This reveals shop-level diagnostics for this session.'
+      );
+      if (!confirmed) {
+        setAboutTapCount(0);
+        return;
+      }
       // Session-scoped: cleared when the app/tab closes, so a shared shop phone
       // never keeps debug surfaces unlocked between users.
       try { sessionStorage.setItem('gebya_dev_mode', 'true'); } catch { /* ignore */ }
@@ -400,6 +409,10 @@ function SettingsPage({
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={`panel-${tab.id}`}
+            aria-label={lang === 'am' ? tab.labelAm : tab.labelEn}
             className="flex-1 py-2 text-xs font-black rounded-lg transition-all"
             style={{
               background: activeTab === tab.id ? 'var(--color-bg-white)' : 'transparent',
@@ -416,7 +429,7 @@ function SettingsPage({
       <div className="px-4">
         <Suspense fallback={<SettingsPanelFallback label={t.loading} />}>
           <div className="animate-fade">
-          <div style={{ display: activeTab === 'shop' ? 'block' : 'none' }}>
+          <div id="panel-shop" role="tabpanel" style={{ display: activeTab === 'shop' ? 'block' : 'none' }}>
             <ShopTab
               shopProfile={shopProfile}
               catalogEntries={catalogEntries}
@@ -430,7 +443,7 @@ function SettingsPage({
               onNavigate={handleNavigate}
             />
           </div>
-          <div style={{ display: activeTab === 'money' ? 'block' : 'none' }}>
+          <div id="panel-money" role="tabpanel" style={{ display: activeTab === 'money' ? 'block' : 'none' }}>
             <MoneyTab
               paymentChannels={paymentChannels}
               shopProfile={shopProfile}
@@ -444,7 +457,7 @@ function SettingsPage({
               pendingCardId={pendingCardId}
             />
           </div>
-          <div style={{ display: activeTab === 'data' ? 'block' : 'none' }}>
+          <div id="panel-data" role="tabpanel" style={{ display: activeTab === 'data' ? 'block' : 'none' }}>
             <DataTab
               transactions={transactions}
               customerSummaries={customerSummaries}
@@ -560,8 +573,8 @@ function SettingsPage({
           </div>
         )}
 
-        {/* My Profile card — for staff without manage_team permission */}
-        {!canManageTeam && staffMembers && staffMembers.length > 0 && (
+         {/* My Profile card — shows for all linked users */}
+         {(staffMembers && staffMembers.length > 0) && (
           <div className="bg-white rounded-2xl border overflow-hidden mt-4" style={{ borderColor: 'var(--color-border)' }}>
             <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface-subtle)' }}>
               <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
