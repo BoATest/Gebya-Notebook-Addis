@@ -174,19 +174,17 @@ function SettingsPage({
             </div>
           </div>
         </div>
-        <div className="flex rounded-full p-0.5 text-xs font-black" style={{ background: 'var(--color-border-light)' }}>
+         <div className="lang-toggle">
           <button
             onClick={() => lang !== 'en' && toggleLang()}
-            className={`px-2.5 py-1 rounded-full ${lang === 'en' ? 'text-white' : ''}`}
-            style={lang === 'en' ? { background: 'var(--color-primary)' } : { color: 'var(--color-text-muted)' }}
+            className={`lang-toggle__btn ${lang === 'en' ? 'lang-toggle__btn--active' : 'lang-toggle__btn--inactive'}`}
             aria-label={lang === 'en' ? 'English selected' : 'Switch to English'}
           >
             EN
           </button>
           <button
             onClick={() => lang !== 'am' && toggleLang()}
-            className={`px-2.5 py-1 rounded-full ${lang === 'am' ? 'text-white' : ''}`}
-            style={lang === 'am' ? { background: 'var(--color-primary)' } : { color: 'var(--color-text-muted)' }}
+            className={`lang-toggle__btn ${lang === 'am' ? 'lang-toggle__btn--active' : 'lang-toggle__btn--inactive'}`}
             aria-label={lang === 'am' ? 'አማር\u{200c}ኛ በመረጡት' : 'Switch to አማር\u{200c}ኛ'}
           >
             አማ
@@ -195,7 +193,7 @@ function SettingsPage({
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 px-4 py-2" style={{ background: 'var(--cream)' }}>
+      <div className="tab-list">
         {TABS.map(tab => (
           <button
             key={tab.id}
@@ -205,7 +203,7 @@ function SettingsPage({
             aria-selected={activeTab === tab.id}
             aria-controls={`panel-${tab.id}`}
             aria-label={lang === 'am' ? tab.labelAm : tab.labelEn}
-            className="flex-1 py-2 text-xs font-black rounded-lg transition-all"
+            className={`tab-btn ${activeTab === tab.id ? 'tab-btn--active' : 'tab-btn--inactive'}`}
             onKeyDown={(e) => {
               if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Home' || e.key === 'End') {
                 e.preventDefault();
@@ -222,11 +220,6 @@ function SettingsPage({
                   setActiveTab(TABS[TABS.length - 1].id);
                 }
               }
-            }}
-            style={{
-              background: activeTab === tab.id ? 'var(--color-bg-white)' : 'transparent',
-              color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
-              boxShadow: activeTab === tab.id ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
             }}
           >
             {lang === 'am' ? tab.labelAm : tab.labelEn}

@@ -83,8 +83,7 @@ function PasswordSettings({ lang }) {
             <button
               onClick={handleRemovePassword}
               disabled={loading}
-              className="w-full py-2.5 rounded-xl text-xs font-bold transition-all"
-              style={{ background: loading ? 'var(--color-bg-disabled)' : 'var(--color-danger-bg)', color: 'var(--color-danger-text)' }}
+              className="btn btn--danger w-full"
               aria-label={lang === 'am' ? 'የይምት ቃል መዲዛ አስudya' : 'Remove Password'}
             >
               {loading ? '...' : (lang === 'am' ? 'የይምት ቃል መዲዛ አስudya' : 'Remove Password')}
@@ -102,8 +101,8 @@ function PasswordSettings({ lang }) {
                 onChange={(e) => setPasswordValue(e.target.value)}
                 placeholder={lang === 'am' ? '6-32 ሰምዶች' : '6-32 characters'}
                 maxLength={32}
-                className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-                style={{ borderColor: 'var(--color-border)' }}
+                className="w-full px-3 py-2.5 border-2 text-sm focus:outline-none focus:border-primary"
+                style={{ borderColor: 'var(--color-border)', borderRadius: 0 }}
                 aria-label={lang === 'am' ? 'የይምት ቃል መዲዛ' : 'New Password'}
               />
               <button
@@ -123,11 +122,7 @@ function PasswordSettings({ lang }) {
             <button
               onClick={handleSetPassword}
               disabled={loading || password.length < 6}
-              className="w-full py-2.5 rounded-xl text-xs font-bold text-white transition-all"
-              style={{
-                background: loading || password.length < 6 ? 'var(--color-bg-disabled)' : 'var(--color-primary)',
-                cursor: loading || password.length < 6 ? 'default' : 'pointer',
-              }}
+              className="btn btn--primary w-full"
               aria-label={lang === 'am' ? 'የይምት ቃል መዲዛ ያስገቡ' : 'Set Password'}
             >
               {loading

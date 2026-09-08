@@ -56,16 +56,13 @@ function ReminderSettings({ shopId, lang }) {
   const isEnabled = frequency && frequency !== 'disabled';
 
   return (
-    <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
-      <div
-        className="px-4 py-3 border-b"
-        style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface-subtle)' }}
-      >
+    <div className="card">
+      <div className="card-header">
         <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
           {lang === 'am' ? 'ራስ-ሰር ማስታወቂያ' : 'AUTO REMINDERS'}
         </span>
       </div>
-      <div className="px-4 py-3">
+      <div className="card-body">
         <div className="flex items-center justify-between">
           <div className="flex-1 min-w-0">
             <div className="text-sm font-bold text-gray-900">
@@ -77,24 +74,19 @@ function ReminderSettings({ shopId, lang }) {
                 : (lang === 'am' ? 'ማስታወቂያ ተዘግቷል' : 'Reminders are paused')}
             </div>
           </div>
-          <button
-            onClick={() => handleToggle(!isEnabled)}
-            disabled={loading || saving}
-            className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-            style={{
-              background: isEnabled ? 'var(--color-primary)' : '#d1d5db',
-              opacity: (loading || saving) ? 0.5 : 1,
-            }}
-            aria-label={isEnabled
-              ? (lang === 'am' ? 'ማስታወቂያ አልተሰጠም' : 'Pause reminders')
-              : (lang === 'am' ? 'ማስታወቂያ አድረጹ' : 'Enable reminders')
-            }
-          >
-            <span
-              className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-              style={{ transform: isEnabled ? 'translateX(20px)' : 'translateX(0)' }}
+          <label className="toggle-pill">
+            <input
+              type="checkbox"
+              checked={isEnabled}
+              onChange={(e) => handleToggle(e.target.checked)}
+              disabled={loading || saving}
+              aria-label={isEnabled
+                ? (lang === 'am' ? 'ማስታወቂያ አልተሰጠም' : 'Pause reminders')
+                : (lang === 'am' ? 'ማስታወቂያ አድረጹ' : 'Enable reminders')
+              }
             />
-          </button>
+            <span className="toggle-slider" />
+          </label>
         </div>
         {isEnabled && (
           <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--color-border-light)' }}>
