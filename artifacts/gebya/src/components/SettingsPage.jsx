@@ -43,7 +43,9 @@ function SettingsPage({
   shopId,
 }) {
   const { lang, toggleLang, t } = useLang();
-  const hasPermission = usePermissionsStore(s => s.hasPermission);
+  const usePermStore = usePermissionsStore();
+  const hasPermission = usePermStore.hasPermission;
+  const role = usePermStore.role;
   const isPlatformAdmin = useAuthStore(s => s.isPlatformAdmin);
 
   const roleBadge = (() => {
