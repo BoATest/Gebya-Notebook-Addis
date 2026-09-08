@@ -3,6 +3,7 @@ import { useLang } from '../context/LangContext';
 import { usePermissionsStore } from '../stores/permissionsStore';
 import { useAuthStore } from '../stores/authStore';
 import { fireToast } from './Toast';
+import { PERMISSIONS, ROLES, canAccessDevMode } from '../constants/permissions';
 
 import ShopTab from './settings/tabs/ShopTab';
 import MoneyTab from './settings/tabs/MoneyTab';
@@ -45,13 +46,13 @@ function SettingsPage({
   const { lang, toggleLang, t } = useLang();
   const usePermStore = usePermissionsStore();
   const hasPermission = usePermStore.hasPermission;
-  const role = usePermStore.role;
-  const isPlatformAdmin = useAuthStore(s => s.isPlatformAdmin);
+  const role = usePermStore.role || ROLES.STAFF;
+  const isAdminFlag = useAuthStore(s => s.isPlatformAdmin);
 
   const roleBadge = (() => {
     if (!role) return null;
-    if (role === 'owner') return lang === 'am' ? 'ባለቤት' : 'Owner';
-    if (role === 'manager') return lang === 'am' ? 'ሥራ አስኪያጅ' : 'Manager';
+    if (role === ROLES.OWNER) return lang === 'am' ? 'ባለቤት' : 'Owner';
+    if (role === ROLES.MANAGER) return lang === 'am' ? 'ሥራ አስኪያጅ' : 'Manager';
     return lang === 'am' ? 'ሰራተኛ' : 'Staff';
   })();
 
@@ -85,7 +86,9 @@ function SettingsPage({
     } catch { return false; }
   });
 
-  const isOwner = role === 'owner';
+  const isOwner = role === ROLES.OWNER;
+  const isPlatformAdmin = isAdminFlag || role === ROLES.PLATFORM_ADMIN || role === ROLES.SYSTEM_ADMIN;
+  const canViewDevMode = canAccessDevMode(role);
   const showAdminSection = devModeRevealed || isOwner || isPlatformAdmin;
   const showPlatformAdmin = isPlatformAdmin;
 
@@ -100,6 +103,7 @@ function SettingsPage({
 
   const handleAboutTap = () => {
     if (devModeRevealed) return;
+    if (!canViewDevMode) return;
 
     const now = Date.now();
     const count = aboutTapCount + 1;
