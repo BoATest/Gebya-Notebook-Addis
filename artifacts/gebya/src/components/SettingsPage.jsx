@@ -231,7 +231,7 @@ function SettingsPage({
       {/* Tab Content */}
       <div className="px-4">
         <ErrorBoundary fallback="Failed to load settings. Please refresh.">
-        <Suspense fallback={<SettingsPanelFallback label={t.loading} /}>
+        <Suspense fallback={<SettingsPanelFallback label={t.loading} />}>
           <div className="animate-fade">
             <div
               id="panel-shop"
@@ -309,7 +309,7 @@ function SettingsPage({
             isOwner={isOwner}
             isPlatformAdmin={isPlatformAdmin}
             showPlatformAdmin={showPlatformAdmin}
-           />
+          />
           </ErrorBoundary>
         )}
 
