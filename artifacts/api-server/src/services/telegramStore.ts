@@ -18,6 +18,8 @@ export type TelegramLinkSession = {
   customerId: string;
   customerName: string;
   shopName: string;
+  shopId?: number | null;
+  businessId?: number | null;
   currentBalance: number;
   createdAt: number;
   expiresAt: number;
@@ -155,6 +157,7 @@ export async function upsertTelegramLinkSession(payload: {
   customerId: string;
   customerName: string;
   shopName: string;
+  shopId?: number | null;
   currentBalance?: number;
   updatesEnabled?: boolean;
 }): Promise<TelegramLinkSession> {
@@ -165,6 +168,8 @@ export async function upsertTelegramLinkSession(payload: {
     customerId: payload.customerId,
     customerName: payload.customerName,
     shopName: payload.shopName,
+    shopId: payload.shopId ?? existing?.shopId ?? null,
+    businessId: payload.shopId ?? existing?.businessId ?? null,
     currentBalance: normalizeAmount(payload.currentBalance),
     createdAt: existing?.createdAt ?? now,
     expiresAt: now + SESSION_TTL_MS,

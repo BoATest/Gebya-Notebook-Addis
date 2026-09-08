@@ -1,3 +1,5 @@
+// telegram.ts — Main Telegram webhook routes
+
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import {
@@ -16,6 +18,10 @@ import {
   isTelegramBotConfigured,
   sendTelegramTextMessage,
 } from "../services/telegramBotService.js";
+import { parseTelegramIntent } from "../services/telegramIntentParser.js";
+import { handleConversationIntent } from "../services/telegramConversationHandler.js";
+import { getPublicApiBase, createDeepLink, pickLang, buildStartReply, buildBalanceReply, buildHelpReply, buildPaidReply, buildFallbackReply, type Lang } from "./telegramHelpers.js";
+
 import { getLatestQueuedReminderForCustomer, acknowledgeReminder } from "../services/reminderHistory.js";
 import { sendPushToOwner } from "../services/pushNotificationSender.js";
 import { setLastReminderSentAt } from "../services/reminderConfiguration.js";
@@ -23,7 +29,6 @@ import { db, requireDb } from "@workspace/db";
 import { customers, businessMembers, notifications, users } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { verifyShopOwnership } from "./rbac.js";
-import { getPublicApiBase, createDeepLink, pickLang, buildStartReply, buildBalanceReply, buildHelpReply, buildPaidReply, buildFallbackReply, type Lang } from "./telegramHelpers.js";
 
 const linkSessionSchema = z.object({
   shopId: z.number().int().positive(),
@@ -106,6 +111,7 @@ router.post("/link-sessions", verifyShopOwnership, async (req: Request, res: Res
     customerId: String(input.customerId),
     customerName: input.customerName.trim(),
     shopName: input.shopName.trim(),
+    shopId: input.shopId ?? null,
     currentBalance: input.currentBalance ?? 0,
     updatesEnabled: input.updatesEnabled ?? false,
   });
@@ -170,6 +176,7 @@ router.post("/one-time-code", verifyShopOwnership, async (req: Request, res: Res
     customerId: String(customerId),
     customerName: String(customerName || 'Customer'),
     shopName: String(shopName || 'Gebya'),
+    shopId: Number(shopId) || null,
     currentBalance: 0,
     updatesEnabled: true,
   });
@@ -369,26 +376,25 @@ router.post("/webhook", async (req: Request, res: Response) => {
     });
   }
 
-
-   // ─── One-time code (frictionless linking) ──────────────────────────────────────────────────────
-   // Customer sends a 4-char code (e.g., "X7K9") → resolve → auto-link.
-   if (!cmd.startsWith('/') && text.length === 4) {
-     const code = text.toUpperCase();
-     const token = `code-${code.toLowerCase()}`;
-     const session = await getTelegramLinkSession(token);
-     if (session) {
-       await linkTelegramChatToSession({ token, chatId, telegramUsername: username });
-       const reply = lang === 'am'
-         ? `✅ ከ ${session.shopName || 'Gebya'} ጋር ተገናኝተዋል። ከአሁን ጀምሮ ማስታወቂያዎችን ይቀበላሉ።`
-         : `✅ You're connected to ${session.shopName || 'Gebya'}. You'll now receive reminders on Telegram.`;
-       try {
-         await sendTelegramTextMessage(chatId, reply);
-       } catch (error) {
-         console.error('[telegram:webhook:code]', { code, chatId, error });
-       }
-       return res.json({ ok: true, linked: true, via: 'one-time-code' });
-     }
-   }
+  // ─── One-time code (frictionless linking) ──────────────────────────────────────────────────────
+  // Customer sends a 4-char code (e.g., "X7K9") → resolve → auto-link.
+  if (!cmd.startsWith('/') && text.length === 4) {
+    const code = text.toUpperCase();
+    const token = `code-${code.toLowerCase()}`;
+    const session = await getTelegramLinkSession(token);
+    if (session) {
+      await linkTelegramChatToSession({ token, chatId, telegramUsername: username });
+      const reply = lang === 'am'
+        ? `✅ ከ ${session.shopName || 'Gebya'} ጋር ተገናኝተዋል። ከአሁን ጀምሮ ማስታወሻዎችን ይቀበላሉ።`
+        : `✅ You're connected to ${session.shopName || 'Gebya'}. You'll now receive reminders on Telegram.`;
+      try {
+        await sendTelegramTextMessage(chatId, reply);
+      } catch (error) {
+        console.error('[telegram:webhook:code]', { code, chatId, error });
+      }
+      return res.json({ ok: true, linked: true, via: 'one-time-code' });
+    }
+  }
 
   if (cmd === "/balance") {
     const session = await getSessionByChatId(chatId);
@@ -402,7 +408,6 @@ router.post("/webhook", async (req: Request, res: Response) => {
         message: error instanceof Error ? error.message : "Telegram balance reply failed",
       });
     }
-    return res.json({ ok: true });
   }
 
   // ─── /help ──────────────────────────────────────────────────────
@@ -419,6 +424,41 @@ router.post("/webhook", async (req: Request, res: Response) => {
       });
     }
     return res.json({ ok: true });
+  }
+
+  // ─── Natural language intent detection ──────────────────────────────
+  // If the message doesn't start with '/', try to parse it as an intent.
+  if (!cmd.startsWith('/') && arg) {
+    try {
+      const intent = parseTelegramIntent(arg, lang);
+      if (intent.intent !== 'unknown') {
+        const result = await handleConversationIntent(chatId, intent, lang);
+        try {
+          await sendTelegramTextMessage(chatId, result.reply);
+        } catch (sendError) {
+          console.error("[telegram:webhook:conversation:reply]", {
+            chatId,
+            lang,
+            requestId: res.locals.requestId,
+            message: sendError instanceof Error ? sendError.message : "Bot reply failed",
+          });
+        }
+        return res.json({
+          ok: true,
+          via: 'conversation',
+          intent: intent.intent,
+          reply: result.reply,
+          deliveredToOwner: result.deliveredToOwner || false,
+        });
+      }
+    } catch (parseError) {
+      console.error("[telegram:webhook:conversation]", {
+        chatId,
+        lang,
+        requestId: res.locals.requestId,
+        message: parseError instanceof Error ? parseError.message : "Intent parsing failed",
+      });
+    }
   }
 
   // ─── /unsubscribe ─────────────────────────────────────────────
