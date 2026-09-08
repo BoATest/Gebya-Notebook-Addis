@@ -12,12 +12,16 @@ import ReminderSettings from './settings/ReminderSettings';
 import PasswordSettings from './settings/PasswordSettings';
 import AdminPanel from './settings/AdminPanel';
 import SettingsPanelFallback from './settings/SettingsPanelFallback';
+import ErrorBoundary from './ErrorBoundary';
 
 const TABS = [
   { id: 'shop', labelEn: 'Shop', labelAm: 'ሱቅ' },
   { id: 'money', labelEn: 'Money', labelAm: 'ገንዘብ' },
   { id: 'data', labelEn: 'Data', labelAm: 'ውሂብ' },
 ];
+
+const DEV_MODE_UNLOCK_TAPS = 5;
+const DEV_MODE_UNLOCK_WINDOW_MS = 10000;
 
 function SettingsPage({
   transactions,
@@ -70,6 +74,7 @@ function SettingsPage({
   const [adminSection, setAdminSection] = useState(null);
   const [selectedShop, setSelectedShop] = useState(null);
   const [aboutTapCount, setAboutTapCount] = useState(0);
+  const [aboutTapStart, setAboutTapStart] = useState(null);
 
   const [devModeRevealed, setDevModeRevealed] = useState(() => {
     try {
@@ -93,9 +98,18 @@ function SettingsPage({
 
   const handleAboutTap = () => {
     if (devModeRevealed) return;
-    const next = aboutTapCount + 1;
-    setAboutTapCount(next);
-    if (next >= 5) {
+
+    const now = Date.now();
+    const count = aboutTapCount + 1;
+
+    if (!aboutTapStart || (now - aboutTapStart > DEV_MODE_UNLOCK_WINDOW_MS)) {
+      setAboutTapStart(now);
+      setAboutTapCount(count);
+    } else {
+      setAboutTapCount(count);
+    }
+
+    if (count >= DEV_MODE_UNLOCK_TAPS && (now - (aboutTapStart || now) <= DEV_MODE_UNLOCK_WINDOW_MS)) {
       const confirmed = confirm(
         lang === 'am'
           ? 'የልማት ሁነታ እንደገና ያንብት? ይህ ለመጠበቅ ይፈልጋል'
@@ -103,10 +117,13 @@ function SettingsPage({
       );
       if (!confirmed) {
         setAboutTapCount(0);
+        setAboutTapStart(null);
         return;
       }
       try { sessionStorage.setItem('gebya_dev_mode', 'true'); } catch { /* ignore */ }
       setDevModeRevealed(true);
+      setAboutTapCount(0);
+      setAboutTapStart(null);
       fireToast(
         lang === 'am'
           ? '🛠 የልማት ሁነታ ተከፍቷል (ለዚህ ክፍለ ጊዜ ብቻ)'
@@ -176,12 +193,30 @@ function SettingsPage({
         {TABS.map(tab => (
           <button
             key={tab.id}
+            id={`tab-${tab.id}`}
             onClick={() => setActiveTab(tab.id)}
             role="tab"
             aria-selected={activeTab === tab.id}
             aria-controls={`panel-${tab.id}`}
             aria-label={lang === 'am' ? tab.labelAm : tab.labelEn}
             className="flex-1 py-2 text-xs font-black rounded-lg transition-all"
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Home' || e.key === 'End') {
+                e.preventDefault();
+                const currentIndex = TABS.findIndex(t => t.id === tab.id);
+                if (e.key === 'ArrowLeft') {
+                  const prev = (currentIndex - 1 + TABS.length) % TABS.length;
+                  setActiveTab(TABS[prev].id);
+                } else if (e.key === 'ArrowRight') {
+                  const next = (currentIndex + 1) % TABS.length;
+                  setActiveTab(TABS[next].id);
+                } else if (e.key === 'Home') {
+                  setActiveTab(TABS[0].id);
+                } else if (e.key === 'End') {
+                  setActiveTab(TABS[TABS.length - 1].id);
+                }
+              }
+            }}
             style={{
               background: activeTab === tab.id ? 'var(--color-bg-white)' : 'transparent',
               color: activeTab === tab.id ? 'var(--color-primary)' : 'var(--color-text-muted)',
@@ -195,7 +230,8 @@ function SettingsPage({
 
       {/* Tab Content */}
       <div className="px-4">
-        <Suspense fallback={<SettingsPanelFallback label={t.loading} />}>
+        <ErrorBoundary fallback="Failed to load settings. Please refresh.">
+        <Suspense fallback={<SettingsPanelFallback label={t.loading} /}>
           <div className="animate-fade">
             <div
               id="panel-shop"
@@ -250,7 +286,8 @@ function SettingsPage({
               />
             </div>
           </div>
-        </Suspense>
+         </Suspense>
+         </ErrorBoundary>
 
         {/* Reminder Settings */}
         <div className="mt-4">
@@ -264,6 +301,7 @@ function SettingsPage({
 
         {/* Admin Section */}
         {showAdminSection && (
+          <ErrorBoundary fallback="Failed to load admin tools. Please refresh.">
           <AdminPanel
             shopId={shopId}
             shopProfile={shopProfile}
@@ -271,23 +309,23 @@ function SettingsPage({
             isOwner={isOwner}
             isPlatformAdmin={isPlatformAdmin}
             showPlatformAdmin={showPlatformAdmin}
-          />
+           />
+          </ErrorBoundary>
         )}
 
-        {/* About easter egg — hidden tap target */}
+        {/* Version display — clean, non-promotional. Hidden dev mode trigger via tap count */}
         <div
           onClick={handleAboutTap}
-          className="text-center py-3 text-xs"
+          className="text-center py-3 text-xs select-none"
           style={{ color: 'var(--color-text-muted)' }}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleAboutTap(); }}
-          aria-label={lang === 'am' ? 'Gebya ስሜንት ለ መጠበቅ' : 'About Gebya (tap for diagnostics)'}
+          aria-label={lang === 'am' ? 'መስመርቻ መረጃ' : 'App info'}
         >
-          {lang === 'am' ? 'ጊቦው የልማት' : 'Gebya'} · v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}
-          {aboutTapCount > 0 && aboutTapCount < 5 && !showAdminSection && (
+          <span>
+            Gebya · v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}
+          </span>
+          {aboutTapCount > 0 && aboutTapCount < DEV_MODE_UNLOCK_TAPS && !showAdminSection && (
             <span className="ml-2" style={{ color: 'var(--color-accent-amber)' }}>
-              · {5 - aboutTapCount} {lang === 'am' ? 'ተጨማሪ መታ' : 'more taps'}
+              · {DEV_MODE_UNLOCK_TAPS - aboutTapCount} {lang === 'am' ? 'ተጨማሪ መታ' : 'more taps'}
             </span>
           )}
         </div>
