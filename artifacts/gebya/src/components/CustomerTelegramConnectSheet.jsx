@@ -16,7 +16,9 @@ import {
   fetchTelegramBotStatus,
   fetchTelegramLinkSession,
   createTelegramLinkSession,
+  createOneTimeCode,
 } from '../utils/telegramBotClient';
+import { isValidTelegramCode } from '../utils/telegramCode';
 
 const POLL_INTERVAL_MS = 4000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
@@ -30,6 +32,8 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [autoLinking, setAutoLinking] = useState(false);
+  const [mode, setMode] = useState('qr'); // 'qr' | 'code'
+  const [otc, setOtc] = useState(null); // { code, token, expires_at }
   const pollStartedRef = useRef(false);
   const autoSavedRef = useRef(false);
   const sessionCreatedRef = useRef(false);
@@ -70,10 +74,14 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
       });
     }
 
-    // Poll for session completion (customer tapped "Start")
+    // Poll for session completion (customer tapped "Start" or sent a code)
     if (!hasLinkedBorrower && !pollStartedRef.current && token) {
       pollStartedRef.current = true;
       const startTime = Date.now();
+      // The token used for polling depends on the mode:
+      //  - QR/deep-link mode → the customer token (t.me/...?start=<token>)
+      //  - Code mode → the one-time-code token (code-<CODE>)
+      const pollToken = mode === 'code' ? (otc?.token || token) : token;
 
       const poll = async () => {
         if (Date.now() - startTime > POLL_TIMEOUT_MS) {
@@ -82,7 +90,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
         }
 
         try {
-          const session = await fetchTelegramLinkSession(token);
+          const session = await fetchTelegramLinkSession(pollToken);
           if (session) {
             setLinkSession(session);
             if (session.chat_id && !autoSavedRef.current) {
@@ -114,7 +122,7 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
 
       return () => { clearInterval(id); pollStartedRef.current = false; };
     }
-  }, [token, hasLinkedBorrower, customer?.telegram_link_requested_at, lang, onSave, onResendUpdate, shopProfile]);
+  }, [token, hasLinkedBorrower, customer?.telegram_link_requested_at, lang, onSave, onResendUpdate, shopProfile, mode, otc?.token]);
 
   const deepLink = useMemo(
     () => token && botUsername
@@ -138,6 +146,30 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
     } catch {
       fireToast(lang === 'am' ? 'መቅዳት አልተሳካም' : 'Could not copy', 2000);
     }
+  };
+
+  // ─── Code mode: generate a fresh one-time code ──────────────────────
+  const handleGenerateCode = async () => {
+    const shopId = shopProfile?.shop_id || shopProfile?.id;
+    try {
+      const res = await createOneTimeCode({
+        customerId: customer?.id,
+        customerName: customer?.display_name || 'Customer',
+        shopId,
+        shopName: shopProfile?.name || 'Gebya',
+      });
+      setOtc(res);
+      setMode('code');
+      // Reset polling so it picks up the new code token
+      pollStartedRef.current = false;
+    } catch {
+      fireToast(lang === 'am' ? 'ኮድ ማመንጨት አልተሳካም' : 'Could not generate code', 2500);
+    }
+  };
+
+  const handleUseQr = () => {
+    setMode('qr');
+    pollStartedRef.current = false;
   };
 
   return (
@@ -173,14 +205,47 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
           </p>
         )}
 
-        {deepLink && (
+        {mode === 'code' && otc && (
           <>
-            {/* QR Code — customer scans with Telegram */}
+            <p className="text-xs font-bold text-gray-600 mt-2 text-center">
+              {lang === 'am'
+                ? ('ኮዱን ለ @' + (botUsername || 'bot') + ' ይላኩ')
+                : ('Tell the customer to send this code to @' + (botUsername || 'bot'))}
+            </p>
+            <div className="mx-auto my-2 w-52 h-16 bg-gray-100 rounded-xl flex items-center justify-center border-2 border-dashed border-green-600">
+              <span className="text-4xl font-black text-green-800" style={{ letterSpacing: '0.25em' }}>
+                {otc.code}
+              </span>
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1 text-center">
+              {lang === 'am' ? 'ኮዱ በ15 ደቂቃ ውስጥ ያበቃል' : 'Code expires in 15 minutes'}
+            </p>
+            <button
+              type="button"
+              onClick={handleGenerateCode}
+              className="w-full py-2 rounded-lg text-xs font-bold text-white press-scale mt-2"
+              style={{ background: 'var(--color-primary)' }}
+            >
+              {lang === 'am' ? 'ሌላ ኮድ' : 'Generate new code'}
+            </button>
+          </>
+        )}
+
+        {mode === 'code' && (
+          <button type="button" onClick={handleUseQr}
+            className="w-full py-2 rounded-lg text-xs font-bold mt-2 press-scale"
+            style={{ color: 'var(--color-primary)', background: 'transparent', border: '1px solid var(--color-border)' }}
+          >
+            {lang === 'am' ? 'ወደ QR ተመለስ' : 'Use QR instead'}
+          </button>
+        )}
+
+        {mode === 'qr' && deepLink && (
+          <>
             <div className="flex justify-center mb-4 p-2 bg-white border-2 border-gray-100 rounded-2xl">
               <QRCodeSVG value={deepLink} size={168} fgColor="#16425b" />
             </div>
 
-            {/* Deep link / copy */}
             <a
               href={deepLink}
               target="_blank"
@@ -205,8 +270,17 @@ function CustomerTelegramConnectSheet({ customer, shopProfile, onSave, onDone, o
             >
               <Copy className="w-3.5 h-3.5" />
               {copied
-                ? (lang === 'am' ? 'ተቀოዜ!' : 'Copied!')
+                ? (lang === 'am' ? 'ተቀድቷል!' : 'Copied!')
                 : (lang === 'am' ? 'አገናኝ ቅዳ' : 'Copy link')}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleGenerateCode}
+              className="w-full py-2 rounded-lg text-xs font-bold mt-2 press-scale"
+              style={{ color: 'var(--color-primary)', background: 'transparent', border: '1.5px dashed var(--color-accent-amber)' }}
+            >
+              {lang === 'am' ? '🎲 በኮድ አገናኝ' : '🔢 Use a code instead'}
             </button>
           </>
         )}

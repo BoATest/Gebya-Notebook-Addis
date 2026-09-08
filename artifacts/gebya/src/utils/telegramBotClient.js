@@ -43,6 +43,14 @@ async function request(path, options = {}) {
   return data;
 }
 
+export function createOneTimeCode(payload) {
+  return request('/api/telegram/one-time-code', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    authed: true,
+  });
+}
+
 export function fetchTelegramBotStatus() {
   return request('/api/telegram/status');
 }

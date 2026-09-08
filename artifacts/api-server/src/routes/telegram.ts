@@ -146,6 +146,42 @@ router.get("/link-sessions/:token", async (req: Request, res: Response) => {
   });
 });
 
+// ─── One-time code generation (frictionless linking) ───────────────────
+// Instead of QR scanning, the merchant shows the customer a 4-char code.
+// The customer sends it to the bot → backend resolves → auto-links.
+
+router.post("/one-time-code", verifyShopOwnership, async (req: Request, res: Response) => {
+  const { customerId, customerName, shopId, shopName } = req.body || {};
+  if (!customerId) {
+    return res.status(400).json({ error: "customerId required" });
+  }
+
+  // Generate a 4-char code (unambiguous: no I, O, 0, 1)
+  const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) {
+    code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  }
+
+  // Store the code with a 15-min TTL (reuse the link session store)
+  const token = `code-${code.toLowerCase()}`;
+  const session = await upsertTelegramLinkSession({
+    token,
+    customerId: String(customerId),
+    customerName: String(customerName || 'Customer'),
+    shopName: String(shopName || 'Gebya'),
+    currentBalance: 0,
+    updatesEnabled: true,
+  });
+
+  return res.json({
+    code,
+    token,
+    expires_at: Date.now() + 15 * 60 * 1000,
+    bot_username: getTelegramBotUsername() || null,
+  });
+});
+
 router.post("/customers/sync",
   verifyTelegramWebhookSecret,
   async (req: Request, res: Response) => {
@@ -333,7 +369,27 @@ router.post("/webhook", async (req: Request, res: Response) => {
     });
   }
 
-  // ─── /balance ────────────────────────────────────────────────────
+
+   // ─── One-time code (frictionless linking) ──────────────────────────────────────────────────────
+   // Customer sends a 4-char code (e.g., "X7K9") → resolve → auto-link.
+   if (!cmd.startsWith('/') && text.length === 4) {
+     const code = text.toUpperCase();
+     const token = `code-${code.toLowerCase()}`;
+     const session = await getTelegramLinkSession(token);
+     if (session) {
+       await linkTelegramChatToSession({ token, chatId, telegramUsername: username });
+       const reply = lang === 'am'
+         ? `✅ ከ ${session.shopName || 'Gebya'} ጋር ተገናኝተዋል። ከአሁን ጀምሮ ማስታወቂያዎችን ይቀበላሉ።`
+         : `✅ You're connected to ${session.shopName || 'Gebya'}. You'll now receive reminders on Telegram.`;
+       try {
+         await sendTelegramTextMessage(chatId, reply);
+       } catch (error) {
+         console.error('[telegram:webhook:code]', { code, chatId, error });
+       }
+       return res.json({ ok: true, linked: true, via: 'one-time-code' });
+     }
+   }
+
   if (cmd === "/balance") {
     const session = await getSessionByChatId(chatId);
     try {
