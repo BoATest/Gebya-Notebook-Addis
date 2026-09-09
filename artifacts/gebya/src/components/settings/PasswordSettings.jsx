@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { useLang } from '../../context/LangContext';
 import { useAuthStore } from '../../stores/authStore';
 import { fireToast } from '../Toast';
 import { getAuthToken } from '../../utils/syncEngine';
 import { setPassword, removePassword } from '../../utils/authClient';
 
 function PasswordSettings({ lang }) {
-  const { t } = useLang();
   const hasPassword = useAuthStore(s => s.hasPassword);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useLang } from '../../context/LangContext';
 import { fireToast } from '../Toast';
 import { remindersApi } from '../../api/reminders';
 import { getAuthToken } from '../../utils/syncEngine';
 
 function ReminderSettings({ shopId, lang }) {
-  const { t } = useLang();
   const [frequency, setFrequency] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

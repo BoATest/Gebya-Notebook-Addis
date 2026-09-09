@@ -174,7 +174,9 @@ function SettingsPage({
             </div>
           </div>
         </div>
-         <div className="lang-toggle">
+
+        {/* Language Toggle */}
+        <div className="lang-toggle">
           <button
             onClick={() => lang !== 'en' && toggleLang()}
             className={`lang-toggle__btn ${lang === 'en' ? 'lang-toggle__btn--active' : 'lang-toggle__btn--inactive'}`}
