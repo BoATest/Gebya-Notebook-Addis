@@ -50,6 +50,7 @@ import {
   addCustomChannel,
 } from '../utils/paymentChannels';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useNotificationStream } from '../hooks/useNotificationStream';
 import { useSyncRefresh } from '../hooks/useSyncRefresh';
 import { initSession, endSession, trackEvent, trackFirstEvent } from '../utils/eventTracking';
 import { useNotificationsStore } from '../stores/notificationsStore';
@@ -766,16 +767,15 @@ export default function AppShell() {
     return () => window.removeEventListener('online', handleOnline);
   }, []);
 
-  // Poll unread notification count every 30s when app is visible
+  // Real-time notification count via SSE (replaces 30s polling)
+  useNotificationStream(authChecked && !!authUser);
+
+  // Refresh push subscription after login
   useEffect(() => {
-    fetchUnreadNotifCount();
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        fetchUnreadNotifCount();
-      }
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [fetchUnreadNotifCount]);
+    if (authChecked && authUser && pushNotifications.refreshIfNeeded) {
+      pushNotifications.refreshIfNeeded();
+    }
+  }, [authChecked, authUser]);
 
   // Live permission sync — re-fetch the current user's role + permissions so
   // that owner-side toggles (can_view_reports, can_add_records, …) take effect

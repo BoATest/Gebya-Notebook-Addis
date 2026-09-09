@@ -11,6 +11,7 @@ import MoneyTab from './settings/tabs/MoneyTab';
 import DataTab from './settings/tabs/DataTab';
 import DownloadAppBanner from './settings/DownloadAppBanner';
 import ReminderSettings from './settings/ReminderSettings';
+import NotificationPreferences from './settings/NotificationPreferences';
 import PasswordSettings from './settings/PasswordSettings';
 import AdminPanel from './settings/AdminPanel';
 import SettingsPanelFallback from './settings/SettingsPanelFallback';
@@ -312,6 +313,11 @@ function SettingsPage({
         {/* Reminder Settings */}
         <div className="mt-4">
           <ReminderSettings shopId={shopId} lang={lang} />
+        </div>
+
+        {/* Notification Preferences */}
+        <div className="mt-4">
+          <NotificationPreferences lang={lang} />
         </div>
 
         {/* Password Settings */}

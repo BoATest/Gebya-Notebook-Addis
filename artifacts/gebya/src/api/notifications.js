@@ -95,4 +95,22 @@ export const notificationsApi = {
     }, token);
     return { supported: true, subscribed: true };
   },
+
+  // ─── Notification Preferences ──────────────────────────────────────────
+
+  async getPreferences(token) {
+    return request('/notifications/preferences', { token });
+  },
+
+  async updatePreferences({ preferences, quietHoursStart, quietHoursEnd }, token) {
+    return request('/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify({ preferences, quietHoursStart, quietHoursEnd }),
+      token,
+    });
+  },
+
+  async resetPreferences(token) {
+    return request('/notifications/preferences/reset', { method: 'POST', token });
+  },
 };

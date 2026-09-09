@@ -57,8 +57,13 @@ function msUntilNext(time24) {
 let reminderTimer = null;
 
 function fireReminder() {
-  self.registration.showNotification('Gebya', {
+  // Use personalized data if available, otherwise fallback to generic
+  const payload = personalizedPayload || {
     body: "Don't forget to record today's sales. ዛሬውን ሽያጭ ይመዝግቡ።",
+  };
+
+  self.registration.showNotification('Gebya', {
+    body: payload.body,
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     tag: 'gebya-daily-reminder',
@@ -66,6 +71,8 @@ function fireReminder() {
     data: { url: '/' },
   });
 }
+
+let personalizedPayload = null;
 
 function armReminder(time24) {
   if (reminderTimer) clearTimeout(reminderTimer);
@@ -85,19 +92,33 @@ async function rearmFromStorage() {
 
 self.addEventListener('message', (event) => {
   const data = event.data;
-  if (!data || data.type !== 'schedule-reminder') return;
-  saveReminderSchedule({ enabled: !!data.enabled, time: data.time || '20:00' })
-    .then(() => {
-      if (data.enabled) armReminder(data.time || '20:00');
-      else if (reminderTimer) clearTimeout(reminderTimer);
-    })
-    .catch(() => {});
+  if (!data) return;
+
+  if (data.type === 'schedule-reminder') {
+    saveReminderSchedule({ enabled: !!data.enabled, time: data.time || '20:00' })
+      .then(() => {
+        if (data.enabled) armReminder(data.time || '20:00');
+        else if (reminderTimer) clearTimeout(reminderTimer);
+      })
+      .catch(() => {});
+  } else if (data.type === 'update-reminder-payload') {
+    // Client sends personalized reminder data
+    personalizedPayload = data.payload || null;
+  }
 });
 
 // Re-arm on SW lifecycle so the reminder survives SW restarts.
 self.addEventListener('activate', () => {
   rearmFromStorage().catch(() => {});
 });
+
+// ─── Vibration patterns by priority ─────────────────────────────────────────
+
+const VIBRATION_PATTERNS = {
+  high: [200, 100, 200, 100, 200],
+  normal: [100, 50, 100],
+  low: [50],
+};
 
 // ─── Web Push ────────────────────────────────────────────────────────────────
 
@@ -111,6 +132,9 @@ self.addEventListener('push', (event) => {
     data = { title: 'Gebya', body: event.data.text() };
   }
 
+  const priority = data.priority || 'normal';
+  const vibrate = VIBRATION_PATTERNS[priority] || VIBRATION_PATTERNS.normal;
+
   const options = {
     body: data.body || '',
     icon: data.icon || '/icon-192.png',
@@ -118,7 +142,8 @@ self.addEventListener('push', (event) => {
     tag: data.tag || 'gebya-notification',
     renotify: data.renotify !== false,
     data: data.data || { url: '/' },
-    vibrate: [100, 50, 100],
+    vibrate,
+    actions: data.actions || [],
   };
 
   event.waitUntil(
@@ -126,24 +151,38 @@ self.addEventListener('push', (event) => {
   );
 });
 
+// ─── Notification click with deep-link + action handling ────────────────────
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const url = event.notification.data?.url || '/';
+  const action = event.action;
+  const notificationData = event.notification.data || {};
+
+  // If user tapped "Dismiss", just close (already closed above)
+  if (action === 'dismiss') {
+    return;
+  }
+
+  // Deep-link URL: use notification data URL or default to /
+  const url = notificationData.url || '/';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Focus existing window if open
+      // Focus existing window if open and on the same scope
       for (const client of windowClients) {
         if (client.url.includes(self.registration.scope) && 'focus' in client) {
+          // If the notification has a deep-link URL, navigate the existing client
+          if (url !== '/' && 'navigate' in client) {
+            return client.focus().then(() => client.navigate(url));
+          }
           return client.focus();
         }
       }
-      // Otherwise open new window
+      // Otherwise open new window at the deep-link URL
       if (self.clients.openWindow) {
         return self.clients.openWindow(url);
       }
     })
   );
 });
-

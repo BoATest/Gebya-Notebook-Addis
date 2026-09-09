@@ -1,7 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { useStaffStore } from '../../stores/staffStore';
 import { fmt } from '../../utils/numformat';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import ReconStatusBadge from './ReconStatusBadge';
+import { fireToast } from '../Toast';
 
 export default function StaffCollectionForm({
   activeStaffMemberId, activeStaff, lastSettlementPerStaff, lang, t,
@@ -9,6 +11,7 @@ export default function StaffCollectionForm({
 }) {
   const store = useStaffStore();
   const isMobile = useIsMobile(768);
+  const prevStatusRef = useRef(null);
 
   if (activeStaffMemberId == null) return null;
   const me = activeStaff.find(m => String(m.id) === String(activeStaffMemberId));
@@ -21,9 +24,73 @@ export default function StaffCollectionForm({
     || myLastSettlement?.reconciliation_status === 'disputed';
   const myTodaySales = store.todayStaffSales[activeStaffMemberId];
 
+  // Toast staff when owner acknowledges their submission
+  useEffect(() => {
+    const currentStatus = myLastSettlement?.reconciliation_status;
+    const prevStatus = prevStatusRef.current;
+
+    if (prevStatus === 'staff_submitted' && currentStatus === 'finalized') {
+      fireToast(
+        lang === 'am' ? '✅ ባለቤት ተቀባிஓ አደረገ! ስብስብ ተስርቷል' : '✅ Owner accepted! Collection settled',
+        4000
+      );
+    } else if (prevStatus === 'staff_submitted' && currentStatus === 'disputed') {
+      fireToast(
+        lang === 'am' ? '⚠️ ባለቤት ልዩነት አስተዋውሏል' : '⚠️ Owner flagged a difference',
+        4000
+      );
+    } else if (prevStatus === 'staff_submitted' && currentStatus === 'owner_reviewed') {
+      fireToast(
+        lang === 'am' ? '👀 ባለቤት ስብስብ አድርጓል' : '👀 Owner reviewed your submission',
+        3000
+      );
+    }
+
+    prevStatusRef.current = currentStatus;
+  }, [myLastSettlement?.reconciliation_status, lang]);
+
+  // Renders the submitted-status banners (disputed + finalized)
+  function renderStatusBanners() {
+    return (
+      <>
+        {myLastSettlement?.reconciliation_status === 'disputed' && (
+          <div className="rounded-lg border px-3 py-2.5 mb-3" style={{ borderColor: 'var(--color-danger-border)', background: 'var(--color-danger-bg)' }}>
+            <div className="text-xs font-bold" style={{ color: 'var(--color-danger-text)' }}>{t('Difference found by owner', 'ባለቤት ልዙድ አስተዋውሏል')}</div>
+            {myLastSettlement.owner_note && <div className="text-[10px]" style={{ color: 'var(--color-danger)' }}>{myLastSettlement.owner_note}</div>}
+          </div>
+        )}
+        {myLastSettlement?.reconciliation_status === 'finalized' && (
+          <div className="rounded-lg border px-3 py-2.5 mb-3" style={{ borderColor: 'var(--color-success-border)', background: 'var(--color-success-bg)' }}>
+            <div className="text-xs font-bold" style={{ color: 'var(--color-success-text)' }}>{t('✅ Settled by owner', '✅ ባለቤት ተስርቶ አደረገ')}</div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // Renders the submitted amounts card
+  function renderSubmittedCard() {
+    return (
+      <div className="rounded-lg border px-3 py-2.5 mb-3" style={{ borderColor: 'var(--color-info-bg)', background: 'var(--color-bg-accent-blue)' }}>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xs font-black text-gray-700">{t('Submitted to owner', 'ለባለቤት አቀበረለክላው')}</span>
+        </div>
+        <div className="text-sm font-black" style={{ color: 'var(--color-primary)' }}>
+          {t('Cash:', 'ጥሬ:')} {fmt(myLastSettlement.staff_reported_cash || 0)} {t('birr', 'ብር')}
+          {myLastSettlement.staff_reported_transfer > 0 && (
+            <span className="ml-3">{t('Transfer:', 'ዝውውር:')} {fmt(myLastSettlement.staff_reported_transfer)} {t('birr', 'ብር')}</span>
+          )}
+        </div>
+        {myLastSettlement.staff_note && (
+          <div className="text-[10px] text-gray-500 mt-1">📝 {myLastSettlement.staff_note}</div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* Trigger button for mobile - compact version */}
+      {/* Desktop */}
       {!isMobile && (
         <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border-disabled)', background: 'var(--color-surface-subtle)' }}>
           <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-alt)' }}>
@@ -35,26 +102,8 @@ export default function StaffCollectionForm({
           <div className="px-4 py-3">
             {alreadySubmitted ? (
               <div>
-                <div className="rounded-lg border px-3 py-2.5 mb-3" style={{ borderColor: 'var(--color-info-bg)', background: 'var(--color-bg-accent-blue)' }}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-black text-gray-700">{t('Submitted to owner', 'ለባለቤት አቀበረለክላው')}</span>
-                  </div>
-                  <div className="text-sm font-black" style={{ color: 'var(--color-primary)' }}>
-                    {t('Cash:', 'ጥሬ:')} {fmt(myLastSettlement.staff_reported_cash || 0)} {t('birr', 'ብር')}
-                    {myLastSettlement.staff_reported_transfer > 0 && (
-                      <span className="ml-3">{t('Transfer:', 'ዝውውር:')} {fmt(myLastSettlement.staff_reported_transfer)} {t('birr', 'ብር')}</span>
-                    )}
-                  </div>
-                  {myLastSettlement.staff_note && (
-                    <div className="text-[10px] text-gray-500 mt-1">📝 {myLastSettlement.staff_note}</div>
-                  )}
-                </div>
-                {myLastSettlement?.reconciliation_status === 'disputed' && (
-                  <div className="rounded-lg border px-3 py-2.5 mb-3" style={{ borderColor: 'var(--color-danger-border)', background: 'var(--color-danger-bg)' }}>
-                    <div className="text-xs font-bold" style={{ color: 'var(--color-danger-text)' }}>{t('Difference found by owner', 'ባለቤት ልዙድ አስተዋውሏል')}</div>
-                    {myLastSettlement.owner_note && <div className="text-[10px]" style={{ color: 'var(--color-danger)' }}>{myLastSettlement.owner_note}</div>}
-                  </div>
-                )}
+                {renderSubmittedCard()}
+                {renderStatusBanners()}
                 <button
                   onClick={() => {
                     store.setStaffCollectCash(String(myLastSettlement.staff_reported_cash || ''));
@@ -169,29 +218,10 @@ export default function StaffCollectionForm({
                 <ReconStatusBadge status={myLastSettlement.reconciliation_status} lang={lang} />
               )}
             </div>
-            {/* Mobile collection form content */}
             {alreadySubmitted ? (
               <div>
-                <div className="rounded-lg border px-3 py-2.5 mb-3" style={{ borderColor: 'var(--color-info-bg)', background: 'var(--color-bg-accent-blue)' }}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-black text-gray-700">{t('Submitted to owner', 'ለባለቤት አቀበረለክላው')}</span>
-                  </div>
-                  <div className="text-sm font-black" style={{ color: 'var(--color-primary)' }}>
-                    {t('Cash:', 'ጥሬ:')} {fmt(myLastSettlement.staff_reported_cash || 0)} {t('birr', 'ብር')}
-                    {myLastSettlement.staff_reported_transfer > 0 && (
-                      <span className="ml-3">{t('Transfer:', 'ዝውውር:')} {fmt(myLastSettlement.staff_reported_transfer)} {t('birr', 'ብር')}</span>
-                    )}
-                  </div>
-                  {myLastSettlement.staff_note && (
-                    <div className="text-[10px] text-gray-500 mt-1">📝 {myLastSettlement.staff_note}</div>
-                  )}
-                </div>
-                {myLastSettlement?.reconciliation_status === 'disputed' && (
-                  <div className="rounded-lg border px-3 py-2.5 mb-3" style={{ borderColor: 'var(--color-danger-border)', background: 'var(--color-danger-bg)' }}>
-                    <div className="text-xs font-bold" style={{ color: 'var(--color-danger-text)' }}>{t('Difference found by owner', 'ባለቤት ልዙድ አስተዋውሏል')}</div>
-                    {myLastSettlement.owner_note && <div className="text-[10px]" style={{ color: 'var(--color-danger)' }}>{myLastSettlement.owner_note}</div>}
-                  </div>
-                )}
+                {renderSubmittedCard()}
+                {renderStatusBanners()}
                 <button
                   onClick={() => {
                     store.setStaffCollectCash(String(myLastSettlement.staff_reported_cash || ''));

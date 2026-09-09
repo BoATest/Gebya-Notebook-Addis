@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { requireDb } from "@workspace/db";
 import { notifications, businessMembers } from "@workspace/db/schema";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, or, desc, count, isNull, gt } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
+import { broadcastNotification } from "./notificationStream.js";
 
 const router = Router();
 
@@ -43,7 +44,9 @@ router.get("/", async (req, res) => {
     .from(notifications)
     .where(and(
       eq(notifications.businessId, owner.businessId),
-      eq(notifications.ownerUserId, userId)
+      eq(notifications.ownerUserId, userId),
+      // Filter out expired notifications
+      or(isNull(notifications.expiresAt), gt(notifications.expiresAt, new Date()))
     ))
     .orderBy(desc(notifications.createdAt))
     .limit(limit)
@@ -54,7 +57,8 @@ router.get("/", async (req, res) => {
     .from(notifications)
     .where(and(
       eq(notifications.businessId, owner.businessId),
-      eq(notifications.ownerUserId, userId)
+      eq(notifications.ownerUserId, userId),
+      or(isNull(notifications.expiresAt), gt(notifications.expiresAt, new Date()))
     ));
 
   res.json({ notifications: rows, total: totalRow?.total || 0 });
@@ -99,7 +103,7 @@ router.post("/:id/read", async (req, res) => {
 
   await requireDb()
     .update(notifications)
-    .set({ read: true })
+    .set({ read: true, readAt: new Date() })
     .where(and(
       eq(notifications.id, id),
       eq(notifications.businessId, owner.businessId),
@@ -121,7 +125,7 @@ router.post("/read-all", async (req, res) => {
 
   await requireDb()
     .update(notifications)
-    .set({ read: true })
+    .set({ read: true, readAt: new Date() })
     .where(and(
       eq(notifications.businessId, owner.businessId),
       eq(notifications.ownerUserId, userId),
@@ -162,6 +166,9 @@ router.post("/", async (req, res) => {
     res.status(404).json({ error: "No owner found for this business" }); return;
   }
 
+  // Default TTL: 90 days from creation
+  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+
   const inserted = await requireDb().insert(notifications).values(
     owners.map(owner => ({
       businessId: Number(businessId),
@@ -174,8 +181,14 @@ router.post("/", async (req, res) => {
       actorName: actorName || null,
       amount: amount != null ? String(amount) : null,
       read: false,
+      expiresAt,
     }))
   ).returning();
+
+  // Broadcast real-time update to connected SSE clients
+  for (const owner of owners) {
+    broadcastNotification(Number(businessId), owner.userId);
+  }
 
   res.json({ notifications: inserted });
 });

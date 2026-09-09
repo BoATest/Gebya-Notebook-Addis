@@ -90,5 +90,25 @@ export function usePushNotifications() {
     }
   }, [isSupported, isSubscribed, permission, loading, subscribe]);
 
-  return { isSupported, permission, isSubscribed, loading, subscribe, unsubscribe };
+  // Refresh subscription after login (if permission granted but no local subscription)
+  const refreshIfNeeded = useCallback(async () => {
+    if (!isSupported || loading) return;
+    if (typeof Notification === 'undefined') return;
+    if (Notification.permission !== 'granted') return;
+
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        // Permission granted but no subscription — re-subscribe
+        await subscribe();
+      } else {
+        setIsSubscribed(true);
+      }
+    } catch {
+      // Non-critical
+    }
+  }, [isSupported, loading, subscribe]);
+
+  return { isSupported, permission, isSubscribed, loading, subscribe, unsubscribe, refreshIfNeeded };
 }

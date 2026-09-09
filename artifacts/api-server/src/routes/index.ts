@@ -15,6 +15,9 @@ import adminRouter from "./admin.js";
 import eventsRouter from "./events.js";
 import staffRouter from "./staff.js";
 import supportRouter from "./support.js";
+import notificationCleanupRouter from "./notificationCleanup.js";
+import notificationPreferencesRouter from "./notificationPreferences.js";
+import notificationStreamRouter from "./notificationStream.js";
 
 const router: IRouter = Router();
 
@@ -35,6 +38,12 @@ router.use("/audit", auditRouter);
 router.use("/push", pushSubscriptionsRouter);
 // Notification list and read status
 router.use("/notifications", notificationsRouter);
+// Notification preferences
+router.use("/notifications", notificationPreferencesRouter);
+// Notification cleanup cron
+router.use("/notifications", notificationCleanupRouter);
+// SSE real-time notification stream
+router.use("/notifications", notificationStreamRouter);
 // Bank analytics — merchant consent + bank-facing reports + NBE aggregation
 router.use("/analytics", analyticsRouter);
 // Platform admin dashboard
