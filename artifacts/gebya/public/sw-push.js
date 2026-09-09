@@ -104,8 +104,30 @@ self.addEventListener('message', (event) => {
   } else if (data.type === 'update-reminder-payload') {
     // Client sends personalized reminder data
     personalizedPayload = data.payload || null;
+  } else if (data.type === 'gebya-sync') {
+    // Background sync request when connectivity returns
+    // The sync was queued by the page via navigator.serviceWorker.ready.then(reg => reg.sync.register('gebya-sync'))
+    event.waitUntil(handleBackgroundSync());
   }
 });
+
+async function handleBackgroundSync() {
+  // This handler runs in the Service Worker context
+  // The page's syncEngine.js will handle the actual sync when it becomes active
+  // We just acknowledge the sync event here and let the page handle it
+  // Most sync handling happens in the page via syncEngine
+  
+  // Option: if we want SW to trigger sync without page active:
+  // We can post a message to all clients to trigger sync
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  if (clients.length > 0) {
+    // Notify all open clients to run sync
+    for (const client of clients) {
+      client.postMessage({ type: 'gebya-sync-trigger' });
+    }
+  }
+  // The sync itself happens in the page's syncEngine when it receives this message
+}
 
 // Re-arm on SW lifecycle so the reminder survives SW restarts.
 self.addEventListener('activate', () => {

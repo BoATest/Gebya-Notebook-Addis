@@ -502,10 +502,15 @@ export default function AppShell() {
   useEffect(() => {
     if (loading) return undefined;
     let destroyed = false;
+    let swListenerCleanup = null;
     runAfterFirstPaint(async () => {
       if (destroyed) return;
       try {
+        const { initSyncEngine, initSwSyncListener } = await import('../utils/syncEngine.js');
         await initSyncEngine(() => { setShowAuthPrompt(true); });
+        
+        // Initialize SW sync listener to handle background sync events
+        swListenerCleanup = initSwSyncListener();
       } catch (err) {
         if (import.meta.env.DEV) console.error('Sync engine init failed:', err);
       }
@@ -513,6 +518,7 @@ export default function AppShell() {
     return () => {
       destroyed = true;
       destroySyncEngine();
+      if (swListenerCleanup) swListenerCleanup();
     };
   }, [loading]);
 
