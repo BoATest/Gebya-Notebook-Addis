@@ -79,6 +79,10 @@ export const useStaffStore = create((set, get) => ({
   todayRefreshKey: 0,
   todayStaffSales: {},
   todayStaffTransactions: {},
+  
+  // ─── Yesterday data for performance comparison ───
+  yesterdayRefreshKey: 0,
+  yesterdayStaffSales: {},
 
   // ─── Permission editing ───
   localPermOverrides: {},
@@ -133,9 +137,11 @@ export const useStaffStore = create((set, get) => ({
   // ─── Today data ───
   setTodayStaffSales(sales) { set({ todayStaffSales: sales }); },
   setTodayStaffTransactions(txns) { set({ todayStaffTransactions: txns }); },
+  setYesterdayStaffSales(sales) { set({ yesterdayStaffSales: sales }); },
 
   refreshSettlements() { set(s => ({ settlementRefreshKey: s.settlementRefreshKey + 1 })); },
   refreshToday() { set(s => ({ todayRefreshKey: s.todayRefreshKey + 1 })); },
+  refreshYesterday() { set(s => ({ yesterdayRefreshKey: s.yesterdayRefreshKey + 1 })); },
 
   // ─── Permission editing actions ───
   setPendingNoPerms(v) { set({ pendingNoPerms: v }); },

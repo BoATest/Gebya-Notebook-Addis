@@ -6,6 +6,7 @@ import { fireToast } from './Toast';
 import ConfirmDialog from './ConfirmDialog';
 import { calculateExpected } from '../utils/settlementSelectors';
 import { computeTodayStaffAggregates } from '../utils/todayStaffAggregates';
+import { computeYesterdayStaffAggregates } from '../utils/yesterdayStaffAggregates';
 import { fmt } from '../utils/numformat';
 
 import StaffStats from './staff/StaffStats';
@@ -18,6 +19,7 @@ import StaffDeviceManager from './staff/StaffDeviceManager';
 import StaffActivityFeed from './staff/StaffActivityFeed';
 import StaffTasks from './staff/StaffTasks';
 import StaffAttendance from './staff/StaffAttendance';
+import StaffPerformanceDashboard from './staff/StaffPerformanceDashboard';
 import SettlementSheet from './report/SettlementSheet';
 
 export default function StaffPage({
@@ -76,12 +78,14 @@ export default function StaffPage({
     todayRefreshKey: s.todayRefreshKey,
     todayStaffSales: s.todayStaffSales,
     todayStaffTransactions: s.todayStaffTransactions,
+    yesterdayStaffSales: s.yesterdayStaffSales,
     viewingSettlement: s.viewingSettlement,
   })));
   const loadCloudMembers = useStaffStore((s) => s.loadCloudMembers);
   const loadSettlements = useStaffStore((s) => s.loadSettlements);
   const refreshSettlements = useStaffStore((s) => s.refreshSettlements);
   const refreshToday = useStaffStore((s) => s.refreshToday);
+  const refreshYesterday = useStaffStore((s) => s.refreshYesterday);
 
   // Load data
   useEffect(() => {
@@ -106,12 +110,28 @@ export default function StaffPage({
     return () => { cancelled = true; };
   }, [store.todayRefreshKey, store.setTodayStaffSales]);
 
+  // Keep yesterday's aggregates for performance comparison
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const salesMap = await computeYesterdayStaffAggregates();
+        if (cancelled) return;
+        store.setYesterdayStaffSales(salesMap);
+      } catch (err) {
+        if (import.meta.env?.DEV) console.warn('[StaffPage] failed to compute yesterday staff aggregates', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [store.yesterdayRefreshKey]);
+
   // Prevent browser reloading/disappearing tabs
   useEffect(() => {
     const refresh = () => {
       if (document.hidden) return;
       refreshSettlements();
       refreshToday();
+      refreshYesterday();
     };
     // Poll once a minute (visibility-guarded) — frequent polling drains
     // battery/data on budget Android phones; the visibilitychange listener
@@ -122,7 +142,7 @@ export default function StaffPage({
       clearInterval(interval);
       document.removeEventListener('visibilitychange', refresh);
     };
-  }, [refreshSettlements, refreshToday]);
+  }, [refreshSettlements, refreshToday, refreshYesterday]);
 
   // Escape to close settlement sheet
   useEffect(() => {
@@ -213,6 +233,7 @@ export default function StaffPage({
   const ownerTabs = [
     { key: 'team', label: t('Team', 'ቡድን') },
     { key: 'today', label: t('Today', 'ዛሬ') },
+    { key: 'performance', label: t('Performance', 'አገልግሎት') },
     { key: 'settlements', label: t('Settlements', 'ማስተካከያ') },
     { key: 'activity', label: t('Activity', 'እንቅስቃሴ') },
   ];
@@ -485,6 +506,21 @@ export default function StaffPage({
                   <StaffAttendance staff={activeStaff.find(s => String(s.id) === String(activeStaffMemberId))} lang={lang} canManageTeam={canManageTeam} />
                 </div>
               )}
+            </>
+          )}
+
+          {/* TAB: Performance */}
+          {ownerTab === 'performance' && (
+            <>
+              <StaffStats snapshotStats={snapshotStats} t={t} />
+              <div className="mt-4">
+                <StaffPerformanceDashboard
+                  activeStaff={activeStaff}
+                  todayStaffSales={store.todayStaffSales}
+                  yesterdayStaffSales={store.yesterdayStaffSales || {}}
+                  lang={lang}
+                />
+              </div>
             </>
           )}
 
