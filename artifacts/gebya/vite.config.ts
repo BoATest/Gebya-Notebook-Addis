@@ -124,6 +124,21 @@ export default defineConfig({
               expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
             },
           },
+          {
+            // API calls - use NetworkFirst with background sync fallback
+            urlPattern: /^https?:\/\/.*\/api\/.*/i,
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "gebya-api-cache",
+              networkTimeoutSeconds: 10,
+              backgroundSync: {
+                name: "gebya-sync-queue",
+                options: {
+                  maxRetentionTime: 24 * 60, // 24 hours
+                },
+              },
+            },
+          },
         ],
       },
     }),

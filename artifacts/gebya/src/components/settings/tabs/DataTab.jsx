@@ -3,6 +3,7 @@ import BackupDataPanel from '../BackupDataPanel';
 import DisplayPrivacyPanel from '../DisplayPrivacyPanel';
 import ExportPanel from '../ExportPanel';
 import PwaInstallPanel from '../../PwaInstallPanel';
+import SyncStatusIndicator from '../../SyncStatusIndicator';
 import TabCard from '../TabCard';
 import { usePwaInstall } from '../../../hooks/usePwaInstall.js';
 
@@ -60,6 +61,16 @@ export default function DataTab({
         badgeTone="neutral"
       >
         <PwaInstallPanel pwa={pwa} />
+      </TabCard>
+
+      {/* Sync Status */}
+      <TabCard
+        icon="☁️"
+        title={lang === 'am' ? 'ማስተካከያ' : 'Sync Status'}
+        subtitle={lang === 'am' ? 'የውሂብ መስተካከያ ማስታወሻ' : 'Cloud sync status & backup'}
+        badgeTone="neutral"
+      >
+        <SyncStatusIndicator onSyncNow />
       </TabCard>
 
       {/* Help & Support */}

@@ -102,6 +102,8 @@ class SyncEngine {
     this._pulling = false;
     this.pendingCount = 0;
     this._wroteDuringSync = false;
+    this._isCharging = true;
+    this._batteryLevel = 1;
   }
 
   _notify() {
@@ -200,6 +202,7 @@ class SyncEngine {
     this._setupDexieHooks();
     this._setupPeriodicSync();
     this._requestPersistentStorage();
+    this._initBatteryStatus();
     await this._seedOutbox();
     await this._countPending();
 
@@ -208,6 +211,39 @@ class SyncEngine {
     // and surfaces real network failures instead.
     if (this.pendingCount > 0) {
       this.sync();
+    }
+  }
+
+  async _initBatteryStatus() {
+    // Battery-aware sync: check if device is charging before syncing
+    // If battery API is unavailable, assume device is always charging
+    if (typeof navigator === 'undefined' || !navigator.getBattery) return;
+    
+    try {
+      const battery = await navigator.getBattery();
+      this._isCharging = battery.charging;
+      this._batteryLevel = battery.level;
+      
+      // Update charging status when it changes
+      battery.addEventListener('chargingchange', () => {
+        this._isCharging = battery.charging;
+        if (this._isCharging && this.pendingCount > 0 && this.status === 'idle') {
+          // Start syncing when device starts charging
+          this.sync();
+        }
+      });
+      
+      battery.addEventListener('levelchange', () => {
+        this._batteryLevel = battery.level;
+      });
+      
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.debug('[sync] battery status:', battery.charging ? 'charging' : 'discharging', Math.round(battery.level * 100) + '%');
+      }
+    } catch {
+      // Battery API not supported - default to syncing
+      this._isCharging = true;
     }
   }
 
@@ -249,11 +285,19 @@ class SyncEngine {
   }
 
   _setupPeriodicSync() {
-    this.timer = setInterval(() => {
-      // Only gate on visibility (battery courtesy), not navigator.onLine —
-      // see note in sync().
-      if (document.visibilityState === 'visible') {
+    this.timer = setInterval(async () => {
+      // Battery-aware periodic sync:
+      // - When charging or on AC power: sync normally
+      // - When on battery: only sync if battery level > 20% to preserve user's battery
+      // - When app is in foreground: sync regardless (user is actively using it)
+      const appVisible = document.visibilityState === 'visible';
+      const canAffordSync = appVisible || this._isCharging || this._batteryLevel > 0.2;
+      
+      if (canAffordSync) {
         this.sync();
+      } else if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.debug('[sync] skipping periodic sync (battery conservation):', Math.round(this._batteryLevel * 100) + '%');
       }
     }, 5 * 60 * 1000);
   }
@@ -280,6 +324,26 @@ class SyncEngine {
     };
     document.addEventListener('visibilitychange', onVisible);
     this.unsubscribers.push(() => document.removeEventListener('visibilitychange', onVisible));
+  }
+
+  async _registerBackgroundSync(tag = 'gebya-sync') {
+    // Register a background sync event via the Service Worker
+    // This ensures sync happens when connectivity returns, even if the PWA is closed
+    if (typeof navigator === 'undefined' || !navigator.serviceWorker?.controller) return false;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      if ('sync' in registration) {
+        await registration.sync.register(tag);
+        return true;
+      }
+    } catch (err) {
+      // Sync registration may fail if SW is not active or browser doesn't support it
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.debug('[sync] background sync registration failed:', err);
+      }
+    }
+    return false;
   }
 
   _setupDexieHooks() {
@@ -340,20 +404,26 @@ class SyncEngine {
   /**
    * Record a local write in the durable outbox and schedule a push.
    * Safe to call from synchronous Dexie hooks (fire-and-forget promise).
+   * Also registers background sync to ensure data is pushed when connectivity returns.
    */
-  _enqueueOutbox(tableName, recordId) {
-    // Rows written by _pullAll are server-acknowledged state — never
-    // re-enqueue them, or every pull would inflate the pending queue and
-    // re-push remote data back to the server.
+  async _enqueueOutbox(tableName, recordId) {
     if (this._pulling) return;
     if (recordId == null || !db.sync_outbox) return;
     if (this.status === 'syncing') this._wroteDuringSync = true;
+    
     Promise.resolve(
       db.sync_outbox.put({ key: `${tableName}:${recordId}`, table: tableName, record_id: recordId, created_at: Date.now() })
     )
       .then(() => this._refreshPending())
       .catch(() => { /* outbox unavailable — legacy timestamp scan still covers it */ });
+    
     this._schedulePush();
+    
+    // Register background sync for offline-first guarantee
+    // This ensures data syncs even if the user closes the app or loses connectivity
+    if (this.pendingCount > 0) {
+      this._registerBackgroundSync('gebya-sync');
+    }
   }
 
   /** Recount pending from the authoritative source (the outbox itself). */
