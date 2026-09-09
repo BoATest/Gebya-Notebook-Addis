@@ -991,3 +991,25 @@ export async function forceFullSync() {
   await syncEngineInstance.fullSync();
   return true;
 }
+
+/**
+ * Listen for SW sync trigger messages and execute sync
+ * This enables background sync to work when the SW receives sync events
+ * even if the page is not active
+ */
+export function initSwSyncListener() {
+  if (typeof window === 'undefined' || !window.addEventListener) return;
+  
+  const handleMessage = (event) => {
+    if (event.data?.type === 'gebya-sync-trigger') {
+      if (syncEngineInstance && syncEngineInstance.status !== 'syncing') {
+        syncEngineInstance.sync();
+      }
+    }
+  };
+  
+  window.addEventListener('message', handleMessage);
+  
+  // Return cleanup function
+  return () => window.removeEventListener('message', handleMessage);
+}
