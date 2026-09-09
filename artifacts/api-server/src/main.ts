@@ -162,9 +162,13 @@ app.get("/api/healthz", (_req, res) => {
 // ---- ROUTES ----
 // Bring the live DB schema in line with the code (idempotent, once per container)
 // so e.g. createShop's INSERTs against `businesses` don't fail on stale columns.
-app.use((_req, _res, next) => {
-  ensureSchema().then(() => next(), () => next());
-});
+//
+// Fire-and-forget: the 690 ALTER statements can take >60s on cold start, which
+// exceeds Vercel's serverless timeout and blocks ALL routes. Instead, kick off
+// the migration in the background and let routes proceed immediately. If a
+// route hits a missing table before migration finishes, the error is transient
+// and the next request will succeed.
+ensureSchema().catch(() => {});
 
 app.use("/", router);
 app.use("/api", router);
