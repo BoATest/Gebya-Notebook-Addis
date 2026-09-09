@@ -8,6 +8,7 @@ import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 import router from "./routes/index.js";
 import { ensureSchema } from "./ensureSchema.js";
+import { warmDb } from "@workspace/db";
 import { scrubUrl } from "./lib/secure.js";
 
 const app: Express = express();
@@ -168,6 +169,8 @@ app.get("/api/healthz", (_req, res) => {
 // the migration in the background and let routes proceed immediately. If a
 // route hits a missing table before migration finishes, the error is transient
 // and the next request will succeed.
+// Warm the DB connection pool before schema migration to reduce cold-start latency
+warmDb().catch(() => {});
 ensureSchema().catch(() => {});
 
 app.use("/", router);

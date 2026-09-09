@@ -19,15 +19,32 @@
 // params array is supplied (even empty) node-postgres uses the extended
 // protocol, which rejects multiple statements. So we run ONE statement per
 // db.execute call. Failures are logged and swallowed so the API stays up.
+//
+// Schema convergence check: we verify the notification_preferences table has
+// a known column before running ALTERs. If it does, the schema is already
+// converged and we skip all ~400 ALTER statements, cutting cold-start latency
+// by several seconds.
 import { db } from "@workspace/db";
 import { BOOTSTRAP_FILES, BOOTSTRAP_ALTERS } from "./bootstrap";
 import { sql } from "drizzle-orm";
 
 let pending: Promise<void> | null = null;
 
+let schemaConverged = false;
+
+async function checkSchemaConverged(): Promise<boolean> {
+  try {
+    if (!db) return false;
+    const res: any = await db.execute(
+      sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'notification_preferences' AND column_name = 'quietHoursStart'`,
+    );
+    return (res?.rows ?? []).length > 0;
+  } catch {
+    return false;
+  }
+}
+
 function splitSqlStatements(source: string): string[] {
-  // Protect $$ ... $$ regions (e.g. DO $$ BEGIN ... END $$) from the ';' split,
-  // then strip -- line comments, split into individual statements, and restore.
   const dollarSegments: string[] = [];
   let s = source.replace(/\$\$([\s\S]*?)\$\$/g, (m) => {
     dollarSegments.push(m);
@@ -71,11 +88,18 @@ export function ensureSchema(): Promise<void> {
       const ok = { n: 0 };
       const fail = { n: 0 };
 
-      // Column convergence: always run (idempotent, cheap once applied). This
-      // guarantees every column the app expects exists, even if a prior
-      // bootstrap left a table incomplete.
-      for (const stmt of BOOTSTRAP_ALTERS) {
-        await runStatement(db, stmt, ok, fail, "alter");
+      // Schema convergence check: skip ~400 ALTERs if already converged
+      if (!schemaConverged) {
+        schemaConverged = await checkSchemaConverged();
+      }
+      if (!schemaConverged) {
+        // Column convergence: always run (idempotent, cheap once applied). This
+        // guarantees every column the app expects exists, even if a prior
+        // bootstrap left a table incomplete.
+        for (const stmt of BOOTSTRAP_ALTERS) {
+          await runStatement(db, stmt, ok, fail, "alter");
+        }
+        schemaConverged = true;
       }
 
       // Full table creation, only when the core table is missing.
@@ -94,7 +118,7 @@ export function ensureSchema(): Promise<void> {
         }
       }
 
-      console.log("[migrate] schema ensure complete: " + ok.n + " ok, " + fail.n + " failed");
+      console.log("[migrate] schema ensure complete: " + ok.n + " ok, " + fail.n + " failed" + (schemaConverged ? " (skipped ALTERs)" : ""));
     } catch (e) {
       console.error("[migrate] ensureSchema failed:", e instanceof Error ? e.message : String(e));
     }
