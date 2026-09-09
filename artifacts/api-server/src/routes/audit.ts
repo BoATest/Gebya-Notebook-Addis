@@ -152,4 +152,46 @@ router.get("/activity", async (req, res) => {
   return res.json({ activity });
 });
 
+/**
+ * POST /api/audit/dev-mode/log
+ * Server-side validation + logging of dev mode activation from client.
+ * This is a defense-in-depth measure: even if a client sets sessionStorage,
+ * the server records the attempt and validates the user's role.
+ *
+ * Body: { device_id?: string }
+ */
+router.post("/dev-mode/log", async (req, res) => {
+  const authHeader = (req.headers as any).authorization || (req.headers as any).Authorization || "";
+  const headerValue = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+  const token = String(headerValue).replace(/^Bearer\s+/i, "");
+  if (!token) {
+    return res.status(401).json({ error: "Missing bearer token." });
+  }
+
+  const decoded = verifyJwt(token);
+  if (!decoded) return res.status(401).json({ error: "Invalid token" });
+
+  const scope = await resolveAuditScope(req, decoded.userId);
+  if (scope.error) return res.status(403).json({ error: scope.error });
+
+  const businessIdNum = scope.businessId;
+  const deviceId = typeof (req.body as any)?.device_id === "string" ? (req.body as any).device_id : null;
+
+  await requireDb().insert(auditLog).values({
+    businessId: businessIdNum,
+    actorStaffMemberId: decoded.userId,
+    actorDeviceId: deviceId,
+    action: "DEV_MODE_ENABLED",
+    entityType: "settings_page",
+    entityId: "dev_mode_toggle",
+    details: JSON.stringify({
+      method: "about_tap_5x",
+      timestamp: new Date().toISOString(),
+      userAgent: (req.headers as any)["user-agent"] || null,
+    }),
+  });
+
+  return res.status(201).json({ logged: true });
+});
+
 export default router;

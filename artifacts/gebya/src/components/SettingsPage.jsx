@@ -129,13 +129,22 @@ function SettingsPage({
       }
       try { sessionStorage.setItem('gebya_dev_mode', 'true'); } catch { /* ignore */ }
       
-      // Audit log: track dev mode activation
+      // Audit log: track dev mode activation locally
       trackEvent('dev_mode_enabled', {
         role,
         shop_id: shopId,
         method: 'about_tap_5x',
         session_duration_ms: Date.now() - (aboutTapStart || Date.now()),
       }).catch(() => { /* analytics failure is non-critical */ });
+      
+      // Server-side validation + audit log
+      if (shopId) {
+        fetch('/api/audit/dev-mode/log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device_id: shopId }),
+        }).catch(() => { /* server-side logging failure is non-critical */ });
+      }
       
       setDevModeRevealed(true);
       setAboutTapCount(0);
