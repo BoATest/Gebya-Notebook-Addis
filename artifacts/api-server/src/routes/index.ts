@@ -15,9 +15,6 @@ import adminRouter from "./admin.js";
 import eventsRouter from "./events.js";
 import staffRouter from "./staff.js";
 import supportRouter from "./support.js";
-import notificationCleanupRouter from "./notificationCleanup.js";
-import notificationPreferencesRouter from "./notificationPreferences.js";
-import notificationStreamRouter from "./notificationStream.js";
 
 const router: IRouter = Router();
 
@@ -28,31 +25,15 @@ router.use("/auth", authRouter);
 router.use("/backup", backupRouter);
 router.use("/business", businessRouter);
 router.use("/telegram/reminders", remindersRouter);
-// Legacy identity bridge: Postgres-backed replacements for /shops, /shops/join etc.
-// Maintains the same response shapes as the old identity.ts so the frontend
-// identityApi.js continues to work without changes.
 router.use("/", legacyBridgeRouter);
-// Audit routes: owner violation log
 router.use("/audit", auditRouter);
-// Push notification subscription management
 router.use("/push", pushSubscriptionsRouter);
-// Notification list and read status
+// All notification routes (list, read, create, preferences, cleanup, SSE stream) in one router
 router.use("/notifications", notificationsRouter);
-// Notification preferences
-router.use("/notifications", notificationPreferencesRouter);
-// Notification cleanup cron
-router.use("/notifications", notificationCleanupRouter);
-// SSE real-time notification stream
-router.use("/notifications", notificationStreamRouter);
-// Bank analytics — merchant consent + bank-facing reports + NBE aggregation
 router.use("/analytics", analyticsRouter);
-// Platform admin dashboard
 router.use("/admin", adminRouter);
-// Staff activity events (Phase 2 — Postgres-backed)
 router.use("/", eventsRouter);
-// Staff tasks and attendance
 router.use("/", staffRouter);
-// Support tickets — shop → platform support
 router.use("/support", supportRouter);
 
 export default router;
