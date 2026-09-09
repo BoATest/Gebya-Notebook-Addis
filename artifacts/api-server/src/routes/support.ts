@@ -12,6 +12,7 @@ import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
 import { requireAdmin } from "./admin.js";
 import { getAuthUser, getUserBusiness, isTicketOwner, isBusinessMemberOfTicket } from "./supportHelpers.js";
+import { createNotification } from "../services/notificationCreator.js";
 
 const router = Router();
 
@@ -180,9 +181,8 @@ router.post("/tickets/:id/reply", async (req: any, res: any) => {
         .where(eq(supportTickets.id, ticketId))
         .limit(1);
       if (ticketRows[0]) {
-        await requireDb().insert(notifications).values({
+        await createNotification({
           businessId: ticketRows[0].businessId,
-          ownerUserId: ticketRows[0].ownerUserId,
           type: "support_reply",
           title: "Support reply",
           body,

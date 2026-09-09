@@ -97,9 +97,9 @@ export const insertPushSubscriptionSchema = z.object({
 });
 
 export const notificationTypeKeys = [
-  "sale", "credit", "payment", "supplier_payment", "supplier_purchase",
+  "sale", "credit", "payment", "payment_confirmed", "supplier_payment", "supplier_purchase",
   "expense", "staff_joined", "rbac_violation", "overdue_alert",
-  "device_approval", "announcement", "support_reply", "staff_submitted_collection",
+  "device_approval", "announcement", "support_reply", "staff_submitted_collection", "test",
 ] as const;
 
 export type NotificationTypeKey = (typeof notificationTypeKeys)[number];

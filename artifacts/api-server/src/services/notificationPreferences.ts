@@ -33,6 +33,7 @@ const PREF_KEY_TO_COLUMN: Record<string, string> = {
   sale: "salePrefs",
   credit: "creditPrefs",
   payment: "paymentPrefs",
+  payment_confirmed: "paymentPrefs", // Shares column with payment
   supplier_payment: "supplierPaymentPrefs",
   supplier_purchase: "supplierPurchasePrefs",
   expense: "expensePrefs",

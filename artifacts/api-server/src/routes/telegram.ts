@@ -24,6 +24,7 @@ import { getPublicApiBase, createDeepLink, pickLang, buildStartReply, buildBalan
 
 import { getLatestQueuedReminderForCustomer, acknowledgeReminder } from "../services/reminderHistory.js";
 import { sendPushToOwner } from "../services/pushNotificationSender.js";
+import { createNotification } from "../services/notificationCreator.js";
 import { setLastReminderSentAt } from "../services/reminderConfiguration.js";
 import { db, requireDb } from "@workspace/db";
 import { customers, businessMembers, notifications, users } from "@workspace/db/schema";
@@ -607,28 +608,17 @@ router.post("/webhook", async (req: Request, res: Response) => {
           const ownerUserId = ownerRows[0]?.userId;
 
           if (ownerUserId) {
-            // Create in-app notification
-            await db.insert(notifications).values({
+            // Create notification with preferences check (handles in-app + push)
+            await createNotification({
               businessId,
-              ownerUserId,
               type: "payment_claimed",
               title: "Payment claimed",
               body: `${notifName} says they paid ${amount} — confirm in app`,
               entityType: "customer",
               entityId: String(session.customerId),
               actorName: notifName,
-              amount: amount !== "unknown" ? String(amount) : null,
-              read: false,
-              createdAt: new Date(),
-            } as any);
-
-            // Send web push to owner
-            sendPushToOwner(businessId, {
-              title: "💰 Payment claimed",
-              body: `${notifName} says they paid ${amount} — tap to confirm`,
-              type: "payment_claimed",
-              id: Date.now(),
-            }).catch(() => {});
+              amount: amount !== "unknown" ? amount : undefined,
+            });
           }
         }
       }

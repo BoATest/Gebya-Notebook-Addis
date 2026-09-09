@@ -7,6 +7,7 @@ const NOTIFICATION_TYPES = [
   { key: 'sale', label: { en: 'Sales', am: 'ሽያጭ' }, icon: '💰' },
   { key: 'credit', label: { en: 'Credit Given', am: 'নISED ብር' }, icon: '👥' },
   { key: 'payment', label: { en: 'Payments Received', am: 'ክፍያ ተቀባይ' }, icon: '✅' },
+  { key: 'payment_confirmed', label: { en: 'Payment Confirmed', am: 'ክፍያ ተረጋግጧል' }, icon: '💸' },
   { key: 'supplier_payment', label: { en: 'Supplier Payments', am: 'የአቅራቢያ ክፍያ' }, icon: '🤝' },
   { key: 'supplier_purchase', label: { en: 'Supplier Purchases', am: 'የአቅራቢያ ግዢ' }, icon: '📦' },
   { key: 'expense', label: { en: 'Expenses', am: 'ወጪ' }, icon: '🛒' },

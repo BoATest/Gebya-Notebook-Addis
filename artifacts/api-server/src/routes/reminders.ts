@@ -32,6 +32,7 @@ import { buildReminderMessage } from "../services/reminderMessageBuilder.js";
 import { sendTelegramTextMessage } from "../services/telegramBotService.js";
 import { createHistoryEntry } from "../services/reminderHistory.js";
 import { sendPushToOwner } from "../services/pushNotificationSender.js";
+import { getPreferencesForBusiness, shouldNotify, isInQuietHours } from "../services/notificationPreferences.js";
 import { verifyShopOwnership, requirePermission } from "./rbac.js";
 import { getShopId, log } from "./remindersHelpers.js";
 import { db, requireDb } from "@workspace/db";
@@ -856,12 +857,20 @@ router.post("/payment-confirmed", verifyShopOwnership, requirePermission("can_ad
     try {
       const name = customerName || `Customer ${customerId}`;
       const formattedAmt = Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
-      await sendPushToOwner(shopId, {
-        title: "Payment confirmed",
-        body: `${name} — ${formattedAmt} ETB payment recorded and reminders stopped.`,
-        type: "payment_confirmed",
-        id: Date.now(),
-      });
+      // Check preferences before sending push
+      let pushAllowed = true;
+      try {
+        const prefs = await getPreferencesForBusiness(shopId);
+        pushAllowed = shouldNotify(prefs, "payment", "push") && !isInQuietHours(prefs);
+      } catch { /* allow push on prefs failure */ }
+      if (pushAllowed) {
+        await sendPushToOwner(shopId, {
+          title: "Payment confirmed",
+          body: `${name} — ${formattedAmt} ETB payment recorded and reminders stopped.`,
+          type: "payment_confirmed",
+          id: Date.now(),
+        });
+      }
     } catch (pushErr) {
       console.error("[reminders] payment push notification failed:", pushErr);
     }

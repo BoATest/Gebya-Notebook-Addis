@@ -10,6 +10,7 @@ import { verifyJwt } from "./auth.js";
 import { syncRateLimiter } from "../rateLimits.js";
 import { requirePermission } from "./rbac.js";
 import { sendPushToOwner } from "../services/pushNotificationSender.js";
+import { getPreferencesForBusiness, shouldNotify, isInQuietHours } from "../services/notificationPreferences.js";
 import { setLastReminderSentAt } from "../services/reminderConfiguration.js";
 import { createHistoryEntry } from "../services/reminderHistory.js";
 import { sendTelegramTextMessage } from "../services/telegramBotService.js";
@@ -213,7 +214,22 @@ router.post("/push",
               };
             });
             const createdNotifs = await tx.insert(notifications).values(notifRows as any).returning({ id: notifications.id, type: notifications.type, title: notifications.title, body: notifications.body });
+            // Check owner preferences before sending push
+            let pushPrefs: Record<string, { inApp: boolean; push: boolean }> = {};
+            let quietHours = false;
+            try {
+              const prefs = await getPreferencesForBusiness(businessId, ownerUserId);
+              if (prefs) {
+                pushPrefs = prefs.preferences;
+                quietHours = isInQuietHours(prefs);
+              }
+            } catch { /* allow push on prefs failure */ }
+
             for (const notif of createdNotifs) {
+              const typePrefs = pushPrefs[notif.type];
+              const pushAllowed = !typePrefs || typePrefs.push;
+              if (!pushAllowed || quietHours) continue;
+
               sendPushToOwner(businessId, { title: notif.title, body: notif.body, type: notif.type, id: notif.id }).catch((pushErr) => {
                 console.error("[sync] push notification failed:", pushErr);
               });
@@ -260,13 +276,21 @@ router.post("/push",
             }
 
             const formattedAmt = Math.abs(amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            sendPushToOwner(businessId, {
-              title: "Payment confirmed",
-              body: `${customerName} — ${formattedAmt} ETB payment recorded and reminders stopped.`,
-              type: "payment_confirmed", id: Date.now(),
-            }).catch((pushErr) => {
-              console.error("[sync] payment push notification failed:", pushErr);
-            });
+            // Check preferences before sending push
+            let pushAllowed = true;
+            try {
+              const prefs = await getPreferencesForBusiness(businessId);
+              pushAllowed = shouldNotify(prefs, "payment_confirmed", "push") && !isInQuietHours(prefs);
+            } catch { /* allow push on prefs failure */ }
+            if (pushAllowed) {
+              sendPushToOwner(businessId, {
+                title: "Payment confirmed",
+                body: `${customerName} — ${formattedAmt} ETB payment recorded and reminders stopped.`,
+                type: "payment_confirmed", id: Date.now(),
+              }).catch((pushErr) => {
+                console.error("[sync] payment push notification failed:", pushErr);
+              });
+            }
           }
         }
       } catch (paymentErr) {

@@ -43,6 +43,7 @@ import { checkAdminRateLimit } from "../lib/adminRateLimit.js";
 import { isSmsEnabled, sendSms } from "../services/smsSender.js";
 import { sendTelegramTextMessage, getTelegramBotUsername } from "../services/telegramBotService.js";
 import { sendEmail, isEmailConfigured } from "../services/emailService.js";
+import { createNotification } from "../services/notificationCreator.js";
 
 const router = Router();
 
@@ -477,7 +478,17 @@ router.post("/broadcast", async (req, res) => {
     body,
     read: false,
   }));
-  await requireDb().insert(notifications).values(values);
+
+  // Use centralized notification creator with skipPreferences for system announcements
+  for (const v of values) {
+    await createNotification({
+      businessId: v.businessId,
+      type: v.type,
+      title: v.title,
+      body: v.body,
+      skipPreferences: true, // System announcements bypass preferences
+    });
+  }
 
   // Best-effort email via SendGrid to every owner who has an address. Failures
   // here never break the in-app broadcast above.

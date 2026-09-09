@@ -4,6 +4,7 @@ import { pushSubscriptions, notifications } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
 import { sendPushToOwner, getVapidPublicKey, isPushConfigured } from "../services/pushNotificationSender.js";
+import { createNotification } from "../services/notificationCreator.js";
 
 const router = Router();
 
@@ -105,27 +106,24 @@ router.post("/test", async (req, res) => {
     res.status(503).json({ error: "Push notifications not configured on server" }); return;
   }
 
-  // Insert a test notification
-  const [notif] = await requireDb()
-    .insert(notifications)
-    .values({
-      businessId: owner.businessId,
-      ownerUserId: userId,
-      type: "test",
-      title: "Test notification",
-      body: "Push notifications are working! You will receive alerts here when staff record activity.",
-      read: false,
-    })
-    .returning({ id: notifications.id });
+  // Insert a test notification (skipPreferences — this is a test)
+  const result = await createNotification({
+    businessId: owner.businessId,
+    type: "test",
+    title: "Test notification",
+    body: "Push notifications are working! You will receive alerts here when staff record activity.",
+    skipPreferences: true, // Test notification should always go through
+  });
 
-  const result = await sendPushToOwner(owner.businessId, {
+  // Send push
+  const pushResult = await sendPushToOwner(owner.businessId, {
     title: "Test notification",
     body: "Push notifications are working!",
     type: "test",
-    id: notif.id,
+    id: Date.now(),
   });
 
-  res.json({ ok: true, ...result });
+  res.json({ ok: true, ...pushResult });
 });
 
 export default router;

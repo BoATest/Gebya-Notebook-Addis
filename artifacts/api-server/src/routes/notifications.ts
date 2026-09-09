@@ -4,6 +4,7 @@ import { notifications, businessMembers } from "@workspace/db/schema";
 import { eq, and, or, desc, count, isNull, gt } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
 import { broadcastNotification } from "./notificationStream.js";
+import { createNotification } from "../services/notificationCreator.js";
 
 const router = Router();
 
@@ -156,41 +157,18 @@ router.post("/", async (req, res) => {
     res.status(403).json({ error: "Not a member of this business" }); return;
   }
 
-  // Find the owner(s) of this business to notify
-  const owners = await requireDb()
-    .select({ userId: businessMembers.userId })
-    .from(businessMembers)
-    .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.role, "owner"), eq(businessMembers.active, true)));
+  const result = await createNotification({
+    businessId: Number(businessId),
+    type: String(type),
+    title: String(title),
+    body: String(body),
+    entityType,
+    entityId,
+    actorName,
+    amount,
+  });
 
-  if (!owners.length) {
-    res.status(404).json({ error: "No owner found for this business" }); return;
-  }
-
-  // Default TTL: 90 days from creation
-  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-
-  const inserted = await requireDb().insert(notifications).values(
-    owners.map(owner => ({
-      businessId: Number(businessId),
-      ownerUserId: owner.userId,
-      type: String(type),
-      title: String(title),
-      body: String(body),
-      entityType: entityType || null,
-      entityId: entityId || null,
-      actorName: actorName || null,
-      amount: amount != null ? String(amount) : null,
-      read: false,
-      expiresAt,
-    }))
-  ).returning();
-
-  // Broadcast real-time update to connected SSE clients
-  for (const owner of owners) {
-    broadcastNotification(Number(businessId), owner.userId);
-  }
-
-  res.json({ notifications: inserted });
+  res.json({ ok: result.inserted });
 });
 
 export default router;
