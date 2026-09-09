@@ -83,11 +83,12 @@ export async function setAuthToken(token) {
   await db.settings.put({ key: AUTH_TOKEN_KEY, value: token });
   // Auto-trigger sync after setting auth token (e.g., after sign-in)
   // This makes the "Sign in to sync" button unnecessary - sync happens automatically
-  setTimeout(() => {
+  // Use microtask (Promise.resolve) to ensure DB write completes before sync
+  queueMicrotask(() => {
     if (syncEngineInstance && syncEngineInstance.status !== 'syncing' && syncEngineInstance.pendingCount > 0) {
       syncEngineInstance.sync();
     }
-  }, 0);
+  });
 }
 
 export async function clearAuthToken() {
