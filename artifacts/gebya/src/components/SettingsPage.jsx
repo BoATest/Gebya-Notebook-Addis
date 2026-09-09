@@ -3,6 +3,7 @@ import { useLang } from '../context/LangContext';
 import { usePermissionsStore } from '../stores/permissionsStore';
 import { useAuthStore } from '../stores/authStore';
 import { fireToast } from './Toast';
+import { trackEvent } from '../utils/eventTracking';
 import { PERMISSIONS, ROLES, canAccessDevMode } from '../constants/permissions';
 
 import ShopTab from './settings/tabs/ShopTab';
@@ -127,6 +128,15 @@ function SettingsPage({
         return;
       }
       try { sessionStorage.setItem('gebya_dev_mode', 'true'); } catch { /* ignore */ }
+      
+      // Audit log: track dev mode activation
+      trackEvent('dev_mode_enabled', {
+        role,
+        shop_id: shopId,
+        method: 'about_tap_5x',
+        session_duration_ms: Date.now() - (aboutTapStart || Date.now()),
+      }).catch(() => { /* analytics failure is non-critical */ });
+      
       setDevModeRevealed(true);
       setAboutTapCount(0);
       setAboutTapStart(null);
