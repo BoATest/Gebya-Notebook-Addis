@@ -982,3 +982,75 @@ describe('SyncEngine battery awareness', () => {
     vi.useRealTimers();
   });
 });
+
+describe('setAuthToken auto-sync', () => {
+  let engine;
+  
+  beforeEach(async () => {
+    vi.useRealTimers();
+    if (!globalThis.window) {
+      globalThis.window = { 
+        addEventListener: vi.fn(), 
+        removeEventListener: vi.fn(),
+        queueMicrotask: vi.fn((cb) => setTimeout(cb, 0)),
+      };
+    }
+    
+    mockDb.settings.get.mockResolvedValue({ value: 'test-token' });
+    mockDb.sync_outbox.count.mockResolvedValue(0);
+    mockDb.sync_outbox.toArray.mockResolvedValue([]);
+    mockDb.transactions.bulkGet.mockResolvedValue([]);
+    mockDb.settings.put.mockResolvedValue();
+  });
+
+  afterEach(() => {
+    destroySyncEngine();
+    delete globalThis.fetch;
+  });
+
+  const flushPromises = () => new Promise(resolve => setImmediate(resolve));
+
+  it('triggers sync after setAuthToken when pending records exist', async () => {
+    // Setup mocks for sync to succeed
+    mockDb.sync_outbox.count.mockResolvedValue(5);
+    mockDb.sync_outbox.toArray.mockResolvedValue([{ table: 'transactions', record_id: 1, key: 'tx1' }]);
+    mockDb.transactions.bulkGet.mockResolvedValue([{ id: 1, amount: 100, sync_version: 1 }]);
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ ok: true, tables: {}, hasMore: false }),
+    });
+    
+    const { initSyncEngine, setAuthToken } = await import('../src/utils/syncEngine.js');
+    engine = await initSyncEngine();
+    
+    const syncSpy = vi.spyOn(engine, 'sync').mockImplementation(async () => {
+      await Promise.resolve();
+      engine.status = 'idle';
+      engine.pendingCount = 0;
+    });
+    
+    await setAuthToken('new-token');
+    
+    // Allow microtasks to flush
+    await flushPromises();
+    await new Promise(resolve => setTimeout(resolve, 10));
+    
+    expect(syncSpy).toHaveBeenCalled();
+  });
+
+  it('does not trigger sync when queue is empty after setAuthToken', async () => {
+    mockDb.sync_outbox.count.mockResolvedValue(0);
+    
+    const { initSyncEngine, setAuthToken } = await import('../src/utils/syncEngine.js');
+    engine = await initSyncEngine();
+    
+    const syncSpy = vi.spyOn(engine, 'sync');
+    
+    await setAuthToken('new-token');
+    
+    await flushPromises();
+    await new Promise(resolve => setTimeout(resolve, 10));
+    
+    expect(syncSpy).not.toHaveBeenCalled();
+  });
+});

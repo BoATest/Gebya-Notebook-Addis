@@ -83,12 +83,39 @@ export async function setAuthToken(token) {
   await db.settings.put({ key: AUTH_TOKEN_KEY, value: token });
   // Auto-trigger sync after setting auth token (e.g., after sign-in)
   // This makes the "Sign in to sync" button unnecessary - sync happens automatically
-  // Use microtask (Promise.resolve) to ensure DB write completes before sync
-  queueMicrotask(() => {
-    if (syncEngineInstance && syncEngineInstance.status !== 'syncing' && syncEngineInstance.pendingCount > 0) {
-      syncEngineInstance.sync();
-    }
-  });
+  // Use microtask to ensure we yield to the event loop, then sync if needed
+  if (typeof window !== 'undefined' && window.queueMicrotask) {
+    queueMicrotask(async () => {
+      try {
+        if (!syncEngineInstance) return;
+        if (syncEngineInstance.status === 'syncing') return;
+        const pending = await db.sync_outbox.count();
+        if (pending > 0) {
+          await syncEngineInstance.sync();
+        }
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.error('[sync] auto-sync after auth failed:', err);
+        }
+      }
+    });
+  } else {
+    // Fallback for older browsers
+    setTimeout(async () => {
+      try {
+        if (!syncEngineInstance) return;
+        if (syncEngineInstance.status === 'syncing') return;
+        const pending = await db.sync_outbox.count();
+        if (pending > 0) {
+          await syncEngineInstance.sync();
+        }
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.error('[sync] auto-sync after auth failed:', err);
+        }
+      }
+    }, 0);
+  }
 }
 
 export async function clearAuthToken() {
