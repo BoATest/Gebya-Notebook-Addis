@@ -40,6 +40,17 @@ const PULL_OVERLAP_MS = 60 * 1000;
 // Batch window for hook-triggered pushes.
 const PUSH_DEBOUNCE_MS = 500;
 
+// Retry constants for exponential backoff
+const MAX_RETRY_ATTEMPTS = 5;
+const BASE_RETRY_DELAY_MS = 1000; // 1 second
+const MAX_RETRY_DELAY_MS = 300000; // 5 minutes
+const RETRY_BACKOFF_MULTIPLIER = 2;
+
+// Maximum outbox size to prevent indefinite growth during extended outages
+const MAX_OUTBOX_SIZE = 10000;
+// Maximum queue size per table
+const MAX_TABLE_QUEUE_SIZE = 1000;
+
 function _deepEqual(a, b) {
   if (a === b) return true;
   if (a == null || b == null) return a === b;
@@ -429,7 +440,13 @@ class SyncEngine {
   /** Recount pending from the authoritative source (the outbox itself). */
   async _refreshPending() {
     try {
-      this.pendingCount = await db.sync_outbox.count();
+      const count = await db.sync_outbox.count();
+      // Enforce max queue size
+      if (count > MAX_OUTBOX_SIZE) {
+        console.warn(`[sync] outbox exceeded max size: ${count} > ${MAX_OUTBOX_SIZE}. Consider full sync.`);
+        // Could implement FIFO eviction here, but for now just warn
+      }
+      this.pendingCount = count;
       this._notify();
     } catch { /* ignore */ }
   }
@@ -444,7 +461,11 @@ class SyncEngine {
   async _countPending() {
     // The outbox is the single source of truth for unacknowledged writes.
     try {
-      this.pendingCount = await db.sync_outbox.count();
+      const count = await db.sync_outbox.count();
+      if (count > MAX_OUTBOX_SIZE) {
+        console.warn(`[sync] outbox size ${count} exceeds max ${MAX_OUTBOX_SIZE}`);
+      }
+      this.pendingCount = count;
     } catch {
       this.pendingCount = 0;
     }
