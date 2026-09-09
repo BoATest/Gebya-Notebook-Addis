@@ -1,5 +1,6 @@
 {
-  "installCommand": "corepack enable && pnpm install --no-frozen-lockfile",
+  "installCommand": "corepack enable && pnpm install --no-frozen-lockfile --ignore-scripts",
+  "buildCommand": "echo 'Dist pre-built — skipping build'",
   "functions": {
     "api/healthz.ts": {
       "maxDuration": 10
