@@ -66,6 +66,8 @@ export default function HandoverStatus({
     confirmed: t('Confirmed', 'ተረጋግጧል'),
   };
 
+  const allPending = members.every(m => !byStaffId[String(m.id)]);
+
   return (
     <div style={{
       background: 'var(--color-surface)',
@@ -113,6 +115,16 @@ export default function HandoverStatus({
           </div>
         );
       })}
+      {allPending && (
+        <p style={{
+          fontSize: 11, fontWeight: 600, color: 'var(--color-text-soft)',
+          textAlign: 'center', padding: '8px 14px',
+        }}>
+          {lang === 'am'
+            ? 'ሰራተኞች ገና አላስረከቡም — ይጠብቁ ወይም እራሳቸውን ይጠይቁ'
+            : 'Staff haven\'t handed over yet — wait or ask them'}
+        </p>
+      )}
     </div>
   );
 }

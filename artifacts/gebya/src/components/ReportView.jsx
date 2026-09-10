@@ -710,21 +710,23 @@ export default function ReportView({
                 ? (lang === 'am'
                   ? 'በመረጡት ቀናት ውስጥ መዝገብ የለም። ሌላ ጊዜ ይምረጡ ወይም አዲስ እንቅስቃሴ ይመዝግብ።'
                   : 'No entries in the selected dates. Pick another period or record something new.')
-                : (lang === 'am' ? 'ዝግጁ ሲሆን ሽያጭ ወይም ወጪ መዝግብ። ሱቅዎ ሁኔታ ይሄ በፈጣን ይዘርጋል።' : 'Record a sale or expense to get started.')}
+                : (lang === 'am'
+                  ? 'ዛሬውን ሽያጭ ይመዝግቡ — ሱቅዎ ሁኔታ በፈጣን ይዘርጋል።'
+                  : 'Record your first sale today — your shop summary appears here instantly.')}
           </p>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'sale' } }))}
-              style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid var(--color-primary)', background: 'var(--color-primary)', color: 'var(--color-bg-white)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
-              🛒 {lang === 'am' ? 'ሽያጭ' : 'Sale'}
-            </button>
-            <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'credit' } }))}
-              style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid var(--color-accent-amber)', background: 'var(--color-surface)', color: 'var(--color-accent-amber)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
-              📝 {lang === 'am' ? 'ዱቤ' : 'Credit'}
-            </button>
-            <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'expense' } }))}
-              style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid var(--color-danger)', background: 'var(--color-surface)', color: 'var(--color-danger)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
-              📤 {lang === 'am' ? 'ወጪ' : 'Expense'}
-            </button>
+            {!unlinkedDevice && !quietPeriod && (
+              <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'sale' } }))}
+                style={{ padding: '12px 24px', borderRadius: 10, border: 'none', background: 'var(--color-primary)', color: 'var(--color-bg-white)', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
+                🛒 {lang === 'am' ? 'የመጀመሪያ ሽያጭ መዝግብ' : 'Record First Sale'}
+              </button>
+            )}
+            {quietPeriod && (
+              <button onClick={() => window.dispatchEvent(new CustomEvent('gebya:open-form', { detail: { type: 'sale' } }))}
+                style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid var(--color-primary)', background: 'var(--color-primary)', color: 'var(--color-bg-white)', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+                🛒 {lang === 'am' ? 'ሽያጭ' : 'Sale'}
+              </button>
+            )}
           </div>
         </div>
       )}

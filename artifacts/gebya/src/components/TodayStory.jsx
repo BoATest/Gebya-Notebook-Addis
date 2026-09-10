@@ -30,11 +30,10 @@ export default function TodayStory({
       marginTop: 4,
     }}>
       <p style={{
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: 500,
-        color: 'var(--color-text-muted)',
+        color: 'var(--color-text)',
         lineHeight: 1.6,
-        fontStyle: 'italic',
       }}>
         {hidden ? '••••••••••••••••••••••••••••••' : `"${story}"`}
       </p>
