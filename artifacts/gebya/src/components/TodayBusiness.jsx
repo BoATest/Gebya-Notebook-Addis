@@ -12,6 +12,7 @@ export default function TodayBusiness({
   showClosing = true,
   selfCheck = false,
   personName = null,
+  cashYouShouldHave: cashYouShouldHaveProp,
 }) {
   const { hidden } = usePrivacy();
   const [expanded, setExpanded] = useState(false);
@@ -24,7 +25,8 @@ export default function TodayBusiness({
   const expenses = m.spentToday || 0;
   const collections = m.creditCollected || 0;
   const staffCount = m.saleRows?.filter(r => r.actor_staff_member_id).length || 0;
-  const cashYouShouldHave = cashExpected + collections - expenses;
+  // Use pre-computed value from parent when available, otherwise compute locally.
+  const cashYouShouldHave = cashYouShouldHaveProp ?? (cashExpected + collections - expenses);
   const diff = closingState.done ? (cashYouShouldHave - (closingState.cashInHand || 0)) : null;
 
   const H = v => hidden ? '••••' : fmt(v);

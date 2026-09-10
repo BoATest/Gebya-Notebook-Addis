@@ -158,13 +158,15 @@ export default function ReportView({
     return (staffMembers || []).find(m => String(m.id) === String(activePerson)) || null;
   }, [isPersonScoped, activePerson, staffMembers]);
 
-  const now = Date.now();
-  const todayStart = startOfLocalDay(now);
+  // todayStart recomputes on each render — useTimeOfDay causes hourly
+  // re-renders so this stays fresh across midnight boundaries.
+  const todayStart = startOfLocalDay();
 
   const { period } = useTimeOfDay();
   const isToday = timeRange === 'today';
 
   const rangeBounds = useMemo(() => {
+    const now = Date.now();
     if (timeRange === 'week') return [startOfWeek(now), startOfWeek(now) + 7 * DAY_MS];
     if (timeRange === 'month') return [startOfMonth(now), endOfMonth(now)];
     if (timeRange === 'custom') {
@@ -178,7 +180,7 @@ export default function ReportView({
       return [fromMs, toMs];
     }
     return [todayStart, todayStart + DAY_MS];
-  }, [timeRange, customFrom, customTo, todayStart, now]);
+  }, [timeRange, customFrom, customTo, todayStart]);
 
   // ── Closing / self-check record, scoped per period (+person) ──
   // The Everyone view closes the whole day; a person view keeps its own
@@ -190,9 +192,8 @@ export default function ReportView({
   const [closing, setClosing] = useState({ key: null, data: EMPTY_CLOSING });
 
   // Load the record for the selected period (runs on period switch).
-  // Prefer the durable copy in IndexedDB (survives cache/PWA data clears and is
-  // included in file/cloud backup + restore); fall back to the legacy
-  // localStorage key and migrate it into the durable store on first read.
+  // Data lives in IndexedDB (survives cache/PWA data clears, included in
+  // backup/restore, and synced across owner devices via the KV push filter).
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -200,18 +201,7 @@ export default function ReportView({
       try {
         const row = await db.settings.get(closingKey);
         if (row?.value) data = JSON.parse(row.value);
-      } catch { /* IndexedDB unavailable — localStorage fallback below */ }
-      if (!cancelled && data === EMPTY_CLOSING) {
-        try {
-          const saved = localStorage.getItem(closingKey);
-          if (saved) {
-            data = JSON.parse(saved);
-            // Migrate the legacy record into the durable (synced) store.
-            const now = Date.now();
-            db.settings.put({ key: closingKey, value: saved, created_at: now, updated_at: now }).catch(() => {});
-          }
-        } catch {}
-      }
+      } catch { /* IndexedDB unavailable — show empty state */ }
       if (!cancelled) setClosing({ key: closingKey, data });
     })();
     return () => { cancelled = true; };
@@ -222,7 +212,6 @@ export default function ReportView({
   useEffect(() => {
     if (closing.key !== closingKey) return;
     const serialized = JSON.stringify(closing.data);
-    try { localStorage.setItem(closingKey, serialized); } catch {}
     // Durable copy in IndexedDB. `settings` is a synced KV table — created_at/
     // updated_at are required for the sync engine's KV push filter and the
     // server's last-write-wins merge, so this record propagates to the owner's
@@ -237,7 +226,7 @@ export default function ReportView({
           created_at: existing?.created_at || now,
           updated_at: now,
         });
-      } catch { /* non-fatal — localStorage copy remains */ }
+      } catch { /* non-fatal — data stays in memory */ }
     })();
   }, [closing.key, closing.data, closingKey]);
 
@@ -251,6 +240,10 @@ export default function ReportView({
   );
 
   const metrics = useMemo(() => computeReportMetrics(reportRows), [reportRows]);
+
+  // Cash you should have — computed once, used by TodayBusiness, handleClose, and retro_close.
+  const cashYouShouldHave = (metrics?.cashExpected || 0) + (metrics?.creditCollected || 0) - (metrics?.spentToday || 0);
+
   const creditSummary = useMemo(
     () => computeCreditSummary(enrichedCustomerSummaries, lang),
     [enrichedCustomerSummaries, lang]
@@ -395,7 +388,7 @@ export default function ReportView({
     URL.revokeObjectURL(url);
   }, [reportRows]);
 
-    const handleClose = useCallback(({ cashInHand, cashVariance }) => {
+  const handleClose = useCallback(({ cashInHand, cashVariance }) => {
     setClosing(prev => ({
       key: closingKey,
       data: { ...(prev.key === closingKey ? prev.data : EMPTY_CLOSING), done: true, cashInHand, cashVariance },
@@ -403,7 +396,6 @@ export default function ReportView({
     // Persist immediately so the record (the owner's cash-count evidence in
     // any dispute with staff) is durable before we show feedback.
     const payload = { done: true, cashInHand, cashVariance };
-    try { localStorage.setItem(closingKey, JSON.stringify(payload)); } catch {}
     (async () => {
       try {
         const now = Date.now();
@@ -414,24 +406,22 @@ export default function ReportView({
           created_at: existing?.created_at || now,
           updated_at: now,
         });
-      } catch { /* localStorage copy remains */ }
+      } catch { /* non-fatal — data stays in memory */ }
     })();
-        const cashShould = (metrics?.cashExpected || 0) + (metrics?.creditCollected || 0) - (metrics?.spentToday || 0);
-    const variance = cashShould - (Number(cashInHand) || 0);
+    const variance = cashYouShouldHave - (Number(cashInHand) || 0);
     const msg = variance === 0
       ? (lang === 'am' ? 'ዝጋ ተመዝገቧል ✓' : 'Closing recorded ✓')
       : (lang === 'am'
         ? `ልዩነት: ${fmt(variance)} ${variance > 0 ? 'ከፍተው' : 'ታመከ'} ✓`
         : `Difference: ${fmt(variance)} ${variance > 0 ? 'over' : 'short'} ✓`);
     fireToast(msg, 3500);
-    }, [closingKey, lang, metrics]);
+    }, [closingKey, lang, cashYouShouldHave]);
 
   const handleAction = useCallback((actionType) => {
     if (actionType === 'count_cash') {
       const el = document.getElementById('today-business');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
     } else if (actionType === 'retro_close') {
-      const cashYouShouldHave = (metrics.cashExpected || 0) + (metrics.creditCollected || 0) - (metrics.spentToday || 0);
       handleClose({ cashInHand: cashYouShouldHave, cashVariance: 0 });
     } else if (actionType === 'overdue') {
       window.dispatchEvent(new CustomEvent('gebya:navigate', { detail: { tab: 'credit' } }));
@@ -796,6 +786,7 @@ export default function ReportView({
                   showClosing
                   selfCheck
                   personName={activePersonName}
+                  cashYouShouldHave={cashYouShouldHave}
                 />
               </ErrorBoundary>
             </div>
@@ -828,7 +819,7 @@ export default function ReportView({
               <SectionHeading label={lang === 'am' ? 'የዛሬ ንግድ' : "TODAY'S BUSINESS"} />
               <div id="today-business">
                 <ErrorBoundary>
-                  <TodayBusiness metrics={metrics} closingState={closingState} lang={lang} onClose={handleClose} />
+                  <TodayBusiness metrics={metrics} closingState={closingState} lang={lang} onClose={handleClose} cashYouShouldHave={cashYouShouldHave} />
                 </ErrorBoundary>
               </div>
 
