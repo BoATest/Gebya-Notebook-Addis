@@ -1,8 +1,24 @@
 /**
  * @vitest-environment node
+ *
+ * Express 5 testing pattern
+ * ──────────────────────────────────────────────────────────────────────
+ * Express 5 no longer invokes the `done` callback when a handler sends a
+ * response (it did in Express 4).  To drive a request through a router and
+ * wait for the handler to finish, we:
+ *
+ *   1. Build a fake `req` via `createReq`.
+ *   2. Build a fake `res` via `createRes` whose `json()`, `send()`, and
+ *      `end()` methods resolve a pending promise (`pendingResolve`).
+ *   3. Call `router.handle(req, res, done)` inside a `new Promise` that
+ *      resolves when `pendingResolve` fires (or rejects on a 6-second
+ *      timeout / `done` error).
+ *
+ * This lets us `await runHandler(req, res)` and then assert on `res.status`
+ * and `res.json.mock.calls` as usual.
+ * ──────────────────────────────────────────────────────────────────────
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-
 
 import reminders from "../../routes/reminders.js";
 
@@ -22,7 +38,6 @@ vi.mock("../../services/reminderSender.js", () => ({
 }));
 
 vi.mock("../../services/telegramStore.js", () => ({
-  getSessionByChatId: vi.fn(),
   getTelegramLinkSession: vi.fn(),
 }));
 
@@ -89,7 +104,7 @@ import {
   setLastReminderSentAt,
 } from "../../services/reminderConfiguration.js";
 import { queryHistory } from "../../services/reminderSender.js";
-import { getSessionByChatId, getTelegramLinkSession } from "../../services/telegramStore.js";
+import { getTelegramLinkSession } from "../../services/telegramStore.js";
 import { sendTelegramTextMessage } from "../../services/telegramBotService.js";
 import { runRemindersForShop, scanCriticalOverdue } from "../../services/reminderScheduler.js";
 import { createHistoryEntry } from "../../services/reminderHistory.js";
@@ -105,7 +120,6 @@ const mockIsRemindersEnabled = isRemindersEnabled as ReturnType<typeof vi.fn>;
 const mockIsPremiumShop = isPremiumShop as ReturnType<typeof vi.fn>;
 const mockSetLastReminderSentAt = setLastReminderSentAt as ReturnType<typeof vi.fn>;
 const mockQueryHistory = queryHistory as ReturnType<typeof vi.fn>;
-const mockGetSessionByChatId = getSessionByChatId as ReturnType<typeof vi.fn>;
 const mockGetTelegramLinkSession = getTelegramLinkSession as ReturnType<typeof vi.fn>;
 const mockSendTelegramTextMessage = sendTelegramTextMessage as ReturnType<typeof vi.fn>;
 const mockRunRemindersForShop = runRemindersForShop as ReturnType<typeof vi.fn>;
