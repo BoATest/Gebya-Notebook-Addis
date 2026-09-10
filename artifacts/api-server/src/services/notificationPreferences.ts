@@ -98,8 +98,7 @@ export async function getPreferencesForBusiness(
     for (const key of Object.keys(PREF_KEY_TO_COLUMN)) {
       preferences[key] = { ...DEFAULT_PREFS };
     }
-    // expense defaults to push: false to suppress expense notifications
-    preferences.expense = { inApp: true, push: false };
+
     return {
       businessId,
       userId: ownerId,
