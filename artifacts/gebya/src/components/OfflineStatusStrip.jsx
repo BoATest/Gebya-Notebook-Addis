@@ -22,25 +22,6 @@ export default function OfflineStatusStrip({
   if (syncStatus === 'syncing') {
     tone = 'waiting';
     label = lang === 'am' ? 'በማመሳሰል ላይ…' : 'Syncing…';
-  } else if (syncStatus === 'unauthenticated') {
-    tone = 'waiting';
-    label = lang === 'am' ? 'ለመመሳሰል ይግቡ' : 'Sign in to sync';
-    if (typeof onSignIn === 'function') {
-      action = (
-        <button
-          type="button"
-          onClick={onSignIn}
-          className="press-scale"
-          style={{
-            minHeight: 36, minWidth: 56, padding: '6px 10px', border: 'none',
-            borderRadius: 8, background: 'var(--color-primary)',
-            color: 'var(--color-bg-white)', fontSize: 11, fontWeight: 800, cursor: 'pointer',
-          }}
-        >
-          {lang === 'am' ? 'ግቡ' : 'Sign in'}
-        </button>
-      );
-    }
   } else if (pendingCount > 0 && pwa?.isOnline) {
     tone = 'waiting';
     label = lang === 'am' ? 'ወደ ደመና እየጠበቀ' : 'Pending sync';
