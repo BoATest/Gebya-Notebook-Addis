@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { fmt } from '../../utils/numformat';
-import { useLang } from '../../context/LangContext';
 
 export default function StaffPerformanceDashboard({ 
   activeStaff, 
@@ -8,7 +7,7 @@ export default function StaffPerformanceDashboard({
   yesterdayStaffSales = {},
   lang 
 }) {
-  const { t } = useLang();
+  const t = (en, am) => lang === 'am' ? am : en;
   
   const performanceData = useMemo(() => {
     if (!activeStaff || activeStaff.length === 0) {
