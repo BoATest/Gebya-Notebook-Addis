@@ -7,6 +7,7 @@ import PermissionToggle from './PermissionToggle';
 import { fireToast } from '../Toast';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useShallow } from 'zustand/react/shallow';
+import { ListSkeleton } from '../Skeleton';
 
 function StaffAllMembers({
   canManageTeam,
@@ -35,7 +36,7 @@ function StaffAllMembers({
           <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
             {t('All Staff', 'ሁሉም ሰራተኞች')}
           </span>
-          {store.membersLoading && <span className="text-xs text-gray-400">...</span>}
+          {store.membersLoading && <ListSkeleton items={1} />}
         </div>
 
         <div className="flex items-center gap-2 rounded-xl border px-3 py-2 bg-white" style={{ borderColor: 'var(--color-border)' }}>

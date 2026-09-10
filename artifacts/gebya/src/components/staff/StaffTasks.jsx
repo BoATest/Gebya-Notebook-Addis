@@ -6,6 +6,8 @@ import { useLang } from '../../context/LangContext';
 import { apiFetch } from '../../utils/shared-ui.jsx';
 import { fireToast } from '../Toast';
 import { fmt } from '../../utils/numformat';
+import ErrorState from '../ErrorState';
+import { ListSkeleton } from '../Skeleton';
 
 function StaffTasks({ staff, lang, canManageTeam }) {
   const t = useTranslation();
@@ -23,7 +25,7 @@ function StaffTasks({ staff, lang, canManageTeam }) {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!newTitle.trim()) return;
+    if (newTitle.trim().length === 0) return;
     try {
       await apiFetch('/tasks', {
         method: 'POST',
@@ -74,7 +76,7 @@ function StaffTasks({ staff, lang, canManageTeam }) {
     try {
       const data = await apiFetch(`/tasks?staff_id=${staff.userId || staff.id}`);
       setTasks(data.tasks || []);
-    } catch {}
+    } catch (err) { fireToast(err.message || 'Failed to load tasks', 2400); }
     setLoading(false);
   };
 
@@ -138,35 +140,39 @@ function StaffTasks({ staff, lang, canManageTeam }) {
 
       {showForm && (
         <form onSubmit={handleCreate} className="px-4 py-3 border-b space-y-2" style={{ borderColor: 'var(--color-border-light)' }}>
-          <input
-            type="text"
-            value={newTitle}
-            onChange={e => setNewTitle(e.target.value)}
-            placeholder={t('Task title', 'የተግባር ርዕስ')}
-            className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
-            style={{ borderColor: 'var(--color-border)' }}
-            required
-          />
-          <div className="flex gap-2">
-            <select
-              value={newPriority}
-              onChange={e => setNewPriority(e.target.value)}
-              className="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm bg-white"
+<input
+              type="text"
+              value={newTitle}
+              onChange={e => setNewTitle(e.target.value)}
+              placeholder={t('Task title', 'የተግባር ርዕስ')}
+              className="w-full px-3 py-2.5 border-2 rounded-xl text-sm focus:outline-none"
               style={{ borderColor: 'var(--color-border)' }}
-            >
-              <option value="low">{t('Low', 'ዝቅተኛ')}</option>
-              <option value="medium">{t('Medium', 'መካከለኛ')}</option>
-              <option value="high">{t('High', 'ከፍተኛ')}</option>
-              <option value="urgent">{t('Urgent', 'አጡ')}</option>
-            </select>
-            <input
-              type="date"
-              value={newDueDate}
-              onChange={e => setNewDueDate(e.target.value)}
-              className="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm"
-              style={{ borderColor: 'var(--color-border)' }}
+              required
+              min="0"
+              max="999999"
             />
-          </div>
+            <div className="flex gap-2">
+              <select
+                value={newPriority}
+                onChange={e => setNewPriority(e.target.value)}
+                className="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm bg-white"
+                style={{ borderColor: 'var(--color-border)' }}
+              >
+                <option value="low">{t('Low', 'ዝቅተኛ')}</option>
+                <option value="medium">{t('Medium', 'መካከለኛ')}</option>
+                <option value="high">{t('High', 'ከፍተኛ')}</option>
+                <option value="urgent">{t('Urgent', 'አጡ')}</option>
+              </select>
+              <input
+                type="date"
+                value={newDueDate}
+                onChange={e => setNewDueDate(e.target.value)}
+                className="flex-1 px-3 py-2.5 border-2 rounded-xl text-sm"
+                style={{ borderColor: 'var(--color-border)' }}
+                min="0"
+                max="999999"
+              />
+            </div>
           <button type="submit" className="w-full py-2.5 rounded-xl text-sm font-bold" style={{ background: 'var(--color-primary)', color: 'var(--color-bg-white)' }}>
             {t('Create Task', 'ተግባር ፍጠር')}
           </button>
@@ -175,7 +181,7 @@ function StaffTasks({ staff, lang, canManageTeam }) {
 
       <div className="divide-y" style={{ borderColor: 'var(--color-border-light)' }}>
         {loading ? (
-          <div className="px-4 py-3 text-xs text-gray-400">...</div>
+          <ErrorState title="Failed to load tasks" message="Could not fetch tasks." onRetry={loadTasks} />
         ) : tasks.length === 0 ? (
           <div className="px-4 py-3 text-xs text-gray-400">{t('No tasks yet', 'እስካሁን ተግባሮች የሉም')}</div>
         ) : (

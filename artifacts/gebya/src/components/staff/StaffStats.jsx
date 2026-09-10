@@ -2,9 +2,11 @@ import { useMemo } from 'react';
 import React from 'react';
 import { useTranslation } from '../../hooks/useTranslation';
 import { fmt } from '../../utils/numformat';
+import { StatsSkeleton } from '../Skeleton';
 
 function StaffStats({ snapshotStats }) {
   const t = useTranslation();
+  if (!snapshotStats) return <StatsSkeleton />;
   return (
     <div className="flex gap-2">
       <div className="flex-1 rounded-xl border px-3 py-2 text-center" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-alt)' }}>

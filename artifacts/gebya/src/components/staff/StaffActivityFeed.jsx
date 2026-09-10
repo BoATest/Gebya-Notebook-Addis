@@ -8,6 +8,8 @@ import { useLang } from '../../context/LangContext';
 import { loadStaffActivityFeed } from '../../utils/staffActivityFeed';
 import { startOfLocalDay } from '../../utils/reportSelectors';
 import { fmt } from '../../utils/numformat';
+import ErrorState from '../ErrorState';
+import { ListSkeleton } from '../Skeleton';
 
 export default function StaffActivityFeed({ todayRefreshKey }) {
   const t = useTranslation();
@@ -22,7 +24,7 @@ export default function StaffActivityFeed({ todayRefreshKey }) {
       try {
         const res = await loadStaffActivityFeed();
         if (!cancelled) useStaffStore.setState({ activities: res.activities || [] });
-      } catch {}
+      } catch (err) { console.error('[ActivityFeed]', err); }
     })();
     return () => { cancelled = true; };
   }, [todayRefreshKey]);
@@ -76,6 +78,9 @@ export default function StaffActivityFeed({ todayRefreshKey }) {
     return (
       <button
         key={f.key}
+        role="tab"
+        aria-selected={active}
+        aria-controls={`panel-${f.key}`}
         onClick={() => setFilter(f.key)}
         className="px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap"
         style={{
@@ -139,12 +144,12 @@ export default function StaffActivityFeed({ todayRefreshKey }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <div className="flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label={t('Filter activities', 'የእንቅስቃሴ ያስተማረ')}>
         {filterButtons}
       </div>
 
       {loading ? (
-        <p className="text-xs text-gray-400 text-center py-6">{t('Loading…', 'በመጫን ላይ…')}</p>
+        <ListSkeleton items={4} />
       ) : Object.keys(grouped).length === 0 ? (
         <p className="text-xs text-gray-400 text-center py-6">
           {t('Staff activity will appear here as team members record sales, payments, and Dubie.',

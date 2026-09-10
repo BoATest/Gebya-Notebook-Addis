@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useLang } from '../context/LangContext';
 import { useStaffStore } from '../stores/staffStore';
 import { fireToast } from './Toast';
 import ConfirmDialog from './ConfirmDialog';
@@ -21,7 +20,6 @@ import StaffTasks from './staff/StaffTasks';
 import StaffAttendance from './staff/StaffAttendance';
 import StaffPerformanceDashboard from './staff/StaffPerformanceDashboard';
 import SettlementSheet from './report/SettlementSheet';
-import { useTranslation } from '../hooks/useTranslation';
 
 const POLL_INTERVAL_MS = 60000;
 const MS_PER_DAY = 86400000;
@@ -43,8 +41,7 @@ export default function StaffPage({
   staffMembers,
 }) {
 const t = (en, am) => lang === 'am' ? am : en;
-  const tr = useTranslation();
-
+  
   // Owner/manager experience is organized into tabs
   const [ownerTab, setOwnerTab] = useState('team');
   const [openCollectionSheet, setOpenCollectionSheet] = useState(false);
@@ -253,6 +250,10 @@ const t = (en, am) => lang === 'am' ? am : en;
     return (
       <button
         key={tab.key}
+        role="tab"
+        aria-selected={active}
+        aria-controls={`panel-${tab.key}`}
+        id={`tab-${tab.key}`}
         onClick={() => setOwnerTab(tab.key)}
         className="relative flex-1 px-2 py-2 rounded-xl text-xs font-bold whitespace-nowrap"
         style={{
@@ -280,9 +281,9 @@ const t = (en, am) => lang === 'am' ? am : en;
       {canManageTeam ? (
         <>
           {/* Owner/manager tab bar */}
-          <div className="flex gap-1 p-1 rounded-2xl border sticky top-0 z-20" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-alt)' }}>
-{tabButtons}
-           </div>
+          <div className="flex gap-1 p-1 rounded-2xl border sticky top-0 z-20" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-alt)' }} role="tablist" aria-label={t('Main navigation', 'ዋና አሸግንት')}>
+            {tabButtons}
+          </div>
 
           {/* TAB: Team */}
           {ownerTab === 'team' && (
@@ -326,6 +327,8 @@ const t = (en, am) => lang === 'am' ? am : en;
                             placeholder={t('Display name (optional)', 'ስም ለማሳጥ (አርጣ)')}
                             className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none"
                             style={{ borderColor: 'var(--color-border)' }}
+                            autoFocus
+                            aria-label={t('Display name', 'ስም')}
                           />
                         </div>
                         <div className="mb-3">
@@ -336,6 +339,7 @@ const t = (en, am) => lang === 'am' ? am : en;
                             placeholder={t('Phone number', 'ስልክ ቁጥር')}
                             className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none"
                             style={{ borderColor: 'var(--color-border)' }}
+                            aria-label={t('Phone number', 'ስልክ ቁጥር')}
                           />
                         </div>
                         <div className="mb-4">
@@ -345,6 +349,7 @@ const t = (en, am) => lang === 'am' ? am : en;
                             onChange={e => setAddStaffRole(e.target.value)}
                             className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none"
                             style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg-white)' }}
+                            aria-label={t('Role', 'ሚና')}
                           >
                             <option value="cashier">{t('Cashier', 'ክራሚያ')}</option>
                             <option value="viewer">{t('Viewer', 'ተመልካች')}</option>

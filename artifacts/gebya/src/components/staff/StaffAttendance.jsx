@@ -6,6 +6,8 @@ import { useStaffStore } from '../../stores/staffStore';
 import { useLang } from '../../context/LangContext';
 import { apiFetch } from '../../utils/shared-ui.jsx';
 import { fireToast } from '../Toast';
+import ErrorState from '../ErrorState';
+import { ListSkeleton } from '../Skeleton';
 
 const MS_PER_DAY = 86400000;
 
@@ -26,7 +28,7 @@ function StaffAttendance({ staff, lang, canManageTeam }) {
       setRecords(data.attendance || []);
       const latest = data.attendance?.find(r => !r.clockOut);
       setActiveSession(latest || null);
-    } catch {}
+    } catch (err) { fireToast(err.message || 'Failed to load attendance', 2400); }
     setLoading(false);
   }, [staff?.id]);
 
@@ -100,7 +102,7 @@ function StaffAttendance({ staff, lang, canManageTeam }) {
 
       <div className="divide-y max-h-60 overflow-y-auto" style={{ borderColor: 'var(--color-border-light)' }}>
         {loading ? (
-          <div className="px-4 py-3 text-xs text-gray-400">...</div>
+          <ListSkeleton items={3} />
         ) : localRecords.length === 0 ? (
           <div className="px-4 py-3 text-xs text-gray-400">{t('No attendance records', 'የመግቢያ መውጫ ምዝገቦች የሉም')}</div>
         ) : (
