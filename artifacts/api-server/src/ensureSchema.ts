@@ -36,7 +36,7 @@ async function checkSchemaConverged(): Promise<boolean> {
   try {
     if (!db) return false;
     const res: any = await db.execute(
-      sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'notification_preferences' AND column_name = 'quietHoursStart'`,
+      sql`SELECT column_name FROM information_schema.columns WHERE table_name = 'notification_preferences' AND column_name = 'quiet_hours_start'`,
     );
     return (res?.rows ?? []).length > 0;
   } catch {
