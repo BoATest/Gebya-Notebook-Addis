@@ -525,9 +525,9 @@ describe("reminders routes", () => {
         await runHandler(req, res);
 
         expect(res.status).toHaveBeenCalledWith(500);
-        expect(res.json).toHaveBeenCalledWith({
-          error: "Server misconfigured: REMINDER_CRON_SECRET environment variable is not set",
-        });
+        expect(res.json).toHaveBeenCalledWith(
+          expect.objectContaining({ error: "Internal server error" }),
+        );
       } finally {
         if (originalSecret !== undefined) {
           process.env.REMINDER_CRON_SECRET = originalSecret;

@@ -613,6 +613,7 @@ describe("E2E: Telegram Webhook + Reminder Flow", () => {
     clearAllConfigs();
     clearSenderHistory();
     process.env.REMINDER_CRON_SECRET = "test-cron-secret";
+    process.env.PREMIUM_REMINDERS_ENABLED = "true";
   });
 
   describe("Full customer onboarding → Telegram link → reminder → payment flow", () => {
