@@ -1,5 +1,68 @@
+import React from 'react';
+import { useTranslation } from '../../hooks/useTranslation';
 import { useMemo } from 'react';
 import { fmt } from '../../utils/numformat';
+
+const StatCard = React.memo(function StatCard({ label, value, color }) {
+  return (
+    <div style={{
+      background: 'var(--color-surface)',
+      border: '1px solid var(--color-border)',
+      borderRadius: 8,
+      padding: '10px',
+      textAlign: 'center'
+    }}>
+      <div style={{ fontSize: '1.1rem', fontWeight: 700, color, marginBottom: 2 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)' }}>
+        {label}
+      </div>
+    </div>
+  );
+});
+
+const StaffRankingRow = React.memo(function StaffRankingRow({ staff, isFirst }) {
+  const t = useTranslation();
+  const medal = staff.rank === 1 ? '🥇' : staff.rank === 2 ? '🥈' : staff.rank === 3 ? '🥉' : null;
+  const growthColor = staff.growth >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+  const avgColor = staff.avgPerTx > 2000 ? 'var(--color-success)' : staff.avgPerTx > 1000 ? 'var(--color-primary)' : 'var(--color-text-muted)';
+  
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '10px 12px',
+      borderBottom: '1px solid var(--color-border-light)'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {medal && (
+          <span style={{ fontSize: '1rem' }}>{medal}</span>
+        )}
+        {isFirst && !medal && (
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-primary)' }}>#1</span>
+        )}
+        <span style={{ fontWeight: 500 }}>{staff.name}</span>
+      </div>
+      <div style={{ textAlign: 'right' }}>
+        <div style={{ fontWeight: 600 }}>{fmt(staff.total)} {t('birr', 'ብር')}</div>
+        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
+          {staff.count} {t('txns', 'ግብት')} · {t('Avg', 'ጨርሳ')} {fmt(staff.avgPerTx)}
+          {staff.growth && (
+            <span style={{ 
+              color: growthColor, 
+              fontWeight: staff.growth >= 0 ? 600 : 400,
+              marginLeft: 4
+            }}>
+              ({staff.growth >= 0 ? '+' : ''}{staff.growth}%)
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export default function StaffPerformanceDashboard({ 
   activeStaff, 
@@ -7,7 +70,7 @@ export default function StaffPerformanceDashboard({
   yesterdayStaffSales = {},
   lang 
 }) {
-  const t = (en, am) => lang === 'am' ? am : en;
+  const t = useTranslation();
   
   const performanceData = useMemo(() => {
     if (!activeStaff || activeStaff.length === 0) {
@@ -158,7 +221,6 @@ export default function StaffPerformanceDashboard({
           <StaffRankingRow 
             key={staff.id}
             staff={staff}
-            lang={lang}
             isFirst={staff.rank === 1}
           />
         ))}
@@ -176,67 +238,6 @@ export default function StaffPerformanceDashboard({
       }}>
         <span>{t('Active Staff', 'ንቁ ሰራተኞች')}: {performanceData.stats.activeCount}</span>
         <span>{t('Team Total', 'ቡድን ጥሬ')}: {fmt(performanceData.stats.totalSales)} {t('birr', 'ብር')}</span>
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value, color }) {
-  return (
-    <div style={{
-      background: 'var(--color-surface)',
-      border: '1px solid var(--color-border)',
-      borderRadius: 8,
-      padding: '10px',
-      textAlign: 'center'
-    }}>
-      <div style={{ fontSize: '1.1rem', fontWeight: 700, color, marginBottom: 2 }}>
-        {value}
-      </div>
-      <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)' }}>
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function StaffRankingRow({ staff, lang, isFirst }) {
-  const t = (en, am) => lang === 'am' ? am : en;
-  const medal = staff.rank === 1 ? '🥇' : staff.rank === 2 ? '🥈' : staff.rank === 3 ? '🥉' : null;
-  const growthColor = staff.growth >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
-  const avgColor = staff.avgPerTx > 2000 ? 'var(--color-success)' : staff.avgPerTx > 1000 ? 'var(--color-primary)' : 'var(--color-text-muted)';
-  
-  return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '10px 12px',
-      borderBottom: '1px solid var(--color-border-light)'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {medal && (
-          <span style={{ fontSize: '1rem' }}>{medal}</span>
-        )}
-        {isFirst && !medal && (
-          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-primary)' }}>#1</span>
-        )}
-        <span style={{ fontWeight: 500 }}>{staff.name}</span>
-      </div>
-      <div style={{ textAlign: 'right' }}>
-        <div style={{ fontWeight: 600 }}>{fmt(staff.total)} {t('birr', 'ብር')}</div>
-        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-          {staff.count} {t('txns', 'ግብት')} · {t('Avg', 'ጨርሳ')} {fmt(staff.avgPerTx)}
-          {staff.growth && (
-            <span style={{ 
-              color: growthColor, 
-              fontWeight: staff.growth >= 0 ? 600 : 400,
-              marginLeft: 4
-            }}>
-              ({staff.growth >= 0 ? '+' : ''}{staff.growth}%)
-            </span>
-          )}
-        </div>
       </div>
     </div>
   );

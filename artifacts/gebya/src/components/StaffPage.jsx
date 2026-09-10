@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useLang } from '../context/LangContext';
 import { useStaffStore } from '../stores/staffStore';
 import { fireToast } from './Toast';
 import ConfirmDialog from './ConfirmDialog';
+import ErrorBoundary from './ErrorBoundary';
 import { calculateExpected } from '../utils/settlementSelectors';
 import { computeTodayStaffAggregates } from '../utils/todayStaffAggregates';
 import { computeYesterdayStaffAggregates } from '../utils/yesterdayStaffAggregates';
 import { fmt } from '../utils/numformat';
-
 import StaffStats from './staff/StaffStats';
 import StaffTodayTeam from './staff/StaffTodayTeam';
 import StaffPastSettlements from './staff/StaffPastSettlements';
@@ -21,6 +21,10 @@ import StaffTasks from './staff/StaffTasks';
 import StaffAttendance from './staff/StaffAttendance';
 import StaffPerformanceDashboard from './staff/StaffPerformanceDashboard';
 import SettlementSheet from './report/SettlementSheet';
+import { useTranslation } from '../hooks/useTranslation';
+
+const POLL_INTERVAL_MS = 60000;
+const MS_PER_DAY = 86400000;
 
 export default function StaffPage({
   activeStaffMemberId,
@@ -38,7 +42,8 @@ export default function StaffPage({
   canManageTeam,
   staffMembers,
 }) {
-  const t = (en, am) => lang === 'am' ? am : en;
+const t = (en, am) => lang === 'am' ? am : en;
+  const tr = useTranslation();
 
   // Owner/manager experience is organized into tabs
   const [ownerTab, setOwnerTab] = useState('team');
@@ -125,24 +130,25 @@ export default function StaffPage({
     return () => { cancelled = true; };
   }, [store.yesterdayRefreshKey]);
 
+  const refresh = useCallback(() => {
+    if (document.hidden) return;
+    refreshSettlements();
+    refreshToday();
+    refreshYesterday();
+  }, [refreshSettlements, refreshToday, refreshYesterday]);
+
   // Prevent browser reloading/disappearing tabs
   useEffect(() => {
-    const refresh = () => {
-      if (document.hidden) return;
-      refreshSettlements();
-      refreshToday();
-      refreshYesterday();
-    };
     // Poll once a minute (visibility-guarded) — frequent polling drains
     // battery/data on budget Android phones; the visibilitychange listener
     // gives an instant refresh whenever the user returns to the app anyway.
-    const interval = setInterval(() => { if (!document.hidden) refresh(); }, 60000);
+    const interval = setInterval(() => { if (!document.hidden) refresh(); }, POLL_INTERVAL_MS);
     document.addEventListener('visibilitychange', refresh);
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', refresh);
     };
-  }, [refreshSettlements, refreshToday, refreshYesterday]);
+  }, [refresh]);
 
   // Escape to close settlement sheet
   useEffect(() => {
@@ -188,7 +194,7 @@ export default function StaffPage({
   const unsettledStaff = useMemo(() =>
     activeStaff.filter(m => {
       const last = lastSettlementPerStaff[String(m.id)];
-      const daysSince = last ? Math.floor((Date.now() - new Date(last.settled_at).getTime()) / 86400000) : null;
+      const daysSince = last ? Math.floor((Date.now() - new Date(last.settled_at).getTime()) / MS_PER_DAY) : null;
       return daysSince === null || daysSince > 0;
     }),
     [activeStaff, lastSettlementPerStaff]
@@ -230,50 +236,53 @@ export default function StaffPage({
   }, [unsettledStaff, lastSettlementPerStaff]);
 
   // ─── Render ───
-  const ownerTabs = [
+  const ownerTabs = useMemo(() => [
     { key: 'team', label: t('Team', 'ቡድን') },
     { key: 'today', label: t('Today', 'ዛሬ') },
     { key: 'performance', label: t('Performance', 'አገልግሎት') },
     { key: 'settlements', label: t('Settlements', 'ማስተካከያ') },
     { key: 'activity', label: t('Activity', 'እንቅስቃሴ') },
-  ];
+  ], [lang]);
+
+  const tabButtons = useMemo(() => ownerTabs.map(tab => {
+    const badge =
+      tab.key === 'team' ? pendingDevices.length :
+      tab.key === 'today' ? unsettledStaff.length :
+      tab.key === 'settlements' ? snapshotStats.submittedCount : 0;
+    const active = ownerTab === tab.key;
+    return (
+      <button
+        key={tab.key}
+        onClick={() => setOwnerTab(tab.key)}
+        className="relative flex-1 px-2 py-2 rounded-xl text-xs font-bold whitespace-nowrap"
+        style={{
+          background: active ? 'var(--color-primary)' : 'transparent',
+          color: active ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
+        }}
+      >
+        {tab.label}
+        {badge > 0 && (
+          <span
+            className="ml-1 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black"
+            style={{
+              background: active ? 'var(--color-bg-white)' : 'var(--color-danger)',
+              color: active ? 'var(--color-primary)' : 'var(--color-bg-white)',
+            }}
+          >{badge}</span>
+        )}
+      </button>
+    );
+  }), [ownerTabs, pendingDevices.length, unsettledStaff.length, snapshotStats.submittedCount, ownerTab]);
 
   return (
-    <div className="space-y-4 pb-4">
+    <ErrorBoundary title={t('Staff', 'የሰራተኛ')} message={t('Something went wrong in the staff page. Please try refreshing.', 'በየሰራተኛ ገጠ በዝሬ ቀረሽ. እባክዎ ይሞክሩ።')}>
+      <div className="space-y-4 pb-4">
       {canManageTeam ? (
         <>
           {/* Owner/manager tab bar */}
           <div className="flex gap-1 p-1 rounded-2xl border sticky top-0 z-20" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-alt)' }}>
-            {ownerTabs.map(tab => {
-              const badge =
-                tab.key === 'team' ? pendingDevices.length :
-                tab.key === 'today' ? unsettledStaff.length :
-                tab.key === 'settlements' ? snapshotStats.submittedCount : 0;
-              const active = ownerTab === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setOwnerTab(tab.key)}
-                  className="relative flex-1 px-2 py-2 rounded-xl text-xs font-bold whitespace-nowrap"
-                  style={{
-                    background: active ? 'var(--color-primary)' : 'transparent',
-                    color: active ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
-                  }}
-                >
-                  {tab.label}
-                  {badge > 0 && (
-                    <span
-                      className="ml-1 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-black"
-                      style={{
-                        background: active ? 'var(--color-bg-white)' : 'var(--color-danger)',
-                        color: active ? 'var(--color-primary)' : 'var(--color-bg-white)',
-                      }}
-                    >{badge}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+{tabButtons}
+           </div>
 
           {/* TAB: Team */}
           {ownerTab === 'team' && (
@@ -639,5 +648,6 @@ export default function StaffPage({
         onCancel={() => store.setPendingDeactivation(null)}
       />
     </div>
+    </ErrorBoundary>
   );
 }

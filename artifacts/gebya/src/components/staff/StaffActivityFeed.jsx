@@ -1,40 +1,34 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import React from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { useLang } from '../../context/LangContext';
+import { useTranslation } from '../../hooks/useTranslation';
+import { useShallow } from 'zustand/react/shallow';
 import { useStaffStore } from '../../stores/staffStore';
+import { useLang } from '../../context/LangContext';
 import { loadStaffActivityFeed } from '../../utils/staffActivityFeed';
 import { startOfLocalDay } from '../../utils/reportSelectors';
 import { fmt } from '../../utils/numformat';
-import { computeTodayStaffAggregates } from '../../utils/todayStaffAggregates';
 
 export default function StaffActivityFeed({ todayRefreshKey }) {
+  const t = useTranslation();
   const { lang } = useLang();
-  const store = useStaffStore();
+  const store = useStaffStore(useShallow((s) => ({ activities: s.activities, activitiesLoading: s.activitiesLoading, todayRefreshKey: s.todayRefreshKey })));
   const [filter, setFilter] = useState('all');
-  const [activities, setActivities] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [expandedPeriod, setExpandedPeriod] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    Promise.all([
-      loadStaffActivityFeed()
-        .then(res => { if (!cancelled) setActivities(res.activities || []); })
-        .catch(() => { if (!cancelled) setActivities([]); }),
-      (async () => {
-        try {
-          const { salesMap, txnMap } = await computeTodayStaffAggregates();
-          if (cancelled) return;
-          store.setTodayStaffSales(salesMap);
-          store.setTodayStaffTransactions(txnMap);
-        } catch {}
-      })(),
-    ]).finally(() => { if (!cancelled) setLoading(false); });
+    (async () => {
+      try {
+        const res = await loadStaffActivityFeed();
+        if (!cancelled) useStaffStore.setState({ activities: res.activities || [] });
+      } catch {}
+    })();
     return () => { cancelled = true; };
   }, [todayRefreshKey]);
 
-  const t = (en, am) => lang === 'am' ? am : en;
+  const activities = store.activities;
+  const loading = store.activitiesLoading;
 
   const filters = [
     { key: 'all', label: t('All', 'ሁሉም') },
@@ -77,25 +71,76 @@ export default function StaffActivityFeed({ todayRefreshKey }) {
 
   const periodOrder = ['today', 'week', 'month', 'older'];
 
+  const filterButtons = useMemo(() => filters.map(f => {
+    const active = filter === f.key;
+    return (
+      <button
+        key={f.key}
+        onClick={() => setFilter(f.key)}
+        className="px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap"
+        style={{
+          background: active ? 'var(--color-primary)' : 'var(--color-surface-muted)',
+          color: active ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
+        }}
+      >
+        {f.label}
+      </button>
+    );
+  }), [filters, filter]);
+
+  const periodSections = useMemo(() => periodOrder.filter(p => grouped[p]).map(period => {
+    const group = grouped[period];
+    const totalAmount = group.items.reduce((sum, a) => sum + Number(a.amount || 0), 0);
+    const isExpanded = expandedPeriod === period;
+    return (
+      <div key={period} className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+        <button
+          onClick={() => setExpandedPeriod(isExpanded ? null : period)}
+          className="w-full px-3 py-2 flex items-center justify-between text-left"
+          style={{ background: 'var(--color-surface-subtle)' }}
+        >
+          <div>
+            <div className="text-xs font-black text-gray-700">{group.label}</div>
+            <div className="text-[10px] font-bold" style={{ color: 'var(--color-primary)' }}>
+              {group.items.length} {t('activities', 'እንቅስቃሴዎች')}
+              {totalAmount > 0 && ` · ${fmt(totalAmount)} ${t('birr', 'ብር')}`}
+            </div>
+          </div>
+          {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
+        </button>
+        {isExpanded && (
+          <div className="px-3 pb-2 space-y-1">
+            {group.items.map(a => (
+              <div key={a.id} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0" style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)' }}>
+                  {(a.staff_name || 'S').slice(0, 1).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-bold text-gray-800 truncate">
+                    {a.staff_name}
+                    <span style={{ color: 'var(--color-text-soft)', fontWeight: 400 }}> · {a.summary || a.event_type}</span>
+                  </div>
+                  {a.amount != null && (
+                    <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{a.amount.toLocaleString()} birr</div>
+                  )}
+                </div>
+                {a.sync_state === 'needs_retry' && (
+                  <span className="text-[9px] font-bold px-1 py-0.5 rounded-full" style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}>
+                    {t('Retry', 'እንደገና')}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }), [periodOrder, grouped, expandedPeriod, t, fmt]);
+
   return (
     <div className="space-y-3">
       <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {filters.map(f => {
-          const active = filter === f.key;
-          return (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className="px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap"
-              style={{
-                background: active ? 'var(--color-primary)' : 'var(--color-surface-muted)',
-                color: active ? 'var(--color-bg-white)' : 'var(--color-text-muted)',
-              }}
-            >
-              {f.label}
-            </button>
-          );
-        })}
+        {filterButtons}
       </div>
 
       {loading ? (
@@ -107,56 +152,11 @@ export default function StaffActivityFeed({ todayRefreshKey }) {
         </p>
       ) : (
         <div className="space-y-2">
-          {periodOrder.filter(p => grouped[p]).map(period => {
-            const group = grouped[period];
-            const totalAmount = group.items.reduce((sum, a) => sum + Number(a.amount || 0), 0);
-            const isExpanded = expandedPeriod === period;
-            return (
-              <div key={period} className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
-                <button
-                  onClick={() => setExpandedPeriod(isExpanded ? null : period)}
-                  className="w-full px-3 py-2 flex items-center justify-between text-left"
-                  style={{ background: 'var(--color-surface-subtle)' }}
-                >
-                  <div>
-                    <div className="text-xs font-black text-gray-700">{group.label}</div>
-                    <div className="text-[10px] font-bold" style={{ color: 'var(--color-primary)' }}>
-                      {group.items.length} {t('activities', 'እንቅስቃሴዎች')}
-                      {totalAmount > 0 && ` · ${fmt(totalAmount)} ${t('birr', 'ብር')}`}
-                    </div>
-                  </div>
-                  {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
-                </button>
-                {isExpanded && (
-                  <div className="px-3 pb-2 space-y-1">
-                    {group.items.map(a => (
-                      <div key={a.id} className="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0" style={{ background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)' }}>
-                          {(a.staff_name || 'S').slice(0, 1).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-[11px] font-bold text-gray-800 truncate">
-                            {a.staff_name}
-                            <span style={{ color: 'var(--color-text-soft)', fontWeight: 400 }}> · {a.summary || a.event_type}</span>
-                          </div>
-                          {a.amount != null && (
-                            <div className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{a.amount.toLocaleString()} birr</div>
-                          )}
-                        </div>
-                        {a.sync_state === 'needs_retry' && (
-                          <span className="text-[9px] font-bold px-1 py-0.5 rounded-full" style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}>
-                            {t('Retry', 'እንደገና')}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {periodSections}
         </div>
       )}
     </div>
   );
 }
+
+export default React.memo(StaffActivityFeed);

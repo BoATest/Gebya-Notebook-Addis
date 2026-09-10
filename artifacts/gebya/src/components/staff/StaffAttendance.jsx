@@ -1,21 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import React from 'react';
+import { useTranslation } from '../../hooks/useTranslation';
+import { useShallow } from 'zustand/react/shallow';
 import { useStaffStore } from '../../stores/staffStore';
 import { useLang } from '../../context/LangContext';
 import { apiFetch } from '../../utils/shared-ui.jsx';
 import { fireToast } from '../Toast';
 
-export default function StaffAttendance({ staff, lang, canManageTeam }) {
-  const t = (en, am) => lang === 'am' ? am : en;
-  const store = useStaffStore();
-  const [records, setRecords] = useState([]);
+const MS_PER_DAY = 86400000;
+
+function StaffAttendance({ staff, lang, canManageTeam }) {
+  const t = useTranslation();
+  const store = useStaffStore(useShallow((s) => ({ records: s.records, recordsLoading: s.recordsLoading, loadRecords: s.loadRecords, handleClockIn: s.handleClockIn, handleClockOut: s.handleClockOut })));
+  const [localRecords, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeSession, setActiveSession] = useState(null);
 
-  const loadRecords = async () => {
+  const loadRecords = useCallback(async () => {
     if (!staff?.id) return;
     setLoading(true);
     try {
-      const from = new Date(Date.now() - 30 * 86400000).toISOString();
+      const from = new Date(Date.now() - 30 * MS_PER_DAY).toISOString();
       const to = new Date().toISOString();
       const data = await apiFetch(`/attendance?staff_id=${staff.userId || staff.id}&from=${from}&to=${to}`);
       setRecords(data.attendance || []);
@@ -23,9 +28,9 @@ export default function StaffAttendance({ staff, lang, canManageTeam }) {
       setActiveSession(latest || null);
     } catch {}
     setLoading(false);
-  };
+  }, [staff?.id]);
 
-  useEffect(() => { loadRecords(); }, [staff?.userId]);
+  useEffect(() => { loadRecords(); }, [loadRecords]);
 
   const handleClockIn = async () => {
     try {
@@ -62,6 +67,8 @@ export default function StaffAttendance({ staff, lang, canManageTeam }) {
     return `${hours}h ${mins}m`;
   };
 
+  const displayedRecords = useMemo(() => localRecords.slice(0, 20), [localRecords]);
+
   if (!canManageTeam) return null;
 
   return (
@@ -94,10 +101,10 @@ export default function StaffAttendance({ staff, lang, canManageTeam }) {
       <div className="divide-y max-h-60 overflow-y-auto" style={{ borderColor: 'var(--color-border-light)' }}>
         {loading ? (
           <div className="px-4 py-3 text-xs text-gray-400">...</div>
-        ) : records.length === 0 ? (
+        ) : localRecords.length === 0 ? (
           <div className="px-4 py-3 text-xs text-gray-400">{t('No attendance records', 'የመግቢያ መውጫ ምዝገቦች የሉም')}</div>
         ) : (
-          records.slice(0, 20).map(record => (
+          displayedRecords.map(record => (
             <div key={record.id} className="px-4 py-2 flex items-center justify-between">
               <div>
                 <div className="text-xs font-bold text-gray-900">
@@ -121,3 +128,5 @@ export default function StaffAttendance({ staff, lang, canManageTeam }) {
     </div>
   );
 }
+
+export default React.memo(StaffAttendance);
