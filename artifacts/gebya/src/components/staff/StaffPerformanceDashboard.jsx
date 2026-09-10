@@ -11,7 +11,7 @@ export default function StaffPerformanceDashboard({
   
   const performanceData = useMemo(() => {
     if (!activeStaff || activeStaff.length === 0) {
-      return { rankedStaff: [], topPerformer: null, stats: {} };
+      return { rankedStaff: [], topPerformer: null, stats: {}, teamAvg: {} };
     }
 
     const staffWithSales = activeStaff.map(staff => {
@@ -44,6 +44,7 @@ export default function StaffPerformanceDashboard({
     const totalSales = staffWithSales.reduce((sum, s) => sum + s.total, 0);
     const totalCash = staffWithSales.reduce((sum, s) => sum + s.cashTotal, 0);
     const totalTransfer = staffWithSales.reduce((sum, s) => sum + s.transferTotal, 0);
+    const teamAvgTx = totalTransactions > 0 ? Math.round(totalSales / totalTransactions) : 0;
 
     return {
       rankedStaff: staffWithSales,
@@ -53,7 +54,8 @@ export default function StaffPerformanceDashboard({
         totalSales,
         totalCash,
         totalTransfer,
-        activeCount: activeStaff.length
+        activeCount: activeStaff.length,
+        teamAvgTx
       }
     };
   }, [activeStaff, todayStaffSales, yesterdayStaffSales, lang]);
@@ -62,7 +64,9 @@ export default function StaffPerformanceDashboard({
     return (
       <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
         <div className="px-4 py-3 text-center text-gray-500">
+          <div className="text-3xl mb-2">📊</div>
           {t('No staff data available', 'የሰራተኛ ዝርዝር የለም')}
+          <p className="text-xs mt-1 opacity-60">{t('Staff performance data appears here once sales are recorded', 'የሰራተኛ አለም ምክንያት ብወጋል ለጠቅም ተመልከቱ')}</p>
         </div>
       </div>
     );
@@ -70,6 +74,16 @@ export default function StaffPerformanceDashboard({
 
   return (
     <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
+      {/* Header */}
+      <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border-light)', background: 'var(--color-surface-alt)' }}>
+        <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
+          {t('Staff Performance', 'የሰራተኞች አለም')}
+        </span>
+        <span className="text-[10px] font-bold" style={{ color: 'var(--color-primary)' }}>
+          {t('Team Avg', 'ቡድን ጨርሳ')}: {fmt(performanceData.stats.teamAvgTx)} {t('birr', 'ብር')}
+        </span>
+      </div>
+
       {/* Top Performer Banner */}
       {performanceData.topPerformer && (
         <div style={{
@@ -149,6 +163,20 @@ export default function StaffPerformanceDashboard({
           />
         ))}
       </div>
+
+      {/* Footer Summary */}
+      <div style={{
+        borderTop: '1px solid var(--color-border-light)',
+        padding: '8px 12px',
+        background: 'var(--color-surface-alt)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        fontSize: '0.7rem',
+        color: 'var(--color-text-muted)'
+      }}>
+        <span>{t('Active Staff', 'ንቁ ሰራተኞች')}: {performanceData.stats.activeCount}</span>
+        <span>{t('Team Total', 'ቡድን ጥሬ')}: {fmt(performanceData.stats.totalSales)} {t('birr', 'ብር')}</span>
+      </div>
     </div>
   );
 }
@@ -173,8 +201,10 @@ function StatCard({ label, value, color }) {
 }
 
 function StaffRankingRow({ staff, lang, isFirst }) {
+  const t = (en, am) => lang === 'am' ? am : en;
   const medal = staff.rank === 1 ? '🥇' : staff.rank === 2 ? '🥈' : staff.rank === 3 ? '🥉' : null;
   const growthColor = staff.growth >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
+  const avgColor = staff.avgPerTx > 2000 ? 'var(--color-success)' : staff.avgPerTx > 1000 ? 'var(--color-primary)' : 'var(--color-text-muted)';
   
   return (
     <div style={{
@@ -196,11 +226,12 @@ function StaffRankingRow({ staff, lang, isFirst }) {
       <div style={{ textAlign: 'right' }}>
         <div style={{ fontWeight: 600 }}>{fmt(staff.total)} {t('birr', 'ብር')}</div>
         <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-          {staff.count} {t('txns', 'ግብት')}
+          {staff.count} {t('txns', 'ግብት')} · {t('Avg', 'ጨርሳ')} {fmt(staff.avgPerTx)}
           {staff.growth && (
             <span style={{ 
               color: growthColor, 
-              fontWeight: staff.growth >= 0 ? 600 : 400 
+              fontWeight: staff.growth >= 0 ? 600 : 400,
+              marginLeft: 4
             }}>
               ({staff.growth >= 0 ? '+' : ''}{staff.growth}%)
             </span>
