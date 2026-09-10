@@ -86,7 +86,7 @@ Detailed implementations:
 | [Testing with Vitest & Playwright](testing-with-vitest-and-playwright.md) | Unit testing (Vitest), E2E testing (Playwright), mocking, IndexedDB seeding |
 | [Cross-Browser & Mobile Viewport Testing](cross-browser-mobile-viewport-testing.md) | Device emulation, touch interaction, cross-browser CI matrix |
 | [Performance Testing](performance-testing.md) | Lighthouse, Playwright tracing, offline resilience, CI perf gates |
-| [Offline & Resilience Testing](offline-resilience-testing.md) | Service worker, offline transactions, sync queue, network resilience |
+| [Offline & Sync Testing](offline-sync-testing.md) | Service worker, offline transactions, sync queue, auto-sync behavior |
 
 ## Best Practices
 

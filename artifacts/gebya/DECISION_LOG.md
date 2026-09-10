@@ -2,6 +2,19 @@
 
 <!-- Keep entries short. Date + Decision + Reason + Rejected + Next check. -->
 
+## 2026-09-10 — Seamless Sync After Authentication
+- **Decision**: Remove "Sign in to sync" button and auto-trigger sync in `setAuthToken()` via `queueMicrotask()`
+- **Reason**: Users expect transactions to sync automatically after signing in. Manual "Sync Now" tap creates friction. Background sync via SW ensures data syncs even when app is closed.
+- **What was implemented**:
+  - `setAuthToken()` in `src/utils/syncEngine.js` now uses `queueMicrotask()` to trigger sync after token is stored
+  - `src/components/OfflineStatusStrip.jsx` removed the "unauthenticated" branch that showed the button
+  - `src/components/AppShell.jsx` integrated `initSwSyncListener()` for SW message handling
+  - `public/sw-push.js` added `handleBackgroundSync()` message handler for SW-triggered sync
+- **Rejected approaches**:
+  - Keeping manual sync button → creates unnecessary user friction
+  - Using `setTimeout()` → less reliable than `queueMicrotask()` for microtask timing
+- **Next check**: Monitor production sync metrics after deployment; ensure no edge cases where sync fails silently
+
 ## 2026-06-11 — Owner/Staff Onboarding & Shop Sync Foundation
 - **Decision**: Lock the first Codex slice to **onboarding + shop identity only** (slim, multi-device-ready), not the full event model. Ship a server-backed `shops`, `staff`, `devices`, and a `join_code`/`invite_link` foundation. Defer cross-device event sync to a follow-up slice, but do it on a foundation that already supports it.
 - **Reason**: The current code is **solo-owner + same-device actor switcher** (verified: `OnboardingScreen.jsx` has no "join existing shop" branch; `lib/api-spec/openapi.yaml` only contains `/healthz`; `lib/db` schema is empty). The single highest-leverage gap for the field test is: a staff member's phone must be able to *belong to the owner's shop*. Until that exists, "owner sees staff sales" is impossible regardless of how polished the local actor switcher is. The event-sync layer adds little value on top of a join layer that doesn't exist.
