@@ -13,7 +13,7 @@ import { notifications, businessMembers } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getPreferencesForBusiness, shouldNotify, isInQuietHours } from "./notificationPreferences.js";
 import { sendPushToOwner } from "./pushNotificationSender.js";
-import { broadcastNotification } from "../routes/notificationStream.js";
+import { broadcastNotification } from "./notificationStream.js";
 import { logNotificationDelivery } from "./notificationLog.js";
 
 interface CreateNotificationOpts {

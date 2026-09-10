@@ -3,11 +3,12 @@ import { requireDb } from "@workspace/db";
 import { notifications, businessMembers, notificationPreferences } from "@workspace/db/schema";
 import { eq, and, or, desc, count, isNull, gt } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
-import { broadcastNotification, registerClient, removeClient } from "./notificationStream.js";
+import { broadcastNotification, registerClient, removeClient } from "../services/notificationStream.js";
 import { createNotification } from "../services/notificationCreator.js";
 import { cleanupExpiredNotifications, getExpiredCount } from "../services/notificationCleanup.js";
 import { safeEqual } from "../lib/secure.js";
 import { notificationTypeKeys, type NotificationTypeKey } from "@workspace/db/schema";
+import { getOwnerBusiness } from "../lib/auth.js";
 
 const router = Router();
 
@@ -20,16 +21,6 @@ function getUserIdFromRequest(req: any): number | null {
   if (!token) return null;
   const decoded = verifyJwt(token);
   return decoded?.userId || null;
-}
-
-async function getOwnerBusiness(userId: number): Promise<{ businessId: number; isOwner: boolean } | null> {
-  const rows = await requireDb()
-    .select({ businessId: businessMembers.businessId, role: businessMembers.role })
-    .from(businessMembers)
-    .where(and(eq(businessMembers.userId, userId), eq(businessMembers.active, true)))
-    .limit(1);
-  if (!rows.length) return null;
-  return { businessId: rows[0].businessId, isOwner: rows[0].role === "owner" };
 }
 
 // ─── Core Notification Routes ──────────────────────────────────────────────

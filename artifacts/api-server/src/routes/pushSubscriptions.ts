@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { requireDb } from "@workspace/db";
-import { pushSubscriptions, notifications } from "@workspace/db/schema";
+import { pushSubscriptions, notifications, businessMembers } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import { verifyJwt } from "./auth.js";
 import { sendPushToOwner, getVapidPublicKey, isPushConfigured } from "../services/pushNotificationSender.js";
 import { createNotification } from "../services/notificationCreator.js";
+import { getOwnerBusiness } from "../lib/auth.js";
 
 const router = Router();
 
@@ -15,17 +16,6 @@ function getUserIdFromRequest(req: any): number | null {
   if (!token) return null;
   const decoded = verifyJwt(token);
   return decoded?.userId || null;
-}
-
-async function getOwnerBusiness(userId: number): Promise<{ businessId: number; isOwner: boolean } | null> {
-  const { businessMembers } = await import("@workspace/db/schema");
-  const rows = await requireDb()
-    .select({ businessId: businessMembers.businessId, role: businessMembers.role })
-    .from(businessMembers)
-    .where(and(eq(businessMembers.userId, userId), eq(businessMembers.active, true)))
-    .limit(1);
-  if (!rows.length) return null;
-  return { businessId: rows[0].businessId, isOwner: rows[0].role === "owner" };
 }
 
 // GET /push/vapid-key — returns the VAPID public key for the client
@@ -83,9 +73,29 @@ router.post("/unsubscribe", async (req, res) => {
   const userId = getUserIdFromRequest(req);
   if (!userId) { res.status(401).json({ error: "Authorization required" }); return; }
 
+  const owner = await getOwnerBusiness(userId);
+  if (!owner || !owner.isOwner) {
+    res.status(403).json({ error: "Owner only" }); return;
+  }
+
   const { endpoint } = req.body;
   if (!endpoint) {
     res.status(400).json({ error: "Missing endpoint" }); return;
+  }
+
+  // Verify the subscription belongs to this business before deleting
+  const existing = await requireDb()
+    .select({ id: pushSubscriptions.id, businessId: pushSubscriptions.businessId })
+    .from(pushSubscriptions)
+    .where(eq(pushSubscriptions.endpoint, endpoint))
+    .limit(1);
+
+  if (existing.length === 0) {
+    res.status(404).json({ error: "Subscription not found" }); return;
+  }
+
+  if (existing[0].businessId !== owner.businessId) {
+    res.status(403).json({ error: "Not authorized to delete this subscription" }); return;
   }
 
   await requireDb().delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
@@ -106,16 +116,17 @@ router.post("/test", async (req, res) => {
     res.status(503).json({ error: "Push notifications not configured on server" }); return;
   }
 
-  // Insert a test notification (skipPreferences — this is a test)
+  // Create notification with skipPush=true to avoid double push (sendPushToOwner is called directly below)
   const result = await createNotification({
     businessId: owner.businessId,
     type: "test",
     title: "Test notification",
     body: "Push notifications are working! You will receive alerts here when staff record activity.",
-    skipPreferences: true, // Test notification should always go through
+    skipPreferences: true,
+    skipPush: true,
   });
 
-  // Send push
+  // Send push directly using the inserted notification ID
   const pushResult = await sendPushToOwner(owner.businessId, {
     title: "Test notification",
     body: "Push notifications are working!",

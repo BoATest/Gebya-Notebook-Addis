@@ -10,7 +10,7 @@
  *   if (!shouldNotify(prefs, "sale", "inApp")) return; // skip in-app
  */
 import { requireDb } from "@workspace/db";
-import { notificationPreferences } from "@workspace/db/schema";
+import { notificationPreferences, businessMembers } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
 import type { NotificationTypeKey } from "@workspace/db/schema";
 
@@ -44,6 +44,7 @@ const PREF_KEY_TO_COLUMN: Record<string, string> = {
   announcement: "announcementPrefs",
   support_reply: "supportReplyPrefs",
   staff_submitted_collection: "staffSubmittedCollectionPrefs",
+  test: "announcementPrefs",
 };
 
 function parsePrefs(raw: string | null): ChannelPrefs {
@@ -69,7 +70,6 @@ export async function getPreferencesForBusiness(
   // If userId not provided, find the owner
   let ownerId = userId;
   if (!ownerId) {
-    const { businessMembers } = await import("@workspace/db/schema");
     const [owner] = await db
       .select({ userId: businessMembers.userId })
       .from(businessMembers)
@@ -98,6 +98,8 @@ export async function getPreferencesForBusiness(
     for (const key of Object.keys(PREF_KEY_TO_COLUMN)) {
       preferences[key] = { ...DEFAULT_PREFS };
     }
+    // expense defaults to push: false to suppress expense notifications
+    preferences.expense = { inApp: true, push: false };
     return {
       businessId,
       userId: ownerId,
