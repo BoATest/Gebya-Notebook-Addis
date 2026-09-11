@@ -136,6 +136,9 @@ export default function AuthGate({ onAuthenticated, onSkip, shopPhone = '', lang
             const userData = await getCurrentUser(storedToken);
             onAuthenticated?.(userData.user, userData.role, userData.permissions);
           } catch { window.location.reload(); }
+        } else {
+          // No token yet — reload so the auth gate can re-initialize with the new membership
+          window.location.reload();
         }
       } else {
         setError(t.invalidInvite);

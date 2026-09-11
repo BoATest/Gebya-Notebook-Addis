@@ -4,13 +4,18 @@ import { useAuthStore } from '../stores/authStore';
 const API_BASE = (import.meta.env.VITE_API_BASE ?? '/api').replace(/\/$/, '');
 
 export async function apiFetch(path, options = {}) {
-  const token = await getAuthToken();
+  const token = options._skipAuth ? null : await getAuthToken();
 
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
+  else if (!options._skipAuth) {
+    const err = new Error('You need to be signed in. Please sign in and try again.');
+    err.status = 401;
+    throw err;
+  }
 
   try {
     const bizId = useAuthStore.getState?.().currentBusinessId;

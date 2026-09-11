@@ -12,6 +12,10 @@ async function request(path, options = {}) {
   const token = options.token || await getAuthToken();
   if (token) {
     headers.Authorization = `Bearer ${token}`;
+  } else {
+    const err = new Error('You need to be signed in. Please sign in and try again.');
+    err.status = 401;
+    throw err;
   }
 
   const res = await fetch(url, {
