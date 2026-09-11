@@ -4,8 +4,8 @@ function isIOS() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
-function isSafari() {
-  return /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+function isAndroid() {
+  return /Android/i.test(navigator.userAgent);
 }
 
 function isStandalone() {
@@ -15,6 +15,7 @@ function isStandalone() {
 export default function DownloadAppBanner() {
   const deferredInstallPromptRef = useRef(null);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const [showAndroidGuide, setShowAndroidGuide] = useState(false);
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem('gebya-download-banner-dismissed') === 'true'; } catch { return false; }
   });
@@ -41,6 +42,8 @@ export default function DownloadAppBanner() {
       deferredInstallPromptRef.current = null;
     } else if (isIOS()) {
       setShowIOSGuide(true);
+    } else if (isAndroid()) {
+      setShowAndroidGuide(true);
     } else {
       window.open(window.location.origin, '_blank');
     }
@@ -70,7 +73,7 @@ export default function DownloadAppBanner() {
           <ol className="space-y-3 text-sm" style={{ color: 'var(--color-text)' }}>
             <li className="flex gap-3">
               <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'var(--color-primary)', color: '#fff' }}>1</span>
-              <span>Tap the <strong>Share</strong> button <span style={{ fontSize: '18px' }}>⬆️</span> in Safari's bottom toolbar</span>
+              <span>Tap the <strong>Share</strong> button <span style={{ fontSize: '18px' }}>&#x2191;</span> in Safari's bottom toolbar</span>
             </li>
             <li className="flex gap-3">
               <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'var(--color-primary)', color: '#fff' }}>2</span>
@@ -83,6 +86,51 @@ export default function DownloadAppBanner() {
           </ol>
           <button
             onClick={() => setShowIOSGuide(false)}
+            className="w-full mt-4 py-2.5 rounded-xl font-medium text-sm transition-all"
+            style={{ background: 'var(--color-primary)', color: '#fff' }}
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showAndroidGuide) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 animate-fade"
+        onClick={() => setShowAndroidGuide(false)}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Install Gebya on Android"
+      >
+        <div
+          className="w-full max-w-md bg-[var(--color-surface)] rounded-t-2xl sm:rounded-2xl p-5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 className="text-base font-bold mb-3" style={{ color: 'var(--color-text)' }}>
+            Install Gebya on Android
+          </h3>
+          <ol className="space-y-3 text-sm" style={{ color: 'var(--color-text)' }}>
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'var(--color-primary)', color: '#fff' }}>1</span>
+              <span>Tap the <strong>three dots</strong> menu in Chrome's top-right corner</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'var(--color-primary)', color: '#fff' }}>2</span>
+              <span>Tap <strong>Install app</strong> or <strong>Add to Home screen</strong></span>
+            </li>
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: 'var(--color-primary)', color: '#fff' }}>3</span>
+              <span>Tap <strong>Install</strong> to confirm</span>
+            </li>
+          </ol>
+          <p className="text-[10px] mt-3" style={{ color: 'var(--color-text-muted)' }}>
+            The app works offline and syncs when connected.
+          </p>
+          <button
+            onClick={() => setShowAndroidGuide(false)}
             className="w-full mt-4 py-2.5 rounded-xl font-medium text-sm transition-all"
             style={{ background: 'var(--color-primary)', color: '#fff' }}
           >

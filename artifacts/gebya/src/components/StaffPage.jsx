@@ -39,6 +39,7 @@ export default function StaffPage({
   lang,
   canManageTeam,
   staffMembers,
+  onNeedAuth,
 }) {
 const t = (en, am) => lang === 'am' ? am : en;
   
@@ -289,7 +290,7 @@ const t = (en, am) => lang === 'am' ? am : en;
           {ownerTab === 'team' && (
             <>
               {/* Join Code */}
-              <StaffJoinCode shopProfile={shopProfile} onRotateJoinCode={onRotateJoinCode} t={t} />
+              <StaffJoinCode shopProfile={shopProfile} onRotateJoinCode={onRotateJoinCode} onNeedAuth={onNeedAuth} t={t} />
 
               {/* Add Staff */}
               {canManageTeam && (

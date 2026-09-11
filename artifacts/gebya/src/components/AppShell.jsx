@@ -2105,6 +2105,8 @@ export default function AppShell() {
       topStr,
       ``,
       t.shareSentVia,
+      '',
+      '—— Gebya ገበያ',
     ].join('\n');
   };
 
@@ -2336,6 +2338,7 @@ export default function AppShell() {
             onRotateJoinCode={handleRotateJoinCode}
             lang={lang}
               canManageTeam={canManageTeam}
+              onNeedAuth={() => setShowAuthPrompt(true)}
             />
           </ErrorBoundary>
         )}
