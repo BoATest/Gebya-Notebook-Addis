@@ -796,7 +796,7 @@ export const AM = {
   providerEnabled: 'ነቅቷል',
   providerDisabled: 'ተዘግቷል',
 
-  introSlide1Title: 'የሱቅ ማስታወሻ',
+  introSlide1Title: 'የሱቅ ደብተር',
   introSlide1Body: 'ሽያጭ፣ ወጪ እና ዱቤን በስልክዎ ላይ ቀላል ማስታወሻ ያድርጉ።',
   introSlide2Title: 'ገንዘብዎን ይመልከቱ',
   introSlide2Body: 'የዛሬ ሁኔታዎን በጥቂት ሰከንዶች ይረዱ።',
@@ -834,7 +834,7 @@ export const AM = {
   week: 'ሳምንት',
 
   typeSale: 'ሽያጭ ይመዝግቡ',
-  typeSaleLabel: 'በጽሑፍ ሽያጭ',
+  typeSaleLabel: 'ሽያጭ ይመዝግቡ',
 
   // Credit page (redesign)
   totalOwedToMe: 'ጠቅላላ የሚሰበሰብ ዱቤ',
@@ -1279,7 +1279,7 @@ export const AM_OVERRIDES = {
   call: 'ደውል',
   recordPartialPayment: 'ከፊል ክፍያ መዝግብ',
   recordPayment: 'ክፍያ መዝግብ',
-  markFullyPaid: 'ሙሉ ተከፍሏል ብለህ አድርግ',
+  markFullyPaid: 'በሙሉ የተከፈለ',
   paymentHistory: 'የክፍያ ታሪክ',
   borrowed: 'የተበደረ',
   paidBack: 'የተመለሰ',
@@ -1300,7 +1300,7 @@ export const AM_OVERRIDES = {
 
   // Status badges
   statusOverdue: 'ዘግይቷል',
-  statusDueSoon: 'ይቅረባል',
+  statusDueSoon: 'ቀኑ ቀርቧል',
   statusOk: 'ጥሩ',
 
   // Periods
@@ -1450,13 +1450,13 @@ export const AM_OVERRIDES = {
 
   // Onboarding
   onboardWelcome: 'ማስታወሻዎን ጀምር',
-  onboardSubtitle: 'የሱቅ ማስታወሻ',
-  onboardTagline: 'የሱቅ ማስታወሻ ደብተር',
+  onboardSubtitle: 'የሱቅ ደብተር',
+  onboardTagline: 'የሱቅ ደብተርዎ',
   onboardDesc: 'ስምዎን ያስገቡና ገበያን ወዲያው ይጀምሩ።',
   onboardNamePlaceholder: 'ለምሳሌ ትግስት',
   onboardPhoneOptional: '(አማራጭ)',
   onboardPhoneHelper: 'ስልክዎን በቅንብሮች ውስጥ በኋላ ማከል ይችላሉ።',
-  onboardPromiseSimple: 'ለሽያጭ፣ ወጪ እና ዱቤ ቀላል ማስታወሻ',
+  onboardPromiseSimple: 'ለሽያጭ፣ ወጪ እና ዱቤ ቀላል ማስታወሻ ደብተር',
   onboardPromiseFast: 'በስምዎ ብቻ ይጀምሩ',
   onboardPromisePrivate: 'መዝገቦችዎ በዚህ ስልክ ላይ ይቆያሉ',
   onboardGetStarted: 'ገበያን ጀምር',
@@ -1465,11 +1465,11 @@ export const AM_OVERRIDES = {
 
   // Trust card
   trustCardTitle: 'የሱቅ ደብተርዎ በዚህ ስልክ ላይ ይቆያል',
-  trustCardBody: 'ሽያጮችዎን ያስቀምጡ፣ መተግበሪያውን ዝጉ፣ በኋላም እንደገና ይክፈቱ። መዝገቦችዎ በዚህ ስልክ ላይ ይቆያሉ።',
+  trustCardBody: 'ሽያጭዎን ይመዝግቡ፣ መተግበሪያውን ይዝጉ፣ በኋላ እንደገና ይክፈቱት። መዝገቦችዎ በዚህ ስልክ ላይ ይቆያሉ።',
   trustCardAction: 'የመጀመሪያ ሽያጭዎን ይመዝግቡ',
   trustLastSaved: 'መጨረሻ የተመዘገበው',
   trustTodayCount: 'ዛሬ የተመዘገቡ',
-  trustReopenHint: 'በማንኛውም ጊዜ ዝጉና እንደገና ይክፈቱ፤ መዝገቦችዎ አይጠፉም።',
+  trustReopenHint: 'በማንኛውም ጊዜ ይዝጉት እና ይክፈቱት - መዝገብዎ እዚሁ ይቆያል።',
 
   // Offline / online
   offlineReadyTitle: 'የኦፍላይን አጠቃቀም ዝግጁ ነው',
@@ -1482,13 +1482,13 @@ export const AM_OVERRIDES = {
   notNow: 'አሁን አይደለም',
 
   tryAgain: 'እንደገና ሞክር',
-  typeSale: 'በጽሑፍ ሽያጭ',
-  typeSaleLabel: 'በጽሑፍ ሽያጭ',
+  typeSale: 'ሽያጭ ይመዝግቡ',
+  typeSaleLabel: 'ሽያጭ ይመዝግቡ',
 
   // Intro slides
-  introSlide1Title: 'የሱቅ ማስታወሻ',
+  introSlide1Title: 'የሱቅ ደብተር',
   introSlide1Body: 'ሽያጭ፣ ወጪ እና ዱቤን በስልክዎ ላይ ቀላል ማስታወሻ ያድርጉ።',
-  introSlide2Title: 'ገንዘብዎን ፈጣን ይመልከቱ',
+  introSlide2Title: 'ገንዘብዎን ይመልከቱ',
   introSlide2Body: 'የዛሬ ሁኔታዎን በጥቂት ሰከንዶች ይረዱ።',
   introSlide3Title: 'ሶስት ቁልፎች ብቻ',
   introSlide3Body: 'ሸጥ፣ ወጪ እና ዱቤ በፍጥነት ለመመዝገብ ይጠቀሙ።',
