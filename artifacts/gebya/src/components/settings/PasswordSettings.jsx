@@ -21,7 +21,10 @@ function PasswordSettings({ lang }) {
     setLoading(true);
     try {
       const token = await getAuthToken();
-      if (!token) return;
+      if (!token) {
+        fireToast(lang === 'am' ? 'መለያ ያስፈልጋል። ይግቡ።' : 'Sign in required', 3000);
+        return;
+      }
       await setPassword(token, password);
       useAuthStore.setState({ hasPassword: true });
       fireToast(
@@ -44,7 +47,10 @@ function PasswordSettings({ lang }) {
     setLoading(true);
     try {
       const token = await getAuthToken();
-      if (!token) return;
+      if (!token) {
+        fireToast(lang === 'am' ? 'መለያ ያስፈልጋል። ይግቡ።' : 'Sign in required', 3000);
+        return;
+      }
       await removePassword(token);
       useAuthStore.setState({ hasPassword: false });
       fireToast(

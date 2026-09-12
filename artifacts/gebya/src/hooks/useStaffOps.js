@@ -5,6 +5,10 @@ import identityApi from '../api/identity';
 import { useStaffStore } from '../stores/staffStore';
 import { normalizeStaffDraft } from '../utils/staffMembers';
 import { trackEvent, trackFirstEvent } from '../utils/eventTracking';
+import { fireToast } from '../components/Toast';
+
+const AUTH_ERROR_MSG = 'You need to be signed in. Please sign in and try again.';
+const AUTH_ERROR_MSG_AM = 'መለያ ያስፈልጋል። እባክዎ ይግቡ ከዚያ ይሞክሩ።';
 
 export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMembers, activeStaffMemberId, shopProfile }) {
 
@@ -54,7 +58,7 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
     const normalized = normalizeStaffDraft(payload);
     if (!normalized) return false;
     const token = await getAuthToken();
-    if (!token) return false;
+    if (!token) { fireToast(AUTH_ERROR_MSG, 3000); return false; }
     try {
       const shopId = shopProfile?.shop_id || shopProfile?.id;
       if (!shopId) return false;
@@ -110,7 +114,7 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
   // and refresh the cloud list. A legacy local-only record fallback is kept.
   const handleDeactivateStaffMember = useCallback(async (staffId) => {
     const token = await getAuthToken();
-    if (!token) return false;
+    if (!token) { fireToast(AUTH_ERROR_MSG, 3000); return false; }
     try {
       await identityApi.deactivateStaff(staffId, token);
       await refreshStaffMembers();
@@ -138,7 +142,7 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
 
   const handleReactivateStaffMember = useCallback(async (staffId) => {
     const token = await getAuthToken();
-    if (!token) return false;
+    if (!token) { fireToast(AUTH_ERROR_MSG, 3000); return false; }
     try {
       await identityApi.reactivateStaff(staffId, token);
       await refreshStaffMembers();
@@ -163,7 +167,7 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
   const handleApproveDevice = useCallback(async (deviceId) => {
     try {
       const token = await getAuthToken();
-      if (!token) return null;
+      if (!token) { fireToast(AUTH_ERROR_MSG, 3000); return null; }
             const result = await identityApi.approveDevice(deviceId, token);
       await refreshStaffMembers();
       const { loadCloudMembers } = useStaffStore.getState();
@@ -183,7 +187,7 @@ export function useStaffOps({ setStaffMembers, setActiveStaffMemberId, staffMemb
   const handleRejectDevice = useCallback(async (deviceId, reason) => {
     try {
       const token = await getAuthToken();
-      if (!token) return null;
+      if (!token) { fireToast(AUTH_ERROR_MSG, 3000); return null; }
       const result = await identityApi.rejectDevice(deviceId, { reason }, token);
       await refreshStaffMembers();
       const { loadCloudMembers } = useStaffStore.getState();

@@ -14,7 +14,7 @@ async function request(path, options = {}) {
         'Content-Type': 'application/json',
         ...(options.headers || {}),
         // Include auth token for authenticated endpoints (link-sessions, etc.)
-        ...(options.authed ? { Authorization: `Bearer ${await getAuthToken()}` } : {}),
+        ...(options.authed ? { Authorization: `Bearer ${await getAuthToken() || ''}` } : {}),
       },
       signal: controller.signal,
       ...options,

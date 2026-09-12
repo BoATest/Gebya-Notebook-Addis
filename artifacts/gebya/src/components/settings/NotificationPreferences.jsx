@@ -125,7 +125,11 @@ export default function NotificationPreferences({ lang }) {
     try {
       setLoading(true);
       const token = await getAuthToken();
-      if (!token) { setLoading(false); return; }
+      if (!token) {
+        setLoading(false);
+        fireToast(lang === 'am' ? 'መለያ ያስፈልጋል። ይግቡ።' : 'Sign in required to load preferences', 3000);
+        return;
+      }
 
       const res = await fetch('/api/notifications/preferences', {
         headers: { Authorization: `Bearer ${token}` },
@@ -152,7 +156,10 @@ export default function NotificationPreferences({ lang }) {
     try {
       setSaving(true);
       const token = await getAuthToken();
-      if (!token) return;
+      if (!token) {
+        fireToast(lang === 'am' ? 'መለያ ያስፈልጋል። ይግቡ።' : 'Sign in to save preferences', 3000);
+        return;
+      }
 
       await fetch('/api/notifications/preferences', {
         method: 'PUT',
@@ -174,7 +181,10 @@ export default function NotificationPreferences({ lang }) {
     try {
       setSaving(true);
       const token = await getAuthToken();
-      if (!token) return;
+      if (!token) {
+        fireToast(lang === 'am' ? 'መለያ ያስፈልጋል። ይግቡ።' : 'Sign in to save quiet hours', 3000);
+        return;
+      }
 
       await fetch('/api/notifications/preferences', {
         method: 'PUT',
@@ -192,7 +202,10 @@ export default function NotificationPreferences({ lang }) {
     try {
       setSaving(true);
       const token = await getAuthToken();
-      if (!token) return;
+      if (!token) {
+        fireToast(lang === 'am' ? 'መለያ ያስፈልጋል። ይግቡ።' : 'Sign in to reset preferences', 3000);
+        return;
+      }
 
       await fetch('/api/notifications/preferences/reset', {
         method: 'POST',
