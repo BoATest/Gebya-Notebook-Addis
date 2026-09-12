@@ -11,7 +11,12 @@ import { fmt } from '../../utils/numformat';
 import ErrorState from '../ErrorState';
 import { ListSkeleton } from '../Skeleton';
 
-export default function StaffActivityFeed({ todayRefreshKey }) {
+// Bug fix (build blocker): this file previously had TWO `export default`
+// statements — the function below and `React.memo(...)` at the end — which
+// broke every production build with "Multiple exports with the same name
+// \"default\"". The function is now a plain declaration; the single memoized
+// default export lives at the end of the file.
+function StaffActivityFeed({ todayRefreshKey }) {
   const t = useTranslation();
   const { lang } = useLang();
   const store = useStaffStore(useShallow((s) => ({ activities: s.activities, activitiesLoading: s.activitiesLoading, todayRefreshKey: s.todayRefreshKey })));

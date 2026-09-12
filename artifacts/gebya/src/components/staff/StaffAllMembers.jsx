@@ -5,7 +5,6 @@ import { formatEthiopianPhone, isValidEthiopianPhone } from '../../utils/phoneNu
 import { ROLE_BADGE, RoleBadge } from '../../utils/shared-ui.jsx';
 import PermissionToggle from './PermissionToggle';
 import { fireToast } from '../Toast';
-import { useTranslation } from '../../hooks/useTranslation';
 import { useShallow } from 'zustand/react/shallow';
 import { ListSkeleton } from '../Skeleton';
 
@@ -17,7 +16,10 @@ function StaffAllMembers({
   const store = useStaffStore(useShallow((s) => ({ cloudMembers: s.cloudMembers, searchQuery: s.searchQuery, expandedMember: s.expandedMember, setSearchQuery: s.setSearchQuery, setExpandedMember: s.setExpandedMember })));
   const cloudMembers = store.cloudMembers || [];
   const [searchQuery, setSearchQuery] = useState(store.searchQuery);
-  const t = useTranslation();
+  // Bug fix (build blocker): removed `const t = useTranslation()` which
+  // duplicated the `t` prop passed from StaffPage ("The symbol \"t\" has
+  // already been declared" broke the production build). The prop `t` is used
+  // directly; the useTranslation import was also removed.
 
   const filtered = useMemo(() => {
     const searchQ = searchQuery?.toLowerCase().trim() || '';
