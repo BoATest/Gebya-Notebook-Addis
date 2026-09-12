@@ -1,10 +1,14 @@
-import { Info, Download } from 'lucide-react';
+import { Info, Download, Upload } from 'lucide-react';
+import { useState } from 'react';
 import { useLang } from '../../context/LangContext';
 import DangerZoneSection from './backup/DangerZoneSection';
 import { exportToCSV } from './backup/useBackupData';
+import { createCloudSnapshot } from '../../utils/useAutoBackup';
+import { fireToast } from '../Toast';
 
 export default function BackupDataPanel({ transactions, customerSummaries }) {
   const { lang, t } = useLang();
+  const [manualBackupLoading, setManualBackupLoading] = useState(false);
 
   const totalEntries = (transactions || []).length;
   const totalCustomers = (customerSummaries || []).length;
@@ -41,8 +45,40 @@ export default function BackupDataPanel({ transactions, customerSummaries }) {
         </div>
       </button>
 
+      {/* Manual cloud backup button */}
+      <button
+        onClick={async () => {
+          setManualBackupLoading(true);
+          try {
+            const result = await createCloudSnapshot();
+            if (result.ok) {
+              fireToast(lang === 'am' ? '✓ መደቃቀፋ ተሳክኩᏅ' : '✓ Backup completed', 1800);
+            } else {
+              fireToast(lang === 'am' ? 'መደቃቀፋ አልተሳከም' : 'Backup failed', 2600);
+            }
+          } catch (err) {
+            fireToast(lang === 'am' ? 'መደቃቀፋ አልተሳከም' : 'Backup failed', 2600);
+          } finally {
+            setManualBackupLoading(false);
+          }
+        }}
+        disabled={manualBackupLoading || totalEntries === 0}
+        className="w-full flex items-center gap-4 px-5 py-4 active:bg-gray-50 transition-colors min-h-[64px] disabled:opacity-40 text-left"
+      >
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-primary-bg, #e8f5f0)' }}>
+          <Upload className="w-5 h-5 text-green-700" />
+        </div>
+        <div className="flex-1">
+          <div className="font-bold text-gray-800">{lang === 'am' ? 'ወደ ደረጃ መደቃቀፍ' : 'Back up to cloud'}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{lang === 'am' ? 'የሚታወቀውን ቴሌግራምና ወይም ኢሜይል ያስፈልጋል' : 'Requires sign-in · encrypted in transit'}</div>
+        </div>
+        {manualBackupLoading && (
+          <div className="w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+        )}
+      </button>
+
       {/* Restore from file + danger zone */}
-      <DangerZoneSection
+            <DangerZoneSection
         totalEntries={totalEntries}
         totalCustomers={totalCustomers}
         t={t}
