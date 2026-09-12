@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import BackupDataPanel from '../BackupDataPanel';
 import DisplayPrivacyPanel from '../DisplayPrivacyPanel';
 import ExportPanel from '../ExportPanel';
@@ -6,6 +6,7 @@ import PwaInstallPanel from '../../PwaInstallPanel';
 import SyncStatusIndicator from '../../SyncStatusIndicator';
 import TabCard from '../TabCard';
 import { usePwaInstall } from '../../../hooks/usePwaInstall.js';
+import { isErrorReportingEnabled, setErrorReportingPreference } from '../../../sentry';
 
 // Build info injected at bundle time by Vite
 const BUILD_VERSION = import.meta.env?.VITE_APP_VERSION || 'dev';
@@ -21,6 +22,18 @@ export default function DataTab({
   const dataTone = totalEntries > 0 ? 'ok' : 'neutral';
 
   const pwa = usePwaInstall();
+
+  // Error-reporting consent (Sentry). Default ON, user can switch off.
+  const [errorReporting, setErrorReportingState] = useState(true);
+  useEffect(() => {
+    setErrorReportingState(isErrorReportingEnabled());
+  }, []);
+
+  const toggleErrorReporting = () => {
+    const next = !errorReporting;
+    setErrorReportingPreference(next);
+    setErrorReportingState(next);
+  };
 
   return (
     <div>
@@ -51,6 +64,35 @@ export default function DataTab({
         badgeTone="neutral"
       >
         <DisplayPrivacyPanel />
+        <div
+          className="mt-3 flex items-center justify-between gap-3 px-4 py-3 rounded-xl"
+          style={{ background: 'var(--color-surface-soft, #f6f6f4)', border: '1px solid var(--color-border-light)' }}
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-gray-700">
+              {lang === 'am' ? 'የስህተት እና አጠቃቀም ሪፖርት' : 'Error & usage reporting'}
+            </p>
+            <p className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+              {lang === 'am'
+                ? 'መተግበሪያው ሲታገድ ለማስተካከል እና ለማሻሻል ይረዳል። ምንም የግል መረጃ አይላክም።'
+                : 'Helps fix crashes and improve the app. Never includes personal data.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={errorReporting}
+            aria-label={lang === 'am' ? 'የስህተት እና አጠቃቀም ሪፖርት' : 'Error & usage reporting'}
+            onClick={toggleErrorReporting}
+            className="flex-shrink-0 relative inline-flex h-7 w-12 items-center rounded-full transition-colors"
+            style={{ background: errorReporting ? 'var(--color-primary, #1B4332)' : 'var(--color-bg-disabled, #d9d9d4)' }}
+          >
+            <span
+              className="inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform"
+              style={{ transform: errorReporting ? 'translateX(26px)' : 'translateX(3px)' }}
+            />
+          </button>
+        </div>
       </TabCard>
 
       {/* Install App */}

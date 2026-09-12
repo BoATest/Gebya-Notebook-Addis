@@ -6,6 +6,7 @@
  */
 
 import { db } from '../db';
+import { isErrorReportingEnabled } from '../sentry';
 
 let sessionId = null;
 let sessionStartTime = null;
@@ -27,9 +28,16 @@ export function initSession() {
  * Track any event
  * @param {string} eventType - Event identifier (e.g., 'transaction_created')
  * @param {object} properties - Additional event data
+ *
+ * Consent gate (privacy promise: "nothing leaves your phone without opt-in"):
+ * usage events share the same consent switch as error reporting
+ * (Settings → Data → "Error & usage reporting"). When the switch is off,
+ * events are dropped before they are ever written.
  */
 export async function trackEvent(eventType, properties = {}) {
   try {
+    if (!isErrorReportingEnabled()) return;
+
     // Get device ID from settings
     const deviceIdSetting = await db.settings.get('device_id');
     const deviceId = deviceIdSetting?.value || 'unknown';
