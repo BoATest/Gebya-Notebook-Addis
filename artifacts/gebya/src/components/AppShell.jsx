@@ -53,6 +53,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useNotificationStream } from '../hooks/useNotificationStream';
 import { useSyncRefresh } from '../hooks/useSyncRefresh';
 import { initSession, endSession, trackEvent, trackFirstEvent } from '../utils/eventTracking';
+import { checkAndAutoBackup } from '../utils/useAutoBackup';
 import { useNotificationsStore } from '../stores/notificationsStore';
 import { useAppStore } from '../stores/appStore';
 import { useShopStore } from '../stores/shopStore';
@@ -478,9 +479,13 @@ export default function AppShell() {
   // Refresh local data from Dexie after each sync cycle completes
   useSyncRefresh(useCallback(() => { loadData(); }, [loadData]));
 
-  // Initialize session tracking on mount
+    // Initialize session tracking on mount
   useEffect(() => {
     initSession();
+
+    // Trigger auto-backup check once on app start (fires only if online + authenticated + stale)
+    checkAndAutoBackup({ silent: true }).catch(() => { /* never block startup */ });
+
     
     // Track session end on page hide/unload
     const handleVisibilityChange = () => {

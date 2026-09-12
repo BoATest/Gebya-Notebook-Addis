@@ -130,7 +130,10 @@ async function startOwnerAndOpenActivity(page: Page) {
   await expect(page.getByText(/owner tigist|activity shop/i)).toBeVisible();
   await setTestAuthToken(page);
   await page.locator('nav').getByRole('button', { name: /staff/i }).click();
-  await page.getByRole('button', { name: /^activity$/i }).click();
+  // Fix: the Activity tab is rendered with role="tab" (StaffPage ownerTabs),
+  // so query role="tab" — the old role="button" locator never matched and
+  // timed out. Verified against StaffPage.jsx line 254.
+  await page.getByRole('tab', { name: /^activity$/i }).click();
 }
 
 test('owner sees populated Staff Activity Feed grouped by period', async ({ page }) => {

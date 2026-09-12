@@ -499,6 +499,8 @@ export default function ReportView({
         ? `🏅 ብዙ የተሸጠ: ${top.name} · ${H(top.revenue)} ETB`
         : `🏅 Top seller: ${top.name} · ${H(top.revenue)} ETB`);
     }
+    // Viral signature: every shared report advertises the app.
+    lines.push('', '—— Gebya ገበያ');
     return lines.join('\n');
   }, [hidden, lang, shopProfile, timeRangeLabel, metrics, salesSummary]);
 

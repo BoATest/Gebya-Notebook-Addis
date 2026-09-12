@@ -97,6 +97,8 @@ export function buildCustomerLedgerTelegramMessage({
     '',
     `📅 ${formatEthiopian(createdAt || Date.now())}`,
     referenceCode ? `🔢 Ref: ${referenceCode}` : null,
+    '',
+    'via Gebya ገበያ',
   ].filter(Boolean).join('\n');
 }
 

@@ -11,9 +11,10 @@ import { EN, AM, EN_OVERRIDES, AM_OVERRIDES } from "./dictionaries.js";
 export const LangContext = createContext(null);
 
 export function LangProvider({ children }) {
-  // Default to English for the admin/command-center audience; shopkeepers can
-  // still toggle to Amharic (saved choice persists via localStorage).
-  const [lang, setLang] = useState('en');
+  // Default to Amharic: this app is built for Ethiopian shopkeepers first.
+  // Users can toggle to English from the header pill (choice persists via
+  // localStorage). Existing users keep their saved preference.
+  const [lang, setLang] = useState('am');
 
   useEffect(() => {
     try {
