@@ -163,7 +163,8 @@ export function usePwaInstall() {
 
   const promptInstall = useCallback(async () => {
     if (deferredPrompt) {
-      deferredPrompt.prompt();
+      setDeferredPrompt(null);
+      try { deferredPrompt.prompt(); } catch {}
       try {
         const choice = await deferredPrompt.userChoice;
         if (choice?.outcome === 'accepted') {
@@ -172,7 +173,6 @@ export function usePwaInstall() {
       } catch {
         setShowManualGuide(true);
       }
-      setDeferredPrompt(null);
       return;
     }
 
@@ -229,5 +229,6 @@ export function usePwaInstall() {
     shouldShowInstallPrompt,
     showManualGuide,
     updateReady,
+    installDismissed,
   };
 }

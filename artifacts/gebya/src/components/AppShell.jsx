@@ -2352,6 +2352,7 @@ export default function AppShell() {
           <ErrorBoundary compact>
           <Suspense fallback={<PanelFallback label={t.loading} />}>
             <SettingsPage
+              pwa={pwa}
               shopId={shopProfile?.shop_id || shopProfile?.id}
               transactions={transactions}
               customerSummaries={customerSummaries}

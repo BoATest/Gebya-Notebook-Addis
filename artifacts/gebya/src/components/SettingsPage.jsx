@@ -10,6 +10,7 @@ import ShopTab from './settings/tabs/ShopTab';
 import MoneyTab from './settings/tabs/MoneyTab';
 import DataTab from './settings/tabs/DataTab';
 import DownloadAppBanner from './settings/DownloadAppBanner';
+import { InstallGuideModal } from './PwaInstallPanel';
 import ReminderSettings from './settings/ReminderSettings';
 import NotificationPreferences from './settings/NotificationPreferences';
 import PasswordSettings from './settings/PasswordSettings';
@@ -27,6 +28,7 @@ const DEV_MODE_UNLOCK_TAPS = 5;
 const DEV_MODE_UNLOCK_WINDOW_MS = 10000;
 
 function SettingsPage({
+  pwa,
   transactions,
   customerSummaries,
   catalogEntries,
@@ -169,7 +171,8 @@ function SettingsPage({
   return (
     <div className="space-y-2 pb-4">
       {/* Download App Banner */}
-      <DownloadAppBanner />
+      <DownloadAppBanner pwa={pwa} />
+      <InstallGuideModal pwa={pwa} />
 
       {/* Topbar */}
       <div className="flex items-center justify-between px-4 pt-3 pb-1" style={{ background: 'var(--cream)' }}>
@@ -301,6 +304,7 @@ function SettingsPage({
               style={{ display: activeTab === 'data' ? 'block' : 'none' }}
             >
               <DataTab
+                pwa={pwa}
                 transactions={transactions}
                 customerSummaries={customerSummaries}
                 lang={lang}

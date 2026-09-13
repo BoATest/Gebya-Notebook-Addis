@@ -5,7 +5,6 @@ import ExportPanel from '../ExportPanel';
 import PwaInstallPanel from '../../PwaInstallPanel';
 import SyncStatusIndicator from '../../SyncStatusIndicator';
 import TabCard from '../TabCard';
-import { usePwaInstall } from '../../../hooks/usePwaInstall.js';
 import { isErrorReportingEnabled, setErrorReportingPreference } from '../../../sentry';
 
 // Build info injected at bundle time by Vite
@@ -13,6 +12,7 @@ const BUILD_VERSION = import.meta.env?.VITE_APP_VERSION || 'dev';
 const BUILD_DATE = import.meta.env?.VITE_BUILD_DATE || '';
 
 export default function DataTab({
+  pwa,
   transactions,
   customerSummaries,
   lang,
@@ -20,8 +20,6 @@ export default function DataTab({
   const totalEntries = (transactions || []).length;
   const dataBadge = totalEntries > 0 ? `${totalEntries}` : (lang === 'am' ? 'ባዶ' : 'Empty');
   const dataTone = totalEntries > 0 ? 'ok' : 'neutral';
-
-  const pwa = usePwaInstall();
 
   // Error-reporting consent (Sentry). Default ON, user can switch off.
   const [errorReporting, setErrorReportingState] = useState(true);
@@ -96,14 +94,16 @@ export default function DataTab({
       </TabCard>
 
       {/* Install App */}
-      <TabCard
-        icon="📲"
-        title={lang === 'am' ? 'መተግበሪያውን ይጫኑ' : 'Install the App'}
-        subtitle={lang === 'am' ? 'እንደ መተግበሪያ ይክፈቱ — ከመስመር ውጭም ይሰራል' : 'Use it like a native app — works offline too'}
-        badgeTone="neutral"
-      >
-        <PwaInstallPanel pwa={pwa} />
-      </TabCard>
+      {pwa && pwa.shouldShowInstallPrompt && (
+        <TabCard
+          icon="📲"
+          title={lang === 'am' ? 'መተግበሪያውን ይጫኑ' : 'Install the App'}
+          subtitle={lang === 'am' ? 'እንደ መተግበሪያ ይክፈቱ — ከመስመር ውጭም ይሰራል' : 'Use it like a native app — works offline too'}
+          badgeTone="neutral"
+        >
+          <PwaInstallPanel pwa={pwa} />
+        </TabCard>
+      )}
 
       {/* Sync Status */}
       <TabCard

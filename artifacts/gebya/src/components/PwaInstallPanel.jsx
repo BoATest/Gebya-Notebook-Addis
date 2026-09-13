@@ -1,10 +1,10 @@
 import { Download, RefreshCw, Signal, SignalHigh, Smartphone, WifiOff, X } from 'lucide-react';
 import { useLang } from '../context/LangContext';
 
-function InstallGuideModal({ pwa }) {
+export function InstallGuideModal({ pwa }) {
   const { lang, t } = useLang();
 
-  if (!pwa.showManualGuide) return null;
+  if (!pwa || !pwa.showManualGuide) return null;
 
   const steps = pwa.isIOS && pwa.isSafari
     ? [t.installIosStep1, t.installIosStep2, t.installIosStep3]
@@ -135,10 +135,10 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
               </div>
             </div>
           </div>
-          <InstallGuideModal pwa={pwa} />
         </section>
       );
     }
+    if (pwa.installDismissed) return null;
     return (
       <>
         <section>
@@ -159,7 +159,6 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
             </div>
           </div>
         </section>
-        <InstallGuideModal pwa={pwa} />
       </>
     );
   }
@@ -191,7 +190,6 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
             </div>
           </BannerCard>
         </div>
-        <InstallGuideModal pwa={pwa} />
       </>
     );
   }
@@ -210,7 +208,6 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
             </div>
           </BannerCard>
         </div>
-        <InstallGuideModal pwa={pwa} />
       </>
     );
   }
@@ -229,17 +226,12 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
             </div>
           </BannerCard>
         </div>
-        <InstallGuideModal pwa={pwa} />
       </>
     );
   }
 
-  if (pwa.offlineReady) {
-    return <InstallGuideModal pwa={pwa} />;
-  }
-
-  if (!pwa.shouldShowInstallPrompt) {
-    return <InstallGuideModal pwa={pwa} />;
+  if (pwa.offlineReady || !pwa.shouldShowInstallPrompt) {
+    return null;
   }
 
   return (
@@ -270,7 +262,6 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
           </div>
         </BannerCard>
       </div>
-      <InstallGuideModal pwa={pwa} />
     </>
   );
 }
