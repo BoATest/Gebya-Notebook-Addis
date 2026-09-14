@@ -792,7 +792,10 @@ export default function AppShell() {
   // that owner-side toggles (can_view_reports, can_add_records, …) take effect
   // on staff devices in near-real-time without a manual reload.
   useEffect(() => {
-    if (loading) return undefined;
+    // Only poll permissions for an authenticated, loaded app. When the user is
+    // signed out (or the refresh token is dead) init() would otherwise hit
+    // /api/auth/refresh every 30s and spam 401s into the console.
+    if (loading || !authChecked || !authUser) return undefined;
     const refreshPermissions = () => {
       if (isBrowserOnline()) {
         useAuthStore.getState().init().catch(() => { /* non-critical */ });
@@ -804,7 +807,7 @@ export default function AppShell() {
       clearInterval(interval);
       window.removeEventListener('online', refreshPermissions);
     };
-  }, [loading]);
+  }, [loading, authChecked, authUser]);
 
   const rememberSaleItemsInCatalog = async (sale) => {
     const items = Array.isArray(sale?.items) ? sale.items : [];

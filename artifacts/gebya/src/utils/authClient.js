@@ -20,7 +20,7 @@ export function _resetRefreshForTest() {
 export async function ensureFreshToken() {
   if (_refreshInFlight) return _refreshInFlight;
   _refreshInFlight = (async () => {
-    const { getAuthToken, setAuthToken } = await import('./syncEngine.js');
+    const { getAuthToken, setAuthToken, clearAuthToken } = await import('./syncEngine.js');
     const current = await getAuthToken();
     const res = await fetch(`${AUTH_API_BASE}/auth/refresh`, {
       method: 'POST',
@@ -31,6 +31,13 @@ export async function ensureFreshToken() {
       credentials: 'include',
     });
     if (!res.ok) {
+      // A 401 means the refresh token is invalid/expired/revoked. Drop the
+      // stored bearer so we (and authedFetch's retry) stop retrying a
+      // known-bad token. Other failures (5xx, network) are transient — leave
+      // the token intact so a later retry can still succeed.
+      if (res.status === 401) {
+        await clearAuthToken().catch(() => {});
+      }
       const err = new Error(`refresh_failed_${res.status}`);
       err.status = res.status;
       throw err;
