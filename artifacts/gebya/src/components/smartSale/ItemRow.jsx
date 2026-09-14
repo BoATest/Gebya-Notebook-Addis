@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { useLang } from '../../context/LangContext';
-import { fmt, fmtInput } from '../../utils/numformat';
+import { fmt, fmtInput, sanitizeQtyInput } from '../../utils/numformat';
 import { X } from 'lucide-react';
 import MerchantMemoryAutocomplete from './MerchantMemoryAutocomplete';
 
@@ -147,12 +147,16 @@ export default function ItemRow({
           <input
             ref={qtyRef}
             type="text"
-            inputMode="numeric"
+            inputMode="decimal"
             data-field="qty"
             value={row.qty}
             onChange={(e) => {
-              const v = e.target.value.replace(/[^\d]/g, '');
-              onUpdate(row.id, 'qty', v || '1');
+              // Fractional quantities are legitimate (1.5 kg, 2.5 litres).
+              // Accept one decimal separator, treat the comma keypad mark as
+              // the decimal mark, and keep the trailing '.' the merchant is
+              // still typing — the legacy digits-only filter deleted it and
+              // turned "1.5" into "15" (a silent 10x quantity).
+              onUpdate(row.id, 'qty', sanitizeQtyInput(e.target.value) || '1');
             }}
             onFocus={handleQtyFocus}
             onKeyDown={handleQtyKeyDown}

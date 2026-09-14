@@ -46,7 +46,7 @@ if (typeof document !== 'undefined' && !document.getElementById('sale-workspace-
 }
 import { useLang } from '../../context/LangContext';
 import { db } from '../../db';
-import { fmt, fmtInput, parseInput } from '../../utils/numformat';
+import { fmt, fmtInput, parseInput, sanitizeQtyInput, sanitizeAmountInput } from '../../utils/numformat';
 import { buildPhotoFields, createPhotoProof, MAX_PROOF_PHOTOS } from '../../utils/photoProof';
 import { photoSizeBytes } from '../../utils/photoCapture';
 import { buildPayPageLink, buildPayPageMessage } from '../../utils/payPageLink';
@@ -123,7 +123,10 @@ export default function SaleWorkspace({
   const [showCamera, setShowCamera] = useState(false);
 
   // ─── ITEMIZED extras ───
-  const [discount, setDiscount] = useState(draft?.discount || 0);
+  // Canonical both in the DOM and when persisting, so the merchant can type a
+  // trailing '.' and see it. Kept as a string on purpose: a Number state
+  // re-renders "2." back to "2" and swallows the decimal point mid-typing.
+  const [discount, setDiscount] = useState(draft?.discount || '');
   const [showDiscount, setShowDiscount] = useState(draft?.showDiscount || false);
   const discountRef = useRef(null);
   const [shareAuto, setShareAuto] = useState(draft?.shareAuto || false);
@@ -187,8 +190,11 @@ export default function SaleWorkspace({
   // the recorded transaction are consistent.
   const baseTotal = stage === 'itemized' ? totalAmount : sellingPrice;
   // Discount may not exceed the gross total — surface a real error, not a silent clamp.
-  const discountOverTotal = discount > baseTotal;
-  const grandTotal = Math.max(0, baseTotal - discount);
+  // The discount is held as a STRING while the merchant types (so a trailing
+  // '.' stays visible); every numeric use below derives from discountValue.
+  const discountValue = parseFloat(parseInput(discount)) || 0;
+  const discountOverTotal = discountValue > baseTotal;
+  const grandTotal = Math.max(0, baseTotal - discountValue);
   // The single live total: gross (base) or net (after discount) — UI
   // surfaces the net in the Save button, the live summary, and the
   // bottom row so the merchant never has to do mental math.
@@ -351,7 +357,7 @@ export default function SaleWorkspace({
     const items = buildItemsArray();
     const shopName = shopProfile?.name || actorLabel || t.shopFallback;
     const shopPhone = shopProfile?.phone || '';
-    const grandTotalVal = Math.max(0, totalAmount - discount);
+    const grandTotalVal = Math.max(0, totalAmount - discountValue);
 
     let lines = [];
     if (shopName) lines.push(shopName);
@@ -361,15 +367,15 @@ export default function SaleWorkspace({
       if (it.name) lines.push(`${it.name}  ×${it.qty}  ${fmt(it.amount)} ${t.currencyShort}`);
     });
     lines.push('');
-    if (discount > 0) lines.push(`${t.subtotalLabel}: ${fmt(totalAmount)} ${t.currencyShort}`);
-    if (discount > 0) lines.push(`-${t.discountLabel}: ${fmt(discount)} ${t.currencyShort}`);
+    if (discountValue > 0) lines.push(`${t.subtotalLabel}: ${fmt(totalAmount)} ${t.currencyShort}`);
+    if (discountValue > 0) lines.push(`-${t.discountLabel}: ${fmt(discountValue)} ${t.currencyShort}`);
     lines.push(`${t.totalLabel}: ${fmt(grandTotalVal)} ${t.currencyShort}`);
     lines.push(`${t.paymentLabel}: ${paymentType === 'cash' ? t.cash : paymentProvider || paymentType}`);
     lines.push('');
     lines.push(t.shareFooter);
 
     return lines.join('\n');
-  }, [shopProfile, actorLabel, buildItemsArray, totalAmount, discount, paymentType, paymentProvider, t]);
+  }, [shopProfile, actorLabel, buildItemsArray, totalAmount, discountValue, paymentType, paymentProvider, t]);
 
   const doShare = useCallback(async () => {
     const shareText = buildShareText();
@@ -426,7 +432,7 @@ export default function SaleWorkspace({
           settlement_due_date: (isCredit || isPartial) ? dueTs : null,
           entered_total: null,
           items_subtotal: totalAmount,
-          discount: discount > 0 ? discount : null,
+          discount: discountValue > 0 ? discountValue : null,
           amount_basis: 'items',
           created_at: Date.now(),
         };
@@ -464,7 +470,7 @@ export default function SaleWorkspace({
           settlement_due_date: (isCredit || isPartial) ? dueTs : null,
           entered_total: sellingPrice,                 // what the merchant typed
           items_subtotal: sellingPrice,                 // gross before discount
-          discount: discount > 0 ? discount : null,
+          discount: discountValue > 0 ? discountValue : null,
           amount_basis: 'simple',
           created_at: Date.now(),
         };
@@ -526,7 +532,7 @@ export default function SaleWorkspace({
       clearRows();
       setPhotos([]);
       setPartialReceived('');
-      setDiscount(0);
+      setDiscount('');
       setShowDiscount(false);
       setCreditCustomerId(null);
       setCreditCustomerName('');
@@ -646,7 +652,7 @@ export default function SaleWorkspace({
     clearRows();
     setPhotos([]);
     setPartialReceived('');
-    setDiscount(0);
+    setDiscount('');
     setShowDiscount(false);
     setCreditCustomerId(null);
     setCreditCustomerName('');
@@ -689,7 +695,7 @@ export default function SaleWorkspace({
   const handleClearForm = () => {
     if (
       !sellingPrice && filledRows.length === 0 && !context.trim() &&
-      photos.length === 0 && !creditCustomerId && discount === 0
+      photos.length === 0 && !creditCustomerId && discountValue === 0
     ) return; // nothing to clear
 
     if (filledRows.length > 0) {
@@ -711,7 +717,7 @@ export default function SaleWorkspace({
     setCustomDueIso('');
     setShareAuto(false);
     setPhotos([]);
-    setDiscount(0);
+    setDiscount('');
     setShowDiscount(false);
     setSelectedCatalogEntryId(null);
     setSelectedCatalogKind(null);
@@ -1081,7 +1087,7 @@ export default function SaleWorkspace({
                 type="text"
                 inputMode="decimal"
                 value={fmtInput(partialReceived)}
-                onChange={e => setPartialReceived(e.target.value.replace(/[^\d.]/g, ''))}
+                onChange={e => setPartialReceived(sanitizeAmountInput(e.target.value))}
                 placeholder="0"
                 className="w-full p-3 pr-16 border-2 focus:outline-none text-base"
                 style={{ borderRadius: 'var(--radius-md)', borderColor: partialReceivedAmount > 0 && partialReceivedAmount < activeTotal ? 'var(--color-primary)' : 'var(--color-border)' }}
@@ -1332,20 +1338,19 @@ export default function SaleWorkspace({
                   ref={discountRef}
                   type="text"
                   inputMode="decimal"
-                  value={fmtInput(String(discount))}
+                  value={fmtInput(discount)}
                   onChange={(e) => {
-                    const raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
-                    const val = parseFloat(raw);
-                    // Keep the raw typed value so an over-discount shows clearly
-                    // as an error rather than silently snapping to the total.
-                    setDiscount(Number.isFinite(val) ? val : 0);
+                    // Keep the raw typed string so a trailing '.' survives and an
+                    // over-discount shows as a real error rather than silently
+                    // snapping to the total.
+                    setDiscount(sanitizeAmountInput(e.target.value));
                   }}
                   className="w-16 text-right text-[12px] font-bold px-1"
                   style={{ border: 'none', borderBottom: `1.5px solid ${discountOverTotal ? 'var(--color-dispute)' : 'var(--color-discount)'}`, borderRadius: '0', minHeight: '28px', background: 'transparent', color: discountOverTotal ? 'var(--color-dispute)' : 'var(--color-discount-fg)' }}
                 />
                 <button
                   type="button"
-                  onClick={() => { setDiscount(0); setShowDiscount(false); }}
+                  onClick={() => { setDiscount(''); setShowDiscount(false); }}
                   aria-label={t.removeDiscountAria}
                   className="press-scale flex items-center justify-center"
                   style={{ minWidth: '28px', minHeight: '28px', color: 'var(--color-discount-fg)' }}
@@ -1574,10 +1579,10 @@ export default function SaleWorkspace({
                 <span style={{ color: 'var(--color-text-muted)' }}>{t.subtotalLabel}</span>
                 <span className="font-bold">{fmt(totalAmount)}</span>
               </div>
-              {discount > 0 && (
+              {discountValue > 0 && (
                 <div className="flex justify-between">
                   <span style={{ color: 'var(--color-text-muted)' }}>{t.discountLabel}</span>
-                  <span style={{ color: 'var(--color-danger)' }}>−{fmt(discount)}</span>
+                  <span style={{ color: 'var(--color-danger)' }}>−{fmt(discountValue)}</span>
                 </div>
               )}
               <div className="flex justify-between border-t pt-0.5" style={{ borderColor: 'var(--color-text-soft)' }}>
