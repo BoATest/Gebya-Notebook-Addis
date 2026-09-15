@@ -7,7 +7,7 @@ import { apiFetch } from '../utils/shared-ui.jsx';
 
 const BANKS = [
   { id: 'cbe', name: 'Commercial Bank of Ethiopia', nameAm: 'የኢትዮጵያ ንግድ ባንክ' },
-  { id: 'dashen', name: 'Dashen Bank', nameAm: 'ዳшен ባንክ' },
+  { id: 'dashen', name: 'Dashen Bank', nameAm: 'ዳሸን ባንክ' },
   { id: 'awash', name: 'Awash Bank', nameAm: 'አዋሽ ባንክ' },
   { id: 'wegagen', name: 'Wegagen Bank', nameAm: 'ወጋገን ባንክ' },
   { id: 'nbe', name: 'National Bank of Ethiopia (NBE)', nameAm: 'የኢትዮጵያ ብሔራዊ ባንክ' },

@@ -5,6 +5,9 @@ import ExportPanel from '../ExportPanel';
 import PwaInstallPanel from '../../PwaInstallPanel';
 import SyncStatusIndicator from '../../SyncStatusIndicator';
 import TabCard from '../TabCard';
+import ReminderSettings from '../ReminderSettings';
+import NotificationPreferences from '../NotificationPreferences';
+import PasswordSettings from '../PasswordSettings';
 import { isErrorReportingEnabled, setErrorReportingPreference } from '../../../sentry';
 
 // Build info injected at bundle time by Vite
@@ -16,6 +19,7 @@ export default function DataTab({
   transactions,
   customerSummaries,
   lang,
+  shopId,
 }) {
   const totalEntries = (transactions || []).length;
   const dataBadge = totalEntries > 0 ? `${totalEntries}` : (lang === 'am' ? 'ባዶ' : 'Empty');
@@ -35,6 +39,19 @@ export default function DataTab({
 
   return (
     <div>
+      {/* Reminders, notification prefs, and password — rendered ONCE, here at
+          the top of the Data tab. These used to be rendered outside the tab
+          panels in SettingsPage, which duplicated them on every tab. */}
+      <div className="mt-4">
+        <ReminderSettings shopId={shopId} lang={lang} />
+      </div>
+      <div className="mt-4">
+        <NotificationPreferences lang={lang} />
+      </div>
+      <div className="mt-4">
+        <PasswordSettings lang={lang} />
+      </div>
+
       {/* Your Data — backup + export combined */}
       <TabCard
         icon="📦"

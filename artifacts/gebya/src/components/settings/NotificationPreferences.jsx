@@ -5,9 +5,8 @@ import { getAuthToken } from '../../utils/syncEngine';
 
 const NOTIFICATION_TYPES = [
   { key: 'sale', label: { en: 'Sales', am: 'ሽያጭ' }, icon: '💰' },
-  { key: 'credit', label: { en: 'Credit Given', am: 'নISED ብር' }, icon: '👥' },
+  { key: 'credit', label: { en: 'Credit Given', am: 'ተሰጠ ብር' }, icon: '👥' },
   { key: 'payment', label: { en: 'Payments Received', am: 'ክፍያ ተቀባይ' }, icon: '✅' },
-  { key: 'payment_confirmed', label: { en: 'Payment Confirmed', am: 'ክፍያ ተረጋግጧል' }, icon: '💸' },
   { key: 'supplier_payment', label: { en: 'Supplier Payments', am: 'የአቅራቢያ ክፍያ' }, icon: '🤝' },
   { key: 'supplier_purchase', label: { en: 'Supplier Purchases', am: 'የአቅራቢያ ግዢ' }, icon: '📦' },
   { key: 'expense', label: { en: 'Expenses', am: 'ወጪ' }, icon: '🛒' },
@@ -99,7 +98,7 @@ function QuietHoursRow({ startTime, endTime, onChange, lang }) {
         <span className="text-xs mt-4" style={{ color: 'var(--color-text-muted)' }}>—</span>
         <div className="flex-1">
           <label className="text-[10px] font-bold uppercase" style={{ color: 'var(--color-text-soft)' }}>
-            {lang === 'am' ? '_until' : 'Until'}
+            {lang === 'am' ? 'እስከ' : 'Until'}
           </label>
           <input
             type="time"
@@ -212,7 +211,7 @@ export default function NotificationPreferences({ lang }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       await loadPreferences();
-      fireToast(lang === 'am' ? 'ደ砾ንን ተመልሷል' : 'Reset to defaults', 2000);
+      fireToast(lang === 'am' ? 'ወደ ነባሪ ተመልሷል' : 'Reset to defaults', 2000);
     } catch (err) {
       console.error('Failed to reset preferences:', err);
     } finally {

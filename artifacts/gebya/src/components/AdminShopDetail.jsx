@@ -207,7 +207,7 @@ export default function AdminShopDetail({ businessId, onBack, lang: propLang }) 
           <div className="text-sm font-black text-gray-900 flex items-center gap-2">
             {s.name || (l === 'am' ? 'ሱቅ' : 'Shop')}
             {st && (
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold" style={statusStyle}>{st.status || (l === 'am' ? 'አկնա' : 'new')}</span>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold" style={statusStyle}>{st.status || (l === 'am' ? 'አዲስ' : 'new')}</span>
             )}
           </div>
           <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>

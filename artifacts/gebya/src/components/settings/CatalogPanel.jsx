@@ -126,7 +126,7 @@ export default function CatalogPanel({ catalogEntries, onSaveCatalogEntry, onTog
           >
             {catalogForm.id
               ? (lang === 'am' ? 'አስተካክል' : 'Update')
-              : (lang === 'am' ? '＋ አስቀምጥ' : '＋ Save')}
+              : (lang === 'am' ? '+ አስቀምጥ' : '+ Save')}
           </button>
         </div>
 

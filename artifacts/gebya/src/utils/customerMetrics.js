@@ -466,7 +466,7 @@ export function computeCreditGrade(report) {
   const overdue = s.overdue_amount_birr || 0;
   const onTimeRate = s.on_time_rate_percent ?? 100;
 
-  if (totalOwed === 0) return { grade: 'A', label: 'Excellent', labelAm: 'ተሻшли', color: '#16a34a' };
+  if (totalOwed === 0) return { grade: 'A', label: 'Excellent', labelAm: 'በጣም ጥሩ', color: '#16a34a' };
 
   let score = 100;
   if (onTimeRate < 50) score -= 30;
@@ -480,7 +480,7 @@ export function computeCreditGrade(report) {
     else if (overdueRatio > 0.1) score -= 5;
   }
 
-  if (score >= 85) return { grade: 'A', label: 'Excellent', labelAm: 'ተሻшли', color: '#16a34a' };
+  if (score >= 85) return { grade: 'A', label: 'Excellent', labelAm: 'በጣም ጥሩ', color: '#16a34a' };
   if (score >= 65) return { grade: 'B', label: 'Good', labelAm: 'ጥሩ', color: '#2563eb' };
   if (score >= 40) return { grade: 'C', label: 'Fair', labelAm: 'መካከለኛ', color: '#d97706' };
   return { grade: 'D', label: 'Poor', labelAm: 'እንከስ', color: '#dc2626' };

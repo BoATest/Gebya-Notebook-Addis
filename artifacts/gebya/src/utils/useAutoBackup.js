@@ -102,7 +102,7 @@ export async function checkAndAutoBackup({ silent = true } = {}) {
       if (!silent && t) {
         fireToast(
           lang === 'am'
-            ? '✓ በሂሳብ ቤት መደቃቀፋ ተሳክኩᏅ'
+            ? '✓ በሂሳብ ቤት መደቃቀፋ ተሳክቷል'
             : '✓ Auto-backup completed',
           1800
         );

@@ -52,7 +52,7 @@ export default function BackupDataPanel({ transactions, customerSummaries }) {
           try {
             const result = await createCloudSnapshot();
             if (result.ok) {
-              fireToast(lang === 'am' ? '✓ መደቃቀፋ ተሳክኩᏅ' : '✓ Backup completed', 1800);
+              fireToast(lang === 'am' ? '✓ መደቃቀፋ ተሳክቷል' : '✓ Backup completed', 1800);
             } else {
               fireToast(lang === 'am' ? 'መደቃቀፋ አልተሳከም' : 'Backup failed', 2600);
             }
