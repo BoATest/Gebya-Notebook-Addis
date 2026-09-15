@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   isEligibleNow,
+  normalizeFrequency,
   getLeadDays,
   daysSince,
   queueReminder,
@@ -627,5 +628,36 @@ describe("reminderScheduler", () => {
       const result = await scanCriticalOverdue(customers);
       expect(result).toHaveLength(0);
     });
+  });
+});
+
+describe("normalizeFrequency — unknown persisted values (Gate A)", () => {
+  it("maps legacy/unknown values to daily — never a silent skip", () => {
+    expect(normalizeFrequency("monthly")).toBe("daily");
+    expect(normalizeFrequency("yearly")).toBe("daily");
+    expect(normalizeFrequency("sometimes")).toBe("daily");
+    expect(normalizeFrequency("")).toBe("daily");
+    expect(normalizeFrequency(null)).toBe("daily");
+    expect(normalizeFrequency(undefined)).toBe("daily");
+  });
+
+  it("passes supported values through unchanged", () => {
+    expect(normalizeFrequency("daily")).toBe("daily");
+    expect(normalizeFrequency("weekly")).toBe("weekly");
+    // The ONLY value that skips reminders is the explicit user choice.
+    expect(normalizeFrequency("disabled")).toBe("disabled");
+  });
+
+  it("treats a persisted 'monthly' exactly like daily for eligibility", () => {
+    const now = Date.now();
+    // No due date, last sent 3 days ago: the daily cadence re-sends (24h
+    // window elapsed) while the old weekly fallback would wait a full week.
+    const threeDaysAgo = now - 3 * DAY_MS;
+    const asMonthly = isEligibleNow("monthly", threeDaysAgo, null, now - DAY_MS);
+    const asDaily = isEligibleNow("daily", threeDaysAgo, null, now - DAY_MS);
+    const asWeekly = isEligibleNow("weekly", threeDaysAgo, null, now - DAY_MS);
+    expect(asMonthly).toEqual(asDaily);
+    expect(asMonthly.eligible).toBe(true);
+    expect(asWeekly.eligible).toBe(false);
   });
 });

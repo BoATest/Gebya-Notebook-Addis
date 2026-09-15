@@ -11,9 +11,6 @@ import MoneyTab from './settings/tabs/MoneyTab';
 import DataTab from './settings/tabs/DataTab';
 import DownloadAppBanner from './settings/DownloadAppBanner';
 import { InstallGuideModal } from './PwaInstallPanel';
-import ReminderSettings from './settings/ReminderSettings';
-import NotificationPreferences from './settings/NotificationPreferences';
-import PasswordSettings from './settings/PasswordSettings';
 import AdminPanel from './settings/AdminPanel';
 import SettingsPanelFallback from './settings/SettingsPanelFallback';
 import ErrorBoundary from './ErrorBoundary';
@@ -233,17 +230,20 @@ function SettingsPage({
               if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Home' || e.key === 'End') {
                 e.preventDefault();
                 const currentIndex = TABS.findIndex(t => t.id === tab.id);
+                let nextIndex;
                 if (e.key === 'ArrowLeft') {
-                  const prev = (currentIndex - 1 + TABS.length) % TABS.length;
-                  setActiveTab(TABS[prev].id);
+                  nextIndex = (currentIndex - 1 + TABS.length) % TABS.length;
                 } else if (e.key === 'ArrowRight') {
-                  const next = (currentIndex + 1) % TABS.length;
-                  setActiveTab(TABS[next].id);
+                  nextIndex = (currentIndex + 1) % TABS.length;
                 } else if (e.key === 'Home') {
-                  setActiveTab(TABS[0].id);
-                } else if (e.key === 'End') {
-                  setActiveTab(TABS[TABS.length - 1].id);
+                  nextIndex = 0;
+                } else {
+                  nextIndex = TABS.length - 1;
                 }
+                setActiveTab(TABS[nextIndex].id);
+                // ARIA tabs (roving tabindex): focus follows selection, so a
+                // second arrow press moves from the newly-selected tab.
+                document.getElementById(`tab-${TABS[nextIndex].id}`)?.focus();
               }
             }}
           >
@@ -288,6 +288,7 @@ function SettingsPage({
                 shopProfile={shopProfile}
                 shopId={shopId}
                 onSavePaymentChannels={onSavePaymentChannels}
+                onNavigate={handleNavigate}
                 lang={lang}
                 planTier={planTier}
                 entitlements={entitlements}
@@ -308,26 +309,17 @@ function SettingsPage({
                 transactions={transactions}
                 customerSummaries={customerSummaries}
                 lang={lang}
+                shopId={shopId}
               />
             </div>
           </div>
          </Suspense>
          </ErrorBoundary>
 
-        {/* Reminder Settings */}
-        <div className="mt-4">
-          <ReminderSettings shopId={shopId} lang={lang} />
-        </div>
-
-        {/* Notification Preferences */}
-        <div className="mt-4">
-          <NotificationPreferences lang={lang} />
-        </div>
-
-        {/* Password Settings */}
-        <div className="mt-4">
-          <PasswordSettings lang={lang} />
-        </div>
+        {/* Reminders, notification prefs and password are rendered ONCE, at the
+            top of the Data tab (see settings/tabs/DataTab.jsx). They used to be
+            rendered here — outside the tab panels — which meant every tab
+            showed them and they were mounted twice. */}
 
         {/* Admin Section */}
         {showAdminSection && (
@@ -353,7 +345,7 @@ function SettingsPage({
           <span>
             Gebya · v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}
           </span>
-          {aboutTapCount > 0 && aboutTapCount < DEV_MODE_UNLOCK_TAPS && !showAdminSection && (
+          {aboutTapCount > 0 && aboutTapCount < DEV_MODE_UNLOCK_TAPS && !devModeRevealed && (
             <span className="ml-2" style={{ color: 'var(--color-accent-amber)' }}>
               · {DEV_MODE_UNLOCK_TAPS - aboutTapCount} {lang === 'am' ? 'ተጨማሪ መታ' : 'more taps'}
             </span>

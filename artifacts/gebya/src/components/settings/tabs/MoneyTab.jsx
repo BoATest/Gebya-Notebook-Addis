@@ -9,6 +9,7 @@ export default function MoneyTab({
   shopProfile,
   shopId,
   onSavePaymentChannels,
+  onNavigate,
   lang,
   planTier,
   entitlements,
@@ -64,12 +65,12 @@ export default function MoneyTab({
         id="dubie-rules"
         icon="⚖️"
         title={lang === 'am' ? 'የዱቤ ህጎች' : 'Dubie (Credit) Rules'}
-        subtitle={lang === 'am' ? 'የዘገዬ ጊዜ እና ራስ-ሰር ማስታወቂያ' : 'Overdue threshold and auto-reminders'}
+        subtitle={lang === 'am' ? 'የዘገዬ ጊዜ · ማስታወቂያ በውሂብ ውስጥ' : 'Overdue threshold · reminders in Data tab'}
         badgeTone="neutral"
         open={openCards.has('dubie-rules')}
         onToggle={() => toggleCard('dubie-rules')}
       >
-        <DubieRulesPanel />
+        <DubieRulesPanel onNavigate={onNavigate} />
       </TabCard>
     </div>
   );

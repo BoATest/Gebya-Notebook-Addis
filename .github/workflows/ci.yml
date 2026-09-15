@@ -60,3 +60,31 @@ jobs:
           ALLOWED_ORPHANS: src/bank-main.tsx,src/components/AskNotebookFAB.jsx,src/components/BankDashboard.d.ts,src/components/BankDataSharing.jsx,src/components/TopbarIdentity.jsx,src/hooks/use-mobile.tsx,src/hooks/useCatalog.js,src/hooks/useCustomers.js,src/hooks/useTransactions.js,src/pages/OnboardingPage.jsx,src/types/jsx-modules.d.ts,src/types/pwa-register.d.ts,src/utils/ethiopianTime.js
       - name: Build
         run: pnpm build
+
+  gebya-e2e:
+    name: Gebya Playwright E2E (core surfaces)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: artifacts/gebya
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: artifacts/gebya/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Build frontend
+        run: pnpm build
+      # Curated core set, served from the built dist via the config's
+      # webServer (vite preview). Extend this list as more specs are
+      # verified green — a spec that cannot pass in CI must not ship here.
+      - name: Run Playwright E2E
+        run: pnpm exec playwright test tests/settings-tabs.spec.ts tests/design-regression-smoke.spec.ts --project=chromium

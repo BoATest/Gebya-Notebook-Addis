@@ -25,6 +25,42 @@ async function resetFreshOrigin(page: Page) {
   });
 }
 
+// Seed the permissions cache as owner AFTER the app has created its IndexedDB
+// (onboarding itself doesn't resolve a role without a backend — the store
+// hydrates cached_permissions on cold boot). Then reload so the store picks
+// it up before any role-gated surface renders.
+async function seedOwnerRole(page: Page) {
+  await page.evaluate(async () => {
+    const request = window.indexedDB.open('GebyaDB');
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('settings', 'readwrite');
+      tx.objectStore('settings').put({
+        key: 'cached_permissions',
+        value: {
+          permissions: {
+            can_manage_team: true,
+            can_delete_records: true,
+            can_edit_settings: true,
+            can_add_records: true,
+            can_view_reports: true,
+          },
+          role: 'owner',
+          cached_at: Date.now(),
+        },
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    db.close();
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+}
+
 async function attachScreenshot(page: Page, testInfo: TestInfo, name: string) {
   await testInfo.attach(name, {
     body: await page.screenshot({ fullPage: true }),
@@ -70,6 +106,7 @@ test('design regression smoke protects core merchant surfaces', async ({ page },
   await mockIdentityRoutes(page);
   await resetFreshOrigin(page);
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await seedOwnerRole(page);
 
   await expect(page.getByText('Gebya').first()).toBeVisible();
   await expect(page.locator('img[alt="Gebya"]')).toBeVisible();
@@ -87,6 +124,9 @@ test('design regression smoke protects core merchant surfaces', async ({ page },
   await expect(page.getByText('Recording as')).toBeVisible();
   await expect(page.getByText('Design Smoke Shop').first()).toBeVisible();
   await expect(page.getByText(/TODAY\s+.*NET/i)).toBeVisible();
+  // The scoreboard renders in compact one-line form (SaleWorkspace v1);
+  // expand it to reach the trust line it now hides by default.
+  await page.getByRole('button', { name: 'Show details' }).click();
   await expect(page.getByText('Saved on this phone only.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Record a Sale' })).toBeVisible();
   await expect(page.locator('nav').getByRole('button', { name: 'Today' })).toBeVisible();
@@ -96,17 +136,24 @@ test('design regression smoke protects core merchant surfaces', async ({ page },
 
   await page.locator('nav').getByRole('button', { name: 'More' }).click();
   // Current settings layout: tabbed (Shop / Money / Data) with accordion cards
-  await expect(page.getByRole('button', { name: 'Shop', exact: true })).toBeVisible();
+  // Settings tabs are real ARIA tabs (role="tab"), not plain buttons.
+  await expect(page.getByRole('tab', { name: 'Shop' })).toBeVisible();
   await expect(page.getByText('Shop Profile')).toBeVisible();
   await expect(page.getByText('Items', { exact: true })).toBeVisible();
   await expect(page.getByText('Recurring Expenses', { exact: true })).toBeVisible();
-  await expect(page.getByText('AUTO REMINDERS')).toBeVisible();
-  await expect(page.getByText('PASSWORD LOGIN')).toBeVisible();
   await attachScreenshot(page, testInfo, '03-settings-more');
 
-  // Team & Staff lives on the dedicated Staff tab (owner tab bar + join code)
+  // R1 dedupe: reminder / notification / password panels are rendered ONCE,
+  // at the top of the Data tab (no longer outside the tab panels).
+  await page.getByRole('tab', { name: 'Data', exact: true }).click();
+  await expect(page.getByText('AUTO REMINDERS')).toBeVisible();
+  await expect(page.getByText('NOTIFICATION PREFERENCES')).toBeVisible();
+  await expect(page.getByText('PASSWORD LOGIN')).toBeVisible();
+
+  // Team & Staff lives on the dedicated Staff tab (owner tab bar + join code).
+  // 'Team' is an ARIA tab in the staff surface, not a plain button.
   await page.locator('nav').getByRole('button', { name: 'Staff' }).click();
-  await expect(page.getByRole('button', { name: 'Team', exact: true })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Team' })).toBeVisible();
   await expect(page.getByText('Join code')).toBeVisible();
   await expect(page.getByText('SAFE-UI12')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Copy' })).toBeVisible();
@@ -119,9 +166,9 @@ test('design regression smoke protects core merchant surfaces', async ({ page },
   await expect(page.getByRole('main').getByRole('button', { name: '🌅 Today' })).toBeVisible();
   await expect(page.getByRole('main').getByRole('button', { name: '📅 Week' })).toBeVisible();
   await expect(page.getByRole('main').getByRole('button', { name: '🗓 Month' })).toBeVisible();
-  // Empty shop renders the welcome/empty state
+  // Empty shop renders the welcome/empty state (current ReportView copy)
   await expect(page.getByText('Welcome to your shop')).toBeVisible();
-  await expect(page.getByText('Record a sale or expense to get started.')).toBeVisible();
+  await expect(page.getByText('Record your first sale today — your shop summary appears here instantly.')).toBeVisible();
   await expect(page.getByRole('main').getByRole('button', { name: /Sale/ })).toBeVisible();
   await attachScreenshot(page, testInfo, '05-report');
 });

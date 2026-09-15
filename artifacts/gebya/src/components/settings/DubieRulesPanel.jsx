@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLang } from '../../context/LangContext';
 import db from '../../db';
 
-export default function DubieRulesPanel({ onChange }) {
+export default function DubieRulesPanel({ onChange, onNavigate }) {
   const { lang, t } = useLang();
     const [overdueDays, setOverdueDays] = useState(7);
   const [dirty, setDirty] = useState(false);
@@ -16,9 +16,10 @@ export default function DubieRulesPanel({ onChange }) {
   }, []);
 
   const save = async () => {
-    // NOTE: the old auto_sms toggle was removed — no server-side automatic
-    // sender exists yet, and a setting that silently does nothing breaks
-    // trust. Reintroduce it together with the backend cron/bot loop.
+    // NOTE: the old auto_sms toggle was removed deliberately. Reminder delivery
+    // is configured in exactly one place — Settings → Data (see the note
+    // rendered below) — so a second switch here would silently disagree with
+    // the real scheduler setting and break trust.
     await db.settings.put({ key: 'dubie_rules', value: { overdue_threshold_days: overdueDays } });
     setDirty(false);
     onChange?.({ overdue_threshold_days: overdueDays });
@@ -57,6 +58,19 @@ export default function DubieRulesPanel({ onChange }) {
             {lang === 'am' ? 'አስቀምጥ' : 'Save'}
           </button>
         )}
+
+        {/* Pointer to the single source of truth for reminder delivery.
+            A real button — tapping it switches to Settings → Data. */}
+        <button
+          type="button"
+          onClick={() => onNavigate?.('reminders', 'data')}
+          className="text-[0.7rem] leading-snug text-left underline underline-offset-2"
+          style={{ color: 'var(--color-primary)', background: 'transparent', border: 'none', padding: 0 }}
+        >
+          {lang === 'am'
+            ? 'ራስ-ሰር ማስታወቂያ በቅንብሮች → ውሂብ ይተዳደራል።'
+            : 'Automatic reminders are managed in Settings → Data.'}
+        </button>
       </div>
     </div>
   );

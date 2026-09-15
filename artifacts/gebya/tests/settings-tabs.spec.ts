@@ -1,10 +1,56 @@
 import { expect, test } from '@playwright/test';
 
+const OWNER_PERMISSIONS = {
+  can_manage_team: true,
+  can_delete_records: true,
+  can_edit_settings: true,
+  can_add_records: true,
+  can_view_reports: true,
+};
+
+async function mockOwnerAuth(page) {
+  await page.route('**/api/auth/refresh', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ token: 'test-owner-token' }),
+  }));
+  await page.route('**/api/auth/me', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      ok: true,
+      user: {
+        id: 'test-user',
+        phone_number: '+251911234567',
+        preferred_lang: 'en',
+        created_at: new Date().toISOString(),
+      },
+      has_password: false,
+      role: 'owner',
+      permissions: OWNER_PERMISSIONS,
+      businesses: [{
+        business_id: 'shop-1',
+        name: 'Test Shop',
+        plan: 'free',
+        role: 'owner',
+        permissions: OWNER_PERMISSIONS,
+      }],
+      is_platform_admin: false,
+    }),
+  }));
+}
+
 test.describe('SettingsPage tab navigation persistence', () => {
   test.beforeEach(async ({ page }) => {
+    await mockOwnerAuth(page);
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await page.evaluate(async () => {
+      localStorage.clear();
+      // The app defaults to Amharic (LangContext) — the nav renders
+      // 'ተጨማሪ' not 'More'. Pin English so role-name queries match.
+      localStorage.setItem('gebya_lang', 'en');
+
       await new Promise<void>((resolve, reject) => {
         const request = window.indexedDB.deleteDatabase('GebyaDB');
         request.onsuccess = () => resolve();
@@ -30,6 +76,23 @@ test.describe('SettingsPage tab navigation persistence', () => {
         store.put({ key: 'shop_phone', value: '+251911234567' });
         store.put({ key: 'shop_category', value: 'grocery' });
         store.put({ key: 'shop_description', value: 'A test shop' });
+        // Resolve the session as owner via the permissions cache — the store
+        // hydrates this on cold boot. Without it the role falls back to
+        // STAFF and role-gated surfaces (dev unlock) are inaccessible.
+        store.put({
+          key: 'cached_permissions',
+          value: {
+            permissions: {
+              can_manage_team: true,
+              can_delete_records: true,
+              can_edit_settings: true,
+              can_add_records: true,
+              can_view_reports: true,
+            },
+            role: 'owner',
+            cached_at: Date.now(),
+          },
+        });
         transaction.oncomplete = () => resolve();
         transaction.onerror = () => reject(transaction.error);
         transaction.onabort = () => reject(transaction.error);
@@ -39,10 +102,20 @@ test.describe('SettingsPage tab navigation persistence', () => {
     });
 
     await page.reload({ waitUntil: 'domcontentloaded' });
+
+    // Open Settings so the role badge mounts, then wait for the owner badge.
+    // The permissions store hydrates from IndexedDB asynchronously and the
+    // auth flow re-confirms the role; without this wait the dev-unlock test can
+    // click while the role still reads as STAFF (which makes the version tap a
+    // no-op). Return to Today afterwards so each test keeps its original
+    // starting state.
+    await page.locator('nav').getByRole('button', { name: 'More' }).click();
+    await expect(page.getByText('Owner', { exact: true })).toBeVisible();
+    await page.locator('nav').getByRole('button', { name: 'Today' }).click();
   });
 
   test('navigates between Shop, Money, and Data tabs', async ({ page }) => {
-    await page.locator('nav').getByRole('button', { name: /settings/i }).click();
+    await page.locator('nav').getByRole('button', { name: 'More' }).click();
 
     const shopTab = page.getByRole('tab', { name: /shop/i });
     const moneyTab = page.getByRole('tab', { name: /money/i });
@@ -60,7 +133,7 @@ test.describe('SettingsPage tab navigation persistence', () => {
   });
 
   test('tab state persists across navigation away and back', async ({ page }) => {
-    await page.locator('nav').getByRole('button', { name: /settings/i }).click();
+    await page.locator('nav').getByRole('button', { name: 'More' }).click();
 
     await page.getByRole('tab', { name: /money/i }).click();
     await page.getByRole('tab', { name: /data/i }).click();
@@ -68,18 +141,18 @@ test.describe('SettingsPage tab navigation persistence', () => {
     await expect(page.getByRole('tab', { name: /data/i })).toHaveAttribute('aria-selected', 'true');
 
     // Navigate away
-    await page.locator('nav').getByRole('button', { name: /home/i }).click();
+    await page.locator('nav').getByRole('button', { name: 'Today' }).click();
     await expect(page).toHaveURL(/\/$/);
 
     // Navigate back
-    await page.locator('nav').getByRole('button', { name: /settings/i }).click();
+    await page.locator('nav').getByRole('button', { name: 'More' }).click();
 
     // Should return to Data tab, not Shop
     await expect(page.getByRole('tab', { name: /data/i })).toHaveAttribute('aria-selected', 'true');
   });
 
   test('keyboard navigation works with arrow keys', async ({ page }) => {
-    await page.locator('nav').getByRole('button', { name: /settings/i }).click();
+    await page.locator('nav').getByRole('button', { name: 'More' }).click();
 
     const shopTab = page.getByRole('tab', { name: /shop/i });
 
@@ -101,21 +174,20 @@ test.describe('SettingsPage tab navigation persistence', () => {
   });
 
   test('dev mode requires 5 taps within time window', async ({ page }) => {
-    await page.locator('nav').getByRole('button', { name: /settings/i }).click();
+    await page.locator('nav').getByRole('button', { name: 'More' }).click();
 
-    const versionText = page.getByText(/Gebya.*v/i);
+    const versionText = page.getByText(/Gebya · v/);
     await expect(versionText).toBeVisible();
 
-    // First tap should not show dev mode
+    // One tap only starts the unlock counter — dev mode is not unlocked yet,
+    // and no unlock toast appears.
     await versionText.click();
-    await expect(page.locator('text=Shop Admin')).not.toBeVisible();
-
-    // Should show tap count
     await expect(page.getByText(/more taps/i)).toBeVisible();
+    await expect(page.getByText(/dev mode unlocked/i)).not.toBeVisible();
   });
 
   test('tab panels have matching aria-labelledby attributes', async ({ page }) => {
-    await page.locator('nav').getByRole('button', { name: /settings/i }).click();
+    await page.locator('nav').getByRole('button', { name: 'More' }).click();
 
     const shopTab = page.getByRole('tab', { name: /shop/i });
     const shopPanel = page.getByRole('tabpanel');

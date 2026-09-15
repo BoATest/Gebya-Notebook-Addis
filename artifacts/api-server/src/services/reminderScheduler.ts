@@ -62,6 +62,21 @@ export interface EligibilityResult {
 }
 
 /**
+ * Normalize any persisted frequency value to one the engine supports.
+ *
+ * The engine has no monthly cadence. Older clients could persist other
+ * values (e.g. "monthly"); an unknown value must fall back to a known
+ * cadence — Daily — and must NEVER silently skip reminders (only the
+ * explicit "disabled" setting skips).
+ */
+export function normalizeFrequency(
+  raw: string | null | undefined,
+): "daily" | "weekly" | "disabled" {
+  if (raw === "weekly" || raw === "disabled") return raw;
+  return "daily";
+}
+
+/**
  * Check if a customer is eligible to receive a reminder now,
  * based on due date, frequency, last send time, and credit period.
  *
@@ -74,11 +89,12 @@ export interface EligibilityResult {
  *   - No due date → eligible per frequency setting (default: weekly)
  */
 export function isEligibleNow(
-  frequency: "daily" | "weekly" | "disabled",
+  rawFrequency: "daily" | "weekly" | "disabled" | string | null | undefined,
   lastSentAt: number | null,
   dueDate: number | null,
   customerCreatedAt: number,
 ): EligibilityResult {
+  const frequency = normalizeFrequency(rawFrequency);
   if (frequency === "disabled") return { eligible: false, urgency: "normal" };
 
   const now = Date.now();
@@ -231,9 +247,12 @@ export async function scheduleReminders(
         continue;
       }
 
-      // Check frequency settings
-      const frequency = customer.reminderConfig?.frequency
-        ?? await getCustomerFrequency(shopId, customer.customerId);
+      // Check frequency settings — normalize persisted values so legacy
+      // rows (e.g. "monthly") fall back to Daily instead of misbehaving.
+      const frequency = normalizeFrequency(
+        customer.reminderConfig?.frequency
+          ?? (await getCustomerFrequency(shopId, customer.customerId)),
+      );
       if (frequency === "disabled") {
         stats.remindersSkipped++;
         continue;
