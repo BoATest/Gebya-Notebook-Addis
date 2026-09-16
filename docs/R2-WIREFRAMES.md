@@ -15,6 +15,16 @@
 Owner-approved direction (Phase 1 answers Q0/Q2/Q6/Q7/Q8). Single scrolling
 page, grouped headers, tabs removed. Checklist collapses at 5/5.
 
+## Checklist additions (owner screenshot review — binding for R2 build)
+
+- Your Data: the two CSV export affordances merge into ONE row; "Start over
+  on this phone" moves OUT of the backup group into a separate danger zone.
+- Quiet Hours: ship defaults (e.g. 22:00–06:00) when enabled, or hide the
+  section until enabled — empty `----` pickers read as broken.
+- Header "No phone added" becomes a tappable action (opens add-phone flow).
+- Plan row: "Staff 0/3" is permanently excluded from the spec (limit not
+  enforced — displaying it is a trust bug). Tx 0/500 only.
+
 ```
 Legend:  [ ] unchecked item · [x] done · ‡ locked ON (user cannot switch off)
          (owner only) = hidden for staff · [⚠ n] = readiness badge
