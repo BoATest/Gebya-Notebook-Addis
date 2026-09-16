@@ -14,6 +14,34 @@ approach. R2 code starts only when Gates B–D land (order B → C → D).
    already includes `settings`). Exists to make the R2 success metric
    (setup completion / Ready-%) measurable BEFORE the redesign ships.
 
+   **Ruling 1 (owner):** immutable — first stamp wins.
+   - Write-if-null only (restore-safe: a restored old backup can never
+     clobber a real timestamp).
+   - **Backfill-on-encounter:** hook the existing readiness computation —
+     if 5/5 && `setup_completed_at == null` → stamp now. Existing completed
+     shops must be captured; immutable alone would undercount everyone
+     pre-Gate-D.
+
+   **5/5 definition (FIX FIRST, owner-ruled):** exactly the five checks in
+   `ReadinessHero.jsx:14-46` — profile name, shop phone, payment channel
+   configured, ≥1 active catalog item, ≥1 recurring expense. The metric's
+   definition = the checklist's definition; they must never diverge. (An
+   earlier labels draft invented different items — replaced; see
+   R2-LABELS-DRAFT "Setup checklist items — REAL source of truth".)
+
+## Rulings for R2.1 (owner)
+
+- **Ruling 2:** R2.1 ships **byte-identical strings**. Term decisions
+  (More/Settings, Credit (Dubie), locked-on wording, `መጠባበቂያ`) land strictly
+  AFTER — tiny labels PR or R2.2.
+- **Merkato session gates R2.2, NOT R2.1** — critical path to first visible
+  value is B → C → D → R2.1.
+- **R2.1 proof of "invisible refactor":** before/after screenshots asserted
+  pixel-identical, included in the R2.1 PR.
+- **Pre-ruling (ratify in Merkato session):** nav tab stays "More"/`ተጨማሪ`;
+  page title is "Settings"/`ማስተካከያ`; toasts reference the title
+  ("Settings → Plan"). Two levels, each named consistently.
+
 ## Sliced R2
 
 | Slice | Scope | Risk |

@@ -39,20 +39,35 @@ a token exists verbatim, ⚠ when newly composed.
 | Dark mode | ጨለማ ሁነታ | ✅ DisplayPrivacyPanel |
 | Hide amounts | መጠኖችን ደብቅ | ✅ DisplayPrivacyPanel |
 
-## Setup checklist items
+## Setup checklist items — REAL source of truth (FIX FIRST, owner-ruled)
 
-EN fixed to imperative to match the approved AM register. AM `መጠባበቂያ`
-(backup) is CHAINED to the pending reviewer decision on that term — when the
-reviewer rules, update the checklist AM string and the "Backup & sync" row
-label together, never separately.
+**Anchor: `src/components/settings/ReadinessHero.jsx:14-46`** — the `checks`
+array IS the checklist. The metric's definition = the checklist's definition;
+Gate D's `setup_completed_at` (5/5) is defined on exactly these five checks and
+must never diverge. The previously drafted items (shop name & category /
+backup enabled / language set / first customer) do NOT exist in the app and
+were replaced — zero overlap confirmed by source read.
 
-| EN (imperative) | Amharic (approved) |
-|---|---|
-| Add shop name & category | የሱቅ ስም እና ዓይነት አስገባ |
-| Add payment channel | የክፍያ መንገድ ጨምር |
-| Turn on backup | መጠባበቂያ አስቻል ⛓ chained to reviewer decision |
-| Choose language | ቋንቋ ምረጥ |
-| Add your first customer | ደንበኛ ጨምር |
+Both EN and AM labels already exist inline in source (AM is imperative
+register — matches the approved register). They are evidence, not approval:
+each goes to the Merkato reviewer with its anchor (no anchor, no list).
+
+| # | Source key | Done condition (source) | EN (source) | AM (source) | Reviewer |
+|---|---|---|---|---|---|
+| 1 | `profile` | `shopProfile?.name` | Set shop name | የሱቅ ስም ያስገቡ | pending |
+| 2 | `profile` | `shopProfile?.phone` | Add shop phone number | የስልክ ቁጥር ያስገቡ | pending |
+| 3 | `channels` | ≥1 channel enabled+configured | Set up a payment channel | የክፍያ መንገድ ያዋቅሩ | pending |
+| 4 | `items` | ≥1 active catalog entry | Add items to catalog | እቃዎች ያስገቡ | pending |
+| 5 | `recurring` | `recurring.length > 0` | Add recurring expenses | ወርሃዊ ወጪ ይመዝግቡ | pending |
+
+Checklist chrome (same file): header `N of 5 set up` / `${doneCount} ከ ${totalCount} ተዋቅሯል`;
+completed state `All set up` / `ሁሉም ተዋቅሯል`. CTAs: `Add ›`/`Setup ›` /
+`ያስገቡ ›`/`ያዋቅሩ ›`/`ይመዝግቡ ›`.
+
+Note: there is NO backup, language, or first-customer item in the real
+checklist — those live elsewhere in setup and must NOT be added here without a
+source change to ReadinessHero (which would change the metric definition;
+requires a separate owner ruling).
 
 ## Notification groups
 
@@ -118,11 +133,13 @@ File: `src/components/shell/AuthRequiredPrompt.jsx` (login prompt)
 | 47 | `passwordSetup: የሚስጥር ቃል መዲዛ ያስገብ` | EN dict key `passwordSetup` |
 | 359 | `…የሚስጥር ቃል መዲዛ ይጨምሩ ለ ፍጥነታዊ መግቢያ?` | "Signed in successfully! Set a password for faster logins?" |
 
-## Open term decision — "More" vs "Settings"
+## Term decision — PRE-RULING (owner; ratify in Merkato session)
 
-EN nav currently says "More"; toasts/tests say "Settings" — pick ONE word for
-nav/title/toasts. AM toast follows the winner: `ማስተካከያ` recommended over
-`ቅንብሮች` if "Settings" wins. Toast row above updates on decision.
+Two levels, each named consistently:
+- **Nav tab**: "More" / `ተጨማሪ` (stays as-is)
+- **Page title**: "Settings" / `ማስተካከያ` (recommended over `ቅንብሮች`)
+- **Toasts** reference the title: "Settings → Plan" / `ማስተካከያ → እቅድ`
+R2.1 ships byte-identical strings regardless — this lands after R2.1.
 
 ## User-review shortlist (short pass, before wiring)
 
