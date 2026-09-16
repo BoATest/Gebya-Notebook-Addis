@@ -176,7 +176,7 @@ export default function DataTab({
       {/* About Gebya */}
       <TabCard
         icon="ℹ️"
-        title={lang === 'am' ? 'ስለ ጌብያ' : 'About Gebya'}
+        title={lang === 'am' ? 'ስለ ገበያ' : 'About Gebya'}
         subtitle={BUILD_VERSION}
         badgeTone="neutral"
       >

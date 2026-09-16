@@ -38,13 +38,13 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
       joinShop: 'ሱቩን ይቀላቀሉ',
       resending: 'በመላኪያ ነው...',
       verifying: 'በማረጋገጣ ነው...',
-      passwordLabel: 'የይምት ቃል መዲወ',
+      passwordLabel: 'የሚስጥር ቃል መዲወ',
       passwordLogin: 'ከይምት ቃል መዲዛ ይግቡ',
       otpLogin: 'ከOTP ኮድ ይግቡ',
       passwordInvalid: 'ትክክለኛ ወይም ችግኛ ይምት ቃል መዲዛ',
-      passwordTooShort: 'የይምት ቃል መዲዛ ቢሆን 6 በላይ ከአይነት ነው',
+      passwordTooShort: 'የሚስጥር ቃል መዲዛ ቢሆን 6 በላይ ከአይነት ነው',
       wrongPassword: 'ትክክለኛ ይምት ቃል መዲዛ',
-      passwordSetup: 'የይምት ቃል መዲዛ ያስገብ',
+      passwordSetup: 'የሚስጥር ቃል መዲዛ ያስገብ',
       skipPasswordSetup: 'አልጨማምትም — ከOTP ጋር ይጠቀሙ',
     } : {
       title: 'Sign in',
@@ -356,7 +356,7 @@ export default function AuthRequiredPrompt({ lang, onClose, onStaffJoin }) {
             <div className="text-center">
               <p className="text-sm text-gray-500">
                 {lang === 'am'
-                  ? 'OTP በተሳካ ሁኔታ ገብተዋል። የይምት ቃል መዲዛ ይጨምሩ ለ ፍጥነታዊ መግቢያ?'
+                  ? 'OTP በተሳካ ሁኔታ ገብተዋል። የሚስጥር ቃል መዲዛ ይጨምሩ ለ ፍጥነታዊ መግቢያ?'
                   : 'Signed in successfully! Set a password for faster logins?'}
               </p>
             </div>

@@ -63,3 +63,30 @@ Settings → Data." and "Overdue threshold · reminders in Data tab".
 - `payment_confirmed` was removed as a separate settings row: the server maps
   both `payment` and `payment_confirmed` to the same preference column
   (`paymentPrefs`), so owners saw two rows that always changed together.
+
+## Label-review MUST FIX — live UI corrections (owner-ordered)
+
+Two objective errors found by the label review were live in shipped UI and
+fixed byte-exactly in source (same class as the mojibake finds; process rule
+now requires a reviewer pass before ANY label wires):
+
+- `የይምት` → `የሚስጥር` ("password"): የይምት is an insult. 18 occurrences —
+  `PasswordSettings.jsx` ×14, `AuthRequiredPrompt.jsx` ×4 (the login prompt —
+  every Amharic user sees this).
+- `ጌብያ` → `ገበያ` (brand misspelling): 3 occurrences — `OnboardingScreen.jsx`,
+  `PwaInstallPanel.jsx`, `DataTab.jsx` ("About Gebya"). Brand rule: shell brand
+  stays "Gebya" (Latin); `ገበያ` allowed inside Amharic copy.
+
+### ⚠ OPEN — gibberish needing Merkato reviewer pass (NOT auto-fixable)
+
+The password panel's Amharic strings contain non-words the fix could not
+address because intent is unrecoverable without a reviewer:
+
+- `መዲዛ` — appears throughout PasswordSettings.jsx / AuthRequiredPrompt.jsx
+  (e.g. `የሚስጥር ቃል መዲዛ` for "PASSWORD LOGIN"). Not an Amharic word.
+- `አስudya` — Latin characters inside an Amharic string
+  (`Remove Password` aria-label + button, PasswordSettings.jsx:91,93).
+
+Proposed intent (for reviewer confirmation): `መዲዛ` → likely `መጠቀሚያ` or
+`መግቢያ` depending on sentence; `አስudya` → `አስወግድ` (remove). Do NOT wire any
+of these strings until the reviewer pass rules on them.

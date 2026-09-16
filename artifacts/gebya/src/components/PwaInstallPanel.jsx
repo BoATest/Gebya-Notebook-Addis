@@ -130,7 +130,7 @@ export default function PwaInstallPanel({ pwa, variant = 'banner' }) {
               <div className="flex-1 min-w-0">
                 <div className="font-bold text-gray-800">{t.installAlreadyInstalled}</div>
                 <div className="text-xs text-gray-500 mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                  {lang === 'am' ? 'ጌብያ በስልክዎ ላይ ተጭኗል' : 'Gebya is installed on this device'}
+                  {lang === 'am' ? 'ገበያ በስልክዎ ላይ ተጭኗል' : 'Gebya is installed on this device'}
                 </div>
               </div>
             </div>

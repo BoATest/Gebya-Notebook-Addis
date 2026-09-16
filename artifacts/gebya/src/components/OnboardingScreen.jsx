@@ -18,7 +18,7 @@ function OnboardingScreen({ onComplete }) {
     t.onboardPromiseFast || 'Start with your name only',
     t.onboardPromisePrivate || 'Your records stay on this phone',
   ];
-   const onboardKicker = lang === 'am' ? 'ጌብያን ለመጠቀም ሁለት መንገዶች' : 'Two ways to use Gebya';
+   const onboardKicker = lang === 'am' ? 'ገበያን ለመጠቀም ሁለት መንገዶች' : 'Two ways to use Gebya';
 
    const handleNewShop = () => setMode('form');
   const handleJoinShop = () => onComplete({ __staff_join: true });
