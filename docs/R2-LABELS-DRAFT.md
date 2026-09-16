@@ -41,17 +41,18 @@ a token exists verbatim, ⚠ when newly composed.
 
 ## Setup checklist items
 
-Owner note: past-tense (perfective) forms read wrong for action items —
-imperative register confirmed (e.g. "ስልክ ቁጥር ጨምር"). All ⚠ newly composed,
-pending Merkato review.
+EN fixed to imperative to match the approved AM register. AM `መጠባበቂያ`
+(backup) is CHAINED to the pending reviewer decision on that term — when the
+reviewer rules, update the checklist AM string and the "Backup & sync" row
+label together, never separately.
 
-| EN | Amharic (imperative) |
+| EN (imperative) | Amharic (approved) |
 |---|---|
-| Shop name & category | የሱቅ ስም እና ዓይነት አስገባ ⚠ |
-| Payment channel added | የክፍያ መንገድ ጨምር ⚠ |
-| Backup enabled | መጠባበቂያ አስቻል ⚠ |
-| Language set | ቋንቋ ምረጥ ⚠ |
-| First customer added | ደንበኛ ጨምር ⚠ |
+| Add shop name & category | የሱቅ ስም እና ዓይነት አስገባ |
+| Add payment channel | የክፍያ መንገድ ጨምር |
+| Turn on backup | መጠባበቂያ አስቻል ⛓ chained to reviewer decision |
+| Choose language | ቋንቋ ምረጥ |
+| Add your first customer | ደንበኛ ጨምር |
 
 ## Notification groups
 
@@ -80,6 +81,42 @@ Toast copy (final destination): `Settings → Plan` / `ቅንብሮች → እ�
 reviewer pass before wiring — no exceptions. The two MUST-FIX rows above prove
 the label doc's "✅ existing" citations can themselves carry insults/typos;
 existing strings are evidence, not approval.
+
+**PROCESS RULE (no anchor, no string):** every AM string in this doc — and any
+future string work — is recorded together with its EN key or sibling sentence.
+An AM string without its EN anchor cannot enter review or wiring; re-derivation
+must start from the EN meaning, never from the broken AM.
+
+## Gibberish inventory — every occurrence with its EN sibling
+
+`የይምት→የሚስጥር` already applied below. The reviewer re-derives the whole AM
+sentence from the EN sibling; do NOT patch around `መዲዛ`/`መዲወ`/`አስudya`/
+`መስከቨሪ` in place. Owner instruction: do NOT guess readings.
+
+File: `src/components/settings/PasswordSettings.jsx`
+
+| Line | Current AM (broken) | EN sibling |
+|---|---|---|
+| 16 | `የሚስጥር ቃል መዲዛ መስከቨሪ ነው 6 በላይ ከአይነት` | "Password must be at least 6 characters" |
+| 31 | `የሚስጥር ቃል መዲዛ በተሳካ ሁኔታ ተለዋዋጭ ይሆናል` | "Password saved successfully" |
+| 37 | `የሚስጥር ቃል መዲዛ አልተሳካም` | "Failed to save password" |
+| 44 | `…የሚስጥር ቃል መዲዛ ነው ለማስወገድ?` (confirm) | "You will use OTP again. Remove password?" |
+| 57 | `የሚስጥር ቃል መዲዛ በተሳካ ሁኔታ ተለዋዋጭ ይሆናል` | "Password removed successfully" |
+| 62 | `የሚስጥር ቃል መዲዛ አልተለወደደም` | "Failed to remove password" |
+| 75 | `የሚስጥር ቃል መዲዛ` | "PASSWORD LOGIN" |
+| 81 | `የሚስጥር ቃል መዲዛ ይጨምሩ ለ ፍጥነታዊ መግቢያ በማለድም OTP ይጠቀሙ` | "Set a password for faster logins, or use OTP codes." |
+| 91, 93 | `የሚስጥር ቃል መዲዛ አስudya` | "Remove Password" (aria-label + button) |
+| 100, 110 | `የሚስጥር ቃል መዲዛ` | "New Password" (label + aria-label) |
+| 130, 134 | `የሚስጥር ቃል መዲዛ ያስገቡ` | "Set Password" (aria-label + button) |
+
+File: `src/components/shell/AuthRequiredPrompt.jsx` (login prompt)
+
+| Line | Current AM (broken) | EN anchor |
+|---|---|---|
+| 41 | `passwordLabel: የሚስጥር ቃል መዲወ` | EN dict key `passwordLabel` |
+| 45 | `passwordTooShort: የሚስጥር ቃል መዲዛ ቢሆን 6 በላይ ከአይነት ነው` | EN dict key `passwordTooShort` |
+| 47 | `passwordSetup: የሚስጥር ቃል መዲዛ ያስገብ` | EN dict key `passwordSetup` |
+| 359 | `…የሚስጥር ቃል መዲዛ ይጨምሩ ለ ፍጥነታዊ መግቢያ?` | "Signed in successfully! Set a password for faster logins?" |
 
 ## Open term decision — "More" vs "Settings"
 

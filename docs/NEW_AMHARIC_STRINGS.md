@@ -87,6 +87,9 @@ address because intent is unrecoverable without a reviewer:
 - `አስudya` — Latin characters inside an Amharic string
   (`Remove Password` aria-label + button, PasswordSettings.jsx:91,93).
 
-Proposed intent (for reviewer confirmation): `መዲዛ` → likely `መጠቀሚያ` or
-`መግቢያ` depending on sentence; `አስudya` → `አስወግድ` (remove). Do NOT wire any
-of these strings until the reviewer pass rules on them.
+Owner instruction: do NOT guess readings. Every occurrence has been
+catalogued with its EN key/sibling in `R2-LABELS-DRAFT.md` →
+"Gibberish inventory" (11 sentence groups in PasswordSettings.jsx, 4 in
+AuthRequiredPrompt.jsx, incl. dict keys `passwordLabel`, `passwordTooShort`,
+`passwordSetup`). The Merkato reviewer re-derives each AM sentence from its EN
+anchor; no string enters wiring without that anchor + reviewer pass.

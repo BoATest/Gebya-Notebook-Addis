@@ -54,12 +54,15 @@ Legend:  [ ] unchecked item · [x] done · ‡ locked ON (user cannot switch off
 │  ⭐ Plan (slim row)             0/500 tx     │  ← no "Staff 0/3" (not enforced; Q4)
 │  ⚖️ Dubie (Credit) Rules       [Auto: ON]   │
 │  🔔 Notifications                            │
-│     Money in · [App][Push]                   │
-│     Credit–Dubie · [App][Push]        ‡      │  ← locked ON (Q6)
-│     Money out · [App][Push]                  │
-│     Team · [App][Push]                       │
-│     Gebya & support · [App][Push]            │
-│     Security alerts · ‡ (no row toggle)      │  ← locked ON (Q6)
+│     (ONE model for all roles — 5 collapsible │
+│      groups, one switch per group; per-type  │
+│      App/Push columns are BANNED)            │
+│     Money in                          ›      │
+│     Credit (Dubie)                    ‡      │  ← locked ON (Q6); label per owner
+│     Money out                         ›      │     decision (pending Merkato)
+│     Team                              ›      │
+│     Gebya & support                   ›      │
+│     Security alerts                   ‡      │  ← locked ON (Q6)
 │  ⏰ Reminders to customers      (owner only) │  ← Telegram-first; NO SMS quota (Q7)
 ├──────────────────────────────────────────────┤
 │ MY APP                                       │
@@ -88,20 +91,49 @@ Identical to State 1 except:
 Shop group and Money & Credit group are FULLY hidden (Q2 — gated by
 `can_edit_settings`, currently 0 consumers; R2 makes it live).
 
+**Owner review corrections applied (5):** (a) one notification model for all
+roles — 5 collapsible groups, per-type App/Push columns BANNED; (b) Appearance
+is a subpage (dark + hide amounts + TEXT SIZE), About and Help split into
+separate rows — one row = one destination; (c) sign out guarded by
+unsynced-records dialog; (d) header shows shop context, no-phone state is a
+tappable action; (e) My phone change requires OTP re-verification, My password
+row shows set/not-set state.
+
 ```
 ┌──────────────────────────────────────────────┐
 │ [AB] Ashenafi          +251 9xx xxx xxx      │
+│ Staff · Design Smoke Shop     [EN|አማ]        │ ← (d) shop context
 ├──────────────────────────────────────────────┤
 │ MY ACCOUNT                                   │
-│  🌐 Language                                 │
-│  🎨 Dark mode / Hide amounts                 │
-│  📱 My phone                                 │
-│  🔒 My password                              │
-│  🔔 My alerts     [App][Push] per-type       │  ← per-user prefs (server-keyed)
-│  ℹ️ About · Help & Support                   │
-│  🚪 Sign out                                 │
+│  🎨 Appearance                               │ ← (b) subpage: dark, hide amounts,
+│                                              │    TEXT SIZE (shared-phone legibility)
+│  🔔 My alerts                                │ ← (a) same 5 collapsible groups as
+│                                              │    owner; per-user server keying
+│  📱 My phone                         [Set]   │ ← (e) change = OTP re-verify
+│  🔒 My password                  [Not set]   │ ← (e) set/not-set chip
+│  ℹ️ About                                    │ ← (b) separate row
+│  ❓ Help & Support                           │ ← (b) separate row
+│  🚪 Sign out                                 │ ← (c) guarded, see dialog below
 └──────────────────────────────────────────────┘
 ```
+
+(c) Sign-out guard — shown when records are unsynced:
+
+```
+┌──────────────────────────────────────────────┐
+│ ⚠ 3 records not yet synced                   │
+│   They stay on this phone.                   │
+│                                              │
+│   [ Sync now ]        [ Sign out anyway ]    │
+└──────────────────────────────────────────────┘
+```
+
 - No SHOP or MONEY & CREDIT headers at all — not collapsed, absent.
 - No setup checklist (owner concept).
-- "My alerts" includes the per-device push permission prompt (R2 scope).
+- (d) No-phone state in the header renders as a tappable action (opens the
+  add-phone flow), same rule as the owner header.
+- (a) "My alerts" subpage = the SAME 5 groups as the owner's Notifications
+  (Money in / Credit–Dubie / Money out / Team / Gebya & support), collapsible,
+  one switch per group — one notification model for every role; the per-user
+  server keying already supports it. Includes the per-device push permission
+  prompt (R2 scope).
