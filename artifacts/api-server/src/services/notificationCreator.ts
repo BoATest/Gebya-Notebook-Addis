@@ -10,7 +10,7 @@
  */
 import { requireDb } from "@workspace/db";
 import { notifications, businessMembers } from "@workspace/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { getPreferencesForBusiness, shouldNotify, isInQuietHours } from "./notificationPreferences.js";
 import { sendPushToOwner } from "./pushNotificationSender.js";
 import { broadcastNotification } from "./notificationStream.js";
@@ -128,7 +128,7 @@ export async function createNotification(opts: CreateNotificationOpts): Promise<
     for (const notif of (rowsToInsert.length > 0 ? await db.select().from(notifications).where(and(
       eq(notifications.businessId, businessId),
       eq(notifications.type, type)
-    )).orderBy(notifications.id.desc()).limit(owners.length) : [])) {
+    )).orderBy(desc(notifications.id)).limit(owners.length) : [])) {
       const ownerNotify = ownersToNotify.find(o => o.userId === notif.ownerUserId);
       if (!ownerNotify?.pushAllowed) continue;
 

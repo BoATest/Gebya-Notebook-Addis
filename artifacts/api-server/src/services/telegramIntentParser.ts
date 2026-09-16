@@ -134,7 +134,7 @@ export function parseTelegramIntent(text: string, _lang: Lang = "en"): TelegramI
   // 4. Paid — customer reports a payment
   if (first === "/paid" || lower.includes("ከፍያለሁ") || lower.includes("ከፍያለሁ") ||
       lower.includes("paid")) {
-    return { intent: "paid", amount: extractAmount(lower) };
+    return { intent: "paid", amount: extractAmount(lower) ?? undefined };
   }
 
   return { intent: "unknown", text: raw };

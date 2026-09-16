@@ -175,6 +175,9 @@ router.post("/dev-mode/log", async (req, res) => {
   if (scope.error) return res.status(403).json({ error: scope.error });
 
   const businessIdNum = scope.businessId;
+  if (typeof businessIdNum !== "number") {
+    return res.status(403).json({ error: "No business scope" });
+  }
   const deviceId = typeof (req.body as any)?.device_id === "string" ? (req.body as any).device_id : null;
 
   await requireDb().insert(auditLog).values({
