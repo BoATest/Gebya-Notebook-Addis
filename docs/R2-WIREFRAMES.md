@@ -1,3 +1,15 @@
+## Test coverage handoff
+
+- The seeded design-regression smoke intentionally bypasses onboarding
+  (`intro_seen`) and verifies the Amharic shell/settings view. First-run Amharic
+  coverage is tracked for R2's three-state spec:
+  - owner-first-run
+  - owner-complete
+  - staff
+- `AM_OVERRIDES.appName = 'ገበያ'` is currently dead: no seeded-shell JSX renders
+  `t('appName')` as visible text. Keep the brand `Gebya` in English and remove
+  this unused override during R2 cleanup.
+
 # R2 Wireframes — grouped single-page Settings (three states)
 
 Owner-approved direction (Phase 1 answers Q0/Q2/Q6/Q7/Q8). Single scrolling
