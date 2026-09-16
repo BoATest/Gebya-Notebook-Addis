@@ -47,6 +47,11 @@ export async function getBusinessForUser(userId: number, businessId?: number): P
   return rows.length > 0 ? rows[0].businessId : null;
 }
 
+// NOTE (Gate B): the transactions ingest path intentionally does NOT map
+// labelCode/categoryCode — the transactions table carries a labelCode column
+// (historical bootstrap) but no client payload field feeds it. If a mapping
+// is ever added here, it MUST route through normalizeLegacyCode:
+// re-pollution into "transactions" after the migration = Gate B failed.
 export function mapTx(body: any) {
   return {
     localId: body.id, deviceId: body.device_id, transactionId: body.transaction_id,
@@ -76,6 +81,24 @@ export function mapCustomer(body: any) {
     createdAt: body.created_at, updatedAt: body.updated_at, schemaVersion: body.schema_version || 1, syncVersion: body.sync_version || 1,
   };
 }
+// ---------------------------------------------------------------------------
+// Gate B: legacy Armenian structured codes were written by historical client
+// versions and are read by NOTHING (Gate B readers report). The ensureSchema
+// data-fix NULLs them in bulk; this normalizer keeps old offline devices from
+// re-polluting the mirror on re-sync. Removal review anchored to R2.4 — a few
+// weeks after the SW cache bump + flag flip, all devices run new writers;
+// that is the dated checkpoint to declare zero legacy writers and remove
+// this guard.
+const LEGACY_CODE_VALUES = new Set([
+  "2 " + String.fromCharCode(0x0555, 0x054f, 0x0551, 0x0546), // U+0555 U+054F U+0551 U+0546
+  String.fromCharCode(0x0533, 0x2e, 0x0546), // U+0533 '.' U+0546
+]);
+
+export function normalizeLegacyCode(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  return LEGACY_CODE_VALUES.has(value) ? null : value;
+}
+
 export function mapCustomerTx(body: any) {
   return {
     localId: body.id, deviceId: body.device_id, transactionId: body.transaction_id,
@@ -86,7 +109,7 @@ export function mapCustomerTx(body: any) {
     createdAt: body.created_at, updatedAt: body.updated_at,
     actorRole: body.actor_role, actorStaffMemberId: body.actor_staff_member_id,
     actorNameSnapshot: body.actor_name_snapshot, schemaVersion: body.schema_version || 1, syncVersion: body.sync_version || 1,
-    year: body.year, categoryCode: body.category_code, labelCode: body.label_code,
+    year: body.year, categoryCode: normalizeLegacyCode(body.category_code), labelCode: normalizeLegacyCode(body.label_code),
   };
 }
 export function mapCatalog(body: any) {

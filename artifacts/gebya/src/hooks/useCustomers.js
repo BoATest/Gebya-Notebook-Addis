@@ -309,8 +309,6 @@ export function useCustomers() {
       created_at: Date.now(),
       updated_at: Date.now(),
       year: String(new Date().getFullYear()),
-      categoryCode: '2 ՕՏՑՆ',
-      labelCode: 'Գ.Ն',
     };
     setLedgerTransactions(prev => {
       const without = prev.filter(t2 => t2.id !== tx.id);
@@ -411,8 +409,6 @@ export function useCustomers() {
         ...actorSnapshot,
         ...cloudProofFields,
         year: String(new Date().getFullYear()),
-        categoryCode: '2 ՕՏՑՆ',
-        labelCode: 'Գ.Ն',
       };
 
       const id = await db.customer_transactions.add(entry);

@@ -1,5 +1,4 @@
 // Reusable transaction row used across customer detail and history views.
-// Consumes structured fields from the data model: year, categoryCode, labelCode.
 
 import { useLang } from '../context/LangContext';
 import { fmt } from '../utils/numformat';

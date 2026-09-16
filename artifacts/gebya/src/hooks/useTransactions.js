@@ -18,16 +18,13 @@ import { fireToast } from '../components/Toast';
 import { isBrowserOnline } from '../utils/browser';
 
 const CURRENT_YEAR = String(new Date().getFullYear());
-const DEFAULT_CATEGORY_CODE = '2 ՕՏՑՆ';
-const DEFAULT_LABEL_CODE = 'Գ.Ն';
 
 function buildTransactionCodes(type) {
-  // Centralized structured labels so the same words are used every time.
-  // These can later be driven by locale/config; today they are fixed defaults.
+  // Gate B: legacy structured codes (categoryCode/labelCode) removed —
+  // written by no one now and read by no one (see R2-PLAN readers report).
+  // `year` stays (out of Gate B scope, owner directive).
   return {
     year: CURRENT_YEAR,
-    categoryCode: DEFAULT_CATEGORY_CODE,
-    labelCode: DEFAULT_LABEL_CODE,
   };
 }
 

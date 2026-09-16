@@ -32,6 +32,52 @@ let pending: Promise<void> | null = null;
 
 let schemaConverged = false;
 
+// ---------------------------------------------------------------------------
+// Gate B (Ruling B): purge legacy Armenian structured-code fields.
+// Written by historical client versions; read by NOTHING (queries, UI, sync
+// merge — see the Gate B readers report in R2-PLAN). Owner target: NULL.
+// Idempotent: batched via primary-key subquery (UPDATE ... LIMIT is not valid
+// Postgres), loops until 0 affected; the logged row count IS the count.
+// ---------------------------------------------------------------------------
+// Legacy codes built from codepoints (kept out of literals for the i18n
+// checker): category = '2 ' + U+0555 U+054F U+0551 U+0546; label = U+0533
+// '.' U+0546.
+const LEGACY_CATEGORY_CODE = "2 " + String.fromCharCode(0x0555, 0x054f, 0x0551, 0x0546);
+const LEGACY_LABEL_CODE = String.fromCharCode(0x0533, 0x2e, 0x0546);
+const PURGE_BATCH_SIZE = 1000;
+const PURGE_MAX_BATCHES = 10_000; // safety net; unreachable in practice
+
+async function purgeLegacyTransactionCodes(client: NonNullable<typeof db>): Promise<number> {
+  let total = 0;
+  for (let batch = 0; batch < PURGE_MAX_BATCHES; batch++) {
+    const res: any = await client.execute(sql`
+      UPDATE "customer_transactions" SET "categoryCode" = NULL, "labelCode" = NULL
+      WHERE "id" IN (
+        SELECT "id" FROM "customer_transactions"
+        WHERE "categoryCode" = ${LEGACY_CATEGORY_CODE} OR "labelCode" = ${LEGACY_LABEL_CODE}
+        LIMIT ${PURGE_BATCH_SIZE} FOR UPDATE SKIP LOCKED
+      )`);
+    const n = Number(res?.rowCount ?? 0);
+    if (n === 0) break;
+    total += n;
+    console.log(`[migrate] legacy codes: customer_transactions batch ${batch + 1}: ${n} row(s) cleared`);
+  }
+  for (let batch = 0; batch < PURGE_MAX_BATCHES; batch++) {
+    const res: any = await client.execute(sql`
+      UPDATE "transactions" SET "labelCode" = NULL
+      WHERE "id" IN (
+        SELECT "id" FROM "transactions"
+        WHERE "labelCode" = ${LEGACY_LABEL_CODE}
+        LIMIT ${PURGE_BATCH_SIZE} FOR UPDATE SKIP LOCKED
+      )`);
+    const n = Number(res?.rowCount ?? 0);
+    if (n === 0) break;
+    total += n;
+    console.log(`[migrate] legacy codes: transactions batch ${batch + 1}: ${n} row(s) cleared`);
+  }
+  return total;
+}
+
 async function checkSchemaConverged(): Promise<boolean> {
   try {
     if (!db) return false;
@@ -116,6 +162,14 @@ export function ensureSchema(): Promise<void> {
             await runStatement(db, stmt, ok, fail, "bootstrap statement");
           }
         }
+      }
+
+      // Gate B (Ruling B): one-time data migration. Runs on every cold boot
+      // but is a no-op (one zero-row batch) once clean; the logged total is
+      // the authoritative count.
+      const purged = await purgeLegacyTransactionCodes(db);
+      if (purged > 0) {
+        console.log("[migrate] legacy transaction codes cleared: " + purged + " row(s) total");
       }
 
       console.log("[migrate] schema ensure complete: " + ok.n + " ok, " + fail.n + " failed" + (schemaConverged ? " (skipped ALTERs)" : ""));

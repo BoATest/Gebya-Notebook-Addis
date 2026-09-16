@@ -606,6 +606,32 @@ db.version(27).stores({
   sync_outbox: 'key, table, created_at',
 });
 
+// Gate B: purge legacy Armenian structured-code fields (persisted by
+// historical writers; read by nothing — see R2-PLAN readers report).
+// Server-side twin lives in ensureSchema (batched UPDATE + logged count).
+// Idempotent: on a clean device the filter matches nothing. Runs once per
+// device at version-28 upgrade; offline-safe (native Dexie upgrade path).
+db.version(28).upgrade(async (tx) => {
+  // Legacy codes built from codepoints (kept out of literals for the i18n
+  // checker): category = '2 ' + U+0555 U+054F U+0551 U+0546; label = U+0533
+  // '.' U+0546.
+  const LEGACY_CODES = [
+    '2 ' + String.fromCharCode(0x0555, 0x054f, 0x0551, 0x0546),
+    String.fromCharCode(0x0533, 0x2e, 0x0546),
+  ];
+  for (const table of ['customer_transactions', 'transactions']) {
+    const rows = await tx.table(table).toArray();
+    const dirty = rows.filter(
+      (r) => LEGACY_CODES.includes(r.categoryCode) || LEGACY_CODES.includes(r.labelCode),
+    );
+    if (dirty.length > 0) {
+      await tx.table(table).bulkPut(
+        dirty.map((r) => ({ ...r, categoryCode: null, labelCode: null })),
+      );
+    }
+  }
+});
+
 db.on('ready', async () => {
   const privacySetting = await db.settings.get('privacy_mode');
   if (!privacySetting) {

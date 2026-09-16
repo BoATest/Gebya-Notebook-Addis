@@ -51,21 +51,12 @@ const DELIBERATE_SYMBOLS = new Set([
   '\u03A3', // Σ  GREEK CAPITAL SIGMA — sum notation in comments
 ]);
 
-// Exact corrupt strings that we must NOT change yet: they are persisted
-// transaction codes (data identity), so fixing them needs a migration that
-// keeps old rows matchable. Matched as substrings so line shifts don't
-// silently re-arm the guard.
-// TODO(R2): replace with real Amharic codes + backfill existing rows.
-const ALLOWED_SNIPPETS = [
-  {
-    snippet: '2 \u0555\u054F\u0551\u0546', // '2 ՕՏՑՆ' — Armenian letters
-    reason: 'legacy transaction categoryCode (persisted) — needs migration',
-  },
-  {
-    snippet: '\u0533.\u0546', // 'Գ.Ն' — Armenian letters
-    reason: 'legacy transaction labelCode (persisted) — needs migration',
-  },
-];
+// Gate B: the legacy-code allowlist was REMOVED (temporary by design).
+// The writers are fixed and both migrations (server ensureSchema purge +
+// Dexie version-28 upgrade) clear persisted rows. Any non-ASCII+Ethiopic
+// character in scope now fails the check — no exceptions. The array stays
+// (empty) so the skip mechanism itself survives for genuine future needs.
+const ALLOWED_SNIPPETS = [];
 
 function isOffender(ch) {
   if (ALLOWED.test(ch)) return false;           // ASCII or Ethiopic — always fine

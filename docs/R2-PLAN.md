@@ -74,6 +74,35 @@ approach. R2 code starts only when Gates B–D land (order B → C → D).
 4. **FUTURE list (do NOT build now)** — contextual setup prompts surfaced
    from the Today tab.
 
+## Rulings A & B (owner, post-b2f391b)
+
+- **Ruling A — checklist composition FROZEN for R2.** Never change a metric
+  definition before measuring it once. FUTURE: checklist item 5 (recurring
+  expenses) is the weakest activation proxy — candidate swap "first sale on
+  credit recorded", decided only after 4–6 weeks of `setup_completed_at`
+  data shows which item stalls; any change documents its date (metric eras
+  stay clean).
+- **Ruling B — Gate B unblocked:** count SQL demoted from gate to
+  diagnostics. Migration ships batched-by-default (~1k rows/batch,
+  idempotent, re-runnable) and LOGS the row count it fixed — that is the
+  count. Owner runs the SELECT later for the evidence table only, if desired.
+- **Backup-first owner action tied to deploy:** pg_dump immediately before
+  this ships (agent has no DB access — backup-first is NOT done until the
+  owner confirms the dump exists).
+
+## R2 checklist additions (owner element-by-element audit of live UI)
+
+1. **Install duplication**: top Install banner + "Install the App" card =
+   two affordances, one job. Keep the banner (dismissible); drop the card.
+2. **Payment Channels badge**: drop "/25" — no shop approaches 25 channels;
+   show "1 configured" count only.
+3. **Ban "App"/"Push" column vocabulary globally in R2.2** (not just staff
+   view) — developer terms; the 5-group model replaces them with
+   plain-language groups.
+4. **Version display**: About shows "dev", footer "vdev" — fix the displayed
+   version string; the 5-tap dev unlock must keep working on the new version
+   element (update its test).
+
 ## Owner block (this week, ~1h)
 
 - [ ] count SQL → Gate B (Armenian categoryCode/labelCode migration)
