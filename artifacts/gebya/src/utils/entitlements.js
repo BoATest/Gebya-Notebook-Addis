@@ -63,6 +63,25 @@ export async function hasEntitlement(entitlementName) {
 /**
  * Get all entitlements for the current plan.
  */
+/**
+ * Plan-panel quota display policy (Gate D, owner-ruled).
+ *
+ * The staff quota row is UNCONDITIONALLY hidden on the free plan: staff is
+ * not enforced yet, and "displaying an unenforced limit is a trust bug" —
+ * "Staff 0/3" and "Staff 2/3" read the same way to an owner who cannot
+ * control the outcome. It returns only when enforcement ships.
+ *
+ * The Monthly-tx row is deliberately NOT given this treatment: the 500/mo
+ * quota IS enforced, so showing it (0/500 included) keeps the one limit a
+ * free-plan owner genuinely must understand before they hit it.
+ *
+ * Kept here (not inline in PlanPanel) so the display policy is unit-testable
+ * and cannot drift between render branches.
+ */
+export function shouldShowStaffQuota(entitlements, staffCount) {
+  return entitlements?.max_staff === Infinity;
+}
+
 export async function getCurrentEntitlements() {
   const tier = await getPlanTier();
   return { tier, entitlements: ENTITLEMENTS[tier] || ENTITLEMENTS[PLAN_TIERS.FREE] };
