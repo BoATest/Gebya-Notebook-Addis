@@ -29,6 +29,34 @@ approach. R2 code starts only when Gates B–D land (order B → C → D).
    earlier labels draft invented different items — replaced; see
    R2-LABELS-DRAFT "Setup checklist items — REAL source of truth".)
 
+### Gate D status — LANDED (working tree; commit + deploy pending owner)
+
+1. **Parser** — `telegramIntentParser.ts` is a total function (no-arg/null
+   boundary returns well-formed Unknown; duplicated Amharic branch replaced
+   with «ከፈልኩ»). 14 unit tests in `src/services/__tests__/telegramIntentParser.test.ts`.
+   api-server suite: 369 passed / 0 failed; typecheck + build green.
+2. **Staff quota row hidden UNCONDITIONALLY on the free plan** —
+   `PlanPanel.jsx` renders it only via `shouldShowStaffQuota()`
+   (`utils/entitlements.js`): false for every finite `max_staff` regardless
+   of staffCount (the "2/3" case is a trust bug exactly like "0/3" — the
+   limit is not enforced), true only for Plus/Infinity. Tx 0/500 stays
+   visible (that quota IS enforced). Guarded twice: unit test in
+   `tests/setup-readiness.spec.ts` (staffCount=2 → hidden) + rendered smoke
+   in `tests/design-regression-smoke.spec.ts` (Money tab: Free Plan visible,
+   `0/3` absent, `0/500` visible).
+3. **`setup_completed_at`** — single definition in
+   `gebya/src/utils/setupReadiness.js` (computeSetupChecklist = exactly the 5
+   ReadinessHero checks; stamp = write-if-null, immutable, backfill-on-
+   encounter). ReadinessHero consumes it and stamps on encounter; 12 unit
+   tests in `tests/setup-readiness.spec.ts`.
+
+Deploy note: `api-server/dist/index.mjs` is committed BY DESIGN (Vercel
+skips install; `api/[...route].ts` imports the bundle). The committed bundle
+had gone stale (predated the parser); it was rebuilt and verified current —
+this PR MUST include the rebuilt `dist/index.mjs`. Re-run
+`pnpm build` + `node ../gebya/scripts/check-dist-stale.mjs dist/index.mjs`
+before every api-server deploy.
+
 ## Rulings for R2.1 (owner)
 
 - **Ruling 2:** R2.1 ships **byte-identical strings**. Term decisions
