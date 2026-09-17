@@ -613,8 +613,13 @@ db.version(27).stores({
 // device at version-28 upgrade; offline-safe (native Dexie upgrade path).
 db.version(28).upgrade(async (tx) => {
   // Legacy codes built from codepoints (kept out of literals for the i18n
-  // checker): category = '2 ' + U+0555 U+054F U+0551 U+0546; label = U+0533
-  // '.' U+0546.
+  // checker) — they represent, byte-exactly:
+  //   [0] = '2 ' + '\u0555\u054F\u0551\u0546'  (the legacy categoryCode,
+  //         Armenian capitals; U+0555 U+054F U+0551 U+0546)
+  //   [1] = '\u0533.\u0546'                    (the legacy labelCode)
+  // DO NOT "simplify" these into literals or constants-elsewhere: they must
+  // match the exact bytes persisted by historical writers or the purge
+  // silently matches nothing. See the Gate B readers report in R2-PLAN.md.
   const LEGACY_CODES = [
     '2 ' + String.fromCharCode(0x0555, 0x054f, 0x0551, 0x0546),
     String.fromCharCode(0x0533, 0x2e, 0x0546),

@@ -170,7 +170,7 @@ export const EN = {
   onboardSubtitle: 'Your business notebook',
   onboardTagline: 'Your shop notebook',
   onboardDesc: 'Enter your name and start using Gebya right away.',
-  onboardNamePlaceholder: 'e.g. Tigist',
+  onboardNamePlaceholder: 'Enter your name',
   onboardPhoneOptional: '(optional)',
   onboardPhoneHelper: 'You can add your phone later in Settings.',
   onboardPromiseSimple: 'Simple notebook for sales, spending, and Dubie',

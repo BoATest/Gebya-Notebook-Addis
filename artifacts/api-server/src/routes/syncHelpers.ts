@@ -90,6 +90,11 @@ export function mapCustomer(body: any) {
 // that is the dated checkpoint to declare zero legacy writers and remove
 // this guard.
 const LEGACY_CODE_VALUES = new Set([
+  // Represents the literal categoryCode '2 \u0555\u054F\u0551\u0546'
+  // (Armenian capitals, U+0555 U+054F U+0551 U+0546) and labelCode
+  // '\u0533.\u0546' — DO NOT simplify: must match the exact persisted bytes
+  // or the purge silently matches nothing. See the Gate B readers report in
+  // R2-PLAN.md.
   "2 " + String.fromCharCode(0x0555, 0x054f, 0x0551, 0x0546), // U+0555 U+054F U+0551 U+0546
   String.fromCharCode(0x0533, 0x2e, 0x0546), // U+0533 '.' U+0546
 ]);
