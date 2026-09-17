@@ -237,6 +237,18 @@ test('design regression smoke protects core merchant surfaces', async ({ page },
   await expect(page.getByText('Recurring Expenses', { exact: true })).toBeVisible();
   await attachScreenshot(page, testInfo, '03-settings-more');
 
+  // ─── Gate D quota display rule (owner-ruled, UNCONDITIONAL) ───────
+  // The staff quota row is hidden on the free plan entirely — staff is not
+  // enforced yet, and displaying an unenforced limit ("0/3" or "2/3") is a
+  // trust bug (R2-WIREFRAMES). The populated-staff case (staffCount=2 → no
+  // "2/3") is locked by unit test in tests/setup-readiness.spec.ts via
+  // shouldShowStaffQuota(); this smoke locks the rendered empty case. The
+  // Monthly-tx 0/500 row STAYS visible by design: that quota IS enforced.
+  await page.getByRole('tab', { name: 'Money' }).click();
+  await expect(page.getByText('Free Plan')).toBeVisible(); // panel rendered — guards against a vacuous pass
+  await expect(page.getByText('0/3')).toHaveCount(0);
+  await expect(page.getByText('0/500')).toBeVisible();
+
   // R1 dedupe: reminder / notification / password panels are rendered ONCE,
   // at the top of the Data tab (no longer outside the tab panels).
   await page.getByRole('tab', { name: 'Data', exact: true }).click();

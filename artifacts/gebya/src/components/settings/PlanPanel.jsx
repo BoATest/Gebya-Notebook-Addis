@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLang } from '../../context/LangContext';
-import { setPlanTier } from '../../utils/entitlements';
+import { setPlanTier, shouldShowStaffQuota } from '../../utils/entitlements';
 import { fireToast } from '../Toast';
 import { X, Check, Sparkles } from 'lucide-react';
 
@@ -63,7 +63,15 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
           </div>
         </div>
 
-        {entitlements.max_staff !== Infinity && (
+        {/* Gate D (owner-ruled, UNCONDITIONAL): the staff quota row is hidden
+            on the free plan entirely — staff is not enforced yet, and
+            displaying an unenforced limit ("0/3" OR "2/3") is a trust bug.
+            Policy lives in entitlements.shouldShowStaffQuota() so it stays
+            unit-tested and cannot drift. The Monthly-tx row is deliberately
+            NOT given the same treatment: 0/500 stays visible because that
+            quota IS enforced and is the one thing a free-plan owner needs to
+            understand before they hit it. */}
+        {shouldShowStaffQuota(entitlements, staffCount) && (
           <div className="mb-2">
             <div className="flex justify-between text-xs font-semibold mb-1">
               <span style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ሰራተኞች' : 'Staff'}</span>

@@ -1,5 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLang } from '../../context/LangContext';
+import {
+  computeSetupChecklist,
+  SETUP_CHECK_COUNT,
+  stampSetupCompletedAtIfComplete,
+} from '../../utils/setupReadiness';
+
+/**
+ * Presentation only — label, CTA and navigation target per checklist slot.
+ *
+ * The DONE / NOT-DONE decision is NOT made here. It comes from
+ * `setupReadiness.computeSetupChecklist()`, the single definition shared with
+ * the `setup_completed_at` metric, because R2-PLAN is explicit that "the
+ * metric's definition = the checklist's definition; they must never diverge."
+ * Order must match CHECKS in `utils/setupReadiness.js`.
+ *
+ * `tab` is present only on the payment-channel row: it navigates to the MONEY
+ * tab, while every other row opens a card in place (see onAction below).
+ */
+const CHECK_META = [
+  { key: 'profile', label: { en: 'Set shop name', am: 'የሱቅ ስም ያስገቡ' }, cta: { en: 'Add ›', am: 'ያስገቡ ›' } },
+  { key: 'profile', label: { en: 'Add shop phone number', am: 'የስልክ ቁጥር ያስገቡ' }, cta: { en: 'Add ›', am: 'ያስገቡ ›' } },
+  { key: 'channels', tab: 'money', label: { en: 'Set up a payment channel', am: 'የክፍያ መንገድ ያዋቅሩ' }, cta: { en: 'Setup ›', am: 'ያዋቅሩ ›' } },
+  { key: 'items', label: { en: 'Add items to catalog', am: 'እቃዎች ያስገቡ' }, cta: { en: 'Add ›', am: 'ያስገቡ ›' } },
+  { key: 'recurring', label: { en: 'Add recurring expenses', am: 'ወርሃዊ ወጪ ይመዝግቡ' }, cta: { en: 'ይመዝግቡ ›', am: 'ይመዝግቡ ›' } },
+];
 
 export default function ReadinessHero({ shopProfile, paymentChannels = [], catalogEntries = [], recurring = [], lang, onAction }) {
   const [expanded, setExpanded] = useState(true);
@@ -11,43 +36,31 @@ export default function ReadinessHero({ shopProfile, paymentChannels = [], catal
     return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '?';
   })();
 
-  const checks = [
-    {
-      key: 'profile',
-      done: !!shopProfile?.name,
-      label: lang === 'am' ? 'የሱቅ ስም ያስገቡ' : 'Set shop name',
-      cta: lang === 'am' ? 'ያስገቡ ›' : 'Add ›',
-    },
-    {
-      key: 'profile',
-      done: !!shopProfile?.phone,
-      label: lang === 'am' ? 'የስልክ ቁጥር ያስገቡ' : 'Add shop phone number',
-      cta: lang === 'am' ? 'ያስገቡ ›' : 'Add ›',
-    },
-    {
-      key: 'channels',
-      done: (paymentChannels || []).some(c => c.enabled && (c.usePhoneFromShop || c.phone || c.account)),
-      label: lang === 'am' ? 'የክፍያ መንገድ ያዋቅሩ' : 'Set up a payment channel',
-      cta: lang === 'am' ? 'ያዋቅሩ ›' : 'Setup ›',
-      tab: 'money',
-    },
-    {
-      key: 'items',
-      done: (catalogEntries || []).filter(e => e.active !== false).length > 0,
-      label: lang === 'am' ? 'እቃዎች ያስገቡ' : 'Add items to catalog',
-      cta: lang === 'am' ? 'ያስገቡ ›' : 'Add ›',
-    },
-    {
-      key: 'recurring',
-      done: (recurring || []).length > 0,
-      label: lang === 'am' ? 'ወርሃዊ ወጪ ይመዝግቡ' : 'Add recurring expenses',
-      cta: lang === 'am' ? 'ይመዝግቡ ›' : 'Add ›',
-    },
-  ];
+  // The shared definition (see utils/setupReadiness.js).
+  const checklist = computeSetupChecklist({ shopProfile, paymentChannels, catalogEntries, recurring });
+  const checks = CHECK_META.map((meta, idx) => ({
+    ...meta,
+    done: checklist[idx]?.done === true,
+    label: meta.label[lang] || meta.label.en,
+    cta: meta.cta[lang] || meta.cta.en,
+  }));
 
   const doneCount = checks.filter(c => c.done).length;
-  const totalCount = checks.length;
+  const totalCount = SETUP_CHECK_COUNT;
   const allDone = doneCount === totalCount;
+
+  // Gate D (Ruling 1): backfill-on-encounter. A shop that reached 5/5 before
+  // this shipped is stamped the next time its owner opens the checklist, so the
+  // completion metric is not undercounted by history. Write-if-null lives in
+  // the helper (immutable — first stamp wins, so an old backup restore cannot
+  // overwrite a real timestamp).
+  const stampAttempted = useRef(false);
+  useEffect(() => {
+    if (stampAttempted.current || !allDone) return;
+    stampAttempted.current = true;
+    stampSetupCompletedAtIfComplete({ shopProfile, paymentChannels, catalogEntries, recurring })
+      .catch(() => { stampAttempted.current = false; }); // non-critical; retry on next encounter
+  }, [allDone, shopProfile, paymentChannels, catalogEntries, recurring]);
 
   if (allDone) {
     return (
