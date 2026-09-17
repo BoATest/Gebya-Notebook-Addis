@@ -66,7 +66,10 @@ jobs:
           # NEW orphans still fail CI. Mounted features were removed from here:
           # DubieRulesPanel, OverdueCustomerFlags, PwaInstallPanel, TrustCard,
           # SimpleAnalytics are now wired into tabs.
-          ALLOWED_ORPHANS: src/bank-main.tsx,src/components/AskNotebookFAB.jsx,src/components/BankDashboard.d.ts,src/components/BankDataSharing.jsx,src/components/TopbarIdentity.jsx,src/hooks/use-mobile.tsx,src/hooks/useCatalog.js,src/hooks/useCustomers.js,src/hooks/useTransactions.js,src/pages/OnboardingPage.jsx,src/types/jsx-modules.d.ts,src/types/pwa-register.d.ts,src/utils/ethiopianTime.js
+          # reminderData.js is parked for R2.2 (builds personalized reminder
+          # payloads; zero refs today, already dead at 974292b — surfaced when
+          # the orphan scanner learned to see multi-line imports).
+          ALLOWED_ORPHANS: src/bank-main.tsx,src/components/AskNotebookFAB.jsx,src/components/BankDashboard.d.ts,src/components/BankDataSharing.jsx,src/components/TopbarIdentity.jsx,src/hooks/use-mobile.tsx,src/hooks/useCatalog.js,src/hooks/useCustomers.js,src/hooks/useTransactions.js,src/pages/OnboardingPage.jsx,src/types/jsx-modules.d.ts,src/types/pwa-register.d.ts,src/utils/ethiopianTime.js,src/utils/reminderData.js
       - name: Build
         run: pnpm build
 

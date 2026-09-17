@@ -35,13 +35,24 @@ for (const f of allFiles) {
 try { contents.set(join(ROOT, 'index.html'), readFileSync(join(ROOT, 'index.html'), 'utf8')); } catch {}
 
 // Collect every import-like reference string across the codebase.
-// Matches: import ... from '...Name', import('...Name'), require('...Name')
-const IMPORT_RE = /import(?:All|Meta)?(?:\s[^=\n]*?from)?\s*['"]([^'"]+)['"]/g;
+// Two explicit forms (a single regex with an optional cross-line from-clause
+// would swallow side-effect imports like `import './polyfill'` into the next
+// statement's `from`):
+//   1. from-form  — default/named/namespace imports, spanning NEWLINES
+//     ([\s\S], not [^=\n]): multi-line named imports are idiomatic in this
+//     codebase (e.g. ReadinessHero's
+//     `import {\n  computeSetupChecklist,\n} from '.../setupReadiness'`) and
+//     the old single-line pattern silently flagged such LIVE files as orphans.
+//   2. bare-form  — side-effect imports (`import './x'`).
+// Lazy quantifiers keep each match anchored to its own statement.
+const IMPORT_FROM_RE = /import[\s\S]*?from\s*['"]([^'"]+)['"]/g;
+const IMPORT_BARE_RE = /import\s*['"]([^'"]+)['"]/g;
 const LAZY_RE = /import\(['"]([^'"]+)['"]\)/g;
 let allRefs = new Set();
 for (const text of contents.values()) {
   let m;
-  while ((m = IMPORT_RE.exec(text))) allRefs.add(m[1]);
+  while ((m = IMPORT_FROM_RE.exec(text))) allRefs.add(m[1]);
+  while ((m = IMPORT_BARE_RE.exec(text))) allRefs.add(m[1]);
   while ((m = LAZY_RE.exec(text))) allRefs.add(m[1]);
 }
 
