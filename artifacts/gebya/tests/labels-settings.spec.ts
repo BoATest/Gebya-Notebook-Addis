@@ -57,8 +57,8 @@ describe('labels module contract (R2.1 pilot: settings.*)', () => {
     }
   });
 
-  it('registry exposes settings; queued namespaces are not yet present', () => {
-    expect(Object.keys(LABELS)).toEqual(['settings']);
+  it('registry exposes live namespaces; queued ones are not yet present', () => {
+    expect(Object.keys(LABELS).sort()).toEqual(['onboarding', 'settings']);
   });
 
   it('BYTE-IDENTITY: readiness entries equal the exact inline originals', () => {
@@ -110,7 +110,10 @@ describe('labels module contract (R2.1 pilot: settings.*)', () => {
     ];
     for (const rel of consumers) {
       const src = readFileSync(resolve(ROOT, rel), 'utf8');
-      const hits = src.match(/lang === 'am'/g) || [];
+      // Whitespace- and quote-tolerant (Batch 3 pre-guidance): catches
+      // `lang==='am'`, `lang === "am"`, `lang  ===  'am'` etc., not just the
+      // canonical spacing.
+      const hits = src.match(/lang\s*===\s*['"]am['"]/g) || [];
       expect(hits, `${rel} must consume the labels module (found ${hits.length} inline ternaries)`).toEqual([]);
     }
   });

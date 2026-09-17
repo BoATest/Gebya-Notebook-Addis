@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLang } from '../context/LangContext';
+import { LABELS } from '../labels';
 import { fireToast } from './Toast';
 import db, { setIdentity } from '../db';
 import { identityApi } from '../api/identity';
@@ -35,6 +36,7 @@ function isValidPhone(digits) {
 
 function OnboardingScreen({ onComplete }) {
   const { t, lang, toggleLang } = useLang();
+  const L = LABELS.onboarding;
   const phoneOptionalLabel = t.onboardPhoneOptional || '(optional)';
   const phoneHelper = t.onboardPhoneHelper || 'You can add your phone later in Settings.';
   const onboardingPromises = [
@@ -42,12 +44,14 @@ function OnboardingScreen({ onComplete }) {
     t.onboardPromiseFast || 'Start with your name only',
     t.onboardPromisePrivate || 'Your records stay on this phone',
   ];
-   const onboardKicker = lang === 'am' ? 'ገበያን ለመጠቀም ሁለት መንገዶች' : 'Two ways to use Gebya';
+   const onboardKicker = L.kicker[lang];
 
    const handleNewShop = () => setMode('form');
   const handleJoinShop = () => onComplete({ __staff_join: true });
 
-  function renderEnglishOptions() {
+  // Single render — the module owns the strings, so one DOM serves both
+  // languages (byte-identical output to the two functions it replaced).
+  function renderOptions() {
     return (
       <div className="space-y-3">
         <button
@@ -58,8 +62,8 @@ function OnboardingScreen({ onComplete }) {
         >
           <span className="text-3xl">🏪</span>
           <div>
-            <div className="font-black text-gray-900">Shop Owner</div>
-            <div className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>Create your own notebook</div>
+            <div className="font-black text-gray-900">{L.ownerTitle[lang]}</div>
+            <div className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>{L.ownerSub[lang]}</div>
           </div>
         </button>
         <button
@@ -70,39 +74,8 @@ function OnboardingScreen({ onComplete }) {
         >
           <span className="text-3xl">👥</span>
           <div>
-            <div className="font-black text-gray-900">Join a Shop</div>
-            <div className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>Connect as a staff member</div>
-          </div>
-        </button>
-      </div>
-    );
-  }
-
-  function renderAmharicOptions() {
-    return (
-      <div className="space-y-3">
-        <button
-          type="button"
-          onClick={handleNewShop}
-          className="w-full flex items-center gap-4 p-4 rounded-xl press-scale text-left"
-          style={{ background: 'rgba(27,67,50,0.06)', border: '2px solid rgba(27,67,50,0.12)' }}
-        >
-          <span className="text-3xl">🏪</span>
-          <div>
-            <div className="font-black text-gray-900">የሱቅ ባለቤት</div>
-            <div className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>የራስዎን ማስታወሻ ይፍጠሩ</div>
-          </div>
-        </button>
-        <button
-          type="button"
-          onClick={handleJoinShop}
-          className="w-full flex items-center gap-4 p-4 rounded-xl press-scale text-left"
-          style={{ background: 'rgba(196,136,58,0.08)', border: '2px solid rgba(196,136,58,0.2)' }}
-        >
-          <span className="text-3xl">👥</span>
-          <div>
-            <div className="font-black text-gray-900">ሱቅ ይቀላቀሉ</div>
-            <div className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>እንደ ሰራተኛ ይገናኙ</div>
+            <div className="font-black text-gray-900">{L.joinTitle[lang]}</div>
+            <div className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>{L.joinSub[lang]}</div>
           </div>
         </button>
       </div>
@@ -186,7 +159,7 @@ function OnboardingScreen({ onComplete }) {
        await db.settings.put({ key: 'intro_seen', value: 'yes' });
        await db.settings.put({ key: 'shop_name', value: name.trim() });
        await db.settings.put({ key: 'shop_phone', value: fullPhone });
-       fireToast(lang === 'am' ? 'በዚህ ስልክ ብቻ ተቀምጧል — ኢንተርኔት ሲገኝ ማገናኘት ይችላሉ' : 'Saved on this phone — connect to internet to enable sync', 5000);
+       fireToast(L.offlineToast[lang], 5000);
        onComplete({ name: name.trim(), phone: fullPhone });
     } finally {
       setSaving(false);
@@ -217,9 +190,9 @@ function OnboardingScreen({ onComplete }) {
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
-              aria-label={lang === 'am' ? 'Switch to English' : 'ወደ አማርኛ ቀይር'}
+              aria-label={L.langToggleLabel[lang]}
             >
-              🌐 {lang === 'am' ? 'English' : 'አማርኛ'}
+              🌐 {L.langToggleText[lang]}
             </button>
           </div>
 
@@ -247,10 +220,10 @@ function OnboardingScreen({ onComplete }) {
               {onboardKicker}
             </p>
             <h2 className="text-2xl font-black text-gray-900 mb-2 font-sans">
-              {lang === 'am' ? 'የአጠቃቀም አይነት ይምረጡ' : 'Select Account Type'}
+              {L.chooseType[lang]}
             </h2>
 
-            {lang === 'am' ? renderAmharicOptions() : renderEnglishOptions()}
+            {renderOptions()}
           </div>
 
           <p className="text-center text-xs mt-4 leading-5 font-sans" style={{ color: 'rgba(255,255,255,0.45)' }}>
@@ -285,7 +258,7 @@ function OnboardingScreen({ onComplete }) {
               cursor: 'pointer',
             }}
           >
-            ← {lang === 'am' ? 'ተመለስ' : 'Back'}
+            ← {L.back[lang]}
           </button>
         </div>
 
@@ -306,20 +279,20 @@ function OnboardingScreen({ onComplete }) {
           style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)' }}
         >
           <h2 className="text-xl font-black text-gray-900 mb-4 font-sans">
-            {lang === 'am' ? 'የሱቅዎን ማስታወሻ ደብተር ያዘጋጁ' : 'Set up your notebook'}
+            {L.formTitle[lang]}
           </h2>
 
           {/* Name */}
           <div className="mb-4">
             <label className="block text-xs font-black uppercase tracking-wide mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
-              {lang === 'am' ? 'ስም' : 'Your Name'} *
+              {L.nameLabel[lang]} *
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={() => setTouched(prev => ({ ...prev, name: true }))}
-              placeholder={lang === 'am' ? 'ስምዎን ያስገቡ' : t.onboardNamePlaceholder}
+              placeholder={L.namePlaceholder[lang]}
               className="w-full px-4 py-3 rounded-xl text-sm font-medium"
               style={{
                 background: 'var(--color-bg-active)',
@@ -330,7 +303,7 @@ function OnboardingScreen({ onComplete }) {
             />
             {touched.name && !nameValid && (
               <p className="text-xs font-medium mt-1" style={{ color: 'var(--color-danger)' }}>
-                {lang === 'am' ? 'እባክዎ ስም ያስገቡ' : 'Please enter your name'}
+                {L.nameError[lang]}
               </p>
             )}
           </div>
@@ -338,7 +311,7 @@ function OnboardingScreen({ onComplete }) {
           {/* Phone */}
           <div className="mb-4">
             <label className="block text-xs font-black uppercase tracking-wide mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
-              {lang === 'am' ? 'ስልክ ቁጥር' : 'Phone Number'} <span style={{ color: 'var(--color-text-soft)', fontWeight: 500 }}>{phoneOptionalLabel}</span>
+              {L.phoneLabel[lang]} <span style={{ color: 'var(--color-text-soft)', fontWeight: 500 }}>{phoneOptionalLabel}</span>
             </label>
             <div className="flex items-center gap-2">
               <span className="text-sm font-bold px-3 py-3 rounded-xl" style={{ background: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' }}>+251</span>
@@ -359,7 +332,7 @@ function OnboardingScreen({ onComplete }) {
             </div>
             {touched.phone && phoneEntered && !phoneValid && (
               <p className="text-xs font-medium mt-1" style={{ color: 'var(--color-danger)' }}>
-                {lang === 'am' ? 'እባክዎ ትክክለኛ ስልክ ቁጥር ያስገቡ' : 'Enter a valid phone number'}
+                {L.phoneError[lang]}
               </p>
             )}
             <p className="text-xs mt-1 font-medium" style={{ color: 'var(--color-text-soft)' }}>{phoneHelper}</p>
@@ -387,10 +360,7 @@ function OnboardingScreen({ onComplete }) {
               cursor: canProceed && !saving ? 'pointer' : 'not-allowed',
             }}
           >
-            {saving
-              ? (lang === 'am' ? 'በማስቀመጥ ላይ...' : 'Saving...')
-              : (lang === 'am' ? 'ጀምር' : 'Start')
-            }
+            {saving ? L.saving[lang] : L.startCta[lang]}
           </button>
         </div>
 

@@ -4,11 +4,11 @@
  * `lang === 'am' ? … : …` ternaries (enforced per consumer in
  * tests/labels-settings.spec.ts).
  *
- * NAMESPACE REGISTRY (live vs queued — the pilot lands settings; every other
- * feature area arrives batch-by-batch, by feature, after this pilot proof):
+ * NAMESPACE REGISTRY (live vs queued — every feature area arrives batch-by-
+ * batch, by feature, after the pilot proof):
  *   settings      — LIVE (pilot: readiness checklist + plan panel)
- *   onboarding    — queued (batch 2)
- *   transactions  — queued (batch 2; TransactionForm is the largest file)
+ *   onboarding    — LIVE (batch 2: OnboardingScreen)
+ *   transactions  — queued (batch 3; TransactionForm is the largest file)
  *   customers / suppliers / staff / report / notifications / nav — queued
  *
  * EXTRACTION RULES (binding for every batch):
@@ -22,7 +22,15 @@
  *      logic chooses WHICH entry renders (`upgrading ? L.a[lang] : L.b[lang]`);
  *      the module owns every string.
  *   4. Consumers only read entries; they never mutate them.
+ *   5. INVERTED (target-language) entries: a string whose inline branch did
+ *      NOT depend on the current locale the way siblings do (e.g. a language
+ *      toggle rendering the OTHER language's prompt) keeps its pre-refactor
+ *      branch bytes keyed by the branch that produced them — `entry.am` holds
+ *      the bytes of the inline `lang === 'am' ?` branch, even when those bytes
+ *      are English. The byte-lock spec enforces this literally; no silent
+ *      re-orientation is allowed in this refactor.
  */
 import { settings } from './settings';
+import { onboarding } from './onboarding';
 
-export const LABELS = { settings };
+export const LABELS = { settings, onboarding };
