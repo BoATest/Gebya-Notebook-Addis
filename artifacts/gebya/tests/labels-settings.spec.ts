@@ -10,6 +10,13 @@
  *   3. The consumers contain ZERO `lang === 'am'` ternaries — the per-batch
  *      report requirement, enforced mechanically instead of by grep-by-hand.
  *   4. The parameterized entry reproduces the template bytes for both locales.
+ *
+ * PROVENANCE: fixtures captured from 216ab40^ (the PRE-refactor files). A
+ * one-off audit (2026-09-17, git show read byte-faithfully inside node)
+ * compared every (en, am) entry pair set-wise: 27/27 static pairs identical
+ * + the progressOf template pair reproduced — zero added, zero missing.
+ * The locks are static on purpose: CI runs shallow clones, so nothing here
+ * reads git at runtime.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
