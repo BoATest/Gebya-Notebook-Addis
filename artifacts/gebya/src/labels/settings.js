@@ -19,11 +19,13 @@ export const settings = {
     allSetUp: { en: 'All set up', am: 'ሁሉም ተዋቅሯል' },
     details: { en: 'Details', am: 'ተጨማሪ' },
     shopFallback: { en: 'Shop', am: 'ሱቅ' },
-    // Parameterized entry (extraction rule 2): values in → byte-identical
+    // Parameterized entry (extraction rules 2 + 6): values in → byte-identical
     // string out. This is the `${doneCount} ከ ${totalCount}` template ternary.
+    // Rule 6 (Batch 2 ruling): >1 interpolation → single named object param,
+    // never positional args.
     progressOf: {
-      en: (done, total) => `${done} of ${total} set up`,
-      am: (done, total) => `${done} ከ ${total} ተዋቅሯል`,
+      en: ({ done, total }) => `${done} of ${total} set up`,
+      am: ({ done, total }) => `${done} ከ ${total} ተዋቅሯል`,
     },
   },
   plan: {

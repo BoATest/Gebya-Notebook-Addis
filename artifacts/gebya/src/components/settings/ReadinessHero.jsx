@@ -117,7 +117,7 @@ export default function ReadinessHero({ shopProfile, paymentChannels = [], catal
         <div className="flex-1 min-w-0">
           <div className="text-sm font-black">{name || L.shopFallback[lang]}</div>
           <div className="text-xs mt-0.5" style={{ opacity: 0.7 }}>
-            {L.progressOf[lang](doneCount, totalCount)}
+            {L.progressOf[lang]({ done: doneCount, total: totalCount })}
           </div>
         </div>
         <div className="text-xs font-bold" style={{ opacity: 0.6 }}>

@@ -54,6 +54,13 @@ describe('labels module contract (R2.1 pilot: settings.*)', () => {
       expect(typeof entry.am === 'string' || typeof entry.am === 'function', `${path}.am`).toBe(true);
       // A parameterized entry is parameterized in BOTH locales or neither.
       expect(typeof entry.en, `${path} locale-kind parity`).toBe(typeof entry.am);
+      // Rule 6 (Batch 2 ruling): function entries take at most ONE parameter —
+      // a single named object when there are multiple interpolations. A
+      // positional multi-arg function is rejected mechanically.
+      if (typeof entry.en === 'function') {
+        expect(entry.en.length, `${path} rule-6 arity`).toBeLessThanOrEqual(1);
+        expect(entry.am.length, `${path} rule-6 arity`).toBeLessThanOrEqual(1);
+      }
     }
   });
 
@@ -96,11 +103,11 @@ describe('labels module contract (R2.1 pilot: settings.*)', () => {
     expect(p.deviceNote).toEqual({ en: 'Tied to this device. No payment is taken.', am: 'ከዚህ ስልክ ጋር የተያያዘ ነው። ምንም ክፍያ አይጠየቅም።' });
   });
 
-  it('parameterized progressOf reproduces the template bytes (extraction rule 2)', () => {
-    expect(settings.readiness.progressOf.en(3, 5)).toBe('3 of 5 set up');
-    expect(settings.readiness.progressOf.am(3, 5)).toBe('3 ከ 5 ተዋቅሯል');
-    expect(settings.readiness.progressOf.en(0, 5)).toBe('0 of 5 set up');
-    expect(settings.readiness.progressOf.am(5, 5)).toBe('5 ከ 5 ተዋቅሯል');
+  it('parameterized progressOf reproduces the template bytes (extraction rules 2 + 6)', () => {
+    expect(settings.readiness.progressOf.en({ done: 3, total: 5 })).toBe('3 of 5 set up');
+    expect(settings.readiness.progressOf.am({ done: 3, total: 5 })).toBe('3 ከ 5 ተዋቅሯል');
+    expect(settings.readiness.progressOf.en({ done: 0, total: 5 })).toBe('0 of 5 set up');
+    expect(settings.readiness.progressOf.am({ done: 5, total: 5 })).toBe('5 ከ 5 ተዋቅሯል');
   });
 
   it('CONSUMERS ARE TERNARY-FREE: touched files contain zero lang === am branches', () => {

@@ -133,6 +133,22 @@ File: `src/components/shell/AuthRequiredPrompt.jsx` (login prompt)
 | 47 | `passwordSetup: የሚስጥር ቃል መዲዛ ያስገብ` | EN dict key `passwordSetup` |
 | 359 | `…የሚስጥር ቃል መዲዛ ይጨምሩ ለ ፍጥነታዊ መግቢያ?` | "Signed in successfully! Set a password for faster logins?" |
 
+## R2.1 extraction — INVERTED entries (⚠ reviewer trap)
+
+R2.1 ships strings byte-identical; the two entries below are **inverted** (the
+inline branch did not follow the current-locale pattern). They are keyed the
+way the code produced them, per skeleton rule 5. **Semantic reconsideration is
+deferred to the post-R2.1 labels PR** — do not "fix" the orientation during R2.1.
+
+| Entry | Keyed `am` (EN bytes) | Keyed `en` (AM bytes) | Why inverted |
+|---|---|---|---|
+| ⚠ `onboarding.langToggleLabel` | `Switch to English` | `ወደ አማርኛ ቀይር` | Language toggle renders the TARGET language: `lang === 'am' ? 'Switch to English' : 'ወደ አማርኛ ቀይር'` |
+| ⚠ `onboarding.langToggleText` | `English` | `አማርኛ` | Same toggle, target-language chip: the code shows the language you would switch TO |
+
+Reviewer reads the EN column as "the string the Amharic UI shows" — expected,
+not a bug. Any wording change here is a term decision and waits for the
+post-R2.1 PR.
+
 ## Term decision — PRE-RULING (owner; ratify in Merkato session)
 
 Two levels, each named consistently:
