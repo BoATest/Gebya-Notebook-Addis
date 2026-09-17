@@ -4,6 +4,30 @@ import { fireToast } from './Toast';
 import db, { setIdentity } from '../db';
 import { identityApi } from '../api/identity';
 import { setAuthToken } from '../utils/syncEngine';
+import { usePermissionsStore } from '../stores/permissionsStore';
+import { resolvePermissions } from '../utils/permissions';
+
+/**
+ * Gate C: stamp the owner role + permissions into the permissions store the
+ * moment onboarding succeeds — before onComplete() hands control to the shell.
+ *
+ * Why this exists: the store starts at { permissions: null, role: null } and
+ * hasPermission() then falls through to STAFF_MINIMAL_SAFE (can_add_records
+ * only). A brand-new owner therefore saw Reports OFF, was labelled STAFF in
+ * Settings, and was denied the owner/admin section — until an unrelated auth
+ * refresh happened to land. That window is a first-session trust failure and
+ * it confounded the setup-completion metric.
+ *
+ * resolvePermissions() mirrors authStore (role defaults merged with the
+ * server payload) so the two paths cannot drift. Owned here rather than in
+ * handleOnboardingComplete() so the stamp cannot be skipped by a future
+ * caller that bypasses the hook.
+ */
+function stampOwnerPermissions(serverPermissions) {
+  usePermissionsStore
+    .getState()
+    .setPermissions(resolvePermissions('owner', serverPermissions), 'owner');
+}
 
 function isValidPhone(digits) {
   return /^[79]\d{8}$/.test(digits);
@@ -127,6 +151,12 @@ function OnboardingScreen({ onComplete }) {
         approval_required: result.approval_required ?? false,
       };
       await setIdentity(identity);
+      // Gate C: stamp owner role + permissions BEFORE onComplete() hands
+      // control to the shell, so the first render already sees role === owner.
+      // Without this the store stayed at {null, null} and hasPermission() fell
+      // through to STAFF_MINIMAL_SAFE — Reports OFF, STAFF badge, no admin
+      // section — until an unrelated auth refresh landed.
+      stampOwnerPermissions(identity.permissions);
        await db.settings.put({ key: 'intro_seen', value: 'yes' });
        await db.settings.put({ key: 'shop_name', value: identity.shop_name });
        await db.settings.put({ key: 'shop_phone', value: fullPhone });
@@ -148,6 +178,11 @@ function OnboardingScreen({ onComplete }) {
          device_status: result.device_status || 'active',
        });
     } catch {
+      // Gate C (offline path): createShop failed, but a shop now exists on this
+      // phone and the person who created it is its owner. Stamp the owner role
+      // with role defaults (no server payload) so the very first session opens
+      // owner surfaces instead of silently degrading to STAFF_MINIMAL_SAFE.
+      stampOwnerPermissions();
        await db.settings.put({ key: 'intro_seen', value: 'yes' });
        await db.settings.put({ key: 'shop_name', value: name.trim() });
        await db.settings.put({ key: 'shop_phone', value: fullPhone });
@@ -284,7 +319,7 @@ function OnboardingScreen({ onComplete }) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               onBlur={() => setTouched(prev => ({ ...prev, name: true }))}
-              placeholder={lang === 'am' ? 'ስምዎን ያስገቡ' : 'Enter your name'}
+              placeholder={lang === 'am' ? 'ስምዎን ያስገቡ' : t.onboardNamePlaceholder}
               className="w-full px-4 py-3 rounded-xl text-sm font-medium"
               style={{
                 background: 'var(--color-bg-active)',
