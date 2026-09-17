@@ -28,6 +28,13 @@ jobs:
         run: pnpm typecheck
       - name: Run tests
         run: pnpm test
+      # Vercel ships the COMMITTED bundle (install is skipped; the serverless
+      # entry imports dist/index.mjs), so a stale commit silently ships old
+      # server code. This gate rebuilds the current source and fails if the
+      # committed bundle does not match — see the script header for the
+      # incident that forced it into CI.
+      - name: dist-stale gate (committed bundle must be current)
+        run: node ../gebya/scripts/check-dist-stale.mjs
 
   gebya:
     name: Gebya frontend build
