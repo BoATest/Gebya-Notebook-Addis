@@ -5,6 +5,7 @@ import {
   SETUP_CHECK_COUNT,
   stampSetupCompletedAtIfComplete,
 } from '../../utils/setupReadiness';
+import { LABELS } from '../../labels';
 
 /**
  * Presentation only — label, CTA and navigation target per checklist slot.
@@ -17,13 +18,17 @@ import {
  *
  * `tab` is present only on the payment-channel row: it navigates to the MONEY
  * tab, while every other row opens a card in place (see onAction below).
+ *
+ * Strings come from the central labels module (R2.1); byte-identity is
+ * unit-locked in tests/labels-settings.spec.ts.
  */
+const L = LABELS.settings.readiness;
 const CHECK_META = [
-  { key: 'profile', label: { en: 'Set shop name', am: 'የሱቅ ስም ያስገቡ' }, cta: { en: 'Add ›', am: 'ያስገቡ ›' } },
-  { key: 'profile', label: { en: 'Add shop phone number', am: 'የስልክ ቁጥር ያስገቡ' }, cta: { en: 'Add ›', am: 'ያስገቡ ›' } },
-  { key: 'channels', tab: 'money', label: { en: 'Set up a payment channel', am: 'የክፍያ መንገድ ያዋቅሩ' }, cta: { en: 'Setup ›', am: 'ያዋቅሩ ›' } },
-  { key: 'items', label: { en: 'Add items to catalog', am: 'እቃዎች ያስገቡ' }, cta: { en: 'Add ›', am: 'ያስገቡ ›' } },
-  { key: 'recurring', label: { en: 'Add recurring expenses', am: 'ወርሃዊ ወጪ ይመዝግቡ' }, cta: { en: 'ይመዝግቡ ›', am: 'ይመዝግቡ ›' } },
+  { key: 'profile', label: L.setName, cta: L.ctaAdd },
+  { key: 'profile', label: L.setPhone, cta: L.ctaAdd },
+  { key: 'channels', tab: 'money', label: L.setUpChannel, cta: L.ctaSetup },
+  { key: 'items', label: L.addItems, cta: L.ctaAdd },
+  { key: 'recurring', label: L.addRecurring, cta: L.ctaRecord },
 ];
 
 export default function ReadinessHero({ shopProfile, paymentChannels = [], catalogEntries = [], recurring = [], lang, onAction }) {
@@ -74,10 +79,10 @@ export default function ReadinessHero({ shopProfile, paymentChannels = [], catal
         >
           <div style={{ fontSize: '1.2rem' }}>✓</div>
           <div className="text-sm font-bold">
-            {lang === 'am' ? 'ሁሉም ተዋቅሯል' : 'All set up'}
+            {L.allSetUp[lang]}
           </div>
           <div className="text-xs ml-auto opacity-70">
-            {lang === 'am' ? 'ተጨማሪ' : 'Details'} ›
+            {L.details[lang]} ›
           </div>
         </div>
         {expanded && (
@@ -110,9 +115,9 @@ export default function ReadinessHero({ shopProfile, paymentChannels = [], catal
           {initials}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-black">{name || (lang === 'am' ? 'ሱቅ' : 'Shop')}</div>
+          <div className="text-sm font-black">{name || L.shopFallback[lang]}</div>
           <div className="text-xs mt-0.5" style={{ opacity: 0.7 }}>
-            {lang === 'am' ? `${doneCount} ከ ${totalCount} ተዋቅሯል` : `${doneCount} of ${totalCount} set up`}
+            {L.progressOf[lang](doneCount, totalCount)}
           </div>
         </div>
         <div className="text-xs font-bold" style={{ opacity: 0.6 }}>

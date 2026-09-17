@@ -3,13 +3,18 @@ import { useLang } from '../../context/LangContext';
 import { setPlanTier, shouldShowStaffQuota } from '../../utils/entitlements';
 import { fireToast } from '../Toast';
 import { X, Check, Sparkles } from 'lucide-react';
+import { LABELS } from '../../labels';
+
+// Strings come from the central labels module (R2.1); byte-identity is
+// unit-locked in tests/labels-settings.spec.ts.
+const L = LABELS.settings.plan;
 
 const PLUS_FEATURES = [
-  { key: 'staff', en: 'Unlimited staff members', am: 'ያልተገደበ ሰራተኞች' },
-  { key: 'tx', en: 'Unlimited monthly transactions', am: 'ያልተገደበ ወርሃዊ ግብይቶች' },
-  { key: 'reports', en: 'Advanced reports & analytics', am: 'የላቀ ሪፖርቶች እና ትንታኔ' },
-  { key: 'multi', en: 'Multi-shop management', am: 'ባለብዙ ሱቅ አስተዳደር' },
-  { key: 'support', en: 'Priority support', am: 'ቅድሚያ ድጋፍ' },
+  { key: 'staff', ...L.plusStaff },
+  { key: 'tx', ...L.plusTx },
+  { key: 'reports', ...L.plusReports },
+  { key: 'multi', ...L.plusMulti },
+  { key: 'support', ...L.plusSupport },
 ];
 
 export default function PlanPanel({ tier, entitlements, staffCount, transactionCount }) {
@@ -41,10 +46,10 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
     setUpgrading(true);
     try {
       await setPlanTier('plus');
-      fireToast(lang === 'am' ? 'ወደ Gebya Plus ተሻሽሏል! 🎉' : 'Upgraded to Gebya Plus! 🎉', 2500);
+      fireToast(L.upgradedToast[lang], 2500);
       setTimeout(() => window.location.reload(), 800);
     } catch {
-      fireToast(lang === 'am' ? 'እባክዎ እንደገና ይሞክሩ' : 'Something went wrong', 2000);
+      fireToast(L.upgradeFailedToast[lang], 2000);
     } finally {
       setUpgrading(false);
     }
@@ -58,8 +63,8 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
             ★
           </div>
           <div className="flex-1">
-            <div className="text-sm font-black text-gray-800">{lang === 'am' ? 'ነፃ ፕላን' : 'Free Plan'}</div>
-            <div className="text-xs text-gray-500">{lang === 'am' ? 'የሰራተኞች እና የሪፖርት ገደቦች አሉ' : 'Limited staff and reports'}</div>
+            <div className="text-sm font-black text-gray-800">{L.freeTitle[lang]}</div>
+            <div className="text-xs text-gray-500">{L.freeSubtitle[lang]}</div>
           </div>
         </div>
 
@@ -74,7 +79,7 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
         {shouldShowStaffQuota(entitlements, staffCount) && (
           <div className="mb-2">
             <div className="flex justify-between text-xs font-semibold mb-1">
-              <span style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ሰራተኞች' : 'Staff'}</span>
+              <span style={{ color: 'var(--color-text-muted)' }}>{L.staffLabel[lang]}</span>
               <span style={{ color: 'var(--color-text)' }}>{staffCount}/{entitlements.max_staff}</span>
             </div>
             <div className="h-1.5 rounded-full" style={{ background: 'var(--color-bg-hover)' }}>
@@ -86,7 +91,7 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
         {entitlements.max_transactions_per_month !== Infinity && (
           <div className="mb-3">
             <div className="flex justify-between text-xs font-semibold mb-1">
-              <span style={{ color: 'var(--color-text-muted)' }}>{lang === 'am' ? 'ወርሃዊ ግብይቶች' : 'Monthly tx'}</span>
+              <span style={{ color: 'var(--color-text-muted)' }}>{L.txLabel[lang]}</span>
               <span style={{ color: 'var(--color-text)' }}>{transactionCount}/{entitlements.max_transactions_per_month}</span>
             </div>
             <div className="h-1.5 rounded-full" style={{ background: 'var(--color-bg-hover)' }}>
@@ -102,7 +107,7 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
           style={{ background: 'var(--color-accent-amber)', color: 'var(--color-bg-white)' }}
         >
           <Sparkles className="w-3.5 h-3.5" />
-          {lang === 'am' ? 'ወደ Plus አሻሽል' : 'Upgrade to Plus'}
+          {L.upgradeCta[lang]}
         </button>
       </div>
 
@@ -135,14 +140,14 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
             </div>
 
             <p className="text-sm text-gray-600 mb-4">
-              {lang === 'am' ? 'ሁሉንም ገደቦች ይክፈቱ እና የንግድዎን አቅም ይጨምሩ' : 'Unlock everything and scale your business'}
+              {L.modalTagline[lang]}
             </p>
 
             <div className="space-y-2 mb-5">
               {PLUS_FEATURES.map(f => (
                 <div key={f.key} className="flex items-center gap-2.5 text-sm">
                   <Check className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-success)' }} />
-                  <span className="font-medium text-gray-800">{lang === 'am' ? f.am : f.en}</span>
+                  <span className="font-medium text-gray-800">{f[lang]}</span>
                 </div>
               ))}
             </div>
@@ -155,12 +160,12 @@ export default function PlanPanel({ tier, entitlements, staffCount, transactionC
               style={{ background: 'var(--color-primary)' }}
             >
               {upgrading
-                ? (lang === 'am' ? 'በመስራት ላይ...' : 'Upgrading...')
-                : (lang === 'am' ? 'ወደ Plus አሻሽል' : 'Upgrade Now')}
+                ? L.upgrading[lang]
+                : L.upgradeNow[lang]}
             </button>
 
             <p className="text-[10px] text-center mt-3" style={{ color: 'var(--color-text-muted)' }}>
-              {lang === 'am' ? 'ከዚህ ስልክ ጋር የተያያዘ ነው። ምንም ክፍያ አይጠየቅም።' : 'Tied to this device. No payment is taken.'}
+              {L.deviceNote[lang]}
             </p>
           </div>
         </div>
