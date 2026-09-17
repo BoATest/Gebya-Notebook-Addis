@@ -74,6 +74,22 @@ for (const file of srcFiles) {
     if (refBase === base || refBase === baseNoExt) { referenced = true; break; }
     if (refBase === baseNoExt + ext) { referenced = true; break; }
   }
+  // Directory-style specifiers ('../labels', './i18n') resolve to
+  // <dir>/index.* in every bundler, but the basename match above only sees
+  // 'labels' — so a barrel file with zero direct-name importers was
+  // misflagged. If this file is an index.* whose parent directory name
+  // appears as the final segment of ANY import specifier, and that directory
+  // actually contains this index file, treat it as referenced. (Heuristic on
+  // purpose: it can only ever mark a real index.* inside a directory that is
+  // genuinely imported, so it errs toward "referenced" for index files only.)
+  if (!referenced && /^index\.(js|jsx|ts|tsx|mjs)$/.test(base)) {
+    const dirPath = file.slice(0, file.lastIndexOf(sep));
+    const dirName = dirPath.split(sep).pop();
+    for (const ref of allRefs) {
+      const refBase = ref.split('/').pop();
+      if (refBase === dirName) { referenced = true; break; }
+    }
+  }
   if (!referenced) orphans.push(relative(ROOT, file).split(sep).join('/'));
 }
 
