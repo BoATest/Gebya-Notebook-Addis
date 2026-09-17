@@ -94,9 +94,18 @@ function extractAmount(textLower: string): number | null {
 /**
  * Parse an incoming customer message into a structured intent.
  * Language detection is passed in (from the customer's Telegram client code).
+ *
+ * Gate D: the signature accepts null/undefined on purpose. The webhook passes
+ * `message?.text`, and Telegram updates legitimately arrive without text
+ * (photos, stickers, voice notes, service messages). The parser is the
+ * boundary, so it normalizes every missing shape here instead of trusting
+ * callers — the no-arg call returns a well-formed Unknown intent, never throws.
  */
-export function parseTelegramIntent(text: string, _lang: Lang = "en"): TelegramIntent {
-  const raw = String(text || "").trim();
+export function parseTelegramIntent(text?: string | null, _lang: Lang = "en"): TelegramIntent {
+  // null/undefined are the only new shapes; everything else keeps the original
+  // String(...) coercion so no existing caller changes behaviour.
+  const raw = text == null ? "" : String(text).trim();
+  // No-arg / empty boundary: a total function, always a valid TelegramIntent.
   if (!raw) return { intent: "unknown", text: raw };
 
   const lower = raw.toLowerCase();
@@ -132,7 +141,15 @@ export function parseTelegramIntent(text: string, _lang: Lang = "en"): TelegramI
   }
 
   // 4. Paid — customer reports a payment
-  if (first === "/paid" || lower.includes("ከፍያለሁ") || lower.includes("ከፍያለሁ") ||
+  // Gate D: the Amharic term above was duplicated (copy/paste), leaving one
+  // branch dead. Replaced with «ከፈልኩ» — the unambiguous past-tense "I paid" this
+  // branch was clearly meant to catch.
+  // Ordering note: «ከፍያለሁ» also appears in holdsPromiseWord, so it is claimed by
+  // the promise branch ONLY when a date resolves; a bare «ከፍያለሁ» falls through to
+  // here and is treated as a reported payment. Either way the handler only asks
+  // the owner to confirm — it never writes the ledger — so a misclassification
+  // cannot corrupt a balance.
+  if (first === "/paid" || lower.includes("ከፈልኩ") || lower.includes("ከፍያለሁ") ||
       lower.includes("paid")) {
     return { intent: "paid", amount: extractAmount(lower) ?? undefined };
   }
