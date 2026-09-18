@@ -1,0 +1,25 @@
+name: Backup Supabase
+
+on:
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Create backup
+        run: |
+          pg_dump "${{ secrets.SUPABASE_BACKUP_URL }}" -f gebya-backup.sql
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gebya-backup
+          path: gebya-backup.sql
+          retention-days: 3
