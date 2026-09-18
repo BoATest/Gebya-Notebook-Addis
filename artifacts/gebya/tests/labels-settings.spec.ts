@@ -64,8 +64,9 @@ describe('labels module contract (R2.1 pilot: settings.*)', () => {
     }
   });
 
-  it('registry exposes live namespaces; queued ones are not yet present', () => {
-    expect(Object.keys(LABELS).sort()).toEqual(['onboarding', 'settings']);
+    it('registry exposes live namespaces; queued ones are not yet present', () => {
+    // shared + transactions went LIVE with Batch 3a (TransactionForm sub-batch 1).
+    expect(Object.keys(LABELS).sort()).toEqual(['onboarding', 'settings', 'shared', 'transactions']);
   });
 
   it('BYTE-IDENTITY: readiness entries equal the exact inline originals', () => {

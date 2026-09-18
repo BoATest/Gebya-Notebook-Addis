@@ -8,7 +8,8 @@
  * batch, by feature, after the pilot proof):
  *   settings      — LIVE (pilot: readiness checklist + plan panel)
  *   onboarding    — LIVE (batch 2: OnboardingScreen)
- *   transactions  — queued (batch 3; TransactionForm is the largest file)
+ *   transactions  — LIVE (batch 3a: TransactionForm type config + header — sub-batched)
+ *   shared        — LIVE (batch 3a: cross-form labels: ብር/birr, currency)
  *   customers / suppliers / staff / report / notifications / nav — queued
  *
  * EXTRACTION RULES (binding for every batch):
@@ -40,9 +41,12 @@
  */
 import { settings } from './settings';
 import { onboarding } from './onboarding';
+import { shared } from './shared';
+import { transactions } from './transactions';
 
 // Bundle accounting (Batch 2 ruling): at R2.1 end, report the labels module's
 // contribution to the production bundle (raw + gzip). If > 30 KB gzip, heavy
 // consumers switch to namespace-direct imports (`../labels/settings`) — this
 // file stays the registry of record either way.
-export const LABELS = { settings, onboarding };
+export const LABELS = { settings, onboarding, shared, transactions };
+

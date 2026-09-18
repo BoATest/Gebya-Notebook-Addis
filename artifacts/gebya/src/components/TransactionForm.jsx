@@ -39,6 +39,9 @@ import AddProviderButton from './AddProviderButton';
 import PartialPaymentSheet from './PartialPaymentSheet';
 import { db } from '../db';
 import { trackEvent } from '../utils/eventTracking';
+import { LABELS as L } from '../labels';
+const T = L.transactions;
+const S = L.shared;
 
 function handleNumericInput(e, setter) {
   let raw = e.target.value.replace(/,/g, '').replace(/[^\d.]/g, '');
@@ -64,12 +67,8 @@ function TransactionForm({
  }) {
   const { lang, t } = useLang();
 
-  // ─── Type config (color, header label, icon, save button text) ─────────
-  const headerLabel = {
-    sale: lang === 'am' ? '+ ሽያጭ' : '+ Sale',
-    expense: lang === 'am' ? '− ወጪ' : '− Expense',
-    credit: lang === 'am' ? '↻ ዱቤ' : '↻ Credit',
-  }[type] || (lang === 'am' ? '+ ሽያጭ' : '+ Sale');
+      // ─── Type config (header label, icon, save button text) ──────────────────
+  const headerLabel = T.typeLabel[type] || T.typeLabel.sale;
 
   const accentColor = {
     sale: 'var(--color-success)',
@@ -80,21 +79,11 @@ function TransactionForm({
   const isCredit = type === 'credit';
   const isExpense = type === 'expense';
 
-  const itemPlaceholder = isCredit
-    ? (lang === 'am' ? 'ለምሳሌ አበበ…' : 'e.g. Abebe...')
-    : isExpense
-      ? (lang === 'am' ? 'ዝርዝሩን ይመዝቡ...' : 'Add details...')
-      : (lang === 'am' ? 'ዝርዝሩን ይመዝቡ...' : 'Add details...');
+  
+  const itemPlaceholder = (isCredit ? T.itemPlaceholder.credit : isExpense ? T.itemPlaceholder.expense : T.itemPlaceholder.sale)[lang];
+  const itemLabel = (isCredit ? T.itemLabel.credit : T.itemLabel.sale)[lang];
+  const saveButtonText = (isCredit ? T.saveButton.credit : isExpense ? T.saveButton.expense : T.saveButton.sale)[lang];
 
-  const itemLabel = isCredit
-    ? (lang === 'am' ? 'ስም' : 'NAME')
-    : (lang === 'am' ? 'ዕቃ / አገልግሎት (አማራጭ)' : 'Item / Service (Optional)');
-
-  const saveButtonText = isCredit
-    ? (lang === 'am' ? 'ዱቤ አስቀምጥ' : 'Save Credit')
-    : isExpense
-      ? (lang === 'am' ? 'ወጪ አስቀምጥ' : 'Save Expense')
-      : (lang === 'am' ? 'ሽያጭ አስቀምጥ' : 'Save Sale');
 
   // ─── State ──────────────────────────────────────────────────────────────
   const [item, setItem] = useState('');
@@ -156,12 +145,12 @@ function TransactionForm({
     [customers]
   );
 
-  // Display-only label for the amount hero badge (payment selector lives in the chips row).
+       // Display-only label for the amount hero badge (payment selector lives in the chips row).
   const paymentLabel = paymentType === 'cash'
-    ? (lang === 'am' ? 'ጥሬ' : 'Cash')
+    ? T.paymentType.cash[lang]
     : paymentType === 'credit'
-      ? (lang === 'am' ? 'ዱቤ' : 'Credit')
-      : (paymentProvider || (lang === 'am' ? 'ጥሬ' : 'Cash'));
+      ? T.paymentType.credit[lang]
+      : (paymentProvider || T.paymentType.cash[lang]);
 
   const canSave =
      sellingPrice > 0
@@ -180,7 +169,7 @@ function TransactionForm({
   const handleCameraPhoto = async (dataUrl) => {
     if (!dataUrl) return;
     if (photos.length >= MAX_PROOF_PHOTOS) {
-      setPhotoError(lang === 'am' ? '3 ፎቶዎች ሙሉ በሙሉ ተያዝዋል' : 'You can attach up to 3 photos');
+            setPhotoError(T.photoLimit[lang]);
       return;
     }
     setPhotoLoading(true);
