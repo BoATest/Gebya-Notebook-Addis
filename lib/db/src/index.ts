@@ -19,17 +19,17 @@ const connectionString = process.env.DATABASE_URL_POOLED || process.env.DATABASE
 // Enforce TLS with certificate verification for any non-local database
 // connection (Neon/Supabase/RDS all require TLS). Localhost and an explicit
 // `sslmode=disable` opt out. Never transmit credentials over a plaintext link.
-function sslForConnectionString(cs: string): boolean | undefined {
+function sslForConnectionString(cs: string): boolean | { rejectUnauthorized: boolean } | undefined {
   if (/sslmode=disable/i.test(cs)) return undefined;
   if (/(?:localhost|127\.0\.0\.1)(?::\d+)?\//.test(cs)) return undefined;
   if (/sslmode=/i.test(cs)) return undefined;
-  return true;
+  return { rejectUnauthorized: false }; // INTERIM: encrypted, CA not verified (Supabase private CA). Hardening PR: bundle CA cert.
 }
 
 const cs = connectionString || "";
 const sslOption = sslForConnectionString(cs);
 const finalConnectionString = sslOption && !/sslmode=/i.test(cs)
-  ? (cs.includes("?") ? `${cs}&sslmode=verify-full` : `${cs}?sslmode=verify-full`)
+  ? cs
   : cs;
 
 export const pool = finalConnectionString
