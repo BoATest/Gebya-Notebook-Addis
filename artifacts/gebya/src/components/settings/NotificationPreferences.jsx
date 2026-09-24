@@ -1,42 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronDown, ChevronRight, Bell, Moon } from 'lucide-react';
+import { Bell, BellOff, Moon, Sun } from 'lucide-react';
 import { fireToast } from '../Toast';
 import { getAuthToken } from '../../utils/syncEngine';
-
-const R2_2_GROUPS = [
-  {
-    key: 'money_in',
-    title: { en: 'Money in', am: 'ገቢ ገንዘብ' },
-    locked: false,
-    types: ['sale', 'payment'],
-  },
-  {
-    key: 'credit_dubie',
-    title: { en: 'Credit–Dubie', am: 'ዱቤ' },
-    locked: true,
-    lockNote: { en: 'Cannot disable', am: 'መዝጋት አይቻልም' },
-    types: ['credit', 'overdue_alert'],
-  },
-  {
-    key: 'money_out',
-    title: { en: 'Money out', am: 'ወጪ ገንዘብ' },
-    locked: false,
-    types: ['supplier_payment', 'supplier_purchase', 'expense'],
-  },
-  {
-    key: 'team_security',
-    title: { en: 'Team & security', am: 'ቡድናዊ እና ደህንነት' },
-    locked: true,
-    lockNote: { en: 'Cannot disable', am: 'መዝጋት አይቻልም' },
-    types: ['staff_joined', 'staff_submitted_collection', 'rbac_violation', 'device_approval'],
-  },
-  {
-    key: 'gebya_support',
-    title: { en: 'Gebya & support', am: 'ገበያ እና ድጋፍ' },
-    locked: false,
-    types: ['announcement', 'support_reply'],
-  },
-];
 
 const NOTIFICATION_TYPES = [
   { key: 'sale', label: { en: 'Sales', am: 'ሽያጭ' }, icon: '💰' },
@@ -51,98 +16,65 @@ const NOTIFICATION_TYPES = [
   { key: 'device_approval', label: { en: 'Device Approval', am: 'የስልክ ማጽደቅ' }, icon: '📱' },
   { key: 'announcement', label: { en: 'Announcements', am: 'ማስታወቂያ' }, icon: '📣' },
   { key: 'support_reply', label: { en: 'Support Replies', am: 'የድጋፍ መልስ' }, icon: '💬' },
-  { key: 'staff_submitted_collection', label: { en: 'Staff Submissions', am: 'ሰራተኛ ተቀቃቀም' }, icon: '📋' },
+  { key: 'staff_submitted_collection', label: { en: 'Staff Submissions', am: 'የሰራተኛ ስብስብ' }, icon: '📋' },
 ];
 
-function GroupHeader({ group, isExpanded, onToggle, lang, hasUnsaved }) {
-  return (
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center gap-2 py-2 text-left"
-      style={{
-        opacity: group.locked ? 0.6 : 1,
-        cursor: group.locked ? 'default' : 'pointer',
-      }}
-    >
-      {isExpanded ? (
-        <ChevronDown className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-soft)' }} />
-      ) : (
-        <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-soft)' }} />
-      )}
-      <span className="text-sm font-bold flex-1" style={{ color: 'var(--color-text)' }}>
-        {group.title[lang] || group.title.en}
-      </span>
-      {group.locked && (
-        <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--color-success)' }}>
-          {lang === 'am' ? 'የተወሠነ' : 'Locked ON'}
-        </span>
-      )}
-      {hasUnsaved && (
-        <span className="w-1.5 h-1.5 rounded-full bg-yellow-400" title={lang === 'am' ? 'ያበቀረ ለውጭ' : 'unsaved changes'} />
-      )}
-    </button>
-  );
-}
-
-function NotificationRow({ type, prefs, onChange, lang, disabled }) {
+function NotificationPrefsRow({ type, prefs, onChange, lang }) {
   const handleChange = (channel, value) => {
     onChange(type.key, { ...prefs, [channel]: value });
   };
 
   return (
-    <div className="flex items-center gap-3 py-1.5 px-6" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
-      <span className="text-sm flex-shrink-0">{type.icon}</span>
+    <div className="flex items-center gap-3 py-2.5" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+      <span className="text-base flex-shrink-0">{type.icon}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-bold" style={{ color: 'var(--color-text)' }}>
+        <p className="text-[13px] font-bold" style={{ color: 'var(--color-text)' }}>
           {type.label[lang] || type.label.en}
         </p>
       </div>
-      <label className="toggle-switch inline-flex items-center">
-        <input
-          type="checkbox"
-          checked={prefs.inApp !== false}
-          onChange={(e) => handleChange('inApp', e.target.checked)}
-          disabled={disabled}
-          aria-label={`${type.label.en} in-app`}
-          style={{ display: 'none' }}
-        />
-        <span
-          className="toggle-slider"
-          style={{
-            width: '36px',
-            height: '20px',
-            background: (prefs.inApp !== false && !disabled) ? 'var(--color-primary)' : 'var(--color-border)',
-            borderRadius: '10px',
-            position: 'relative',
-            transition: 'background 0.2s',
-            opacity: disabled ? 0.5 : 1,
-          }}
-        >
-          <span
-            style={{
-              width: '16px',
-              height: '16px',
-              borderRadius: '50%',
-              background: 'white',
-              position: 'absolute',
-              top: '2px',
-              left: (prefs.inApp !== false && !disabled) ? '20px' : '2px',
-              transition: 'left 0.2s',
-            }}
-          />
-        </span>
-      </label>
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {/* In-app toggle */}
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--color-text-soft)' }}>
+            {lang === 'am' ? 'App' : 'App'}
+          </span>
+          <label className="toggle-pill">
+            <input
+              type="checkbox"
+              checked={prefs.inApp}
+              onChange={(e) => handleChange('inApp', e.target.checked)}
+              aria-label={`${type.label.en} in-app`}
+            />
+            <span className="toggle-slider" />
+          </label>
+        </div>
+        {/* Push toggle */}
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--color-text-soft)' }}>
+            Push
+          </span>
+          <label className="toggle-pill">
+            <input
+              type="checkbox"
+              checked={prefs.push}
+              onChange={(e) => handleChange('push', e.target.checked)}
+              aria-label={`${type.label.en} push`}
+            />
+            <span className="toggle-slider" />
+          </label>
+        </div>
+      </div>
     </div>
   );
 }
 
 function QuietHoursRow({ startTime, endTime, onChange, lang }) {
   return (
-    <div className="py-3 mt-2" style={{ borderTop: '1px solid var(--color-border)' }}>
+    <div className="py-3" style={{ borderTop: '1px solid var(--color-border)' }}>
       <div className="flex items-center gap-2 mb-2">
         <Moon className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
         <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>
-          {lang === 'am' ? 'የማስወቂያ ሰዓት' : 'Quiet Hours'}
+          {lang === 'am' ? 'የማሳወቂያ ሰዓት' : 'Quiet Hours'}
         </span>
       </div>
       <p className="text-[11px] mb-2" style={{ color: 'var(--color-text-muted)' }}>
@@ -157,7 +89,7 @@ function QuietHoursRow({ startTime, endTime, onChange, lang }) {
           </label>
           <input
             type="time"
-            value={startTime || '22:00'}
+            value={startTime || ''}
             onChange={(e) => onChange({ startTime: e.target.value, endTime })}
             className="w-full mt-1 px-2 py-1.5 text-xs rounded-lg border"
             style={{ borderColor: 'var(--color-border)' }}
@@ -170,7 +102,7 @@ function QuietHoursRow({ startTime, endTime, onChange, lang }) {
           </label>
           <input
             type="time"
-            value={endTime || '06:00'}
+            value={endTime || ''}
             onChange={(e) => onChange({ startTime, endTime: e.target.value })}
             className="w-full mt-1 px-2 py-1.5 text-xs rounded-lg border"
             style={{ borderColor: 'var(--color-border)' }}
@@ -183,11 +115,10 @@ function QuietHoursRow({ startTime, endTime, onChange, lang }) {
 
 export default function NotificationPreferences({ lang }) {
   const [preferences, setPreferences] = useState({});
-  const [quietHoursStart, setQuietHoursStart] = useState('22:00');
-  const [quietHoursEnd, setQuietHoursEnd] = useState('06:00');
+  const [quietHoursStart, setQuietHoursStart] = useState(null);
+  const [quietHoursEnd, setQuietHoursEnd] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [collapsedGroups, setCollapsedGroups] = useState({});
 
   const loadPreferences = useCallback(async () => {
     try {
@@ -205,14 +136,14 @@ export default function NotificationPreferences({ lang }) {
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
       setPreferences(data.preferences || {});
-      setQuietHoursStart(data.quietHoursStart || '22:00');
-      setQuietHoursEnd(data.quietHoursEnd || '06:00');
+      setQuietHoursStart(data.quietHoursStart);
+      setQuietHoursEnd(data.quietHoursEnd);
     } catch (err) {
       console.error('Failed to load notification preferences:', err);
     } finally {
       setLoading(false);
     }
-  }, [lang]);
+  }, []);
 
   useEffect(() => { loadPreferences(); }, [loadPreferences]);
 
@@ -220,6 +151,7 @@ export default function NotificationPreferences({ lang }) {
     const updated = { ...preferences, [typeKey]: newPrefs };
     setPreferences(updated);
 
+    // Auto-save
     try {
       setSaving(true);
       const token = await getAuthToken();
@@ -287,10 +219,6 @@ export default function NotificationPreferences({ lang }) {
     }
   }, [loadPreferences, lang]);
 
-  const toggleGroup = (groupKey) => {
-    setCollapsedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
-  };
-
   if (loading) {
     return (
       <div className="card">
@@ -314,6 +242,7 @@ export default function NotificationPreferences({ lang }) {
         </span>
       </div>
       <div className="card-body">
+        {/* Header row */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
@@ -328,47 +257,31 @@ export default function NotificationPreferences({ lang }) {
           )}
         </div>
 
-        {R2_2_GROUPS.map((group) => {
-          const isExpanded = collapsedGroups[group.key] !== true;
-          const hasUnsaved = group.types.some(typeKey => preferences[typeKey]?.inApp === undefined);
+        {/* Column labels */}
+        <div className="flex items-center gap-3 pb-2 mb-1" style={{ borderBottom: '1px solid var(--color-border)' }}>
+          <div className="flex-1" />
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <span className="text-[9px] font-bold uppercase w-8 text-center" style={{ color: 'var(--color-text-soft)' }}>
+              {lang === 'am' ? 'App' : 'App'}
+            </span>
+            <span className="text-[9px] font-bold uppercase w-8 text-center" style={{ color: 'var(--color-text-soft)' }}>
+              Push
+            </span>
+          </div>
+        </div>
 
-          return (
-            <div key={group.key} className="mb-2" style={{ borderTop: '1px solid var(--color-border-light)' }}>
-              <GroupHeader
-                group={group}
-                isExpanded={isExpanded}
-                onToggle={() => toggleGroup(group.key)}
-                lang={lang}
-                hasUnsaved={hasUnsaved}
-              />
+        {/* Notification type rows */}
+        {NOTIFICATION_TYPES.map((type) => (
+          <NotificationPrefsRow
+            key={type.key}
+            type={type}
+            prefs={preferences[type.key] || { inApp: true, push: true }}
+            onChange={handleTypeChange}
+            lang={lang}
+          />
+        ))}
 
-              {!isCollapsed(group, collapsedGroups) && (
-                <div className="bg-gray-50">
-                  {group.types.map((typeKey) => {
-                    const type = NOTIFICATION_TYPES.find(t => t.key === typeKey);
-                    if (!type) return null;
-                    return (
-                      <NotificationRow
-                        key={typeKey}
-                        type={type}
-                        prefs={preferences[typeKey] || { inApp: true, push: true }}
-                        onChange={handleTypeChange}
-                        lang={lang}
-                        disabled={group.locked}
-                      />
-                    );
-                  })}
-                  {group.lockNote && (
-                    <p className="text-[10px] mt-1 px-6 pb-2" style={{ color: 'var(--color-text-muted)' }}>
-                      {group.lockNote[lang] || group.lockNote.en}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-
+        {/* Quiet hours */}
         <QuietHoursRow
           startTime={quietHoursStart}
           endTime={quietHoursEnd}
@@ -376,6 +289,7 @@ export default function NotificationPreferences({ lang }) {
           lang={lang}
         />
 
+        {/* Reset button */}
         <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--color-border)' }}>
           <button
             onClick={handleReset}
