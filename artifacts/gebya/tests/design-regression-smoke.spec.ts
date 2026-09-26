@@ -253,7 +253,7 @@ test('design regression smoke protects core merchant surfaces', async ({ page },
   // at the top of the Data tab (no longer outside the tab panels).
   await page.getByRole('tab', { name: 'Data', exact: true }).click();
   await expect(page.getByText('AUTO REMINDERS')).toBeVisible();
-  await expect(page.getByText('NOTIFICATION PREFERENCES')).toBeVisible();
+  await expect(page.getByText('NOTIFICATION PREFERENCES', { exact: true })).toBeVisible();
   await expect(page.getByText('PASSWORD LOGIN')).toBeVisible();
 
   // Team & Staff lives on the dedicated Staff tab (owner tab bar + join code).
