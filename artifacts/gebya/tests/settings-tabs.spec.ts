@@ -43,6 +43,15 @@ async function mockOwnerAuth(page) {
 test.describe('SettingsPage tab navigation persistence', () => {
   test.beforeEach(async ({ page }) => {
     await mockOwnerAuth(page);
+    // This spec uses page.route() for API mocking. Chromium service workers
+    // bypass page routes, so keep this fixture deterministic by preventing the
+    // preview PWA from registering before the first navigation.
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator.serviceWorker, 'register', {
+        configurable: true,
+        value: async () => ({ unregister: async () => true }),
+      });
+    });
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await page.evaluate(async () => {
@@ -76,6 +85,7 @@ test.describe('SettingsPage tab navigation persistence', () => {
         store.put({ key: 'shop_phone', value: '+251911234567' });
         store.put({ key: 'shop_category', value: 'grocery' });
         store.put({ key: 'shop_description', value: 'A test shop' });
+        store.put({ key: 'gebya_auth_token', value: 'test-owner-token' });
         // Resolve the session as owner via the permissions cache — the store
         // hydrates this on cold boot. Without it the role falls back to
         // STAFF and role-gated surfaces (dev unlock) are inaccessible.
@@ -100,6 +110,7 @@ test.describe('SettingsPage tab navigation persistence', () => {
 
       db.close();
     });
+
 
     await page.reload({ waitUntil: 'domcontentloaded' });
 
@@ -172,6 +183,128 @@ test.describe('SettingsPage tab navigation persistence', () => {
     await page.keyboard.press('Home');
     await expect(page.getByRole('tab', { name: /shop/i })).toHaveAttribute('aria-selected', 'true');
   });
+
+  test('notification preferences expose five group switches and save atomically', async ({ page }) => {
+    const allTypes = [
+      'sale',
+      'credit',
+      'payment',
+      'payment_confirmed',
+      'supplier_payment',
+      'supplier_purchase',
+      'expense',
+      'staff_joined',
+      'staff_submitted_collection',
+      'rbac_violation',
+      'overdue_alert',
+      'device_approval',
+      'announcement',
+      'support_reply',
+    ];
+    const preferences = Object.fromEntries(
+      allTypes.map((key) => [key, { inApp: true, push: true }]),
+    );
+    preferences.sale = { inApp: false, push: false };
+    let getCount = 0;
+    let putCount = 0;
+    let putPayload: { preferences?: Record<string, { inApp: boolean; push: boolean }> } | null = null;
+
+    await page.route('**/api/notifications/preferences', async (route) => {
+      if (route.request().method() === 'PUT') {
+        putCount += 1;
+        putPayload = route.request().postDataJSON();
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ok: true }),
+        });
+        return;
+      }
+      getCount += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ preferences, quietHoursStart: null, quietHoursEnd: null }),
+      });
+    });
+
+    await page.locator('nav').getByRole('button', { name: 'More' }).click();
+    await page.getByRole('tab', { name: 'Data' }).click();
+    await expect.poll(() => getCount).toBeGreaterThan(0);
+
+    const groupNames = ['Money in', 'Credit–Dubie', 'Money out', 'Team', 'Gebya & support'];
+    for (const name of groupNames) {
+      await expect(page.getByRole('switch', { name: `${name} notifications` })).toBeVisible();
+    }
+
+    await expect(page.getByRole('switch', { name: 'Money in notifications' })).not.toBeChecked();
+
+    const creditSwitch = page.getByRole('switch', { name: 'Credit–Dubie notifications' });
+    await expect(creditSwitch).toBeChecked();
+    await expect(creditSwitch).toBeDisabled();
+
+    const securitySwitch = page.getByRole('switch', { name: 'Security alerts' });
+    await expect(securitySwitch).toBeChecked();
+    await expect(securitySwitch).toBeDisabled();
+
+    const moneyInToggle = page.getByRole('button', { name: 'Money in' });
+    await moneyInToggle.click();
+    await expect(moneyInToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByRole('region', { name: 'Money in' })).toBeHidden();
+    await moneyInToggle.click();
+    await expect(page.getByRole('region', { name: 'Money in' })).toBeVisible();
+
+    const teamSwitch = page.getByRole('switch', { name: 'Team notifications' });
+    await expect(teamSwitch).toBeChecked();
+    await teamSwitch.click();
+    await expect(teamSwitch).not.toBeChecked();
+
+    await expect.poll(() => putPayload).not.toBeNull();
+    await expect.poll(() => putCount).toBe(1);
+    const saved = putPayload!.preferences!;
+    for (const key of ['staff_joined', 'staff_submitted_collection', 'device_approval']) {
+      expect(saved[key]).toEqual({ inApp: false, push: false });
+    }
+    expect(saved.sale).toEqual({ inApp: false, push: false });
+    for (const key of ['payment', 'credit', 'overdue_alert', 'rbac_violation']) {
+      expect(saved[key]).toEqual({ inApp: true, push: true });
+    }
+  });
+
+  test('notification preferences do not render defaults after a failed load and retry hydrates', async ({ page }) => {
+    let getCount = 0;
+    await page.route('**/api/notifications/preferences', async (route) => {
+      getCount += 1;
+      if (getCount === 1) {
+        await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          preferences: {
+            sale: { inApp: false, push: false },
+            credit: { inApp: true, push: true },
+            overdue_alert: { inApp: true, push: true },
+            rbac_violation: { inApp: true, push: true },
+          },
+          quietHoursStart: null,
+          quietHoursEnd: null,
+        }),
+      });
+    });
+
+    await page.locator('nav').getByRole('button', { name: 'More' }).click();
+    await page.getByRole('tab', { name: 'Data' }).click();
+    await expect(page.getByRole('alert')).toContainText('Could not load notification preferences.');
+    await expect(page.getByRole('switch', { name: 'Money in notifications' })).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect.poll(() => getCount).toBe(2);
+    await expect(page.getByRole('switch', { name: 'Money in notifications' })).not.toBeChecked();
+  });
+
 
   test('dev mode requires 5 taps within time window', async ({ page }) => {
     await page.locator('nav').getByRole('button', { name: 'More' }).click();

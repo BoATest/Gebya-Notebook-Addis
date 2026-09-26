@@ -12,7 +12,11 @@
 import { requireDb } from "@workspace/db";
 import { notificationPreferences, businessMembers } from "@workspace/db/schema";
 import { eq, and } from "drizzle-orm";
-import type { NotificationTypeKey } from "@workspace/db/schema";
+import {
+  createDefaultOwnerNotificationPreferences,
+  enforceNotificationPreference,
+  OWNER_NOTIFICATION_PREFERENCE_COLUMNS,
+} from "./notificationPreferencePolicy.js";
 
 interface ChannelPrefs {
   inApp: boolean;
@@ -28,24 +32,6 @@ interface OwnerPreferences {
 }
 
 const DEFAULT_PREFS: ChannelPrefs = { inApp: true, push: true };
-
-const PREF_KEY_TO_COLUMN: Record<string, string> = {
-  sale: "salePrefs",
-  credit: "creditPrefs",
-  payment: "paymentPrefs",
-  payment_confirmed: "paymentPrefs", // Shares column with payment
-  supplier_payment: "supplierPaymentPrefs",
-  supplier_purchase: "supplierPurchasePrefs",
-  expense: "expensePrefs",
-  staff_joined: "staffJoinedPrefs",
-  rbac_violation: "rbacViolationPrefs",
-  overdue_alert: "overdueAlertPrefs",
-  device_approval: "deviceApprovalPrefs",
-  announcement: "announcementPrefs",
-  support_reply: "supportReplyPrefs",
-  staff_submitted_collection: "staffSubmittedCollectionPrefs",
-  test: "announcementPrefs",
-};
 
 function parsePrefs(raw: string | null): ChannelPrefs {
   if (!raw) return { ...DEFAULT_PREFS };
@@ -93,25 +79,19 @@ export async function getPreferencesForBusiness(
     .limit(1);
 
   if (!row) {
-    // Return defaults
-    const preferences: Record<string, ChannelPrefs> = {};
-    for (const key of Object.keys(PREF_KEY_TO_COLUMN)) {
-      preferences[key] = { ...DEFAULT_PREFS };
-    }
-
     return {
       businessId,
       userId: ownerId,
-      preferences,
+      preferences: createDefaultOwnerNotificationPreferences(),
       quietHoursStart: null,
       quietHoursEnd: null,
     };
   }
 
   const preferences: Record<string, ChannelPrefs> = {};
-  for (const [key, columnName] of Object.entries(PREF_KEY_TO_COLUMN)) {
+  for (const [key, columnName] of Object.entries(OWNER_NOTIFICATION_PREFERENCE_COLUMNS)) {
     const raw = (row as any)[columnName] || null;
-    preferences[key] = parsePrefs(raw);
+    preferences[key] = enforceNotificationPreference(key, parsePrefs(raw));
   }
 
   return {
@@ -139,7 +119,7 @@ export function shouldNotify(
   const typePrefs = prefs.preferences[notificationType];
   if (!typePrefs) return true; // Unknown type = allow
 
-  return typePrefs[channel];
+  return enforceNotificationPreference(notificationType, typePrefs)[channel];
 }
 
 /**

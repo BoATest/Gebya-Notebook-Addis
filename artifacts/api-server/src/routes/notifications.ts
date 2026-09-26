@@ -7,8 +7,14 @@ import { broadcastNotification, registerClient, removeClient } from "../services
 import { createNotification } from "../services/notificationCreator.js";
 import { cleanupExpiredNotifications, getExpiredCount } from "../services/notificationCleanup.js";
 import { safeEqual } from "../lib/secure.js";
-import { notificationTypeKeys, type NotificationTypeKey } from "@workspace/db/schema";
 import { getOwnerBusiness } from "../lib/auth.js";
+import {
+  canonicalizePaymentAlias,
+  createDefaultOwnerNotificationPreferences,
+  enforceNotificationPreference,
+  OWNER_NOTIFICATION_PREFERENCE_COLUMNS,
+  OWNER_NOTIFICATION_PREFERENCE_TYPES,
+} from "../services/notificationPreferencePolicy.js";
 
 const router = Router();
 
@@ -200,12 +206,6 @@ router.post("/cleanup", async (req: Request, res: Response) => {
 
 // ─── Preferences Routes ────────────────────────────────────────────────────
 
-const DEFAULT_PREFS: Record<string, { inApp: boolean; push: boolean }> = {};
-for (const key of notificationTypeKeys) {
-  DEFAULT_PREFS[key] = { inApp: true, push: true };
-}
-DEFAULT_PREFS.expense = { inApp: true, push: false };
-
 function parsePrefs(raw: string | null): { inApp: boolean; push: boolean } {
   if (!raw) return { inApp: true, push: true };
   try {
@@ -219,24 +219,6 @@ function parsePrefs(raw: string | null): { inApp: boolean; push: boolean } {
 function serializePrefs(prefs: { inApp: boolean; push: boolean }): string {
   return JSON.stringify({ inApp: prefs.inApp, push: prefs.push });
 }
-
-const PREF_KEY_TO_COLUMN: Record<NotificationTypeKey, string> = {
-  sale: "salePrefs",
-  credit: "creditPrefs",
-  payment: "paymentPrefs",
-  payment_confirmed: "paymentPrefs",
-  supplier_payment: "supplierPaymentPrefs",
-  supplier_purchase: "supplierPurchasePrefs",
-  expense: "expensePrefs",
-  staff_joined: "staffJoinedPrefs",
-  rbac_violation: "rbacViolationPrefs",
-  overdue_alert: "overdueAlertPrefs",
-  device_approval: "deviceApprovalPrefs",
-  announcement: "announcementPrefs",
-  support_reply: "supportReplyPrefs",
-  staff_submitted_collection: "staffSubmittedCollectionPrefs",
-  test: "announcementPrefs",
-};
 
 // GET /preferences — get owner's preferences
 router.get("/preferences", async (req: Request, res: Response) => {
@@ -258,19 +240,16 @@ router.get("/preferences", async (req: Request, res: Response) => {
     .limit(1);
 
   if (!row) {
-    const preferences: Record<string, { inApp: boolean; push: boolean }> = {};
-    for (const key of notificationTypeKeys) {
-      preferences[key] = DEFAULT_PREFS[key] || { inApp: true, push: true };
-    }
+    const preferences = createDefaultOwnerNotificationPreferences();
     res.json({ preferences, quietHoursStart: null, quietHoursEnd: null });
     return;
   }
 
   const preferences: Record<string, { inApp: boolean; push: boolean }> = {};
-  for (const key of notificationTypeKeys) {
-    const columnName = PREF_KEY_TO_COLUMN[key];
+  for (const key of OWNER_NOTIFICATION_PREFERENCE_TYPES) {
+    const columnName = OWNER_NOTIFICATION_PREFERENCE_COLUMNS[key];
     const raw = (row as any)[columnName] || null;
-    preferences[key] = parsePrefs(raw);
+    preferences[key] = enforceNotificationPreference(key, parsePrefs(raw));
   }
 
   res.json({
@@ -294,13 +273,15 @@ router.put("/preferences", async (req: Request, res: Response) => {
   const updates: Record<string, any> = { updatedAt: new Date() };
 
   if (preferences && typeof preferences === "object") {
-    for (const key of notificationTypeKeys) {
-      if (preferences[key] && typeof preferences[key] === "object") {
-        const columnName = PREF_KEY_TO_COLUMN[key];
-        updates[columnName] = serializePrefs({
-          inApp: !!preferences[key].inApp,
-          push: !!preferences[key].push,
-        });
+    const normalizedPreferences = canonicalizePaymentAlias(preferences);
+    for (const key of OWNER_NOTIFICATION_PREFERENCE_TYPES) {
+      if (normalizedPreferences[key] && typeof normalizedPreferences[key] === "object") {
+        const columnName = OWNER_NOTIFICATION_PREFERENCE_COLUMNS[key];
+        const requested = normalizedPreferences[key] as Record<string, unknown>;
+        updates[columnName] = serializePrefs(enforceNotificationPreference(key, {
+          inApp: !!requested.inApp,
+          push: !!requested.push,
+        }));
       }
     }
   }

@@ -1,139 +1,139 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronDown, ChevronRight, Bell, Moon } from 'lucide-react';
 import { fireToast } from '../Toast';
 import { getAuthToken } from '../../utils/syncEngine';
+import { ensureFreshToken } from '../../utils/authClient';
+import { useAuthStore } from '../../stores/authStore';
+import {
+  NOTIFICATION_GROUPS,
+  getNotificationType,
+  isNotificationGroupEnabled,
+  normalizeLockedNotificationPreferences,
+  setNotificationGroupPreference,
+} from './notificationGroups';
 
-// R2.2 — 5 collapsible groups. Keys verbatim from NOTIFICATION_TYPES below.
-// Server contract unchanged: same endpoints, same preferences shape.
-const R2_2_GROUPS = [
-  {
-    key: 'money_in',
-    title: { en: 'Money in', am: 'ገቢ ገንዘብ' },
-    locked: false,
-    types: ['sale', 'payment'],
-  },
-  {
-    key: 'credit_dubie',
-    title: { en: 'Credit–Dubie', am: 'ዱቤ' },
-    locked: true,
-    lockNote: { en: 'Cannot disable', am: 'መዝጋት አይቻልም' },
-    types: ['credit', 'overdue_alert'],
-  },
-  {
-    key: 'money_out',
-    title: { en: 'Money out', am: 'ወጪ ገንዘብ' },
-    locked: false,
-    types: ['supplier_payment', 'supplier_purchase', 'expense'],
-  },
-  {
-    key: 'team_security',
-    title: { en: 'Team & security', am: 'ቡድናዊ እና ደህንነት' }, // ⚠ AM draft for reviewer
-    locked: true,
-    lockNote: { en: 'Cannot disable', am: 'መዝጋት አይቻልም' },
-    types: ['staff_joined', 'staff_submitted_collection', 'rbac_violation', 'device_approval'],
-  },
-  {
-    key: 'gebya_support',
-    title: { en: 'Gebya & support', am: 'ገበያ እና ድጋፍ' },
-    locked: false,
-    types: ['announcement', 'support_reply'],
-  },
-];
+// Type labels and group metadata live in notificationGroups.js.
 
-const NOTIFICATION_TYPES = [
-  { key: 'sale', label: { en: 'Sales', am: 'ሽያጭ' }, icon: '💰' },
-  { key: 'credit', label: { en: 'Credit Given', am: 'ተሰጠ ብር' }, icon: '👥' },
-  { key: 'payment', label: { en: 'Payments Received', am: 'ክፍያ ተቀባይ' }, icon: '✅' },
-  { key: 'supplier_payment', label: { en: 'Supplier Payments', am: 'የአቅራቢያ ክፍያ' }, icon: '🤝' },
-  { key: 'supplier_purchase', label: { en: 'Supplier Purchases', am: 'የአቅራቢያ ግዢ' }, icon: '📦' },
-  { key: 'expense', label: { en: 'Expenses', am: 'ወጪ' }, icon: '🛒' },
-  { key: 'staff_joined', label: { en: 'Staff Joined', am: 'ሰራተኛ ተቀላቅሏል' }, icon: '👤' },
-  { key: 'rbac_violation', label: { en: 'Security Alerts', am: 'የደህንነት ማስጠንቂያ' }, icon: '⚠️' },
-  { key: 'overdue_alert', label: { en: 'Overdue Payments', am: 'የጊዜ ያለፈ ክፍያ' }, icon: '⏰' },
-  { key: 'device_approval', label: { en: 'Device Approval', am: 'የስልክ ማጽደቅ' }, icon: '📱' },
-  { key: 'announcement', label: { en: 'Announcements', am: 'ማስታወቂያ' }, icon: '📣' },
-  { key: 'support_reply', label: { en: 'Support Replies', am: 'የድጋፍ መልስ' }, icon: '💬' },
-  { key: 'staff_submitted_collection', label: { en: 'Staff Submissions', am: 'የሰራተኛ ስብስብ' }, icon: '📋' },
-];
+async function resolveAuthToken(cachedToken) {
+  if (cachedToken) return cachedToken;
+  const storedToken = await getAuthToken();
+  if (storedToken) return storedToken;
 
-function GroupHeader({ group, isExpanded, onToggle, lang }) {
+  try {
+    const refreshed = await ensureFreshToken();
+    return refreshed?.token || await getAuthToken();
+  } catch {
+    return null;
+  }
+}
+
+function PreferenceSwitch({ checked, disabled = false, label, onChange, saving }) {
+  const isDisabled = disabled || saving;
   return (
     <button
-      onClick={onToggle}
-      className="w-full flex items-center gap-2 py-2 text-left"
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={isDisabled}
+      onClick={() => onChange?.(!checked)}
+      className="relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2"
       style={{
-        opacity: group.locked ? 0.6 : 1,
-        cursor: group.locked ? 'default' : 'pointer',
+        background: checked ? 'var(--color-primary)' : 'var(--color-border)',
+        opacity: disabled ? 0.55 : 1,
+        cursor: isDisabled ? 'default' : 'pointer',
       }}
     >
-      {isExpanded ? (
-        <ChevronDown className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-soft)' }} />
-      ) : (
-        <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-soft)' }} />
-      )}
-      <span className="text-sm font-bold flex-1" style={{ color: 'var(--color-text)' }}>
-        {group.title[lang] || group.title.en}
-      </span>
-      {group.locked && (
-        <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--color-success)' }}>
-          {lang === 'am' ? 'የተወሠነ' : 'Locked ON'} {/* ⚠ AM draft for reviewer */}
-        </span>
-      )}
+      <span
+        className="block h-4 w-4 rounded-full bg-white transition-transform"
+        style={{ transform: checked ? 'translateX(16px)' : 'translateX(2px)' }}
+      />
     </button>
   );
 }
 
-function NotificationRow({ type, prefs, onChange, lang, disabled }) {
-  const checked = disabled ? true : prefs.inApp !== false;
-
-  const handleToggle = (value) => {
-    if (disabled) return;
-    onChange(type.key, { ...prefs, inApp: value });
-  };
+function GroupHeader({ group, isExpanded, checked, onToggle, onCheckedChange, lang, saving }) {
+  const titleId = `notification-group-title-${group.key}`;
+  const panelId = `notification-group-panel-${group.key}`;
 
   return (
-    <div className="flex items-center gap-3 py-1.5 px-6" style={{ borderBottom: '1px solid var(--color-border-light)' }}>
+    <div className="flex items-center gap-2 py-2">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isExpanded}
+        aria-controls={panelId}
+        className="min-w-0 flex items-center gap-2 flex-1 text-left"
+      >
+        {isExpanded ? (
+          <ChevronDown className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-soft)' }} />
+        ) : (
+          <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-soft)' }} />
+        )}
+        <span id={titleId} className="text-sm font-bold truncate" style={{ color: 'var(--color-text)' }}>
+          {group.title[lang] || group.title.en}
+        </span>
+        {group.locked && (
+          <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--color-success)' }}>
+            {lang === 'am' ? 'የተወሠነ' : 'Locked ON'}
+          </span>
+        )}
+      </button>
+      <PreferenceSwitch
+        checked={checked}
+        disabled={group.locked}
+        saving={saving}
+        label={`${group.title.en} notifications`}
+        onChange={onCheckedChange}
+      />
+    </div>
+  );
+}
+
+function NotificationTypeList({ group, lang }) {
+  return (
+    <div className="pb-2">
+      {group.types.map((typeKey) => {
+        const type = getNotificationType(typeKey);
+        if (!type) return null;
+        return (
+          <div
+            key={typeKey}
+            className="flex items-center gap-3 py-1.5 px-6"
+            style={{ borderBottom: '1px solid var(--color-border-light)' }}
+          >
+            <span className="text-sm flex-shrink-0">{type.icon}</span>
+            <p className="text-[12px]" style={{ color: 'var(--color-text)' }}>
+              {type.label[lang] || type.label.en}
+            </p>
+          </div>
+        );
+      })}
+      {group.lockNote && (
+        <p className="text-[10px] mt-1 px-6 pt-1" style={{ color: 'var(--color-text-muted)' }}>
+          {group.lockNote[lang] || group.lockNote.en}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SecurityRow({ type, lang, saving }) {
+  return (
+    <div
+      className="flex items-center gap-3 py-2 px-6"
+      style={{ borderTop: '1px solid var(--color-border-light)' }}
+    >
       <span className="text-sm flex-shrink-0">{type.icon}</span>
       <div className="flex-1 min-w-0">
         <p className="text-[12px] font-bold" style={{ color: 'var(--color-text)' }}>
           {type.label[lang] || type.label.en}
         </p>
+        <p className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>
+          {lang === 'am' ? 'መዝጋት አይቻልም' : 'Cannot disable'}
+        </p>
       </div>
-      <label className="toggle-switch inline-flex items-center">
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={(e) => handleToggle(e.target.checked)}
-          disabled={disabled}
-          aria-label={`${type.label.en} toggle`}
-          style={{ display: 'none' }}
-        />
-        <span
-          className="toggle-slider"
-          style={{
-            width: '36px',
-            height: '20px',
-            background: checked ? 'var(--color-primary)' : 'var(--color-border)',
-            borderRadius: '10px',
-            position: 'relative',
-            transition: 'background 0.2s',
-            opacity: disabled ? 0.5 : 1,
-          }}
-        >
-          <span
-            style={{
-              width: '16px',
-              height: '16px',
-              borderRadius: '50%',
-              background: 'white',
-              position: 'absolute',
-              top: '2px',
-              left: checked ? '20px' : '2px',
-              transition: 'left 0.2s',
-            }}
-          />
-        </span>
-      </label>
+      <PreferenceSwitch checked disabled saving={saving} label="Security alerts" />
     </div>
   );
 }
@@ -189,55 +189,71 @@ export default function NotificationPreferences({ lang }) {
   const [quietHoursEnd, setQuietHoursEnd] = useState('06:00');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+
   const [collapsedGroups, setCollapsedGroups] = useState({});
+  const authChecked = useAuthStore((state) => state.checked);
+  const authTokenRef = useRef(null);
 
   const loadPreferences = useCallback(async () => {
     try {
       setLoading(true);
-      const token = await getAuthToken();
+      setLoadError(false);
+      const token = await resolveAuthToken(authTokenRef.current);
       if (!token) {
-        setLoading(false);
+        setLoadError(true);
         fireToast(lang === 'am' ? 'መለያ ያስፈልጋል። ይግቡ።' : 'Sign in required to load preferences', 3000);
         return;
       }
 
+      authTokenRef.current = token;
       const res = await fetch('/api/notifications/preferences', {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
-      setPreferences(data.preferences || {});
+      const loadedPreferences = data.preferences || {};
+      const normalizedPreferences = normalizeLockedNotificationPreferences(loadedPreferences);
+      setPreferences(normalizedPreferences);
       setQuietHoursStart(data.quietHoursStart || '22:00');
       setQuietHoursEnd(data.quietHoursEnd || '06:00');
     } catch (err) {
+      setLoadError(true);
       console.error('Failed to load notification preferences:', err);
     } finally {
       setLoading(false);
     }
   }, [lang]);
 
-  useEffect(() => { loadPreferences(); }, [loadPreferences]);
+  useEffect(() => {
+    if (authChecked) loadPreferences();
+  }, [authChecked, loadPreferences]);
 
-  const handleTypeChange = useCallback(async (typeKey, newPrefs) => {
-    const updated = { ...preferences, [typeKey]: newPrefs };
+  const handleGroupChange = useCallback(async (group, enabled) => {
+    if (group.locked) return;
+    const previous = preferences;
+    const updated = setNotificationGroupPreference(group, preferences, enabled);
     setPreferences(updated);
 
-    // Auto-save
     try {
       setSaving(true);
-      const token = await getAuthToken();
+      const token = await resolveAuthToken(authTokenRef.current);
       if (!token) {
+        setPreferences(previous);
         fireToast(lang === 'am' ? 'መለያ ያስፈልጋል። ይግቡ።' : 'Sign in to save preferences', 3000);
         return;
       }
+      authTokenRef.current = token;
 
-      await fetch('/api/notifications/preferences', {
+      const res = await fetch('/api/notifications/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ preferences: updated }),
       });
+      if (!res.ok) throw new Error('Failed to save preferences');
     } catch (err) {
-      console.error('Failed to save preference:', err);
+      setPreferences(previous);
+      console.error('Failed to save notification group:', err);
       fireToast(lang === 'am' ? 'ማስተካከል አልተሳካም' : 'Failed to save', 2500);
     } finally {
       setSaving(false);
@@ -250,11 +266,12 @@ export default function NotificationPreferences({ lang }) {
 
     try {
       setSaving(true);
-      const token = await getAuthToken();
+      const token = await resolveAuthToken(authTokenRef.current);
       if (!token) {
         fireToast(lang === 'am' ? 'መለያ ያስፈልጋል። ይግቡ።' : 'Sign in to save quiet hours', 3000);
         return;
       }
+      authTokenRef.current = token;
 
       await fetch('/api/notifications/preferences', {
         method: 'PUT',
@@ -271,11 +288,12 @@ export default function NotificationPreferences({ lang }) {
   const handleReset = useCallback(async () => {
     try {
       setSaving(true);
-      const token = await getAuthToken();
+      const token = await resolveAuthToken(authTokenRef.current);
       if (!token) {
         fireToast(lang === 'am' ? 'መለያ ያስፈልጋል። ይግቡ።' : 'Sign in to reset preferences', 3000);
         return;
       }
+      authTokenRef.current = token;
 
       await fetch('/api/notifications/preferences/reset', {
         method: 'POST',
@@ -309,6 +327,31 @@ export default function NotificationPreferences({ lang }) {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="card">
+        <div className="card-header">
+          <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
+            {lang === 'am' ? 'የማስጠንቂያ ምርጫ' : 'NOTIFICATION PREFERENCES'}
+          </span>
+        </div>
+        <div className="card-body py-6 text-center" role="alert">
+          <p className="text-sm" style={{ color: 'var(--color-text)' }}>
+            {lang === 'am' ? 'የማስጠንቂያ ምርጫዎችን መጫን አልተቻለም።' : 'Could not load notification preferences.'}
+          </p>
+          <button
+            type="button"
+            onClick={loadPreferences}
+            className="mt-3 text-xs font-bold"
+            style={{ color: 'var(--color-primary)' }}
+          >
+            {lang === 'am' ? 'እንደገና ሞክር' : 'Try again'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="card">
       <div className="card-header">
@@ -333,41 +376,36 @@ export default function NotificationPreferences({ lang }) {
         </div>
 
         {/* R2.2 groups — default expanded */}
-        {R2_2_GROUPS.map((group) => {
+        {NOTIFICATION_GROUPS.map((group) => {
           const isExpanded = collapsedGroups[group.key] !== true;
+          const securityType = group.securityType ? getNotificationType(group.securityType) : null;
 
           return (
-            <div key={group.key} className="mb-2" style={{ borderTop: '1px solid var(--color-border-light)' }}>
+            <div
+              key={group.key}
+              className="mb-2"
+              style={{ borderTop: '1px solid var(--color-border-light)' }}
+            >
               <GroupHeader
                 group={group}
                 isExpanded={isExpanded}
+                checked={isNotificationGroupEnabled(group, preferences)}
                 onToggle={() => toggleGroup(group.key)}
+                onCheckedChange={(enabled) => handleGroupChange(group, enabled)}
                 lang={lang}
+                saving={saving}
               />
 
-              {isExpanded && (
-                <div className="bg-gray-50">
-                  {group.types.map((typeKey) => {
-                    const type = NOTIFICATION_TYPES.find(t => t.key === typeKey);
-                    if (!type) return null;
-                    return (
-                      <NotificationRow
-                        key={typeKey}
-                        type={type}
-                        prefs={preferences[typeKey] || { inApp: true, push: true }}
-                        onChange={handleTypeChange}
-                        lang={lang}
-                        disabled={group.locked}
-                      />
-                    );
-                  })}
-                  {group.lockNote && (
-                    <p className="text-[10px] mt-1 px-6 pb-2" style={{ color: 'var(--color-text-muted)' }}>
-                      {group.lockNote[lang] || group.lockNote.en}
-                    </p>
-                  )}
-                </div>
-              )}
+              <div
+                id={`notification-group-panel-${group.key}`}
+                role="region"
+                aria-labelledby={`notification-group-title-${group.key}`}
+                hidden={!isExpanded}
+                className="bg-gray-50"
+              >
+                <NotificationTypeList group={group} lang={lang} />
+                {securityType && <SecurityRow type={securityType} lang={lang} saving={saving} />}
+              </div>
             </div>
           );
         })}
