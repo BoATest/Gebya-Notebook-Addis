@@ -9,9 +9,17 @@ import crypto from "crypto";
 import { resolvePermissions } from "@workspace/db/schema/permission-defaults";
 import { sendTelegramTextMessage } from "../services/telegramBotService.js";
 import { verifyJwt } from "./auth.js";
-import { getUserIdFromRequest, getBusinessForUser, ensureUser, generateJoinCode } from "./businessLegacyHelpers.js";
+import { getUserIdFromRequest, getBusinessForUser, ensureUser, findUserIdByPhone, generateJoinCode } from "./businessLegacyHelpers.js";
 
-const JOIN_CODE_SIGNING_KEY = process.env.JOIN_CODE_SIGNING_KEY || crypto.randomBytes(32).toString('hex');
+// Mandatory: join codes are HMAC-bound to this key. A per-instance random fallback would make
+// codes unverifiable across serverless instances, so fail fast at boot instead (see JWT guard below).
+if (!process.env.JOIN_CODE_SIGNING_KEY) {
+  throw new Error(
+    "[auth] FATAL: JOIN_CODE_SIGNING_KEY is not set. Join codes cannot be validated consistently " +
+    "without a stable signing key. Set JOIN_CODE_SIGNING_KEY in your environment before booting."
+  );
+}
+const JOIN_CODE_SIGNING_KEY = process.env.JOIN_CODE_SIGNING_KEY;
 
 const router = Router();
 const APP_BASE_URL = process.env.APP_BASE_URL || "https://gebya.app";
@@ -47,6 +55,17 @@ router.post("/shops", async (req: Request, res: Response) => {
 
   let userId = getUserIdFromRequest(req);
   if (!userId) {
+    // Account-takeover guard: an unauthenticated request naming a phone that already belongs
+    // to a registered user must never receive a token for that user. Direct them to the
+    // normal login flow instead. New phones fall through to ensureUser (normal signup).
+    const existingUserId = await findUserIdByPhone(phone);
+    if (existingUserId !== null) {
+      res.status(409).json({
+        error: "This phone number is already registered. Please sign in instead.",
+        code: "PHONE_ALREADY_REGISTERED",
+      });
+      return;
+    }
     userId = await ensureUser(phone);
   }
 

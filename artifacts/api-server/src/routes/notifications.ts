@@ -175,19 +175,22 @@ router.post("/", async (req, res) => {
 
 // ─── Cleanup Cron Route ────────────────────────────────────────────────────
 
-// POST /cleanup — Vercel cron triggers this daily to delete expired notifications
-router.post("/cleanup", async (req: Request, res: Response) => {
+// GET|POST /cleanup — Vercel cron triggers this daily to delete expired notifications.
+// Vercel Cron issues GET requests, so the route must accept GET as well as POST.
+router.all("/cleanup", async (req: Request, res: Response) => {
   try {
-    // Verify Vercel cron signature
-    if (req.headers?.["x-vercel-cron"] === "1") {
-      const signingSecret = process.env.VERCEL_CRON_SIGNING_SECRET?.trim();
-      if (!signingSecret) {
-        return res.status(500).json({ error: "Cron signing secret not configured" });
-      }
-      const signature = req.headers["x-vercel-signature"] as string | undefined;
-      if (!safeEqual(signature, signingSecret)) {
-        return res.status(401).json({ error: "unauthorized" });
-      }
+    // Authentication is required for EVERY caller. The previous code only verified when
+    // x-vercel-cron: 1 was present, so any request that simply omitted that header skipped
+    // authentication entirely and could delete notifications unauthenticated.
+    // Vercel Cron sends CRON_SECRET as `Authorization: Bearer <secret>`.
+    const bearerToken = (req.headers["authorization"] as string | undefined)?.replace(/^Bearer\s+/i, "");
+    const cronSecret = process.env.CRON_SECRET?.trim();
+    if (!cronSecret) {
+      console.error("[security] CRON_SECRET is not set — rejecting cleanup request");
+      return res.status(500).json({ error: "Cron secret not configured" });
+    }
+    if (!safeEqual(bearerToken, cronSecret)) {
+      return res.status(401).json({ error: "unauthorized" });
     }
 
     const expiredCount = await getExpiredCount();

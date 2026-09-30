@@ -93,30 +93,25 @@ const runSchema = z.object({
  */
 router.all("/run", async (req: Request, res: Response) => {
   try {
-    const isVercelCron = req.headers?.["x-vercel-cron"] === "1";
-    const cronSecret = req.headers?.["x-reminder-cron-secret"];
+    // Vercel Cron authenticates by sending CRON_SECRET as `Authorization: Bearer <secret>`.
+    // It never sends x-vercel-signature - that header does not exist for cron jobs, so the
+    // previous signature check rejected every scheduled run and reminders never fired.
+    const bearerToken = (req.headers["authorization"] as string | undefined)?.replace(/^Bearer\s+/i, "");
+    const headerSecret = req.headers["x-reminder-cron-secret"];
+    const cronSecret = process.env.CRON_SECRET?.trim();
+    const reminderSecret = process.env.REMINDER_CRON_SECRET?.trim();
 
-    if (isVercelCron) {
-      // Require Vercel signature verification — do NOT trust x-vercel-cron alone
-      const signingSecret = process.env.VERCEL_CRON_SIGNING_SECRET?.trim();
-      if (!signingSecret) {
-        console.error("[security] VERCEL_CRON_SIGNING_SECRET is not set — rejecting Vercel cron request");
-      return res.status(500).json({
-        error: "Internal server error",
-        request_id: res.locals.requestId,
-      });
+    const viaVercelCron = !!cronSecret && safeEqual(bearerToken, cronSecret);
+    const viaExternal = !!reminderSecret && safeEqual(headerSecret, reminderSecret);
+
+    if (!viaVercelCron && !viaExternal) {
+      if (!cronSecret && !reminderSecret) {
+        console.error("[security] Neither CRON_SECRET nor REMINDER_CRON_SECRET is set - rejecting cron request");
+        return res.status(500).json({
+          error: "Internal server error",
+          request_id: res.locals.requestId,
+        });
       }
-      const signature = req.headers["x-vercel-signature"] as string | undefined;
-      if (!safeEqual(signature, signingSecret)) {
-        console.error("[security] Invalid Vercel cron signature");
-        return res.status(401).json({ error: "unauthorized" });
-      }
-    } else if (!process.env.REMINDER_CRON_SECRET) {
-    return res.status(500).json({
-      error: "Internal server error",
-      request_id: res.locals.requestId,
-    });
-      } else if (!safeEqual(cronSecret, process.env.REMINDER_CRON_SECRET)) {
       return res.status(401).json({ error: "unauthorized" });
     }
 

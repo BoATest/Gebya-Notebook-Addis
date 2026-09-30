@@ -26,6 +26,23 @@ export async function getBusinessForUser(userId: number) {
   return rows[0] ?? null;
 }
 
+/**
+ * Lookup-only: resolve a phone number to an existing user id WITHOUT creating one.
+ * Used to protect unauthenticated signup paths from account takeover — the caller
+ * must reject (never mint a token) when this returns a non-null id.
+ */
+export async function findUserIdByPhone(phone?: string): Promise<number | null> {
+  if (!phone) return null;
+  const normalized = normalizePhone(phone);
+  if (!normalized) return null;
+  const rows = await requireDb()
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.phoneNumber, normalized))
+    .limit(1);
+  return rows[0]?.id ?? null;
+}
+
 export async function ensureUser(phone?: string): Promise<number> {
   if (phone) {
     const normalized = normalizePhone(phone);

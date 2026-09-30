@@ -201,6 +201,8 @@ describe("reminders routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.REMINDER_CRON_SECRET = "test-cron-secret";
+    // Keep the Vercel-Cron bearer path isolated from the external-scheduler path.
+    delete process.env.CRON_SECRET;
   });
 
   describe("GET /config", () => {
@@ -464,6 +466,105 @@ describe("reminders routes", () => {
 
       expect(res.status).toHaveBeenCalledWith(401);
       expect(res.json).toHaveBeenCalledWith({ error: "unauthorized" });
+    });
+
+    // ── Vercel Cron authenticates with CRON_SECRET as an Authorization: Bearer token.
+    // It never sends x-vercel-signature, so the old signature check rejected every
+    // scheduled run and no reminders ever went out. These tests pin the new contract.
+    it("accepts a Vercel Cron request carrying the CRON_SECRET bearer token", async () => {
+      const originalReminder = process.env.REMINDER_CRON_SECRET;
+      delete process.env.REMINDER_CRON_SECRET;
+      process.env.CRON_SECRET = "vercel-cron-secret";
+
+      mockRunRemindersForShop.mockResolvedValue({
+        startedAt: Date.now(),
+        completedAt: Date.now(),
+        customersScanned: 1,
+        customersWithBalance: 1,
+        remindersQueued: 1,
+        remindersSent: 1,
+        remindersFailed: 0,
+        remindersSkipped: 0,
+        errors: [],
+        shopsProcessed: 1,
+        success: true,
+      });
+
+      const req = createReq(
+        "POST",
+        "/run",
+        {
+          shopId: 1,
+          customers: [
+            {
+              customerId: 1,
+              customerName: "Test",
+              balance: 100,
+              customerCreatedAt: Date.now() - 86400000,
+              chatId: "123",
+            },
+          ],
+        },
+        {},
+        { authorization: "Bearer vercel-cron-secret" },
+      );
+      const res = createRes();
+
+      try {
+        await runHandler(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(mockRunRemindersForShop).toHaveBeenCalledWith(1, expect.any(Array), undefined);
+      } finally {
+        delete process.env.CRON_SECRET;
+        if (originalReminder !== undefined) {
+          process.env.REMINDER_CRON_SECRET = originalReminder;
+        }
+      }
+    });
+
+    it("returns 401 when the CRON_SECRET bearer token does not match", async () => {
+      const originalReminder = process.env.REMINDER_CRON_SECRET;
+      delete process.env.REMINDER_CRON_SECRET;
+      process.env.CRON_SECRET = "vercel-cron-secret";
+
+      const req = createReq("POST", "/run", { shopId: 1 }, {}, { authorization: "Bearer wrong-token" });
+      const res = createRes();
+
+      try {
+        await runHandler(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith({ error: "unauthorized" });
+        expect(mockRunRemindersForShop).not.toHaveBeenCalled();
+      } finally {
+        delete process.env.CRON_SECRET;
+        if (originalReminder !== undefined) {
+          process.env.REMINDER_CRON_SECRET = originalReminder;
+        }
+      }
+    });
+
+    it("does not authenticate on the x-vercel-cron header alone", async () => {
+      // x-vercel-cron is a public marker, not a secret - it must never be treated as auth.
+      const originalReminder = process.env.REMINDER_CRON_SECRET;
+      delete process.env.REMINDER_CRON_SECRET;
+      process.env.CRON_SECRET = "vercel-cron-secret";
+
+      const req = createReq("POST", "/run", { shopId: 1 }, {}, { "x-vercel-cron": "1" });
+      const res = createRes();
+
+      try {
+        await runHandler(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(mockRunRemindersForShop).not.toHaveBeenCalled();
+      } finally {
+        delete process.env.CRON_SECRET;
+        if (originalReminder !== undefined) {
+          process.env.REMINDER_CRON_SECRET = originalReminder;
+        }
+      }
     });
 
     it("returns 200 and processes reminders when secret is correct", async () => {

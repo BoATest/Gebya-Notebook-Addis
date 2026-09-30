@@ -17,5 +17,10 @@ export default defineConfig({
   test: {
     setupFiles: ["./src/routes/__tests__/setup-env.ts"],
     include: ["src/**/*.test.ts"],
+    // business-legacy.ts throws at module load if JOIN_CODE_SIGNING_KEY is unset (fail-fast
+    // guard added with the POST /api/shops account-takeover fix). Test placeholder only.
+    env: {
+      JOIN_CODE_SIGNING_KEY: "test-join-code-signing-key",
+    },
   },
 });
