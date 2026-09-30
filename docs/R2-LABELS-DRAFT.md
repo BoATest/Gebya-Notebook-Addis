@@ -162,3 +162,111 @@ R2.1 ships byte-identical strings regardless — this lands after R2.1.
 1. `መጠባበቂያ እና ማመሳሰል` (Backup & sync)
 2. `እቅድ` (Plan)
 3. `ውጣ` (Sign out)
+4. `የእርስዎ መለያ` (MY ACCOUNT — staff group header, Slice 2/3)
+5. `የእኔ ማስታወቂያዎች` (My alerts)
+6. `የእኔ ስልክ` (My phone)
+7. `የእኔ የሚስጥር ቃል` (My password)
+8. **Sign-out guard block** (Slice 2) — all five at once, since they are read
+   as one message by the shopkeeper:
+   `ያልተመሳሰሉ መዝገቦች` + `N መዝገቦች አልተመሳሰሉም።` +
+   `በዚህ ስልክ ላይ ይቀራሉ፤ እርስ ጊዜ በመስመር ላይ ሲሆን ይላካሉ።` +
+   `አሁን አማሳይ።` / `ምንም አልተከለከለም ውጣ`
+9. `አልተዋቀረም` (Not set) — the negative chip; `ተዋቅሯል` (Set) reuses the
+   already-listed `configured` token but the reviewer should confirm the
+   register is right for a person-facing chip.
+
+## R2.3 Slice 1 — grouped page strings (implementation record)
+
+The grouped page consumes `src/components/settings/groupedLabels.js` — a DRAFT
+module (⚠ composed strings are NOT approved). It is deliberately NOT in
+`src/labels/*` so the R2.1 byte-identity contract stays untouched until the
+shopkeeper/Merkato sign-off lands; after sign-off the module is deleted and its
+entries move into `src/labels/settings.js` verbatim.
+
+| Key | EN | Amharic | Source / status |
+|---|---|---|---|
+| groups.shop | SHOP | ሱቅ | ✅ dictionary `shop` |
+| groups.money | MONEY & CREDIT | ገንዘብ እና ዱቤ | ⚠ composed — shortlist |
+| groups.myApp | MY APP | የእርስዎ መተግበሪያ | ⚠ composed — shortlist |
+| groups.myAccount (Slice 2/3) | MY ACCOUNT | የእርስዎ መለያ | ⚠ composed — shortlist |
+| rows.alerts | Alerts & reminders | ማስታወቂያዎች | ⚠ EN new; AM = existing token |
+| rows.remindCustomers | Remind customers | ለደንበኞች ማስታወቂያ | ⚠ composed |
+| rows.backupSync | Backup & sync | መጠባበቂያ እና ማመሳሰል | ⚠ composed |
+| rows.passwordDevices | Password & devices | የሚስጥር ቃል እና መሣሪያዎች | ⚠ MUST-FIX (`የሚስጥር`) applied |
+| rows.appearance | Appearance | መልክ | ✅ dictionary |
+| rows.language | Language | ቋንቋ | ✅ dictionary |
+| rows.help | Help & Support | እርዳታ እና ድጋፍ | ✅ DataTab bytes |
+| rows.about | About Gebya | ስለ ገበያ | ✅ DataTab bytes |
+| rows.signOut | Sign out | ውጣ | ⚠ shortlist |
+| chrome.signOutTitle / Body | Sign out? / You will need your phone number to sign in again. | መውጣት? / እንደገና ለመግባት የስልክ ቁጥርዎ ያስፈልጋል። | ⚠ composed — shortlist |
+| chrome.configured | configured | ተዋቅሯል | ✅ PaymentChannelsSection bytes (badge now count-only) |
+| chrome.moreTaps | more taps | ተጨማሪ መታ | ✅ existing footer bytes |
+
+Deliberate omissions (do NOT invent at sign-off):
+
+- **No "Danger zone" heading string.** The isolated start-over card is visually
+  separated (red border + spacing); a heading needs a new AM word — deferred to
+  the reviewer rather than guessed.
+- **Recurring Expenses naming:** the section table above says `ደጋጋሚ ወጪዎች`, but
+  live source (ShopTab) renders `ወርሃዊ ወጪ`. Slice 1 uses the source bytes; the
+  reviewer decides which wins.
+
+## R2.3 Slice 2 — My Account (staff) strings
+
+Shipped in `MyAccountPanel.jsx` behind the Slice 3 `can_edit_settings` gate.
+The three **row labels** below are already listed in the Section rows table above
+(lines 35-37) and are not duplicated here; this section records the NEW strings
+Slice 2 introduced, all of which are composed by me and **unreviewed**.
+
+| Key | EN | Amharic | Source / status |
+|---|---|---|---|
+| rows.myAlerts | My alerts | የእኔ ማስታወቂያዎች | ⚠ composed (see Section rows) |
+| rows.myPhone | My phone | የእኔ ስልክ | ⚠ composed (see Section rows) |
+| rows.myPassword | My password | የእኔ የሚስጥር ቃል | ⚠ MUST-FIX (`የሚስጥር`) applied |
+| chrome.unsyncedTitle | Records not yet synced | ያልተመሳሰሉ መዝገቦች | ⚠ composed — NEW |
+| chrome.unsyncedCount (n) | `` `${n} ${n === 1 ? 'record has' : 'records have'} not yet synced.` `` | `` `${n} ${n === 1 ? 'መዝገብ' : 'መዝገቦች'} አልተመሳሰሉም።` `` | ⚠ composed — NEW (singular/plural branch; `n` is interpolated as Latin digits, NOT Ethiopic numerals — see note) |
+| chrome.unsyncedBody | They stay on this phone and upload next time you are online. | በዚህ ስልክ ላይ ይቀራሉ፤ እርስ ጊዜ በመስመር ላይ ሲሆን ይላካሉ። | ⚠ composed — NEW |
+| chrome.syncNow | Sync now | አሁን አማሳይ። | ⚠ composed — NEW |
+| chrome.signOutAnyway | Sign out anyway | ምንም አልተከለከለም ውጣ | ⚠ composed — NEW |
+| chrome.set | Set | ተዋቅሯል | ⚠ composed — reused `ተዋቅሯል` from `chrome.configured` for register consistency |
+| chrome.notSet | Not set | አልተዋቀረም | ⚠ composed — NEW |
+
+### Register note for the reviewer
+
+**`chrome.unsyncedCount` renders Latin digits.** The implementation is
+`` `${n} ${n === 1 ? 'መዝገብ' : 'መዝገቦች'} አልተመሳሰሉም።` `` — so the shopkeeper
+sees `3 መዝገቦች አልተመሳሰሉም።`, mixing a Western numeral into Amharic text.
+This matches how the rest of the app already shows counts (e.g. "2 of 5 set
+up" and the `N configured` badge), so I did not change it unilaterally. But
+Ethiopic numerals (`፩` `፪` `፫`) would be the more natural register for an
+Amharic shopkeeper, and the reviewer is the one who can settle that. If they
+want Ethiopic numerals, this key is the only place that changes and it needs a
+small numeral-mapping helper, not just a string swap.
+
+The Slice 2 sign-out guard is the one place where **two registers meet**. The
+`chrome.unsynced*` strings are declarative/explanatory ("they stay on this
+phone"), while the existing approved `chrome.configured` token `ተዋቅሯል` is
+stative/passive. I reused `ተዋቅሯል` for `Set` so the same word does not carry two
+different registers in one panel — but the reviewer should confirm that
+`ተዋቅሯሸል` (plural/polite) is not the better form for a shopkeeper address.
+If they change it, `chrome.set` is the only key affected.
+
+### Strings that are NOT in this draft (deliberately)
+
+- **"Start over on this phone"** appears in the staff surface in source but is
+  **never rendered for staff** (`includeStartOver={false}`), so it needs no
+  Slice 2 review. It stays an owner-page string.
+- **No PIN string.** Ruled out — no client PIN code exists.
+- **No "change phone" / OTP string.** Ruling 1 upheld: the change flow is FUTURE
+  (needs a new API), so there is no such copy in the bundle to review.
+
+### Deferral ledger (Slice 2 → post-launch)
+
+| Deferred item | Reason | Owner ruling |
+|---|---|---|
+| Change-phone flow (OTP re-verify) | No API endpoint mutates a user's phone number — only `POST /auth/otp` + `POST /auth/verify` | Ruling 1 UPHELD → FUTURE list |
+| Staff PIN | No client code, no `staff_members` PIN column; `GEBYA_DEVELOPMENT_TEAM_QA.md:65` is wrong | Ruling 2 → doc correction in hardening PR |
+- **Dubie row subtitle** is trimmed to `Overdue threshold` / `የዘገዬ ጊዜ` (both
+  substrings of existing source bytes) — the legacy "reminders in Data tab" copy
+  is stale on the grouped page and was NOT rewritten with fresh AM.
+

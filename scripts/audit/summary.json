@@ -1,0 +1,48 @@
+{
+  "generatedFor": "Gebya Notebook — bilingual (EN/AM) string audit",
+  "dictionaryCounts": {
+    "EN": 416,
+    "AM": 406,
+    "EN_OVERRIDES": 174,
+    "AM_OVERRIDES": 528
+  },
+  "dictionaryRecords": 558,
+  "inlineEntries": 1895,
+  "labelEntries": 95,
+  "byStatus": {
+    "[NEVER-REVIEWED]": 1418,
+    "[VERIFIED]": 932,
+    "[DRAFT-REVIEWED-PENDING]": 175,
+    "[NEEDS-FIX]": 23
+  },
+  "byKind": {
+    "inline-ternary": 986,
+    "amharic-only": 448,
+    "locale-object": 145,
+    "data-row": 5,
+    "t-helper": 311,
+    "label-object": 95,
+    "dictionary-key": 558
+  },
+  "byScreen": {
+    "Customers": 139,
+    "Other": 431,
+    "Admin": 154,
+    "Reports & story": 131,
+    "App shell": 31,
+    "Auth & onboarding": 136,
+    "Settlements": 89,
+    "Settings": 237,
+    "Settings — grouped draft": 66,
+    "Staff": 241,
+    "Suppliers": 64,
+    "Transactions — form": 81,
+    "Onboarding — labels": 38,
+    "Settings — labels": 56,
+    "Shared labels": 4,
+    "Transactions — labels": 31,
+    "Utils & stores": 61,
+    "Context dictionaries (global)": 558
+  },
+  "needsFixCount": 23
+}
