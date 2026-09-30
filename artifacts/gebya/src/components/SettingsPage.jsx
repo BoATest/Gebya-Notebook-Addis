@@ -13,6 +13,9 @@ import DownloadAppBanner from './settings/DownloadAppBanner';
 import { InstallGuideModal } from './PwaInstallPanel';
 import AdminPanel from './settings/AdminPanel';
 import SettingsPanelFallback from './settings/SettingsPanelFallback';
+import SettingsGroupedPage from './settings/SettingsGroupedPage';
+import { isSettingsGroupedV2Enabled } from '../utils/featureFlags';
+import { APP_VERSION } from '../utils/appVersion';
 import ErrorBoundary from './ErrorBoundary';
 
 const TABS = [
@@ -49,6 +52,10 @@ function SettingsPage({
   const hasPermission = usePermStore.hasPermission;
   const role = usePermStore.role || ROLES.STAFF;
   const isAdminFlag = useAuthStore(s => s.isPlatformAdmin);
+
+  // R2.3 rollout gate — DEFAULT OFF (see utils/featureFlags.js). OFF renders
+  // the legacy 3-tab layout below byte-for-byte; ON swaps in the grouped page.
+  const groupedV2 = isSettingsGroupedV2Enabled();
 
   const roleBadge = (() => {
     if (!role) return null;
@@ -214,7 +221,8 @@ function SettingsPage({
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs (legacy layout only — the grouped page has no tab bar) */}
+      {!groupedV2 && (
       <div className="tab-list">
         {TABS.map(tab => (
           <button
@@ -251,9 +259,35 @@ function SettingsPage({
           </button>
         ))}
       </div>
+      )}
 
       {/* Tab Content */}
       <div className="px-4">
+        {groupedV2 ? (
+        <SettingsGroupedPage
+          transactions={transactions}
+          customerSummaries={customerSummaries}
+          catalogEntries={catalogEntries}
+          shopProfile={shopProfile}
+          onProfileSave={onProfileSave}
+          paymentChannels={paymentChannels}
+          onSavePaymentChannels={onSavePaymentChannels}
+          recurringExpenses={recurringExpenses}
+          onRecurringChange={onRecurringChange}
+          onSaveCatalogEntry={onSaveCatalogEntry}
+          onToggleCatalogEntryActive={onToggleCatalogEntryActive}
+          planTier={planTier}
+          entitlements={entitlements}
+          staffCount={staffCount}
+          transactionCount={transactionCount}
+          shopId={shopId}
+          onAboutTap={handleAboutTap}
+          aboutTapCount={aboutTapCount}
+          devModeRevealed={devModeRevealed}
+          unlockTaps={DEV_MODE_UNLOCK_TAPS}
+        />
+        ) : (
+        <>
         <ErrorBoundary fallback="Failed to load settings. Please refresh.">
         <Suspense fallback={<SettingsPanelFallback label={t.loading} />}>
           <div className="animate-fade">
@@ -315,6 +349,8 @@ function SettingsPage({
           </div>
          </Suspense>
          </ErrorBoundary>
+      </>
+      )}
 
         {/* Reminders, notification prefs and password are rendered ONCE, at the
             top of the Data tab (see settings/tabs/DataTab.jsx). They used to be
@@ -335,7 +371,10 @@ function SettingsPage({
           </ErrorBoundary>
         )}
 
-        {/* Version display — clean, non-promotional. Hidden dev mode trigger via tap count */}
+        {/* Version display — legacy layout only; the grouped layout moves it
+            into MY APP › About (one version element, one tap target). Clean,
+            non-promotional; hidden dev-mode trigger via tap count. */}
+        {!groupedV2 && (
         <div
           onClick={handleAboutTap}
           className="text-center py-3 text-xs select-none"
@@ -343,7 +382,7 @@ function SettingsPage({
           aria-label={lang === 'am' ? 'መስመርቻ መረጃ' : 'App info'}
         >
           <span>
-            Gebya · v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}
+            Gebya · v{APP_VERSION}
           </span>
           {aboutTapCount > 0 && aboutTapCount < DEV_MODE_UNLOCK_TAPS && !devModeRevealed && (
             <span className="ml-2" style={{ color: 'var(--color-accent-amber)' }}>
@@ -351,6 +390,7 @@ function SettingsPage({
             </span>
           )}
         </div>
+        )}
       </div>
     </div>
   );

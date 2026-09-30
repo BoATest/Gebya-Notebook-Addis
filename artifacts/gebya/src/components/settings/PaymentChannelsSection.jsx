@@ -64,13 +64,16 @@ export default function PaymentChannelsSection({ channels, shopPhone, enabledCou
             </p>
           </div>
           <span
+            data-testid="payment-channels-badge"
             className="text-[10px] font-bold px-2 py-0.5 rounded-full"
             style={{
               background: configuredCount > 0 ? 'var(--color-success)' : enabledCount > 0 ? 'var(--color-accent-amber)' : 'var(--color-text-soft)',
               color: 'var(--color-bg-white)',
             }}
           >
-            {configuredCount}/{enabledCount} {lang === 'am' ? 'ተዋቅሯል' : 'configured'}
+            {/* R2.3 (owner-locked): COUNT ONLY — the "{configured}/{enabled}"
+                denominator was an invented cap (same trust bug as Staff 0/3). */}
+            {`${configuredCount} ${lang === 'am' ? 'ተዋቅሯል' : 'configured'}`}
           </span>
         </div>
         <p className="text-[11px] leading-snug" style={{ color: 'var(--color-success-text)' }}>

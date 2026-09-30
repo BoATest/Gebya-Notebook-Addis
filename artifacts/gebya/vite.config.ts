@@ -2,8 +2,17 @@ import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
+import { readFileSync } from "node:fs";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { VitePWA } from "vite-plugin-pwa";
+
+// R2.3 (owner-locked): one real app version, defined at build time and consumed
+// by src/utils/appVersion.js (Settings footer + About card). VITE_APP_VERSION
+// still overrides for preview builds; otherwise package.json is the source.
+const pkg = JSON.parse(
+  readFileSync(new URL("./package.json", import.meta.url), "utf8"),
+) as { version?: string };
+const appVersion = process.env.VITE_APP_VERSION ?? pkg.version ?? "0.0.0";
 
 const rawPort = process.env.PORT ?? "4173";
 const port = Number(rawPort);
@@ -74,6 +83,10 @@ function securityHeadersPlugin(): Plugin {
 export default defineConfig({
   base: normalizedBasePath,
   envDir: "../../", // 👈 FIXED: load .env.local from repo root
+  define: {
+    // Consumed by src/utils/appVersion.js via a `typeof` guard.
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [
     react(),
     tailwindcss(),

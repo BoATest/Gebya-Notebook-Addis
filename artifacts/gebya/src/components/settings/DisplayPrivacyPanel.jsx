@@ -55,7 +55,7 @@ export default function DisplayPrivacyPanel() {
             {hidden ? t.totalsHidden : t.totalsVisible}
           </div>
         </div>
-        <div className={`w-11 h-6 rounded-full transition-colors flex-shrink-0 flex items-center px-0.5 ${hidden ? 'bg-green-700' : 'bg-gray-200'}`}>
+        <div className="w-11 h-6 rounded-full transition-colors flex-shrink-0 flex items-center px-0.5" style={{ background: hidden ? '#22c55e' : '#d1d5db' }}>
           <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${hidden ? 'translate-x-5' : 'translate-x-0'}`} />
         </div>
       </button>

@@ -631,7 +631,8 @@
 }
 
 .toggle-pill input:checked + .toggle-slider {
-  background-color: var(--color-primary);
+  /* R2.3 locked toggle color: green ON (#22c55e); OFF is the #d1d5db gray above. */
+  background-color: #22c55e;
 }
 
 .toggle-pill input:checked + .toggle-slider:before {

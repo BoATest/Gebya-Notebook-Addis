@@ -5,7 +5,7 @@ import { Trash2 } from 'lucide-react';
 import { clearAllData, restoreFromJSON } from './useBackupData';
 import ConfirmDialog from '../../ConfirmDialog';
 
-export default function DangerZoneSection({ totalEntries, totalCustomers, t }) {
+export default function DangerZoneSection({ totalEntries, totalCustomers, t, includeRestore = true, includeStartOver = true }) {
   const { lang } = useLang();
 
   const [restoreTarget, setRestoreTarget] = useState(null);
@@ -51,6 +51,11 @@ export default function DangerZoneSection({ totalEntries, totalCustomers, t }) {
 
   return (
     <>
+      {/* R2.3 (grouped layout): the two rows are separable so "Start over on
+          this phone" can live in an isolated danger zone while restore stays
+          inside Backup & sync. Legacy callers omit both props → both render
+          exactly as before. */}
+      {includeRestore && (
       <label className="w-full flex items-center gap-4 px-5 py-4 active:bg-amber-50 transition-colors min-h-[64px] cursor-pointer" style={{ background: 'var(--color-surface)' }}>
         <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--color-warning-bg)' }}>
           <Trash2 className="w-5 h-5" style={{ color: 'var(--color-warning)' }} />
@@ -63,7 +68,9 @@ export default function DangerZoneSection({ totalEntries, totalCustomers, t }) {
         </div>
         <input type="file" accept=".json,application/json" onChange={handleImportFileSelected} className="hidden" />
       </label>
+      )}
 
+      {includeStartOver && (
       <button
         onClick={() => setShowClearStep(1)}
         className="w-full flex items-center gap-4 px-5 py-4 active:bg-red-50 transition-colors min-h-[64px] text-left"
@@ -78,7 +85,10 @@ export default function DangerZoneSection({ totalEntries, totalCustomers, t }) {
           </div>
         </div>
       </button>
+      )}
 
+      {includeStartOver && (
+      <>
       <ConfirmDialog
         open={showClearStep === 1}
         title={lang === 'am' ? 'በዚህ ስልክ መልሰው ይጀምሩ?' : 'Start over on this phone?'}
@@ -102,7 +112,11 @@ export default function DangerZoneSection({ totalEntries, totalCustomers, t }) {
         onConfirm={() => { setShowClearStep(0); clearAllData(setCleared, () => setShowClearStep(0)); }}
         onCancel={() => setShowClearStep(0)}
       />
+      </>
+      )}
 
+      {includeRestore && (
+      <>
       <ConfirmDialog
         open={showRestoreStep === 1}
         title={lang === 'am' ? 'ምትኬ ይመለስ?' : 'Restore from backup?'}
@@ -126,6 +140,8 @@ export default function DangerZoneSection({ totalEntries, totalCustomers, t }) {
         onConfirm={handleRestoreConfirm}
         onCancel={() => { setShowRestoreStep(0); setRestoreTarget(null); }}
       />
+      </>
+      )}
 
       {cleared && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">

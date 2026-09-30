@@ -39,7 +39,7 @@ function PreferenceSwitch({ checked, disabled = false, label, onChange, saving }
       onClick={() => onChange?.(!checked)}
       className="relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2"
       style={{
-        background: checked ? 'var(--color-primary)' : 'var(--color-border)',
+        background: checked ? '#22c55e' : '#d1d5db',
         opacity: disabled ? 0.55 : 1,
         cursor: isDisabled ? 'default' : 'pointer',
       }}

@@ -31,8 +31,15 @@ const CHECK_META = [
   { key: 'recurring', label: L.addRecurring, cta: L.ctaRecord },
 ];
 
-export default function ReadinessHero({ shopProfile, paymentChannels = [], catalogEntries = [], recurring = [], lang, onAction }) {
-  const [expanded, setExpanded] = useState(true);
+export default function ReadinessHero({ shopProfile, paymentChannels = [], catalogEntries = [], recurring = [], lang, onAction, collapseWhenComplete = false }) {
+  // R2.3 (owner ruling Q0): on the grouped layout the checklist collapses to a
+  // single "All set up" line once the shop hits 5/5. Legacy tabs pass no prop →
+  // starts expanded exactly as before (flag-OFF parity).
+  const [expanded, setExpanded] = useState(() => {
+    if (!collapseWhenComplete) return true;
+    const checklist = computeSetupChecklist({ shopProfile, paymentChannels, catalogEntries, recurring });
+    return checklist.some((check) => !check.done);
+  });
 
   const name = shopProfile?.name || '';
   const initials = (() => {
@@ -66,6 +73,15 @@ export default function ReadinessHero({ shopProfile, paymentChannels = [], catal
     stampSetupCompletedAtIfComplete({ shopProfile, paymentChannels, catalogEntries, recurring })
       .catch(() => { stampAttempted.current = false; }); // non-critical; retry on next encounter
   }, [allDone, shopProfile, paymentChannels, catalogEntries, recurring]);
+
+  // Collapse on reaching 5/5 while the page is open (grouped layout only —
+  // legacy callers do not pass collapseWhenComplete).
+  const prevAllDoneRef = useRef(allDone);
+  useEffect(() => {
+    if (!collapseWhenComplete) return;
+    if (allDone && !prevAllDoneRef.current) setExpanded(false);
+    prevAllDoneRef.current = allDone;
+  }, [collapseWhenComplete, allDone]);
 
   if (allDone) {
     return (

@@ -9,9 +9,9 @@ import ReminderSettings from '../ReminderSettings';
 import NotificationPreferences from '../NotificationPreferences';
 import PasswordSettings from '../PasswordSettings';
 import { isErrorReportingEnabled, setErrorReportingPreference } from '../../../sentry';
+import { APP_VERSION } from '../../../utils/appVersion';
 
-// Build info injected at bundle time by Vite
-const BUILD_VERSION = import.meta.env?.VITE_APP_VERSION || 'dev';
+// R2.3 fix (owner-locked): real version string, same source as the grouped page.
 const BUILD_DATE = import.meta.env?.VITE_BUILD_DATE || '';
 
 export default function DataTab({
@@ -177,7 +177,7 @@ export default function DataTab({
       <TabCard
         icon="ℹ️"
         title={lang === 'am' ? 'ስለ ገበያ' : 'About Gebya'}
-        subtitle={BUILD_VERSION}
+        subtitle={APP_VERSION}
         badgeTone="neutral"
       >
         <div className="bg-white rounded-2xl border border-green-100/50 overflow-hidden px-5 py-4 text-sm text-gray-500">

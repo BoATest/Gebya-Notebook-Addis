@@ -6,7 +6,7 @@ import { exportToCSV } from './backup/useBackupData';
 import { createCloudSnapshot } from '../../utils/useAutoBackup';
 import { fireToast } from '../Toast';
 
-export default function BackupDataPanel({ transactions, customerSummaries }) {
+export default function BackupDataPanel({ transactions, customerSummaries, includeStartOver = true }) {
   const { lang, t } = useLang();
   const [manualBackupLoading, setManualBackupLoading] = useState(false);
 
@@ -82,6 +82,7 @@ export default function BackupDataPanel({ transactions, customerSummaries }) {
         totalEntries={totalEntries}
         totalCustomers={totalCustomers}
         t={t}
+        includeStartOver={includeStartOver}
       />
     </div>
   );
