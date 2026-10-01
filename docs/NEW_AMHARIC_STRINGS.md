@@ -93,3 +93,24 @@ catalogued with its EN key/sibling in `R2-LABELS-DRAFT.md` →
 AuthRequiredPrompt.jsx, incl. dict keys `passwordLabel`, `passwordTooShort`,
 `passwordSetup`). The Merkato reviewer re-derives each AM sentence from its EN
 anchor; no string enters wiring without that anchor + reviewer pass.
+
+## 5. Onboarding phone-conflict panel (`POST /shops` 409 guard)
+
+New copy authored for the client half of the phone-takeover guard: when the
+number is already registered the server refuses with
+`409 PHONE_ALREADY_REGISTERED` and `OnboardingScreen.jsx` now stops on the form
+instead of falling into the offline path. Each AM line below was written from
+its EN anchor in `src/labels/onboarding.js` (no machine translation), but has
+**not** had the review pass the header asks for.
+
+| File | String | Meaning |
+|---|---|---|
+| `src/labels/onboarding.js` (`phoneConflictTitle`) | `ይህ ስልክ ቁጥር ቀድሞ ተመዝግቧል` | This phone number is already registered |
+| `src/labels/onboarding.js` (`phoneConflictMsg`) | `ይህ ቁጥር በሌላ ማስታወሻ ጥቅም ላይ ስለሚውል ይህ አልተፈጠረም። ያለ ቁጥር ይቀጥሉ፣ ወይም ሌላ ቁጥር ያስገቡ።` | Another notebook already uses this number, so this one was not created. Continue without the number, or enter a different one. |
+| `src/labels/onboarding.js` (`phoneConflictContinue`) | `ያለ ቁጥር ቀጥሉ` | Continue without number (primary CTA) |
+| `src/labels/onboarding.js` (`phoneConflictChange`) | `ቁጥር ይቀይሩ` | Change number (secondary CTA) |
+
+Reviewer focus: `ማስታወሻ` is the established word for "notebook" in this screen
+(`formTitle`), and the panel must not read as a network failure — that is the
+whole point of the fix. Buttons must stay short enough for one line at
+`text-xs` on a small Android viewport.

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useLang } from '../context/LangContext';
 import { LABELS } from '../labels';
 import { fireToast } from './Toast';
@@ -87,6 +87,11 @@ function OnboardingScreen({ onComplete }) {
    const [phoneDigits, setPhoneDigits] = useState('');
    const [saving, setSaving] = useState(false);
   const [touched, setTouched] = useState({ name: false, phone: false });
+  // Set when the server rejects the number with 409 (already registered).
+  // No shop exists in that case, so the form must stay open: nothing may be
+  // stamped, saved, or completed behind the user's back.
+  const [phoneConflict, setPhoneConflict] = useState(false);
+  const phoneRef = useRef(null);
 
   const nameValid = name.trim().length > 0;
   const phoneEntered = phoneDigits.length > 0;
@@ -96,12 +101,15 @@ function OnboardingScreen({ onComplete }) {
   const handlePhoneChange = (e) => {
     const raw = e.target.value.replace(/\D/g, '');
     if (raw.length <= 9) setPhoneDigits(raw);
+    if (phoneConflict) setPhoneConflict(false);
   };
 
-  const handleStart = async () => {
-    if (!canProceed || saving) return;
+  // Submits the form. fullPhone is the number to register ('' = none); the
+  // phone-conflict path reuses this with '' so the server mints a phoneless
+  // account and still issues a working token.
+  const submit = async (fullPhone) => {
+    if (saving) return;
     setSaving(true);
-    const fullPhone = phoneEntered ? `+251${phoneDigits}` : '';
     try {
        const result = await identityApi.createShop({
          display_name: name.trim(),
@@ -150,7 +158,17 @@ function OnboardingScreen({ onComplete }) {
          display_name: result.display_name || name.trim(),
          device_status: result.device_status || 'active',
        });
-    } catch {
+    } catch (err) {
+      // 409 comes from the POST /shops account-takeover guard and only from
+      // that guard (code PHONE_ALREADY_REGISTERED): the number belongs to an
+      // existing account and NO shop was created. Falling through to the
+      // offline path here would hand this person a local-only notebook they
+      // could never connect to the account they already own, under an
+      // 'offline' toast that blames the network. Refuse loudly instead.
+      if (err && err.status === 409) {
+        setPhoneConflict(true);
+        return;
+      }
       // Gate C (offline path): createShop failed, but a shop now exists on this
       // phone and the person who created it is its owner. Stamp the owner role
       // with role defaults (no server payload) so the very first session opens
@@ -164,6 +182,25 @@ function OnboardingScreen({ onComplete }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleStart = () => {
+    if (!canProceed) return;
+    submit(phoneEntered ? `+251${phoneDigits}` : '');
+  };
+
+  // Retry with the number dropped: the guard only fires on a registered phone,
+  // so the server creates a phoneless owner and returns a real token. That is a
+  // working cloud notebook, not the local-only dead end the offline path gives.
+  const handleContinueWithoutPhone = () => {
+    setPhoneConflict(false);
+    submit('');
+  };
+
+  const handleClearPhoneConflict = () => {
+    setPhoneConflict(false);
+    setPhoneDigits('');
+    if (phoneRef.current) phoneRef.current.focus();
   };
 
   if (mode === 'choice') {
@@ -317,6 +354,7 @@ function OnboardingScreen({ onComplete }) {
               <span className="text-sm font-bold px-3 py-3 rounded-xl" style={{ background: 'var(--color-bg-hover)', color: 'var(--color-text-muted)' }}>+251</span>
               <input
                 type="tel"
+                ref={phoneRef}
                 value={phoneDigits}
                 onChange={handlePhoneChange}
                 onBlur={() => setTouched(prev => ({ ...prev, phone: true }))}
@@ -336,6 +374,41 @@ function OnboardingScreen({ onComplete }) {
               </p>
             )}
             <p className="text-xs mt-1 font-medium" style={{ color: 'var(--color-text-soft)' }}>{phoneHelper}</p>
+
+            {/* The number is already registered: nothing was created, so the
+                person chooses what happens next instead of drifting into a
+                notebook that can never sync. */}
+            {phoneConflict && (
+              <div
+                className="mb-4 p-3 rounded-xl"
+                style={{ background: 'rgba(196,136,58,0.10)', border: '2px solid rgba(196,136,58,0.35)' }}
+              >
+                <p className="text-xs font-black text-gray-900 mb-1">{L.phoneConflictTitle[lang]}</p>
+                <p className="text-xs font-medium leading-5" style={{ color: 'var(--color-text-muted)' }}>
+                  {L.phoneConflictMsg[lang]}
+                </p>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={handleContinueWithoutPhone}
+                    disabled={saving}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-black press-scale"
+                    style={{ background: 'var(--color-primary)', color: 'var(--color-bg-white)' }}
+                  >
+                    {L.phoneConflictContinue[lang]}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearPhoneConflict}
+                    disabled={saving}
+                    className="flex-1 py-2.5 rounded-xl text-xs font-black press-scale"
+                    style={{ background: 'var(--color-bg-hover)', color: 'var(--color-text-muted)', border: '2px solid var(--color-bg-disabled)' }}
+                  >
+                    {L.phoneConflictChange[lang]}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
            {/* Promises */}

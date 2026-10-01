@@ -43,4 +43,23 @@ export const onboarding = {
     en: 'Saved on this phone — connect to internet to enable sync',
     am: 'በዚህ ስልክ ብቻ ተቀምጧል — ኢንተርኔት ሲገኝ ማገናኘት ይችላሉ',
   },
+  /**
+   * Phone-conflict panel: the frontend half of the POST /shops account-takeover
+   * guard (409 PHONE_ALREADY_REGISTERED). These are NEW entries, not captured by
+   * the pre-refactor fixture, so they sit outside the byte-lock above.
+   *
+   * The AM side is author-written and has NOT had a Merkato reviewer pass —
+   * flag it in docs/NEW_AMHARIC_STRINGS.md before this copy goes beyond the
+   * pilot (same protocol as every other R2 label).
+   */
+  phoneConflictTitle: {
+    en: 'This phone number is already registered',
+    am: 'ይህ ስልክ ቁጥር ቀድሞ ተመዝግቧል',
+  },
+  phoneConflictMsg: {
+    en: 'Another Gebya notebook already uses this number, so this one was not created. Continue without the number, or enter a different one.',
+    am: 'ይህ ቁጥር በሌላ ማስታወሻ ጥቅም ላይ ስለሚውል ይህ አልተፈጠረም። ያለ ቁጥር ይቀጥሉ፣ ወይም ሌላ ቁጥር ያስገቡ።',
+  },
+  phoneConflictContinue: { en: 'Continue without number', am: 'ያለ ቁጥር ቀጥሉ' },
+  phoneConflictChange: { en: 'Change number', am: 'ቁጥር ይቀይሩ' },
 };
