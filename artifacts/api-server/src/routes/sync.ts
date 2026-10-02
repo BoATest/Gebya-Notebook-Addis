@@ -107,6 +107,12 @@ router.post("/push",
   requirePermission("can_add_records"),
   async (req, res) => {
     (req as any).rbacEntityType = "transactions";
+  // Migration-window gate (MIGRATION_PLAN §5): when SYNC_MAINTENANCE is set, push
+  // returns 503 so no write lands mid-DDL. Clients treat 5xx as retryable and their
+  // outbox flushes automatically once the flag is removed.
+  if (process.env.SYNC_MAINTENANCE === "1") {
+    return res.status(503).json({ error: "maintenance", retry_after: 60 });
+  }
   const userId = getUserIdFromRequest(req);
   if (!userId) return res.status(401).json({ error: "Authorization required" });
 
@@ -365,10 +371,35 @@ router.get("/pull",
     pullTable(analytics, analytics.businessId, analytics.updatedAt),
   ]);
 
-  const tables = {
+  const tables: Record<string, any[]> = {
     transactions: txResult.rows, customers: custResult.rows, customer_transactions: custTxResult.rows,
     catalog_entries: catResult.rows, suppliers: supResult.rows, supplier_transactions: supTxResult.rows, staff_members: staffResult.rows, settlements: settleResult.rows, settings: setResult.rows, analytics: anaResult.rows,
   };
+
+  // Money normalization guard (MIGRATION_PLAN §7): after the numeric(12,2)
+  // migration, drizzle returns money columns as STRINGS. Raw passthrough would
+  // string-poison legacy clients (bare accumulators like getCustomerBalance)
+  // and trip the client's strict-type _deepEqual forever. Convert to rounded
+  // numbers server-side so every client — old or new — receives JS numbers.
+  const MONEY_FIELDS_BY_TABLE: Record<string, string[]> = {
+    transactions: ["amount", "cost_price", "profit", "paid_amount", "remaining_amount"],
+    customer_transactions: ["amount", "paid_amount"],
+    supplier_transactions: ["amount"],
+    catalog_entries: ["default_price", "default_cost"],
+    settlements: ["expected_cash", "actual_cash", "cash_variance", "expected_transfer", "actual_transfer", "transfer_variance", "expected_total", "actual_total", "total_variance", "final_expected_cash", "final_expected_total", "final_variance", "staff_reported_cash", "staff_reported_transfer", "carry_forward"],
+  };
+  for (const [tbl, fields] of Object.entries(MONEY_FIELDS_BY_TABLE)) {
+    for (const row of tables[tbl] as any[]) {
+      for (const f of fields) {
+        if (row[f] == null) continue;
+        const n = typeof row[f] === "string" ? Number(row[f]) : row[f];
+        if (!Number.isFinite(n)) { row[f] = 0; continue; }
+        // Half-away-from-zero at 2dp, mirroring PG ROUND(numeric,2).
+        const scaled = Number((n * 100).toFixed(6));
+        row[f] = (Math.sign(scaled) || 1) * Math.round(Math.abs(scaled)) / 100;
+      }
+    }
+  }
 
   const hasMore = txResult.hasMore || custResult.hasMore || custTxResult.hasMore || catResult.hasMore || supResult.hasMore || supTxResult.hasMore || staffResult.hasMore || settleResult.hasMore || setResult.hasMore || anaResult.hasMore;
   const nextCursor = hasMore ? Math.max(txResult.nextCursor || 0, custResult.nextCursor || 0, custTxResult.nextCursor || 0, catResult.nextCursor || 0, supResult.nextCursor || 0, supTxResult.nextCursor || 0, staffResult.nextCursor || 0, settleResult.nextCursor || 0, setResult.nextCursor || 0, anaResult.nextCursor || 0) : null;

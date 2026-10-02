@@ -61,18 +61,18 @@ export async function computeOverview() {
   const allSnapshots = snapAgg.map((s) => ({ userId: s.userId, sizeBytes: s.sizeBytes, createdAt: s.createdAt }));
 
   const [salesTotal, txnCountResult, shopsDistinct, shopsWeekDistinct, shopsTodayDistinct, creditTotalResult, repaidTotalResult, custBalanceRows] = await Promise.all([
-    requireDb().select({ total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)` }).from(transactions).where(eq(transactions.type, "sale")).then(r => r[0]?.total ?? 0),
+    requireDb().select({ total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)::float8` }).from(transactions).where(eq(transactions.type, "sale")).then(r => Number(r[0]?.total ?? 0)),
     requireDb().select({ count: sql<number>`COUNT(*)` }).from(transactions).then(r => ({ count: r[0]?.count ?? 0 })),
     requireDb().selectDistinct({ businessId: transactions.businessId }).from(transactions).then(r => new Set(r.map(t => t.businessId).filter(Boolean))),
     requireDb().selectDistinct({ businessId: transactions.businessId }).from(transactions).where(gt(transactions.createdAt, sevenDaysAgo)).then(r => new Set(r.map(t => t.businessId).filter(Boolean))),
     requireDb().selectDistinct({ businessId: transactions.businessId }).from(transactions).where(gt(transactions.createdAt, oneDayAgo)).then(r => new Set(r.map(t => t.businessId).filter(Boolean))),
-    requireDb().select({ total: sql<number>`COALESCE(SUM(${customerTransactions.amount}), 0)` }).from(customerTransactions).where(eq(customerTransactions.type, "credit_add")).then(r => r[0]?.total ?? 0),
-    requireDb().select({ total: sql<number>`COALESCE(SUM(${customerTransactions.amount}), 0)` }).from(customerTransactions).where(eq(customerTransactions.type, "payment")).then(r => r[0]?.total ?? 0),
+    requireDb().select({ total: sql<number>`COALESCE(SUM(${customerTransactions.amount}), 0)::float8` }).from(customerTransactions).where(eq(customerTransactions.type, "credit_add")).then(r => Number(r[0]?.total ?? 0)),
+    requireDb().select({ total: sql<number>`COALESCE(SUM(${customerTransactions.amount}), 0)::float8` }).from(customerTransactions).where(eq(customerTransactions.type, "payment")).then(r => Number(r[0]?.total ?? 0)),
     requireDb().select({
       customerId: customerTransactions.customerId,
-      credit: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'credit_add' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
-      paid: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'payment' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
-      reversed: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'reversal' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
+      credit: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'credit_add' THEN ${customerTransactions.amount} ELSE 0 END), 0)::float8`,
+      paid: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'payment' THEN ${customerTransactions.amount} ELSE 0 END), 0)::float8`,
+      reversed: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'reversal' THEN ${customerTransactions.amount} ELSE 0 END), 0)::float8`,
       dueDate: sql<number | null>`MAX(${customerTransactions.dueDate})`,
     }).from(customerTransactions).groupBy(customerTransactions.customerId),
   ]);
@@ -167,14 +167,14 @@ export async function computeShops(req: any) {
     requireDb().select({
       businessId: transactions.businessId,
       totalTxn: sql<number>`COUNT(*)`,
-      totalSales: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'sale' THEN ${transactions.amount} ELSE 0 END), 0)`,
+      totalSales: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'sale' THEN ${transactions.amount} ELSE 0 END), 0)::float8`,
       lastTxn: sql<number>`COALESCE(MAX(${transactions.createdAt}), 0)`,
     }).from(transactions).groupBy(transactions.businessId),
     requireDb().select({
       businessId: customerTransactions.businessId,
-      credit: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'credit_add' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
-      payment: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'payment' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
-      reversal: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'reversal' THEN ${customerTransactions.amount} ELSE 0 END), 0)`,
+      credit: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'credit_add' THEN ${customerTransactions.amount} ELSE 0 END), 0)::float8`,
+      payment: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'payment' THEN ${customerTransactions.amount} ELSE 0 END), 0)::float8`,
+      reversal: sql<number>`COALESCE(SUM(CASE WHEN ${customerTransactions.type} = 'reversal' THEN ${customerTransactions.amount} ELSE 0 END), 0)::float8`,
     }).from(customerTransactions).groupBy(customerTransactions.businessId),
   ]);
   const txByBiz = new Map(txAgg.map((t) => [t.businessId, t]));
