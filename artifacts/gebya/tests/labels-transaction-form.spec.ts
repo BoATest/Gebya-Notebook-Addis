@@ -32,21 +32,21 @@ const ROOT = process.cwd();
 // { moduleEntryPath, pair } — each must exist verbatim as a (am, en) site
 // somewhere in the pre-refactor source.
 const STATIC_LOCKS = [
-  ['typeLabel.sale',    { en: '+ Sale',   am: '+ ሽያጭ' }],
-  ['typeLabel.expense', { en: '− Expense', am: '− ወጪ' }],
-  ['typeLabel.credit',  { en: '↻ Credit',  am: '↻ ዱቤ' }],
-  ['saveButton.credit', { en: 'Save Credit', am: 'ዱቤ አስቀምጥ' }],
-  ['saveButton.expense',{ en: 'Save Expense', am: 'ወጪ አስቀምጥ' }],
-  ['saveButton.sale',   { en: 'Save Sale',   am: 'ሽያጭ አስቀምጥ' }],
-  ['saveButtonDefault', { en: 'Save', am: 'አስቀምጥ' }],
-  ['itemPlaceholder.credit',  { en: 'e.g. Abebe...', am: 'ለምሳሌ አበበ…' }],
-  ['itemPlaceholder.expense', { en: 'Add details...', am: 'ዝርዝሩን ይመዝቡ...' }],
-  ['itemPlaceholder.sale',    { en: 'Add details...', am: 'ዝርዝሩን ይመዝቡ...' }],
-  ['itemLabel.credit', { en: 'NAME', am: 'ስም' }],
-  ['itemLabel.sale',   { en: 'Item / Service (Optional)', am: 'ዕቃ / አገልግሎት (አማራጭ)' }],
-  ['photoLimit',       { en: 'You can attach up to 3 photos', am: '3 ፎቶዎች ሙሉ በሙሉ ተያዝዋል' }],
-  ['paymentType.cash',   { en: 'Cash', am: 'ጥሬ' }],
-  ['paymentType.credit', { en: 'Credit', am: 'ዱቤ' }],
+  ['transactions.typeLabel.sale',    { en: '+ Sale',   am: '+ ሽያጭ' }],
+  ['transactions.typeLabel.expense', { en: '− Expense', am: '− ወጪ' }],
+  ['transactions.typeLabel.credit',  { en: '↻ Credit',  am: '↻ ዱቤ' }],
+  ['transactions.saveButton.credit', { en: 'Save Credit', am: 'ዱቤ አስቀምጥ' }],
+  ['transactions.saveButton.expense',{ en: 'Save Expense', am: 'ወጪ አስቀምጥ' }],
+  ['transactions.saveButton.sale',   { en: 'Save Sale',   am: 'ሽያጭ አስቀምጥ' }],
+  ['transactions.saveButtonDefault', { en: 'Save', am: 'አስቀምጥ' }],
+  ['transactions.itemPlaceholder.credit',  { en: 'e.g. Abebe...', am: 'ለምሳሌ አበበ…' }],
+  ['transactions.itemPlaceholder.expense', { en: 'Add details...', am: 'ዝርዝሩን ይመዝቡ...' }],
+  ['transactions.itemPlaceholder.sale',    { en: 'Add details...', am: 'ዝርዝሩን ይመዝቡ...' }],
+  ['transactions.itemLabel.credit', { en: 'NAME', am: 'ስም' }],
+  ['transactions.itemLabel.sale',   { en: 'Item / Service (Optional)', am: 'ዕቃ / አገልግሎት (አማራጭ)' }],
+  ['transactions.photoLimit',       { en: 'You can attach up to 3 photos', am: '3 ፎቶዎች ሙሉ በሙሉ ተያዝዋል' }],
+  ['transactions.paymentType.cash',   { en: 'Cash', am: 'ጥሬ' }],
+  ['transactions.paymentType.credit', { en: 'Credit', am: 'ዱቤ' }],
 ];
 
 const getDeep = (obj: any, path: string): any =>
@@ -85,7 +85,7 @@ describe('Batch 3a labels — byte-identity vs pre-refactor fixture', () => {
 describe('TransactionForm.jsx — Batch 3a ternary remainder', () => {
     it('3a removed 14 sites; 81 remain for 3b/3c/3d', () => {
     const src = readFileSync(resolve(ROOT, 'src/components/TransactionForm.jsx'), 'utf8');
-    const hits = src.match(/lang\s*===\\s*['\"]am['\"]/g) || [];
+    const hits = src.match(/lang\s*===\s*['"]am['"]/g) || [];
     expect(hits.length, `3a removed 14; ${hits.length} remain`).toBe(81);
   });
 });
