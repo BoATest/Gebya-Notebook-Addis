@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { isErrorReportingEnabled } from '../sentry';
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -12,6 +13,18 @@ export default class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     if (import.meta.env?.DEV) console.error('[ErrorBoundary]', error, info);
+    // Production render crashes were previously swallowed here and invisible to
+    // monitoring. Report to Sentry only when the user's error-reporting consent
+    // is on (same privacy gate as initSentry).
+    try {
+      if (!import.meta.env?.DEV && isErrorReportingEnabled()) {
+        void import('@sentry/react').then((Sentry) =>
+          Sentry.captureException(error, { extra: { componentStack: info?.componentStack } }),
+        );
+      }
+    } catch {
+      // never let reporting break the fallback UI
+    }
   }
 
   render() {

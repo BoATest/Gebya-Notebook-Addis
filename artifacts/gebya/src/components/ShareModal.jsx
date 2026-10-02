@@ -60,7 +60,7 @@ export default function ShareModal({ summary, telegram, onClose, t }) {
           {isUsername && handle && (
             <button
               onClick={() => {
-                window.open(`https://t.me/${handle}?text=${encoded}`, '_blank');
+                window.open(`https://t.me/${handle}?text=${encoded}`, '_blank', 'noopener,noreferrer');
                 trackEvent('report_shared', { share_method: 'telegram' });
               }}
               className="w-full py-3 font-bold text-sm flex items-center justify-center gap-2 min-h-[48px] hover-lift press-scale"

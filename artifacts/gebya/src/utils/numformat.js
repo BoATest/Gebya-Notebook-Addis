@@ -5,6 +5,22 @@ export function fmt(n) {
   });
 }
 
+/**
+ * Round to 2 decimal places, half-away-from-zero (mirrors PG ROUND(numeric,2)).
+ * Money-boundary guard for the numeric(12,2) migration: applied at sync push
+ * (syncEngine _pushAll) so dirty client floats never reach the DB, and mirrored
+ * server-side on pull so numeric-as-string can never enter Dexie.
+ * Non-finite input → 0. Mirrors lib/db/src/utils/money.ts roundMoney.
+ */
+export function roundMoney(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  // toFixed(6) re-anchors the half-cent: 10.155*100 = 1015.4999999999999 raw,
+  // which Math.round would floor to 10.15.
+  const scaled = Number((n * 100).toFixed(6));
+  return (Math.sign(scaled) || 1) * Math.round(Math.abs(scaled)) / 100;
+}
+
 export function formatTransactionAmount(amount, type) {
   const formattedAmount = fmt(Math.abs(Number(amount || 0)));
   const sign = type === 'payment' ? '−' : '+';
