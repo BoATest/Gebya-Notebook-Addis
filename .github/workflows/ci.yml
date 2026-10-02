@@ -58,6 +58,8 @@ jobs:
         run: pnpm typecheck
       - name: i18n character check
         run: pnpm lint:i18n
+      - name: Run vitest unit/integration suite
+        run: pnpm exec vitest run
       - name: orphan scan
         run: pnpm check:orphans
         env:
