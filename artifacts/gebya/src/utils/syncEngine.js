@@ -1,6 +1,7 @@
 import db from '../db';
 import { getOrCreateCloudProofDeviceId } from './cloudProof';
 import { camelToSnake, mapPullRow, fetchWithRetry, fetchWithRetryAndAuthRefresh } from './syncEngineHelpers.js';
+import { normalizePulledRow } from './moneyGuard.js';
 import { ensureFreshToken as _ensureFreshToken } from './authClient.js';
 import { useSyncStore } from '../stores/syncStore';
 
@@ -809,7 +810,7 @@ class SyncEngine {
         if (!serverRecord) continue;
 
         // Compute diff before resolving
-        const mappedServer = mapPullRow(serverRecord);
+        const mappedServer = normalizePulledRow(tableName, mapPullRow(serverRecord));
         const changedFields = this._diffFields(localRecord, mappedServer);
         if (changedFields.length > 0) {
           resolveConflicts.push({
@@ -910,7 +911,7 @@ class SyncEngine {
               const isKeyValueTable = name === 'settings' || name === 'analytics';
 
               for (const row of rows) {
-                const mapped = mapPullRow(row);
+                const mapped = normalizePulledRow(name, mapPullRow(row));
 
                 if (isKeyValueTable) {
                   const local = await table.get(mapped.key);

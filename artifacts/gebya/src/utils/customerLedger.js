@@ -1,4 +1,4 @@
-import { getAuthToken } from './syncEngine';
+import { getAuthToken } from './syncEngine'; { roundMoney2dp } from './moneyGuard';
 
 function compareNumericDesc(left, right) {
   return (Number(right) || 0) - (Number(left) || 0);
@@ -19,12 +19,15 @@ export function insertCustomerTransaction(items = [], nextItem) {
 }
 
 export function getCustomerBalance(items = []) {
-  return items.reduce((sum, item) => {
-    if (item.type === 'credit_add') return sum + (item.amount || 0);
-    if (item.type === 'payment') return sum - (item.amount || 0);
-    if (item.type === 'reversal') return sum - (item.amount || 0);
+  // roundMoney2dp coerces numeric-as-string values too, so a stale "150.50"
+  // from a pre-guard pull can never string-concatenate the accumulator.
+  return roundMoney2dp(items.reduce((sum, item) => {
+    const amt = roundMoney2dp(item.amount);
+    if (item.type === 'credit_add') return sum + amt;
+    if (item.type === 'payment') return sum - amt;
+    if (item.type === 'reversal') return sum - amt;
     return sum;
-  }, 0);
+  }, 0));
 }
 
 export function getCustomerLatestDueDate(items = []) {

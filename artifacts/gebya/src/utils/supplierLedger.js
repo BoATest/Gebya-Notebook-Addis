@@ -139,11 +139,12 @@ export function sortSupplierTransactions(items = []) {
 }
 
 export function getSupplierBalance(items = []) {
-  return items.reduce((sum, item) => {
-    if (item.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD) return sum + (item.amount || 0);
-    if (item.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT) return sum - (item.amount || 0);
+  return roundMoney2dp(items.reduce((sum, item) => {
+    const amt = roundMoney2dp(item.amount);
+    if (item.type === SUPPLIER_TRANSACTION_TYPES.PURCHASE_ADD) return sum + amt;
+    if (item.type === SUPPLIER_TRANSACTION_TYPES.PAYMENT) return sum - amt;
     return sum;
-  }, 0);
+  }, 0));
 }
 
 export function buildSupplierSummaries(suppliers = [], supplierTransactions = []) {
