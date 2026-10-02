@@ -37,7 +37,9 @@ export async function validateAndLinkDevice(
 }
 
 export async function getBusinessForUser(userId: number, businessId?: number): Promise<number | null> {
-  const filters: any[] = [eq(businessMembers.userId, userId)];
+  // active=true: a deactivated staff member must not sync (enforcement point
+  // for /staff/:staff_id/deactivate, which itself does not revoke tokens).
+  const filters: any[] = [eq(businessMembers.userId, userId), eq(businessMembers.active, true)];
   if (businessId) filters.push(eq(businessMembers.businessId, businessId));
   const rows = await requireDb()
     .select({ businessId: businessMembers.businessId })

@@ -124,7 +124,8 @@ router.post("/attendance/clock-in", async (req: Request, res: Response) => {
   const staffId = ctx.role === "owner" ? (req.body.staffId || ctx.userId) : ctx.userId;
   const member = await requireDb().select().from(businessMembers).where(and(
     eq(businessMembers.businessId, ctx.businessId),
-    eq(businessMembers.userId, Number(staffId))
+    eq(businessMembers.userId, Number(staffId)),
+    eq(businessMembers.active, true),
   )).limit(1);
 
   if (!member.length) return res.status(403).json({ error: "Not a member of this business" });

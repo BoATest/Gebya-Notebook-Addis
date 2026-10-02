@@ -354,7 +354,7 @@ router.patch("/members/:userId/permissions", requireRole("owner", "manager"), as
   const targetRows = await requireDb()
     .select({ id: businessMembers.id, role: businessMembers.role, permissions: businessMembers.permissions })
     .from(businessMembers)
-    .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.userId, targetUserId)))
+    .where(and(eq(businessMembers.businessId, businessId), eq(businessMembers.userId, targetUserId), eq(businessMembers.active, true)))
     .limit(1);
 
   if (!targetRows.length) {

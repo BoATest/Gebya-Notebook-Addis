@@ -26,7 +26,7 @@ export function requireRole(...roles: string[]) {
     const bizHeader = req.headers["x-business-id"];
     const requestedBizId = bizHeader ? Number(bizHeader) : null;
 
-    const filters: any[] = [eq(businessMembers.userId, userId)];
+    const filters: any[] = [eq(businessMembers.userId, userId), eq(businessMembers.active, true)];
     if (requestedBizId && Number.isInteger(requestedBizId)) {
       filters.push(eq(businessMembers.businessId, requestedBizId));
     }

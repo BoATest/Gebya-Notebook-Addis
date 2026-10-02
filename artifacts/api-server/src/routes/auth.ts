@@ -386,13 +386,16 @@ router.get("/me", async (req, res) => {
   }
 
   // Fetch all business memberships
+  // Deactivated memberships are hidden from /me: the UI renders this list, and
+  // a deactivated staff member must not see (or pick) the business they were
+  // removed from. Rejoin/reactivate flows restore visibility.
   const memberRows = await requireDb().select({
       businessId: businessMembers.businessId,
       role: businessMembers.role,
       permissions: businessMembers.permissions,
     })
     .from(businessMembers)
-    .where(eq(businessMembers.userId, user.id));
+    .where(and(eq(businessMembers.userId, user.id), eq(businessMembers.active, true)));
   const primary = memberRows[0] || null;
 
   // Enrich with business names + plan (batch query to avoid N+1)
