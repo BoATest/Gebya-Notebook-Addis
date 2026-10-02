@@ -33,8 +33,15 @@ async function pushTable(
   mapper: (row: any) => any, localIdCol: any, deviceIdCol: any,
   syncVersionCol: any, updatedAtCol: any, businessId: number, actorStaffMemberId: number | null,
   tx?: any
-): Promise<{ count: number; conflicts: ConflictRecord[]; mutations: MutationRecord[] }> {
+): Promise<{ count: number; conflicts: ConflictRecord[]; mutations: MutationRecord[]; truncated: number }> {
+  // Truncation is now REPORTED, never silent (C1): the client must know when
+  // rows were dropped so it can re-push them — silent drops corrupt the ledger.
+  const incomingCount = (rows || []).length;
   const capped = (rows || []).slice(0, MAX_ROWS_PER_TABLE_PUSH);
+  const truncated = Math.max(0, incomingCount - capped.length);
+  if (truncated > 0) {
+    console.warn(`[sync] TRUNCATED push for ${key}: ${truncated}/${incomingCount} rows dropped (limit ${MAX_ROWS_PER_TABLE_PUSH}) device=${deviceId}`);
+  }
   let count = 0;
   const conflicts: ConflictRecord[] = [];
   const mutations: MutationRecord[] = [];
@@ -100,7 +107,7 @@ async function pushTable(
     mutations.push(...chunkResult.mutations);
   }
 
-  return { count, conflicts, mutations };
+  return { count, conflicts, mutations, truncated };
 }
 
 router.post("/push",
@@ -137,7 +144,7 @@ router.post("/push",
   const businessId = await getBusinessForUser(userId, requestedBizId);
   if (!businessId) return res.status(403).json({ error: "No business associated with this account" });
 
-  const results: Record<string, { count: number; conflicts: number }> = {};
+  const results: Record<string, { count: number; conflicts: number; truncated?: number }> = {};
   const allConflicts: ConflictRecord[] = [];
 
   await requireDb().transaction(async (tx) => {
@@ -308,8 +315,12 @@ router.post("/push",
     for (let i = 0; i < tableKeys.length; i++) {
       const key = tableKeys[i];
       const result = pushResults[i];
-      if (result.count > 0 || result.conflicts.length > 0) {
+      // Report every table result — including truncated-only pushes (C1: no silent drops).
+      if (result.count > 0 || result.conflicts.length > 0 || result.truncated > 0) {
         results[key] = { count: result.count, conflicts: result.conflicts.length };
+        if (result.truncated > 0) {
+          results[key].truncated = result.truncated;
+        }
         allConflicts.push(...result.conflicts);
       }
     }
@@ -317,7 +328,12 @@ router.post("/push",
     for (const key of ["settings", "analytics"] as const) {
       const rows: any[] = tables?.[key];
       if (!Array.isArray(rows) || rows.length === 0) continue;
+      const incomingCount = rows.length;
       const capped = rows.slice(0, MAX_ROWS_PER_TABLE_PUSH);
+      const truncatedKv = Math.max(0, incomingCount - capped.length);
+      if (truncatedKv > 0) {
+        console.warn(`[sync] TRUNCATED push for ${key}: ${truncatedKv}/${incomingCount} rows dropped (limit ${MAX_ROWS_PER_TABLE_PUSH}) device=${device_id}`);
+      }
       const mapper = key === "settings" ? mapSetting : mapAnalytics;
       const table = key === "settings" ? settings : analytics;
       const conflictCols = key === "settings" ? [settings.deviceId, settings.key] : [analytics.deviceId, analytics.key];
@@ -328,7 +344,10 @@ router.post("/push",
         await tx.insert(table).values(data).onConflictDoUpdate({ target: conflictCols, set: data });
         count++;
       }
-      if (count > 0) results[key] = { count, conflicts: 0 };
+      if (count > 0 || truncatedKv > 0) {
+        results[key] = { count, conflicts: 0 };
+        if (truncatedKv > 0) results[key].truncated = truncatedKv;
+      }
     }
   });
 

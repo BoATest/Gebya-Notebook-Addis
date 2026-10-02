@@ -64,6 +64,10 @@ export const transactions = pgTable("transactions", {
   unique("transactions_device_local").on(t.deviceId, t.localId),
   unique("transactions_device_txn").on(t.deviceId, t.transactionId),
   index("transactions_business_idx").on(t.businessId),
+  // Credit-ledger hot path: per-customer transaction listing and balance sums.
+  index("transactions_business_customer_idx").on(t.businessId, t.customerId),
+  // Reporting: date-range scans (client epoch millis, not timestamptz).
+  index("transactions_business_created_idx").on(t.businessId, t.createdAt),
 ]);
 
 export const insertTransactionSchema = z.object({

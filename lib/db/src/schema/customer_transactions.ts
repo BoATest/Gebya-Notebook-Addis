@@ -33,6 +33,8 @@ export const customerTransactions = pgTable("customer_transactions", {
   unique("cust_txn_device_local").on(t.deviceId, t.localId),
   unique("cust_txn_device_txn").on(t.deviceId, t.transactionId),
   index("customer_transactions_business_idx").on(t.businessId),
+  // Per-customer credit history + balance aggregation.
+  index("customer_transactions_business_customer_idx").on(t.businessId, t.customerId),
 ]);
 
 export const insertCustomerTransactionSchema = z.object({

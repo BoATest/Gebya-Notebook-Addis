@@ -1,4 +1,4 @@
-import { pgTable, integer, numeric, jsonb, varchar, bigint } from "drizzle-orm/pg-core";
+import { pgTable, bigint, integer, numeric, jsonb, varchar, index } from "drizzle-orm/pg-core";
 
 export const settlements = pgTable("settlements", {
   id: bigint("id", { mode: "number" }).primaryKey(),
@@ -64,7 +64,10 @@ export const settlements = pgTable("settlements", {
   updatedAt: bigint("updated_at", { mode: "number" }),
   syncVersion: integer("sync_version").notNull().default(1),
   schemaVersion: integer("schema_version").notNull().default(1),
-});
+}, (t) => [
+  // Settlements are always listed/reconciled per business; previously unindexed.
+  index("settlements_business_idx").on(t.businessId),
+]);
 
 export type Settlement = typeof settlements.$inferSelect;
 export type InsertSettlement = typeof settlements.$inferInsert;
