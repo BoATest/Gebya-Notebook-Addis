@@ -76,11 +76,18 @@ export async function getCustomerBalances(
 
   const rows = await baseQuery as CustomerBalanceRow[];
 
+  // Defensive boundary conversion: with the ::float8 cast in balance.ts the
+  // driver delivers numbers, but belt-and-suspenders for any raw-SUM path.
+  const normalized = rows.map((r) => ({
+    ...r,
+    balance: typeof r.balance === "string" ? Number(r.balance) : r.balance,
+  }));
+
   // Filter positive balances if not done via HAVING
   if (!onlyPositiveBalance) {
-    return rows.filter((r) => r.balance > 0);
+    return normalized.filter((r) => r.balance > 0);
   }
 
-  return rows;
+  return normalized;
 }
 

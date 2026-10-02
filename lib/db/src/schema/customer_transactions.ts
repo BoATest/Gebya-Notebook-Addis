@@ -1,5 +1,6 @@
-import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique, real, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique, numeric, index } from "drizzle-orm/pg-core";
 import { businesses } from "./businesses";
+import { money2 } from "./transactions";
 import { z } from "zod";
 
 export const customerTransactions = pgTable("customer_transactions", {
@@ -9,7 +10,7 @@ export const customerTransactions = pgTable("customer_transactions", {
   transactionId: varchar("transaction_id", { length: 128 }).notNull(),
 
   customerId: integer("customer_id").notNull(),
-  amount: real("amount").notNull().default(0),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull().default("0"),
   type: varchar("type", { length: 32 }).notNull().default("payment"),
   note: text("note"),
   itemNote: text("item_note"),
@@ -39,7 +40,7 @@ export const insertCustomerTransactionSchema = z.object({
   deviceId: z.string().max(128),
   transactionId: z.string().max(128),
   customerId: z.number(),
-  amount: z.number().optional(),
+  amount: money2.optional(),
   type: z.string().max(32).optional(),
   note: z.string().nullable().optional(),
   itemNote: z.string().nullable().optional(),

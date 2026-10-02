@@ -1,6 +1,22 @@
-import { pgTable, serial, text, integer, real, boolean, bigint, varchar, timestamp, unique, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, real, numeric, boolean, bigint, varchar, timestamp, unique, index } from "drizzle-orm/pg-core";
 import { businesses } from "./businesses";
 import { z } from "zod";
+
+/**
+ * Money column type (migration 0007): numeric(12,2) with 2-decimal-place guard.
+ * Epsilon comparison is mandatory: `Math.round(v*100) === v*100` rejects valid
+ * values because IEEE-754 makes 0.1*100 === 10.000000000000002.
+ * Accepts JS numbers (the client's JSON contract) and numeric strings (what a
+ * numeric column returns on a pull round-trip).
+ */
+export const money2 = z
+  .union([z.number(), z.string()])
+  .transform((v) => (typeof v === "string" ? Number(v.trim() === "" ? Number.NaN : v) : v))
+  .refine((v) => Number.isFinite(v) && Math.abs(v * 100 - Math.round(v * 100)) < 1e-6, {
+    message: "money value must be finite with at most 2 decimal places",
+  });
+
+const nullableMoney2 = () => money2.nullable().optional();
 
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
@@ -9,11 +25,11 @@ export const transactions = pgTable("transactions", {
   transactionId: varchar("transaction_id", { length: 128 }).notNull(),
 
   type: varchar("type", { length: 32 }).notNull(),
-  amount: real("amount").notNull().default(0),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull().default("0"),
   itemName: text("item_name").notNull(),
-  costPrice: real("cost_price"),
+  costPrice: numeric("cost_price", { precision: 12, scale: 2 }),
   quantity: integer("quantity").notNull().default(1),
-  profit: real("profit"),
+  profit: numeric("profit", { precision: 12, scale: 2 }),
   isCredit: boolean("is_credit").default(false),
   customerId: integer("customer_id"),
   customerName: text("customer_name"),
@@ -27,8 +43,8 @@ export const transactions = pgTable("transactions", {
    paymentProvider: varchar("payment_provider", { length: 64 }),
 
   saleSettlementMode: varchar("sale_settlement_mode", { length: 32 }),
-  paidAmount: real("paid_amount"),
-  remainingAmount: real("remaining_amount"),
+  paidAmount: numeric("paid_amount", { precision: 12, scale: 2 }),
+  remainingAmount: numeric("remaining_amount", { precision: 12, scale: 2 }),
   settlementDueDate: bigint("settlement_due_date", { mode: "number" }),
 
   source: varchar("source", { length: 32 }),
@@ -55,11 +71,11 @@ export const insertTransactionSchema = z.object({
   deviceId: z.string().max(128),
   transactionId: z.string().max(128),
   type: z.string().max(32),
-  amount: z.number().optional(),
+  amount: money2.optional(),
   itemName: z.string().nullable().optional(),
-  costPrice: z.number().nullable().optional(),
+  costPrice: nullableMoney2(),
   quantity: z.number().optional(),
-  profit: z.number().nullable().optional(),
+  profit: nullableMoney2(),
   isCredit: z.boolean().optional(),
   customerId: z.number().nullable().optional(),
   customerName: z.string().nullable().optional(),
@@ -70,8 +86,8 @@ export const insertTransactionSchema = z.object({
    paymentType: z.string().max(64).nullable().optional(),
    paymentProvider: z.string().max(64).nullable().optional(),
    saleSettlementMode: z.string().max(32).nullable().optional(),
-  paidAmount: z.number().nullable().optional(),
-  remainingAmount: z.number().nullable().optional(),
+  paidAmount: nullableMoney2(),
+  remainingAmount: nullableMoney2(),
   settlementDueDate: z.number().nullable().optional(),
   source: z.string().max(32).nullable().optional(),
   wasEdited: z.boolean().optional(),

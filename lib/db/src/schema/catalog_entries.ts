@@ -1,5 +1,6 @@
-import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique, real, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, bigint, varchar, timestamp, unique, numeric, index } from "drizzle-orm/pg-core";
 import { businesses } from "./businesses";
+import { money2 } from "./transactions";
 import { z } from "zod";
 
 export const catalogEntries = pgTable("catalog_entries", {
@@ -11,8 +12,8 @@ export const catalogEntries = pgTable("catalog_entries", {
   name: text("name").notNull(),
   kind: varchar("kind", { length: 32 }).notNull().default("item"),
   active: boolean("active").default(true),
-  defaultPrice: real("default_price"),
-  defaultCost: real("default_cost"),
+  defaultPrice: numeric("default_price", { precision: 12, scale: 2 }),
+  defaultCost: numeric("default_cost", { precision: 12, scale: 2 }),
   note: text("note"),
 
   createdAt: bigint("created_at", { mode: "number" }).notNull(),
@@ -35,8 +36,8 @@ export const insertCatalogEntrySchema = z.object({
   name: z.string(),
   kind: z.string().max(32).optional(),
   active: z.boolean().optional(),
-  defaultPrice: z.number().nullable().optional(),
-  defaultCost: z.number().nullable().optional(),
+  defaultPrice: money2.nullable().optional(),
+  defaultCost: money2.nullable().optional(),
   note: z.string().nullable().optional(),
   createdAt: z.number(),
   updatedAt: z.number().optional(),
