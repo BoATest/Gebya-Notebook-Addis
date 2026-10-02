@@ -381,12 +381,14 @@ router.get("/pull",
   // string-poison legacy clients (bare accumulators like getCustomerBalance)
   // and trip the client's strict-type _deepEqual forever. Convert to rounded
   // numbers server-side so every client — old or new — receives JS numbers.
+  // NOTE: keys are camelCase because drizzle $inferSelect row objects (and the
+  // pull response) use camelCase; the client maps to snake_case on ingestion.
   const MONEY_FIELDS_BY_TABLE: Record<string, string[]> = {
-    transactions: ["amount", "cost_price", "profit", "paid_amount", "remaining_amount"],
-    customer_transactions: ["amount", "paid_amount"],
+    transactions: ["amount", "costPrice", "profit", "paidAmount", "remainingAmount"],
+    customer_transactions: ["amount", "paidAmount"],
     supplier_transactions: ["amount"],
-    catalog_entries: ["default_price", "default_cost"],
-    settlements: ["expected_cash", "actual_cash", "cash_variance", "expected_transfer", "actual_transfer", "transfer_variance", "expected_total", "actual_total", "total_variance", "final_expected_cash", "final_expected_total", "final_variance", "staff_reported_cash", "staff_reported_transfer", "carry_forward"],
+    catalog_entries: ["defaultPrice", "defaultCost"],
+    settlements: ["expectedCash", "actualCash", "cashVariance", "expectedTransfer", "actualTransfer", "transferVariance", "expectedTotal", "actualTotal", "totalVariance", "finalExpectedCash", "finalExpectedTotal", "finalVariance", "staffReportedCash", "staffReportedTransfer", "carryForward"],
   };
   for (const [tbl, fields] of Object.entries(MONEY_FIELDS_BY_TABLE)) {
     for (const row of tables[tbl] as any[]) {
