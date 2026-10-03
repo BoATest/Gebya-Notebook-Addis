@@ -720,19 +720,26 @@ class SyncEngine {
     // and trust the HTTP 200.
     const ackKeys = [];
     const results = response?.results;
+    const truncatedTables = [];
     for (const name of Object.keys(ackKeysByTable)) {
       const applied = results?.[name]?.count;
       if (typeof applied === 'number' && applied < (sentCountByTable[name] || 0)) {
-        if (import.meta.env.DEV) {
-          // eslint-disable-next-line no-console
-          console.warn(
-            `[sync] push truncated on ${name}: sent ${sentCountByTable[name]}, ` +
-            `server applied ${applied} — keeping outbox entries for retry`
-          );
-        }
+        // C1: truncation must be VISIBLE, never silent — collect per-table and
+        // surface a persistent sync warning through the same channel as conflicts.
+        truncatedTables.push({ table: name, sent: sentCountByTable[name] || 0, applied });
         continue;
       }
       ackKeys.push(...ackKeysByTable[name]);
+    }
+    if (truncatedTables.length > 0) {
+      const summary = truncatedTables
+        .map((t) => `${t.table}: ${t.applied}/${t.sent} synced — the rest will retry automatically`)
+        .join('; ');
+      try {
+        useSyncStore.getState().setConflictWarning(
+          `Some records haven't synced yet (server limit). ${summary}`
+        );
+      } catch { /* store unavailable */ }
     }
     if (ackKeys.length && db.sync_outbox) {
       try { await db.sync_outbox.bulkDelete(ackKeys); } catch { /* recount heals */ }

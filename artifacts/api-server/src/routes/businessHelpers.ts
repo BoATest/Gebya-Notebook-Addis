@@ -16,7 +16,9 @@ export function getRequestedBizId(req: any): number | undefined {
 }
 
 export async function getBusinessForUser(userId: number, businessId?: number) {
-  const filters: any[] = [eq(businessMembers.userId, userId)];
+  // active=true: a deactivated member must not resolve a business context.
+// (Mirrors syncHelpers.getBusinessForUser — this variant serves /business routes.)
+const filters: any[] = [eq(businessMembers.userId, userId), eq(businessMembers.active, true)];
   if (businessId) filters.push(eq(businessMembers.businessId, businessId));
   const rows = await requireDb()
     .select({ businessId: businessMembers.businessId, displayName: businessMembers.displayName })
