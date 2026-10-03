@@ -1,4 +1,5 @@
-import { getAuthToken } from './syncEngine'; { roundMoney2dp } from './moneyGuard';
+import { getAuthToken } from './syncEngine';
+import { roundMoney2dp } from './moneyGuard';
 
 function compareNumericDesc(left, right) {
   return (Number(right) || 0) - (Number(left) || 0);
