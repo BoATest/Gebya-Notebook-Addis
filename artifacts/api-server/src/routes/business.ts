@@ -121,6 +121,18 @@ router.post("/invites/:inviteId/accept", async (req, res) => {
   if (!userId) return res.status(401).json({ error: "Authorization required" });
   const inviteId = Number(req.params.inviteId);
   if (!Number.isFinite(inviteId)) return res.status(400).json({ error: "Invalid inviteId" });
+  // IDOR guard: invite IDs are a sequential, guessable space. Acceptance must be
+  // bound to the caller's verified phone — an invite is addressed to exactly one
+  // phone number (invites.phoneNumber, the same binding /invites/pending-for-me
+  // uses for discovery). Without this check any authenticated user could iterate
+  // IDs and join arbitrary businesses in the invited role (which may be manager).
+  const callerRows = await requireDb()
+    .select({ phone: users.phoneNumber })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const callerPhone = callerRows[0]?.phone ? normalizePhone(callerRows[0].phone) : null;
+
   const result = await requireDb().transaction(async (tx) => {
     const rows = await tx
       .select()
@@ -129,6 +141,12 @@ router.post("/invites/:inviteId/accept", async (req, res) => {
       .limit(1);
     if (!rows.length) return { kind: "not_found" };
     const inv = rows[0];
+    // Phone binding: the invite names its intended recipient. Absent/unmatchable
+    // caller phone and legacy phoneless invites are both rejected here.
+    const invPhone = inv.phoneNumber ? normalizePhone(inv.phoneNumber) : null;
+    if (!callerPhone || !invPhone || callerPhone !== invPhone) {
+      return { kind: "not_for_you" };
+    }
     if (inv.acceptedAt) return { kind: "already_used" };
     if (inv.revokedAt) return { kind: "revoked" };
     if (inv.declinedAt) return { kind: "declined" };
@@ -164,7 +182,8 @@ router.post("/invites/:inviteId/accept", async (req, res) => {
       .limit(1);
     return { kind: "joined", businessName: biz[0]?.name || "a shop", role: inv.role, shop_id: inv.businessId };
   });
-  if (result.kind === "not_found") return res.status(404).json({ error: "Invite not found" });
+  if (result.kind === "not_found" || result.kind === "not_for_you")
+    return res.status(404).json({ error: "Invite not found" });
   if (result.kind === "already_used") return res.status(410).json({ error: "Invite already accepted" });
   if (result.kind === "revoked") return res.status(410).json({ error: "Invite has been revoked" });
   if (result.kind === "declined") return res.status(410).json({ error: "Invite already declined" });
@@ -177,6 +196,13 @@ router.post("/invites/:inviteId/decline", async (req, res) => {
   if (!userId) return res.status(401).json({ error: "Authorization required" });
   const inviteId = Number(req.params.inviteId);
   if (!Number.isFinite(inviteId)) return res.status(400).json({ error: "Invalid inviteId" });
+  // decline IDOR guard — same phone binding as accept (see above).
+  const callerRowsDecline = await requireDb()
+    .select({ phone: users.phoneNumber })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const callerPhoneDecline = callerRowsDecline[0]?.phone ? normalizePhone(callerRowsDecline[0].phone) : null;
   const rows = await requireDb()
     .select()
     .from(invites)
@@ -184,6 +210,10 @@ router.post("/invites/:inviteId/decline", async (req, res) => {
     .limit(1);
   if (!rows.length) return res.status(404).json({ error: "Invite not found" });
   const inv = rows[0];
+  const invPhoneDecline = inv.phoneNumber ? normalizePhone(inv.phoneNumber) : null;
+  if (!callerPhoneDecline || !invPhoneDecline || callerPhoneDecline !== invPhoneDecline) {
+    return res.status(404).json({ error: "Invite not found" });
+  }
   if (inv.acceptedAt) return res.status(410).json({ error: "Already accepted" });
   if (inv.revokedAt) return res.status(410).json({ error: "Invite was revoked" });
   if (inv.declinedAt) return res.status(410).json({ error: "Already declined" });
